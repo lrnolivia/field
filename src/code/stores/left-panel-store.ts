@@ -1,10 +1,11 @@
 // left-panel-store.ts — Jotai atoms for WHERE THE USER IS in the editor chrome:
 // which left panel is open, and whether a full-screen overlay is covering the
-// canvas. The panel can never be fully closed — it falls back to
-// DEFAULT_LEFT_PANEL.
+// canvas. Selection and workspace visibility are separate: the selected
+// panel remains available when the content pane is collapsed.
 
 import { atom } from 'jotai';
 import { trace } from '@/shared/debug-trace';
+import { leftPaneOpenAtom } from './workspace-panels-store';
 
 export type LeftPanelId =
   | 'insert'
@@ -41,16 +42,19 @@ export const codeEditorOpenAtom = atom(false);
  *  on a code override). The editor consumes it and resets it to null. */
 export const codeEditorViewRequestAtom = atom<string | null>(null);
 
-/** Derived write atom: clicking the active panel falls back to the home panel
- *  instead of closing. */
+/** Rail click: select a panel, reopen the content pane, or collapse the
+ *  active pane. A second click on the Layers/Pages rail item while Pages is
+ *  showing returns to Layers first. */
 export const togglePanelAtom = atom(
   (get) => get(leftPanelAtom),
   (get, set, panelId: LeftPanelId) => {
     const current = get(leftPanelAtom);
-    // If clicking the already-active panel, go home (never close)
-    const next = current === panelId ? DEFAULT_LEFT_PANEL : panelId;
-    trace.action('left-panel:toggle', { from: current, to: next });
+    const open = get(leftPaneOpenAtom);
+    const next = panelId === 'layers' && current === 'pages-layers' ? 'layers' : panelId;
+    const nextOpen = !open || current !== next;
+    trace.action('left-panel:toggle', { from: current, to: next, open: nextOpen });
     set(leftPanelAtom, next);
+    set(leftPaneOpenAtom, nextOpen);
   },
 );
 

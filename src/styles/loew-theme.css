@@ -83,16 +83,16 @@ textarea {
 /* -------------------------------------------------------------------------- */
 
 :root {
-  --bg-canvas: #e5e5e5;
+  --bg-canvas: #e9e9e9;
   --bg-surface: #ffffff;
-  --bg-toolbar: #ffffff;
-  --bg-panel: #ffffff;
-  --bg-hover: #f1f1f1;
-  --bg-active: #e7e7e7;
-  --bg-tertiary: #f5f5f5;
+  --bg-toolbar: #fafafa;
+  --bg-panel: #f7f7f7;
+  --bg-hover: #eaeaea;
+  --bg-active: #e1e1e1;
+  --bg-tertiary: #f0f0f0;
 
-  --canvas-chrome-bg: #ffffff;
-  --canvas-chrome-border: #dedede;
+  --canvas-chrome-bg: #fafafa;
+  --canvas-chrome-border: #d6d6d6;
   --variant-card-bg: #ffffff;
   --variant-card-bg-hover: #f3f3f3;
   --variant-card-badge: #e6e6e6;
@@ -104,18 +104,18 @@ textarea {
   --text-tertiary: #8a8a8a;
   --text-muted: #9c9c9c;
 
-  --border-light: rgba(0, 0, 0, 0.08);
-  --border-default: rgba(0, 0, 0, 0.14);
+  --border-light: rgba(0, 0, 0, 0.10);
+  --border-default: rgba(0, 0, 0, 0.17);
   --border-focus: var(--accent);
 
-  --grid-line: #f0f0f0;
+  --grid-line: #ededed;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #eaeaea;
-  --control-bg-active: #e1e1e1;
-  --control-border: rgba(0, 0, 0, 0.08);
-  --control-border-hover: rgba(0, 0, 0, 0.16);
-  --choice-bg: #eeeeee;
-  --segmented-bg: #ffffff;
+  --control-bg-hover: #e3e3e3;
+  --control-bg-active: #d9d9d9;
+  --control-border: rgba(0, 0, 0, 0.10);
+  --control-border-hover: rgba(0, 0, 0, 0.18);
+  --choice-bg: #e9e9e9;
+  --segmented-bg: #e9e9e9;
   --slider-bg: #d7d7d7;
   --slider-thumb-border: rgba(0, 0, 0, 0.18);
 

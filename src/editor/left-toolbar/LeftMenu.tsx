@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
@@ -117,6 +118,7 @@ const MenuButton = React.memo(function MenuButton({
 
 export default function LeftMenu() {
   const [activePanel, togglePanel] = useAtom(togglePanelAtom);
+  const [leftPaneOpen, setLeftPaneOpen] = useAtom(leftPaneOpenAtom);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
   // Viewer mode — only Pages + Layers stay interactive (navigation /
   // inspection). VIBE, Insert, Library, Presets, Media, Locale, CMS,
@@ -245,7 +247,7 @@ export default function LeftMenu() {
                   className={`vibe-face absolute inset-0 cut-corners flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
                       ? 'bg-[var(--accent)] text-[var(--accent-fg)] opacity-40 cursor-not-allowed'
-                      : activePanel === 'vibe'
+                      : leftPaneOpen && activePanel === 'vibe'
                         ? 'bg-[var(--accent-hover)] text-[var(--accent-fg)]'
                         : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)]'
                   }`}
@@ -271,7 +273,7 @@ export default function LeftMenu() {
           className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
             isViewer
               ? 'bg-[var(--accent)] opacity-40 cursor-not-allowed'
-              : activePanel === 'insert'
+              : leftPaneOpen && activePanel === 'insert'
                 ? 'bg-[var(--accent-hover)]'
                 : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)]'
           }`}
@@ -289,9 +291,9 @@ export default function LeftMenu() {
             id, so pointing it at `pages-layers` opened the panel on Pages,
             which is the visit, not the default. `isActive` covers both ids so
             the rail stays lit on either tab, and `togglePanel` sends a second
-            click back to `layers` (it returns to the default rather than
-            closing). `layers-button` stays as the tutorial hook. */}
-        <MenuButton panelId="layers" isActive={activePanel === 'pages-layers' || activePanel === 'layers'} onToggle={togglePanel} title="Layers & Pages" tooltip={tooltipHandlers} dataTutorial="layers-button">
+            click back to `layers` (before another click collapses the pane).
+            `layers-button` stays as the tutorial hook. */}
+        <MenuButton panelId="layers" isActive={leftPaneOpen && (activePanel === 'pages-layers' || activePanel === 'layers')} onToggle={togglePanel} title="Layers & Pages" tooltip={tooltipHandlers} dataTutorial="layers-button">
           <LayersIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -299,30 +301,30 @@ export default function LeftMenu() {
             insert surface (pick a thing, drop it on the canvas) rather than a
             way of navigating the current document. Enabled for viewers; the
             panel itself gates which sections they can click into. */}
-        <MenuButton panelId="library" isActive={activePanel === 'library'} onToggle={togglePanel} title="Library" tooltip={tooltipHandlers} dataTutorial="library-button">
+        <MenuButton panelId="library" isActive={leftPaneOpen && activePanel === 'library'} onToggle={togglePanel} title="Library" tooltip={tooltipHandlers} dataTutorial="library-button">
           <LibraryStackIcon className="w-[18px] h-[18px]" size={18} />
         </MenuButton>
 
 
         {/* Presets */}
-        <MenuButton panelId="presets" isActive={activePanel === 'presets'} onToggle={togglePanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
+        <MenuButton panelId="presets" isActive={leftPaneOpen && activePanel === 'presets'} onToggle={togglePanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className="w-[18px] h-[18px]">
             <path fill="currentColor" d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 2 2a2 2 0 0 0 2-2c0-1.33-2-3.5-2-3.5M5.21 10L10 5.21L14.79 10m1.77-1.06L7.62 0L6.21 1.41l2.38 2.38l-5.15 5.15c-.59.56-.59 1.53 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.59.59-1.56 0-2.12" />
           </svg>
         </MenuButton>
 
         {/* Media Gallery */}
-        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={togglePanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
+        <MenuButton panelId="media" isActive={leftPaneOpen && activePanel === 'media'} onToggle={togglePanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
           <ChatImageIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
         {/* Localization */}
-        <MenuButton panelId="locale" isActive={activePanel === 'locale'} onToggle={togglePanel} title="Localization" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="locale-button">
+        <MenuButton panelId="locale" isActive={leftPaneOpen && activePanel === 'locale'} onToggle={togglePanel} title="Localization" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="locale-button">
           <GlobeInternationalIcon className="w-[18px] h-[18px]" size={18} />
         </MenuButton>
 
         {/* CMS */}
-        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={togglePanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
+        <MenuButton panelId="cms" isActive={leftPaneOpen && activePanel === 'cms'} onToggle={togglePanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
           <CmsIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -330,7 +332,7 @@ export default function LeftMenu() {
         {/* Branches keys on the ROLE: while an agent run holds the branch the
             panel is where you see which one is in use (switching is refused
             with the reason until the run finishes). */}
-        <MenuButton panelId="branches" isActive={activePanel === 'branches'} onToggle={togglePanel} title="Branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
+        <MenuButton panelId="branches" isActive={leftPaneOpen && activePanel === 'branches'} onToggle={togglePanel} title="Branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
           <BranchIcon size={18} />
         </MenuButton>
 
@@ -364,6 +366,19 @@ export default function LeftMenu() {
           Replaces the prior Help (?) icon — at the bottom of the
           strip we want the share affordance, not docs. */}
       <div className="relative z-10 flex flex-col items-center gap-3">
+        <button
+          type="button"
+          aria-label={leftPaneOpen ? 'Collapse left pane' : 'Expand left pane'}
+          title={leftPaneOpen ? 'Collapse left pane' : 'Expand left pane'}
+          onClick={() => setLeftPaneOpen(v => !v)}
+          className="flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+        >
+          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="16" height="16">
+            <rect x="1.5" y="2" width="13" height="12" rx="1" />
+            <path d="M5.5 2v12" />
+            <path d={leftPaneOpen ? 'm11 6-2 2 2 2' : 'm9 6 2 2-2 2'} />
+          </svg>
+        </button>
         <div className="w-5 h-px bg-[var(--border-light)]" />
         <CollaboratorsSection
           onAddClick={() => setCollabModalOpen(true)}

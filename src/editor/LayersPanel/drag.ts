@@ -64,6 +64,9 @@ export function computeEdgeAutoScrollDelta(
  *  the generators count `{children}` as a slot — but can never be the anchor
  *  (it's a JSX expression; the anchor lookup only matches data-id elements).
  *
+ *  A drop above a Layers row maps to AFTER that sibling in source because
+ *  the panel displays the frontmost painted sibling first.
+ *
  *  `insertBeforeId` mirrors the canvas drag's anchor
  *  (computeLayoutInsertAnchorId): the sibling the node must land BEFORE, or
  *  undefined to append / defer to the index. */
@@ -152,7 +155,8 @@ export function resolveLayerDropStructure(
   const fileSiblings = fileSiblingsOf(parent);
   const siblingIndex = fileSiblings.indexOf(targetId);
   if (siblingIndex === -1) return null;
-  const structuralInsertIndex = indicator.position === 'after' ? siblingIndex + 1 : siblingIndex;
+  // A row ABOVE its target is painted AFTER it in source order.
+  const structuralInsertIndex = indicator.position === 'before' ? siblingIndex + 1 : siblingIndex;
   const anchor = fileSiblings[structuralInsertIndex];
   return {
     finalParentId,
@@ -305,7 +309,7 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
       const relativeY = ev.clientY - rect.top;
       const height = rect.height;
       const parent = targetNode.parentId ? nodes.get(targetNode.parentId) : null;
-      // LAST as the TREE renders it, not as the JSX lists it.
+      // BOTTOM as the TREE renders it, not last in JSX order.
       //
       // On a frame row the bottom 30% means "after" only for the last child;
       // otherwise it means "inside". Reading `parent.children` answers in JSX
@@ -323,7 +327,8 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
             getDefaultStore().get(containerOverridesAtom), isCompMode,
           ).filter(id => !id.startsWith('layout::'))
         : [];
-      const isLastChild = ordered.length > 0 && ordered[ordered.length - 1] === targetNodeId;
+      // The bottom row is the earliest painted sibling.
+      const isLastChild = ordered.length > 0 && ordered[0] === targetNodeId;
       const isComponentInstance = !!targetNode.componentFile;
 
       let position: 'before' | 'after' | 'inside';
@@ -632,17 +637,13 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
       }
 
       if (isOrderedLayout) {
-        // Build desired visual order. The current visual order comes from
-        // the bridge rect cache (same source LayoutLiftedStrategy and
-        // arrow-nudge use), sorted on the parent's primary axis. Remove
-        // the dragged id if it's already a child of finalParentId, then
-        // insert it at the user-visible drop slot.
+        // Build desired visual order from the same resolved order as the tree.
         const flexDir = getFlexDirectionById(finalParentId, dropVpId);
         // ORDER THE SIBLINGS THE WAY THE TREE DOES — not by rect.
         //
         // The drop indicator is a TREE concept ("before this row"), so the
-        // sequence the commit renumbers has to be the sequence the tree shows,
-        // or "before X" means two different things on the two sides.
+        // sequence the commit renumbers has to be the paint-order sequence
+        // underlying the tree. The tree presents that sequence reversed.
         //
         // Rects cannot supply that. A child hidden for this viewport/variant
         // still has a cache entry, as a 0x0 rect parked at the parent's origin,
@@ -672,9 +673,8 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
 
         const withoutDragged = currentVisualIds.filter(id => id !== draggedId);
 
-        // visualInsertIndex: for `inside`, append; for `before`/`after`,
-        // anchor relative to the target id's position in the CURRENT visual
-        // order (NOT the JSX index — under CSS `order` they may differ).
+        // The tree is front-to-back, while this CSS-order list is back-to-front.
+        // A drop above a row inserts AFTER it in paint/source order.
         let visualInsertIndex: number;
         if (indicator.position === 'inside') {
           visualInsertIndex = withoutDragged.length;
@@ -686,7 +686,7 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
             // structural index — at least the JSX reorder lands somewhere.
             visualInsertIndex = withoutDragged.length;
           } else {
-            visualInsertIndex = indicator.position === 'after' ? targetVisualIndex + 1 : targetVisualIndex;
+            visualInsertIndex = indicator.position === 'before' ? targetVisualIndex + 1 : targetVisualIndex;
           }
         }
 

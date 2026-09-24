@@ -1,9 +1,9 @@
 # LOEW_THEME — "Minimal UI" editor theme
 
-Cosmetic reskin of Revyme's **editor chrome only**: flat neutral graphite surfaces,
-rounded corners, no glass, restrained shadows, a quiet cool accent. Nothing about
-layout geometry, workflows, canvas behaviour, Cloudflare routing or the user's site
-styling is changed.
+The initial pass was a cosmetic reskin of Revyme's **editor chrome only**:
+flat neutral graphite surfaces, restrained shadows, and a quiet accent.
+Subsequent editor passes also refine workspace geometry and Layers behavior.
+Cloudflare routing and the user's site styling remain outside this work.
 
 ## Files
 
@@ -151,3 +151,20 @@ Second polish pass after live visual review:
 - Rail/tool controls are reduced to ~26px boxes with ~15px glyphs.
 - Graphite is medium grey (#6b6b6b) rather than white in dark mode.
 - Side-panel typography is tightened while preserving hierarchy.
+
+## Workspace and layer-stack refinement V3
+
+- The bottom toolbar floats 18px above the viewport edge.
+- The left content pane and right Properties pane collapse independently. Their
+  visibility is stored as user preferences; the 52px left rail stays available.
+  Clicking a rail item reopens directly to that panel.
+- Structural pane backgrounds follow the visible panes. The camera uses 52px or
+  308px for its left inset and 0px or 260px for its right inset; it preserves
+  zoom and shifts with the visible workspace center when a pane toggles.
+- Layers display siblings frontmost first. The tree reverses resolved paint
+  order, while drag/drop translates row position back to JSX and CSS order.
+- A focused browser regression covers pane persistence, overlapping Layers
+  drag order, and computed Canvas/Preview text styles. It does not establish
+  parity for every user component, font source, or responsive variant.
+- Light editor surfaces now use a subtle grey pane/toolbar hierarchy. The
+  canvas remains separate, while the user's website CSS stays untouched.

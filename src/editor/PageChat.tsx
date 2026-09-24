@@ -14,6 +14,7 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { activeFilePathAtom, getFileDisplayName } from '@/code/project/active-file-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import {
   aiChatDetachedAtom, aiChatSheetOpenAtom, detachAiChatAtom, dockAiChatAtom,
 } from '@/code/stores/editor-store';
@@ -28,11 +29,12 @@ export default function PageChat() {
   const detached = useAtomValue(aiChatDetachedAtom);
   const sheetOpen = useAtomValue(aiChatSheetOpenAtom);
   const leftPanel = useAtomValue(leftPanelAtom);
+  const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const detach = useSetAtom(detachAiChatAtom);
   const dock = useSetAtom(dockAiChatAtom);
 
   // Docked in the VIBE panel vs detached into the floating popup.
-  const open = detached ? sheetOpen : leftPanel === 'vibe';
+  const open = detached ? sheetOpen : leftPaneOpen && leftPanel === 'vibe';
   if (!open) return null;
 
   trace.fn('PageChat.render', { detached, activeFilePath });

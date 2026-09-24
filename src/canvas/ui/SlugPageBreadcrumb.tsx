@@ -147,7 +147,8 @@ export default function SlugPageBreadcrumb() {
         // restored 2026-08-20) with the glass surface on a backdrop child —
         // see ComponentBreadcrumb for why the glass can't live on the
         // container (fixed-descendant containing block).
-        className="fixed h-[52px] px-4 flex items-center left-[308px] right-[260px] isolate z-[9000] top-0"
+        className="fixed h-[52px] px-4 flex items-center isolate z-[9000] top-0"
+        style={{ left: 'var(--workspace-left-width, 308px)', right: 'var(--workspace-right-width, 260px)' }}
         data-dynamic-toolbar="true"
       >
         <div

@@ -4995,7 +4995,21 @@ export default function Page({ params }: { params: { slug: string } }) {
   },
 };
 
+export const LAYER_PREVIEW_PARITY = project(`
+/** @canvas { "viewports": [{ "id": "desktop", "width": 1440 }] } */
+'use client';
+export default function Page() {
+  return (
+    <div data-id="root" data-name="Page" style={{ position: 'relative', width: '1440px', minHeight: '900px', background: '#ffffff' }}>
+      <div data-id="ellipse" data-name="Ellipse" style={{ position: 'absolute', left: '90px', top: '70px', width: '230px', height: '140px', borderRadius: '50%', background: '#b2a6e8' }} />
+      <p data-id="headline" data-name="Headline" style={{ position: 'absolute', left: '120px', top: '80px', width: '360px', transform: 'rotate(3deg)', fontFamily: 'Georgia, serif', fontSize: '32px', fontWeight: 700, lineHeight: '1.2', letterSpacing: '-0.5px', textAlign: 'left', color: '#151515' }}>Canvas Preview</p>
+    </div>
+  );
+}
+`);
+
 export const SEEDS = {
+  LAYER_PREVIEW_PARITY,
   REPLICA_EXIT_TO_FRAME,
   NEGATIVE_MARGIN_ROW,
   HANDOFF_TWO_VP,

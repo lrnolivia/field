@@ -32,19 +32,19 @@ const TEMPLATED = nodeMap({
 });
 
 describe('resolveLayerDropStructure — templated page (leading chrome)', () => {
-  it("'before hero' is FILE index 0 with hero as the anchor (was 1 → landed after)", () => {
+  it("'above hero' is FILE index 1, after hero in paint order", () => {
     const r = resolveLayerDropStructure(TEMPLATED, { nodeId: 'hero', position: 'before' }, 'stats');
-    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 0, insertBeforeId: 'hero' });
-  });
-
-  it("'after hero' anchors on the next real section", () => {
-    const r = resolveLayerDropStructure(TEMPLATED, { nodeId: 'hero', position: 'after' }, 'stats');
     expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: 'how' });
   });
 
-  it("'after' the last section appends — no anchor (trailing chrome is not one)", () => {
+  it("'below hero' anchors on hero", () => {
+    const r = resolveLayerDropStructure(TEMPLATED, { nodeId: 'hero', position: 'after' }, 'stats');
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 0, insertBeforeId: 'hero' });
+  });
+
+  it("'below' the frontmost section anchors on that section", () => {
     const r = resolveLayerDropStructure(TEMPLATED, { nodeId: 'faq', position: 'after' }, 'stats');
-    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 3, insertBeforeId: undefined });
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 2, insertBeforeId: 'faq' });
   });
 
   it("'inside' the root appends at the FILE child count, not the merged one", () => {
@@ -63,14 +63,14 @@ describe('resolveLayerDropStructure — dragged node excluded from the index spa
     c: { parentId: 'root' },
   });
 
-  it("dragging 'a' after 'b' is index 1 in the sans-dragged space (not 2)", () => {
+  it("dragging 'a' below 'b' is index 0 in the sans-dragged space", () => {
     const r = resolveLayerDropStructure(PLAIN, { nodeId: 'b', position: 'after' }, 'a');
-    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: 'c' });
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 0, insertBeforeId: 'b' });
   });
 
-  it("dragging 'c' before 'b' is index 1 with 'b' as anchor", () => {
+  it("dragging 'c' above 'b' is index 2 after 'b' in source", () => {
     const r = resolveLayerDropStructure(PLAIN, { nodeId: 'b', position: 'before' }, 'c');
-    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: 'b' });
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 2, insertBeforeId: undefined });
   });
 });
 
@@ -83,9 +83,9 @@ describe('resolveLayerDropStructure — {children} slot on a template master', (
     'footer-sec': { parentId: 'root' },
   });
 
-  it('a drop before the slot keeps the slot in the index and drops the anchor', () => {
+  it('a drop below nav anchors on nav before the slot', () => {
     const r = resolveLayerDropStructure(TEMPLATE_FILE, { nodeId: 'nav-sec', position: 'after' }, 'footer-sec');
-    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: undefined });
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 0, insertBeforeId: 'nav-sec' });
   });
 });
 
@@ -147,26 +147,26 @@ describe('resolveLayerDropStructure — FIT text pair', () => {
   it('resolves a drop BEFORE the inner text against the ROW, not the foreignObject', () => {
     const r = resolveLayerDropStructure(fitTree(), { nodeId: 'txt', position: 'before' }, 'a')!;
     expect(r.finalParentId).toBe('row');
-    expect(r.insertBeforeId).toBe('txt-svg');
+    expect(r.insertBeforeId).toBe('b');
   });
 
   it('resolves a drop AFTER the inner text against the ROW', () => {
     const r = resolveLayerDropStructure(fitTree(), { nodeId: 'txt', position: 'after' }, 'a')!;
     expect(r.finalParentId).toBe('row');
-    // dragged `a` is excluded from the sibling space: [txt-svg, b] → after txt-svg = 1
-    expect(r.structuralInsertIndex).toBe(1);
-    expect(r.insertBeforeId).toBe('b');
+    // dragged `a` is excluded from the sibling space: [txt-svg, b] → below txt-svg = 0
+    expect(r.structuralInsertIndex).toBe(0);
+    expect(r.insertBeforeId).toBe('txt-svg');
   });
 
   it('indexes in the ROW space, so the wrapper counts once and the inner not at all', () => {
     const r = resolveLayerDropStructure(fitTree(), { nodeId: 'txt', position: 'before' }, 'b')!;
-    // siblings without the dragged `b`: [a, txt-svg] → before txt-svg = 1
-    expect(r.structuralInsertIndex).toBe(1);
+    // siblings without the dragged `b`: [a, txt-svg] → above txt-svg = 2
+    expect(r.structuralInsertIndex).toBe(2);
   });
 
   it('a plain sibling is unaffected by the redirect', () => {
     const r = resolveLayerDropStructure(fitTree(), { nodeId: 'b', position: 'before' }, 'a')!;
     expect(r.finalParentId).toBe('row');
-    expect(r.insertBeforeId).toBe('b');
+    expect(r.insertBeforeId).toBeUndefined();
   });
 });

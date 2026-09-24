@@ -3,6 +3,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { createStore } from 'jotai';
 import { leftPanelAtom, togglePanelAtom, DEFAULT_LEFT_PANEL } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 
 // Mock trace
 vi.mock('@/shared/debug-trace', () => ({
@@ -26,30 +27,42 @@ describe('togglePanelAtom', () => {
     expect(store.get(leftPanelAtom)).toBe('insert');
   });
 
-  test('clicking the active panel falls back home (never null)', () => {
+  test('clicking the active rail item collapses and reopens that panel', () => {
     const store = createStore();
     store.set(togglePanelAtom, 'insert');
     expect(store.get(leftPanelAtom)).toBe('insert');
 
-    // Click insert again → back to the home panel
+    // Click insert again → keep its selection, close its content pane.
     store.set(togglePanelAtom, 'insert');
-    expect(store.get(leftPanelAtom)).toBe(DEFAULT_LEFT_PANEL);
+    expect(store.get(leftPanelAtom)).toBe('insert');
+    expect(store.get(leftPaneOpenAtom)).toBe(false);
+    store.set(togglePanelAtom, 'insert');
+    expect(store.get(leftPaneOpenAtom)).toBe(true);
   });
 
-  test('clicking the home panel while on it stays there', () => {
+  test('clicking the home panel while on it collapses it', () => {
     const store = createStore();
     expect(store.get(leftPanelAtom)).toBe(DEFAULT_LEFT_PANEL);
     store.set(togglePanelAtom, DEFAULT_LEFT_PANEL);
     expect(store.get(leftPanelAtom)).toBe(DEFAULT_LEFT_PANEL);
+    expect(store.get(leftPaneOpenAtom)).toBe(false);
   });
 
-  test('Pages is still reachable and still toggles home', () => {
-    // Pages is no longer the fallback, so it must behave like any other panel.
+  test('Pages remains reachable and the Layers rail returns to Layers', () => {
     const store = createStore();
     store.set(togglePanelAtom, 'pages-layers');
     expect(store.get(leftPanelAtom)).toBe('pages-layers');
-    store.set(togglePanelAtom, 'pages-layers');
+    store.set(togglePanelAtom, 'layers');
     expect(store.get(leftPanelAtom)).toBe(DEFAULT_LEFT_PANEL);
+    expect(store.get(leftPaneOpenAtom)).toBe(true);
+  });
+
+  test('clicking another rail item reopens the pane directly there', () => {
+    const store = createStore();
+    store.set(leftPaneOpenAtom, false);
+    store.set(togglePanelAtom, 'library');
+    expect(store.get(leftPanelAtom)).toBe('library');
+    expect(store.get(leftPaneOpenAtom)).toBe(true);
   });
 
   test('switches between different panels', () => {

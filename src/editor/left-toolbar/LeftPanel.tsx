@@ -1,9 +1,10 @@
 // LeftPanel.tsx — Panel container that renders the active panel.
-// Fixed 256px for all panels. Code editor moved to floating CodeEditorPopup.
+// 256px for all open panels; the icon rail remains when this pane closes.
 
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import PagesLayersPanel from './panels/PagesLayersPanel';
 import InsertPanel from './panels/insert';
 import LibraryPanel from './panels/LibraryPanel';
@@ -45,8 +46,9 @@ const PANEL_WIDTH = 256;
 
 export default function LeftPanel() {
   const activePanel = useAtomValue(leftPanelAtom);
+  const open = useAtomValue(leftPaneOpenAtom);
   const PanelComponent = PANEL_MAP[activePanel];
-  if (!PanelComponent) return null;
+  if (!open || !PanelComponent) return null;
 
   trace.fn('LeftPanel.render', { activePanel });
 

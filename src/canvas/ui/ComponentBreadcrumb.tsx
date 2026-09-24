@@ -317,7 +317,8 @@ export default function ComponentBreadcrumb() {
       // The glass must NOT sit on the container itself: backdrop-filter
       // makes an element the containing block for fixed descendants, which
       // would hijack any fixed-positioned children's viewport coords.
-      className="fixed h-[52px] px-4 flex items-center left-[308px] right-[260px] isolate z-[9000] top-0"
+      className="fixed h-[52px] px-4 flex items-center isolate z-[9000] top-0"
+      style={{ left: 'var(--workspace-left-width, 308px)', right: 'var(--workspace-right-width, 260px)' }}
       data-dynamic-toolbar="true"
     >
       <div

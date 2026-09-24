@@ -5,7 +5,7 @@
 // from it too. These tests pin the properties the drop path depends on.
 
 import { describe, test, expect } from 'vitest';
-import { sortChildrenByVisualOrder } from './rows';
+import { sortChildrenByVisualOrder, childrenInLayerStack } from './rows';
 import type { CanvasNode } from '@/code/parsing/parser';
 
 const VPS = [
@@ -104,6 +104,26 @@ describe('sortChildrenByVisualOrder', () => {
     const parent = flexParent(['a', 'ghost']);
     const nodes = new Map([['a', node('a', { order: '1' })]]);
     expect(sort(parent, nodes).sort()).toEqual(['a', 'ghost']);
+  });
+});
+
+describe('childrenInLayerStack', () => {
+  test('later DOM siblings appear above earlier siblings', () => {
+    const parent = node('parent', { display: 'block' }, { children: ['ellipse', 'text'] });
+    const nodes = new Map([['ellipse', node('ellipse')], ['text', node('text')]]);
+    expect(childrenInLayerStack(parent, parent.children, 'desktop', nodes, VPS, new Map(), false))
+      .toEqual(['text', 'ellipse']);
+  });
+
+  test('flex order and source tie breaks map to front-to-back rows', () => {
+    const parent = flexParent(['a', 'b', 'c']);
+    const nodes = new Map([
+      ['a', node('a', { order: '1' })],
+      ['b', node('b', { order: '2' })],
+      ['c', node('c', { order: '2' })],
+    ]);
+    expect(childrenInLayerStack(parent, parent.children, 'desktop', nodes, VPS, new Map(), false))
+      .toEqual(['c', 'b', 'a']);
   });
 });
 

@@ -30,7 +30,7 @@ import ToolDivider from '@/editor/controls/ToolDivider';
 // Row components + pure helpers, the drag-reorder handler, and the search filter
 // live in LayersPanel/ (Phase 7 god-file split, item 7.7). computeSelectionSets +
 // FlatLayer are re-exported below for existing importers of this module.
-import { LayerRow, dedupeLayerRows, visibilityToggleTargets, visibleDisplayForUnhide, computeSelectionSets, computeRangeSelection, isNodeUnderOverlay, resolveDisplayForLayer, getEffectiveLayerStyle, sortChildrenByVisualOrder, overlayExpandPath, type FlatLayer } from './LayersPanel/rows';
+import { LayerRow, dedupeLayerRows, visibilityToggleTargets, visibleDisplayForUnhide, computeSelectionSets, computeRangeSelection, isNodeUnderOverlay, resolveDisplayForLayer, getEffectiveLayerStyle, childrenInLayerStack, type FlatLayer } from './LayersPanel/rows';
 import { startLayerDrag, vpIdFromLayerId } from './LayersPanel/drag';
 import { filterLayersForSearch } from './LayersPanel/search';
 
@@ -262,7 +262,7 @@ export default function LayersPanel() {
       // (This guards against any path that bypasses the instance check
       // above, e.g. component-mode root iteration.)
       if (node.componentInstanceId && node.isComponentRoot) {
-        for (const childId of sortChildrenByVisualOrder(node, node.children, vpId, nodes, vpConfigs, containerOverrides, isCompMode)) {
+        for (const childId of childrenInLayerStack(node, node.children, vpId, nodes, vpConfigs, containerOverrides, isCompMode)) {
           walk(childId, depth, vpId);
         }
         return;
@@ -320,13 +320,13 @@ export default function LayersPanel() {
       result.push(cachedLayer(rowId, nodeId, node, depth, hasChildren, isExp, vpId));
 
       if (isExp && hasRealChildren) {
-        for (const childId of sortChildrenByVisualOrder(node, realChildren, vpId, nodes, vpConfigs, containerOverrides, isCompMode)) {
+        for (const childId of childrenInLayerStack(node, realChildren, vpId, nodes, vpConfigs, containerOverrides, isCompMode)) {
           walk(childId, depth + 1, vpId);
         }
       }
       // Surface triggered overlays as children of the trigger source node.
       if (isExp && ownsOverlay) {
-        for (const ovId of overlaysByTrigger.get(nodeId)!) {
+        for (const ovId of [...overlaysByTrigger.get(nodeId)!].reverse()) {
           walk(ovId, depth + 1, vpId);
         }
       }
@@ -354,7 +354,7 @@ export default function LayersPanel() {
       const rootNode = nodes.get(rootId);
       if (!rootNode) continue;
       if (reparentedOverlayIds.has(rootId)) continue; // canvas-node overlay → shown under its trigger
-      // Top-level canvas-node frame — show at the end (its children walk
+      // Top-level canvas-node frame — show above viewport rows (its children walk
       // recursively below).
       if (rootNode.isCanvasNode) {
         canvasChildren.push(rootId);
@@ -368,7 +368,7 @@ export default function LayersPanel() {
         if (!child) continue;
         if (reparentedOverlayIds.has(childId)) continue; // shown under its trigger
         // Defensive: if a canvas-node ever ends up nested under root, still
-        // surface it at the end rather than per-viewport.
+        // surface it once above viewports rather than per-viewport.
         if (child.isCanvasNode) {
           canvasChildren.push(childId);
           continue;
@@ -390,6 +390,12 @@ export default function LayersPanel() {
       }
     }
 
+    // Canvas roots are appended after the viewport elements by the renderer,
+    // so they paint above them. Show them first in the front-to-back tree.
+    for (const childId of [...canvasChildren].reverse()) {
+      walk(childId, 0, 'desktop');
+    }
+
     // Component mode: show each variant as a header with its children underneath
     // Each variant maps to a viewport entry from visibleViewportsAtom.
     // All variants share the same node tree — the renderer creates separate viewport containers.
@@ -399,7 +405,7 @@ export default function LayersPanel() {
       // ABOVE already populated `canvasChildren` from the same
       // `rootNodeIds` — re-adding here would double up (one canvas-node
       // becomes two layer rows). Skip canvas-node roots entirely; they're
-      // already routed to the canvas section at the end of the panel.
+      // already routed above the variant rows.
       // The variant master root is whatever's left.
       const variantChildren: string[] = [];
       for (const rootId of rootNodeIds) {
@@ -477,7 +483,7 @@ export default function LayersPanel() {
               // here AND again under its trigger — two identical rows in the
               // layers tree (user report 2026-09-21).
               const tileChildren = rootChild.children.filter((cid) => !reparentedOverlayIds.has(cid));
-              for (const childId of sortChildrenByVisualOrder(rootChild, tileChildren, vp.id, nodes, vpConfigs, containerOverrides, isCompMode)) {
+              for (const childId of childrenInLayerStack(rootChild, tileChildren, vp.id, nodes, vpConfigs, containerOverrides, isCompMode)) {
                 walk(childId, 1, vp.id);
               }
             }
@@ -492,12 +498,12 @@ export default function LayersPanel() {
       // synthetic header: walk the master root's children at depth 0
       // so each top-level vector reads as a top-level layer (matching
       // how a dropped component instance sits at root level on a page).
-      for (const childId of pageChildren) {
+      for (const childId of [...pageChildren].reverse()) {
         walk(childId, 0, 'desktop');
       }
     } else {
       // For each viewport, add a viewport header then the page children underneath
-      // (canvas nodes are shown separately at the end, not per-viewport)
+      // (canvas nodes are shown separately above, not per-viewport)
       for (const vp of viewports) {
         const vpRowId = `__vp_${vp.id}`;
         // Layer-search override: viewport headers always expand while
@@ -532,16 +538,11 @@ export default function LayersPanel() {
         // sorting against it would short-circuit; we want root.styles.display.
         if (vpExpanded) {
           const parentForOrder = nodes.get('root') ?? null;
-          for (const childId of sortChildrenByVisualOrder(parentForOrder, pageChildren, vp.id, nodes, vpConfigs, containerOverrides, isCompMode)) {
+          for (const childId of childrenInLayerStack(parentForOrder, pageChildren, vp.id, nodes, vpConfigs, containerOverrides, isCompMode)) {
             walk(childId, 1, vp.id);
           }
         }
       }
-    }
-
-    // Canvas nodes: shown once at the end (not per-viewport)
-    for (const childId of canvasChildren) {
-      walk(childId, 0, 'desktop'); // use desktop viewport context
     }
 
     // ONE ROW PER (viewport, node). The tree is assembled by several loops —

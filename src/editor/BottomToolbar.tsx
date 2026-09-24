@@ -568,10 +568,8 @@ export default function BottomToolbar() {
   return (
     <div
       className="fixed left-1/2 -translate-x-1/2 z-[9998] flex justify-center select-none"
-      // Docked flush to the screen bottom (was a floating pill at bottom:14).
-      // CommandPalette measures #bottom-toolbar-container's live rect, so
-      // anchored UI tracks the offset automatically.
-      style={{ bottom: 12, willChange: 'transform', isolation: 'isolate' }}
+      // CommandPalette measures the live bar rect, so anchored UI tracks it.
+      style={{ bottom: 18, willChange: 'transform', isolation: 'isolate' }}
     >
       <div
         id="bottom-toolbar-container"
@@ -590,7 +588,7 @@ export default function BottomToolbar() {
         <div
           aria-hidden
           className="absolute inset-0 -z-10 cut-corners cut-lg cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)]"
-          // Same glass recipe as ChromeIslands — the bar floats 12px off the
+          // Same flat surface as ChromeIslands — the bar floats 18px off the
           // bottom edge as its own island.
           style={{
             '--cut-border-color': 'var(--border-light)',

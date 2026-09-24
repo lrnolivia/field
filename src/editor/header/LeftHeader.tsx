@@ -14,6 +14,7 @@
 import { useRef, useState, useMemo } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
+import { leftPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
 import {
   directSelectionEnabledAtom,
   autoPanSpeedAtom,
@@ -249,6 +250,7 @@ export function LogoButton() {
 
 export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
+  const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   trace.fn('LeftHeader:render', { previewMode });
 
   return (
@@ -257,7 +259,7 @@ export default function LeftHeader() {
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: 'calc(52px + 256px)', left: 0, top: 0 }}
+      style={{ width: LEFT_RAIL_WIDTH + (leftPaneOpen ? LEFT_CONTENT_WIDTH : 0), left: 0, top: 0 }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
@@ -289,7 +291,7 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      <div className="flex-1 min-w-0 flex items-center" style={{ paddingLeft: 10, paddingRight: 10 }}>
+      {leftPaneOpen && <div className="flex-1 min-w-0 flex items-center" style={{ paddingLeft: 10, paddingRight: 10 }}>
         {previewMode ? (
           <Button
             variant="secondary"
@@ -308,7 +310,7 @@ export default function LeftHeader() {
         ) : (
           <ProjectChip />
         )}
-      </div>
+      </div>}
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).

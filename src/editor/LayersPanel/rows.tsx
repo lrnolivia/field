@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { CanvasNode } from '@/code/parsing/parser';
-import { isFrameTag, isTextTag } from '@/shared/constants';
+import { isTextTag } from '@/shared/constants';
 import { layerAcceptsInsideDrop } from './drag';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { isVectorSetComponentFile } from '@/code/project/active-file-store';
@@ -485,6 +485,21 @@ export function sortChildrenByVisualOrder(
 
   indexed.sort((a, b) => a.order !== b.order ? a.order - b.order : a.idx - b.idx);
   return indexed.map(o => o.id);
+}
+
+/** Layers use a front-to-back stack. CSS paints later siblings over earlier
+ *  siblings, including equal-order flex/grid items, so reverse the resolved
+ *  paint order at the tree boundary. Keep source order everywhere else. */
+export function childrenInLayerStack(
+  parent: CanvasNode | null | undefined,
+  childIds: readonly string[],
+  layerVpId: string | null,
+  nodes: Map<string, CanvasNode>,
+  vpConfigs: Array<{ id: string; width: number; isPrimary: boolean }>,
+  containerOverrides: Map<string, Map<number, Map<string, string>>>,
+  isComponentFile: boolean,
+): string[] {
+  return sortChildrenByVisualOrder(parent, childIds, layerVpId, nodes, vpConfigs, containerOverrides, isComponentFile).reverse();
 }
 
 // ─── Pure helpers (exported for testing) ────────────────────────────────────

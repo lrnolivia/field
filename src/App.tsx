@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { Toaster } from 'sonner';
 import Canvas from './canvas/Canvas';
@@ -47,6 +47,9 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
+import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH, RIGHT_PANE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
+import { transformManager } from '@/canvas/transform/TransformManager';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
 // page open is distracting noise. The animation runs in PREVIEW (and at
@@ -60,6 +63,21 @@ import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme'
 if (CLOUD_ENABLED) initCloudPlugin();
 
 export default function App() {
+  const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
+  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const leftInset = LEFT_RAIL_WIDTH + (leftPaneOpen ? LEFT_CONTENT_WIDTH : 0);
+  const rightInset = rightPaneOpen ? RIGHT_PANE_WIDTH : 0;
+  const previousInsets = useRef<{ left: number; right: number } | null>(null);
+  useEffect(() => {
+    setCanvasInsets({ left: leftInset, top: 52, right: rightInset, bottom: 0 });
+    const previous = previousInsets.current;
+    if (previous && (previous.left !== leftInset || previous.right !== rightInset)) {
+      // Preserve the current zoom and move the page with the center of the
+      // newly visible canvas strip. Fit/zoom commands then use the new insets.
+      transformManager.pan((leftInset - previous.left - rightInset + previous.right) / 2, 0);
+    }
+    previousInsets.current = { left: leftInset, right: rightInset };
+  }, [leftInset, rightInset]);
   // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
   // keyboard shortcut can both flip it without prop-drilling. The
   // right-header Preview button still drives the same atom via the
@@ -175,7 +193,7 @@ export default function App() {
 
   return (
     <CollaborationProvider>
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftInset}px`, '--workspace-right-width': `${rightInset}px` } as React.CSSProperties}>
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <ChromeIslands />
@@ -203,7 +221,7 @@ export default function App() {
         setPreviewMode(!previewMode);
       }} />
 
-      {/* Left toolbar: fixed icon menu + always-open panel. NOT inert
+      {/* Left toolbar: fixed icon menu + collapsible panel. NOT inert
           for viewers — they need to switch panels (Pages, Layers,
           Library, …) and navigate between the website's pages to view
           them. Write actions inside the panels (add page, insert,
@@ -226,11 +244,24 @@ export default function App() {
         <Canvas />
         {/* Right panel: PropertiesPanel by default, swap for the
             project-wide comments list while comment mode is active.
-            Both panels are 260 px wide so the canvas viewport doesn't
-            reflow on toggle. Viewer read-only handling lives inside
+            Both panel modes are 260 px wide. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
-        {!previewMode && <RightSidebar />}
+        {!previewMode && rightPaneOpen && <RightSidebar />}
+        {!previewMode && <button
+          type="button"
+          aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
+          title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
+          onClick={() => setRightPaneOpen(v => !v)}
+          className="fixed z-[5001] top-[61px] w-6 h-6 flex items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+          style={{ right: rightPaneOpen ? RIGHT_PANE_WIDTH + 8 : 8 }}
+        >
+          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="14" height="14">
+            <rect x="1.5" y="2" width="13" height="12" rx="1" />
+            <path d="M10.5 2v12" />
+            <path d={rightPaneOpen ? 'm6.5 6 2 2-2 2' : 'm8.5 6-2 2 2 2'} />
+          </svg>
+        </button>}
         {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,
             design components and icon sets alike: the surface tells it what
             a bare request is about (an icon set: icons in the set). */}
@@ -552,5 +583,3 @@ function OfflineToast() {
     </div>
   );
 }
-
-
