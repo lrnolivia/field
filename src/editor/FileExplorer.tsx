@@ -22,7 +22,7 @@ import { PageHomeIcon, PageDocumentIcon, NotFoundIcon } from '../shared/icons';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import SectionLabel from '@/design-system/SectionLabel';
 import SearchBar from '@/design-system/SearchBar';
-import ToolDivider from '@/editor/controls/ToolDivider';
+import PanelSearchButton from '@/design-system/PanelSearchButton';
 import AddButton from '@/design-system/AddButton';
 import SidebarRow from '@/design-system/SidebarRow';
 import {
@@ -483,6 +483,7 @@ export default function FileExplorer() {
   // user still sees the route-group container leading down to a deep
   // match. Empty query passes the tree through untouched.
   const [pageSearchQuery, setPageSearchQuery] = useState('');
+  const [pageSearchOpen, setPageSearchOpen] = useState(false);
   const pageSearchActive = pageSearchQuery.trim().length > 0;
   // Drag state lives in module-level atoms (shared with the Library
   // panel's drag system) so two drags can't run simultaneously across
@@ -1179,23 +1180,26 @@ export default function Page() {
 
   return (
     <div className="flex flex-col shrink-0">
-      {/* Search row sits at the VERY TOP of the panel — above the "Pages"
-          SectionLabel so the filter affordance is the first thing the
-          user sees on this tab. No top divider; just the search input
-          with a divider beneath it separating the controls from the
-          "Pages" label + page tree below. */}
-      <div className="px-3 pt-3 shrink-0">
-        <SearchBar
-          value={pageSearchQuery}
-          onChange={setPageSearchQuery}
-          placeholder="Search pages…"
-        />
-      </div>
-      <ToolDivider />
-
+      {/* Pages header: persistent title + compact actions. Search expands only
+          while it is being used so the page list keeps the vertical space. */}
       {/* Header */}
       <SectionLabel size="md" right={
-        <div>
+        <div className="flex items-center gap-0.5">
+          <PanelSearchButton
+            active={pageSearchOpen}
+            aria-expanded={pageSearchOpen}
+            aria-label={pageSearchOpen ? 'Close page search' : 'Search pages'}
+            title={pageSearchOpen ? 'Close page search' : 'Search pages'}
+            onClick={() => {
+              if (pageSearchOpen) {
+                setPageSearchQuery('');
+                setPageSearchOpen(false);
+              } else {
+                setPageSearchOpen(true);
+              }
+            }}
+          />
+          <div>
           <AddButton
             ref={addBtnRef}
             disabled={isViewer}
@@ -1289,8 +1293,20 @@ export default function Page() {
               return items;
             })()}
           />
+          </div>
         </div>
       }>Pages</SectionLabel>
+
+      {pageSearchOpen && (
+        <div className="px-3 pb-1.5 shrink-0">
+          <SearchBar
+            value={pageSearchQuery}
+            onChange={setPageSearchQuery}
+            placeholder="Search pages…"
+            autoFocus
+          />
+        </div>
+      )}
 
       {/* Tree */}
       <div className="px-2 pb-1">

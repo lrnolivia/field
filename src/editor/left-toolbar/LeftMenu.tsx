@@ -281,19 +281,11 @@ export default function LeftMenu() {
           <InsertPlusIcon className="w-4 h-4" />
         </button>
 
-        {/* Layers & Pages — ONE entry, two tabs. Both answer "where am I in
-            this document?", you never need them side by side, and the Layers
-            view already carried the page switcher at its top, so a separate
-            Pages icon was half-redundant. FIRST in the rail (directly under
-            insert): it is what you reach for on almost every edit. Enabled for
-            viewers too — navigating the tree to inspect / comment is
-            read-only. The button opens the LAYERS tab — the tab IS the panel
-            id, so pointing it at `pages-layers` opened the panel on Pages,
-            which is the visit, not the default. `isActive` covers both ids so
-            the rail stays lit on either tab, and `togglePanel` sends a second
-            click back to `layers` (before another click collapses the pane).
-            `layers-button` stays as the tutorial hook. */}
-        <MenuButton panelId="layers" isActive={leftPaneOpen && (activePanel === 'pages-layers' || activePanel === 'layers')} onToggle={togglePanel} title="Layers & Pages" tooltip={tooltipHandlers} dataTutorial="layers-button">
+        {/* Pages & Layers — one persistent document panel. Pages stays above
+            the layer tree, so the rail item opens/collapses the document pane
+            without introducing a second navigation mode. Both legacy panel ids
+            still count as active for restored state compatibility. */}
+        <MenuButton panelId="layers" isActive={leftPaneOpen && (activePanel === 'pages-layers' || activePanel === 'layers')} onToggle={togglePanel} title="Pages & Layers" tooltip={tooltipHandlers} dataTutorial="layers-button">
           <LayersIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 

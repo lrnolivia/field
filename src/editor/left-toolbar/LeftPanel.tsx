@@ -24,10 +24,9 @@ function LibraryOnlyPanel() {
 
 const PANEL_MAP: Record<string, React.ComponentType> = {
   'insert': InsertPanel,
-  // Layers and Pages are ONE panel with a segmented control (Layers first).
-  // Both ids map to it: 'pages-layers' is the canonical one, and 'layers' is
-  // kept so existing shortcuts, saved panel state and deep links from before
-  // the merge still open something instead of rendering nothing.
+  // Pages and Layers are one persistent document panel (Pages above Layers).
+  // Both ids map here for compatibility with saved state / older deep links;
+  // neither id selects a tab anymore.
   'pages-layers': PagesLayersPanel,
   'layers': PagesLayersPanel,
   'library': LibraryOnlyPanel,

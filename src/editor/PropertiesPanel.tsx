@@ -395,6 +395,13 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     </>
   );
 
+  const inspectorContextTitle = isMultiSelect
+    ? `${multiSelectSelIds.length} selected`
+    : (node.name || rawType);
+  const inspectorContextDetail = isMultiSelect
+    ? 'Multiple selection'
+    : rawType.replace(/^motion\./, '');
+
   return (
     <div
       data-properties-panel
@@ -412,6 +419,24 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           (the shell div stays, so layout holds) and re-arms when the
           selection changes. */}
       <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
+      {/* Object context is persistent, compact, and structural — not a card.
+          It anchors the inspector to the current selection before property
+          sections begin, and gives multi-selection an explicit whole-selection
+          identity instead of silently reading like the first selected node. */}
+      <div
+        data-properties-context
+        className="shrink-0 min-h-10 px-2 py-2 border-b border-[var(--border-light)] flex items-center"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
+            {inspectorContextTitle}
+          </div>
+          <div className="text-[10px] text-[var(--text-secondary)] truncate">
+            {inspectorContextDetail}
+          </div>
+        </div>
+      </div>
+
       {/* (The CMS detail-page "ITEM 1 / 4" item switcher moved OUT of the
           panel to the canvas-top SlugPageBreadcrumb — standard, with a
           searchable item dropdown. See canvas/ui/SlugPageBreadcrumb.tsx.) */}

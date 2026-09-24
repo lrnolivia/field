@@ -9,10 +9,9 @@ import { leftPaneOpenAtom } from './workspace-panels-store';
 
 export type LeftPanelId =
   | 'insert'
-  | 'pages-layers'  // Pages tab (file explorer). ID kept for back-compat — old
-                    // combined Pages+Layers panel; the Layers tree split into
-                    // its own `'layers'` tab below.
-  | 'layers'        // Layers tree (selected file's node hierarchy).
+  | 'pages-layers'  // Legacy alias for the persistent Pages + Layers document
+                    // panel. Kept for saved state / older deep links.
+  | 'layers'        // Canonical id for the persistent document panel.
   | 'library'
   | 'presets'
   | 'media'
@@ -23,14 +22,9 @@ export type LeftPanelId =
                     // component renders its own self-positioned panel overlay
                     // when this is active. See LeftPanel.tsx / VibeDockShell.
 
-/** The HOME panel: what the builder opens on, and what "close" falls back to.
- *  Layers, not Pages — it is what you reach for on almost every edit, while
- *  Pages is a navigation action taken once per session.
- *
- *  Named rather than inlined because "the home panel" and "the Pages panel" are
- *  no longer the same value: several call sites navigate to Pages DELIBERATELY
- *  (the page + component breadcrumbs) and must keep doing that. Only the
- *  fall-back-to-home sites follow this constant. */
+/** The HOME panel: the persistent document panel (Pages above Layers).
+ *  Keep the canonical id as 'layers' so existing shortcuts and restored state
+ *  continue to converge on the same document-navigation surface. */
 export const DEFAULT_LEFT_PANEL: LeftPanelId = 'layers';
 
 /** Which left panel is currently open. Never null. */
@@ -43,8 +37,8 @@ export const codeEditorOpenAtom = atom(false);
 export const codeEditorViewRequestAtom = atom<string | null>(null);
 
 /** Rail click: select a panel, reopen the content pane, or collapse the
- *  active pane. A second click on the Layers/Pages rail item while Pages is
- *  showing returns to Layers first. */
+ *  active pane. If restored state still uses the legacy 'pages-layers' id,
+ *  clicking the canonical rail item normalizes it back to 'layers'. */
 export const togglePanelAtom = atom(
   (get) => get(leftPanelAtom),
   (get, set, panelId: LeftPanelId) => {

@@ -24,8 +24,7 @@ import { contextMenuAtom, renamingNodeIdAtom } from '@/code/stores/context-menu-
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import SectionLabel from '@/design-system/SectionLabel';
 import SearchBar from '@/design-system/SearchBar';
-import PageSelector from '@/editor/left-toolbar/panels/PageSelector';
-import ToolDivider from '@/editor/controls/ToolDivider';
+import PanelSearchButton from '@/design-system/PanelSearchButton';
 
 // Row components + pure helpers, the drag-reorder handler, and the search filter
 // live in LayersPanel/ (Phase 7 god-file split, item 7.7). computeSelectionSets +
@@ -109,6 +108,7 @@ export default function LayersPanel() {
   // restores the user's manual expand state untouched — we never write
   // to the `expanded` set during search.
   const [layerSearchQuery, setLayerSearchQuery] = useState('');
+  const [layerSearchOpen, setLayerSearchOpen] = useState(false);
   const layerSearchActive = layerSearchQuery.trim().length > 0;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
@@ -1077,36 +1077,41 @@ export default function LayersPanel() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
-      {/* Header layout (top-down): PageSelector + SearchBar live ABOVE
-          the SectionLabel so the navigation chrome (switch page / filter
-          tree) sits at the very top of the panel where the user lands.
-          The label and the tree share the lower half. No top divider —
-          the search row floats flush against the panel top. The
-          divider beneath the search separates it from the SectionLabel
-          + tree combo below.
-          • The PageSelector lets the user switch pages without leaving
-            the Layers tab — picking a page swaps the active file via
-            `switchActiveFile`, and the layer tree re-parses against
-            the new file on the next render.
-          • The SearchBar filters the tree by node name/type and force-
-            expands every collapsed branch so deep matches still surface
-            (see `displayLayers` above for the filter semantics). */}
-      <div className="px-3 pt-3 flex flex-col gap-2 shrink-0">
-        {/* The page switcher only makes sense on a real PAGE — hide it when
-            editing a design-component master or a template (both
-            component-like), where there are no pages to switch between. */}
-        {!isCompLikeMode && <PageSelector />}
-        <SearchBar
-          value={layerSearchQuery}
-          onChange={setLayerSearchQuery}
-          placeholder="Search layers…"
-        />
-      </div>
-      <ToolDivider />
+      {/* Pages now lives persistently above this panel. Layers keeps the full
+          remaining height, with search exposed as a compact action instead of
+          permanent chrome. */}
+      <SectionLabel
+        size="md"
+        right={
+          <PanelSearchButton
+            active={layerSearchOpen}
+            aria-expanded={layerSearchOpen}
+            aria-label={layerSearchOpen ? 'Close layer search' : 'Search layers'}
+            title={layerSearchOpen ? 'Close layer search' : 'Search layers'}
+            onClick={() => {
+              if (layerSearchOpen) {
+                setLayerSearchQuery('');
+                setLayerSearchOpen(false);
+              } else {
+                setLayerSearchOpen(true);
+              }
+            }}
+          />
+        }
+      >
+        Layers
+      </SectionLabel>
 
-      {/* "Layers" label below the search controls — same `SectionLabel`
-          the other panels use so the typography matches. */}
-      <SectionLabel size="md">Layers</SectionLabel>
+      {layerSearchOpen && (
+        <div className="px-3 pb-1.5 shrink-0">
+          <SearchBar
+            value={layerSearchQuery}
+            onChange={setLayerSearchQuery}
+            placeholder="Search layers…"
+            autoFocus
+          />
+        </div>
+      )}
 
       {layers.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
