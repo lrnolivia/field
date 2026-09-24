@@ -88,21 +88,30 @@ const BUTTONS: { dir: AlignDirection; Icon: React.FC<{ className?: string }>; ti
 // multi-select MultiAlignmentControl. Keeps the 6 icon SVGs in one place so the
 // two aligners can't drift visually. The caller supplies the alignment math.
 export function AlignmentButtons({ enabled, onAlign }: { enabled: boolean; onAlign: (dir: AlignDirection) => void }) {
+  const groups = [BUTTONS.slice(0, 3), BUTTONS.slice(3, 6)];
   return (
-    <div className="flex items-center justify-between w-full py-2">
-      {BUTTONS.map(({ dir, Icon, title }) => (
-        <button
-          key={dir}
-          onClick={() => enabled && onAlign(dir)}
-          disabled={!enabled}
-          title={title}
-          className={`rounded transition-colors ${enabled
-            ? 'hover:bg-[var(--bg-hover)] cursor-pointer'
-            : 'cursor-not-allowed opacity-30'
-          }`}
+    <div data-position-alignment-groups className="grid grid-cols-2 gap-2 w-full">
+      {groups.map((group, groupIndex) => (
+        <div
+          key={groupIndex}
+          className="grid grid-cols-3 overflow-hidden border border-[var(--control-border)] rounded-[var(--control-radius)] bg-[var(--control-bg)]"
         >
-          <Icon className={`w-4 h-4 ${enabled ? 'text-[var(--accent-text)]' : 'text-[var(--text-disabled)]'}`} />
-        </button>
+          {group.map(({ dir, Icon, title }, index) => (
+            <button
+              key={dir}
+              type="button"
+              onClick={() => enabled && onAlign(dir)}
+              disabled={!enabled}
+              title={title}
+              className={`h-[var(--control-height)] flex items-center justify-center transition-colors ${index > 0 ? 'border-l border-[var(--control-border)]' : ''} ${enabled
+                ? 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer'
+                : 'text-[var(--text-disabled)] cursor-not-allowed opacity-40'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
       ))}
     </div>
   );

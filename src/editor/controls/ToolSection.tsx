@@ -19,9 +19,13 @@ interface Props {
   /** Keep the section header mounted even when every child is currently absent.
    *  Figma uses this for addable property stacks such as Stroke / Effects / Export. */
   renderWhenEmpty?: boolean;
+  /** Render only the section content. Used when a mature tool is composed
+   *  into another canonical inspector section (for example Size inside an
+   *  active Auto layout section) without inventing a second visible header. */
+  bare?: boolean;
 }
 
-export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true, renderWhenEmpty = false }: Props) {
+export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true, renderWhenEmpty = false, bare = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const actionRef = useRef<HTMLSpanElement>(null);
 
@@ -41,6 +45,14 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
 
   const validChildren = React.Children.toArray(children).filter(Boolean);
   if (validChildren.length === 0 && !renderWhenEmpty) return null;
+
+  if (bare) {
+    return (
+      <div data-inspector-section-content data-inspector-bare className="flex flex-col gap-[var(--control-gap)]">
+        {validChildren}
+      </div>
+    );
+  }
 
   const showContent = isOpen && hasContent && validChildren.length > 0;
   const sectionId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

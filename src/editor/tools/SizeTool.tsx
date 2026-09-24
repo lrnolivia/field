@@ -239,6 +239,8 @@ interface Props {
    *  offsetWidth/offsetHeight-based align + collision math) — restrict the
    *  width/height unit picker to px only. */
   pxOnly?: boolean;
+  /** Compose the size controls into another canonical inspector section. */
+  bare?: boolean;
 }
 
 /** Is this axis in FILL mode? Main-axis fill = a fill flex with no explicit
@@ -267,7 +269,7 @@ function clampNonNegative(v: string): string {
   return m ? `0${m[2] ?? 'px'}` : v;
 }
 
-export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly }: Props) {
+export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly, bare = false }: Props) {
   const { parentLayout, parentFlexDirection, node, updateStyleLive, hasOverride } = useControl();
   // FIT-TEXT REDIRECT — selecting the INNER <p> of a fit pair (layers panel,
   // exiting text edit) must size the SVG WRAPPER. The inner's width/height
@@ -1454,7 +1456,7 @@ if (heightIsAuto) {
   ) : null;
 
   return (
-    <ToolSection title="Layout" action={addAction}>
+    <ToolSection title="Layout" action={addAction} bare={bare}>
       {isViewportFrame && currentViewportConfig ? (
         // Viewport breakpoint row: writes the canvas viewport `width` config
         // (persisted to the @canvas block), NOT a CSS dimension. Height is

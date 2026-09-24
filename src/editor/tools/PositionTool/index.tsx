@@ -1,7 +1,7 @@
 // PositionTool — Full position control: type, alignment, pins, coordinates.
 // Shows different controls based on position type and parent context.
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { ToolSection, ToolDivider, StyleField } from '../../controls';
 import AlignmentControl, { AlignmentButtons } from './AlignmentControl';
@@ -19,7 +19,8 @@ import { captureVisualRect } from '@/canvas/visual-rect';
 import { applyReplicaClearSemantics } from './replica-clears';
 import { isPrimaryViewport } from '@/shared/constants';
 import { shapeAlignStyles, shapePositionNormalizationStyles } from '@/shared/position-utils';
-import type { AlignDirection } from '@/shared/pin-utils';
+import { getPinState, parsePx, type AlignDirection } from '@/shared/pin-utils';
+import ToolPopup from '../../ui/ToolPopup';
 
 interface Props {
   nodeId: string;
@@ -28,6 +29,65 @@ interface Props {
   isReplica: boolean;
   vpWidth: number;
   isTopLevel?: boolean;
+}
+
+interface ConstraintsActionProps {
+  nodeId: string;
+  vpId: string;
+  position: string;
+  styles: Record<string, string>;
+  showPins: boolean;
+  onUpdate: (key: string, value: string) => void;
+  onUpdateMultiple: (styles: Record<string, string>) => void;
+}
+
+function ConstraintsAction({ nodeId, vpId, position, styles, showPins, onUpdate, onUpdateMultiple }: ConstraintsActionProps) {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        aria-label="Constraints"
+        title="Constraints"
+        onClick={() => setOpen(v => !v)}
+        className="w-6 h-6 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-[var(--control-radius)]"
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">
+          <path d="M5 2.5H3.5a1 1 0 0 0-1 1V5M11 2.5h1.5a1 1 0 0 1 1 1V5M5 13.5H3.5a1 1 0 0 1-1-1V11M11 13.5h1.5a1 1 0 0 0 1-1V11" />
+          <rect x="5" y="5" width="6" height="6" rx="1" />
+        </svg>
+      </button>
+      <ToolPopup
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title="Constraints"
+        anchorRef={anchorRef}
+        width={320}
+        resetKey={nodeId}
+      >
+        <div className="flex flex-col gap-3 p-2">
+          <PositionTypeControl
+            position={position || 'static'}
+            nodeId={nodeId}
+            vpId={vpId}
+            existingTransform={styles.transform}
+            onUpdateMultiple={onUpdateMultiple}
+          />
+          {showPins && (
+            <PinControl
+              styles={styles}
+              nodeId={nodeId}
+              vpId={vpId}
+              onUpdate={onUpdate}
+              onUpdateMultiple={onUpdateMultiple}
+            />
+          )}
+        </div>
+      </ToolPopup>
+    </>
+  );
 }
 
 export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, vpId, isReplica, vpWidth, isTopLevel }: Props) {
@@ -90,7 +150,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
   // A FIT wrapper is an <svg> carrying TEXT — it keeps the full pin model.
   const isSvgNode = liveNode?.type === 'svg' && !isFitInnerRedirect && !nodeId.endsWith('-svg');
   const showPins = (isAbsoluteInFrame || isFixed) && !isSvgGroup && !isSvgNode;
-  const showCoords = (isAbsolute || isFixed) && !showPins;
+  const showCoords = isAbsolute || isFixed;
 
   // ─── Update helpers ───────────────────────────────────────────────
 
@@ -166,6 +226,41 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
     updateMultipleStyles(applyReplicaClearSemantics(nodeId, vpId, { ...base, [key]: value }));
   }, [nodeId, vpId, styles, liveNode, updateMultipleStyles]);
 
+  // Main Position X/Y fields represent the painted layout-box coordinate.
+  // When a side is constrained, move the opposite inset in the inverse
+  // direction so editing X/Y preserves the object's current size/constraint
+  // relationship instead of silently breaking the constraint.
+  const updatePositionCoord = useCallback((key: string, value: string) => {
+    if (isSvgNode) {
+      updateShapeCoord(key, value);
+      return;
+    }
+    if (key !== 'left' && key !== 'top') {
+      updateStyle(key, value);
+      return;
+    }
+    const target = parseFloat(value);
+    const rect = captureVisualRect(nodeId, vpId);
+    if (!Number.isFinite(target) || !rect) {
+      updateStyle(key, value);
+      return;
+    }
+    const pins = getPinState(styles);
+    const patch: Record<string, string> = {};
+    if (key === 'left') {
+      const delta = target - rect.left;
+      if (pins.left) patch.left = `${parsePx(styles.left) + delta}px`;
+      if (pins.right) patch.right = `${parsePx(styles.right) - delta}px`;
+      if (!pins.left && !pins.right) patch.left = `${target}px`;
+    } else {
+      const delta = target - rect.top;
+      if (pins.top) patch.top = `${parsePx(styles.top) + delta}px`;
+      if (pins.bottom) patch.bottom = `${parsePx(styles.bottom) - delta}px`;
+      if (!pins.top && !pins.bottom) patch.top = `${target}px`;
+    }
+    updateMultipleStyles(patch);
+  }, [isSvgNode, updateShapeCoord, updateStyle, updateMultipleStyles, nodeId, vpId, styles]);
+
   // Top-level nodes (canvas nodes, variant roots): only show X/Y space
   if (isTopLevel) {
     return (
@@ -176,9 +271,9 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
             top={styles.top || '0px'}
             nodeId={nodeId}
             vpId={vpId}
-            onUpdate={updateStyle}
+            onUpdate={updatePositionCoord}
           />
-          <RotateControl />
+          <RotateControl compact />
         </ToolSection>
         <ToolDivider />
       </>
@@ -187,7 +282,20 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
 
   return (
     <>
-      <ToolSection title="Position">
+      <ToolSection
+        title="Position"
+        action={
+          <ConstraintsAction
+            nodeId={nodeId}
+            vpId={vpId}
+            position={position}
+            styles={styles}
+            showPins={showPins}
+            onUpdate={updateStyle}
+            onUpdateMultiple={updateMultipleStyles}
+          />
+        }
+      >
         {/* Alignment icons — accent blue when enabled, disabled gray otherwise */}
         {isSvgNode ? (
           <AlignmentButtons enabled={isAbsolute || isFixed} onAlign={handleShapeAlign} />
@@ -202,34 +310,18 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
           />
         )}
 
-        {/* Position type dropdown */}
-        <PositionTypeControl
-          position={position || 'static'}
-          nodeId={nodeId}
-          vpId={vpId}
-          existingTransform={styles.transform}
-          onUpdateMultiple={updateMultipleStyles}
-        />
+        {/* Position type + pin constraints moved into the section action popup.
+            The primary inspector stays Figma-compact: align → X/Y → rotation. */}
 
-        {/* Pin control (absolute-in-frame or fixed) */}
-        {showPins && (
-          <PinControl
-            styles={styles}
-            nodeId={nodeId}
-            vpId={vpId}
-            onUpdate={updateStyle}
-            onUpdateMultiple={updateMultipleStyles}
-          />
-        )}
-
-        {/* Simple X/Y coordinates (absolute/fixed without pins) */}
+        {/* X/Y coordinates for positioned objects. Pinned sides are preserved
+            by updatePositionCoord instead of expanding into a giant inline grid. */}
         {showCoords && (
           <SpaceControl
             left={styles.left || '0px'}
             top={styles.top || '0px'}
             nodeId={nodeId}
             vpId={vpId}
-            onUpdate={isSvgNode ? updateShapeCoord : updateStyle}
+            onUpdate={updatePositionCoord}
           />
         )}
 
@@ -238,7 +330,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
           <StyleField property="top" label="Top" defaultValue="0px" />
         )}
 
-        <RotateControl />
+        <RotateControl compact />
       </ToolSection>
       <ToolDivider />
     </>

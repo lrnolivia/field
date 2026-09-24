@@ -55,7 +55,7 @@ function parseRotateDeg(transform: string): number {
   return 0;
 }
 
-function RotateAtom() {
+function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
   const { value, onChange, onChangeMultiple, allProps, mode } = useControlContext();
   const { nodeId, node, vpId, updateMultipleStyles, updateStyle } = useControl();
   // Debounce for the motion-channel commit (declared before any early
@@ -250,6 +250,20 @@ function RotateAtom() {
     write(n);
   };
   const shownNum = liveRotate ?? num;
+  if (compact) {
+    return (
+      <div data-position-rotation className="grid grid-cols-2 gap-1 w-full">
+        <ToolInput
+          value={String(Math.round(shownNum * 10) / 10)}
+          onChange={writeRaw}
+          step={1}
+          chevronLabel="°"
+          ariaLabel="Rotation"
+        />
+        <div />
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-2 w-full">
       <ToolSlider value={shownNum} min={-360} max={360} step={1} onChange={write} />
@@ -258,10 +272,10 @@ function RotateAtom() {
   );
 }
 
-export function RotateControl({ mode = 'direct', ...mp }: AtomProps) {
+export function RotateControl({ compact = false, mode = 'direct', ...mp }: AtomProps & { compact?: boolean }) {
   return (
     <UnifiedControlProvider property="transform" defaultValue="" mode={mode} {...mp}>
-      <ControlRow label="Rotate"><RotateAtom /></ControlRow>
+      {compact ? <RotateAtom compact /> : <ControlRow label="Rotate"><RotateAtom /></ControlRow>}
     </UnifiedControlProvider>
   );
 }

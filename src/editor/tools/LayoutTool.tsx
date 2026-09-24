@@ -3,7 +3,7 @@
 // human-readable wrap toggle, and grid column/row +/- controls.
 // Also exports GridChildControls for grid child span/alignment controls.
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, type ReactNode } from 'react';
 import { CSS_LAYOUT_DEFAULTS } from '@/shared/constants';
 import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, ToolSlider, StyleField, ControlLabel, ControlActionRow, ColorSwatch } from '../controls';
 import { PaddingControl } from './StylesTool/atoms';
@@ -51,6 +51,9 @@ interface Props {
    *  Align (cross-axis) + Gap + Padding only — no Type/Direction/Wrap/Justify
    *  and no +/- remove. */
   templateRoot?: boolean;
+  /** Mature size/clipping controls composed into an ACTIVE Auto layout
+   *  section. Keeps the engine split while matching Figma's one-panel model. */
+  sizeContent?: ReactNode;
 }
 
 // ─── GridChildControls ──────────────────────────────────────────────────────
@@ -834,7 +837,7 @@ export function detectLayoutFlags(
   return { hasFlex, hasGrid, hasLayout: hasFlex || hasGrid };
 }
 
-export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot }: Props) {
+export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent }: Props) {
   // useControl gives us the variable-binding helpers (`getValueSource`,
   // `removeVariable`) the Direction + Wrap rows need to surface the
   // purple variable pill — these rows are rendered as custom segmented
@@ -1244,6 +1247,7 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
       <>
         <ToolSection title="Auto layout" collapsible>
           <div className="flex flex-col gap-2">
+            {sizeContent}
             {/* Align — a flex COLUMN's cross axis is horizontal: left / center
                 / right. Writes `alignItems`. */}
             <div className="flex items-center justify-between w-full">
@@ -1302,6 +1306,8 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
                 />
               </div>
             )}
+
+            {sizeContent}
 
             {hasGrid ? (
               <>

@@ -17,7 +17,7 @@ import { LocalizeGate } from './controls/localize-gate';
 import SizeTool from './tools/SizeTool';
 import PositionTool from './tools/PositionTool';
 import MultiAlignmentControl from './tools/PositionTool/MultiAlignmentControl';
-import LayoutTool, { GridChildControls } from './tools/LayoutTool';
+import LayoutTool, { GridChildControls, detectLayoutFlags } from './tools/LayoutTool';
 import { resolveMultiSelectLayoutType } from './multi-select-layout';
 import ComponentPropsTool from './tools/ComponentPropsTool';
 import IconSetTool from './tools/IconSetTool';
@@ -399,6 +399,20 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   // Figma's Design inspector leads with the selected object KIND, not a
   // two-line builder breadcrumb. Preserve the source/name as a tooltip while
   // the visible header stays compact and stable across selections.
+  const canShowContainerLayout = !isText
+    && !isContainerSetInstance
+    && !isComponentInstance
+    && !isCodeComponentInstance
+    && !isTemplatedViewport
+    && !isInputElement
+    && (!isMultiSelect || multiSelectLayoutType !== null);
+  const selectedHasLayout = detectLayoutFlags(s).hasLayout;
+  // When a FRAME already has flex/grid layout, Figma presents sizing and
+  // Auto-layout behavior as one section. Leaf/text objects keep the normal
+  // standalone Layout (size) section, and an unconfigured frame keeps the
+  // Auto layout + add-state separate until layout is actually enabled.
+  const composeSizeIntoAutoLayout = isFrame && selectedHasLayout && canShowContainerLayout && !isMultiSelect;
+
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
     : isImageElement
@@ -613,7 +627,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         ))}
 
         {/* Dimensions */}
-        {!isOverlayNode && (
+        {!isOverlayNode && !composeSizeIntoAutoLayout && (
           <>
             <SizeTool
               styles={s}
@@ -655,15 +669,23 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {/* NEVER for form controls (input/textarea/select): they're leaf
             elements — flex/grid child layout is meaningless on them, and the
             Input tool owns their padding. */}
-        {!isText && !isContainerSetInstance && !isComponentInstance && !isCodeComponentInstance && !isTemplatedViewport
-          && !isInputElement
-          && (!isMultiSelect || multiSelectLayoutType !== null) && (
+        {canShowContainerLayout && (
           <LayoutTool
             styles={s}
             nodeId={node.id}
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
             templateRoot={isTemplateRootEdit}
+            sizeContent={composeSizeIntoAutoLayout ? (
+              <SizeTool
+                bare
+                styles={s}
+                nodeId={node.id}
+                vpId={vpId}
+                onUpdate={updateStyle}
+                onUpdateMultiple={updateMultipleStyles}
+              />
+            ) : undefined}
           />
         )}
         </div>

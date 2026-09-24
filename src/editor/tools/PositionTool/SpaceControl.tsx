@@ -4,10 +4,8 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { useLivePreview } from '../../hooks/useLivePreview';
-import { ToolInput, ControlLabel } from '../../controls';
-import { findNodeRect, findNodeComputedStyles } from '@/canvas/node-ops';
-import { getCanvasBridge } from '@/canvas/canvas-bridge';
-import { transformManager } from '@/canvas/transform';
+import { ToolInput } from '../../controls';
+import { captureVisualRect } from '@/canvas/visual-rect';
 import { dragStateOps } from '@/canvas/drag/drag-state-store';
 
 interface Props {
@@ -54,27 +52,10 @@ export default function SpaceControl({ left, top, nodeId, vpId, onUpdate }: Prop
     if (!isDragging) return;
     let rafId: number;
     const poll = () => {
-      const elScreen = findNodeRect(nodeId, vpId);
-      if (elScreen) {
-        const t = transformManager.getTransform();
-        const scale = t.scale || 1;
-        const bridge = getCanvasBridge() as any;
-        const iframeOffset = bridge.getIframeOffset ? bridge.getIframeOffset() : { x: 0, y: 0 };
-        // CSS layout box may differ from AABB when the element is rotated /
-        // scaled. Use the AABB-center-stable formula that the canvas exit
-        // uses on commit, so the live value matches the value that lands
-        // in JSX at mouseup.
-        const computed = findNodeComputedStyles(nodeId, vpId, ['width', 'height']);
-        const cssW = parseFloat(computed.width) || elScreen.width / scale;
-        const cssH = parseFloat(computed.height) || elScreen.height / scale;
-        const aabbLeft = (elScreen.left - iframeOffset.x - t.x) / scale;
-        const aabbTop = (elScreen.top - iframeOffset.y - t.y) / scale;
-        const aabbW = elScreen.width / scale;
-        const aabbH = elScreen.height / scale;
-        const cssLeft = Math.round(aabbLeft + (aabbW - cssW) / 2);
-        const cssTop = Math.round(aabbTop + (aabbH - cssH) / 2);
-        const x = `${cssLeft}px`;
-        const y = `${cssTop}px`;
+      const rect = captureVisualRect(nodeId, vpId);
+      if (rect) {
+        const x = `${Math.round(rect.left)}px`;
+        const y = `${Math.round(rect.top)}px`;
         setLivePos(prev => (prev?.x === x && prev?.y === y) ? prev : { x, y });
       }
       rafId = requestAnimationFrame(poll);
@@ -83,16 +64,14 @@ export default function SpaceControl({ left, top, nodeId, vpId, onUpdate }: Prop
     return () => cancelAnimationFrame(rafId);
   }, [isDragging, nodeId, vpId]);
 
-  const xVal = parseFloat(livePos?.x ?? left) || 0;
-  const yVal = parseFloat(livePos?.y ?? top) || 0;
+  const restRect = captureVisualRect(nodeId, vpId);
+  const xVal = parseFloat(livePos?.x ?? '') || restRect?.left || parseFloat(left) || 0;
+  const yVal = parseFloat(livePos?.y ?? '') || restRect?.top || parseFloat(top) || 0;
 
   return (
-    <div className="flex items-center justify-between w-full">
-      <ControlLabel label="Space" property="" plain />
-      <div className="flex items-center gap-1 w-full">
-        <ToolInput value={String(Math.round(xVal))} onChange={(v) => onUpdate('left', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="X" ariaLabel="X position" />
-        <ToolInput value={String(Math.round(yVal))} onChange={(v) => onUpdate('top', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="Y" ariaLabel="Y position" />
-      </div>
+    <div data-position-xy className="grid grid-cols-2 gap-1 w-full">
+      <ToolInput value={String(Math.round(xVal))} onChange={(v) => onUpdate('left', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="X" ariaLabel="X position" />
+      <ToolInput value={String(Math.round(yVal))} onChange={(v) => onUpdate('top', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="Y" ariaLabel="Y position" />
     </div>
   );
 }

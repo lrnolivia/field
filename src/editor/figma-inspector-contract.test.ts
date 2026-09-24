@@ -20,12 +20,19 @@ describe('Figma inspector contract', () => {
     expect(panel).toContain("? 'Frame'");
   });
 
-  it('uses Figma layout naming instead of Dimensions + duplicate Layout', () => {
+  it('composes active frame sizing into the Auto layout section', () => {
     const size = read('src/editor/tools/SizeTool.tsx');
     const layout = read('src/editor/tools/LayoutTool.tsx');
+    const panel = read('src/editor/PropertiesPanel.tsx');
     expect(size).toContain('<ToolSection title="Layout"');
+    expect(size).toContain('bare={bare}');
     expect(size).not.toContain('<ToolSection title="Dimensions"');
     expect(layout).toContain('<ToolSection title="Auto layout"');
+    expect(layout).toContain('{sizeContent}');
+    expect(panel).toContain('composeSizeIntoAutoLayout');
+    expect(panel).toContain('sizeContent={composeSizeIntoAutoLayout');
+    expect(panel).toContain('<SizeTool');
+    expect(panel).toContain('bare');
   });
 
   it('keeps the text core stack in Figma order', () => {
@@ -58,12 +65,17 @@ describe('Figma inspector contract', () => {
     expect(tabs).toContain('Prototype');
   });
 
-  it('surfaces frame clipping in Layout and rotation in Position', () => {
+  it('keeps Position compact and moves constraints out of the main stack', () => {
     const size = read('src/editor/tools/SizeTool.tsx');
     const position = read('src/editor/tools/PositionTool/index.tsx');
+    const alignment = read('src/editor/tools/PositionTool/AlignmentControl.tsx');
     expect(size).toContain('data-layout-clip-content');
     expect(size).toContain('Clip content');
-    expect(position).toContain('<RotateControl />');
+    expect(position).toContain('title="Constraints"');
+    expect(position).toContain('<ToolPopup');
+    expect(position).toContain('<RotateControl compact />');
+    expect(position).toContain('updatePositionCoord');
+    expect(alignment).toContain('data-position-alignment-groups');
   });
 
   it('mounts core appearance separately from advanced web controls', () => {
