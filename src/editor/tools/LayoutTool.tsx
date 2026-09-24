@@ -1242,7 +1242,7 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
   if (templateRoot) {
     return (
       <>
-        <ToolSection title="Layout" collapsible>
+        <ToolSection title="Auto layout" collapsible>
           <div className="flex flex-col gap-2">
             {/* Align — a flex COLUMN's cross axis is horizontal: left / center
                 / right. Writes `alignItems`. */}
@@ -1272,7 +1272,7 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
 
   return (
     <>
-      <ToolSection title="Layout" collapsible hasContent={hasLayout} action={toggleAction}>
+      <ToolSection title="Auto layout" collapsible hasContent={hasLayout} action={toggleAction}>
         {!hasLayout && (
           <span className="text-[11px] text-[var(--text-disabled)]">Click + to add layout</span>
         )}

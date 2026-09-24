@@ -395,12 +395,26 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     </>
   );
 
+  // Figma's Design inspector leads with the selected object KIND, not a
+  // two-line builder breadcrumb. Preserve the source/name as a tooltip while
+  // the visible header stays compact and stable across selections.
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
-    : (node.name || rawType);
-  const inspectorContextDetail = isMultiSelect
-    ? 'Multiple selection'
-    : rawType.replace(/^motion\./, '');
+    : isImageElement
+      ? 'Image'
+      : isVideoElement
+        ? 'Video'
+        : isAudioElement
+          ? 'Audio'
+          : isInputElement
+            ? 'Input'
+            : isSvg
+              ? 'Vector'
+              : isText
+                ? 'Text'
+                : isFrame
+                  ? 'Frame'
+                  : rawType.replace(/^motion\./, '');
 
   return (
     <div
@@ -419,21 +433,16 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           (the shell div stays, so layout holds) and re-arms when the
           selection changes. */}
       <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
-      {/* Object context is persistent, compact, and structural — not a card.
-          It anchors the inspector to the current selection before property
-          sections begin, and gives multi-selection an explicit whole-selection
-          identity instead of silently reading like the first selected node. */}
+      {/* Figma reference contract: one compact selected-object row.
+          Do not turn this back into a card or a two-line breadcrumb. */}
       <div
         data-properties-context
+        data-inspector-object-header
         className="shrink-0 min-h-10 px-2 py-2 border-b border-[var(--border-light)] flex items-center"
+        title={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
       >
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
-            {inspectorContextTitle}
-          </div>
-          <div className="text-[10px] text-[var(--text-secondary)] truncate">
-            {inspectorContextDetail}
-          </div>
+        <div className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-primary)] truncate">
+          {inspectorContextTitle}
         </div>
       </div>
 
@@ -686,9 +695,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             <ToolDivider />
           </>
         )}
-        {/* Text Style (only for text elements, just before Styles) */}
-        {isText && <TextStyleTool />}
-
         {/* The standalone "Template bindings" row was here — removed once the
             per-property menu (Bind to Field / Unbind Field) covered every
             bindable property in the panel. The dedicated row was confusing:
@@ -744,10 +750,12 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             Template's root, not the page (edit via Template → Edit). */}
         {!isTemplatedViewport && (
           <>
-            <StylesTool />
+            <StylesTool scope="appearance" />
             <ToolDivider />
           </>
         )}
+        {/* Figma text order: Appearance → Typography → Fill → Stroke → Effects. */}
+        {isText && <TextStyleTool />}
         </div>
 
         <div data-inspector-group="effects" className="contents">
@@ -816,6 +824,14 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         </div>
 
         <div data-inspector-group="advanced" className="contents">
+        {/* Web-only/advanced style controls stay available without polluting the
+            Figma core property stack. */}
+        {!isTemplatedViewport && (
+          <>
+            <StylesTool scope="advanced" />
+            <ToolDivider />
+          </>
+        )}
         {/* Cursor + Accessibility — hidden on the viewport frame. Cursor
             is a per-element CSS property; accessibility tags/labels apply
             to content elements, not the layout container. Accessibility

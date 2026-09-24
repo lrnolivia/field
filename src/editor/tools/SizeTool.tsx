@@ -1449,7 +1449,7 @@ if (heightIsAuto) {
   ) : null;
 
   return (
-    <ToolSection title="Dimensions" action={addAction}>
+    <ToolSection title="Layout" action={addAction}>
       {isViewportFrame && currentViewportConfig ? (
         // Viewport breakpoint row: writes the canvas viewport `width` config
         // (persisted to the @canvas block), NOT a CSS dimension. Height is

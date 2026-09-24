@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { ToolSection } from '../../controls';
+import { ToolSection, ToolDivider } from '../../controls';
 import { useControl } from '../../controls/ControlProvider';
 import { isTextTag } from '@/shared/constants';
 import { pseudoStylesAtom } from '@/code/stores/pseudo-store';
@@ -33,7 +33,9 @@ import { DYNAMIC_STYLES, type DynamicStyleSpec } from './dynamic-styles';
 
 // ─── StylesTool ────────────────────────────────────────────────────────────
 
-export default function StylesTool() {
+type StylesToolScope = 'all' | 'appearance' | 'advanced';
+
+export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope } = {}) {
   const { node, styles, hasOverride, updateMultipleStyles } = useControl();
   const pseudoStyles = useAtomValue(pseudoStylesAtom);
   const isText = !!node && isTextTag(node.type);
@@ -218,161 +220,151 @@ export default function StylesTool() {
     setPickerOpen(false);
   }, [node]);
 
-  // ─── SVG group ─────────────────────────────────────────────────────────
-  // Focused panel: the four controls that actually mean something for a
-  // vector group. No +-dropdown (the dynamic box-model styles below don't
-  // apply). Opacity/Hide/Rotate reuse the shared atoms (they write CSS to
-  // the group <svg> wrapper — the current group transform mechanism); Fill
-  // fans out to every leaf shape via GroupFillControl.
+  // ─── Figma inspector composition ───────────────────────────────────────
+  const showAppearance = scope !== 'advanced';
+  const showAdvanced = scope !== 'appearance';
+
+  const addAction = showAddButton ? (
+    <div className="relative">
+      <button
+        ref={pickerBtnRef}
+        onClick={(e) => { e.stopPropagation(); setPickerOpen(o => !o); trace.action('styles-tool:toggle-picker', { open: !pickerOpen }); }}
+        className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
+        title="Add property"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+      {pickerOpen && (
+        <>
+          <div className="fixed inset-0 z-[10000]" onClick={() => setPickerOpen(false)} />
+          <div
+            className={`absolute right-[10px] ${pickerDir === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'} bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] py-1.5 z-[10001] w-max max-h-[360px] overflow-y-auto border border-[var(--border-light)] space-y-0.5 transition-opacity duration-150`}
+            style={{ opacity: pickerVisible ? 1 : 0, scrollbarWidth: 'none' }}
+          >
+            {addableSpecs.length === 0 && !showPseudoEntry && (
+              <div className="px-3 py-2 text-xs text-[var(--text-disabled)]">All properties already added</div>
+            )}
+            {addableSpecs.map(spec => (
+              <button
+                key={spec.id}
+                onClick={() => handleAdd(spec)}
+                className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer whitespace-nowrap hover:bg-[var(--accent)] transition-colors"
+              >
+                <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">
+                  {spec.label}
+                </span>
+              </button>
+            ))}
+            {showPseudoEntry && (
+              <button
+                onClick={handleAddPseudo}
+                className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer whitespace-nowrap hover:bg-[var(--accent)] transition-colors"
+              >
+                <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">
+                  Pseudo Element
+                </span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  ) : null;
+
+  // Inner nodes of an expanded component instance belong to the master.
+  if (isInsideComponentInstance) return null;
+
+  // SVG groups keep a deliberately small Figma-shaped surface.
   if (isSvgGroup) {
+    if (!showAppearance) return null;
     trace.action('styles-tool:render-group', { nodeId: node!.id, childCount: node!.children?.length ?? 0 });
     return (
-      <ToolSection title="Styles">
-        <OpacityControl />
-        <GroupFillControl />
-        <HideControl />
-        <RotateControl />
-      </ToolSection>
+      <>
+        <ToolSection title="Appearance">
+          <OpacityControl />
+          <HideControl />
+          <RotateControl />
+        </ToolSection>
+        <ToolDivider />
+        <ToolSection title="Fill">
+          <GroupFillControl />
+        </ToolSection>
+      </>
     );
   }
 
-  return (
-    <ToolSection title="Styles" collapsible action={
-      showAddButton ? (
-        <div className="relative">
-          <button
-            ref={pickerBtnRef}
-            onClick={(e) => { e.stopPropagation(); setPickerOpen(o => !o); trace.action('styles-tool:toggle-picker', { open: !pickerOpen }); }}
-            className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
-            title="Add style"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
+  const isWrapper = isComponentInstanceWrapper || isVectorSet;
 
-          {/* Dropdown anchored to the +'s right edge, sitting just below
-              it — exactly the same shape AnimationTool's AddEffectDropdown
-              uses (absolute right-0 + top-full). Backdrop is fixed so a
-              click anywhere else closes it. */}
-          {pickerOpen && (
+  return (
+    <>
+      {showAppearance && (
+        <>
+          <ToolSection title="Appearance">
+            <OpacityControl />
+            {!isViewportFrame && <HideControl />}
+            {!isText && !isWrapper && <RadiusControl />}
+            {visibleIds.has('mixBlendMode') && <MixBlendModeControl />}
+          </ToolSection>
+
+          {!isText && !isWrapper && (
             <>
-              <div className="fixed inset-0 z-[10000]" onClick={() => setPickerOpen(false)} />
-              <div
-                className={`absolute right-[10px] ${pickerDir === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'} bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] py-1.5 z-[10001] w-max max-h-[360px] overflow-y-auto border border-[var(--border-light)] space-y-0.5 transition-opacity duration-150`}
-                style={{ opacity: pickerVisible ? 1 : 0, scrollbarWidth: 'none' }}
-              >
-                {addableSpecs.length === 0 && !showPseudoEntry && (
-                  <div className="px-3 py-2 text-xs text-[var(--text-disabled)]">
-                    All styles already added
-                  </div>
-                )}
-                {addableSpecs.map(spec => (
-                  <button
-                    key={spec.id}
-                    onClick={() => handleAdd(spec)}
-                    className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer whitespace-nowrap hover:bg-[var(--accent)] transition-colors"
-                  >
-                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">
-                      {spec.label}
-                    </span>
-                  </button>
-                ))}
-                {showPseudoEntry && (
-                  <button
-                    onClick={handleAddPseudo}
-                    className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer whitespace-nowrap hover:bg-[var(--accent)] transition-colors"
-                  >
-                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">
-                      Pseudo Element
-                    </span>
-                  </button>
-                )}
-              </div>
+              <ToolDivider />
+              <ToolSection title="Fill">
+                <FillControl />
+              </ToolSection>
+              <ToolDivider />
+              <ToolSection title="Stroke">
+                <BorderControl />
+              </ToolSection>
+              <ToolDivider />
+              <ToolSection title="Effects">
+                <ShadowControl />
+                {visibleIds.has('mask') && <MaskControl />}
+                {visibleIds.has('clipPath') && <ClipPathControl />}
+                {visibleIds.has('filter') && <FilterControl />}
+                {visibleIds.has('backdropFilter') && <BackdropFilterControl />}
+              </ToolSection>
             </>
           )}
-        </div>
-      ) : null
-    }>
-      {/* Component instances get a stripped-down panel: only the two
-          wrapper-level styles that compose cleanly with whatever the
-          master defines. Everything else — Fill, Radius, Padding,
-          Margin, Overflow, Border, Shadow, Transform, Filter, etc. —
-          belongs inside the component's own master file. */}
-      {isInsideComponentInstance ? (
-        // Selected node is INNER content of an expansion. Don't render
-        // any rows — those styles belong to the component's master
-        // file and surfacing them here would (a) edit master content
-        // from the wrong file and (b) paint same-named purple pills
-        // sourced from the inner element's `styleVariables` markers
-        // (the master's prop bindings). The user is expected to click
-        // the component's bounding box (the wrapper) to edit
-        // instance-level styles — `redirectToComponentInstance`
-        // handles that for fresh clicks; this branch just refuses to
-        // surface the inner element's styles.
-        null
-      ) : (isComponentInstanceWrapper || isVectorSet) ? (
-        // Wrapper-level styles only — Margin, Opacity and Hide are always
-        // visible; the rest (Filter, Mask, Pointer Events, User Select,
-        // Z-Index) appear once the user adds them via the +. Each is
-        // gated on `visibleIds` so they hide again when removed, same
-        // as for non-instance nodes. A VECTOR SET additionally gets a
-        // standalone Rotate (no full Transform tool / anchor).
-        //
-        // MARGIN belongs here even though PADDING does not: margin is the
-        // OUTER box, owned by the parent's flow, so an instance override
-        // composes cleanly with whatever the master paints inside. Padding
-        // is the inner box and is the master's to own. The instance already
-        // exposes its other outer-box props (size, align-self, grid span)
-        // via the Size and Layout tools, and codegen writes marginTop onto
-        // an instance without complaint — leaving it out of this branch just
-        // meant hand-written margins rendered on canvas but were invisible
-        // and uneditable in the panel.
-        <>
-          <MarginControl />
-          <OpacityControl />
-          <HideControl />
-          {isVectorSet && <RotateControl />}
-          {visibleIds.has('mask') && <MaskControl />}
-          {visibleIds.has('filter') && <FilterControl />}
-          {visibleIds.has('backdropFilter') && <BackdropFilterControl />}
-          {visibleIds.has('zIndex') && <ZIndexControl />}
-          {visibleIds.has('pointerEvents') && <PointerEventsControl />}
-          {visibleIds.has('userSelect') && <UserSelectControl />}
-          {visibleIds.has('mixBlendMode') && <MixBlendModeControl />}
-        </>
-      ) : (
-        <>
-          <VariantTransitionControl />
-          {!isText && <FillControl />}
-          {!isText && <RadiusControl />}
-          {/* Padding moved to the Layout tool (after Gap): an element only has
-              an inner content box to pad when it has a flex/grid layout, so it
-              lives under Layout (design-tool parity), not here. */}
-          {!isViewportFrame && <MarginControl />}
-          <OverflowControl />
-          {visibleIds.has('overflowX') && <OverflowXControl />}
-          {visibleIds.has('overflowY') && <OverflowYControl />}
-          <OpacityControl />
-          {!isViewportFrame && <HideControl />}
-          <BorderControl />
-          {!isText && <ShadowControl />}
-          {/* Form controls: Focus (inputs) and Checked (checkbox / radio) states. */}
-          <FormStateControl />
-          {!isText && visibleIds.has('mask') && <MaskControl />}
-          {!isText && visibleIds.has('clipPath') && <ClipPathControl />}
-          <TransformControl />
-          {visibleIds.has('backfaceVisibility') && <BackfaceControl />}
-          {visibleIds.has('mixBlendMode') && <MixBlendModeControl />}
-          {visibleIds.has('filter') && <FilterControl />}
-          {visibleIds.has('backdropFilter') && <BackdropFilterControl />}
-          {visibleIds.has('zIndex') && <ZIndexControl />}
-          {visibleIds.has('pointerEvents') && <PointerEventsControl />}
-          {visibleIds.has('userSelect') && <UserSelectControl />}
-          {hasPseudo && <PseudoElementControl />}
+
+          {isWrapper && (
+            <>
+              {(visibleIds.has('mask') || visibleIds.has('filter') || visibleIds.has('backdropFilter')) && <ToolDivider />}
+              {(visibleIds.has('mask') || visibleIds.has('filter') || visibleIds.has('backdropFilter')) && (
+                <ToolSection title="Effects">
+                  {visibleIds.has('mask') && <MaskControl />}
+                  {visibleIds.has('filter') && <FilterControl />}
+                  {visibleIds.has('backdropFilter') && <BackdropFilterControl />}
+                </ToolSection>
+              )}
+            </>
+          )}
         </>
       )}
-    </ToolSection>
+
+      {showAdvanced && (
+        <>
+          <ToolSection title="Advanced" collapsible defaultOpen={false} action={addAction}>
+            {!isWrapper && <VariantTransitionControl />}
+            {!isViewportFrame && <MarginControl />}
+            {!isWrapper && <OverflowControl />}
+            {!isWrapper && visibleIds.has('overflowX') && <OverflowXControl />}
+            {!isWrapper && visibleIds.has('overflowY') && <OverflowYControl />}
+            {isVectorSet && <RotateControl />}
+            {!isWrapper && <FormStateControl />}
+            {isText && !isWrapper && <BorderControl />}
+            {!isWrapper && <TransformControl />}
+            {!isWrapper && visibleIds.has('backfaceVisibility') && <BackfaceControl />}
+            {visibleIds.has('zIndex') && <ZIndexControl />}
+            {visibleIds.has('pointerEvents') && <PointerEventsControl />}
+            {visibleIds.has('userSelect') && <UserSelectControl />}
+            {!isWrapper && hasPseudo && <PseudoElementControl />}
+          </ToolSection>
+        </>
+      )}
+    </>
   );
 }

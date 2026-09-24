@@ -16,9 +16,12 @@ interface Props {
   /** When false, section renders compact with no bottom spacing/separator.
    *  Useful for sections like Animation/Layout that may have no entries. */
   hasContent?: boolean;
+  /** Keep the section header mounted even when every child is currently absent.
+   *  Figma uses this for addable property stacks such as Stroke / Effects / Export. */
+  renderWhenEmpty?: boolean;
 }
 
-export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true }: Props) {
+export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true, renderWhenEmpty = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const actionRef = useRef<HTMLSpanElement>(null);
 
@@ -37,14 +40,25 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
   };
 
   const validChildren = React.Children.toArray(children).filter(Boolean);
-  if (validChildren.length === 0) return null;
+  if (validChildren.length === 0 && !renderWhenEmpty) return null;
 
-  const showContent = isOpen && hasContent;
+  const showContent = isOpen && hasContent && validChildren.length > 0;
+  const sectionId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   return (
-    <div className="px-2">
-      {/* Title row: label + action */}
-      <div className={`${showContent ? 'mb-1.5' : 'mb-0'} flex items-center justify-between pt-2.5 pb-1`} onContextMenu={onHeaderContextMenu}>
+    <div
+      data-inspector-section={sectionId}
+      data-inspector-section-title={title}
+      data-inspector-section-empty={validChildren.length === 0 ? 'true' : undefined}
+      className="px-2"
+    >
+      {/* Canonical inspector section header. ToolSection remains the compatibility
+          surface for existing tools while exposing one Figma-shaped DOM grammar. */}
+      <div
+        data-inspector-section-header
+        className={`${showContent ? 'mb-1.5' : 'mb-0'} flex items-center justify-between pt-2.5 pb-1`}
+        onContextMenu={onHeaderContextMenu}
+      >
         <button
           type="button"
           disabled={!collapsible || !hasContent}
@@ -72,7 +86,10 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
         <span ref={actionRef} className="flex items-center">{action}</span>
       </div>
       {isOpen && showContent && (
-        <div className="flex flex-col py-0.5 gap-[var(--control-gap)] pl-3">
+        <div
+          data-inspector-section-content
+          className="flex flex-col py-0.5 gap-[var(--control-gap)] pl-3"
+        >
           {children}
         </div>
       )}
