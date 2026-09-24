@@ -473,7 +473,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         </>
       )}
 
-      {/* ─── Tools — order matches old builder ─── */}
+      {/* ─── Tools — field semantic inspector hierarchy ─── */}
       {/* pb-8 leaves breathing room after the Export tool so the last
           control isn't flush with the panel's bottom edge — scroll-to-end
           previously left the Export Frame button kissing the viewport
@@ -562,38 +562,13 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {/* Overlay nodes also hide both: an overlay opens/closes via its
             trigger (Show On), so variant interactions and a nav link on the
             floating panel itself don't apply. */}
-        {/* 0. Interactions (component variant connections / event fires / page
-            interactions). Hidden for instances EXCEPT: (a) a component instance
-            INSIDE a collection list (e.g. a Load More button → wire its Click to
-            pagination); (b) a NESTED instance inside a DESIGN-COMPONENT master —
-            it can be a variant-connection SOURCE (e.g. the Header's hamburger
-            instance toggling the Header's open/closed variant). In a master file
-            the InteractionsTool returns ComponentInteractions for EVERY node, which
-            reads connections by `sourceNode === selectedId`, so the nested instance's
-            connection shows + is editable. */}
-        {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
-          && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
-          <>
-            <InteractionsTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* 0b. Link + Anchor (Navigation) — single-node only (still hidden for
-            instances / overlays / multi-select). Code-component instances carry
-            `isCodeComponent` (not `isComponentInstance`), so gate them explicitly
-            too — a code component has no links, and its own `target`/`href` controls
-            would otherwise be misread as a nav link's New Tab / Link To.
-            Form controls (input/textarea/select) are gated too: wrapping a form
-            field in a nav link is never what the user means. */}
-        {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
-          <>
-            <LinkTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* 1. Position — the single-node tool (type / pins / coords) can't
+        {/* field semantic inspector order.
+            These wrappers are intentionally display:contents: they define stable
+            information architecture without changing panel geometry or density.
+            Density/pixel tuning can target these groups later without having to
+            rediscover the inspector semantics from one legacy tool stream. */}
+        <div data-inspector-group="geometry" className="contents">
+        {/* Position — the single-node tool (type / pins / coords) can't
             generalize across a heterogeneous group, so on multi-select we
             swap it for the alignment-only control: the same Position header
             with just the 6 align icons, wired to group-bbox math so the user
@@ -631,7 +606,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           <MultiAlignmentControl vpId={vpId} />
         ))}
 
-        {/* 2. Dimensions */}
+        {/* Dimensions */}
         {!isOverlayNode && (
           <>
             <SizeTool
@@ -645,58 +620,14 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           </>
         )}
 
-        {/* 3. Grid Child (only when parent is grid) */}
+        {/* Grid Child (only when parent is grid) */}
         {parentLayout === 'grid' && (
           <>
             <GridChildControls />
             <ToolDivider />
           </>
         )}
-
-        {/* Collection List (nodes with collectionList) — placed ABOVE Animation
-            so the CMS source/filter/sort/pagination controls sit near the top of
-            the panel (design-tool parity), not buried below Layout/Overlays. */}
-        {hasCollectionList && (
-          <>
-            <CollectionListTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* Form (the <form> element) — Send To / Redirect / Antispam / Tracking. */}
-        {isFormElement && (
-          <>
-            <FormTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* Input (input / textarea / select) — Type / Name / Placeholder / Required / + props. */}
-        {isInputElement && (
-          <>
-            <InputTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* 4. Animation ("Effects") — hidden on the viewport frame (no
-            animatable target). Vector/icon-set instances DO get it: the user
-            animates the whole vector wrapper (appear / hover / loop / scroll),
-            which is a valid instance-level effect (the master-only concern is
-            animating the vector's INTERNAL parts, not the wrapper). */}
-        {/* The viewport/root frame gets the AnimationTool too, but restricted to
-            ONLY the Glide ("Flow") effect — the one meaningful page-level animation
-            (the reference puts Flow on the page). All other effects stay hidden there. */}
-        <AnimationTool
-          styles={s}
-          onUpdate={updateStyle}
-          glideOnly={isViewportFrame}
-        />
-
-        {/* Page Effects (View Transitions) live INSIDE the AnimationTool's "+"
-            on a viewport (a "Page Transition" effect), not a separate section. */}
-
-        {/* 5b. Layout (all elements — text nodes get Block-only mode).
+        {/* Layout (all elements — text nodes get Block-only mode).
             Container-set instances (icon sets) hide it: the
             instance is a leaf reference, not a layout container — the
             master defines the inner layout and the wrapper itself is
@@ -729,8 +660,114 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             templateRoot={isTemplateRootEdit}
           />
         )}
+        </div>
 
-        {/* 5c. Overlay (right under Layout — title + collapsible body, same
+        <div data-inspector-group="content" className="contents">
+        {/* Collection List (nodes with collectionList) — placed ABOVE Animation
+            so the CMS source/filter/sort/pagination controls sit near the top of
+            the panel (design-tool parity), not buried below Layout/Overlays. */}
+        {hasCollectionList && (
+          <>
+            <CollectionListTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Form (the <form> element) — Send To / Redirect / Antispam / Tracking. */}
+        {isFormElement && (
+          <>
+            <FormTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Input (input / textarea / select) — Type / Name / Placeholder / Required / + props. */}
+        {isInputElement && (
+          <>
+            <InputTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Text Style (only for text elements, just before Styles) */}
+        {isText && <TextStyleTool />}
+
+        {/* The standalone "Template bindings" row was here — removed once the
+            per-property menu (Bind to Field / Unbind Field) covered every
+            bindable property in the panel. The dedicated row was confusing:
+            it duplicated the menu's affordance and only handled text/src/href. */}
+        {/* Form State — maps the enclosing form's lifecycle (loading/
+            success/error/disabled) to this instance's variants. Self-gates
+            to a multi-variant component instance inside a <form>. */}
+        {isComponentInstance && isInsideForm && <FormStateTool />}
+        {/* Component Props */}
+        <ComponentPropsTool />
+
+        {/* Icon Set (only for icon-set instances — IconSetTool returns
+            null when the selected node isn't pointing at an icons/*.tsx file). */}
+        <IconSetTool />
+        <ToolDivider />
+        {/* Image source/alt (only for image elements) */}
+        {isImageElement && (
+          <>
+            <ImageTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Video controls (only for video elements) */}
+        {isVideoElement && (
+          <>
+            <VideoTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Audio controls (only for audio elements) */}
+        {isAudioElement && (
+          <>
+            <AudioTool />
+            <ToolDivider />
+          </>
+        )}
+        </div>
+
+        <div data-inspector-group="appearance" className="contents">
+        {/* Selection (multi-select only) — aggregated fills across
+            all selected nodes. Placed right above Styles so the user's
+            mental model of "set the color" lands first on the
+            multi-color aggregator, then on per-element overrides
+            below. Returns null on single-select. */}
+        {isMultiSelect && (
+          <>
+            <SelectionTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Styles: Fill, Radius, Padding, Margin, Overflow, Opacity.
+            Hidden on a templated viewport — those styles belong to the
+            Template's root, not the page (edit via Template → Edit). */}
+        {!isTemplatedViewport && (
+          <>
+            <StylesTool />
+            <ToolDivider />
+          </>
+        )}
+        </div>
+
+        <div data-inspector-group="effects" className="contents">
+        {/* Animation ("Effects") — hidden on the viewport frame (no
+            animatable target). Vector/icon-set instances DO get it: the user
+            animates the whole vector wrapper (appear / hover / loop / scroll),
+            which is a valid instance-level effect (the master-only concern is
+            animating the vector's INTERNAL parts, not the wrapper). */}
+        {/* The viewport/root frame gets the AnimationTool too, but restricted to
+            ONLY the Glide ("Flow") effect — the one meaningful page-level animation
+            (the reference puts Flow on the page). All other effects stay hidden there. */}
+        <AnimationTool
+          styles={s}
+          onUpdate={updateStyle}
+          glideOnly={isViewportFrame}
+        />
+
+        {/* Page Effects (View Transitions) live INSIDE the AnimationTool's "+"
+            on a viewport (a "Page Transition" effect), not a separate section. */}
+        {/* Overlay (right under Layout — title + collapsible body, same
             shape as Animation/Layout). Overlay NODES render it at the top of
             the panel instead (see above).
 
@@ -744,74 +781,41 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {/* Also hidden on form controls — an input/select isn't an overlay
             trigger surface (the Input tool owns that panel real estate). */}
         {!isOverlayNode && !isCodeComponentInstance && !isViewportFrame && !isInputElement && <OverlayTool />}
+        </div>
 
-        {/* 6. Text Style (only for text elements, just before Styles) */}
-        {isText && <TextStyleTool />}
-
-        {/* The standalone "Template bindings" row was here — removed once the
-            per-property menu (Bind to Field / Unbind Field) covered every
-            bindable property in the panel. The dedicated row was confusing:
-            it duplicated the menu's affordance and only handled text/src/href. */}
-
-        {/* 6b. Form State — maps the enclosing form's lifecycle (loading/
-            success/error/disabled) to this instance's variants. Self-gates
-            to a multi-variant component instance inside a <form>. */}
-        {isComponentInstance && isInsideForm && <FormStateTool />}
-
-        {/* 7. Component Props */}
-        <ComponentPropsTool />
-
-        {/* 7a. Icon Set (only for icon-set instances — IconSetTool returns
-            null when the selected node isn't pointing at an icons/*.tsx file). */}
-        <IconSetTool />
-        <ToolDivider />
-
-        {/* 7b. Image source/alt (only for image elements) */}
-        {isImageElement && (
+        <div data-inspector-group="behavior" className="contents">
+        {/* Interactions (component variant connections / event fires / page
+            interactions). Hidden for instances EXCEPT: (a) a component instance
+            INSIDE a collection list (e.g. a Load More button → wire its Click to
+            pagination); (b) a NESTED instance inside a DESIGN-COMPONENT master —
+            it can be a variant-connection SOURCE (e.g. the Header's hamburger
+            instance toggling the Header's open/closed variant). In a master file
+            the InteractionsTool returns ComponentInteractions for EVERY node, which
+            reads connections by `sourceNode === selectedId`, so the nested instance's
+            connection shows + is editable. */}
+        {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
+          && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
           <>
-            <ImageTool />
+            <InteractionsTool />
             <ToolDivider />
           </>
         )}
-
-        {/* 7c. Video controls (only for video elements) */}
-        {isVideoElement && (
+        {/* Link + Anchor (Navigation) — single-node only (still hidden for
+            instances / overlays / multi-select). Code-component instances carry
+            `isCodeComponent` (not `isComponentInstance`), so gate them explicitly
+            too — a code component has no links, and its own `target`/`href` controls
+            would otherwise be misread as a nav link's New Tab / Link To.
+            Form controls (input/textarea/select) are gated too: wrapping a form
+            field in a nav link is never what the user means. */}
+        {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
           <>
-            <VideoTool />
+            <LinkTool />
             <ToolDivider />
           </>
         )}
+        </div>
 
-        {/* 7d. Audio controls (only for audio elements) */}
-        {isAudioElement && (
-          <>
-            <AudioTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* 7e. Selection (multi-select only) — aggregated fills across
-            all selected nodes. Placed right above Styles so the user's
-            mental model of "set the color" lands first on the
-            multi-color aggregator, then on per-element overrides
-            below. Returns null on single-select. */}
-        {isMultiSelect && (
-          <>
-            <SelectionTool />
-            <ToolDivider />
-          </>
-        )}
-
-        {/* 8. Styles: Fill, Radius, Padding, Margin, Overflow, Opacity.
-            Hidden on a templated viewport — those styles belong to the
-            Template's root, not the page (edit via Template → Edit). */}
-        {!isTemplatedViewport && (
-          <>
-            <StylesTool />
-            <ToolDivider />
-          </>
-        )}
-
+        <div data-inspector-group="advanced" className="contents">
         {/* Cursor + Accessibility — hidden on the viewport frame. Cursor
             is a per-element CSS property; accessibility tags/labels apply
             to content elements, not the layout container. Accessibility
@@ -857,9 +861,11 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             )}
           </>
         )}
-
-        {/* 11. Export */}
-        <ExportTool />
+        </div>
+        {/* Export remains the terminal action regardless of selection type. */}
+        <div data-inspector-group="export" className="contents">
+          <ExportTool />
+        </div>
         </>}
         </>}
       </div>
