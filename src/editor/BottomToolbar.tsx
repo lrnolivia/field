@@ -571,7 +571,7 @@ export default function BottomToolbar() {
       // Docked flush to the screen bottom (was a floating pill at bottom:14).
       // CommandPalette measures #bottom-toolbar-container's live rect, so
       // anchored UI tracks the offset automatically.
-      style={{ bottom: 0, willChange: 'transform', isolation: 'isolate' }}
+      style={{ bottom: 12, willChange: 'transform', isolation: 'isolate' }}
     >
       <div
         id="bottom-toolbar-container"

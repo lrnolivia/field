@@ -44,7 +44,7 @@ describe('builder themes', () => {
       return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
     };
 
-    const dropdown = '#2b2b2b';
+    const dropdown = '#2a2a2a';
     for (const t of BUILDER_THEMES) {
       if (t.id === DEFAULT_BUILDER_THEME_ID) continue;
       const lifted = mixWithWhite(t.dark.accent, DARK_ACCENT_TEXT_MIX);
@@ -52,12 +52,12 @@ describe('builder themes', () => {
     }
   });
 
-  test('Graphite intentionally inverts between light and dark', () => {
+  test('Graphite stays medium grey in both modes', () => {
     const g = getBuilderThemeById('graphite')!;
-    expect(g.light.accent).toBe('#2c2c2c');
+    expect(g.light.accent).toBe('#6b6b6b');
+    expect(g.dark.accent).toBe('#6b6b6b');
     expect(g.light.accentFg).toBe('#ffffff');
-    expect(g.dark.accent).toBe('#f0f0f0');
-    expect(g.dark.accentFg).toBe('#111111');
+    expect(g.dark.accentFg).toBe('#ffffff');
   });
 
   test('Terra accents keep one hue across modes', () => {

@@ -12,25 +12,25 @@
 /* -------------------------------------------------------------------------- */
 
 :root {
-  /* Figma-ish compact control system. Keep structural panel geometry intact. */
-  --radius-sm: 4px;
-  --radius-md: 5px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
+  /* Smaller, denser than the first Figma pass. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 7px;
+  --radius-xl: 8px;
 
   --cut: 0px;
   --cut-round: var(--radius-md);
 
-  --control-height: 28px;
-  --control-height-sm: 24px;
-  --control-pad-x: 6px;
-  --control-gap: 6px;
+  --control-height: 26px;
+  --control-height-sm: 22px;
+  --control-pad-x: 5px;
+  --control-gap: 5px;
 
-  /* Graphite = default accent. Light mode uses a dark active tool. */
-  --accent: #2c2c2c;
+  /* Graphite is intentionally GREY, not white, in both themes. */
+  --accent: #6b6b6b;
   --accent-fg: #ffffff;
-  --accent-hover: color-mix(in srgb, var(--accent) 86%, #fff);
-  --accent-text: color-mix(in srgb, var(--accent) 82%, #000);
+  --accent-hover: color-mix(in srgb, var(--accent) 84%, #fff);
+  --accent-text: color-mix(in srgb, var(--accent) 72%, #000);
   --accent-strong: var(--accent);
   --accent-strong-fg: var(--accent-fg);
   --accent-muted: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -41,10 +41,9 @@
   --accent-secondary-hover: #667f94;
   --accent-secondary-fg: #ffffff;
 
-  /* UI3-style canvas selection remains a functional blue. */
+  /* Functional canvas selection stays Figma-blue. */
   --selection: #0d99ff;
 
-  /* Integrated chrome should not look like floating SaaS cards. */
   --shadow-sm: 0 0 0 transparent;
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.16);
   --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.20);
@@ -55,8 +54,6 @@
     BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
-/* The editor and user canvas are separate documents, so this does not touch
- * portfolio typography inside the iframe. */
 html,
 body,
 #root,
@@ -69,7 +66,7 @@ textarea {
 
 body {
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.3;
   letter-spacing: -0.004em;
   font-synthesis: none;
 }
@@ -78,7 +75,7 @@ button,
 input,
 select,
 textarea {
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -90,8 +87,8 @@ textarea {
   --bg-surface: #ffffff;
   --bg-toolbar: #ffffff;
   --bg-panel: #ffffff;
-  --bg-hover: #f2f2f2;
-  --bg-active: #e8e8e8;
+  --bg-hover: #f1f1f1;
+  --bg-active: #e7e7e7;
   --bg-tertiary: #f5f5f5;
 
   --canvas-chrome-bg: #ffffff;
@@ -111,19 +108,19 @@ textarea {
   --border-default: rgba(0, 0, 0, 0.14);
   --border-focus: var(--accent);
 
-  --grid-line: #f1f1f1;
+  --grid-line: #f0f0f0;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #ebebeb;
-  --control-bg-active: #e2e2e2;
+  --control-bg-hover: #eaeaea;
+  --control-bg-active: #e1e1e1;
   --control-border: rgba(0, 0, 0, 0.08);
   --control-border-hover: rgba(0, 0, 0, 0.16);
-  --choice-bg: #efefef;
+  --choice-bg: #eeeeee;
   --segmented-bg: #ffffff;
   --slider-bg: #d7d7d7;
   --slider-thumb-border: rgba(0, 0, 0, 0.18);
 
-  --btn-secondary-bg: #f1f1f1;
-  --btn-secondary-hover: #e8e8e8;
+  --btn-secondary-bg: #f0f0f0;
+  --btn-secondary-hover: #e7e7e7;
   --button-secondary-bg: rgba(0, 0, 0, 0.045);
   --button-secondary-hover: rgba(0, 0, 0, 0.075);
 
@@ -139,63 +136,63 @@ textarea {
   --bg-surface: #242424;
   --bg-toolbar: #242424;
   --bg-panel: #242424;
-  --bg-hover: #303030;
-  --bg-active: #383838;
+  --bg-hover: #2f2f2f;
+  --bg-active: #373737;
   --bg-tertiary: #2a2a2a;
 
   --canvas-chrome-bg: #242424;
-  --canvas-chrome-border: rgba(255, 255, 255, 0.10);
+  --canvas-chrome-border: rgba(255, 255, 255, 0.09);
   --variant-card-bg: #292929;
   --variant-card-bg-hover: #313131;
   --variant-card-badge: #3a3a3a;
 
-  --text-primary: #f5f5f5;
-  --text-secondary: #b8b8b8;
-  --text-prose: #d0d0d0;
+  --text-primary: #f3f3f3;
+  --text-secondary: #b4b4b4;
+  --text-prose: #cccccc;
   --text-disabled: #707070;
-  --text-tertiary: #8c8c8c;
-  --text-muted: #989898;
+  --text-tertiary: #898989;
+  --text-muted: #969696;
 
-  --border-light: rgba(255, 255, 255, 0.075);
-  --border-default: rgba(255, 255, 255, 0.14);
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.13);
   --border-focus: var(--accent);
 
-  --grid-line: #2c2c2c;
+  --grid-line: #2b2b2b;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #343434;
-  --control-bg-active: #3b3b3b;
-  --control-border: rgba(255, 255, 255, 0.075);
-  --control-border-hover: rgba(255, 255, 255, 0.16);
+  --control-bg-hover: #333333;
+  --control-bg-active: #3a3a3a;
+  --control-border: rgba(255, 255, 255, 0.07);
+  --control-border-hover: rgba(255, 255, 255, 0.15);
   --choice-bg: #1f1f1f;
-  --segmented-bg: #3b3b3b;
-  --slider-bg: #3a3a3a;
-  --slider-thumb-border: rgba(255, 255, 255, 0.42);
+  --segmented-bg: #393939;
+  --slider-bg: #383838;
+  --slider-thumb-border: rgba(255, 255, 255, 0.40);
 
-  --btn-secondary-bg: #2c2c2c;
-  --btn-secondary-hover: #353535;
-  --button-secondary-bg: rgba(255, 255, 255, 0.055);
-  --button-secondary-hover: rgba(255, 255, 255, 0.09);
+  --btn-secondary-bg: #2b2b2b;
+  --btn-secondary-hover: #343434;
+  --button-secondary-bg: rgba(255, 255, 255, 0.05);
+  --button-secondary-hover: rgba(255, 255, 255, 0.085);
 
-  --dropdown-bg: #2b2b2b;
+  --dropdown-bg: #2a2a2a;
 
-  /* Graphite default inverts like Figma's selected-tool treatment. */
-  --accent: #f0f0f0;
-  --accent-fg: #1e1e1e;
-  --accent-hover: #ffffff;
-  --accent-text: #f0f0f0;
-  --accent-strong: #f0f0f0;
-  --accent-strong-fg: #1e1e1e;
-  --accent-muted: rgba(255, 255, 255, 0.10);
-  --accent-surface: rgba(255, 255, 255, 0.08);
+  /* Monochrome/Graphite selection is grey, not a white slab. */
+  --accent: #6b6b6b;
+  --accent-fg: #ffffff;
+  --accent-hover: #797979;
+  --accent-text: #c2c2c2;
+  --accent-strong: #6b6b6b;
+  --accent-strong-fg: #ffffff;
+  --accent-muted: rgba(255, 255, 255, 0.075);
+  --accent-surface: rgba(255, 255, 255, 0.065);
 
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.42);
-  --shadow-xl: 0 6px 20px rgba(0, 0, 0, 0.46);
-  --shadow-2xl: 0 8px 28px rgba(0, 0, 0, 0.50);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 6px 20px rgba(0, 0, 0, 0.44);
+  --shadow-2xl: 0 8px 28px rgba(0, 0, 0, 0.48);
 }
 
 /* -------------------------------------------------------------------------- */
-/* 4. Kill the old cut-corner language without touching ~1,400 call sites     */
+/* 4. Kill old cut-corner language                                             */
 /* -------------------------------------------------------------------------- */
 
 .cut-corners,
@@ -224,38 +221,29 @@ textarea {
   border-radius: var(--radius-lg);
 }
 
-/* Docked chrome stays visually docked. Only the exposed corner rounds. */
-.cut-br {
-  border-radius: 0 0 var(--radius-lg) 0;
-}
-
-.cut-tl {
-  border-radius: var(--radius-lg) 0 0 0;
-}
-
-.cut-bl {
-  border-radius: 0 0 0 var(--radius-lg);
-}
-
-.cut-tr {
-  border-radius: 0 var(--radius-lg) 0 0;
-}
-
-.cut-r {
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-}
+/* Generic floating/single-corner helpers keep restrained rounding. Structural
+ * sidebars are explicitly squared below. */
+.cut-br { border-radius: 0 0 var(--radius-lg) 0; }
+.cut-tl { border-radius: var(--radius-lg) 0 0 0; }
+.cut-bl { border-radius: 0 0 0 var(--radius-lg); }
+.cut-tr { border-radius: 0 var(--radius-lg) 0 0; }
+.cut-r  { border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
 
 .cut-br.cut-lg { border-bottom-right-radius: var(--radius-xl); }
 .cut-tl.cut-lg { border-top-left-radius: var(--radius-xl); }
 .cut-bl.cut-lg { border-bottom-left-radius: var(--radius-xl); }
 .cut-tr.cut-lg { border-top-right-radius: var(--radius-xl); }
 
+/* Figma-style docked panes are RECTILINEAR. */
+[data-editor-panel="left-primary"],
+[data-properties-panel] {
+  border-radius: 0;
+}
+
 /* -------------------------------------------------------------------------- */
-/* 5. Figma-ish density                                                        */
+/* 5. Density                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/* The existing variables cover most PropertiesPanel inputs. These catch
- * remaining native controls that bypass ToolInput. */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 select,
 textarea {
@@ -267,21 +255,67 @@ select {
   min-height: var(--control-height-sm);
 }
 
-/* Left rail: preserve 52px structural rail, make the actual tools compact. */
-[data-left-menu-item] {
-  width: 28px;
-  height: 28px;
+/* Sidebars: smaller type, but preserve enough hierarchy to scan quickly. */
+[data-editor-panel],
+[data-properties-panel] {
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+[data-editor-panel] .text-sm,
+[data-properties-panel] .text-sm {
+  font-size: 11px;
+  line-height: 15px;
+}
+
+[data-editor-panel] .text-xs,
+[data-properties-panel] .text-xs {
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+[data-editor-panel] [class*="text-[13px]"],
+[data-properties-panel] [class*="text-[13px]"] {
+  font-size: 11px;
+  line-height: 15px;
+}
+
+[data-editor-panel] [class*="text-[12px]"],
+[data-properties-panel] [class*="text-[12px]"] {
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+/* Left rail: keep structural width, reduce visual mass. */
+[data-left-menu-rail] {
+  padding-left: 13px;
+  padding-right: 13px;
+}
+
+[data-left-menu-rail] button {
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-md);
 }
 
-[data-left-menu-item] svg {
-  width: 16px;
-  height: 16px;
+[data-left-menu-rail] button svg {
+  width: 15px;
+  height: 15px;
 }
 
-/* Bottom tool strip: Figma-like compact control boxes, not a giant pill. */
+[data-left-menu-rail] .vibe-ring {
+  width: 26px;
+  height: 26px;
+}
+
+[data-left-menu-rail] .vibe-face {
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+}
+
+/* Bottom tool strip: smaller AND floating off the screen edge. */
 #bottom-toolbar-container {
-  padding: 4px 6px;
+  padding: 3px 5px;
   gap: 1px;
 }
 
@@ -290,21 +324,27 @@ select {
 }
 
 #bottom-toolbar-container button {
-  min-height: 28px;
-  height: 28px;
+  min-height: 26px;
+  height: 26px;
   border-radius: var(--radius-md);
+  font-size: 10.5px;
 }
 
-#bottom-toolbar-container [class*="w-[22px]"] {
-  width: 16px;
-  height: 16px;
+#bottom-toolbar-container svg {
+  width: 15px;
+  height: 15px;
 }
 
 #bottom-toolbar-container [class*="h-[26px]"] {
-  height: 20px;
+  height: 18px;
 }
 
-/* Dropdowns/menus: compact and crisp. */
+#bottom-toolbar-container [class*="min-w-[50px]"] {
+  min-width: 44px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 [role="menu"],
 [role="listbox"] {
   border-radius: var(--radius-lg);
@@ -321,8 +361,7 @@ select {
   shape-rendering: geometricPrecision;
 }
 
-/* Filled legacy icons should not visually overpower the thin replacement set. */
-[data-left-menu-item] svg,
+[data-left-menu-rail] svg,
 #bottom-toolbar-container svg {
   overflow: visible;
 }
@@ -348,17 +387,14 @@ select {
 /* 8. Fine-grain hierarchy                                                     */
 /* -------------------------------------------------------------------------- */
 
-/* Keep integrated panels crisp: separators do more work than shadows. */
 [data-editor-panel] {
   box-shadow: none;
 }
 
-/* Small labels should recede without becoming illegible. */
 .text-\[10px\] {
   letter-spacing: 0;
 }
 
-/* Do not round the structural frame/viewport chrome into a card. */
 [data-viewport-header],
 [data-frame-header] {
   border-radius: var(--radius-sm);

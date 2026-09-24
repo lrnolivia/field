@@ -137,3 +137,17 @@ later pass.
 - Other hardcoded hex colours in components (e.g. `border-[#555]`) bypass the tokens.
 - Modal scrim uses `backdrop-filter: blur(4px)` inline in `design-system/Modal.tsx`.
 - Inline chevron / close / check / ellipsis SVGs (see Iconography).
+
+
+## Figma-first refinement V2
+
+Second polish pass after live visual review:
+
+- Bottom toolbar floats 12px above the viewport edge.
+- Docked left/right chrome is square-edged; sidebar cut/rounded structural corners are gone.
+- Left-panel content receives 6px structural inset in addition to each panel's own local spacing.
+- Right inspector receives 10px horizontal inset.
+- Standard controls are 26px; compact controls 22px.
+- Rail/tool controls are reduced to ~26px boxes with ~15px glyphs.
+- Graphite is medium grey (#6b6b6b) rather than white in dark mode.
+- Side-panel typography is tightened while preserving hierarchy.

@@ -17,12 +17,11 @@ export interface BuilderTheme {
 
 export const BUILDER_THEMES: BuilderTheme[] = [
   {
-    // Default/reset. The stylesheet owns mode-specific Graphite values:
-    // dark active tools are near-white; light active tools are charcoal.
+    // Monochrome without the giant white slabs: medium graphite + white ink.
     id: 'graphite',
     label: 'Graphite',
-    light: { accent: '#2c2c2c', accentFg: '#ffffff' },
-    dark: { accent: '#f0f0f0', accentFg: '#111111' },
+    light: { accent: '#6b6b6b', accentFg: '#ffffff' },
+    dark: { accent: '#6b6b6b', accentFg: '#ffffff' },
   },
   {
     id: 'teal',
@@ -46,7 +45,6 @@ export const BUILDER_THEMES: BuilderTheme[] = [
 
 export const DEFAULT_BUILDER_THEME_ID = 'graphite';
 
-/* Dark accent text is lifted toward white for mid-dark chromatic accents. */
 export const DARK_ACCENT_TEXT_MIX = 0.5;
 
 export function getBuilderThemeById(id: string): BuilderTheme | undefined {

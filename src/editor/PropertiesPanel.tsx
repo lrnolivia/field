@@ -400,7 +400,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       data-properties-panel
       data-tutorial="right-toolbar"
       className="w-[260px] shrink-0 flex flex-col relative z-5000"
-      style={{ marginTop: 52, marginLeft: -260, paddingLeft: '1.5px', willChange: 'transform', isolation: 'isolate' }}
+      style={{ marginTop: 52, marginLeft: -260, paddingLeft: 10, paddingRight: 10, boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
       onMouseDown={(e) => {
         if (activeEditor && !(e.target instanceof HTMLSelectElement)) {
           e.preventDefault();
