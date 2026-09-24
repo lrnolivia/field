@@ -627,14 +627,14 @@ function BuilderLoadingShell() {
           ChromeIslands docked island. Header, icon rail and panel are drawn
           INSIDE it so the outer silhouette matches the loaded chrome. */}
       <div className="cut-br cut-lg" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 308, background: surface, borderRight: border }}>
-        {/* Header row — real logo already loaded */}
+        {/* Header row — field identity is visible during project hydration */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 52, borderBottom: border, display: 'flex', alignItems: 'center' }}>
           <div style={{ width: 51, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 779.79 1578.33" width={14} height={22} style={{ color: 'var(--text-primary, #eee)' }}>
-              <polygon fill="currentColor" points="0 0 0 464.88 779.79 922.26 779.79 461.13 0 0" />
-              <polygon fill="currentColor" points="779.79 1357.14 0 899.76 0 1357.14 408.64 1578.33 779.79 1357.14" />
-              <polygon fill="currentColor" points="402.21 700.79 402.21 1135.67 779.79 922.26 402.21 700.79" />
-            </svg>
+            <span
+              aria-hidden
+              className="block w-[26px] h-[26px] bg-center bg-contain bg-no-repeat"
+              style={{ backgroundImage: 'var(--field-app-icon)' }}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12 }}>
             <div className="cut-corners cut-sm" style={ph(90, 12)} />

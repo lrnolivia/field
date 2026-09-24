@@ -1,137 +1,170 @@
-# Revyme
+# field
 
-**Design websites with pixel-perfect control. Ship real code you own.**
+**A visual web design environment by loew.fi.**
 
-[![Join the Revyme Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/8f6UpuQHRN)
+> the design is the real website
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
-[![Website](https://img.shields.io/badge/revyme.com-visit-black)](https://revyme.com)
+field is a source-first visual environment for designing, building, maintaining, and previewing real websites.
 
-Revyme is an open-source visual website builder. You design on a canvas - drag, resize, build components, animate - and you get a clean Next.js project you can read, edit, deploy anywhere, and keep forever.
+It is evolving from a customized Revyme foundation into a professional visual web design environment where the visual document and the real website remain aligned.
 
-No proprietary file format. No export step that mangles your work. No lock-in.
+## Product modes
 
-> **Questions, ideas, or want to show what you built?**
-> [Join the Revyme Discord](https://discord.gg/8f6UpuQHRN) - it's the fastest way to get help.
+field is organized around four primary modes:
 
-![The Revyme editor](docs/readme/builder-preview.webp)
+- **Design**
+- **Content**
+- **Code**
+- **Preview**
 
-## Who it's for
+### Design
 
-- **Designers** who want real control - precise layout, motion and typography - without writing code
-- **Developers** who want to build UI visually and still own clean, readable source
-- **Agencies and teams** who need to hand off a project a client can actually keep
-- **Anyone leaving a hosted builder** and tired of paying rent on their own website
+The primary visual design environment.
 
-If you've used Framer or Webflow and wished you could take the code with you, that's the gap
-this fills.
+Design owns layout, styling, typography, responsive behavior, components, instances, variants, assets, interactions, and other deterministic document structure.
 
-## What you can build
+### Content
 
-**Components and variants.** Turn any selection into a reusable component. Give it visual
-states - default, hover, open, whatever you need - and wire them together with clicks, hovers
-and scroll triggers. No state machines to hand-write.
+The site-maintenance surface.
 
-**Genuinely responsive layouts.** Design on desktop, then adjust tablet and mobile directly.
-Add custom breakpoints whenever you want. Overrides are real CSS, not approximations.
+Content is responsible for CMS data, site copy, metadata, localization, structured content, and routine updates that should not require redesigning the site.
 
-**A real CMS.** Typed collections, filtered and sorted lists, pagination, and detail pages on
-dynamic routes. Bind any field to any element by pointing at it.
+### Code
 
-**Motion that feels designed.** Spring physics, easing curves, scroll-linked transforms, text
-effects and per-character reveals - all tuned visually with live preview.
+Source remains first-class.
 
-![The Transition editor with its easing curve, beside the animation trigger menu](docs/readme/motion.webp)
+field does not treat source as an export artifact. The underlying project remains inspectable, editable, portable, and part of the canonical website.
 
-**Multiple languages.** Add a locale, translate inline, and every visitor gets the right
-content, URLs and SEO metadata. Right-to-left included.
+### Preview
 
-**Forms, plugins, and more.** A visual form builder with a self-hostable submit relay, plus a
-plugin SDK if you want to extend the editor itself.
+Preview is runtime truth.
 
-![Editing a CMS item - typed fields on the left, content and meta on the right](docs/readme/cms.webp)
+It represents the website running as closely as possible to its real production behavior and is the final reference when visual editing, source, or runtime behavior disagree.
 
-## The code is yours
+## Core principles
 
-Every edit writes real source. Open the code panel at any moment and you'll find an ordinary
-Next.js project - `app/`, `components/`, `cms/` - that any React developer can pick up.
+- the website is the real artifact
+- source remains first-class
+- Preview is runtime truth
+- Design, source, Preview, and production should remain aligned
+- parity bugs should be traced to their first point of divergence
+- deterministic concepts should be modeled explicitly
+- AI should help with ambiguity, translation, cleanup, inference, and higher-level reasoning rather than substitute for a proper document model
 
-Deploy it to Vercel, Netlify, your own server, anywhere. Hand it to a developer. Fork it and
-never open Revyme again. It's your code.
+## Architecture
 
-![The code editor open over the canvas, showing the generated page source](docs/readme/code-export.webp)
+field currently runs as three coordinated web surfaces.
 
-## Quickstart
+### Local development
 
-```bash
-npm ci
-npm run dev
-```
+- editor — port 3333
+- Canvas runtime — port 5174
+- Preview runtime — port 5175
 
-Then open **http://localhost:3333**.
+### Production
 
-`npm run dev` starts three Vite servers - all are required:
+- field editor — https://field.loew.fi
+- Canvas runtime — https://canvas.field.loew.fi
+- Preview runtime — https://preview.field.loew.fi
 
-| Port | What it serves |
-|------|----------------|
-| 3333 | the editor |
-| 5174 | the canvas sandbox iframe (your page, rendered live) |
-| 5175 | the preview sandbox (the "play" preview) |
+Canvas and Preview intentionally run on separate origins from the editor.
 
-Your work saves to `localStorage` automatically in local mode. No account, no backend, no
-network required.
+The Canvas environment uses the isolation required for live visual editing.
 
-### Optional configuration
+Preview uses a less restrictive runtime environment so third-party embeds, cookies, and production-like website behavior can function correctly.
 
-Everything is optional - see [`.env.example`](./.env.example) for the annotated list.
+## Development
 
-| Variable | Purpose |
-|----------|---------|
-| `VITE_GOOGLE_FONTS_KEY` | Google Fonts picker (falls back to a bundled list) |
-| `VITE_UNSPLASH_ACCESS_KEY` / `VITE_PIXABAY_KEY` | stock image/video search tabs (hidden without keys) |
-| `VITE_REVYME_CLOUD` | set to `true` only when running against the hosted cloud backend |
-| `VITE_CDN_HOST` / `VITE_PLATFORM_HOST` | point a self-hosted fork at your own asset CDN / platform |
+Install dependencies:
 
-![The Add Language dialog - locale search, display name, slug and fallback](docs/readme/localization.webp)
+    npm ci
 
-## How it works
+Run the complete local environment:
 
-Three ideas, if you're curious what's under the canvas:
+    npm run dev
 
-**The JSX is the source of truth.** The editor parses your page's `.tsx` into a node map,
-renders it, and every edit rewrites that JSX. Undo, code export and consistency all fall out
-of one loop: parse → render → edit → regenerate.
+Build all production surfaces:
 
-**Edits are imperative, commits are canonical.** During a drag the canvas is patched directly
-at 60fps; the source is rewritten once, when you let go. Fluid to use, exact in the file.
+    npm run build:all
 
-**Your page runs in a sandbox.** Canvas content lives in a sandboxed iframe, so page code can
-never reach the editor. Geometry and style cross a `postMessage` bridge backed by synced
-caches.
+Run unit tests:
 
-[CLAUDE.md](./CLAUDE.md) has the full architecture guide.
+    npm run test:run
 
-## Contributing
+Run linting:
 
-```bash
-npx tsc --noEmit          # typecheck
-npx vitest run            # unit tests
-VITE_REVYME_CLOUD= npx playwright test   # e2e against the dev servers
-```
+    npm run lint
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contributor guide. Issues and pull requests
-are welcome - bug reports with a reproduction are especially useful.
+## Repository
 
-## License
+Canonical repository:
 
-[AGPL-3.0](./LICENSE), with an additional notice-preservation term under AGPL section 7(b) -
-see [NOTICE](./NOTICE).
+    https://github.com/lrnolivia/field
 
-In short: you're free to use, modify, and self-host Revyme. If you offer a modified version to
-others over a network (e.g. run it as a service), the AGPL requires you to publish the source
-of your modified version. The copyright notices and the NOTICE file must stay intact, and the
-Revyme name and logo are trademarks - forks need their own branding.
+Local development path:
 
-**Commercial licensing.** If your organization can't accept the AGPL's obligations
-(proprietary modifications, embedding Revyme in a closed-source product, or offering it as a
-service without source disclosure), a commercial license is available: **hello@revyme.com**.
+    /Users/lrnolivia/Repos/field
+
+## Upstream foundation
+
+field originated as a customized fork of Revyme.
+
+Some Revyme-prefixed identifiers remain intentionally intact where they represent upstream dependencies or compatibility contracts.
+
+Examples include:
+
+- @revyme/runtime
+- @revyme/plugin-sdk
+- VITE_REVYME_CLOUD
+- existing _revyme compatibility structures
+- existing Revyme-prefixed storage keys
+- existing Revyme-prefixed protocol or event identifiers
+
+These names describe implementation ancestry and compatibility boundaries.
+
+They are not field's product identity and should not be mechanically renamed.
+
+## Figma
+
+Figma integration is a strategic part of field.
+
+Where possible, field should preserve semantic concepts such as:
+
+- frames
+- Auto Layout
+- components
+- instances
+- variants
+- variables
+- typography
+- assets
+- prototype relationships
+- source identity
+
+The goal is not merely visual import. The goal is to preserve design meaning wherever the field document model can represent it.
+
+## Branding
+
+Product name:
+
+    field
+
+Parent brand:
+
+    loew.fi
+
+Editorial form:
+
+    field by loew.fi
+
+field currently uses a temporary working logo and app-icon system.
+
+Light, dark, transparent, and opaque variants are kept as separate assets so the editor and browser chrome can choose the appropriate treatment for their surface.
+
+## License and attribution
+
+field is a modified derivative of Revyme.
+
+The existing LICENSE and NOTICE files remain authoritative.
+
+Required upstream copyright, authorship, attribution, and licensing notices must remain intact.

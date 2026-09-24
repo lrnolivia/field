@@ -24,7 +24,7 @@ export const metaHandlers: Record<string, RpcHandler> = {
   }),
 
   'project.getProjectInfo': async (): Promise<ProjectInfo> => ({
-    name: 'Revyme Project',
+    name: 'field project',
     id: 'project-' + (typeof location !== 'undefined' ? location.host : 'local'),
   }),
 

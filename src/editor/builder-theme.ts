@@ -1,16 +1,10 @@
-// builder-theme.ts — paints a BuilderTheme onto the editor chrome.
+// builder-theme.ts — paints a BuilderTheme onto field's editor chrome.
 //
-// Themes the EDITOR UI (`src/styles/globals.css`), NOT the user's website
-// tokens in `app/globals.css`. Two unrelated systems that both say "accent".
+// The selected theme owns BOTH:
+//   1. field's editor accent palette
+//   2. field's matching identity assets
 //
-// The accent values go on <html> as INLINE styles, which outrank both the
-// `:root` and `.dark` rules in globals.css — so one write covers whichever
-// mode is active, with no stylesheet swapping. (globals.aurora / grove / reef
-// stay what they always were: whole-file experiments copied over globals.css
-// by hand. This is the runtime path.)
-//
-// `builderThemeAtom` owns the id and its persistence; this module owns the DOM.
-// `subscribeBuilderTheme` wires the two together once at boot.
+// It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
 import { builderThemeAtom } from '@/code/stores/user-preferences-store';
@@ -18,19 +12,26 @@ import {
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
   getBuilderThemeById,
+  normalizeBuilderThemeId,
   type BuilderTheme,
 } from '@/shared/builder-themes';
 import { trace } from '@/shared/debug-trace';
 
-/** The variables we own. The rest of the accent family color-mixes off these. */
-const OWNED_VARS = ['--accent', '--accent-fg', '--accent-strong-fg', '--accent-surface', '--accent-text'] as const;
+const OWNED_VARS = [
+  '--accent',
+  '--accent-fg',
+  '--accent-brand-fg',
+  '--accent-text-fg',
+  '--accent-strong-fg',
+  '--rail-active-bg',
+  '--rail-active-fg',
+  '--accent-surface',
+  '--accent-text',
+] as const;
+
+const FIELD_BRAND_VERSION = 11;
 
 let observer: MutationObserver | null = null;
-
-// Component-master files re-skin the whole chrome purple (App.tsx) by writing
-// the SAME inline custom properties this module owns. While that's active the
-// theme must stand down completely — otherwise picking a theme mid-component
-// would overwrite the purple, and the component-mode signal would be lost.
 let suspended = false;
 
 function isDarkMode(): boolean {
@@ -38,96 +39,175 @@ function isDarkMode(): boolean {
 }
 
 function currentTheme(): BuilderTheme {
-  const id = getDefaultStore().get(builderThemeAtom);
-  return getBuilderThemeById(id) ?? getBuilderThemeById(DEFAULT_BUILDER_THEME_ID)!;
+  const raw = getDefaultStore().get(builderThemeAtom);
+
+  return (
+    getBuilderThemeById(raw) ??
+    getBuilderThemeById(DEFAULT_BUILDER_THEME_ID)!
+  );
 }
 
-/** Write (or clear) the accent variables for `theme` in the CURRENT mode. */
-function paint(theme: BuilderTheme): void {
-  const root = document.documentElement;
+function brandBase(theme: BuilderTheme): string {
+  return `/field-brand/${theme.id}`;
+}
 
-  // Default REMOVES the overrides rather than re-asserting them, so the
-  // stylesheet's authored values return — including the hand-tuned
-  // `--accent-surface` rgba, which no color-mix reproduces exactly.
-  if (theme.id === DEFAULT_BUILDER_THEME_ID) {
-    for (const v of OWNED_VARS) root.style.removeProperty(v);
-    return;
+function paintBrand(theme: BuilderTheme): void {
+  const root = document.documentElement;
+  const mode = isDarkMode() ? 'dark' : 'light';
+  const base = brandBase(theme);
+
+  const icon =
+    `${base}/favicon-${mode}.png?v=${FIELD_BRAND_VERSION}`;
+
+  const iconTransparent =
+    `${base}/favicon-${mode}-trans.png?v=${FIELD_BRAND_VERSION}`;
+
+  const wordmark =
+    `${base}/logo-${mode}.png?v=${FIELD_BRAND_VERSION}`;
+
+  const wordmarkTransparent =
+    `${base}/logo-${mode}-trans.png?v=${FIELD_BRAND_VERSION}`;
+
+  root.style.setProperty(
+    '--field-app-icon',
+    `url("${icon}")`,
+  );
+
+  root.style.setProperty(
+    '--field-app-icon-trans',
+    `url("${iconTransparent}")`,
+  );
+
+  root.style.setProperty(
+    '--field-wordmark',
+    `url("${wordmark}")`,
+  );
+
+  root.style.setProperty(
+    '--field-wordmark-trans',
+    `url("${wordmarkTransparent}")`,
+  );
+
+  root.dataset.fieldTheme = theme.id;
+
+  const favicon =
+    document.querySelector<HTMLLinkElement>('link[data-field-favicon]');
+
+  if (favicon) {
+    favicon.href = icon;
   }
 
+  const apple =
+    document.querySelector<HTMLLinkElement>('link[data-field-apple-icon]');
+
+  if (apple) {
+    apple.href =
+      `${base}/apple-touch-icon.png?v=${FIELD_BRAND_VERSION}`;
+  }
+}
+
+function paintAccent(theme: BuilderTheme): void {
+  const root = document.documentElement;
   const c = isDarkMode() ? theme.dark : theme.light;
+
+  const dark = isDarkMode();
+
   root.style.setProperty('--accent', c.accent);
+
+  // Exact foreground used by field identity artwork.
   root.style.setProperty('--accent-fg', c.accentFg);
-  root.style.setProperty('--accent-strong-fg', c.accentFg);
-  // Hardcoded as an orange rgba in the stylesheet, so it would stay orange
-  // under any other accent. Derive it to keep tinted surfaces in family.
-  root.style.setProperty('--accent-surface', 'color-mix(in srgb, var(--accent) 12%, transparent)');
+  root.style.setProperty('--accent-brand-fg', c.accentFg);
+
+  // Normal-size copy on accent fills keeps its readable fallback.
+  root.style.setProperty('--accent-text-fg', c.accentTextFg);
+  root.style.setProperty('--accent-strong-fg', c.accentTextFg);
+
+  // Left-rail active state intentionally inverts with editor mode:
+  // light -> primary fill / light brand foreground
+  // dark  -> light brand fill / primary foreground
+  root.style.setProperty(
+    '--rail-active-bg',
+    dark ? c.accentFg : c.accent,
+  );
+
+  root.style.setProperty(
+    '--rail-active-fg',
+    dark ? c.accent : c.accentFg,
+  );
+
+  root.style.setProperty(
+    '--accent-surface',
+    'color-mix(in srgb, var(--accent) 12%, transparent)',
+  );
+
   if (isDarkMode()) {
-    // `.dark` collapses --accent-text to the RAW accent — right for the
-    // bright stock brass, unreadable for the mid-dark palettes: Rose as
-    // text on the dark dropdown surface sat at 1.9:1 ("Upgrade your
-    // plan" report). Lift toward white; already-bright accents (Amber,
-    // Monochrome's white) barely move, dark ones gain the missing contrast.
-    // Ratio single-sourced with the AA test in builder-themes.test.ts.
     root.style.setProperty(
       '--accent-text',
       `color-mix(in srgb, var(--accent) ${DARK_ACCENT_TEXT_MIX * 100}%, #fff)`,
     );
   } else {
-    // Light mode's stylesheet derivation (darken toward black) is correct
-    // for every palette — clear our override so it applies to the inline
-    // --accent. Without the clear, a dark→light switch would keep the
-    // lifted tone and wash out on white panels.
     root.style.removeProperty('--accent-text');
   }
 }
 
-/** Re-paint the accent for the mode that's now active. No-op while suspended. */
 export function applyBuilderTheme(): void {
+  const theme = currentTheme();
+
+  // Branding is independent of component/master accent takeover.
+  paintBrand(theme);
+
   if (suspended) return;
-  paint(currentTheme());
+
+  paintAccent(theme);
 }
 
-/** Hand the accent variables over to another owner (component-master purple). */
 export function suspendBuilderTheme(): void {
   suspended = true;
 }
 
-/**
- * Take the accent variables back and repaint.
- *
- * The other owner clears its overrides with `removeProperty`, which wipes OUR
- * inline values too — they live on the same `<html>` style. Without this the
- * chrome fell back to the stylesheet's stock brass on leaving a component, so
- * a user on Monochrome or Green Forest silently got Default back.
- */
 export function resumeBuilderTheme(): void {
   suspended = false;
   applyBuilderTheme();
 }
 
-/**
- * Wire the atom + the light/dark switch to the DOM. Call once at boot.
- *
- * The MutationObserver watches <html class> instead of hooking BottomToolbar's
- * ThemeSwitcher, so ANY code path that flips `.dark` keeps an inverting theme
- * (Monochrome) correct.
- */
 export function subscribeBuilderTheme(): void {
   const store = getDefaultStore();
 
+  // One-time compatibility migration:
+  // graphite -> monochrome
+  // amber    -> gold
+  const stored = store.get(builderThemeAtom);
+  const normalized = normalizeBuilderThemeId(stored);
+
+  if (stored !== normalized) {
+    store.set(builderThemeAtom, normalized);
+  }
+
   applyBuilderTheme();
+
   store.sub(builderThemeAtom, () => {
     applyBuilderTheme();
-    trace.action('builder-theme:changed', { id: store.get(builderThemeAtom) });
+
+    trace.action('builder-theme:changed', {
+      id: store.get(builderThemeAtom),
+    });
   });
 
   if (observer || typeof MutationObserver === 'undefined') return;
+
   let wasDark = isDarkMode();
+
   observer = new MutationObserver(() => {
     const nowDark = isDarkMode();
-    if (nowDark === wasDark) return;   // class changed for an unrelated reason
+
+    if (nowDark === wasDark) return;
+
     wasDark = nowDark;
     applyBuilderTheme();
   });
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 }

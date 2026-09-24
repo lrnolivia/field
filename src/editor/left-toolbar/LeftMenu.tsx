@@ -105,7 +105,7 @@ const MenuButton = React.memo(function MenuButton({
         disabled
           ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
           : isActive
-            ? 'bg-[var(--btn-secondary-bg)] text-[var(--text-primary)]'
+            ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       }`}
     >
@@ -246,10 +246,10 @@ export default function LeftMenu() {
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
                   className={`vibe-face absolute inset-0 cut-corners flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] opacity-40 cursor-not-allowed'
+                      ? 'bg-[var(--accent)] text-[var(--accent-brand-fg)] opacity-40 cursor-not-allowed'
                       : leftPaneOpen && activePanel === 'vibe'
-                        ? 'bg-[var(--accent-hover)] text-[var(--accent-fg)]'
-                        : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)]'
+                        ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
+                        : 'bg-[var(--accent)] text-[var(--accent-brand-fg)] hover:bg-[var(--rail-active-bg)] hover:text-[var(--rail-active-fg)]'
                   }`}
                 >
                   <span className="vibe-text relative">VIBE</span>
@@ -272,13 +272,13 @@ export default function LeftMenu() {
           onMouseLeave={isViewer ? undefined : handleLeave}
           className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
             isViewer
-              ? 'bg-[var(--accent)] opacity-40 cursor-not-allowed'
+              ? 'bg-[var(--accent)] text-[var(--accent-brand-fg)] opacity-40 cursor-not-allowed'
               : leftPaneOpen && activePanel === 'insert'
-                ? 'bg-[var(--accent-hover)]'
-                : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)]'
+                ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
+                : 'bg-[var(--accent)] text-[var(--accent-brand-fg)] hover:bg-[var(--rail-active-bg)] hover:text-[var(--rail-active-fg)]'
           }`}
         >
-          <InsertPlusIcon className="w-4 h-4 text-[var(--accent-fg)]" />
+          <InsertPlusIcon className="w-4 h-4" />
         </button>
 
         {/* Layers & Pages — ONE entry, two tabs. Both answer "where am I in
@@ -349,7 +349,7 @@ export default function LeftMenu() {
             isViewerRole
               ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
               : codeOpen
-                ? 'bg-[var(--btn-secondary-bg)] text-[var(--text-primary)]'
+                ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
           }`}
         >

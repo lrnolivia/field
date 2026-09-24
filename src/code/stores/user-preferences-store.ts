@@ -85,5 +85,5 @@ export const showPixelGridAtom = atomWithStorage<boolean>(
  *  Palettes live in `shared/builder-themes.ts`; the DOM write + light/dark
  *  re-paint live in `editor/builder-theme.ts`, which subscribes to this. */
 export const builderThemeAtom = atomWithStorage<string>(
-  'revyme:prefs:builderTheme', 'graphite',
+  'revyme:prefs:builderTheme', 'monochrome',
 );

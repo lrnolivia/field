@@ -1,11 +1,17 @@
-// builder-themes.ts — accent palettes for Revyme editor chrome.
+// builder-themes.ts — accent palettes for field editor chrome.
 //
-// Figma-first skin: one neutral Graphite default + three restrained Terra
-// accents. These theme the BUILDER chrome only, never the user's website.
+// These theme the field EDITOR only, never the user's website.
+// The theme id also owns field's matching app-icon / wordmark identity.
 
 export interface BuilderThemeColors {
+  /** Canonical field primary colour. */
   accent: string;
+
+  /** Exact foreground used by the field identity artwork. */
   accentFg: string;
+
+  /** Foreground reserved for normal-size readable text on accent fills. */
+  accentTextFg: string;
 }
 
 export interface BuilderTheme {
@@ -17,36 +23,47 @@ export interface BuilderTheme {
 
 export const BUILDER_THEMES: BuilderTheme[] = [
   {
-    // Monochrome without the giant white slabs: medium graphite + white ink.
-    id: 'graphite',
-    label: 'Graphite',
-    light: { accent: '#6b6b6b', accentFg: '#ffffff' },
-    dark: { accent: '#6b6b6b', accentFg: '#ffffff' },
+    id: 'monochrome',
+    label: 'Monochrome',
+    light: { accent: '#686868', accentFg: '#f6f6f6', accentTextFg: '#f6f6f6' },
+    dark: { accent: '#686868', accentFg: '#f6f6f6', accentTextFg: '#f6f6f6' },
   },
   {
     id: 'teal',
     label: 'Teal',
-    light: { accent: '#2f7d73', accentFg: '#ffffff' },
-    dark: { accent: '#2f7d73', accentFg: '#ffffff' },
+    light: { accent: '#1c8c93', accentFg: '#e0ffef', accentTextFg: '#111111' },
+    dark: { accent: '#1c8c93', accentFg: '#e0ffef', accentTextFg: '#111111' },
   },
   {
     id: 'sienna',
     label: 'Sienna',
-    light: { accent: '#a4563f', accentFg: '#ffffff' },
-    dark: { accent: '#a4563f', accentFg: '#ffffff' },
+    light: { accent: '#b5471f', accentFg: '#f9dcbd', accentTextFg: '#ffffff' },
+    dark: { accent: '#b5471f', accentFg: '#f9dcbd', accentTextFg: '#ffffff' },
   },
   {
-    id: 'amber',
-    label: 'Amber',
-    light: { accent: '#b88a2a', accentFg: '#111111' },
-    dark: { accent: '#b88a2a', accentFg: '#111111' },
+    id: 'gold',
+    label: 'Gold',
+    light: { accent: '#edb713', accentFg: '#fffbe1', accentTextFg: '#111111' },
+    dark: { accent: '#edb713', accentFg: '#fffbe1', accentTextFg: '#111111' },
   },
 ];
 
-export const DEFAULT_BUILDER_THEME_ID = 'graphite';
+export const DEFAULT_BUILDER_THEME_ID = 'monochrome';
 
 export const DARK_ACCENT_TEXT_MIX = 0.5;
 
+/**
+ * Preserve existing user preferences across the theme rename.
+ *
+ * These aliases may be removed only after a deliberate preference migration.
+ */
+export function normalizeBuilderThemeId(id: string): string {
+  if (id === 'graphite') return 'monochrome';
+  if (id === 'amber') return 'gold';
+  return id;
+}
+
 export function getBuilderThemeById(id: string): BuilderTheme | undefined {
-  return BUILDER_THEMES.find((t) => t.id === id);
+  const normalized = normalizeBuilderThemeId(id);
+  return BUILDER_THEMES.find((t) => t.id === normalized);
 }
