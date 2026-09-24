@@ -22,7 +22,7 @@ import { projectFS } from '@/code/project/project-fs';
 import { syncQueueCode } from '@/code/mutation/mutation-queue';
 import { getScreenCornersById, getElementRotationById, cornersEqual, getHandlesFromDirection, cornersFromRect, getOppositeCorner, processZeroCrossing, updateDirectionAfterCrossing, nodeOrAncestorHasRotationOrSkewById, type ScreenCorners, type Direction } from '@/canvas/resize/geometry-utils';
 import { getTransformedPoint } from '@/canvas/canvas-math';
-import { startResize, applyAspectRatioLock } from '@/canvas/resize/ResizeManager';
+import { startResize, applyAspectRatioLock, parseAspectRatioValue } from '@/canvas/resize/ResizeManager';
 import { startRotate, parseRotationFromMatrix, mergeRotation } from '@/canvas/resize/RotateManager';
 import { transformManager } from '@/canvas/transform';
 import type { SnapGuide } from '@/shared/types';
@@ -375,8 +375,11 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
       const ownHasPx = !!(vpForFrame && typeof vpForFrame.height === 'number' && vpForFrame.height > 0);
       const baseHasPx = !!(primaryVp && primaryVp !== vpForFrame && typeof primaryVp.height === 'number' && primaryVp.height > 0);
       const vpHasPxHeight = ownHasPx || baseHasPx;
-      const hDisabled = isViewportFrame ? false : !elIsFitSvg && !hasHInset && (!w || isFitSize(w) || w === '100%');
-      const vDisabled = isViewportFrame ? !vpHasPxHeight : elIsFitSvg || (!hasVInset && (!h || isFitSize(h)));
+      const hasAspectLock = parseAspectRatioValue(selectedNode?.styles?.aspectRatio) != null;
+      // The lock may intentionally make one source dimension auto; that axis is
+      // still resizable because the ratio derives it. Keep four corners alive.
+      const hDisabled = isViewportFrame ? false : hasAspectLock ? false : !elIsFitSvg && !hasHInset && (!w || isFitSize(w) || w === '100%');
+      const vDisabled = isViewportFrame ? !vpHasPxHeight : hasAspectLock ? false : elIsFitSvg || (!hasVInset && (!h || isFitSize(h)));
       setResizeDisabled({ h: hDisabled, v: vDisabled });
       trace.action('selection-overlay:instant-corners', { selectedId, vpId, found: true, isViewportFrame, vpHasPxHeight, ownHasPx, baseHasPx });
     } else {
@@ -460,9 +463,10 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
         const ownHasPx = !!(vpForFrame && typeof vpForFrame.height === 'number' && vpForFrame.height > 0);
         const baseHasPx = !!(primaryVp && primaryVp !== vpForFrame && typeof primaryVp.height === 'number' && primaryVp.height > 0);
         const vpHasPxHeight = ownHasPx || baseHasPx;
+        const hasAspectLock = parseAspectRatioValue(selNode?.styles?.aspectRatio) != null;
         setResizeDisabled(prev => {
-          const hDisabled = isViewportFrame ? false : !hasHInset && (!w || isFitSize(w) || w === '100%');
-          const vDisabled = isViewportFrame ? !vpHasPxHeight : !hasVInset && (!h || isFitSize(h));
+          const hDisabled = isViewportFrame ? false : hasAspectLock ? false : !hasHInset && (!w || isFitSize(w) || w === '100%');
+          const vDisabled = isViewportFrame ? !vpHasPxHeight : hasAspectLock ? false : !hasVInset && (!h || isFitSize(h));
           if (prev.h === hDisabled && prev.v === vDisabled) return prev;
           return { h: hDisabled, v: vDisabled };
         });

@@ -10,7 +10,7 @@ interface Props {
   color?: string;
 }
 
-const BORDER_WIDTH = 1.5;
+const BORDER_WIDTH = 1;
 
 export default function SelectionBorder({ corners, rotation, color = SELECTION_COLOR }: Props) {
   const edges: { from: { x: number; y: number }; to: { x: number; y: number } }[] = [

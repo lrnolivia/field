@@ -1,9 +1,6 @@
-// ResizeHandles.tsx — 4 visible handles (circles) + 4 invisible edge hit areas.
-// Handles adapt based on which axes are resizable:
-//   - Both axes: 4 corner circles (TL, TR, BR, BL)
-//   - Only vertical (h disabled): 2 circles at top/bottom edge centers
-//   - Only horizontal (v disabled): 2 circles at left/right edge centers
-//   - Neither: no circles shown
+// ResizeHandles.tsx — Figma-style corner resize handles + invisible edge hit areas.
+// Four tiny square corner handles when both axes are resizable; wide invisible
+// edge hit targets preserve easy one-axis resizing without chunky chrome.
 
 import { RESIZE_HANDLE_SIZE, SELECTION_COLOR } from '@/shared/constants';
 import type { ScreenCorners, Direction } from '@/canvas/resize/geometry-utils';
@@ -15,9 +12,7 @@ interface Props {
   rotation: number;
   onResizeStart: (direction: Direction, e: React.PointerEvent) => void;
   color?: string;
-  /** Disable horizontal (left/right) resize — width is auto/fill/100% */
   disableHorizontal?: boolean;
-  /** Disable vertical (top/bottom) resize — height is auto */
   disableVertical?: boolean;
 }
 
@@ -27,36 +22,29 @@ export default function ResizeHandles({
   disableHorizontal = false,
   disableVertical = false,
 }: Props) {
-  const handleR = RESIZE_HANDLE_SIZE / 2;
-  const innerR = handleR * 0.75;
+  const visualSize = Math.max(6, RESIZE_HANDLE_SIZE - 1);
+  const hitSize = Math.max(14, RESIZE_HANDLE_SIZE + 6);
 
-  // Determine which circle handles to show and where
-  const circleHandles: { pos: { x: number; y: number }; dir: Direction }[] = [];
-
+  const visibleHandles: { pos: { x: number; y: number }; dir: Direction }[] = [];
   if (!disableHorizontal && !disableVertical) {
-    // Both axes resizable → 4 corner circles
-    circleHandles.push(
+    visibleHandles.push(
       { pos: corners.TL, dir: 'topLeft' },
       { pos: corners.TR, dir: 'topRight' },
       { pos: corners.BR, dir: 'bottomRight' },
       { pos: corners.BL, dir: 'bottomLeft' },
     );
   } else if (disableHorizontal && !disableVertical) {
-    // Only vertical resize → circles at top and bottom edge centers
-    circleHandles.push(
+    visibleHandles.push(
       { pos: midpoint(corners.TL, corners.TR), dir: 'top' },
       { pos: midpoint(corners.BL, corners.BR), dir: 'bottom' },
     );
   } else if (!disableHorizontal && disableVertical) {
-    // Only horizontal resize → circles at left and right edge centers
-    circleHandles.push(
+    visibleHandles.push(
       { pos: midpoint(corners.TL, corners.BL), dir: 'left' },
       { pos: midpoint(corners.TR, corners.BR), dir: 'right' },
     );
   }
-  // Both disabled → no circles
 
-  // Edge hit areas — only for enabled axes
   const edgeHandles: { from: { x: number; y: number }; to: { x: number; y: number }; dir: Direction }[] = [];
   if (!disableVertical) {
     edgeHandles.push({ from: corners.TL, to: corners.TR, dir: 'top' });
@@ -69,38 +57,47 @@ export default function ResizeHandles({
 
   return (
     <>
-      {/* Circle handles */}
-      {circleHandles.map((h) => (
-        <svg
+      {visibleHandles.map((h) => (
+        <div
           key={h.dir}
           data-resize-dir={h.dir}
           onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onResizeStart(h.dir, e); }}
           style={{
             position: 'fixed',
-            left: h.pos.x - handleR,
-            top: h.pos.y - handleR,
-            width: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
+            left: h.pos.x - hitSize / 2,
+            top: h.pos.y - hitSize / 2,
+            width: hitSize,
+            height: hitSize,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             pointerEvents: 'all',
             cursor: getResizeCursor(h.dir, rotation),
             zIndex: 3,
-            overflow: 'visible',
           }}
         >
-          <circle cx={handleR} cy={handleR} r={handleR} fill={color} />
-          <circle cx={handleR} cy={handleR} r={innerR} fill="#fff" />
-        </svg>
+          <span
+            aria-hidden
+            style={{
+              width: visualSize,
+              height: visualSize,
+              boxSizing: 'border-box',
+              background: '#fff',
+              border: `1px solid ${color}`,
+              borderRadius: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
       ))}
 
-      {/* Edge hit areas — invisible, wider than border for easy grabbing */}
       {edgeHandles.map((edge) => {
         const dx = edge.to.x - edge.from.x;
         const dy = edge.to.y - edge.from.y;
         const length = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         const mid = midpoint(edge.from, edge.to);
-        const hitHeight = 8;
-
+        const hitHeight = 10;
         return (
           <div
             key={`edge-${edge.dir}`}

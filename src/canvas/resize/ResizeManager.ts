@@ -540,6 +540,20 @@ export function applyAspectRatioLock(
   return { width: newWidth, height: lockedHeight, top: newTop };
 }
 
+/** Parse the CSS aspect-ratio value used by SizeTool's lock button. */
+export function parseAspectRatioValue(value: string | null | undefined): number | null {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw === 'auto' || raw === 'unset') return null;
+  const slash = raw.match(/^([\d.]+)\s*\/\s*([\d.]+)$/);
+  if (slash) {
+    const a = Number.parseFloat(slash[1]);
+    const b = Number.parseFloat(slash[2]);
+    return a > 0 && b > 0 ? a / b : null;
+  }
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /**
  * FORCED aspect-ratio lock for a VECTOR SET instance (icon / vector), on ANY
  * handle — the reference behaviour: a vector set always keeps its aspect ratio, so
@@ -1398,6 +1412,8 @@ export function startResize(
   // A VECTOR SET instance (imported icon/vector component) is ALWAYS aspect-ratio
   // locked — like the reference, you can't distort it; any handle scales proportionally.
   const isVectorSet = isVectorSetComponentFile(nodeData?.componentFile);
+  const lockedAspectRatio = parseAspectRatioValue(nodeStyles.aspectRatio);
+  const hasPersistentAspectLock = lockedAspectRatio != null;
 
   // Read geometry from bridge computed cache — populated on every render with actual
   // getComputedStyle values. Works correctly for rotated elements (unlike BCR-derived values).
@@ -1508,7 +1524,7 @@ export function startResize(
   let curStartY = startY;
   let { xHandle, yHandle } = getHandlesFromDirection(direction);
   const isCorner = xHandle !== null && yHandle !== null;
-  const aspectRatio = startHeight > 0 ? startWidth / startHeight : 1;
+  const aspectRatio = lockedAspectRatio ?? (startHeight > 0 ? startWidth / startHeight : 1);
   // Which axes the handle affects (stable — doesn't change during zero crossing)
   const handleAffectsX = xHandle !== null;
   const handleAffectsY = yHandle !== null;
@@ -2214,7 +2230,8 @@ export function startResize(
     // ratio) — the reference behaviour. Otherwise Shift on a corner locks to the current
     // ratio. `aspectRatio` == startWidth/startHeight (the vector's intrinsic ratio
     // when undistorted), so the lock keeps it proportional on every resize.
-    if (isVectorSet) {
+    if (isVectorSet || hasPersistentAspectLock) {
+      // Persistent lock = proportional resize from corners OR edges.
       const locked = applyVectorAspectLock(newWidth, newHeight, curWidth, curHeight, curLeft, curTop, aspectRatio, xHandle, yHandle, isInLayout);
       newWidth = locked.width;
       newHeight = locked.height;
@@ -2751,9 +2768,13 @@ export function startResize(
     // and height (`applyVectorAspectLock`). `getResizeCommitProperties` only keeps
     // the handle's own axis, so force-commit the OTHER dimension too — else the
     // locked dimension snaps back on mouseup.
-    if (isVectorSet) {
+    if (isVectorSet || hasPersistentAspectLock) {
+      // Edge resize under a persistent lock changes BOTH axes. Commit both or
+      // the derived axis snaps back on mouseup. Keep aspectRatio untouched.
       if (liveStyles.width) finalStyles.width = liveStyles.width;
       if (liveStyles.height) finalStyles.height = liveStyles.height;
+    }
+    if (isVectorSet) {
       // "Both rows on Fit" means the variant's NATURAL size — a hand resize just
       // left it, so the panel would go on showing auto / auto over a size that
       // is no longer automatic. A single Fit row survives: the handles keep the

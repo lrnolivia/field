@@ -10,7 +10,25 @@ import {
   formatResizeDimension,
   quantizeResizeDimension,
   lockedShiftHeight,
+  parseAspectRatioValue,
 } from './ResizeManager';
+
+// ─── persistent aspect-ratio lock ───────────────────────────────────────────
+
+describe('parseAspectRatioValue', () => {
+  test('reads CSS ratio syntax used by the inspector lock', () => {
+    expect(parseAspectRatioValue('1.5 / 1')).toBe(1.5);
+    expect(parseAspectRatioValue('16 / 9')).toBeCloseTo(16 / 9);
+    expect(parseAspectRatioValue('2')).toBe(2);
+  });
+
+  test('rejects unlocked / invalid values', () => {
+    expect(parseAspectRatioValue('')).toBeNull();
+    expect(parseAspectRatioValue('auto')).toBeNull();
+    expect(parseAspectRatioValue('unset')).toBeNull();
+    expect(parseAspectRatioValue('0 / 1')).toBeNull();
+  });
+});
 
 // ─── parseDimUnit ────────────────────────────────────────────────────────────
 
