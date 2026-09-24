@@ -1,0 +1,8 @@
+/sandbox/*
+  Cross-Origin-Resource-Policy: cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+  Origin-Agent-Cluster: ?1
+
+/preview-sandbox/*
+  Cross-Origin-Resource-Policy: cross-origin
