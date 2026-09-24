@@ -11,14 +11,16 @@ import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
 import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
 import { agentStatusAtom } from '@/code/stores/agent-chat-store';
+import { ChatImageIcon } from '@/shared/icons';
 import {
-  InsertPlusIcon,
-  GlobeInternationalIcon,
-  ChatImageIcon,
-  CmsIcon,
-  LibraryStackIcon,
-  BranchIcon,
-} from '@/shared/icons';
+  FigmaPlusIcon as InsertPlusIcon,
+  FigmaGlobeIcon as GlobeInternationalIcon,
+  FigmaCmsIcon as CmsIcon,
+  FigmaLibraryIcon as LibraryStackIcon,
+  FigmaBranchIcon as BranchIcon,
+  FigmaCodeIcon,
+  FigmaLayersIcon,
+} from '@/shared/loew-figma-icons';
 import CollaboratorsModal from '@/editor/collab/CollaboratorsModal';
 import CollaboratorsSection from '@/editor/collab/CollaboratorsSection';
 import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
@@ -27,11 +29,7 @@ import { useIsClosedSource } from '@/code/stores/closed-source-store';
 // ─── Code Icon ──────────────────────────────────────────────────────────────
 
 function CodeIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
-      <path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" />
-    </svg>
-  );
+  return <FigmaCodeIcon className={className} size={16} />;
 }
 
 // ─── Layers Icon (3 horizontal stacked sheets) ──────────────────────────────
@@ -41,13 +39,7 @@ function CodeIcon({ className }: { className?: string }) {
 // before. `currentColor` lets the active/inactive theme split work the
 // same way the other left-menu icons do.
 function LayersIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className={className}>
-      <path fill="currentColor" d="m21.48 7.12l-9.02-5a.99.99 0 0 0-.97 0L2.52 7.08c-.32.18-.52.51-.52.87s.2.7.51.88l9.02 5.04c.15.08.32.13.49.13s.33-.04.49-.13l8.98-5c.32-.18.51-.51.51-.88s-.2-.7-.52-.87" />
-      <path fill="currentColor" d="m12 15.86l-8.51-4.73l-.97 1.75l9 5c.15.08.32.13.49.13s.33-.04.49-.13l9-5l-.97-1.75l-8.51 4.73Z" />
-      <path fill="currentColor" d="m12 19.86l-8.51-4.73l-.97 1.75l9 5c.15.08.32.13.49.13s.33-.04.49-.13l9-5l-.97-1.75l-8.51 4.73Z" />
-    </svg>
-  );
+  return <FigmaLayersIcon className={className} size={16} />;
 }
 
 // ─── Hover-tooltip helpers ──────────────────────────────────────────────────
@@ -283,7 +275,7 @@ export default function LeftMenu() {
                 : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)]'
           }`}
         >
-          <InsertPlusIcon className="w-[18px] h-[18px] text-white" />
+          <InsertPlusIcon className="w-4 h-4 text-[var(--accent-fg)]" />
         </button>
 
         {/* Layers & Pages — ONE entry, two tabs. Both answer "where am I in

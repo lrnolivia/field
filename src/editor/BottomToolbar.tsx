@@ -16,29 +16,33 @@ import { i18nConfigAtom, activeLocaleAtom, isDefaultLocaleAtom } from '@/code/st
 import { creatorToolsLockedAtom } from '@/code/stores/tool-store';
 import { commentModeActiveAtom } from '@/code/stores/comment-store';
 import {
-  CursorIcon, FrameToolbarIcon, TextToolbarIcon, HandToolbarIcon,
-  ShapeSquareIcon, ShapeCircleIcon, ShapeTriangleIcon, ShapePathIcon,
-  LayoutRowsIcon, LayoutColumnsIcon, LayoutGridIcon,
-  ThemeSunIcon, ThemeMoonIcon, SearchIcon, CommentBubbleIcon,
-  SketchPencilIcon,
-} from '@/shared/icons';
+  FigmaCursorIcon as CursorIcon,
+  FigmaFrameIcon as FrameToolbarIcon,
+  FigmaTextIcon as TextToolbarIcon,
+  FigmaHandIcon as HandToolbarIcon,
+  FigmaSquareIcon as ShapeSquareIcon,
+  FigmaCircleIcon as ShapeCircleIcon,
+  FigmaTriangleIcon as ShapeTriangleIcon,
+  FigmaPathIcon as ShapePathIcon,
+  FigmaRowsIcon as LayoutRowsIcon,
+  FigmaColumnsIcon as LayoutColumnsIcon,
+  FigmaGridIcon as LayoutGridIcon,
+  FigmaSunIcon as ThemeSunIcon,
+  FigmaMoonIcon as ThemeMoonIcon,
+  FigmaSearchIcon as SearchIcon,
+  FigmaCommentIcon as CommentBubbleIcon,
+  FigmaPencilIcon as SketchPencilIcon,
+  FigmaChevronDownIcon,
+  FigmaCheckIcon,
+} from '@/shared/loew-figma-icons';
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
 
 // ─── Chevron & Check icons ─────────────────────────────────────────────────
 
-const ChevronDownSvg = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const CheckSvg = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
+const ChevronDownSvg = () => <FigmaChevronDownIcon size={12} />;
+const CheckSvg = () => <FigmaCheckIcon size={14} />;
 
 // ─── Shared sub-components ──────────────────────────────────────────────────
 
@@ -185,8 +189,8 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect }: {
   useClickOutside(ref, open, () => setOpen(false));
 
   const currentIcon = toolMode === 'hand' || spaceHand
-    ? <HandToolbarIcon className="w-[22px] h-[22px]" />
-    : <CursorIcon className="w-[22px] h-[22px] translate-y-0.5" />;
+    ? <HandToolbarIcon className="w-4 h-4" />
+    : <CursorIcon className="w-4 h-4 translate-y-0.5" />;
 
   return (
     <div className="relative" ref={ref}>
@@ -221,11 +225,11 @@ function ShapeDropdown({ active, sketchActive, onSelect, onSketch }: {
   useClickOutside(ref, open, () => setOpen(false));
 
   const shapeIcons: Record<string, React.ReactNode> = {
-    square: <ShapeSquareIcon className="w-[22px] h-[22px]" size={22} />,
-    circle: <ShapeCircleIcon className="w-[22px] h-[22px]" size={22} />,
-    triangle: <ShapeTriangleIcon className="w-[22px] h-[22px]" size={22} />,
-    path: <ShapePathIcon className="w-[22px] h-[22px]" size={22} />,
-    sketch: <SketchPencilIcon className="w-[22px] h-[22px]" size={22} />,
+    square: <ShapeSquareIcon className="w-4 h-4" size={16} />,
+    circle: <ShapeCircleIcon className="w-4 h-4" size={16} />,
+    triangle: <ShapeTriangleIcon className="w-4 h-4" size={16} />,
+    path: <ShapePathIcon className="w-4 h-4" size={16} />,
+    sketch: <SketchPencilIcon className="w-4 h-4" size={16} />,
   };
 
   // The trigger re-activates the last-picked tool — `sketch` routes to the
@@ -278,9 +282,9 @@ function LayoutDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: 
     : lastLayout;
 
   const layoutIcons: Record<string, React.ReactNode> = {
-    rows: <LayoutRowsIcon className="w-[22px] h-[22px]" size={22} />,
-    columns: <LayoutColumnsIcon className="w-[22px] h-[22px]" size={22} />,
-    grids: <LayoutGridIcon className="w-[22px] h-[22px]" size={22} />,
+    rows: <LayoutRowsIcon className="w-4 h-4" size={16} />,
+    columns: <LayoutColumnsIcon className="w-4 h-4" size={16} />,
+    grids: <LayoutGridIcon className="w-4 h-4" size={16} />,
   };
 
   return (
@@ -462,11 +466,11 @@ function ThemeSwitcher() {
         initial={{ opacity: 0, rotate: -90, scale: 0.4 }}
         animate={{ opacity: 1, rotate: 0, scale: 1 }}
         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-        className="flex items-center justify-center w-[22px] h-[22px]"
+        className="flex items-center justify-center w-4 h-4"
       >
         {isDark
-          ? <ThemeSunIcon className="w-[22px] h-[22px]" />
-          : <ThemeMoonIcon className="w-[22px] h-[22px]" />
+          ? <ThemeSunIcon className="w-4 h-4" />
+          : <ThemeMoonIcon className="w-4 h-4" />
         }
       </motion.span>
     </ToolButton>
@@ -619,7 +623,7 @@ export default function BottomToolbar() {
         {!isContainerSetMaster && (
           <CreatorGate locked={creatorLocked}>
             <ToolButton active={toolMode === 'frame'} onClick={() => handleToolClick('frame')} title="Draw Frame (F)" dataTutorial="frame-tool">
-              <FrameToolbarIcon className="w-[22px] h-[22px]" />
+              <FrameToolbarIcon className="w-4 h-4" />
             </ToolButton>
           </CreatorGate>
         )}
@@ -627,7 +631,7 @@ export default function BottomToolbar() {
         {!isContainerSetMaster && (
           <CreatorGate locked={creatorLocked}>
             <ToolButton active={toolMode === 'text'} onClick={() => handleToolClick('text')} title="Draw Text (T)" dataTutorial="text-tool">
-              <TextToolbarIcon className="w-[22px] h-[22px]" />
+              <TextToolbarIcon className="w-4 h-4" />
             </ToolButton>
           </CreatorGate>
         )}
@@ -661,21 +665,21 @@ export default function BottomToolbar() {
         {isIconSetMaster ? (
           <>
             <ToolButton active={toolMode === 'shape-rect'} onClick={() => handleToolClick('shape-rect')} title="Square (R)">
-              <ShapeSquareIcon className="w-[22px] h-[22px]" size={22} />
+              <ShapeSquareIcon className="w-4 h-4" size={16} />
             </ToolButton>
             <ToolButton active={toolMode === 'shape-ellipse'} onClick={() => handleToolClick('shape-ellipse')} title="Circle (O)">
-              <ShapeCircleIcon className="w-[22px] h-[22px]" size={22} />
+              <ShapeCircleIcon className="w-4 h-4" size={16} />
             </ToolButton>
             <ToolButton active={toolMode === 'shape-triangle'} onClick={() => handleToolClick('shape-triangle')} title="Triangle (Shift+T)">
-              <ShapeTriangleIcon className="w-[22px] h-[22px]" size={22} />
+              <ShapeTriangleIcon className="w-4 h-4" size={16} />
             </ToolButton>
             <ToolButton active={toolMode === 'shape-path'} onClick={() => handleToolClick('shape-path')} title="Path (P)">
-              <ShapePathIcon className="w-[22px] h-[22px]" size={22} />
+              <ShapePathIcon className="w-4 h-4" size={16} />
             </ToolButton>
             {/* Sketch is part of vector sets now — freehand strokes bundle in
                 alongside the vector shapes. */}
             <ToolButton active={toolMode === 'sketch'} onClick={() => handleToolClick('sketch')} title="Sketch (K)">
-              <SketchPencilIcon className="w-[22px] h-[22px]" size={22} />
+              <SketchPencilIcon className="w-4 h-4" size={16} />
             </ToolButton>
           </>
         ) : (
@@ -745,7 +749,7 @@ export default function BottomToolbar() {
             still get it — they're allowed to comment. */}
         {!isOffline && (
           <ToolButton active={commentModeActive} onClick={handleCommentClick} title="Add Comment (Ctrl+Alt+C)" dataTutorial="comment-tool">
-            <CommentBubbleIcon className="w-[22px] h-[22px]" />
+            <CommentBubbleIcon className="w-4 h-4" />
           </ToolButton>
         )}
 

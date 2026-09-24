@@ -1,5 +1,5 @@
 import React from 'react';
-import { GlyphIcon } from './loew-glyphs'; // Minimal UI: native-glyph icons (see LOEW_THEME.md)
+import { FigmaPlusIcon, FigmaReloadIcon } from './loew-figma-icons';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 
@@ -95,9 +95,8 @@ export const PlayIcon: React.FC<IconProps & { size?: number }> = ({
   </svg>
 );
 
-// Minimal UI: native glyph (was a custom SVG). Same name + className/style API.
-export const ReloadIcon: React.FC<IconProps> = ({ className, style }) => (
-  <GlyphIcon glyph="↻" className={className} style={style as React.CSSProperties} />
+export const ReloadIcon: React.FC<IconProps> = (props) => (
+  <FigmaReloadIcon {...props} />
 );
 
 export const ThemeSunIcon: React.FC<IconProps> = (props) => (
@@ -255,9 +254,8 @@ export const SketchPencilIcon: React.FC<IconProps & { size?: number }> = ({
   </svg>
 );
 
-// Minimal UI: native glyph (was a custom SVG). Same name + className/style API.
-export const InsertPlusIcon: React.FC<IconProps> = ({ className, style }) => (
-  <GlyphIcon glyph="+" className={className} style={style as React.CSSProperties} weight={600} />
+export const InsertPlusIcon: React.FC<IconProps> = (props) => (
+  <FigmaPlusIcon {...props} />
 );
 
 export const PagesLayersIcon: React.FC<IconProps & { size?: number }> = ({

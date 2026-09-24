@@ -1,182 +1,203 @@
-/* loew-theme.css — "Minimal UI" editor-chrome theme.
+/* loew-theme.css — Figma-first editor-chrome theme.
  *
- * COSMETIC ONLY. Themes Revyme's EDITOR CHROME; never the user's website
- * (app/globals.css) or anything rendered inside the canvas iframe (that is a
- * separate document and does not load this file).
+ * Editor chrome ONLY. The user website lives in the canvas iframe and does not
+ * load this stylesheet.
  *
- * Imported AFTER ./globals.css in src/main.tsx. Everything below is
- * deliberately UNLAYERED: globals.css declares its tokens inside
- * `@layer theme`, and an unlayered declaration always beats a layered one, so
- * these overrides win without specificity games or !important. Runtime inline
- * styles still outrank us, which is exactly what we want — builder-theme.ts
- * (accent picker) and App.tsx (component-mode accent) write inline custom
- * properties on <html>.
- *
- * Layout of this file:
- *   1. Tokens (light, then dark)
- *   2. Cut-corner neutralisation  → plain border-radius
- *   3. Small effect flattening (vibe button)
- *
- * See LOEW_THEME.md for how to reconcile this after an upstream update.
+ * Keep this import AFTER globals.css. It is deliberately unlayered so it beats
+ * upstream @layer theme tokens without specificity games.
  */
 
-/* ─── 1a. Tokens — shared / theme-independent ──────────────────────────── */
-:root {
-  /* Radius ladder. Tailwind's rounded-sm/md/lg utilities read these same
-     tokens, so bare `rounded-*` chrome follows the ladder too. */
-  --radius-sm: 4px;    /* chips, small thumbs                    */
-  --radius-md: 6px;    /* controls: inputs, buttons, selects     */
-  --radius-lg: 10px;   /* menus, dropdowns, dialogs, islands     */
-  --radius-xl: 12px;   /* large docked panel corners             */
+/* -------------------------------------------------------------------------- */
+/* 1. Core geometry + typography                                               */
+/* -------------------------------------------------------------------------- */
 
-  /* Cut system — kept defined (components still read them) but inert. */
+:root {
+  /* Figma-ish compact control system. Keep structural panel geometry intact. */
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
   --cut: 0px;
   --cut-round: var(--radius-md);
 
-  /* Accent. Restrained cool blue-gray; white label is 4.5:1 on it.
-     Canvas selection (--selection) is NOT touched — it stays blue. */
-  --accent: #3d7bd9;
-  --accent-fg: #ffffff;
-  --accent-surface: rgba(61, 123, 217, 0.14);
+  --control-height: 28px;
+  --control-height-sm: 24px;
+  --control-pad-x: 6px;
+  --control-gap: 6px;
 
-  /* Component / master mode. A muted teal-green: clearly not the page accent,
-     never purple, and still quiet. White label 4.8:1. App.tsx aliases
-     --accent to this while a component master is open. */
-  --accent-secondary: #2a8067;
-  --accent-secondary-hover: #3a9a7d;
+  /* Graphite = default accent. Light mode uses a dark active tool. */
+  --accent: #2c2c2c;
+  --accent-fg: #ffffff;
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, #fff);
+  --accent-text: color-mix(in srgb, var(--accent) 82%, #000);
+  --accent-strong: var(--accent);
+  --accent-strong-fg: var(--accent-fg);
+  --accent-muted: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-surface: color-mix(in srgb, var(--accent) 10%, transparent);
+
+  /* Component/master mode: restrained steel, not purple. */
+  --accent-secondary: #557087;
+  --accent-secondary-hover: #667f94;
   --accent-secondary-fg: #ffffff;
 
-  /* Shadows: none on ordinary chrome; floating menus/dialogs keep a soft one.
-     (Tailwind's shadow-* utilities read these tokens as well.) */
-  --shadow-sm: 0 0 0 0 transparent;
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.16);
-  --shadow-2xl: 0 12px 32px rgba(0, 0, 0, 0.20);
+  /* UI3-style canvas selection remains a functional blue. */
+  --selection: #0d99ff;
+
+  /* Integrated chrome should not look like floating SaaS cards. */
+  --shadow-sm: 0 0 0 transparent;
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.16);
+  --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.20);
+  --shadow-xl: 0 6px 18px rgba(0, 0, 0, 0.24);
+  --shadow-2xl: 0 8px 24px rgba(0, 0, 0, 0.28);
+
+  --loew-ui-font: Inter, "SF Pro Text", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
-/* ─── 1b. Tokens — light (secondary target; same neutral discipline) ──── */
+/* The editor and user canvas are separate documents, so this does not touch
+ * portfolio typography inside the iframe. */
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--loew-ui-font);
+}
+
+body {
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: -0.004em;
+  font-synthesis: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 11px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 2. Light mode                                                               */
+/* -------------------------------------------------------------------------- */
+
 :root {
-  --bg-canvas: #e6e6e6;
-  --bg-surface: #fbfbfb;
-  --bg-toolbar: #fbfbfb;
-  --bg-panel: #f7f7f7;
-  --bg-hover: #ececec;
-  --bg-active: #e2e2e2;
-  --bg-tertiary: #f0f0f0;
+  --bg-canvas: #e5e5e5;
+  --bg-surface: #ffffff;
+  --bg-toolbar: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-hover: #f2f2f2;
+  --bg-active: #e8e8e8;
+  --bg-tertiary: #f5f5f5;
 
   --canvas-chrome-bg: #ffffff;
   --canvas-chrome-border: #dedede;
   --variant-card-bg: #ffffff;
-  --variant-card-bg-hover: #f0f0f0;
-  --variant-card-badge: #e0e0e0;
+  --variant-card-bg-hover: #f3f3f3;
+  --variant-card-badge: #e6e6e6;
 
-  --text-primary: #1f1f1f;
-  --text-secondary: #5c5c5c;
-  --text-prose: #454545;
-  --text-disabled: #a0a0a0;
+  --text-primary: #1e1e1e;
+  --text-secondary: #666666;
+  --text-prose: #4a4a4a;
+  --text-disabled: #a8a8a8;
   --text-tertiary: #8a8a8a;
-  --text-muted: #b0b0b0;
+  --text-muted: #9c9c9c;
 
-  --border-light: #e4e4e4;
-  --border-default: #cfcfcf;
+  --border-light: rgba(0, 0, 0, 0.08);
+  --border-default: rgba(0, 0, 0, 0.14);
+  --border-focus: var(--accent);
 
-  /* Controls sit BELOW the panel on light (a control lighter than its
-     container has no edge) — a faint neutral wash, as upstream. */
-  --grid-line: rgba(0, 0, 0, 0.04);
+  --grid-line: #f1f1f1;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #ececec;
+  --control-bg-hover: #ebebeb;
   --control-bg-active: #e2e2e2;
-  --control-border: rgba(0, 0, 0, 0.07);
-  --control-border-hover: rgba(0, 0, 0, 0.14);
-  --choice-bg: rgba(0, 0, 0, 0.05);
+  --control-border: rgba(0, 0, 0, 0.08);
+  --control-border-hover: rgba(0, 0, 0, 0.16);
+  --choice-bg: #efefef;
   --segmented-bg: #ffffff;
-  --slider-bg: #dcdcdc;
+  --slider-bg: #d7d7d7;
+  --slider-thumb-border: rgba(0, 0, 0, 0.18);
 
-  --btn-secondary-bg: #f0f0f0;
-  --btn-secondary-hover: #e4e4e4;
+  --btn-secondary-bg: #f1f1f1;
+  --btn-secondary-hover: #e8e8e8;
+  --button-secondary-bg: rgba(0, 0, 0, 0.045);
+  --button-secondary-hover: rgba(0, 0, 0, 0.075);
 
   --dropdown-bg: #ffffff;
 }
 
-/* ─── 1c. Tokens — dark (PRIMARY target) ──────────────────────────────── */
+/* -------------------------------------------------------------------------- */
+/* 3. Dark mode — primary target                                               */
+/* -------------------------------------------------------------------------- */
+
 .dark {
-  /* Surface ladder, darkest → lightest:
-       surface/toolbar #181818 · panel #1b1b1b · canvas #202020
-       control #232323 · hover #2a2a2a · active #323232
-     All strictly neutral (R = G = B). */
-  --bg-canvas: #242424;
-  --bg-surface: #161616;
-  --bg-toolbar: #1a1a1a;
-  --bg-panel: #1a1a1a;
-  --bg-hover: #2e2e2e;
+  --bg-canvas: #1e1e1e;
+  --bg-surface: #242424;
+  --bg-toolbar: #242424;
+  --bg-panel: #242424;
+  --bg-hover: #303030;
   --bg-active: #383838;
-  --bg-tertiary: #202020;
+  --bg-tertiary: #2a2a2a;
 
-  --canvas-chrome-bg: #2a2a2a;
-  --canvas-chrome-border: #363636;
-  --variant-card-bg: #262626;
-  --variant-card-bg-hover: #2e2e2e;
-  --variant-card-badge: rgba(255, 255, 255, 0.6);
+  --canvas-chrome-bg: #242424;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.10);
+  --variant-card-bg: #292929;
+  --variant-card-bg-hover: #313131;
+  --variant-card-badge: #3a3a3a;
 
-  --text-primary: #f2f2f2;
-  --text-secondary: #b6b6b6;
-  --text-prose: #c6c6c6;
-  --text-disabled: #6e6e6e;
-  --text-tertiary: #7c7c7c;
-  --text-muted: #8c8c8c;
+  --text-primary: #f5f5f5;
+  --text-secondary: #b8b8b8;
+  --text-prose: #d0d0d0;
+  --text-disabled: #707070;
+  --text-tertiary: #8c8c8c;
+  --text-muted: #989898;
 
-  --border-light: #2e2e2e;
-  --border-default: #444444;
+  --border-light: rgba(255, 255, 255, 0.075);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-focus: var(--accent);
 
-  /* Opaque control fill (upstream used a translucent white wash). --grid-line
-     is the real value; --control-bg aliases it, exactly as upstream. */
-  --grid-line: #262626;
+  --grid-line: #2c2c2c;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #303030;       /* upstream: slate #334155 (blue cast) */
-  --control-bg-active: #3a3a3a;
-  --control-border: #363636;
-  --control-border-hover: #4a4a4a;
-  --choice-bg: #121212;              /* recessed segmented track */
-  --segmented-bg: #3a3a3a;           /* raised active segment    */
-  --slider-bg: #333333;
-  --slider-thumb-border: rgba(255, 255, 255, 0.5);
+  --control-bg-hover: #343434;
+  --control-bg-active: #3b3b3b;
+  --control-border: rgba(255, 255, 255, 0.075);
+  --control-border-hover: rgba(255, 255, 255, 0.16);
+  --choice-bg: #1f1f1f;
+  --segmented-bg: #3b3b3b;
+  --slider-bg: #3a3a3a;
+  --slider-thumb-border: rgba(255, 255, 255, 0.42);
 
-  --btn-secondary-bg: #2e2e2e;
-  --btn-secondary-hover: #3a3a3a;    /* upstream: slate #475569 */
-  --button-secondary-bg: rgba(255, 255, 255, 0.06);
-  --button-secondary-hover: rgba(255, 255, 255, 0.10);
+  --btn-secondary-bg: #2c2c2c;
+  --btn-secondary-hover: #353535;
+  --button-secondary-bg: rgba(255, 255, 255, 0.055);
+  --button-secondary-hover: rgba(255, 255, 255, 0.09);
 
-  --dropdown-bg: #2a2a2a;
+  --dropdown-bg: #2b2b2b;
 
-  /* Dark-mode accent text is lifted toward white so the mid-tone accent stays
-     legible on #181818 (upstream collapses it to the raw accent). Non-default
-     builder themes overwrite this inline; that path is untouched. */
-  --accent-text: color-mix(in srgb, var(--accent) 65%, #fff);
-  --accent-muted: color-mix(in srgb, var(--accent) 22%, #000);
-  --accent-surface: rgba(61, 123, 217, 0.20);
+  /* Graphite default inverts like Figma's selected-tool treatment. */
+  --accent: #f0f0f0;
+  --accent-fg: #1e1e1e;
+  --accent-hover: #ffffff;
+  --accent-text: #f0f0f0;
+  --accent-strong: #f0f0f0;
+  --accent-strong-fg: #1e1e1e;
+  --accent-muted: rgba(255, 255, 255, 0.10);
+  --accent-surface: rgba(255, 255, 255, 0.08);
 
-  /* Shadows read heavier on dark; keep them restrained. */
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.40);
-  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.50);
-  --shadow-xl: 0 8px 28px rgba(0, 0, 0, 0.50);
-  --shadow-2xl: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.42);
+  --shadow-xl: 0 6px 20px rgba(0, 0, 0, 0.46);
+  --shadow-2xl: 0 8px 28px rgba(0, 0, 0, 0.50);
 }
 
-/* ─── 2. Cut corners → rounded corners ─────────────────────────────────────
- *
- * ~1,400 call sites use .cut-corners / .cut-border / .cut-sm / .cut-lg. We
- * leave the JSX alone and redefine the classes:
- *   • clip-path is dropped (no more sliced corners, and box-shadows/focus
- *     rings are no longer clipped);
- *   • .cut-border's diagonal gradient strokes are removed — the element's own
- *     1px `border` now simply follows the radius;
- *   • the shape becomes a normal border-radius from the ladder above.
- * Unlayered, so these beat Tailwind's layered `rounded-*` on the same element
- * (same reason upstream's classes are unlayered).
- *
- * Tiers:  .cut-sm → 4px   ·  default → 6px  ·  .cut-lg → 10px
- */
+/* -------------------------------------------------------------------------- */
+/* 4. Kill the old cut-corner language without touching ~1,400 call sites     */
+/* -------------------------------------------------------------------------- */
+
 .cut-corners,
 .cut-br,
 .cut-tl,
@@ -191,83 +212,154 @@
   background-image: none;
 }
 
-/* Full-shape controls (all four corners round). */
 .cut-corners {
   border-radius: var(--radius-md);
 }
+
 .cut-corners.cut-sm {
   border-radius: var(--radius-sm);
 }
+
 .cut-corners.cut-lg {
   border-radius: var(--radius-lg);
 }
 
-/* Single-corner variants sit on docked surfaces (panels, headers): only the
- * corner that used to be sliced is rounded, so the docked edges stay flush
- * with the screen. */
-.cut-br { border-radius: 0; border-bottom-right-radius: var(--radius-lg); }
-.cut-tl { border-radius: 0; border-top-left-radius: var(--radius-lg); }
-.cut-bl { border-radius: 0; border-bottom-left-radius: var(--radius-lg); }
-.cut-tr { border-radius: 0; border-top-right-radius: var(--radius-lg); }
-.cut-r  { border-radius: 0; border-top-right-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+/* Docked chrome stays visually docked. Only the exposed corner rounds. */
+.cut-br {
+  border-radius: 0 0 var(--radius-lg) 0;
+}
+
+.cut-tl {
+  border-radius: var(--radius-lg) 0 0 0;
+}
+
+.cut-bl {
+  border-radius: 0 0 0 var(--radius-lg);
+}
+
+.cut-tr {
+  border-radius: 0 var(--radius-lg) 0 0;
+}
+
+.cut-r {
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
 .cut-br.cut-lg { border-bottom-right-radius: var(--radius-xl); }
 .cut-tl.cut-lg { border-top-left-radius: var(--radius-xl); }
 .cut-bl.cut-lg { border-bottom-left-radius: var(--radius-xl); }
 .cut-tr.cut-lg { border-top-right-radius: var(--radius-xl); }
 
-/* ─── 3. Vibe (agent-working) button ──────────────────────────────────────
- * Upstream animates a neon cyan/magenta ring, a flashing grid and a glitching
- * label. Keep the "agent is working" signal (a single rotating ring) but tie
- * it to the accent and drop the decorative pieces. */
+/* -------------------------------------------------------------------------- */
+/* 5. Figma-ish density                                                        */
+/* -------------------------------------------------------------------------- */
+
+/* The existing variables cover most PropertiesPanel inputs. These catch
+ * remaining native controls that bypass ToolInput. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  border-radius: var(--radius-md);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select {
+  min-height: var(--control-height-sm);
+}
+
+/* Left rail: preserve 52px structural rail, make the actual tools compact. */
+[data-left-menu-item] {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+}
+
+[data-left-menu-item] svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Bottom tool strip: Figma-like compact control boxes, not a giant pill. */
+#bottom-toolbar-container {
+  padding: 4px 6px;
+  gap: 1px;
+}
+
+#bottom-toolbar-container > [aria-hidden="true"] {
+  border-radius: var(--radius-lg);
+}
+
+#bottom-toolbar-container button {
+  min-height: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+}
+
+#bottom-toolbar-container [class*="w-[22px]"] {
+  width: 16px;
+  height: 16px;
+}
+
+#bottom-toolbar-container [class*="h-[26px]"] {
+  height: 20px;
+}
+
+/* Dropdowns/menus: compact and crisp. */
+[role="menu"],
+[role="listbox"] {
+  border-radius: var(--radius-lg);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. Icon rendering                                                           */
+/* -------------------------------------------------------------------------- */
+
+.loew-figma-icon {
+  display: block;
+  flex: none;
+  color: currentColor;
+  shape-rendering: geometricPrecision;
+}
+
+/* Filled legacy icons should not visually overpower the thin replacement set. */
+[data-left-menu-item] svg,
+#bottom-toolbar-container svg {
+  overflow: visible;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. Vibe / agent status                                                      */
+/* -------------------------------------------------------------------------- */
+
 .vibe-ring {
   --vibe-neon: var(--accent-text);
   --vibe-neon-2: var(--accent-text);
 }
+
 .vibe-working .vibe-face::before {
   display: none;
 }
+
 .vibe-working .vibe-text {
   animation: none;
 }
 
-/* ─── 4. Native-glyph icons ────────────────────────────────────────────────
- * Support for src/shared/loew-glyphs.tsx (GlyphIcon). Monochrome glyphs use the
- * system UI stack; the emoji stack is defined for the (rare) places a native
- * emoji is preferable to an SVG. No web fonts, no bundled symbol assets.
- * The box rule sits in `@layer components` so a caller's Tailwind size
- * utilities (w-4 h-4, …) still override the 1em fallback. */
-:root {
-  --loew-font-glyph: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
-  --loew-font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-}
-@layer components {
-  .loew-glyph {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 1em;
-    height: 1em;
-    container-type: size;
-    line-height: 1;
-  }
-}
-.loew-glyph__char {
-  font-family: var(--loew-font-glyph);
-  line-height: 1;
-  user-select: none;
+/* -------------------------------------------------------------------------- */
+/* 8. Fine-grain hierarchy                                                     */
+/* -------------------------------------------------------------------------- */
+
+/* Keep integrated panels crisp: separators do more work than shadows. */
+[data-editor-panel] {
+  box-shadow: none;
 }
 
-/* ─── 5. Icon sizing ───────────────────────────────────────────────────────
- * Upstream draws rail icons at 18px and toolbar tool icons at 22px inside
- * ~32px buttons, which reads heavy next to 13px text. Scale them down. Selectors
- * key off the size utility classes the icons already carry, so chevrons and
- * other small glyphs are untouched, and button boxes (geometry) don't change. */
-[data-left-menu-item] [class*="w-[18px]"] {
-  width: 16px;
-  height: 16px;
+/* Small labels should recede without becoming illegible. */
+.text-\[10px\] {
+  letter-spacing: 0;
 }
-#bottom-toolbar-container [class*="w-[22px]"] {
-  width: 18px;
-  height: 18px;
+
+/* Do not round the structural frame/viewport chrome into a card. */
+[data-viewport-header],
+[data-frame-header] {
+  border-radius: var(--radius-sm);
 }
