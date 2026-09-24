@@ -25,10 +25,13 @@ import { useAtomValue } from 'jotai';
 import { workspaceOverlayOpenAtom } from '@/code/stores/workspace-overlay-store';
 import { useTopChromeHeight } from '@/canvas/ui/use-top-chrome-height';
 
+// Minimal UI: the islands are flat, opaque token surfaces (was translucent
+// glass + blur). Name kept as GLASS so the diff against upstream stays tiny.
 const GLASS: React.CSSProperties = {
-  background: 'color-mix(in srgb, var(--bg-surface) 93%, transparent)',
-  backdropFilter: 'blur(18px) saturate(1.15)',
-  WebkitBackdropFilter: 'blur(18px) saturate(1.15)',
+  background: 'var(--bg-panel)',
+  backdropFilter: 'none',
+  WebkitBackdropFilter: 'none',
+  boxShadow: 'var(--shadow-lg)', // soft elevation so the islands read as layers over the canvas
   ['--cut-border-color' as string]: 'var(--border-light)',
 };
 

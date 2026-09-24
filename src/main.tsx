@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { Provider, getDefaultStore } from 'jotai';
 import ProjectLoader from './ProjectLoader';
 import './styles/globals.css';
+import './styles/loew-theme.css'; // Minimal UI theme — must stay AFTER globals.css (see LOEW_THEME.md)
 import { subscribeBuilderTheme } from './editor/builder-theme';
 
 // Restore the saved builder accent BEFORE the first paint (so a non-default

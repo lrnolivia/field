@@ -267,7 +267,7 @@ export default function LeftMenu() {
           )}
         </AnimatePresence>
 
-        {/* Insert — green */}
+        {/* Insert — accent (Minimal UI: was hardcoded green) */}
         <button
           data-left-menu-item="insert"
           data-tutorial="insert-button"
@@ -277,10 +277,10 @@ export default function LeftMenu() {
           onMouseLeave={isViewer ? undefined : handleLeave}
           className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
             isViewer
-              ? 'bg-[#0d9668] opacity-40 cursor-not-allowed'
+              ? 'bg-[var(--accent)] opacity-40 cursor-not-allowed'
               : activePanel === 'insert'
-                ? 'bg-[#10B981]'
-                : 'bg-[#0d9668] hover:bg-[#10B981]'
+                ? 'bg-[var(--accent-hover)]'
+                : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)]'
           }`}
         >
           <InsertPlusIcon className="w-[18px] h-[18px] text-white" />

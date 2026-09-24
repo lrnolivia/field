@@ -1,4 +1,5 @@
 import React from 'react';
+import { GlyphIcon } from './loew-glyphs'; // Minimal UI: native-glyph icons (see LOEW_THEME.md)
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 
@@ -94,21 +95,9 @@ export const PlayIcon: React.FC<IconProps & { size?: number }> = ({
   </svg>
 );
 
-export const ReloadIcon: React.FC<IconProps> = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 16 16"
-    fill="none"
-    style={{ transform: 'scaleX(-1)' }}
-    {...props}
-  >
-    <path
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeWidth="2"
-      d="M13.1 12c-1.2 1.5-3 2.5-5.1 2.5c-3.6 0-6.5-2.9-6.5-6.5S4.4 1.5 8 1.5c2.2 0 4.1 1.1 5.3 2.7m.2-3.2v3c0 .3-.2.5-.5.5h-3"
-    />
-  </svg>
+// Minimal UI: native glyph (was a custom SVG). Same name + className/style API.
+export const ReloadIcon: React.FC<IconProps> = ({ className, style }) => (
+  <GlyphIcon glyph="↻" className={className} style={style as React.CSSProperties} />
 );
 
 export const ThemeSunIcon: React.FC<IconProps> = (props) => (
@@ -266,10 +255,9 @@ export const SketchPencilIcon: React.FC<IconProps & { size?: number }> = ({
   </svg>
 );
 
-export const InsertPlusIcon: React.FC<IconProps> = (props) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-    <path d="M18 10h-4V6a2 2 0 0 0-4 0l.071 4H6a2 2 0 0 0 0 4l4.071-.071L10 18a2 2 0 0 0 4 0v-4.071L18 14a2 2 0 0 0 0-4" />
-  </svg>
+// Minimal UI: native glyph (was a custom SVG). Same name + className/style API.
+export const InsertPlusIcon: React.FC<IconProps> = ({ className, style }) => (
+  <GlyphIcon glyph="+" className={className} style={style as React.CSSProperties} weight={600} />
 );
 
 export const PagesLayersIcon: React.FC<IconProps & { size?: number }> = ({

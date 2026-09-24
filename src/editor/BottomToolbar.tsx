@@ -590,9 +590,11 @@ export default function BottomToolbar() {
           // bottom edge as its own island.
           style={{
             '--cut-border-color': 'var(--border-light)',
-            background: 'color-mix(in srgb, var(--bg-surface) 93%, transparent)',
-            backdropFilter: 'blur(18px) saturate(1.15)',
-            WebkitBackdropFilter: 'blur(18px) saturate(1.15)',
+            // Minimal UI: flat opaque surface instead of glass.
+            background: 'var(--bg-toolbar)',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+            boxShadow: 'var(--shadow-md)',
           } as React.CSSProperties}
         />
         {/* ── Cursor / Hand ── Always shown, viewers included: a
