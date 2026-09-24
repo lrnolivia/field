@@ -108,6 +108,10 @@ export type SandboxEvent =
   | { type: 'computedUpdateBatch'; entries: Array<{ nodeId: string; vpPrefix: string; styles: Record<string, string> }> }
   // Node was clicked/mousedown in sandbox
   | { type: 'nodeMouseDown'; nodeId: string; event: SerializedMouseEvent }
+  // Generic iframe mouse press/release. These exist because the iframe document
+  // is an event boundary: background presses never bubble to the parent canvas.
+  | { type: 'sandboxMouseDown'; event: SerializedMouseEvent }
+  | { type: 'sandboxMouseUp'; event: SerializedMouseEvent }
   // .map() ghost copy was clicked in sandbox. Renderer dispatches a
   // 'revyme:ghost-select' CustomEvent on the iframe's document; bridge-sandbox
   // forwards via this message; bridge-host re-dispatches the same CustomEvent

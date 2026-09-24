@@ -195,6 +195,14 @@ export class CanvasMouseController {
   // Internal state that was previously refs in Canvas.tsx
   lastClick: { nodeId: string; vpId: string | null; time: number; x: number; y: number } | null = null;
   emptyCanvasClick = false;
+  /**
+   * Plain-left press on truly empty canvas temporarily borrows the Hand pan
+   * gesture without changing toolModeAtom. Movement past the same 5px threshold
+   * used by marquee selection turns the gesture into a pan; a stationary click
+   * keeps the existing empty-canvas deselect behavior.
+   */
+  private emptyCanvasPanStart: { x: number; y: number } | null = null;
+  private emptyCanvasPanMoved = false;
   /** Child of a multi-selected node pressed this gesture. The drag was redirected
    *  to the ancestor (group drag); if the pointer never moves, mouseup selects
    *  this child instead. Null when the press wasn't that case. */
@@ -207,6 +215,7 @@ export class CanvasMouseController {
   private _removeGhostBridgeListener: (() => void) | null = null;
   private _removeSetInteractingVpListener: (() => void) | null = null;
   private _removeModifierHoverListener: (() => void) | null = null;
+  private _removeSandboxMouseBridgeListeners: (() => void) | null = null;
   // Last canvas hover position — lets a Ctrl/Cmd keydown/keyup re-run the hover
   // redirect at the same spot (direct-select UP preview without moving).
   private lastHoverClientX = 0;
@@ -303,6 +312,80 @@ export class CanvasMouseController {
     this._removeModifierHoverListener = () => {
       window.removeEventListener('keydown', modifierHoverHandler);
       window.removeEventListener('keyup', modifierHoverHandler);
+    };
+
+    // ─── Sandbox background mouse bridge ─────────────────────────────────
+    // The rendered design surface lives inside a sandbox iframe. Native
+    // mousedown/mousemove/mouseup events inside that document do NOT bubble to
+    // this parent controller. bridge-sandbox forwards generic mouse events;
+    // bridge-host re-dispatches them here as CustomEvents.
+    //
+    // We only borrow Hand when the parent rect-cache hit-test says the iframe
+    // press landed on NO design node. Node presses keep their existing
+    // nodeMouseDown selection/drag path.
+    type SandboxMouseDetail = {
+      clientX: number;
+      clientY: number;
+      button?: number;
+      shiftKey?: boolean;
+      altKey?: boolean;
+      ctrlKey?: boolean;
+      metaKey?: boolean;
+    };
+
+    const asMouseEvent = (detail: SandboxMouseDetail): MouseEvent => ({
+      clientX: detail.clientX,
+      clientY: detail.clientY,
+      button: detail.button ?? 0,
+      shiftKey: detail.shiftKey ?? false,
+      altKey: detail.altKey ?? false,
+      ctrlKey: detail.ctrlKey ?? false,
+      metaKey: detail.metaKey ?? false,
+      target: this.opts.iframeRef.current ?? this.opts.containerRef.current ?? document.body,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    } as unknown as MouseEvent);
+
+    const sandboxMouseDownHandler = (event: Event) => {
+      const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
+      if (!detail) return;
+
+      // Only Select borrows Hand, and only for an unmodified primary press.
+      // Creator tools, explicit Hand mode, marquee extension and alternate
+      // gestures keep their existing meanings.
+      if (this.store.get(toolModeAtom) !== 'select') return;
+      if ((detail.button ?? 0) !== 0) return;
+      if (detail.shiftKey || detail.altKey || detail.ctrlKey || detail.metaKey) return;
+
+      // A real node click is handled by the existing iframe nodeMouseDown
+      // message. Only background/root-space presses enter the temporary pan.
+      if (getNodeHitsAtPoint(detail.clientX, detail.clientY).length > 0) return;
+
+      this.handleMouseDown(asMouseEvent(detail));
+    };
+
+    const sandboxMouseMoveHandler = (event: Event) => {
+      if (!this.emptyCanvasPanStart) return;
+      const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
+      if (!detail) return;
+      this.handleMouseMove(asMouseEvent(detail));
+    };
+
+    const sandboxMouseUpHandler = (event: Event) => {
+      if (!this.emptyCanvasPanStart) return;
+      const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
+      if (!detail) return;
+      this.handleMouseUp(asMouseEvent(detail));
+    };
+
+    document.addEventListener('field:sandbox-mousedown', sandboxMouseDownHandler);
+    document.addEventListener('field:sandbox-mousemove', sandboxMouseMoveHandler);
+    document.addEventListener('field:sandbox-mouseup', sandboxMouseUpHandler);
+
+    this._removeSandboxMouseBridgeListeners = () => {
+      document.removeEventListener('field:sandbox-mousedown', sandboxMouseDownHandler);
+      document.removeEventListener('field:sandbox-mousemove', sandboxMouseMoveHandler);
+      document.removeEventListener('field:sandbox-mouseup', sandboxMouseUpHandler);
     };
   }
 
@@ -442,8 +525,19 @@ export class CanvasMouseController {
     if (document.querySelector('[data-modal-root]')) return;
     // Space+drag pan
     if (handleSpacePanMove(e)) return;
-    // Hand tool pan (middle mouse handled natively via attachMiddleMousePan)
-    if (handleHandToolMove(e)) return;
+    // Hand tool pan (middle mouse handled natively via attachMiddleMousePan).
+    // When Select temporarily borrowed the Hand gesture from an empty-canvas
+    // press, remember whether the pointer actually moved far enough to count as
+    // a pan. This lets a stationary background click keep its deselect meaning
+    // while a real pan preserves the current selection.
+    if (handleHandToolMove(e)) {
+      if (this.emptyCanvasPanStart && !this.emptyCanvasPanMoved) {
+        const dx = e.clientX - this.emptyCanvasPanStart.x;
+        const dy = e.clientY - this.emptyCanvasPanStart.y;
+        if (Math.hypot(dx, dy) >= 5) this.emptyCanvasPanMoved = true;
+      }
+      return;
+    }
 
     // Drag coordinator handles drag movement.
     // Skip if window listeners are active (they handle it already — prevents double processing)
@@ -481,8 +575,10 @@ export class CanvasMouseController {
       this.opts.dragCoordinatorRef.current?.handleMouseUp();
     }
 
-    // Clear selection if mousedown was on empty canvas AND no drag/selection-box happened
-    if (this.emptyCanvasClick && !wasDragging) {
+    // Clear selection only when the empty-canvas gesture stayed a CLICK.
+    // A >=5px background drag is now a temporary Hand pan and must preserve
+    // the user's selection.
+    if (this.emptyCanvasClick && !wasDragging && !this.emptyCanvasPanMoved) {
       this.store.set(selectedIdsAtom, []);
       // Reset the Figma-style nested-selection container — clicking
       // on empty canvas is the user's "back to top-level" gesture.
@@ -498,6 +594,8 @@ export class CanvasMouseController {
     this.pendingMultiSelectChild = null;
 
     this.emptyCanvasClick = false;
+    this.emptyCanvasPanStart = null;
+    this.emptyCanvasPanMoved = false;
   }
 
   /**
@@ -511,6 +609,17 @@ export class CanvasMouseController {
 
   /** Shared node mousedown handler — used by ALL elements (Renderer-created and imperative-created). */
   handleNodeMouseDown(nodeId: string, e: MouseEvent, vpIdOverride?: string): void {
+    // Generic iframe mousedown is forwarded separately from nodeMouseDown.
+    // If a stale rect-cache briefly classified a real node press as background,
+    // the authoritative node event wins and cancels the provisional pan.
+    if (this.emptyCanvasPanStart) {
+      handleHandToolUp();
+      this.opts.setPanCursor(isSpaceBarDown());
+      this.emptyCanvasClick = false;
+      this.emptyCanvasPanStart = null;
+      this.emptyCanvasPanMoved = false;
+    }
+
     // Commit a half-typed panel input before this changes the selection — the
     // in-iframe node mousedown arrives through the bridge, so it does NOT pass
     // through `handleMouseDown`'s call. Same reason; see
@@ -1747,8 +1856,35 @@ export class CanvasMouseController {
         }
       }
 
-      // Clicked empty canvas — deselect, exit any edit mode (shape / group)
+      // Empty canvas:
+      // - a plain left press temporarily borrows Hand/pan while Select remains
+      //   the active tool;
+      // - Shift+drag is intentionally left alone so marquee selection remains
+      //   available;
+      // - mouseup decides whether this was a click (deselect) or a real pan
+      //   (preserve selection).
       this.emptyCanvasClick = true;
+      this.emptyCanvasPanStart = null;
+      this.emptyCanvasPanMoved = false;
+
+      const isPlainLeftPress = e.button === 0
+        && !e.shiftKey
+        && !e.ctrlKey
+        && !e.metaKey
+        && !e.altKey;
+
+      if (toolMode === 'select' && isPlainLeftPress) {
+        // SelectionBox saw the pointerdown before this mouse handler. Flag that
+        // gesture for cancellation on its first move so marquee and pan cannot
+        // run at the same time.
+        suppressSelectionBox();
+        this.emptyCanvasPanStart = { x: e.clientX, y: e.clientY };
+        if (handleHandToolDown(e)) {
+          this.opts.setPanCursor(true);
+          trace.action('canvas:pan-start', { source: 'empty-canvas' });
+        }
+      }
+
       const editId = this.store.get(shapeEditingIdAtom);
       this.opts.setShapeEditingId(null);
       this.opts.setSelectedPoint(null);
@@ -1763,6 +1899,7 @@ export class CanvasMouseController {
     this._removeGhostDomListener?.();
     this._removeGhostBridgeListener?.();
     this._removeModifierHoverListener?.();
+    this._removeSandboxMouseBridgeListeners?.();
     trace.action('canvas:mouse-controller-disposed', {});
   }
 }

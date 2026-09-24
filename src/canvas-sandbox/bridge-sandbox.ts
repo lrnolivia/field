@@ -92,6 +92,27 @@ export function initSandbox(_containerEl: HTMLElement, contentRootEl: HTMLElemen
   // callback, where it can deterministically emit ghostSelect before
   // nodeMouseDown — see the api.render method below.)
 
+  // Forward generic mouse down/up as well as RAF-throttled movement. The
+  // iframe is a hard DOM event boundary, so a press on viewport/background
+  // space would otherwise never reach the parent CanvasMouseController.
+  const serializeSandboxMouse = (e: MouseEvent) => ({
+    clientX: e.clientX,
+    clientY: e.clientY,
+    button: e.button,
+    shiftKey: e.shiftKey,
+    altKey: e.altKey,
+    ctrlKey: e.ctrlKey,
+    metaKey: e.metaKey,
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    emit({ type: 'sandboxMouseDown', event: serializeSandboxMouse(e) });
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    emit({ type: 'sandboxMouseUp', event: serializeSandboxMouse(e) });
+  });
+
   // Forward RAF-throttled mouse position to the parent. Parent uses this to
   // run a ghost-aware hit-test (canvas-dnd's onDndHover only sends canonical
   // data-id, so without this the hover outline always lands on the template

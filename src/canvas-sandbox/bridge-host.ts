@@ -1140,8 +1140,23 @@ export class PostMessageBridge implements CanvasBridge {
         trace.action('postmessage-bridge:ghost-select', { ghostIndex: event.ghostIndex, templateId: event.templateId });
         break;
 
+      case 'sandboxMouseDown':
+        document.dispatchEvent(new CustomEvent('field:sandbox-mousedown', {
+          detail: event.event,
+        }));
+        break;
+
       case 'sandboxMouseMove':
+        document.dispatchEvent(new CustomEvent('field:sandbox-mousemove', {
+          detail: { clientX: event.clientX, clientY: event.clientY },
+        }));
         this.onSandboxMouseMove?.(event.clientX, event.clientY);
+        break;
+
+      case 'sandboxMouseUp':
+        document.dispatchEvent(new CustomEvent('field:sandbox-mouseup', {
+          detail: event.event,
+        }));
         break;
 
       case 'error':
