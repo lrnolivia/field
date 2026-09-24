@@ -1,5 +1,5 @@
 {
-  "name": "revyme-loewfi",
+  "name": "field",
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently \"vite\" \"vite --config vite.sandbox.config.ts\" \"vite --config vite.preview.config.ts\"",

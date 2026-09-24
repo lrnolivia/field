@@ -1,5 +1,5 @@
-const CANVAS_HOST = "canvas.admin.loew.fi";
-const PREVIEW_HOST = "preview.admin.loew.fi";
+const CANVAS_HOST = "canvas.field.loew.fi";
+const PREVIEW_HOST = "preview.field.loew.fi";
 
 function assetPathForHost(hostname, pathname) {
   if (hostname === CANVAS_HOST) {
