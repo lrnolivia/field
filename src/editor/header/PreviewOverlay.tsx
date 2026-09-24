@@ -47,7 +47,9 @@ import Button from '@/design-system/Button';
  *  which is exactly the bug we're fixing). */
 const PREVIEW_ORIGIN =
   typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:5175`
+    ? window.location.port
+      ? `${window.location.protocol}//${window.location.hostname}:5175`
+      : `${window.location.protocol}//preview.${window.location.hostname}`
     : 'http://localhost:5175';
 /** Target-origin used in `iframe.contentWindow.postMessage(..., …)`.
  *  `'*'` works regardless of where the iframe ends up (5175, 3333, or any

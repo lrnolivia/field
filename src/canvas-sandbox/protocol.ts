@@ -257,5 +257,7 @@ export function isSandboxEvent(data: any): data is SandboxEventMessage {
  *  server IP, or a domain without per-environment config. */
 export const SANDBOX_ORIGIN =
   typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:5174`
+    ? window.location.port
+      ? `${window.location.protocol}//${window.location.hostname}:5174`
+      : `${window.location.protocol}//canvas.${window.location.hostname}`
     : 'http://localhost:5174';
