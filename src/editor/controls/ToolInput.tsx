@@ -41,6 +41,8 @@ interface Props {
    *  shows the magnitude, since that is what will be written (`-15%` → `15%`).
    *  Without it the field read a negative size mid-drag and flipped on release. */
   mirrorNegative?: boolean;
+  /** Accessible name for fields whose visual label is outside the input. */
+  ariaLabel?: string;
 }
 
 /** Resting display of a LENGTH: whole numbers. The source keeps its full
@@ -63,7 +65,7 @@ function parseNumeric(v: string): { num: number; unit: string } | null {
   return { num: parseFloat(match[1]), unit: match[2] || '' };
 }
 
-export default function ToolInput({ value, onChange, onChangeLive, onCommit, step = 1, text, chevronLabel, className, disabled, placeholder, min, max, mirrorNegative }: Props) {
+export default function ToolInput({ value, onChange, onChangeLive, onCommit, step = 1, text, chevronLabel, className, disabled, placeholder, min, max, mirrorNegative, ariaLabel }: Props) {
   // Viewers see every ToolInput in the read-only disabled state. The
   // parent <fieldset disabled> already blocks the native input, but the
   // ToolInput wrapper's dimmed look keys off this flag — without it the
@@ -244,6 +246,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
       <input
         ref={inputRef}
         type="text"
+        aria-label={ariaLabel}
         value={isFocused || chevronDragging || holdLocal ? localValue : roundLengthForDisplay(value)}
         onChange={(e) => setLocalValue(e.target.value)}
         onFocus={(e) => {
@@ -289,6 +292,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
           <button
             tabIndex={-1}
             type="button"
+            aria-label={`Increase ${ariaLabel ?? 'value'}`}
             onMouseDown={(e) => startChevronDrag('up', e)}
             className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
           >
@@ -299,6 +303,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
           <button
             tabIndex={-1}
             type="button"
+            aria-label={`Decrease ${ariaLabel ?? 'value'}`}
             onMouseDown={(e) => startChevronDrag('down', e)}
             className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
           >

@@ -10,13 +10,16 @@ interface Props {
   className?: string;
   /** Disable the whole control (e.g. a primary-only field on a replica). */
   disabled?: boolean;
+  /** Accessible name for dropdowns whose visual label is outside the select. */
+  ariaLabel?: string;
 }
 
-export default function ToolSelect({ value, onChange, options, className, disabled }: Props) {
+export default function ToolSelect({ value, onChange, options, className, disabled, ariaLabel }: Props) {
   return (
     <div className={`relative w-full ${className || ''}`}>
       <select
         value={value}
+        aria-label={ariaLabel}
         disabled={disabled}
         onChange={(e) => { trace.action('tool-select:change', { from: value, to: e.target.value }); onChange(e.target.value); }}
         className={`w-full h-[var(--control-height)] pl-2 pr-6 text-xs appearance-none bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] text-[var(--text-primary)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] cursor-pointer'}`}

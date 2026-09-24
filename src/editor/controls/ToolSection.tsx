@@ -44,9 +44,12 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
   return (
     <div className="px-2">
       {/* Title row: label + action */}
-      <div className={`${showContent ? 'mb-2' : 'mb-0'} flex items-center justify-between pt-3 pb-1.5`} onContextMenu={onHeaderContextMenu}>
-        <span
-          onClick={() => { if (collapsible) { setIsOpen(!isOpen); trace.action('tool-section:toggle', { title, isOpen: !isOpen }); } }}
+      <div className={`${showContent ? 'mb-1.5' : 'mb-0'} flex items-center justify-between pt-2.5 pb-1`} onContextMenu={onHeaderContextMenu}>
+        <button
+          type="button"
+          disabled={!collapsible || !hasContent}
+          aria-expanded={collapsible && hasContent ? isOpen : undefined}
+          onClick={() => { setIsOpen(!isOpen); trace.action('tool-section:toggle', { title, isOpen: !isOpen }); }}
           // Eyebrow, not a heading. Bold sentence-case at body size makes the
           // titles compete with the controls for attention and produces the
           // ruled-list rhythm this panel shares with every other builder. Small
@@ -62,10 +65,10 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           // Sentence case in the default UI stack (the display-font experiment
           // was retired 2026-08-20) — same face as the row labels, one size up
           // and semibold so the heading role still reads.
-          className={`text-xs font-semibold text-[var(--text-primary)] ${collapsible ? 'cursor-pointer select-none' : ''} ${collapsible && !isOpen ? 'opacity-50' : ''}`}
+          className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left ${collapsible && hasContent ? 'cursor-pointer' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
         >
           {title}
-        </span>
+        </button>
         <span ref={actionRef} className="flex items-center">{action}</span>
       </div>
       {isOpen && showContent && (

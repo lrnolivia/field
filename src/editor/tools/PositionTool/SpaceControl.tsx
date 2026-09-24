@@ -90,8 +90,8 @@ export default function SpaceControl({ left, top, nodeId, vpId, onUpdate }: Prop
     <div className="flex items-center justify-between w-full">
       <ControlLabel label="Space" property="" plain />
       <div className="flex items-center gap-1 w-full">
-        <ToolInput value={String(Math.round(xVal))} onChange={(v) => onUpdate('left', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="X" />
-        <ToolInput value={String(Math.round(yVal))} onChange={(v) => onUpdate('top', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="Y" />
+        <ToolInput value={String(Math.round(xVal))} onChange={(v) => onUpdate('left', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="X" ariaLabel="X position" />
+        <ToolInput value={String(Math.round(yVal))} onChange={(v) => onUpdate('top', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="Y" ariaLabel="Y position" />
       </div>
     </div>
   );

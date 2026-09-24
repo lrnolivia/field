@@ -194,6 +194,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
         <div className="flex-1">
           <ToolInput
             value={displayValue}
+            ariaLabel={label}
             onChange={disabled ? () => {} : handleNumChange}
             onChangeLive={disabled || !onChangeLive ? undefined : handleNumChangeLive}
             // With a live (DOM-only) scrub the chevron drag commits on mouseup via `onCommit`, NOT `onChange`
@@ -210,6 +211,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
         <div className="flex-1">
           <ToolSelect
             value={activeUnit}
+            ariaLabel={`${label} unit`}
             onChange={handleUnitChange}
             options={unitOptions}
           />

@@ -136,7 +136,7 @@ export default function PositionTypeControl({ position, nodeId, vpId, existingTr
       overridden={positionOverridden}
       onResetOverride={positionOverridden ? resetPositionOverride : undefined}
     >
-      <ToolSelect value={position} onChange={handleChange} options={options} />
+      <ToolSelect value={position} onChange={handleChange} options={options} ariaLabel="Position type" />
     </ToolRow>
   );
 }

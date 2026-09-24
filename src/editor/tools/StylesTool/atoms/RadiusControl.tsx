@@ -181,9 +181,17 @@ function RadiusAtom() {
       {/* The on-canvas Radius Editor needs a real node to draw the overlay on — meaningless when
           editing a variable's default value (variableDefault mode, no node). Hide it there. */}
       {mode !== 'variableDefault' && (
-        <ControlActionRow onClick={handleOpenEditor}>
-          <span className="text-xs text-[var(--text-secondary)]">Radius Editor</span>
-        </ControlActionRow>
+        <button
+          type="button"
+          onClick={handleOpenEditor}
+          className="self-end flex items-center gap-1 min-h-[20px] px-1 text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--border-focus)] cursor-pointer"
+        >
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 13h3l7-7-3-3-7 7v3Z" />
+            <path d="m9 4 3 3" />
+          </svg>
+          Edit on canvas
+        </button>
       )}
     </div>
   );
