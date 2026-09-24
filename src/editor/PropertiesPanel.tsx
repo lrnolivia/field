@@ -6,10 +6,10 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { selectedNodeAtom, selectedIdsAtom } from '../code/stores/store';
 import { useNodesComputed } from '../code/stores/node-family';
 import { activeFilePathAtom, isComponentFilePath, isIconSetFilePath, isPageClientFile, isPageServerFile, isDesignComponentFile, isVariantFile, isTemplateFilePath } from '../code/project/active-file-store';
-import { activeEditorAtom } from '../code/stores/editor-store';
+import { activeEditorAtom, inspectorModeAtom } from '../code/stores/editor-store';
 import { isDefaultLocaleAtom } from '../code/stores/locale-store';
 import TranslationPanel from './tools/TranslationPanel';
-import { ToolDivider } from './controls';
+import { ToolDivider, InspectorModeTabs } from './controls';
 import { ControlProvider, useControl } from './controls/ControlProvider';
 import { trace } from '@/shared/debug-trace';
 import PanelErrorBoundary from '@/editor/ui/PanelErrorBoundary';
@@ -124,6 +124,7 @@ function findCollectionContext(node: CanvasNode, nodes: Map<string, CanvasNode>)
 function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boolean }) {
   const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
   const activeEditor = useAtomValue(activeEditorAtom);
+  const inspectorMode = useAtomValue(inspectorModeAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const filePath = useAtomValue(activeFilePathAtom);
   const allOverlayCalls = useAtomValue(overlayCallsAtom);
@@ -433,6 +434,8 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           (the shell div stays, so layout holds) and re-arms when the
           selection changes. */}
       <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
+      <InspectorModeTabs />
+
       {/* Figma reference contract: one compact selected-object row.
           Do not turn this back into a card or a two-line breadcrumb. */}
       <div
@@ -466,7 +469,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           (no separate `layout::root` layer). Hidden for child-element
           selection or empty selection so it doesn't compete with the
           per-element tools. See `TemplatePicker.tsx` + `template-ops.ts`. */}
-      {(node.id === 'root' || node.id === 'layout::root')
+      {inspectorMode === 'design' && (node.id === 'root' || node.id === 'layout::root')
         && (isPageClientFile(filePath) || isPageServerFile(filePath) || isVariantFile(filePath)) && (
         <>
           {/* pt-1 so the Template title sits at the same vertical offset
@@ -488,6 +491,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           previously left the Export Frame button kissing the viewport
           bottom which felt cramped. */}
       <div className="flex-1 pt-1 pb-8 flex flex-col">
+        {inspectorMode === 'design' ? <>
 
         {/* Shape edit mode: PathTool (Position + Curve for the selected
             anchor) appears above the rest of the SvgShapeTool, mirroring
@@ -537,20 +541,15 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             {positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
             <ToolDivider />
             {isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool />}
-            {/* Sketches get the AnimationTool too — they support a
-                draw-on animation. Regular SVG primitives don't (yet),
-                so they stay on the compact panel without it. */}
-            {isSketch && (
-              <>
-                <ToolDivider />
-                <AnimationTool styles={s} onUpdate={updateStyle} />
-              </>
-            )}
           </LocalizeGate>
         ) : isFixedOverlay ? (
-          /* FIXED overlay (modal): collapse the whole panel to ONLY the Overlay
-             tool — everything else is meaningless for a full-viewport backdrop. */
-          <OverlayTool />
+          <>
+            <StylesTool scope="appearance" />
+            <ToolDivider />
+            <StylesTool scope="advanced" />
+            <ToolDivider />
+            <ExportTool />
+          </>
         ) : <>
         {/* When the viewport-frame itself is selected (`root` on a bare
             page, `layout::root` on a templated one), several tools don't
@@ -589,8 +588,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             handles; routes inline on primary / @container on a replica). */}
         {isOverlayNode && (
           <>
-            <OverlayTool />
-            <ToolDivider />
             <SizeTool
               styles={s}
               nodeId={node.id}
@@ -758,71 +755,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {isText && <TextStyleTool />}
         </div>
 
-        <div data-inspector-group="effects" className="contents">
-        {/* Animation ("Effects") — hidden on the viewport frame (no
-            animatable target). Vector/icon-set instances DO get it: the user
-            animates the whole vector wrapper (appear / hover / loop / scroll),
-            which is a valid instance-level effect (the master-only concern is
-            animating the vector's INTERNAL parts, not the wrapper). */}
-        {/* The viewport/root frame gets the AnimationTool too, but restricted to
-            ONLY the Glide ("Flow") effect — the one meaningful page-level animation
-            (the reference puts Flow on the page). All other effects stay hidden there. */}
-        <AnimationTool
-          styles={s}
-          onUpdate={updateStyle}
-          glideOnly={isViewportFrame}
-        />
-
-        {/* Page Effects (View Transitions) live INSIDE the AnimationTool's "+"
-            on a viewport (a "Page Transition" effect), not a separate section. */}
-        {/* Overlay (right under Layout — title + collapsible body, same
-            shape as Animation/Layout). Overlay NODES render it at the top of
-            the panel instead (see above).
-
-            Hidden on the VIEWPORT FRAME: the tool's job is to make the
-            selected node a trigger, and the only triggers that exist are
-            click and hover — neither is meaningful on the page container
-            itself. This used to be gated on `isTemplatedViewport`, which
-            only caught the templated case, so a plain page still offered
-            "add an overlay" on its root. `isViewportFrame` covers both
-            (`root` and `layout::root`). */}
-        {/* Also hidden on form controls — an input/select isn't an overlay
-            trigger surface (the Input tool owns that panel real estate). */}
-        {!isOverlayNode && !isCodeComponentInstance && !isViewportFrame && !isInputElement && <OverlayTool />}
-        </div>
-
-        <div data-inspector-group="behavior" className="contents">
-        {/* Interactions (component variant connections / event fires / page
-            interactions). Hidden for instances EXCEPT: (a) a component instance
-            INSIDE a collection list (e.g. a Load More button → wire its Click to
-            pagination); (b) a NESTED instance inside a DESIGN-COMPONENT master —
-            it can be a variant-connection SOURCE (e.g. the Header's hamburger
-            instance toggling the Header's open/closed variant). In a master file
-            the InteractionsTool returns ComponentInteractions for EVERY node, which
-            reads connections by `sourceNode === selectedId`, so the nested instance's
-            connection shows + is editable. */}
-        {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
-          && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
-          <>
-            <InteractionsTool />
-            <ToolDivider />
-          </>
-        )}
-        {/* Link + Anchor (Navigation) — single-node only (still hidden for
-            instances / overlays / multi-select). Code-component instances carry
-            `isCodeComponent` (not `isComponentInstance`), so gate them explicitly
-            too — a code component has no links, and its own `target`/`href` controls
-            would otherwise be misread as a nav link's New Tab / Link To.
-            Form controls (input/textarea/select) are gated too: wrapping a form
-            field in a nav link is never what the user means. */}
-        {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
-          <>
-            <LinkTool />
-            <ToolDivider />
-          </>
-        )}
-        </div>
-
         <div data-inspector-group="advanced" className="contents">
         {/* Web-only/advanced style controls stay available without polluting the
             Figma core property stack. */}
@@ -883,6 +815,54 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           <ExportTool />
         </div>
         </>}
+        </>}
+        </> : <>
+          <div data-inspector-group="prototype" className="contents">
+            {isVectorVariantCard ? null : isSvg ? (
+              isSketch ? (
+                <AnimationTool styles={s} onUpdate={updateStyle} />
+              ) : null
+            ) : isFixedOverlay ? (
+              <OverlayTool />
+            ) : (
+              <>
+                {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
+                  && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
+                  <>
+                    <InteractionsTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
+                  <>
+                    <LinkTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {isOverlayNode ? (
+                  <>
+                    <OverlayTool />
+                    {!isFixedOverlay && <ToolDivider />}
+                  </>
+                ) : (!isCodeComponentInstance && !isViewportFrame && !isInputElement ? (
+                  <>
+                    <OverlayTool />
+                    <ToolDivider />
+                  </>
+                ) : null)}
+
+                {!isFixedOverlay && (
+                  <AnimationTool
+                    styles={s}
+                    onUpdate={updateStyle}
+                    glideOnly={isViewportFrame}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </>}
       </div>
       </div>{/* end scrollable content */}

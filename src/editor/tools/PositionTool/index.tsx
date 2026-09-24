@@ -8,6 +8,7 @@ import AlignmentControl, { AlignmentButtons } from './AlignmentControl';
 import PositionTypeControl from './PositionTypeControl';
 import PinControl from './PinControl';
 import SpaceControl from './SpaceControl';
+import { RotateControl } from '../StylesTool/atoms/RotateControl';
 import { getContentRoot, findNodeSize, findNodeParentInnerSize, findNodeComputedStyle, updateNodeStyles } from '@/canvas/node-ops';
 import { transformManager } from '@/canvas/transform';
 import { nodeTreeStructureVersionAtom, getNodeFromCache } from '@/code/stores/store';
@@ -177,6 +178,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
             vpId={vpId}
             onUpdate={updateStyle}
           />
+          <RotateControl />
         </ToolSection>
         <ToolDivider />
       </>
@@ -235,6 +237,8 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
         {isSticky && (
           <StyleField property="top" label="Top" defaultValue="0px" />
         )}
+
+        <RotateControl />
       </ToolSection>
       <ToolDivider />
     </>

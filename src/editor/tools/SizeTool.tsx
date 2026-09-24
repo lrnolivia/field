@@ -17,8 +17,8 @@ import { applyViewportWidthChange } from '@/code/generation/viewport-width-rewri
 import { activeFilePathAtom, isVectorSetComponentFile } from '@/code/project/active-file-store';
 import { modifyProjectFile } from '@/code/project/modify-file';
 import { setForceRender, queueMutation } from '@/code/mutation/mutation-queue';
-import { FIT_SIZE, isFitSize } from '@/shared/constants';
-import { ToolSection, ToolInput, ToolSelect } from '../controls';
+import { FIT_SIZE, isFitSize, isFrameTag } from '@/shared/constants';
+import { ToolSection, ToolInput, ToolSelect, ToolSwitch } from '../controls';
 import { isPrimaryViewport } from '@/canvas/node-ops';
 import { useControl } from '../controls/ControlProvider';
 import ControlLabel from '../controls/ControlLabel';
@@ -314,6 +314,11 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
   // breakpoint number (e.g. 1440 for desktop). Height stays computed-auto
   // because viewports always stretch to content.
   const isViewportFrame = nodeId === 'root' || nodeId === 'layout::root';
+  // Figma exposes frame clipping as a first-class Layout property. Keep the
+  // existing CSS overflow implementation underneath, but stop hiding this
+  // common frame behavior in Advanced. Scroll/axis-specific overflow can
+  // still be refined in Advanced when needed.
+  const showClipContent = !!node && isFrameTag(node.type) && !isViewportFrame && !isFitInnerRedirect;
   const viewportsConfig = useAtomValue(viewportsConfigAtom);
   const activeComponentVariant = useAtomValue(activeComponentVariantAtom);
 
@@ -1672,6 +1677,18 @@ if (heightIsAuto) {
           overridden={isHeightFill && flexFillOverridden ? true : undefined}
           onResetOverride={isVectorSet ? resetVectorSetSize : (isHeightFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
         />
+      )}
+
+      {showClipContent && (
+        <div data-layout-clip-content className="flex items-center justify-between w-full">
+          <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Clip content</span>
+          <div className="w-full flex justify-end">
+            <ToolSwitch
+              value={['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim())}
+              onChange={(enabled) => onUpdate('overflow', enabled ? 'hidden' : 'visible')}
+            />
+          </div>
+        </div>
       )}
 
       {/* Flex/Grid child controls — only for relative children in flex/grid parents, never for top-level */}

@@ -48,6 +48,24 @@ describe('Figma inspector contract', () => {
     expect(styles).not.toContain('<ToolSection title="Styles"');
   });
 
+  it('keeps Design and Prototype as distinct inspector modes', () => {
+    const panel = read('src/editor/PropertiesPanel.tsx');
+    const tabs = read('src/editor/controls/InspectorModeTabs.tsx');
+    expect(panel).toContain('<InspectorModeTabs />');
+    expect(panel).toContain("inspectorMode === 'design'");
+    expect(panel).toContain('data-inspector-group="prototype"');
+    expect(tabs).toContain('Design');
+    expect(tabs).toContain('Prototype');
+  });
+
+  it('surfaces frame clipping in Layout and rotation in Position', () => {
+    const size = read('src/editor/tools/SizeTool.tsx');
+    const position = read('src/editor/tools/PositionTool/index.tsx');
+    expect(size).toContain('data-layout-clip-content');
+    expect(size).toContain('Clip content');
+    expect(position).toContain('<RotateControl />');
+  });
+
   it('mounts core appearance separately from advanced web controls', () => {
     const panel = read('src/editor/PropertiesPanel.tsx');
     expect(panel).toContain('<StylesTool scope="appearance" />');

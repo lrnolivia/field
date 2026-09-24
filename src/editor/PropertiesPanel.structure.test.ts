@@ -8,18 +8,17 @@ const source = fs.readFileSync(
 );
 
 describe('PropertiesPanel semantic structure', () => {
-  it('keeps the canonical field inspector hierarchy', () => {
+  it('keeps the Design inspector core groups in semantic order', () => {
     const markers = [
       'data-inspector-group="geometry"',
       'data-inspector-group="content"',
       'data-inspector-group="appearance"',
-      'data-inspector-group="effects"',
-      'data-inspector-group="behavior"',
       'data-inspector-group="advanced"',
       'data-inspector-group="export"',
     ];
 
     let previous = -1;
+
     for (const marker of markers) {
       const current = source.indexOf(marker);
       expect(current, marker).toBeGreaterThan(previous);
@@ -27,14 +26,28 @@ describe('PropertiesPanel semantic structure', () => {
     }
   });
 
-  it('keeps behavior below appearance and effects', () => {
-    const appearance = source.indexOf('data-inspector-group="appearance"');
-    const effects = source.indexOf('data-inspector-group="effects"');
-    const behavior = source.indexOf('data-inspector-group="behavior"');
+  it('separates prototype behavior from the Design property stack', () => {
+    expect(source).toContain("inspectorMode === 'design'");
+    expect(source).toContain('data-inspector-group="prototype"');
 
-    expect(appearance).toBeGreaterThan(-1);
-    expect(effects).toBeGreaterThan(appearance);
-    expect(behavior).toBeGreaterThan(effects);
+    // These were the old mixed Design-stack groupings.
+    expect(source).not.toContain('data-inspector-group="effects"');
+    expect(source).not.toContain('data-inspector-group="behavior"');
+  });
+
+  it('keeps interaction tools inside the Prototype branch', () => {
+    const prototypeStart = source.indexOf(
+      'data-inspector-group="prototype"',
+    );
+
+    expect(prototypeStart).toBeGreaterThan(-1);
+
+    const prototypeSource = source.slice(prototypeStart);
+
+    expect(prototypeSource).toContain('<InteractionsTool />');
+    expect(prototypeSource).toContain('<LinkTool />');
+    expect(prototypeSource).toContain('<OverlayTool />');
+    expect(prototypeSource).toContain('<AnimationTool');
   });
 
   it('does not regress to the inherited builder ordering contract', () => {

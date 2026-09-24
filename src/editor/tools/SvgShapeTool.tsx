@@ -1,8 +1,9 @@
 // SvgShapeTool.tsx — Properties panel for SVG shape elements.
 // Two-section layout matching the reference's compact SVG panel:
 //
-//   Styles   — wrapper CSS (Opacity, Visible, Rotate) + inner Fill attr
-//   Stroke   — inner shape attrs (color, width, style, cap, join)
+//   Appearance — wrapper CSS (Opacity, Visible)
+//   Fill       — inner Fill attr
+//   Stroke     — inner shape attrs (color, width, style, cap, join)
 //
 // Wrapper-CSS controls (Opacity / Rotate) reuse the shared StylesTool
 // atoms which write through `updateStyle()` from the ControlProvider —
@@ -32,7 +33,6 @@ import ControlLabel from '../controls/ControlLabel';
 import { LocalizeGate } from '../controls/localize-gate';
 import { useControl } from '../controls/ControlProvider';
 import { OpacityControl } from './StylesTool/atoms/OpacityControl';
-import { RotateControl } from './StylesTool/atoms/RotateControl';
 import { HideControl } from './StylesTool/atoms/HideControl';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
@@ -491,25 +491,19 @@ export default function SvgShapeTool() {
     // shared Opacity/Hide/Rotate atoms (user request 2026-07-24). Mirrors the
     // AnimationTool/OverlayTool gates.
     <LocalizeGate hidden>
-      {/* ─── Styles ───────────────────────────────────────────────────── */}
-      {/* In shape-edit mode only the Fill is meaningful — Opacity / Visible /
-          Rotate apply to the SVG wrapper and conflict with editing the path
-          vertices (toggling Visible mid-edit would hide what the user is
-          editing; Rotate would skew the live anchor handle math). Hide
-          them so the panel stays focused on path-shape attributes. */}
-      <ToolSection title="Styles">
-        {!isInShapeEdit && <OpacityControl />}
+      {/* ─── Appearance ───────────────────────────────────────────────── */}
+      {!isInShapeEdit && (
+        <>
+          <ToolSection title="Appearance">
+            <OpacityControl />
+            <HideControl />
+          </ToolSection>
+          <ToolDivider />
+        </>
+      )}
 
-        {/* Hide — reuse the shared atom so the SvgShapeTool's "is this
-            element rendered" toggle matches the Yes/No semantics +
-            label + write routing every other element type uses. The
-            ad-hoc "Visible Yes/No" version that lived here drifted
-            from the standard — same DOM result (display:'none' vs ''),
-            different copy, separate solo-replica / @container routing.
-            Reusing HideControl keeps the user model consistent. */}
-        {!isInShapeEdit && <HideControl />}
-
-        {/* Fill — always shown */}
+      {/* ─── Fill ─────────────────────────────────────────────────────── */}
+      <ToolSection title="Fill">
         <div className="flex items-center justify-between w-full">
           {shapeLabel('Fill', '__svg-fill', 'fill')}
           <div className="flex items-center gap-2 w-full">
@@ -521,8 +515,6 @@ export default function SvgShapeTool() {
             />
           </div>
         </div>
-
-        {!isInShapeEdit && <RotateControl />}
       </ToolSection>
 
       {/* Divider matches the rule the PropertiesPanel uses between

@@ -56,6 +56,12 @@ export const colorPickerOpenAtom = atom<boolean>(false);
  *  without prop-drilling. */
 export const previewModeAtom = atom<boolean>(false);
 
+/** Right-inspector workspace mode. Mirrors Figma's Design / Prototype split so
+ *  object styling and prototype behavior do not compete in one property stack.
+ *  Session-only by design. */
+export type InspectorMode = 'design' | 'prototype';
+export const inspectorModeAtom = atom<InspectorMode>('design');
+
 /** Optional override for the file the preview overlay should load.
  *  When non-null, `PreviewOverlay` previews this file in
  *  component-isolation mode instead of falling back to

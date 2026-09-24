@@ -27,7 +27,7 @@ import {
   ClipPathControl, TransformControl, FilterControl, BackdropFilterControl, ZIndexControl,
   VariantTransitionControl, PseudoElementControl,
   PointerEventsControl, UserSelectControl, BackfaceControl, MixBlendModeControl, FormStateControl,
-  GroupFillControl, RotateControl,
+  GroupFillControl,
 } from './atoms';
 import { DYNAMIC_STYLES, type DynamicStyleSpec } from './dynamic-styles';
 
@@ -286,7 +286,6 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
         <ToolSection title="Appearance">
           <OpacityControl />
           <HideControl />
-          <RotateControl />
         </ToolSection>
         <ToolDivider />
         <ToolSection title="Fill">
@@ -353,7 +352,6 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
             {!isWrapper && <OverflowControl />}
             {!isWrapper && visibleIds.has('overflowX') && <OverflowXControl />}
             {!isWrapper && visibleIds.has('overflowY') && <OverflowYControl />}
-            {isVectorSet && <RotateControl />}
             {!isWrapper && <FormStateControl />}
             {isText && !isWrapper && <BorderControl />}
             {!isWrapper && <TransformControl />}

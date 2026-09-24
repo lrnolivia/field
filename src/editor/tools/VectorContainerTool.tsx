@@ -102,7 +102,7 @@ export default function VectorContainerTool() {
 
   return (
     <>
-      <ToolSection title="Vector">
+      <ToolSection title="Fill">
         <div className="flex items-start justify-between w-full">
           <div className="h-8 flex items-center w-3/4">
             <ControlLabel plain label="Fill" property="backgroundColor" />
@@ -116,7 +116,7 @@ export default function VectorContainerTool() {
       {colorGroups.length > 0 && (
         <>
         <ToolDivider />
-        <ToolSection title="Selection">
+        <ToolSection title="Selection colors">
           <div className="flex items-start justify-between w-full">
             <div className="h-8 flex items-center w-3/4">
               <ControlLabel plain label="Colors" property="__vector-colors" />
