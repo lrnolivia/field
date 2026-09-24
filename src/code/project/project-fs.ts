@@ -1,0 +1,2617 @@
+// project-fs.ts — Virtual file system for multi-file projects.
+// Backed by a jotai atom (Map<string, string>) now.
+// ProjectFS interface allows swapping to a real file API later
+// without touching any canvas/parser/control code.
+
+import { atom, getDefaultStore } from 'jotai';
+import type { ProjectData } from '@/backend/types';
+// Type-only: erased at build time, so this does NOT create a runtime cycle
+// with the branching engine (which imports projectFS).
+import type { FileConflict } from '@/code/branching/merge';
+import { registerProjectVersionReader } from '@/canvas/canvas-bridge';
+import { buildProvidersSource } from './providers-gen';
+import { trace } from '@/shared/debug-trace';
+import { parseJSX } from '@/code/parsing/ast-utils';
+import { findVariantRootId, insertAtRootRestSpread, stampRootDataVariantAttr } from '@/shared/variant-root';
+import { nodeIdToVarName } from '@/shared/id-utils';
+import { healStyleBlockImportant } from '@/shared/media-important';
+import { ensureLayoutFile } from '@/code/generation/metadata-gen';
+import { healSectionOffsets } from '@/code/generation/generator-motion-scroll';
+import { healEventOverlayToggle } from '@/code/generation/event-overlay-heal';
+import { formatOverrideSource } from '@/code/generation/format-override-source';
+import { OVERRIDES_DIR } from '@/code/generation/code-override-gen';
+import { ensureSmoothScrollInLayout, SMOOTH_SCROLL_DATA_PATH, SMOOTH_SCROLL_CONTROLLER_PATH } from '@/code/generation/smooth-scroll-layout';
+import {
+  ANIMATED_COUNTER_COMPONENT,
+  TYPING_EFFECT_COMPONENT,
+  AURORA_BACKGROUND_COMPONENT,
+  SILK_RIBBONS_COMPONENT,
+  LIGHT_PILLAR_COMPONENT,
+  IRIDESCENT_FILM_COMPONENT,
+  GOD_RAYS_COMPONENT,
+  GRAIN_FIELD_COMPONENT,
+  NEBULA_FIELD_COMPONENT,
+  DOT_WAVE_COMPONENT,
+  CONTOUR_MAP_COMPONENT,
+  FLUID_GRADIENT_COMPONENT,
+  CYBER_GRID_COMPONENT,
+  RIPPLE_GRID_COMPONENT,
+  VORONOI_CELLS_COMPONENT,
+  METABALL_FIELD_COMPONENT,
+  HALFTONE_SCREEN_COMPONENT,
+  SCANLINE_C_R_T_COMPONENT,
+  SMOKE_COMPONENT,
+  MARBLE_COMPONENT,
+  WARP_TUNNEL_COMPONENT,
+  STAR_WARP_COMPONENT,
+  HEX_GRID_COMPONENT,
+  LIGHTNING_COMPONENT,
+  LIQUID_CHROME_COMPONENT,
+  BOKEH_COMPONENT,
+  RAIN_GLASS_COMPONENT,
+  FIREFLIES_COMPONENT,
+  VORTEX_COMPONENT,
+  SUNSET_COMPONENT,
+  DUNES_COMPONENT,
+  OIL_SLICK_COMPONENT,
+  WAVE_STACK_COMPONENT,
+  MATRIX_RAIN_COMPONENT,
+  WAVE_DISTORTION_COMPONENT,
+  GLITCH_TEXT_COMPONENT,
+  FILM_GRAIN_COMPONENT,
+  STATIC_TV_COMPONENT,
+  PERLIN_NOISE_COMPONENT,
+  HALFTONE_COMPONENT,
+  SCANLINES_COMPONENT,
+  CHROMATIC_NOISE_COMPONENT,
+  PATTERN_COMPONENT,
+  WAVE_LINES_COMPONENT,
+  WAVE_GRADIENT_COMPONENT,
+  MESH_GRADIENT_COMPONENT,
+  PLASMA_SHADER_COMPONENT,
+  LIQUID_METAL_COMPONENT,
+  CAUSTICS_LIGHT_COMPONENT,
+  NEON_PARTICLE_FIELD_COMPONENT,
+  GEM_SMOKE_COMPONENT,
+  GRAIN_GRADIENT_COMPONENT,
+  METABALLS_COMPONENT,
+  SMOKE_RING_COMPONENT,
+  LENS_BOX_COMPONENT,
+  MAGNET_BOX_COMPONENT,
+  MARQUEE_COMPONENT,
+  CAROUSEL_COMPONENT,
+  RIBBON_MARQUEE_COMPONENT,
+  MARQUEE_3D_COMPONENT,
+  MOTION_TRAIL_COMPONENT,
+  HORIZONTAL_SCROLL_COMPONENT,
+  BLOB_CURSOR_COMPONENT,
+  DESIGN_CURSOR_COMPONENT,
+  RIBBON_CURSOR_COMPONENT,
+  SPLASH_CURSOR_COMPONENT,
+  YOUTUBE_EMBED_COMPONENT,
+  VIMEO_EMBED_COMPONENT,
+  SOUNDCLOUD_EMBED_COMPONENT,
+  SPOTIFY_EMBED_COMPONENT,
+  GOOGLE_MAPS_EMBED_COMPONENT,
+  FACEBOOK_EMBED_COMPONENT,
+  TWITTER_EMBED_COMPONENT,
+  INSTAGRAM_EMBED_COMPONENT,
+  LINKEDIN_EMBED_COMPONENT,
+  PINTEREST_EMBED_COMPONENT,
+  TIKTOK_EMBED_COMPONENT,
+  CALENDLY_EMBED_COMPONENT,
+  TYPEFORM_EMBED_COMPONENT,
+  GOOGLE_FORM_EMBED_COMPONENT,
+  THEME_TOGGLE_COMPONENT,
+  LOCALE_SWITCHER_COMPONENT,
+  COPY_BUTTON_COMPONENT,
+  // Creative — text effects ported from the old builder's customCodeJs.
+  MORPHING_TEXT_COMPONENT,
+  WORD_ROTATE_COMPONENT,
+  SPINNING_TEXT_COMPONENT,
+  HANGING_CURVED_COMPONENT,
+  MAGNETIC_TEXT_COMPONENT,
+  TEXT_PRESSURE_COMPONENT,
+  TYPING_TEXT_COMPONENT,
+  ROTATING_TEXT_3D_COMPONENT,
+  VIDEO_TEXT_COMPONENT,
+} from './default-code-components';
+
+// ─── Interface ──────────────────────────────────────────────────────────────
+
+export interface ProjectFS {
+  readFile(path: string): string | null;
+  writeFile(path: string, content: string): void;
+  deleteFile(path: string): void;
+  moveFile(oldPath: string, newPath: string): void;
+  listFiles(dir?: string): string[];
+  exists(path: string): boolean;
+}
+
+// ─── In-Memory Implementation ───────────────────────────────────────────────
+
+/**
+ * Per-mutation hook info passed to every `writeListener`. Includes the
+ * `origin` flag so collaboration subscribers can skip rebroadcasting
+ * writes that arrived FROM a remote peer (otherwise: feedback loop).
+ */
+export interface ProjectFSWriteEvent {
+  kind: 'write' | 'delete' | 'move' | 'load-snapshot';
+  path?: string;
+  /** New content for `write`; absent for `delete` / `move` / snapshot. */
+  content?: string;
+  /** Set on `move`. */
+  oldPath?: string;
+  /** Set on `move`. */
+  newPath?: string;
+  /** `local` (default) — originated from a user action in this client.
+   *  `remote` — applied because a collaborator's broadcast arrived. The
+   *  collab broadcast hook must check this and skip re-emitting remote
+   *  writes to avoid an infinite loop. */
+  origin: 'local' | 'remote';
+}
+
+export interface BranchFileIO {
+  readFile(path: string): string | null;
+  writeFile(path: string, content: string): void;
+  deleteFile(path: string): void;
+  exists(path: string): boolean;
+}
+
+// ─── In-Memory Implementation ───────────────────────────────────────────────
+
+/**
+ * Per-mutation hook info passed to every `writeListener`. Includes the
+ * `origin` flag so collaboration subscribers can skip rebroadcasting
+ * writes that arrived FROM a remote peer (otherwise: feedback loop).
+ */
+
+export type BranchStatus = 'clean' | 'dirty' | 'conflict';
+export const MAIN_BRANCH_ID = 'main';
+
+/** One non-main branch: live files + merge base + state. Main lives in `files`. */
+export interface BranchData {
+  files: Map<string, string>;
+  baseSnapshot: Map<string, string>;
+  status: BranchStatus;
+  createdAt: number;
+  label?: string;
+  /** Parent branch at creation (tree nesting). Null for main-children roots. */
+  parentId: string | null;
+  /** Sibling order (drag-and-drop stable). */
+  order: number;
+  /** Last branch-map write (tree relative time). Null until first edit. */
+  lastEditedAt: number | null;
+}
+
+export interface BranchInfo {
+  id: string;
+  status: BranchStatus;
+  fileCount: number;
+  active: boolean;
+  /** main can never be deleted. */
+  protected: boolean;
+  /** Creation timestamp (review list relative time). 0 for main. */
+  createdAt: number;
+  /** Parent branch (tree nesting). Null for main. */
+  parentId: string | null;
+  /** Sibling order (drag-and-drop stable). */
+  order: number;
+  /** Last branch-map write. Null until first edit (main: null). */
+  lastEditedAt: number | null;
+}
+
+const BRANCH_ID_RE = /^[a-z0-9-]{1,48}$/;
+
+function mapsEqual(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [k, v] of a) if (b.get(k) !== v) return false;
+  return true;
+}
+
+/**
+ * Parse envelope branch records into BranchData. Skips malformed entries
+ * with a trace (never throws) — shared by fromEnvelope + hydrateBranches.
+ */
+function parseBranchRecords(rawBranches: unknown): Map<string, BranchData> {
+  const branches = new Map<string, BranchData>();
+  if (!rawBranches || typeof rawBranches !== 'object') return branches;
+  for (const [id, raw] of Object.entries(rawBranches as Record<string, unknown>)) {
+    if (id === MAIN_BRANCH_ID || !BRANCH_ID_RE.test(id)) {
+      trace.action('project-fs:envelope-branch-skipped', { id, reason: 'reserved-or-invalid-id' });
+      continue;
+    }
+    if (!raw || typeof raw !== 'object') {
+      trace.action('project-fs:envelope-branch-skipped', { id, reason: 'not-an-object' });
+      continue;
+    }
+    const rec = raw as { files?: unknown; baseSnapshot?: unknown; status?: unknown; parentId?: unknown; order?: unknown; lastEditedAt?: unknown; createdAt?: unknown };
+    if (!rec.files || typeof rec.files !== 'object') {
+      trace.action('project-fs:envelope-branch-skipped', { id, reason: 'missing-files' });
+      continue;
+    }
+    const bFiles = new Map<string, string>();
+    for (const [k, v] of Object.entries(rec.files as Record<string, unknown>)) {
+      if (typeof v === 'string') bFiles.set(k, v);
+    }
+    let base = new Map<string, string>(bFiles);
+    if (rec.baseSnapshot && typeof rec.baseSnapshot === 'object') {
+      base = new Map<string, string>();
+      for (const [k, v] of Object.entries(rec.baseSnapshot as Record<string, unknown>)) {
+        if (typeof v === 'string') base.set(k, v);
+      }
+    }
+    const status: BranchStatus = rec.status === 'dirty' || rec.status === 'conflict' ? rec.status : 'clean';
+    const parentId = typeof rec.parentId === 'string' && rec.parentId !== MAIN_BRANCH_ID ? rec.parentId : MAIN_BRANCH_ID;
+    const order = typeof rec.order === 'number' && Number.isFinite(rec.order) ? rec.order : 0;
+    const createdAt = typeof rec.createdAt === 'number' && Number.isFinite(rec.createdAt) ? rec.createdAt : Date.now();
+    const lastEditedAt = typeof rec.lastEditedAt === 'number' && Number.isFinite(rec.lastEditedAt) ? rec.lastEditedAt : null;
+    branches.set(id, { files: withoutShared(bFiles), baseSnapshot: withoutShared(base), status, createdAt, parentId, order, lastEditedAt });
+  }
+  return branches;
+}
+
+/**
+ * EDITOR STATE IS NOT THE WEBSITE. `_meta/` holds the agent chats, comments,
+ * per-page cameras, library folders, cms-managed-by — things about how YOU
+ * work on the project, not what the project is. A branch is a copy of the
+ * SITE, so these live on main only and every accessor reads and writes them
+ * there whatever branch is active. Otherwise (found 2026-09-22) a chat run
+ * on a branch vanished from the list the moment you switched back to main,
+ * moving the camera marked the branch "edited", and apply 3-way-merged two
+ * chat JSONs. Branch maps never hold these paths; the writers below strip.
+ */
+export function isSharedAcrossBranches(path: string): boolean {
+  return path.startsWith('_meta/');
+}
+
+function withoutShared(files: Map<string, string>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const [k, v] of files) if (!isSharedAcrossBranches(k)) out.set(k, v);
+  return out;
+}
+
+export class InMemoryProjectFS implements ProjectFS {
+  /** MAIN's files. Publish/export/backup truth — never a branch's. */
+  private files: Map<string, string>;
+  /** Non-main branches. main's files live in `this.files`. */
+  private branches = new Map<string, BranchData>();
+  /** Last recorded merge conflicts per branch (review surface). Not persisted. */
+  private branchConflicts = new Map<string, FileConflict[]>();
+  /** Human/canvas truth pointer. Agent branch work addresses maps directly. */
+  private activeBranchId: string = MAIN_BRANCH_ID;
+  private listeners: Set<() => void> = new Set();
+  /** Per-write observers — receive the path + content + origin tag on
+   *  every mutation. Distinct from `listeners` (which is a coarse
+   *  "something changed" pulse used by jotai) so collab subscribers
+   *  get the typed payload they need without a full snapshot diff. */
+  private writeListeners: Set<(e: ProjectFSWriteEvent) => void> = new Set();
+  /** Origin flag for the NEXT mutation. Set by `applyRemoteWrite` /
+   *  callers that want to skip the broadcast loop. Auto-resets after
+   *  the write fires. */
+  private nextOrigin: 'local' | 'remote' = 'local';
+
+  constructor(initialFiles: Map<string, string>) {
+    this.files = new Map(initialFiles);
+  }
+
+  /** Files of the ACTIVE branch (main = publish truth when active).
+   *
+   *  EVERY accessor routes through here, which is the whole reason branching
+   *  needed no reader migration: with no non-main branch this returns
+   *  `this.files` and behaviour is byte-identical to before branching existed. */
+  private activeFiles(): Map<string, string> {
+    if (this.activeBranchId === MAIN_BRANCH_ID) return this.files;
+    return this.branches.get(this.activeBranchId)?.files ?? this.files;
+  }
+
+  /** The map a PATH lives in: main for editor state (`isSharedAcrossBranches`),
+   *  the active branch for everything that is the website. */
+  private mapFor(path: string): Map<string, string> {
+    return isSharedAcrossBranches(path) ? this.files : this.activeFiles();
+  }
+
+  readFile(path: string): string | null {
+    return this.mapFor(path).get(path) ?? null;
+  }
+
+  writeFile(path: string, content: string): void {
+    const origin = this.nextOrigin;
+    this.nextOrigin = 'local';
+    // SEED-OVERWRITE GUARD. A user's Home page was replaced by the default
+    // starter page (`HOME_PAGE`) inside an otherwise intact project on
+    // 2026-09-06, and autosave persisted it. Whatever the path (a stale
+    // pre-load code string flushed after a reload is the prime suspect), no
+    // legitimate edit ever produces a byte-identical seed body over a page
+    // that already has real content. Refuse it and trace loudly; fresh
+    // projects are unaffected (their files arrive via loadSnapshot / on a
+    // path that does not exist yet).
+    if (isSeedPageBody(content)) {
+      const existing = this.mapFor(path).get(path);
+      if (typeof existing === 'string' && existing !== content && !isSeedPageBody(existing)) {
+        trace.error('project-fs:refused-seed-overwrite', `${path}: refused to replace ${existing.length} bytes of real content with a seed page body`);
+        return;
+      }
+    }
+    // TRUNCATION GUARD — the same incident class as the seed guard above, one
+    // step more destructive. A user's Home page `app/page.client.tsx` was found
+    // at ZERO bytes inside an otherwise intact project (2026-09-09, healed in
+    // the DB; the same project came back empty on 2026-09-10 when a stale
+    // client flushed its pre-heal file map). The editor's parse gate cannot
+    // catch this: `parseJSX('')` SUCCEEDS — an empty module is valid JS — so a
+    // truncation sails through every guard written in terms of parseability.
+    //
+    // No edit ever legitimately empties a file that has content. CREATING an
+    // empty file is fine (CodeEditor's "New File"), so this only fires when
+    // real content would be destroyed.
+    if (content.trim() === '') {
+      const existing = this.mapFor(path).get(path);
+      if (typeof existing === 'string' && existing.trim() !== '') {
+        trace.error('project-fs:refused-truncation', `${path}: refused to replace ${existing.length} bytes with an empty file`);
+        return;
+      }
+    }
+    this.mapFor(path).set(path, content);
+    // Editor state never dirties a branch: moving the camera is not an edit.
+    if (!isSharedAcrossBranches(path)) this.touchActiveBranch();
+    trace.action('project-fs:write', { path, size: content.length, origin });
+    this.emit({ kind: 'write', path, content, origin });
+    this.notify();
+  }
+
+  deleteFile(path: string): void {
+    const origin = this.nextOrigin;
+    this.nextOrigin = 'local';
+    this.mapFor(path).delete(path);
+    if (!isSharedAcrossBranches(path)) this.touchActiveBranch();
+    trace.action('project-fs:delete', { path, origin });
+    this.emit({ kind: 'delete', path, origin });
+    this.notify();
+  }
+
+  moveFile(oldPath: string, newPath: string): void {
+    const content = this.mapFor(oldPath).get(oldPath);
+    if (content === undefined) return;
+    const origin = this.nextOrigin;
+    this.nextOrigin = 'local';
+    this.mapFor(newPath).set(newPath, content);
+    this.mapFor(oldPath).delete(oldPath);
+    if (!isSharedAcrossBranches(oldPath) || !isSharedAcrossBranches(newPath)) this.touchActiveBranch();
+    this.emit({ kind: 'move', oldPath, newPath, origin });
+    this.notify();
+    trace.action('project-fs:move', { from: oldPath, to: newPath, origin });
+  }
+
+  /** Subscribe to per-write events (typed payload). Use this for
+   *  collab broadcast hooks; `subscribe()` is for jotai's coarse
+   *  re-render pulse. */
+  subscribeWrites(cb: (e: ProjectFSWriteEvent) => void): () => void {
+    this.writeListeners.add(cb);
+    return () => this.writeListeners.delete(cb);
+  }
+
+  /** Apply a write from a remote collaborator. Behaves exactly like
+   *  `writeFile`, but tags the event as `origin: 'remote'` so the
+   *  collab broadcast hook can skip re-emitting it. */
+  applyRemoteWrite(path: string, content: string): void {
+    this.nextOrigin = 'remote';
+    this.writeFile(path, content);
+  }
+
+  /** Apply a remote delete. Same `origin: 'remote'` semantics as
+   *  `applyRemoteWrite`. */
+  applyRemoteDelete(path: string): void {
+    this.nextOrigin = 'remote';
+    this.deleteFile(path);
+  }
+
+  private emit(e: ProjectFSWriteEvent): void {
+    for (const cb of this.writeListeners) {
+      try { cb(e); } catch (err) {
+        trace.error('project-fs:write-listener-throw', { error: String(err) });
+      }
+    }
+  }
+
+  // listFiles / exists ROUTE THROUGH THE ACTIVE BRANCH like every other
+  // accessor. They read `this.files` (main) until 2026-09-22, so a page or
+  // component CREATED on a branch was readable but listed nowhere — not in
+  // the Pages panel, the explorer, the library, list_files — and `exists`
+  // said no, so "create" paths would happily create it a second time; a
+  // file DELETED on a branch kept listing. Main is only ever the answer
+  // when main is active.
+  listFiles(dir?: string): string[] {
+    const prefix = dir ? (dir.endsWith('/') ? dir : dir + '/') : '';
+    const result: string[] = [];
+    for (const path of this.activeFiles().keys()) {
+      if (!prefix || path.startsWith(prefix)) {
+        result.push(path);
+      }
+    }
+    // On a branch, the shared editor state is main's — list it too.
+    if (this.activeBranchId !== MAIN_BRANCH_ID) {
+      for (const path of this.files.keys()) {
+        if (isSharedAcrossBranches(path) && (!prefix || path.startsWith(prefix))) result.push(path);
+      }
+    }
+    return result.sort();
+  }
+
+  exists(path: string): boolean {
+    return this.mapFor(path).has(path);
+  }
+
+  /** Get all files as a snapshot (for serialization/export) */
+  /** Get all ACTIVE-branch files as a snapshot (for serialization/export):
+   *  the branch's website plus main's shared editor state. */
+  getSnapshot(): Map<string, string> {
+    if (this.activeBranchId === MAIN_BRANCH_ID) return new Map(this.files);
+    const out = new Map(this.activeFiles());
+    for (const [k, v] of this.files) if (isSharedAcrossBranches(k)) out.set(k, v);
+    return out;
+  }
+
+  /** Replace all files (for import/reset) */
+  /** Replace all ACTIVE-branch files (import / reset / rollback). The heals
+   *  below then run against that same map, so loading into a branch heals the
+   *  branch, not main. */
+  loadSnapshot(files: Map<string, string>): void {
+    if (this.activeBranchId === MAIN_BRANCH_ID) {
+      this.files = new Map(files);
+    } else {
+      const b = this.branches.get(this.activeBranchId);
+      if (b) b.files = withoutShared(files); else this.files = new Map(files);
+    }
+    // One-time NATIVE migration: upgrade the old seed reset (box-sizing only +
+    // html/body margins) to the universal margin/padding reset the editor
+    // sandboxes apply. Older projects kept the weak seed, so a <p> without an
+    // inline margin looked compact in the builder (sandbox reset masked it) but
+    // gained UA `1em` margins on the PUBLISHED site — 120px gaps at a 120px
+    // font (live find 2026-07-14: nav menu). Exact-match on the seed block so a
+    // project with a customized reset is never touched; the fix then lives IN
+    // the project's own globals.css — publish ships it with no transformation.
+    const globals = this.activeFiles().get('app/globals.css');
+    if (globals && globals.includes(LEGACY_SEED_RESET)) {
+      this.activeFiles().set('app/globals.css', globals.replace(LEGACY_SEED_RESET, UNIVERSAL_SEED_RESET));
+      trace.action('project-fs:migrated-seed-reset', {});
+    }
+    // Master ROOT MARKER heal: masters created before 2026-09-06 spread
+    // `{...rest}` on their root with no `data-mroot`. Add it (idempotent,
+    // attribute-only insert inside the root opening tag) so the runtime can
+    // re-key root-targeted style rules per instance and overlay runtime can
+    // scope to its own instance. See component-ops injectRestSpread.
+    for (const [path, src] of this.files) {
+      if (!path.startsWith('components/') || !path.endsWith('.tsx')) continue;
+      if (!src.includes('{...rest}') || src.includes('data-mroot=')) continue;
+      // `{...rest}` is not always adjacent to `data-id` (e.g. `variants={…}`
+      // sits between on a master with a variants object) — locate it inside
+      // the ROOT's opening tag instead (live find 2026-09-06: duplicate
+      // instance lost its border because the marker was never added).
+      const rootId = findVariantRootId(src);
+      let healed = rootId ? insertAtRootRestSpread(src, ` data-mroot="${rootId}"`) : src;
+      // Same adjacency miss for the overlay root ref: a master that already
+      // declares `ovRootRef` but whose root never received `ref={ovRootRef}`
+      // scopes its overlays to `document` (first instance wins). Attach it.
+      if (healed.includes('const ovRootRef') && !/ref=\{ovRootRef\}/.test(healed)) {
+        healed = insertAtRootRestSpread(healed, 'ref={ovRootRef}', true);
+      }
+      if (healed !== src) {
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:migrated-master-root-marker', { path });
+      }
+    }
+    // Variant-scoped CSS carrier heal: a master whose <style> has
+    // `[data-variant="v"]` rules (per-variant border overlay / :lang) needs
+    // `data-variant={variant}` ON ITS ROOT for the live site. The old stamper
+    // missed roots with handler attributes (or stamped an overlay instead) —
+    // the hover variant's border never applied on live (2026-09-06).
+    for (const [path, src] of this.files) {
+      if (!path.startsWith('components/') || !path.endsWith('.tsx')) continue;
+      if (!src.includes('[data-variant="')) continue;
+      const healed = stampRootDataVariantAttr(src);
+      if (healed !== src) {
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:migrated-root-data-variant', { path });
+      }
+    }
+    // Section-driven scroll transform heal: files written before 2026-09-16
+    // spell a Section in View offset with named viewport edges, which
+    // framer-motion 12.38+ treats as a preset and drives through a
+    // ViewTimeline created before the section ref is filled — the scrub
+    // tracks the whole page instead of the section. Rewrite to the
+    // percentage spelling the generator writes now (pages and masters;
+    // Layer-in-View and page-level scrubs are untouched, idempotent).
+    for (const [path, src] of this.files) {
+      if (!path.endsWith('.tsx')) continue;
+      const healed = healSectionOffsets(src);
+      if (healed !== src) {
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:migrated-section-offsets', { path });
+      }
+    }
+    // Event-triggered overlay heal: the trigger's event only opened the
+    // overlay; the generator now toggles it.
+    for (const [path, src] of this.files) {
+      if (!path.endsWith('.tsx')) continue;
+      const healed = healEventOverlayToggle(src);
+      if (healed !== src) {
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:migrated-event-overlay-toggle', { path });
+      }
+    }
+    // Bundled override files (imported from a site before the import
+    // formatted them): a line far longer than anyone writes by hand means
+    // bundler output. Re-print once; hand-written files never match.
+    for (const [path, src] of this.files) {
+      if (!path.startsWith(OVERRIDES_DIR) || !src.split('\n').some((l) => l.length > 400)) continue;
+      const healed = formatOverrideSource(src);
+      if (healed !== src) {
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:formatted-override-file', { path });
+      }
+    }
+    // Smooth Scroll mount heal: the data module exists (an effect was
+    // authored or imported) but the root layout lost `<SmoothScroll />` —
+    // a layout rebuilt by healLayoutFile/ensureLayoutFile, or an AI rewrite.
+    // Without the mount the site silently scrolls natively.
+    {
+      const layout = this.activeFiles().get('app/layout.tsx');
+      if (layout && this.activeFiles().has(SMOOTH_SCROLL_DATA_PATH) && this.activeFiles().has(SMOOTH_SCROLL_CONTROLLER_PATH)
+          && !layout.includes('<SmoothScroll')) {
+        const healed = ensureSmoothScrollInLayout(layout);
+        if (healed !== layout) {
+          this.activeFiles().set('app/layout.tsx', healed);
+          trace.action('project-fs:migrated-smooth-scroll-mount', {});
+        }
+      }
+    }
+    // Variant ROOT INSET heal: a master root's canvas position lives in
+    // variantConfig x/y, never in its inline style. A root-detection bug
+    // (generator-styles findVariantRootId, fixed 2026-09-06) let `left`/`top`
+    // leak into the root's style object and its variants entry; every live
+    // instance then rendered shifted by the tile offset. Strip them here
+    // (parse-gated: the healed source must still parse, else keep the
+    // original). Only px insets directly inside the ROOT's style object and
+    // the root's `<x>Variants` object are touched.
+    for (const [path, src] of this.files) {
+      if (!path.startsWith('components/') || !path.endsWith('.tsx')) continue;
+      const healed = stripVariantRootInsets(src);
+      if (healed !== src) {
+        try { parseJSX(healed); } catch { trace.error('project-fs:variant-root-inset-heal-unparseable', path); continue; }
+        this.activeFiles().set(path, healed);
+        trace.action('project-fs:migrated-variant-root-insets', { path });
+      }
+    }
+    // Banded `!important` heal: base styles are inline, so a `@media` band or
+    // `:lang()` declaration without `!important` paints on the canvas (band
+    // values are baked onto the tiles) but NEVER on the live site. Every
+    // builder generator writes it; AI/hand-written pages did not (2026-09-07:
+    // a user's responsive headings, paddings and column flips all dead on
+    // publish). Append it to every scoped declaration that lacks it —
+    // idempotent, parse-gated, style-literal only.
+    for (const [path, src] of this.files) {
+      if (!path.endsWith('.tsx') || !(path.startsWith('app/') || path.startsWith('components/'))) continue;
+      if (!src.includes('<style>')) continue;
+      const healed = healStyleBlockImportant(src);
+      if (healed === src) continue;
+      if (!parseJSX(healed)) { trace.error('project-fs:media-important-heal-unparseable', path); continue; }
+      this.activeFiles().set(path, healed);
+      trace.action('project-fs:migrated-media-important', { path });
+    }
+    // Restore a WIPED reset: addPresetTokenToCSS used to REPLACE globals.css
+    // wholesale when it had no :root block yet (fixed 2026-08-31), erasing the
+    // seed reset — published sites then get UA margins + content-box blowouts
+    // while the sandbox reset masks it in the editor. A project with ANY
+    // box-sizing rule (its own custom reset included) is never touched.
+    // Inserted after leading @imports — CSS requires imports first.
+    const globalsAfter = this.activeFiles().get('app/globals.css');
+    if (globalsAfter && !globalsAfter.includes('box-sizing: border-box')) {
+      const importsHead = globalsAfter.match(/^(\s*(?:@import[^\n]*\n)*)/)?.[1] ?? '';
+      const rest = globalsAfter.slice(importsHead.length);
+      this.activeFiles().set('app/globals.css', `${importsHead}${UNIVERSAL_SEED_RESET}\n\n${rest}`);
+      trace.action('project-fs:restored-seed-reset', {});
+    }
+    // EMPTY PAGE BODY heal: a page whose `page.client.tsx` is empty has no
+    // canvas at all — the page reads as "gone" in the editor even though its
+    // server wrapper, route and metadata are intact (user report 2026-09-10,
+    // after the same project was repaired in the DB a day earlier). The
+    // writeFile truncation guard stops this being created from now on; this
+    // repairs the projects already holding one, since a user cannot fix a file
+    // the canvas can't render.
+    //
+    // Restores the canonical empty page body, so the page opens as a blank
+    // canvas the user can build on rather than a dead route.
+    for (const [path, src] of [...this.files]) {
+      if (!path.endsWith('page.client.tsx') || src.trim() !== '') continue;
+      this.activeFiles().set(path, EMPTY_HOME_PAGE_CLIENT);
+      trace.error('project-fs:healed-empty-page-body', `${path}: was 0 bytes, restored the empty page body`);
+      // The server wrapper picked up a `data-id` on its `<PageClient />`
+      // reference while the body was missing (the editor had nothing else to
+      // treat as the page's tree). It means nothing once the body is back, and
+      // it is not part of any wrapper this codebase generates — drop it so the
+      // pair matches PAGE_SERVER_WRAPPER again.
+      const serverPath = `${path.slice(0, -'.client.tsx'.length)}.tsx`;
+      const server = this.activeFiles().get(serverPath);
+      if (server && /<PageClient\s+data-id="[^"]*"\s*\/>/.test(server)) {
+        this.activeFiles().set(serverPath, server.replace(/<PageClient\s+data-id="[^"]*"\s*\/>/, '<PageClient />'));
+        trace.action('project-fs:healed-page-wrapper-dataid', { path: serverPath });
+      }
+    }
+    trace.action('project-fs:load-snapshot', { fileCount: files.size });
+    this.notify();
+  }
+
+  /** Stamp the active branch's last-edited time (tree ordering + status).
+   *  No-op on main: main has no branch record and is never "dirty". */
+  private touchActiveBranch(): void {
+    if (this.activeBranchId === MAIN_BRANCH_ID) return;
+    const b = this.branches.get(this.activeBranchId);
+    if (!b) return;
+    b.lastEditedAt = Date.now();
+    b.status = mapsEqual(b.files, b.baseSnapshot) ? 'clean' : 'dirty';
+  }
+
+  getActiveBranchId(): string {
+    return this.activeBranchId;
+  }
+
+  isMainActive(): boolean {
+    return this.activeBranchId === MAIN_BRANCH_ID;
+  }
+
+  listBranches(): BranchInfo[] {
+    const out: BranchInfo[] = [
+      { id: MAIN_BRANCH_ID, status: 'clean', fileCount: withoutShared(this.files).size, active: this.activeBranchId === MAIN_BRANCH_ID, protected: true, createdAt: 0, parentId: null, order: 0, lastEditedAt: null },
+    ];
+    for (const [id, b] of [...this.branches.entries()].sort(([a], [c]) => (a < c ? -1 : 1))) {
+      out.push({ id, status: b.status, fileCount: b.files.size, active: id === this.activeBranchId, protected: false, createdAt: b.createdAt, parentId: b.parentId, order: b.order, lastEditedAt: b.lastEditedAt });
+    }
+    return out;
+  }
+
+  /** Direct read of a branch's files (review/merge/preview/tools) — the
+   *  WEBSITE: shared editor state is left out of main's too, so review,
+   *  drift and merge compare like with like. `{ shared: true }` includes it
+   *  (a whole-map snapshot of main, e.g. an apply rollback). Null when unknown. */
+  readBranchFiles(branchId: string, opts: { shared?: boolean } = {}): Map<string, string> | null {
+    if (branchId === MAIN_BRANCH_ID) return opts.shared ? new Map(this.files) : withoutShared(this.files);
+    const b = this.branches.get(branchId);
+    return b ? new Map(b.files) : null;
+  }
+
+  /** Direct read of a branch's merge base. Null for main (base is itself) or unknown. */
+  readBranchBase(branchId: string): Map<string, string> | null {
+    const b = this.branches.get(branchId);
+    return b ? new Map(b.baseSnapshot) : null;
+  }
+
+  /** Record merge conflicts for review display (overwrites). Unknown branch → refusal. */
+  setBranchConflicts(branchId: string, conflicts: FileConflict[]): string | null {
+    if (!this.branches.has(branchId)) return `Unknown branch "${branchId}".`;
+    this.branchConflicts.set(branchId, [...conflicts]);
+    trace.action('project-fs:branch-conflicts', { branchId, count: conflicts.length });
+    this.notify();
+    return null;
+  }
+
+  /** Last recorded conflicts (empty when none). */
+  readBranchConflicts(branchId: string): FileConflict[] {
+    return [...(this.branchConflicts.get(branchId) ?? [])];
+  }
+
+  /** Clear recorded conflicts (fresh merge/apply resolved or superseded). */
+  clearBranchConflicts(branchId: string): void {
+    if (this.branchConflicts.delete(branchId)) this.notify();
+  }
+
+  /**
+   * Replace a branch map wholesale (branch rollback/restore). Mirrors
+   * loadSnapshot (seed-reset migration + notify + version bump) targeted at
+   * the branch — human maps, canvas, selection and history stacks untouched
+   * (per-branch history arrives in (vii); until then branch ops push none).
+   */
+  loadBranchSnapshot(branchId: string, files: Map<string, string>): string | null {
+    const b = this.branches.get(branchId);
+    if (!b) return `Unknown branch "${branchId}".`;
+    b.files = withoutShared(files);
+    const globals = b.files.get('app/globals.css');
+    if (globals && globals.includes(LEGACY_SEED_RESET)) {
+      b.files.set('app/globals.css', globals.replace(LEGACY_SEED_RESET, UNIVERSAL_SEED_RESET));
+    }
+    this.refreshBranchStatus(branchId);
+    trace.action('project-fs:load-branch-snapshot', { branch: branchId, fileCount: files.size });
+    this.notify();
+    try {
+      getDefaultStore().set(projectVersionAtom, (v: number) => v + 1);
+    } catch {
+      /* headless — same tolerance as loadSnapshot */
+    }
+    return null;
+  }
+
+  /** Direct read of one branch file. Null when branch/file unknown. */
+  readBranchFile(branchId: string, path: string): string | null {
+    if (branchId === MAIN_BRANCH_ID || isSharedAcrossBranches(path)) return this.files.get(path) ?? null;
+    return this.branches.get(branchId)?.files.get(path) ?? null;
+  }
+
+  /** Branch file existence probe (import resolvers, scoped drains). */
+  branchFileExists(branchId: string, path: string): boolean {
+    if (branchId === MAIN_BRANCH_ID || isSharedAcrossBranches(path)) return this.files.has(path);
+    return this.branches.get(branchId)?.files.has(path) ?? false;
+  }
+
+  /** Direct delete in a branch map (merge/file ops). Unknown branch → no-op + trace. */
+  deleteBranchFile(branchId: string, path: string): void {
+    if (branchId === MAIN_BRANCH_ID || isSharedAcrossBranches(path)) {
+      this.deleteFile(path);
+      return;
+    }
+    const b = this.branches.get(branchId);
+    if (!b) {
+      trace.error('project-fs:delete-branch-unknown', { branchId, path });
+      return;
+    }
+    b.files.delete(path);
+    b.status = 'dirty';
+    b.lastEditedAt = Date.now();
+    trace.action('project-fs:delete-branch', { branchId, path });
+    this.emit({ kind: 'delete', path, origin: 'local' });
+  }
+
+  /**
+   * Direct write into a branch map (queue scoped commits, merge apply).
+   * Same map semantics as writeFile but WITHOUT the coarse notify pulse —
+   * coarse subscribers (panels, canvas, preview) read the ACTIVE map, which
+   * is unchanged, so pulsing them would only churn the human UI. Typed
+   * write events still emit (collab/sync correctness). The caller owns
+   * persistence (triggerAutosave) and version hygiene, exactly like the
+   * queue drain does. Unknown branch → no-op with trace (never throw —
+   * the drain refuses such entries before reaching here).
+   */
+  writeBranchFile(branchId: string, path: string, content: string): void {
+    if (branchId === MAIN_BRANCH_ID || isSharedAcrossBranches(path)) {
+      this.writeFile(path, content);
+      return;
+    }
+    const b = this.branches.get(branchId);
+    if (!b) {
+      trace.error('project-fs:write-branch-unknown', { branchId, path });
+      return;
+    }
+    b.files.set(path, content);
+    b.status = 'dirty';
+    b.lastEditedAt = Date.now();
+    trace.action('project-fs:write-branch', { branchId, path, size: content.length });
+    this.emit({ kind: 'write', path, content, origin: 'local' });
+  }
+
+  /**
+   * Create a branch copying `from` (default: the ACTIVE map). Main is
+   * protected as a name. Returns null on success, else the refusal.
+   */
+  createBranch(id: string, opts: { from?: Map<string, string>; label?: string } = {}): string | null {
+    const clean = id.trim();
+    if (!BRANCH_ID_RE.test(clean)) {
+      return `Invalid branch id "${id}" — kebab-case letters/digits/hyphens, 1-48 chars (e.g. agent-pricing).`;
+    }
+    if (clean === MAIN_BRANCH_ID) return `Branch "${MAIN_BRANCH_ID}" is protected — main is the publish truth, never a work branch.`;
+    if (this.branches.has(clean)) return `Branch "${clean}" already exists — pick another id or delete it first.`;
+    const seed = withoutShared(opts.from ?? this.activeFiles());
+    let order = 0;
+    for (const b of this.branches.values()) order = Math.max(order, b.order + 1);
+    const now = Date.now();
+    this.branches.set(clean, {
+      files: new Map(seed),
+      baseSnapshot: new Map(seed),
+      status: 'clean',
+      createdAt: now,
+      parentId: this.activeBranchId,
+      order,
+      lastEditedAt: null,
+      ...(opts.label ? { label: opts.label } : {}),
+    });
+    trace.action('project-fs:branch-created', { id: clean, files: seed.size });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Point human/canvas truth at a branch. Refuses unknown ids. Queue bases,
+   * caches and version hygiene belong to the CALLER (`switchBranchFile` in
+   * branching/switch-workspace.ts — same discipline as switchActiveFile),
+   * never hidden here. Emits notify only — atoms re-derive on the caller's
+   * version bump.
+   */
+  switchBranch(id: string): string | null {
+    if (id !== MAIN_BRANCH_ID && !this.branches.has(id)) {
+      const known = [MAIN_BRANCH_ID, ...this.branches.keys()].join(', ');
+      return `Unknown branch "${id}" — known branches: ${known}.`;
+    }
+    if (id === this.activeBranchId) return null;
+    this.activeBranchId = id;
+    trace.action('project-fs:branch-switched', { id });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Delete a branch and its maps. Main is protected; the ACTIVE branch can
+   * never be deleted (switch away first — no silent data loss).
+   */
+  deleteBranch(id: string): string | null {
+    if (id === MAIN_BRANCH_ID) return `Branch "${MAIN_BRANCH_ID}" is protected and cannot be deleted.`;
+    if (!this.branches.has(id)) return `Unknown branch "${id}".`;
+    if (id === this.activeBranchId) {
+      return `Branch "${id}" is active — switch to another branch first, then delete.`;
+    }
+    this.branches.delete(id);
+    trace.action('project-fs:branch-deleted', { id });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Rename a branch (id change only — maps, base, status preserved). Main is
+   * protected. Renaming the ACTIVE branch moves the pointer with it.
+   * Recorded conflicts move along. Callers holding the old id (review UI,
+   * remembered files) re-resolve to unknown — never silently rewritten.
+   */
+  renameBranch(id: string, next: string): string | null {
+    const clean = next.trim();
+    if (id === MAIN_BRANCH_ID) return `Branch "${MAIN_BRANCH_ID}" is protected and cannot be renamed.`;
+    const b = this.branches.get(id);
+    if (!b) return `Unknown branch "${id}".`;
+    if (clean === MAIN_BRANCH_ID) return `Branch "${MAIN_BRANCH_ID}" is protected — pick another id.`;
+    if (!BRANCH_ID_RE.test(clean)) {
+      return `Invalid branch id "${next}" — kebab-case letters/digits/hyphens, 1-48 chars.`;
+    }
+    if (clean !== id && this.branches.has(clean)) return `Branch "${clean}" already exists — pick another id.`;
+    if (clean === id) return null;
+    this.branches.delete(id);
+    this.branches.set(clean, b);
+    const conflicts = this.branchConflicts.get(id);
+    if (conflicts) {
+      this.branchConflicts.delete(id);
+      this.branchConflicts.set(clean, conflicts);
+    }
+    if (this.activeBranchId === id) this.activeBranchId = clean;
+    trace.action('project-fs:branch-renamed', { from: id, to: clean });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Move a branch: re-parent and/or reorder among siblings (tree drag-drop).
+   * `into` makes newParentId the parent (appended last); `before`/`after`
+   * place the branch as a sibling of siblingId on siblingId's parent (main
+   * accepts `into` only — the trunk renders first regardless of order).
+   * Refuses unknown ids, main as source, cycles and self-parenting.
+   */
+  moveBranch(
+    sourceId: string,
+    newParentId: string,
+    position: { mode: 'into' } | { mode: 'before' | 'after'; siblingId: string },
+  ): string | null {
+    const source = this.branches.get(sourceId);
+    if (sourceId === MAIN_BRANCH_ID) return 'main cannot be moved.';
+    if (!source) return `Unknown branch "${sourceId}".`;
+    if (newParentId !== MAIN_BRANCH_ID && !this.branches.has(newParentId)) {
+      return `Target branch "${newParentId}" not found.`;
+    }
+    if (newParentId === sourceId) return 'A branch cannot be its own parent.';
+    // Cycle guard: the new parent must not descend from the source.
+    let cursor: string | null = newParentId;
+    const seen = new Set<string>();
+    while (cursor && cursor !== MAIN_BRANCH_ID && !seen.has(cursor)) {
+      seen.add(cursor);
+      if (cursor === sourceId) return 'Cannot move a branch under one of its own children.';
+      cursor = this.branches.get(cursor)?.parentId ?? null;
+    }
+    if (position.mode === 'into') {
+      source.parentId = newParentId;
+      let order = 0;
+      for (const [id, b] of this.branches) {
+        if (id !== sourceId && (b.parentId ?? MAIN_BRANCH_ID) === newParentId) {
+          order = Math.max(order, b.order + 1);
+        }
+      }
+      source.order = order;
+    } else {
+      if (position.siblingId === MAIN_BRANCH_ID) return 'main accepts branches into it, never before or after.';
+      const sibling = this.branches.get(position.siblingId);
+      if (!sibling) return `Cannot place the branch next to "${position.siblingId}".`;
+      const parent = sibling.parentId ?? MAIN_BRANCH_ID;
+      source.parentId = parent;
+      source.order = position.mode === 'before' ? sibling.order - 0.5 : sibling.order + 0.5;
+    }
+    trace.action('project-fs:branch-moved', { source: sourceId, parent: source.parentId, mode: position.mode });
+    this.notify();
+    return null;
+  }
+
+  /** Recompute a branch's status against its base (clean iff deep-equal). */
+  refreshBranchStatus(id: string): void {
+    const b = this.branches.get(id);
+    if (!b) return;
+    b.status = mapsEqual(b.files, b.baseSnapshot) ? 'clean' : 'dirty';
+  }
+
+  /** Explicit status transition (conflict marking on merge conflicts). */
+  setBranchStatus(id: string, status: BranchStatus): string | null {
+    const b = this.branches.get(id);
+    if (!b) return `Unknown branch "${id}".`;
+    b.status = status;
+    trace.action('project-fs:branch-status', { id, status });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Rebase a branch: base := newBase snapshot, files untouched, status
+   * recomputed. Used after apply (base becomes the new main). Main cannot
+   * be rebased (its base is itself). Returns null on success, else refusal.
+   */
+  rebaseBranch(id: string, newBase: Map<string, string>): string | null {
+    if (id === MAIN_BRANCH_ID) return 'Cannot rebase main — main is its own base.';
+    const b = this.branches.get(id);
+    if (!b) return `Unknown branch "${id}".`;
+    b.baseSnapshot = withoutShared(newBase);
+    b.status = mapsEqual(b.files, b.baseSnapshot) ? 'clean' : 'dirty';
+    trace.action('project-fs:branch-rebased', { id, status: b.status });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Serialize the envelope. v1 (files only) while no non-main branch exists
+   * — byte-identical path for non-branch users (rollback §20: `files` stays
+   * the publish truth either way). v2 once branches exist.
+   */
+  toEnvelope(): ProjectData {
+    const files = Object.fromEntries(this.files);
+    if (this.branches.size === 0) {
+      return { format: 'revyme-v1', files };
+    }
+    const branches: Record<string, { files: Record<string, string>; baseSnapshot: Record<string, string>; status: BranchStatus; parentId: string | null; order: number; createdAt: number; lastEditedAt: number | null }> = {};
+    for (const [id, b] of this.branches) {
+      branches[id] = {
+        files: Object.fromEntries(b.files),
+        baseSnapshot: Object.fromEntries(b.baseSnapshot),
+        status: b.status,
+        parentId: b.parentId,
+        order: b.order,
+        createdAt: b.createdAt,
+        lastEditedAt: b.lastEditedAt,
+      };
+    }
+    return {
+      format: 'revyme-v2',
+      files,
+      branches,
+      activeBranchId: this.activeBranchId,
+      mainBranchId: MAIN_BRANCH_ID,
+    };
+  }
+
+  /**
+   * Hydrate from an envelope (boot/import). Best-effort on branches: files
+   * always load; malformed branch entries are skipped with a trace (never a
+   * throw — a corrupt branch must not brick the project). Returns null on
+   * success, else the refusal (state untouched on refusal).
+   */
+  fromEnvelope(data: ProjectData): string | null {
+    if (!data || typeof data !== 'object' || !data.files || typeof data.files !== 'object') {
+      return 'Unusable envelope — missing files record; current state untouched.';
+    }
+    const files = new Map<string, string>();
+    for (const [k, v] of Object.entries(data.files)) {
+      if (typeof v === 'string') files.set(k, v);
+    }
+    const branches = parseBranchRecords((data as { branches?: unknown }).branches);
+    this.files = files;
+    this.branches = branches;
+    const wantActive = typeof data.activeBranchId === 'string' ? data.activeBranchId : MAIN_BRANCH_ID;
+    this.activeBranchId = wantActive === MAIN_BRANCH_ID || branches.has(wantActive) ? wantActive : MAIN_BRANCH_ID;
+    trace.action('project-fs:envelope-loaded', {
+      files: files.size,
+      branches: branches.size,
+      active: this.activeBranchId,
+    });
+    this.notify();
+    return null;
+  }
+
+  /**
+   * Boot path: load ONLY branches (+ restore the active pointer) onto an
+   * already-hydrated files map. ProjectLoader keeps its exact files logic;
+   * this adds the v2 envelope on top. Never throws; unknown active falls
+   * back to main.
+   */
+  hydrateBranches(rawBranches: unknown, wantActive: unknown): void {
+    const parsed = parseBranchRecords(rawBranches);
+    for (const [id, b] of parsed) this.branches.set(id, b);
+    const active = typeof wantActive === 'string' ? wantActive : MAIN_BRANCH_ID;
+    this.activeBranchId = active === MAIN_BRANCH_ID || this.branches.has(active) ? active : MAIN_BRANCH_ID;
+    trace.action('project-fs:branches-hydrated', { branches: parsed.size, active: this.activeBranchId });
+    this.notify();
+  }
+
+  /** Subscribe to file changes */
+  subscribe(callback: () => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  private notify(): void {
+    for (const cb of this.listeners) cb();
+  }
+}
+
+// ─── Default Project Template ───────────────────────────────────────────────
+
+/** The OLD seed reset (pre-2026-07-14) — box-sizing universal but margins only
+ *  on html/body. Upgraded in-place by loadSnapshot; see the migration there. */
+const LEGACY_SEED_RESET = `*, *::before, *::after {
+  box-sizing: border-box;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+}`;
+
+/** The universal reset every project ships natively — matches the editor
+ *  sandboxes (public/preview.html) exactly so builder and published site
+ *  render identically with zero publish-time normalization. */
+const UNIVERSAL_SEED_RESET = `*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}`;
+
+// Default @canvas block for new pages — 3 viewports side-by-side
+const DEFAULT_CANVAS_BLOCK = `/** @canvas {
+  "viewports": [
+    { "id": "desktop", "label": "Desktop", "width": 1440, "isPrimary": true, "order": 0 },
+    { "id": "tablet", "label": "Tablet", "width": 768, "isPrimary": false, "order": 1 },
+    { "id": "mobile", "label": "Mobile", "width": 375, "isPrimary": false, "order": 2 }
+  ],
+  "positions": {
+    "desktop": { "x": 0, "y": 0 },
+    "tablet": { "x": 1600, "y": 0 },
+    "mobile": { "x": 2528, "y": 0 }
+  }
+} */`;
+
+const HOME_PAGE = `'use client';
+
+${DEFAULT_CANVAS_BLOCK}
+
+import React from 'react';
+
+export default function Page() {
+  return (
+<div data-id="root" data-name="Page" style={{
+  position: 'relative', width: '100%',
+  display: 'flex', flexDirection: 'column',
+  backgroundColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+}}>
+  {/* Hero */}
+  <div data-id="hero" data-name="Hero" style={{
+    position: 'relative', width: '100%', backgroundColor: '#0f0f1a',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    gap: '24px', paddingTop: '120px', paddingBottom: '120px',
+    paddingLeft: '40px', paddingRight: '40px'
+  }}>
+    <p data-id="title" style={{
+      position: 'relative',
+      fontSize: '56px', color: '#ffffff', fontWeight: '700',
+      letterSpacing: '-1.5px', textAlign: 'center',
+      display: 'flex', flexDirection: 'column'
+    }}>
+      Build the future, visually.
+    </p>
+    <p data-id="subtitle" style={{
+      position: 'relative',
+      fontSize: '18px', color: '#888888', maxWidth: '520px',
+      textAlign: 'center', lineHeight: '1.7', overflowWrap: 'break-word',
+      display: 'flex', flexDirection: 'column'
+    }}>
+      A code-first visual editor where JSX is the single source of truth. Design on canvas, code updates instantly.
+    </p>
+    <div data-id="cta" data-name="CTA" style={{
+      position: 'relative',
+      paddingTop: '14px', paddingBottom: '14px', paddingLeft: '36px', paddingRight: '36px',
+      backgroundColor: '#6366f1', color: '#ffffff',
+      fontSize: '15px', fontWeight: '600', borderRadius: '8px',
+      cursor: 'pointer', marginTop: '8px'
+    }}>
+      Get Started
+    </div>
+  </div>
+
+  {/* Features */}
+  <div data-id="features" data-name="Features" style={{
+    position: 'relative', width: '100%', backgroundColor: '#fafafa',
+    display: 'flex', alignItems: 'stretch', justifyContent: 'center',
+    gap: '32px', paddingTop: '80px', paddingBottom: '80px',
+    paddingLeft: '60px', paddingRight: '60px', flexWrap: 'wrap'
+  }}>
+    <div data-id="card1" data-name="Card" style={{
+      position: 'relative',
+      width: '320px', backgroundColor: '#ffffff', borderRadius: '16px',
+      paddingTop: '32px', paddingBottom: '32px', paddingLeft: '28px', paddingRight: '28px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+    }}>
+      <p data-id="card1-title" style={{position: 'relative', fontSize: '20px', fontWeight: '700', color: '#111'}}>
+        Code First
+      </p>
+      <p data-id="card1-desc" style={{position: 'relative', fontSize: '14px', color: '#666', lineHeight: '1.6', overflowWrap: 'break-word'}}>
+        JSX is the source of truth. No JSON, no schema — just code you already know.
+      </p>
+    </div>
+    <div data-id="card2" data-name="Card" style={{
+      position: 'relative',
+      width: '320px', backgroundColor: '#ffffff', borderRadius: '16px',
+      paddingTop: '32px', paddingBottom: '32px', paddingLeft: '28px', paddingRight: '28px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+    }}>
+      <p data-id="card2-title" style={{position: 'relative', fontSize: '20px', fontWeight: '700', color: '#111'}}>
+        Visual Canvas
+      </p>
+      <p data-id="card2-desc" style={{position: 'relative', fontSize: '14px', color: '#666', lineHeight: '1.6', overflowWrap: 'break-word'}}>
+        Drag, resize, and style elements on canvas. Code updates in real-time.
+      </p>
+    </div>
+    <div data-id="card3" data-name="Card" style={{
+      position: 'relative',
+      width: '320px', backgroundColor: '#ffffff', borderRadius: '16px',
+      paddingTop: '32px', paddingBottom: '32px', paddingLeft: '28px', paddingRight: '28px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+    }}>
+      <p data-id="card3-title" style={{position: 'relative', fontSize: '20px', fontWeight: '700', color: '#111'}}>
+        Bidirectional
+      </p>
+      <p data-id="card3-desc" style={{position: 'relative', fontSize: '14px', color: '#666', lineHeight: '1.6', overflowWrap: 'break-word'}}>
+        Edit code or canvas — both stay perfectly in sync, always.
+      </p>
+    </div>
+  </div>
+
+  {/* How It Works */}
+  <div data-id="how" data-name="How It Works" style={{
+    position: 'relative', width: '100%', backgroundColor: '#ffffff',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    gap: '48px', paddingTop: '80px', paddingBottom: '80px',
+    paddingLeft: '40px', paddingRight: '40px'
+  }}>
+    <p data-id="how-title" style={{
+      position: 'relative',
+      fontSize: '36px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px'
+    }}>
+      How it works
+    </p>
+    <div data-id="steps" data-name="Steps" style={{
+      position: 'relative',
+      display: 'flex', gap: '60px', alignItems: 'flex-start', justifyContent: 'center',
+      maxWidth: '900px', width: '100%'
+    }}>
+      <div data-id="step1" style={{
+        position: 'relative',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '240px'
+      }}>
+        <div data-id="step1-num" style={{
+          position: 'relative',
+          width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#6366f1',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#ffffff', fontSize: '18px', fontWeight: '700'
+        }}>1</div>
+        <p data-id="step1-label" style={{position: 'relative', fontSize: '16px', fontWeight: '600', color: '#111', textAlign: 'center'}}>
+          Write or generate
+        </p>
+        <p data-id="step1-desc" style={{position: 'relative', fontSize: '13px', color: '#888', textAlign: 'center', lineHeight: '1.5'}}>
+          Start with code or let AI generate your layout.
+        </p>
+      </div>
+      <div data-id="step2" style={{
+        position: 'relative',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '240px'
+      }}>
+        <div data-id="step2-num" style={{
+          position: 'relative',
+          width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#6366f1',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#ffffff', fontSize: '18px', fontWeight: '700'
+        }}>2</div>
+        <p data-id="step2-label" style={{position: 'relative', fontSize: '16px', fontWeight: '600', color: '#111', textAlign: 'center'}}>
+          Edit visually
+        </p>
+        <p data-id="step2-desc" style={{position: 'relative', fontSize: '13px', color: '#888', textAlign: 'center', lineHeight: '1.5'}}>
+          Drag, resize, and tweak on the canvas. Code follows.
+        </p>
+      </div>
+      <div data-id="step3" style={{
+        position: 'relative',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', width: '240px'
+      }}>
+        <div data-id="step3-num" style={{
+          position: 'relative',
+          width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#6366f1',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#ffffff', fontSize: '18px', fontWeight: '700'
+        }}>3</div>
+        <p data-id="step3-label" style={{position: 'relative', fontSize: '16px', fontWeight: '600', color: '#111', textAlign: 'center'}}>
+          Ship it
+        </p>
+        <p data-id="step3-desc" style={{position: 'relative', fontSize: '13px', color: '#888', textAlign: 'center', lineHeight: '1.5'}}>
+          Export clean Next.js code. Ready for production.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {/* Footer */}
+  <div data-id="footer" data-name="Footer" style={{
+    position: 'relative', width: '100%', backgroundColor: '#0f0f1a',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: '32px', paddingBottom: '32px',
+    paddingLeft: '60px', paddingRight: '60px'
+  }}>
+    <p data-id="footer-copy" style={{position: 'relative', fontSize: '13px', color: '#555'}}>
+      Built with Revyme.
+    </p>
+    <div data-id="footer-links" style={{position: 'relative', display: 'flex', gap: '24px'}}>
+      <p data-id="link1" style={{position: 'relative', fontSize: '13px', color: '#888', cursor: 'pointer'}}>GitHub</p>
+      <p data-id="link2" style={{position: 'relative', fontSize: '13px', color: '#888', cursor: 'pointer'}}>Docs</p>
+      <p data-id="link3" style={{position: 'relative', fontSize: '13px', color: '#888', cursor: 'pointer'}}>Twitter</p>
+    </div>
+  </div>
+</div>
+  );
+}`;
+
+const ABOUT_PAGE = `'use client';
+
+${DEFAULT_CANVAS_BLOCK}
+
+import React from 'react';
+
+export default function Page() {
+  return (
+<div data-id="root" data-name="About Page" style={{
+  position: 'relative', width: '1440px', height: '800px',
+  backgroundColor: '#0f172a'
+}}>
+  <div data-id="about-hero" data-name="About Hero" style={{
+    position: 'absolute', left: '0px', top: '0px',
+    width: '1440px', height: '400px',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    gap: '16px', paddingTop: '60px', paddingRight: '60px', paddingBottom: '60px', paddingLeft: '60px'
+  }}>
+    <p data-id="about-title" style={{
+      fontSize: '48px', color: '#ffffff', fontWeight: '700',
+      fontFamily: 'Inter, sans-serif'
+    }}>
+      About Us
+    </p>
+    <p data-id="about-desc" style={{
+      fontSize: '18px', color: '#94a3b8', maxWidth: '600px',
+      textAlign: 'center', lineHeight: '1.6'
+    }}>
+      We're building the future of visual development.
+      Code meets canvas, and everything stays in sync.
+    </p>
+  </div>
+  <div data-id="about-content" data-name="Content" style={{
+    position: 'absolute', left: '0px', top: '400px',
+    width: '1440px', height: '400px',
+    backgroundColor: '#1e293b',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: '40px', paddingTop: '60px', paddingRight: '60px', paddingBottom: '60px', paddingLeft: '60px'
+  }}>
+    <div data-id="team-card" style={{
+      width: '300px', height: '200px', backgroundColor: '#334155',
+      borderRadius: '12px', paddingTop: '24px', paddingRight: '24px', paddingBottom: '24px', paddingLeft: '24px',
+      display: 'flex', flexDirection: 'column', gap: '8px'
+    }}>
+      <p data-id="team-title" style={{fontSize: '20px', fontWeight: '600', color: '#ffffff'}}>
+        Our Team
+      </p>
+      <p data-id="team-desc" style={{fontSize: '14px', color: '#94a3b8', lineHeight: '1.5'}}>
+        A small team of designers and engineers passionate about tools.
+      </p>
+    </div>
+  </div>
+</div>
+  );
+}`;
+
+const PRICING_CARD_COMPONENT = `import { motion } from 'framer-motion';
+import { useState } from 'react';
+
+const variantConfig = [
+  { name: 'basic', label: 'Basic', x: 0, y: 0, isPrimary: true },
+  { name: 'pro', label: 'Pro (Popular)', x: 420, y: 0 },
+  { name: 'enterprise', label: 'Enterprise', x: 840, y: 0 },
+];
+
+const cardVariants = {
+  basic: {
+    width: '340px',
+    height: '480px',
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+    y: 0,
+  },
+  pro: {
+    width: '360px',
+    height: '540px',
+    backgroundColor: '#1a1a2e',
+    borderRadius: '24px',
+    boxShadow: '0 20px 60px rgba(99,102,241,0.3)',
+    y: -30,
+  },
+  enterprise: {
+    width: '340px',
+    height: '480px',
+    backgroundColor: '#0f172a',
+    borderRadius: '16px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+    y: 0,
+  },
+};
+
+const badgeVariants = {
+  basic: { opacity: 0, scale: 0.5, y: -10 },
+  pro: { opacity: 1, scale: 1, y: 0 },
+  enterprise: { opacity: 0, scale: 0.5, y: -10 },
+};
+
+const priceVariants = {
+  basic: { fontSize: '48px', color: '#1a1a2e' },
+  pro: { fontSize: '64px', color: '#ffffff' },
+  enterprise: { fontSize: '48px', color: '#e2e8f0' },
+};
+
+const labelVariants = {
+  basic: { color: '#64748b', fontSize: '14px' },
+  pro: { color: '#a5b4fc', fontSize: '16px' },
+  enterprise: { color: '#64748b', fontSize: '14px' },
+};
+
+const titleVariants = {
+  basic: { color: '#1a1a2e', fontSize: '24px' },
+  pro: { color: '#ffffff', fontSize: '28px' },
+  enterprise: { color: '#e2e8f0', fontSize: '24px' },
+};
+
+const featureVariants = {
+  basic: { color: '#475569', x: 0 },
+  pro: { color: '#c7d2fe', x: 0 },
+  enterprise: { color: '#94a3b8', x: 0 },
+};
+
+const buttonVariants = {
+  basic: {
+    backgroundColor: '#f1f5f9',
+    color: '#1a1a2e',
+    borderRadius: '10px',
+    padding: '14px 32px',
+    scale: 1,
+  },
+  pro: {
+    backgroundColor: '#6366f1',
+    color: '#ffffff',
+    borderRadius: '14px',
+    padding: '18px 40px',
+    scale: 1.05,
+  },
+  enterprise: {
+    backgroundColor: '#1e293b',
+    color: '#e2e8f0',
+    borderRadius: '10px',
+    padding: '14px 32px',
+    scale: 1,
+  },
+};
+
+const checkVariants = {
+  basic: { color: '#6366f1', scale: 1 },
+  pro: { color: '#a5b4fc', scale: 1.2 },
+  enterprise: { color: '#6366f1', scale: 1 },
+};
+
+const dividerVariants = {
+  basic: { backgroundColor: '#e2e8f0', width: '100%' },
+  pro: { backgroundColor: '#312e81', width: '80%' },
+  enterprise: { backgroundColor: '#1e293b', width: '100%' },
+};
+
+const prices = { basic: '19', pro: '49', enterprise: '99' };
+const titles = { basic: 'Basic', pro: 'Pro', enterprise: 'Enterprise' };
+const features = [
+  '5 projects',
+  'Custom domain',
+  'AI prompts (100/mo)',
+  'Analytics',
+  'Priority support',
+];
+
+export default function PricingCard() {
+  const [active, setActive] = useState('basic');
+
+  const cycle = () => {
+    const order = ['basic', 'pro', 'enterprise'];
+    const next = order[(order.indexOf(active) + 1) % order.length];
+    setActive(next);
+  };
+
+  return (
+    <div data-id="pricing-wrapper" data-name="Pricing Wrapper" style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: '24px', paddingTop: '40px', paddingRight: '40px', paddingBottom: '40px', paddingLeft: '40px',
+    }}>
+      {/* Variant toggle */}
+      <div data-id="pricing-toggles" style={{ display: 'flex', gap: '8px' }}>
+        {variantConfig.map((v) => (
+          <button
+            key={v.name}
+            onClick={() => setActive(v.name)}
+            style={{
+              padding: '8px 20px',
+              fontSize: '13px',
+              fontWeight: active === v.name ? '600' : '400',
+              border: active === v.name ? '2px solid #6366f1' : '1px solid #cbd5e1',
+              borderRadius: '8px',
+              backgroundColor: active === v.name ? '#eef2ff' : '#fff',
+              color: active === v.name ? '#4338ca' : '#64748b',
+              cursor: 'pointer',
+              fontFamily: 'Inter, sans-serif',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Animated card */}
+      <motion.div
+        data-id="pricing-card"
+        data-name="Pricing Card"
+        variants={cardVariants}
+        animate={active}
+        onClick={cycle}
+        transition={{ type: 'spring', stiffness: 250, damping: 22 }}
+        style={{
+          width: '340px',
+          height: '480px',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '36px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px',
+          cursor: 'pointer',
+          position: 'relative',
+          overflow: 'hidden',
+          fontFamily: 'Inter, sans-serif',
+        }}
+      >
+        {/* Popular badge */}
+        <motion.div
+          data-id="pricing-badge"
+          variants={badgeVariants}
+          animate={active}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          style={{
+            position: 'absolute', top: '16px', right: '16px',
+            backgroundColor: '#6366f1', color: '#fff',
+            fontSize: '11px', fontWeight: '700',
+            padding: '4px 12px', borderRadius: '20px',
+            letterSpacing: '0.5px', textTransform: 'uppercase',
+          }}
+        >
+          Popular
+        </motion.div>
+
+        {/* Plan title */}
+        <motion.p
+          data-id="pricing-title"
+          variants={titleVariants}
+          animate={active}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a2e', marginBottom: '4px' }}
+        >
+          {titles[active]}
+        </motion.p>
+
+        {/* Price */}
+        <div data-id="pricing-price-row" style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+          <motion.span
+            data-id="pricing-dollar"
+            variants={labelVariants}
+            animate={active}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            style={{ fontSize: '20px', fontWeight: '600', color: '#64748b' }}
+          >
+            $
+          </motion.span>
+          <motion.span
+            data-id="pricing-amount"
+            variants={priceVariants}
+            animate={active}
+            transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+            style={{ fontSize: '48px', fontWeight: '800', color: '#1a1a2e', lineHeight: '1' }}
+          >
+            {prices[active]}
+          </motion.span>
+          <motion.span
+            data-id="pricing-period"
+            variants={labelVariants}
+            animate={active}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            style={{ fontSize: '14px', color: '#64748b' }}
+          >
+            /mo
+          </motion.span>
+        </div>
+
+        {/* Divider */}
+        <motion.div
+          data-id="pricing-divider"
+          variants={dividerVariants}
+          animate={active}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0', margin: '16px 0' }}
+        />
+
+        {/* Features list */}
+        <div data-id="pricing-features" style={{
+          display: 'flex', flexDirection: 'column', gap: '14px',
+          width: '100%', flex: 1,
+        }}>
+          {features.map((feature, i) => (
+            <motion.div
+              key={i}
+              variants={featureVariants}
+              animate={active}
+              transition={{ type: 'spring', stiffness: 300, damping: 25, delay: i * 0.03 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+            >
+              <motion.span
+                variants={checkVariants}
+                animate={active}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                style={{ fontSize: '16px', color: '#6366f1' }}
+              >
+                ✓
+              </motion.span>
+              <span style={{ fontSize: '14px' }}>{feature}</span>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* CTA Button */}
+        <motion.div
+          data-id="pricing-cta"
+          variants={buttonVariants}
+          animate={active}
+          transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+          style={{
+            width: '100%', textAlign: 'center',
+            fontWeight: '600', fontSize: '15px',
+            backgroundColor: '#f1f5f9', color: '#1a1a2e',
+            borderRadius: '10px', padding: '14px 32px',
+            marginTop: '8px',
+          }}
+        >
+          {active === 'enterprise' ? 'Contact Sales' : 'Get Started'}
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}`;
+
+const GALLERY_COMPONENT = `import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+
+const variantConfig = [
+  { name: 'default', label: 'Gallery', x: 0, y: 0, isPrimary: true },
+];
+
+const images = [
+  { id: 1, src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop', title: 'Mountains', category: 'Nature' },
+  { id: 2, src: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop', title: 'Starry Night', category: 'Night' },
+  { id: 3, src: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&h=600&fit=crop', title: 'Forest Path', category: 'Nature' },
+  { id: 4, src: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&h=600&fit=crop', title: 'Lake Sunset', category: 'Sunset' },
+  { id: 5, src: 'https://images.unsplash.com/photo-1465056836900-8f1e940f3404?w=800&h=600&fit=crop', title: 'Ocean Cliffs', category: 'Ocean' },
+  { id: 6, src: 'https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800&h=600&fit=crop', title: 'Waterfall', category: 'Nature' },
+];
+
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
+
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.7, y: 40 },
+  visible: {
+    opacity: 1, scale: 1, y: 0,
+    transition: { type: 'spring', stiffness: 260, damping: 22 },
+  },
+  exit: {
+    opacity: 0, scale: 0.85, y: 30,
+    transition: { duration: 0.2, ease: 'easeIn' },
+  },
+};
+
+const imageHover = {
+  rest: { scale: 1, filter: 'brightness(0.9)' },
+  hover: { scale: 1.05, filter: 'brightness(1.1)' },
+};
+
+const infoVariants = {
+  rest: { opacity: 0, y: 20 },
+  hover: { opacity: 1, y: 0 },
+};
+
+export default function Gallery() {
+  const [selected, setSelected] = useState(null);
+
+  return (
+    <div data-id="gallery-root" data-name="Gallery" style={{
+      width: '100%', minHeight: '600px', backgroundColor: '#0a0a0a',
+      paddingTop: '40px', paddingRight: '40px', paddingBottom: '40px', paddingLeft: '40px', fontFamily: 'Inter, sans-serif',
+    }}>
+      {/* Header */}
+      <div data-id="gallery-header" style={{
+        textAlign: 'center', marginBottom: '40px',
+      }}>
+        <p style={{ fontSize: '13px', color: '#6366f1', fontWeight: '600',
+          letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
+          Portfolio
+        </p>
+        <p style={{ fontSize: '36px', fontWeight: '700', color: '#ffffff',
+          letterSpacing: '-1px' }}>
+          Selected Works
+        </p>
+      </div>
+
+      {/* Grid */}
+      <div data-id="gallery-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '16px',
+        maxWidth: '900px',
+        margin: '0 auto',
+      }}>
+        {images.map((img, i) => (
+          <motion.div
+            key={img.id}
+            initial="rest"
+            whileHover="hover"
+            animate="rest"
+            onClick={() => setSelected(img)}
+            style={{
+              position: 'relative',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              aspectRatio: '4/3',
+            }}
+          >
+            <motion.img
+              src={img.src}
+              alt={img.title}
+              variants={imageHover}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              style={{
+                width: '100%', height: '100%',
+                objectFit: 'cover', display: 'block',
+              }}
+            />
+            {/* Hover overlay with info */}
+            <motion.div
+              variants={infoVariants}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: '20px',
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+              }}
+            >
+              <p style={{ color: '#fff', fontSize: '16px', fontWeight: '600' }}>
+                {img.title}
+              </p>
+              <p style={{ color: '#a5b4fc', fontSize: '12px', marginTop: '4px',
+                textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {img.category}
+              </p>
+            </motion.div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            onClick={() => setSelected(null)}
+            style={{
+              position: 'fixed', inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.85)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 9999, cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <motion.div
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '800px', width: '90%',
+                borderRadius: '20px', overflow: 'hidden',
+                backgroundColor: '#111',
+                boxShadow: '0 40px 100px rgba(0,0,0,0.5)',
+                cursor: 'default',
+              }}
+            >
+              <img
+                src={selected.src}
+                alt={selected.title}
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+              <div style={{ padding: '24px 28px' }}>
+                <p style={{ fontSize: '22px', fontWeight: '700', color: '#fff' }}>
+                  {selected.title}
+                </p>
+                <p style={{ fontSize: '13px', color: '#6366f1', marginTop: '6px',
+                  textTransform: 'uppercase', letterSpacing: '2px', fontWeight: '600' }}>
+                  {selected.category}
+                </p>
+              </div>
+              {/* Close button */}
+              <motion.div
+                whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.15)' }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setSelected(null)}
+                style={{
+                  position: 'absolute', top: '16px', right: '16px',
+                  width: '36px', height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: '18px', cursor: 'pointer',
+                }}
+              >
+                ✕
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}`;
+
+const FEATURE_CARD_COMPONENT = `import { motion } from 'framer-motion';
+import { useState } from 'react';
+
+const variantConfig = [
+  { name: 'default', label: 'Default', x: 0, y: 0, isPrimary: true },
+  { name: 'expanded', label: 'Expanded', x: 500, y: 0 },
+];
+
+const cardVariants = {
+  default: {
+    width: '300px',
+    height: '200px',
+    backgroundColor: '#f0f0ff',
+    borderRadius: '12px',
+  },
+  expanded: {
+    width: '500px',
+    height: '320px',
+    backgroundColor: '#e0e7ff',
+    borderRadius: '20px',
+  },
+};
+
+const descVariants = {
+  default: { opacity: 0.7, fontSize: '14px' },
+  expanded: { opacity: 1, fontSize: '16px' },
+};
+
+export default function FeatureCard() {
+  const [active, setActive] = useState('default');
+
+  return (
+    <motion.div
+      data-id="feature-card"
+      data-name="Feature Card"
+      variants={cardVariants}
+      animate={active}
+      onClick={() => setActive(active === 'default' ? 'expanded' : 'default')}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      style={{
+        width: '300px',
+        height: '200px',
+        backgroundColor: '#f0f0ff',
+        borderRadius: '12px',
+        paddingTop: '24px', paddingRight: '24px', paddingBottom: '24px', paddingLeft: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        cursor: 'pointer',
+        overflow: 'hidden',
+      }}
+    >
+      <p data-id="feature-title" style={{
+        fontSize: '20px', fontWeight: '600', color: '#1a1a2e'
+      }}>
+        Code First
+      </p>
+      <motion.p
+        data-id="feature-desc"
+        variants={descVariants}
+        animate={active}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        style={{ fontSize: '14px', color: '#666', lineHeight: '1.5' }}
+      >
+        JSX is the source of truth. No JSON conversion needed. Click this card to see the variant animation in action.
+      </motion.p>
+    </motion.div>
+  );
+}`;
+
+const HOME_WITH_COMPONENT = `import FeatureCard from '@/components/FeatureCard';
+
+export default function Page() {
+  return (
+<div data-id="root" data-name="Page" style={{
+  position: 'relative', width: '100%', minHeight: '900px',
+  backgroundColor: '#f5f5f5'
+}}>
+  <style>{\`
+    @media (max-width: 768px) {
+      [data-id="title"] { font-size: 36px !important; }
+      [data-id="subtitle"] { font-size: 16px !important; }
+      [data-id="features"] { flex-direction: column !important; align-items: center !important; }
+    }
+  \`}</style>
+  <div data-id="hero" data-name="Hero Section" style={{
+    position: 'absolute', left: '0px', top: '0px',
+    width: '100%', height: '500px',
+    backgroundColor: '#1a1a2e',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    gap: '24px', paddingTop: '60px', paddingRight: '60px', paddingBottom: '60px', paddingLeft: '60px'
+  }}>
+    <p data-id="title" data-name="Headline" style={{
+      fontSize: '52px', color: '#ffffff', fontWeight: '700',
+      fontFamily: 'Inter, sans-serif', letterSpacing: '-1px'
+    }}>
+      Welcome to the Future
+    </p>
+    <p data-id="subtitle" data-name="Subheadline" style={{
+      fontSize: '18px', color: '#aaaaaa', maxWidth: '600px',
+      textAlign: 'center', lineHeight: '1.6'
+    }}>
+      Build websites with code as the single source of truth.
+      Edit visually on the canvas, or write code directly.
+    </p>
+    <div data-id="cta" data-name="CTA Button" style={{
+      padding: '16px 32px', backgroundColor: '#6366f1',
+      color: '#ffffff', fontSize: '16px', fontWeight: '600',
+      borderRadius: '8px', cursor: 'pointer', marginTop: '12px'
+    }}>
+      Get Started
+    </div>
+  </div>
+  <div data-id="features" data-name="Features Section" style={{
+    position: 'absolute', left: '0px', top: '500px',
+    width: '100%', height: '400px',
+    backgroundColor: '#ffffff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: '40px', paddingTop: '60px', paddingRight: '60px', paddingBottom: '60px', paddingLeft: '60px'
+  }}>
+    <FeatureCard />
+    <FeatureCard />
+    <FeatureCard />
+  </div>
+</div>
+  );
+}`;
+
+/** Create the default project file map */
+// ─── Default i18n Config ─────────────────────────────────────────────────────
+
+// ENGLISH ONLY. This used to seed en + fr + es, which meant every project
+// ever created started with two languages nobody asked for: empty override
+// files, empty message dictionaries, a LocaleSwitcher offering them, and a
+// generated route wrapper per page per locale in the published build — all
+// for content that was never written. Measured on production 2026-08-23,
+// 69 of 82 published sites carried a multi-locale config and only 13 had
+// translated anything.
+//
+// Adding a language is one click and fully self-provisioning: `addLocale`
+// (locale-ops.ts) writes the config entry, creates `i18n/<code>.json`,
+// regenerates `app/providers.tsx`, creates `messages/<code>.json`, and syncs
+// the route wrappers. Nothing here needs to pre-create any of it.
+const DEFAULT_I18N_CONFIG = JSON.stringify({
+  defaultLocale: 'en',
+  locales: [
+    { code: 'en', label: 'English' },
+  ],
+}, null, 2);
+
+// next-intl messages — namespaced by page slug: { home: { title: "..." } }.
+// Pages call `useTranslations('home')` then `t('title')`. Empty by default;
+// the editor populates these on first text edit (in a non-default locale,
+// the JSX is rewritten to `{t('id')}` and the original copy moves to the
+// default-locale messages file as the fallback).
+const DEFAULT_EN_MESSAGES = JSON.stringify({}, null, 2);
+
+// ─── Default CMS Collections ─────────────────────────────────────────────────
+
+const TEAM_SCHEMA = JSON.stringify({
+  name: 'Team Members',
+  slug: 'team',
+  fields: [
+    { id: 'name', name: 'Name', type: 'text', required: true, translatable: true },
+    { id: 'role', name: 'Role', type: 'text', translatable: true },
+    { id: 'bio', name: 'Bio', type: 'richtext', translatable: true },
+    { id: 'photo', name: 'Photo', type: 'image', translatable: false },
+    { id: 'linkedin', name: 'LinkedIn', type: 'link', translatable: false },
+    { id: 'featured', name: 'Featured', type: 'boolean', translatable: false },
+  ],
+}, null, 2);
+
+const TEAM_DATA = JSON.stringify([
+  { _id: 'alice', _slug: 'alice', _status: 'published', _createdAt: '2026-01-15T10:00:00Z', _updatedAt: '2026-01-15T10:00:00Z', name: 'Alice Johnson', role: 'CEO', bio: 'Leads product strategy and company vision.', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400', linkedin: 'https://linkedin.com/in/alice', featured: true },
+  { _id: 'bob', _slug: 'bob', _status: 'published', _createdAt: '2026-01-15T10:00:00Z', _updatedAt: '2026-01-15T10:00:00Z', name: 'Bob Smith', role: 'CTO', bio: 'Builds the platform and leads engineering.', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', linkedin: 'https://linkedin.com/in/bob', featured: false },
+  { _id: 'carol', _slug: 'carol', _status: 'published', _createdAt: '2026-01-15T10:00:00Z', _updatedAt: '2026-01-15T10:00:00Z', name: 'Carol Davis', role: 'Design Lead', bio: 'Crafts the visual identity and design system.', photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400', linkedin: 'https://linkedin.com/in/carol', featured: true },
+], null, 2);
+
+const BLOG_SCHEMA = JSON.stringify({
+  name: 'Blog Posts',
+  slug: 'blog',
+  fields: [
+    { id: 'title', name: 'Title', type: 'text', required: true, translatable: true },
+    { id: 'excerpt', name: 'Excerpt', type: 'text', translatable: true },
+    { id: 'content', name: 'Content', type: 'richtext', translatable: true },
+    { id: 'cover', name: 'Cover Image', type: 'image', translatable: false },
+    { id: 'author', name: 'Author', type: 'reference', referenceCollection: 'team', translatable: false },
+    { id: 'publishDate', name: 'Publish Date', type: 'date', translatable: false },
+    { id: 'category', name: 'Category', type: 'enum', options: ['Engineering', 'Design', 'Product', 'Company'], translatable: false },
+  ],
+}, null, 2);
+
+const BLOG_DATA = JSON.stringify([
+  { _id: 'post-1', _slug: 'launching-v2', _status: 'published', _createdAt: '2026-03-01T10:00:00Z', _updatedAt: '2026-03-01T10:00:00Z', title: 'Launching v2.0', excerpt: 'Our biggest release yet with a completely redesigned editor.', content: 'We are thrilled to announce v2.0...', cover: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800', author: 'alice', publishDate: '2026-03-01', category: 'Product' },
+  { _id: 'post-2', _slug: 'design-system-guide', _status: 'published', _createdAt: '2026-02-15T10:00:00Z', _updatedAt: '2026-02-15T10:00:00Z', title: 'Building a Design System', excerpt: 'How we built our component library from scratch.', content: 'Design systems are the foundation...', cover: 'https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800', author: 'carol', publishDate: '2026-02-15', category: 'Design' },
+], null, 2);
+
+const TESTIMONIALS_SCHEMA = JSON.stringify({
+  name: 'Testimonials',
+  slug: 'testimonials',
+  fields: [
+    { id: 'quote', name: 'Quote', type: 'richtext', required: true, translatable: true },
+    { id: 'name', name: 'Name', type: 'text', required: true, translatable: false },
+    { id: 'company', name: 'Company', type: 'text', translatable: false },
+    { id: 'avatar', name: 'Avatar', type: 'image', translatable: false },
+    { id: 'rating', name: 'Rating', type: 'number', translatable: false, defaultValue: 5 },
+  ],
+}, null, 2);
+
+const TESTIMONIALS_DATA = JSON.stringify([
+  { _id: 'test-1', _slug: 'sarah-review', _status: 'published', _createdAt: '2026-01-20T10:00:00Z', _updatedAt: '2026-01-20T10:00:00Z', quote: 'This tool completely transformed our workflow. The visual editor is incredibly intuitive.', name: 'Sarah Chen', company: 'Acme Inc', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200', rating: 5 },
+  { _id: 'test-2', _slug: 'james-review', _status: 'published', _createdAt: '2026-01-25T10:00:00Z', _updatedAt: '2026-01-25T10:00:00Z', quote: 'Best website builder I have used. The code output is clean and production-ready.', name: 'James Wilson', company: 'TechCorp', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200', rating: 5 },
+  { _id: 'test-3', _slug: 'maria-review', _status: 'published', _createdAt: '2026-02-01T10:00:00Z', _updatedAt: '2026-02-01T10:00:00Z', quote: 'The localization features saved us weeks of work on our international launch.', name: 'Maria Garcia', company: 'GlobalBrand', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200', rating: 4 },
+], null, 2);
+
+const DEFAULT_TOKENS_CSS = `/* Modern reset — without this, \`width: 100%\` + horizontal padding
+   blows out the layout because the browser's default box-sizing is
+   content-box. Most Next.js starters ship this (or Tailwind preflight).
+   margin/padding are reset UNIVERSALLY (not just html/body) to match the
+   editor sandboxes (public/preview.html) EXACTLY — the sandboxes zero UA
+   margins on every element, so a <p> without an inline margin looked
+   compact in the builder but gained 1em top+bottom (120px at a 120px
+   font!) on the PUBLISHED site (live find 2026-07-14: nav menu links with
+   huge gaps live, compact in the editor). The reset ships natively in the
+   project so publish needs no post-build normalization. */
+${UNIVERSAL_SEED_RESET}
+body {
+  /* Global default font — content that doesn't set its own font-family (e.g.
+     text inside component instances / layout templates) inherits this instead
+     of the browser's serif default. Matches the canvas + preview sandboxes so
+     the published site renders identically to the builder. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* Links inherit their surroundings — no browser-default underline or blue/visited-purple. Matches the
+   editor preview (ServerPreview) + the deploy reset so a link without inline textDecoration:'none' (e.g. a
+   logo link) looks the same live as in the builder. NOT applied to the editor canvas (refreshCanvasTokens
+   extracts only :root/@keyframes from this CSS, so global element selectors never leak into the editor UI). */
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/* Design Tokens */
+:root {
+  /* Colors */
+  --color-brand: #6366f1;
+  --color-brand-light: #818cf8;
+  --color-surface: #ffffff;
+  --color-surface-dark: #0f0f1a;
+  --color-text: #111111;
+  --color-text-muted: #666666;
+  --color-text-light: #888888;
+  --color-accent: #6366f1;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+
+  /* Typography */
+  --typo-heading-font: 'Inter', sans-serif;
+  --typo-heading-weight: 700;
+  --typo-heading-color: #111111;
+  --typo-heading-transform: none;
+  --typo-heading-decoration: none;
+  --typo-heading-shadow: none;
+  --typo-heading-size: 56px;
+  --typo-heading-spacing: -1.5px;
+  --typo-heading-line-height: 1.1;
+  --typo-heading-size-md: 40px;
+  --typo-heading-spacing-md: -1px;
+  --typo-heading-line-height-md: 1.15;
+  --typo-heading-size-sm: 32px;
+  --typo-heading-spacing-sm: -0.5px;
+  --typo-heading-line-height-sm: 1.2;
+  --typo-heading-min-default: 1200;
+  --typo-heading-min-md: 600;
+  --typo-body-font: 'Inter', sans-serif;
+  --typo-body-weight: 400;
+  --typo-body-color: #333333;
+  --typo-body-transform: none;
+  --typo-body-decoration: none;
+  --typo-body-shadow: none;
+  --typo-body-size: 16px;
+  --typo-body-spacing: 0px;
+  --typo-body-line-height: 1.7;
+  --typo-body-size-md: 15px;
+  --typo-body-line-height-md: 1.6;
+  --typo-body-size-sm: 14px;
+  --typo-body-line-height-sm: 1.5;
+  --typo-body-min-default: 1200;
+  --typo-body-min-md: 600;
+
+  /* Spacing */
+  --space-section-y: 80px;
+  --space-section-x: 60px;
+  --space-card-padding: 32px;
+  --space-gap: 24px;
+
+  /* Radius */
+  --radius-card: 16px;
+  --radius-button: 8px;
+  --radius-pill: 100px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-elevated: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Dark theme — applied when next-themes adds the .dark class on <html>.
+   Override any token whose value should change in dark mode; tokens not
+   redefined here inherit from :root above. The canvas Renderer scopes
+   :root → [data-content-root] but skips :root.dark so the canvas always
+   shows light mode (the editor has its own theme switcher). */
+:root.dark {
+  --color-surface: #0f0f1a;
+  --color-surface-dark: #ffffff;
+  --color-text: #f5f5f5;
+  --color-text-muted: #a1a1aa;
+  --color-text-light: #71717a;
+  --typo-heading-color: #ffffff;
+  --typo-body-color: #d4d4d8;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-elevated: 0 4px 12px rgba(0,0,0,0.6);
+}
+`;
+
+// Server layout — pure server component with metadata + html/body shell.
+// NO LayoutClient indirection: pages without a Template render directly
+// against `{children}` here (chrome-free), and pages WITH a Template
+// resolve their layout via the route-group's own `layout.tsx`. The bare
+// `app/LayoutClient.tsx` was redundant.
+const DEFAULT_LAYOUT = `import './globals.css';
+import { Providers } from './providers';
+
+export const metadata = {
+  title: '',
+  description: '',
+};
+
+export const siteConfig = {
+  language: 'en',
+  theme: 'light',
+  customHead: '',
+  customBody: '',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    // suppressHydrationWarning: next-themes mutates the <html> class on
+    // mount to apply the user's persisted theme; without this React
+    // warns about the server/client class mismatch.
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  );
+}
+`;
+
+// Client-only providers wrapper. Lives separate from LayoutClient so the
+// canvas-parsed layout file stays free of next-themes / next-intl /
+// any runtime context that the parser doesn't know how to make transparent.
+//
+// i18n: NextIntlClientProvider is the standard next-intl client setup. We
+// hold the active locale in client state (synced with localStorage and the
+// `<html lang>` attribute) so the LocaleSwitcher Code component can flip it without
+// a server round-trip. Each `messages/{locale}.json` is bundled at build
+// time (Next.js + Vite/Webpack handle the JSON imports natively).
+// English only — see DEFAULT_I18N_CONFIG. Must stay in step with it: providers
+// imports one `messages/<code>.json` per configured locale, so listing a locale
+// here that the config doesn't seed would emit an import for a missing file.
+export const DEFAULT_PROVIDERS = buildProvidersSource({
+  defaultLocale: 'en',
+  locales: [
+    { code: 'en', label: 'English' },
+  ],
+});
+
+// (No root LayoutClient and no shipped Templates. The default project is
+// completely template-free — `app/page.tsx` + `app/about/page.tsx` render
+// against the bare `app/layout.tsx` (just `<html><body>{children}</body></html>`
+// + Providers). Users create their first Template themselves from the
+// Library panel; that's when chrome enters the picture.)
+
+
+
+// ─── Empty starter ─────────────────────────────────────────────────────────
+// Used by File → New project (and the no-files-on-load branch in
+// ProjectLoader). One desktop viewport at 1440×900, single empty white
+// root div. Runtime utilities (`withResponsiveProps`, `withCursor`,
+// `CursorPortal`) are no longer seeded as projectFS files — they come
+// from `@revyme/runtime` (npm package). See `revyme-open/runtime/`.
+// Deliberately bare — "blank canvas" instead of the demo content
+// `createDefaultProject()` ships.
+
+const EMPTY_CANVAS_BLOCK = `/** @canvas {
+  "viewports": [
+    { "id": "desktop", "label": "Desktop", "width": 1440, "height": 900, "isPrimary": true, "order": 0 }
+  ],
+  "positions": {
+    "desktop": { "x": 0, "y": 0 }
+  }
+} */`;
+
+// Pages ship as a PAIR: the server wrapper (owns SEO `metadata`) and
+// the client body (canvas-editable). Next.js's App Router only reads
+// `export const metadata` from server components, but the editor's
+// generated JSX needs `'use client'` for hooks / motion / refs — the
+// pair sidesteps that constraint.
+
+const EMPTY_HOME_PAGE_SERVER = `import PageClient from './page.client';
+
+export const metadata = {};
+
+export default function Page() {
+  return <PageClient />;
+}
+`;
+
+const EMPTY_HOME_PAGE_CLIENT = `'use client';
+
+${EMPTY_CANVAS_BLOCK}
+
+import React from 'react';
+
+export default function Page() {
+  return (
+<div data-id="root" data-name="Page" style={{
+  position: 'relative', width: '100%', height: '900px',
+  backgroundColor: '#ffffff'
+}}>
+</div>
+  );
+}
+`;
+
+export function createEmptyProject(): Map<string, string> {
+  return new Map([
+    ['app/page.tsx', EMPTY_HOME_PAGE_SERVER],
+    ['app/page.client.tsx', EMPTY_HOME_PAGE_CLIENT],
+    // Root layout — REQUIRED. Next.js (and our preview's router) need a
+    // root `app/layout.tsx`; without it the preview renders the page with
+    // NO layout chain, so anything mounted in the layout (e.g. the cursor
+    // runtime's `<CursorPortal />`) never appears. Use the same bare server
+    // shell `ensureLayoutFile()` emits so this matches the canonical layout
+    // every other code path creates. Omitting it was why a freshly-created
+    // cloud website had no layout and component cursors didn't render.
+    ['app/layout.tsx', ensureLayoutFile()],
+    // The layout wraps children in Providers (next-themes + next-intl) —
+    // seed the providers module + the i18n scaffold it imports, or every
+    // localized page crashes with a missing NextIntlClientProvider context.
+    ['app/providers.tsx', DEFAULT_PROVIDERS],
+    ['i18n/config.json', DEFAULT_I18N_CONFIG],
+    ['messages/en.json', '{}'],
+    // `app/layout.tsx` imports `./globals.css`; seed it so the import
+    // resolves (modern reset + design tokens). The preview tolerates a
+    // missing CSS file, but a real Next build would error without it.
+    ['app/globals.css', DEFAULT_TOKENS_CSS],
+    // `withResponsiveProps` / `withCursor` / `CursorPortal` now live in the
+    // `@revyme/runtime` npm package — no longer seeded as projectFS files.
+    // Existing projects with `lib/withResponsiveProps.tsx` keep working
+    // (the canvas runtime resolver still maps the legacy `@/lib/...` paths),
+    // but new projects don't generate them.
+  ]);
+}
+
+// Generic server-wrapper template for any page pair. Imports the
+// sibling `./page.client` and renders it from a real function body —
+// gives the user somewhere to wire `generateMetadata`, params, or
+// JSON-LD later without restructuring the file. Owns the `metadata`
+// export so Next.js picks up SEO config.
+const PAGE_SERVER_WRAPPER = `import PageClient from './page.client';
+
+export const metadata = {};
+
+export default function Page() {
+  return <PageClient />;
+}
+`;
+
+/** Is `content` one of the starter page bodies (byte-identical)? Used by the
+ *  writeFile seed-overwrite guard. Function (not const) so it is hoisted past
+ *  the constants' TDZ and only reads them at call time. */
+export function isSeedPageBody(content: string): boolean {
+  return content === HOME_PAGE || content === ABOUT_PAGE || content === EMPTY_HOME_PAGE_CLIENT;
+}
+
+
+/** Remove px `left`/`top`/`right`/`bottom` from a component master's variant
+ *  ROOT inline style and from the root's variants object (see the loadSnapshot
+ *  heal). Returns the input unchanged when there is no root or nothing to strip. */
+export function stripVariantRootInsets(code: string): string {
+  const rootId = findVariantRootId(code);
+  if (!rootId) return code;
+  const insetRe = /\s*\b(left|top|right|bottom):\s*'-?\d+(?:\.\d+)?px',?/g;
+  let out = code;
+  // 1. root opening tag's style={{ … }} (up to the trailing `...style`).
+  const tagIdx = out.indexOf(`data-id="${rootId}"`);
+  if (tagIdx >= 0) {
+    const styleIdx = out.indexOf('style={{', tagIdx);
+    // Instance-size masters end the root style with `...__instStyle` instead.
+    const spreadIdx = styleIdx >= 0
+      ? [out.indexOf('...style', styleIdx), out.indexOf('...__instStyle', styleIdx)].filter((i) => i >= 0).sort((a, b) => a - b)[0] ?? -1
+      : -1;
+    if (styleIdx >= 0 && spreadIdx >= 0 && spreadIdx - styleIdx < 4000) {
+      const before = out.slice(styleIdx, spreadIdx);
+      const after = before.replace(insetRe, '');
+      if (after !== before) out = out.slice(0, styleIdx) + after + out.slice(spreadIdx);
+    }
+  }
+  // 2. the root's variants object: `const <root>Variants = { … };`
+  const varName = nodeIdToVarName(rootId) + 'Variants';
+  const vIdx = out.indexOf(`const ${varName} = {`);
+  if (vIdx >= 0) {
+    const end = out.indexOf('\n};', vIdx);
+    if (end > vIdx && end - vIdx < 20000) {
+      const before = out.slice(vIdx, end);
+      const after = before.replace(insetRe, '');
+      if (after !== before) out = out.slice(0, vIdx) + after + out.slice(end);
+    }
+  }
+  return out;
+}
+
+export function createDefaultProject(): Map<string, string> {
+  return new Map([
+    // Starter pages — chrome-free, NO template assignment. The user
+    // creates their first Template from the Library when they want a
+    // shared header/footer; until then pages render against the bare
+    // root layout.
+    // Each route ships as a PAIR: page.tsx (server wrapper, hosts
+    // metadata) + page.client.tsx (the canvas-editable body).
+    ['app/page.tsx', PAGE_SERVER_WRAPPER],
+    ['app/page.client.tsx', HOME_PAGE],
+    ['app/about/page.tsx', PAGE_SERVER_WRAPPER],
+    ['app/about/page.client.tsx', ABOUT_PAGE],
+    // Runtime utilities (`withResponsiveProps`, `withCursor`, `CursorPortal`)
+    // live in `@revyme/runtime` — installed via npm, no longer seeded as
+    // projectFS files. See `revyme-open/runtime/`.
+    // No components ship pre-installed. Built-in code components (Insert panel: Aurora,
+    // Counter, FilmGrain, embeds, etc.) install lazily into `components/` on
+    // drop via `installBuiltInCodeComponent()` — keeps a fresh project file tree
+    // empty until the user actually uses something. User-created design /
+    // code components also land in `components/` when added from the Library.
+    // i18n — English only. Additional languages are created on demand by
+    // `addLocale`, which writes the config entry, the `i18n/<code>.json`
+    // override map (the canvas-fast-render path: text/style/prop overrides
+    // keyed by file path + node id) and the `messages/<code>.json` next-intl
+    // dictionary consumed by `useTranslations()`.
+    ['i18n/config.json', DEFAULT_I18N_CONFIG],
+    ['messages/en.json', DEFAULT_EN_MESSAGES],
+    // CMS — 3 collections (Team, Blog, Testimonials)
+    ['cms/team.schema.json', TEAM_SCHEMA],
+    ['cms/team.json', TEAM_DATA],
+    ['cms/blog.schema.json', BLOG_SCHEMA],
+    ['cms/blog.json', BLOG_DATA],
+    ['cms/testimonials.schema.json', TESTIMONIALS_SCHEMA],
+    ['cms/testimonials.json', TESTIMONIALS_DATA],
+    // Design Tokens (CSS custom properties)
+    ['app/globals.css', DEFAULT_TOKENS_CSS],
+    // Root layout: server-only shell with metadata + Providers wrapping
+    // `{children}` directly. NO chrome here — that's a Template's job, and
+    // the starter ships with zero Templates so the user picks the chrome
+    // they want via the Library's "+" button.
+    ['app/layout.tsx', DEFAULT_LAYOUT],
+    // Providers — client-side context wrappers (next-themes, etc). Not parsed
+    // by the canvas; only the live Next.js build sees it.
+    ['app/providers.tsx', DEFAULT_PROVIDERS],
+  ]);
+}
+
+// ─── Built-in Code component Registry ────────────────────────────────────────────────
+// Lazy-install registry: each Insert-panel code component drop calls
+// `installBuiltInCodeComponent(fs, tag)` which writes the file from this list IF it's
+// not already in ProjectFS. A fresh project ships zero `components/*.tsx` —
+// the Library panel only lists components the user actually pulled in (via
+// Insert drag, AI generation, or manual creation).
+
+const BUILT_IN_COMPONENTS: [string, string][] = [
+  // Effects / animations
+  ['components/AnimatedCounter.tsx', ANIMATED_COUNTER_COMPONENT],
+  ['components/AuroraBackground.tsx', AURORA_BACKGROUND_COMPONENT],
+  ['components/SilkRibbons.tsx', SILK_RIBBONS_COMPONENT],
+  ['components/LightPillar.tsx', LIGHT_PILLAR_COMPONENT],
+  ['components/IridescentFilm.tsx', IRIDESCENT_FILM_COMPONENT],
+  ['components/GodRays.tsx', GOD_RAYS_COMPONENT],
+  ['components/GrainField.tsx', GRAIN_FIELD_COMPONENT],
+  ['components/NebulaField.tsx', NEBULA_FIELD_COMPONENT],
+  ['components/DotWave.tsx', DOT_WAVE_COMPONENT],
+  ['components/ContourMap.tsx', CONTOUR_MAP_COMPONENT],
+  ['components/FluidGradient.tsx', FLUID_GRADIENT_COMPONENT],
+  ['components/CyberGrid.tsx', CYBER_GRID_COMPONENT],
+  ['components/RippleGrid.tsx', RIPPLE_GRID_COMPONENT],
+  ['components/VoronoiCells.tsx', VORONOI_CELLS_COMPONENT],
+  ['components/MetaballField.tsx', METABALL_FIELD_COMPONENT],
+  ['components/HalftoneScreen.tsx', HALFTONE_SCREEN_COMPONENT],
+  ['components/ScanlineCRT.tsx', SCANLINE_C_R_T_COMPONENT],
+  ['components/Smoke.tsx', SMOKE_COMPONENT],
+  ['components/Marble.tsx', MARBLE_COMPONENT],
+  ['components/WarpTunnel.tsx', WARP_TUNNEL_COMPONENT],
+  ['components/StarWarp.tsx', STAR_WARP_COMPONENT],
+  ['components/HexGrid.tsx', HEX_GRID_COMPONENT],
+  ['components/Lightning.tsx', LIGHTNING_COMPONENT],
+  ['components/LiquidChrome.tsx', LIQUID_CHROME_COMPONENT],
+  ['components/Bokeh.tsx', BOKEH_COMPONENT],
+  ['components/RainGlass.tsx', RAIN_GLASS_COMPONENT],
+  ['components/Fireflies.tsx', FIREFLIES_COMPONENT],
+  ['components/Vortex.tsx', VORTEX_COMPONENT],
+  ['components/Sunset.tsx', SUNSET_COMPONENT],
+  ['components/Dunes.tsx', DUNES_COMPONENT],
+  ['components/OilSlick.tsx', OIL_SLICK_COMPONENT],
+  ['components/WaveStack.tsx', WAVE_STACK_COMPONENT],
+  ['components/MatrixRain.tsx', MATRIX_RAIN_COMPONENT],
+  ['components/WaveDistortion.tsx', WAVE_DISTORTION_COMPONENT],
+  ['components/GlitchText.tsx', GLITCH_TEXT_COMPONENT],
+  // Noise utility code components — overlays for grain / static / halftone / scanlines.
+  ['components/FilmGrain.tsx', FILM_GRAIN_COMPONENT],
+  ['components/StaticTV.tsx', STATIC_TV_COMPONENT],
+  ['components/PerlinNoise.tsx', PERLIN_NOISE_COMPONENT],
+  ['components/Halftone.tsx', HALFTONE_COMPONENT],
+  ['components/Pattern.tsx', PATTERN_COMPONENT],
+  // Shaders — animated canvas-2D gradient/wave effects (replace the
+  // legacy static CSS-gradient div items in the Insert > Utility panel).
+  ['components/WaveLines.tsx', WAVE_LINES_COMPONENT],
+  ['components/WaveGradient.tsx', WAVE_GRADIENT_COMPONENT],
+  ['components/MeshGradient.tsx', MESH_GRADIENT_COMPONENT],
+  ['components/PlasmaShader.tsx', PLASMA_SHADER_COMPONENT],
+  ['components/LiquidMetal.tsx', LIQUID_METAL_COMPONENT],
+  ['components/CausticsLight.tsx', CAUSTICS_LIGHT_COMPONENT],
+  ['components/NeonParticleField.tsx', NEON_PARTICLE_FIELD_COMPONENT],
+  // Paper-grade WebGL2 shader pack (vendored paper-design/shaders GLSL;
+  // MeshGradient/LiquidMetal above were upgraded in place to this pack).
+  ['components/GemSmoke.tsx', GEM_SMOKE_COMPONENT],
+  ['components/GrainGradient.tsx', GRAIN_GRADIENT_COMPONENT],
+  ['components/Metaballs.tsx', METABALLS_COMPONENT],
+  ['components/SmokeRing.tsx', SMOKE_RING_COMPONENT],
+  // Container code components — render connected canvas nodes via the slot system.
+  ['components/LensBox.tsx', LENS_BOX_COMPONENT],
+  ['components/MagnetBox.tsx', MAGNET_BOX_COMPONENT],
+  // Effect code components — multi-slot containers that animate connected nodes.
+  ['components/Marquee.tsx', MARQUEE_COMPONENT],
+  ['components/Carousel.tsx', CAROUSEL_COMPONENT],
+  ['components/RibbonMarquee.tsx', RIBBON_MARQUEE_COMPONENT],
+  ['components/Marquee3D.tsx', MARQUEE_3D_COMPONENT],
+  ['components/MotionTrail.tsx', MOTION_TRAIL_COMPONENT],
+  ['components/HorizontalScroll.tsx', HORIZONTAL_SCROLL_COMPONENT],
+  // Cursor code components — region hotspots (no slot). The bounding box is the
+  // cursor zone; clicks pass through (pointer-events: none) so they work
+  // when placed over interactive content.
+  ['components/BlobCursor.tsx', BLOB_CURSOR_COMPONENT],
+  ['components/DesignCursor.tsx', DESIGN_CURSOR_COMPONENT],
+  ['components/RibbonCursor.tsx', RIBBON_CURSOR_COMPONENT],
+  ['components/SplashCursor.tsx', SPLASH_CURSOR_COMPONENT],
+  ['components/Scanlines.tsx', SCANLINES_COMPONENT],
+  ['components/ChromaticNoise.tsx', CHROMATIC_NOISE_COMPONENT],
+  // Integration / embed code components — Insert panel drops these as
+  // `<YouTubeEmbed/>` etc. Without registering the code component file in ProjectFS
+  // the iframe CodeComponentHost has nothing to mount and the canvas shows an empty
+  // blue wrapper. (The live website resolves these because Next.js bundles
+  // them at build time; the canvas needs the file in ProjectFS to load.)
+  ['components/YouTubeEmbed.tsx', YOUTUBE_EMBED_COMPONENT],
+  ['components/VimeoEmbed.tsx', VIMEO_EMBED_COMPONENT],
+  ['components/SoundCloudEmbed.tsx', SOUNDCLOUD_EMBED_COMPONENT],
+  ['components/SpotifyEmbed.tsx', SPOTIFY_EMBED_COMPONENT],
+  ['components/GoogleMapsEmbed.tsx', GOOGLE_MAPS_EMBED_COMPONENT],
+  ['components/FacebookEmbed.tsx', FACEBOOK_EMBED_COMPONENT],
+  ['components/TwitterEmbed.tsx', TWITTER_EMBED_COMPONENT],
+  ['components/InstagramEmbed.tsx', INSTAGRAM_EMBED_COMPONENT],
+  ['components/LinkedInEmbed.tsx', LINKEDIN_EMBED_COMPONENT],
+  ['components/PinterestEmbed.tsx', PINTEREST_EMBED_COMPONENT],
+  ['components/TikTokEmbed.tsx', TIKTOK_EMBED_COMPONENT],
+  ['components/CalendlyEmbed.tsx', CALENDLY_EMBED_COMPONENT],
+  ['components/TypeformEmbed.tsx', TYPEFORM_EMBED_COMPONENT],
+  ['components/GoogleFormEmbed.tsx', GOOGLE_FORM_EMBED_COMPONENT],
+  // Interactive utility — theme + locale switchers. Live on production via
+  // next-themes + a `locale-change` window event; canvas-only stub renders
+  // the icon without firing real handlers.
+  ['components/ThemeToggle.tsx', THEME_TOGGLE_COMPONENT],
+  ['components/LocaleSwitcher.tsx', LOCALE_SWITCHER_COMPONENT],
+  ['components/CopyButton.tsx', COPY_BUTTON_COMPONENT],
+  // Creative — text effects (port batch 1 of the old builder's
+  // customCodeJs library). Each one is a self-contained React code component
+  // with `@controls` exposing the same axes the imperative versions
+  // had. Drop via Insert > Creative > Code Snippets in the panel.
+  ['components/MorphingText.tsx', MORPHING_TEXT_COMPONENT],
+  ['components/WordRotate.tsx', WORD_ROTATE_COMPONENT],
+  ['components/SpinningText.tsx', SPINNING_TEXT_COMPONENT],
+  ['components/HangingCurved.tsx', HANGING_CURVED_COMPONENT],
+  ['components/MagneticText.tsx', MAGNETIC_TEXT_COMPONENT],
+  ['components/TextPressure.tsx', TEXT_PRESSURE_COMPONENT],
+  // Port batch 2 — TypingText (multi-word cycle, distinct from the
+  // single-string TypingEffect code component). RotatingText3D and VideoText
+  // are full creative effects (3D cylinder + SVG-mask video clip).
+  ['components/TypingText.tsx', TYPING_TEXT_COMPONENT],
+  ['components/RotatingText3D.tsx', ROTATING_TEXT_3D_COMPONENT],
+  ['components/VideoText.tsx', VIDEO_TEXT_COMPONENT],
+  // TypingEffect ships in createDefaultProject already, but re-syncing
+  // here keeps the canonical text-effect set discoverable via the
+  // built-in registry (the AI service may import `@/components/TypingEffect`).
+  ['components/TypingEffect.tsx', TYPING_EFFECT_COMPONENT],
+];
+
+/**
+ * Refresh templates of built-in code components ALREADY installed in the project.
+ * Does NOT install new files, and NEVER overwrites a file whose content the
+ * user (or an AI/MCP session) has customized.
+ *
+ * ⚠️ This used to overwrite ANY installed built-in whose content differed
+ * from the shipped template — which silently DESTROYED user customizations
+ * on every project load (the endlessly-reverting LocaleSwitcher, 2026-07-22:
+ * a rewritten switcher was stamped back to the stock template on EVERY boot,
+ * then autosaved over the cloud copy). "Differs from the template" cannot
+ * distinguish "stale template" from "user's own version", so the only safe
+ * policy is: a modified file belongs to the user — leave it alone. Template
+ * fixes reach fresh installs via `installBuiltInCodeComponent`.
+ */
+export function syncBuiltInCodeComponents(fs: InMemoryProjectFS): void {
+  let skippedModified = 0;
+  for (const [path, template] of BUILT_IN_COMPONENTS) {
+    const existing = fs.readFile(path);
+    // `readFile` returns null/undefined for missing files. Skip both — only
+    // consider files the user actually has in their project.
+    if (existing == null) continue;
+    if (existing !== template) skippedModified++;
+  }
+  if (skippedModified > 0) {
+    trace.action('project-fs:sync-built-in-components', { skippedModified, total: BUILT_IN_COMPONENTS.length });
+  }
+}
+
+/**
+ * Lazy-install a built-in code component by component tag (e.g. `'AuroraBackground'`).
+ * No-op if the file already exists. Returns true if the code component was just
+ * installed, false if already present, null if the tag isn't a known
+ * built-in. Call from Insert-panel drop handlers BEFORE queueing the
+ * `addNode` mutation so the import resolves on the next render cycle.
+ */
+/** The built-in code components an Insert drop can install, with the label
+ *  and one-line description from each file's annotations — so the agent can
+ *  browse them the way the Insert panel does (audit §10 G2: 95 built-ins were
+ *  invisible to it). */
+export function listBuiltInCodeComponents(): { tag: string; path: string; label: string; comment: string; installed: boolean }[] {
+  return BUILT_IN_COMPONENTS.map(([path, template]) => ({
+    tag: path.replace(/^components\//, '').replace(/\.tsx$/, ''),
+    path,
+    label: /\/\*\*\s*@label\s*"([^"]*)"/.exec(template)?.[1] ?? path.replace(/^components\//, '').replace(/\.tsx$/, ''),
+    comment: /\/\*\*\s*@comment\s*"([^"]*)"/.exec(template)?.[1] ?? '',
+    installed: projectFS.exists(path),
+  }));
+}
+
+export function installBuiltInCodeComponent(fs: InMemoryProjectFS, tag: string): boolean | null {
+  if (!tag || !/^[A-Z]/.test(tag)) return null; // not a component tag
+  const path = `components/${tag}.tsx`;
+  const entry = BUILT_IN_COMPONENTS.find(([p]) => p === path);
+  if (!entry) return null; // not a built-in we know about
+  // `readFile` returns null/undefined for missing files — both mean install.
+  if (fs.readFile(path) != null) return false; // already installed
+  fs.writeFile(path, entry[1]);
+  trace.action('project-fs:install-built-in-code-component', { tag, path });
+  return true;
+}
+
+// ─── Singleton + Atom ───────────────────────────────────────────────────────
+
+/** The global ProjectFS instance. Used by mutation queue and other imperative code. */
+export let projectFS: InMemoryProjectFS = new InMemoryProjectFS(createDefaultProject());
+
+/** Jotai atom — triggers re-renders when files change. Increments on every write. */
+export const projectVersionAtom = atom(0);
+
+// Let the canvas bridge stamp its cache fills with the project version, so an
+// observation can say whether it predates the project it claims to describe.
+// This edge is code→canvas (canvas-bridge depends only on debug-trace, so no
+// cycle). Guarded: a test that partially mocks '@/canvas/canvas-bridge'
+// without this export must still load — the epoch version then stays null.
+try {
+  if (typeof registerProjectVersionReader === 'function') {
+    registerProjectVersionReader(() => getDefaultStore().get(projectVersionAtom));
+  }
+} catch {
+  /* partial canvas-bridge mock — epoch version stays null */
+}
+
+/**
+ * Mirror of `projectVersionAtom` that pauses updates while the canvas is
+ * being interacted with (drag/resize). Heavy panel parsers + tool components
+ * derive from this so a fast drag's per-reparent file write doesn't trigger
+ * a full PropertiesPanel re-render cascade on every frame. Synced from
+ * Canvas.tsx via a `useEffect` watcher — see `stableCodeAtom` in store.ts.
+ */
+export const stableProjectVersionAtom = atom(0);
+
+/** Re-initialize the ProjectFS (for reset/import) */
+export function resetProjectFS(files?: Map<string, string>): void {
+  projectFS = new InMemoryProjectFS(files ?? createDefaultProject());
+  syncBuiltInCodeComponents(projectFS);
+  trace.action('project-fs:reset', { fileCount: projectFS.listFiles().length });
+}
+
+// NOTE: modifyProjectFile() lives in ./modify-file.ts (separate file to avoid circular dependency).
+// Import it from '@/code/project/modify-file' — NOT from this file.

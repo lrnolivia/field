@@ -1,0 +1,810 @@
+// LayersPanel/drag.ts — the layer-tree drag-reorder handler, lifted verbatim from
+// the `handleLayerDragStart` useCallback body in LayersPanel.tsx (Phase 7 god-file
+// split, item 7.7). The component passes its state/refs via LayerDragContext; the
+// handler body is unchanged.
+
+import type { MouseEvent as ReactMouseEvent, MutableRefObject } from 'react';
+import type { CanvasNode } from '@/code/parsing/parser';
+import { flushNow, queueMutation } from '@/code/mutation/mutation-queue';
+import { getContentRoot, isPrimaryViewport, findChildRects, findNodeComputedStyle, findNodeComputedStyles, forceRenderAfterExternalEdit, redirectToFitTextWrapper } from '@/canvas/node-ops';
+import { computeReorderAssignments, computeReplicaOrderMirrorUpdates, flexForFlowChildEnteringFlex } from '@/canvas/drag/reparent-utils';
+import { containerOverridesAtom } from '@/code/stores/container-query-store';
+import { getDefaultStore } from 'jotai';
+import { commitOrderAssignments } from '@/canvas/drag/strategies/order-commit';
+import { getReplicaContext } from '@/canvas/drag/replica-context';
+import { queueReplicaCreationUnhide } from '@/canvas/creators/creator-utils';
+import { isInstanceLike, instanceReplicaUnhideDisplay } from '@/canvas/drag/instance-replica-visibility';
+import { detectParentLayoutById, getFlexDirectionById } from '@/canvas/drag/types';
+import { queuePendingUpdates } from '@/canvas/arrow-nudge';
+import { trace } from '@/shared/debug-trace';
+import { isFrameTag } from '@/shared/constants';
+import { sortChildrenByVisualOrder } from './rows';
+
+export type DropIndicator = { layerId: string; nodeId: string; position: 'before' | 'after' | 'inside'; depth: number };
+
+/** The viewport / variant PREFIX of a layer-row id. Row ids are viewport-prefixed
+ *  (`"mobile:hero"`); viewport HEADER rows are `"__vp_mobile"`. Callers need the
+ *  prefix to target the right tile — the bridge rect/corner caches are keyed
+ *  `${vpPrefix}:${nodeId}`. (nodeIds are kebab-case and never contain ':'.) */
+export function vpIdFromLayerId(layerId: string): string {
+  return layerId.startsWith('__vp_') ? layerId.slice('__vp_'.length) : layerId.split(':')[0];
+}
+
+/** Auto-scroll delta (px/frame) for a cursor over the layers list during a drag.
+ *  Negative = scroll up (cursor near/above the top edge), positive = scroll down
+ *  (near/below the bottom). 0 when the cursor is in the middle or off the column.
+ *  Speed ramps from ~0.2× at the inner edge of the band to full at the very edge
+ *  (and stays full when the cursor is beyond the edge). Pure — unit-tested. */
+export function computeEdgeAutoScrollDelta(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; right: number; top: number; bottom: number },
+  zone = 52,
+  maxSpeed = 16,
+): number {
+  if (clientX < rect.left - 24 || clientX > rect.right + 24) return 0;
+  const topDist = clientY - rect.top;
+  const botDist = rect.bottom - clientY;
+  if (topDist < zone) return -maxSpeed * Math.min(1, Math.max(0.2, (zone - topDist) / zone));
+  if (botDist < zone) return maxSpeed * Math.min(1, Math.max(0.2, (zone - botDist) / zone));
+  return 0;
+}
+
+/** Resolve a drop indicator into the STRUCTURAL insert the mutation queue
+ *  needs. Pure — unit-tested.
+ *
+ *  The panel's `nodes` map is the MERGED tree: on a templated page the root's
+ *  children lead with `layout::` chrome that does not exist in the page FILE,
+ *  so a raw `parent.children.indexOf(target)` is off by the chrome count when
+ *  fed to the generators ("dropped before the hero, landed after it" —
+ *  templated page, 2026-08-11). Both generators also splice in a child space
+ *  WITHOUT the dragged node (moveNodeInCode removes it in step 1;
+ *  reorderNodeInCode filters it from its content slots), so the dragged id is
+ *  excluded from the index space too. `children-slot` stays IN the count —
+ *  the generators count `{children}` as a slot — but can never be the anchor
+ *  (it's a JSX expression; the anchor lookup only matches data-id elements).
+ *
+ *  `insertBeforeId` mirrors the canvas drag's anchor
+ *  (computeLayoutInsertAnchorId): the sibling the node must land BEFORE, or
+ *  undefined to append / defer to the index. */
+/**
+ * Can this layer row accept a drop INSIDE it (vs only before/after)?
+ *
+ * Tag alone is not enough. A CMS collection-list ROW TEMPLATE is a container by
+ * construction — the list renders its children once per record — but its root
+ * is frequently a link-style element (`<Link>` / `<a>`), which the shared tag
+ * table classifies as TEXT so that double-click edits the label. The tag-only
+ * test therefore refused an inside-drop that the CANVAS happily allows: the
+ * canvas layout drop gates on component-instance-ness and geometry, never on
+ * the tag. That asymmetry is the bug — dragging a component into a collection
+ * row worked by mouse on the canvas and silently did nothing from the Layers
+ * panel (2026-08-23).
+ *
+ * Deliberately NOT widened to "any node with element children": a <p> carrying
+ * rich-text mark spans would become a drop target, and dropping a frame into a
+ * text run is exactly what TEXT_TAGS exists to prevent.
+ */
+export function layerAcceptsInsideDrop(
+  nodeType: string,
+  opts?: { isCmsRowTemplate?: boolean },
+): boolean {
+  if (isFrameTag(nodeType)) return true;
+  return !!opts?.isCmsRowTemplate;
+}
+
+/**
+ * Position fix-up for a node REPARENTED through the layers tree. `fixed` is a
+ * page-level concept (anchored to the browser viewport); inside ANY frame it is
+ * meaningless and the canvas drag already converts it on entry
+ * (CanvasDragStrategy treats fixed like absolute; node-ops paints it as
+ * absolute). The layers drop had two position branches — canvas-node source
+ * and no-layout destination — and a plain tree node dropped into a FLEX/GRID
+ * frame hit neither, so it kept `position: 'fixed'` with `flex`/`order`
+ * bolted on (live find 2026-09-06). Returns the style delta or null.
+ *
+ * ENTERING A LAYOUT (flex/grid) is the other half, and it was missing: an
+ * ABSOLUTE node dropped into a flex frame kept `position: absolute` with its
+ * pins, so it ignored the layout entirely and sat wherever its old
+ * `left`/`top` put it (user report 2026-09-21, B14). A layout child has to join
+ * the flow — same delta the canvas drag commits on layout entry
+ * (`CanvasDragStrategy.ts:2910`): relative, and every inset cleared, because a
+ * stale `left: 27%` still offsets a relatively-positioned box.
+ *
+ * Outside a layout the pins are still KEPT: they now anchor to the new frame.
+ */
+export function positionFixupForLayersReparent(
+  draggedStyles: Record<string, string> | undefined,
+  parentLayout?: string,
+): Record<string, string> | null {
+  const pos = draggedStyles?.position;
+  const destIsLayout = parentLayout === 'flex' || parentLayout === 'grid';
+  if (destIsLayout && (pos === 'absolute' || pos === 'fixed')) {
+    return { position: 'relative', left: '', top: '', right: '', bottom: '' };
+  }
+  if (pos === 'fixed') return { position: 'absolute' };
+  return null;
+}
+
+export function resolveLayerDropStructure(
+  nodes: Map<string, CanvasNode>,
+  indicator: { nodeId: string; position: 'before' | 'after' | 'inside' },
+  draggedId: string,
+): { finalParentId: string; structuralInsertIndex: number; insertBeforeId?: string } | null {
+  const fileSiblingsOf = (parent: CanvasNode): string[] =>
+    parent.children.filter((id) => !id.startsWith('layout::') && id !== draggedId);
+
+  if (indicator.position === 'inside') {
+    const parent = nodes.get(indicator.nodeId);
+    if (!parent) return null;
+    return { finalParentId: indicator.nodeId, structuralInsertIndex: fileSiblingsOf(parent).length };
+  }
+  // The DROP TARGET gets the same FIT-pair redirect as the dragged node. The
+  // tree shows a FIT text's inner `<p>`, whose parent is the `<foreignObject>`
+  // — so a before/after drop beside one resolved its parent to the
+  // foreignObject and dropped the node INSIDE the FIT wrapper, where it is
+  // invisible to every layout the user can see.
+  const targetId = redirectToFitTextWrapper(indicator.nodeId, nodes) ?? indicator.nodeId;
+  const targetNode = nodes.get(targetId);
+  const finalParentId = targetNode?.parentId;
+  if (!finalParentId) return null;
+  const parent = nodes.get(finalParentId);
+  if (!parent) return null;
+  const fileSiblings = fileSiblingsOf(parent);
+  const siblingIndex = fileSiblings.indexOf(targetId);
+  if (siblingIndex === -1) return null;
+  const structuralInsertIndex = indicator.position === 'after' ? siblingIndex + 1 : siblingIndex;
+  const anchor = fileSiblings[structuralInsertIndex];
+  return {
+    finalParentId,
+    structuralInsertIndex,
+    insertBeforeId: anchor && anchor !== 'children-slot' ? anchor : undefined,
+  };
+}
+
+/** Everything the drag handler reads from the LayersPanel component: parsed nodes,
+ *  viewport config, and the drag-state refs/setters. Row ids stay viewport-prefixed
+ *  (`"desktop:features"`) — `layerId` vs the bare `nodeId` matters throughout. */
+export interface LayerDragContext {
+  nodes: Map<string, CanvasNode>;
+  isCompMode: boolean;
+  vpWidths: Record<string, number>;
+  vpConfigs: Array<{ id: string; width: number; isPrimary: boolean }>;
+  activeFilePath: string;
+  dragStartPos: MutableRefObject<{ x: number; y: number } | null>;
+  dragThresholdMet: MutableRefObject<boolean>;
+  activeIdRef: MutableRefObject<string | null>;
+  activeLayerIdRef: MutableRefObject<string | null>;
+  dropIndicatorRef: MutableRefObject<DropIndicator | null>;
+  setActiveId: (id: string | null) => void;
+  setActiveLayerId: (id: string | null) => void;
+  setDropIndicator: (d: DropIndicator | null) => void;
+}
+
+export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerId: string, nodeId: string) {
+  const {
+    nodes, isCompMode, vpWidths, vpConfigs, activeFilePath,
+    dragStartPos, dragThresholdMet, activeIdRef, activeLayerIdRef, dropIndicatorRef,
+    setActiveId, setActiveLayerId, setDropIndicator,
+  } = ctx;
+    if (e.button !== 0) return;
+    const node = nodes.get(nodeId);
+    if (!node || node.fromLayout) return;
+
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    dragThresholdMet.current = false;
+    const startNodeId = nodeId;
+    const startLayerId = layerId;
+
+    // Auto-scroll the layers list while the drag hovers near its top/bottom
+    // edge. A long list otherwise can't be scrolled during a drag without also
+    // mouse-wheeling (the user's report). An RAF loop scrolls while the cursor
+    // sits in the edge band — INCLUDING when the mouse is held still — reading
+    // the latest cursor Y each frame; speed ramps up toward the very edge.
+    // Started when the drag actually begins, cancelled on mouseup.
+    const EDGE_ZONE = 52;      // px band at each edge that triggers scrolling
+    const EDGE_MAX_SPEED = 12; // px/frame at the very edge (min ~0.2× inside the band)
+    let scrollContainer: HTMLElement | null = null;
+    let lastClientX = e.clientX;
+    let lastClientY = e.clientY;
+    let autoScrollRaf = 0;
+    const autoScrollTick = () => {
+      if (!dragStartPos.current) { autoScrollRaf = 0; return; } // drag ended
+      const sc = scrollContainer;
+      if (sc) {
+        const dy = computeEdgeAutoScrollDelta(lastClientX, lastClientY, sc.getBoundingClientRect(), EDGE_ZONE, EDGE_MAX_SPEED);
+        if (dy !== 0) sc.scrollTop += dy; // browser clamps to [0, max]
+      }
+      autoScrollRaf = requestAnimationFrame(autoScrollTick);
+    };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragStartPos.current) return;
+      lastClientX = ev.clientX;
+      lastClientY = ev.clientY;
+      if (!dragThresholdMet.current) {
+        const dx = ev.clientX - dragStartPos.current.x;
+        const dy = ev.clientY - dragStartPos.current.y;
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        dragThresholdMet.current = true;
+        setActiveId(startNodeId);
+        activeIdRef.current = startNodeId;
+        setActiveLayerId(startLayerId);
+        activeLayerIdRef.current = startLayerId;
+        document.body.style.cursor = 'grabbing';
+        scrollContainer = document.querySelector('[data-layers-scroll]');
+        if (!autoScrollRaf) autoScrollRaf = requestAnimationFrame(autoScrollTick);
+        trace.action('layers:drag-start', { nodeId: startNodeId, layerId: startLayerId });
+      }
+
+      if (!activeIdRef.current) return;
+
+      const elements = document.elementsFromPoint(ev.clientX, ev.clientY);
+      const layerEl = elements.find(el => {
+        if (!el.hasAttribute('data-layer-id')) return false;
+        // Page viewport header OR component-master VARIANT header (both
+        // `__vp_*`, no node id) → a valid "drop inside" target. On a master,
+        // dropping a canvas node onto a variant header inserts it into the
+        // component tree and isolates it to that variant (handled in onMouseUp,
+        // same way the canvas drag enters a variant). Previously variant
+        // headers were rejected (`!isCompMode`) so the entrance went undetected.
+        if ((el.getAttribute('data-layer-id') || '').startsWith('__vp_')) return true;
+        // Normal node row — not the dragged node, not a header.
+        const nid = el.getAttribute('data-layer-node-id');
+        if (nid === null || nid === '' || nid === activeIdRef.current) return false;
+        // TEMPLATE nodes (the merged `layout::…` header/footer/nav from the
+        // page's Template) and the children-slot are NOT editable on a page —
+        // they belong to the template's own file. Never a drop target here.
+        if (nid.startsWith('layout::') || nid === 'children-slot') return false;
+        return true;
+      });
+
+      if (!layerEl) { setDropIndicator(null); return; }
+
+      // ── Viewport header → drop INSIDE the viewport, appended to the page
+      // root as the LAST child. The page root is the top of the tree, so it's
+      // never a descendant of the dragged node — no circular check needed.
+      const hoveredLayerId = layerEl.getAttribute('data-layer-id') || '';
+      if (hoveredLayerId.startsWith('__vp_')) {
+        // Drop INSIDE the viewport / variant → append to its ROOT node.
+        //  • Page: the page's REAL root is `root` (the merged template root on
+        //    a templated page — NOT the synthetic `layout::root`, which has no
+        //    entry in the file and a move there is lost / crashes).
+        //  • Component master: the variant root is the PARENTLESS master
+        //    element, which keeps its OWN data-id (e.g. `frame-…`), NOT `root`.
+        //    Hardcoding `root` here made `nodes.get('root')` undefined in
+        //    onMouseUp → the commit bailed and nothing inserted.
+        let dropRootId = 'root';
+        if (isCompMode) {
+          for (const [id, n] of nodes) {
+            if (!n.parentId && !n.isCanvasNode && n.type !== 'style' && !n.attrs?.['data-overlay']) { dropRootId = id; break; }
+          }
+        }
+        setDropIndicator({ layerId: hoveredLayerId, nodeId: dropRootId, position: 'inside', depth: 0 });
+        return;
+      }
+
+      const targetNodeId = layerEl.getAttribute('data-layer-node-id')!;
+      const targetLayerId = layerEl.getAttribute('data-layer-id') || targetNodeId;
+      const targetDepth = parseInt(layerEl.getAttribute('data-layer-depth') || '0', 10);
+      const targetIsFrame = layerEl.getAttribute('data-layer-is-frame') === 'true';
+      const targetNode = nodes.get(targetNodeId);
+      if (!targetNode) { setDropIndicator(null); return; }
+
+      // Circular reference check
+      let check: string | undefined = targetNodeId;
+      let isDescendant = false;
+      while (check) {
+        const n = nodes.get(check);
+        if (!n) break;
+        if (n.parentId === activeIdRef.current) { isDescendant = true; break; }
+        check = n.parentId || undefined;
+      }
+      if (isDescendant) { setDropIndicator(null); return; }
+
+      const rect = layerEl.getBoundingClientRect();
+      const relativeY = ev.clientY - rect.top;
+      const height = rect.height;
+      const parent = targetNode.parentId ? nodes.get(targetNode.parentId) : null;
+      // LAST as the TREE renders it, not as the JSX lists it.
+      //
+      // On a frame row the bottom 30% means "after" only for the last child;
+      // otherwise it means "inside". Reading `parent.children` answers in JSX
+      // order, which is not what the user sees — the tree renders by effective
+      // `order`. The two normally agree here, because a layers drop always
+      // queues a structural JSX reorder alongside the CSS order (that is
+      // deliberate — it keeps the parser, codegen and undo coherent), so this
+      // has no live repro from the panel. They diverge after a CANVAS reorder on
+      // a non-primary tile, which writes CSS order only and leaves the shared
+      // JSX alone: the visually-last frame then reads as not-last and its bottom
+      // edge drops INTO it instead of after it.
+      const ordered = parent
+        ? sortChildrenByVisualOrder(
+            parent, parent.children, vpIdFromLayerId(targetLayerId), nodes, vpConfigs,
+            getDefaultStore().get(containerOverridesAtom), isCompMode,
+          ).filter(id => !id.startsWith('layout::'))
+        : [];
+      const isLastChild = ordered.length > 0 && ordered[ordered.length - 1] === targetNodeId;
+      const isComponentInstance = !!targetNode.componentFile;
+
+      let position: 'before' | 'after' | 'inside';
+
+      if (targetIsFrame && !isComponentInstance) {
+        if (relativeY < height * 0.3) {
+          position = 'before';
+        } else if (isLastChild && relativeY > height * 0.7) {
+          position = 'after';
+        } else {
+          position = 'inside';
+        }
+      } else {
+        if (relativeY < height * 0.5) {
+          position = 'before';
+        } else {
+          position = 'after';
+        }
+      }
+
+      setDropIndicator({ layerId: targetLayerId, nodeId: targetNodeId, position, depth: targetDepth });
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      if (autoScrollRaf) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = 0; }
+      document.body.style.cursor = '';
+      dragStartPos.current = null;
+
+      const indicator = dropIndicatorRef.current;
+      const draggedId = activeIdRef.current;
+      activeIdRef.current = null;
+      activeLayerIdRef.current = null;
+      setActiveId(null);
+      setActiveLayerId(null);
+      setDropIndicator(null);
+
+      if (!indicator || !draggedId) return;
+
+      const draggedNode = nodes.get(draggedId);
+      const targetNode = nodes.get(indicator.nodeId);
+      if (!draggedNode || !targetNode) return;
+
+      const contentEl = getContentRoot();
+      if (!contentEl) return;
+
+      trace.action('layers:drop', { draggedId, targetId: indicator.nodeId, targetLayerId: indicator.layerId, position: indicator.position });
+
+      // Iframe mode: parent-frame DOM is empty, so the old moveNode/reorderNode
+      // helpers (which look up elements via contentEl.querySelector) silently
+      // bail. Queue mutations directly — the iframe Renderer will rebuild on
+      // the next render cycle. flushNow() ensures any pending writes commit
+      // before our structural change so the queue is consistent.
+      //
+      // Resolve {finalParentId, structuralInsertIndex, insertBeforeId}:
+      //   - `inside`        → new parent = drop target, insert at end
+      //   - `before`/`after`→ new parent = drop target's parent, position
+      //                       computed from sibling index
+      // structuralInsertIndex is FILE-space (template chrome + dragged node
+      // excluded — see resolveLayerDropStructure). visualInsertIndex further
+      // below is CSS-order space (for the order-commit pipeline); under
+      // explicit `order` styles those two diverge — we renumber based on what
+      // the user SAW, and anchor the JSX splice by sibling id so both truths
+      // encode the same slot.
+      const resolved = resolveLayerDropStructure(nodes, { nodeId: indicator.nodeId, position: indicator.position }, draggedId);
+      if (!resolved) return;
+      const { finalParentId, structuralInsertIndex, insertBeforeId } = resolved;
+
+      // Viewport id for this drop = the row's vp prefix (one layer row is
+      // bound to one viewport; the user dragged within that viewport's tree).
+      // We need it to (a) compute the visible-children sort same way the
+      // canvas does, and (b) route order writes via commitOrderAssignments
+      // (primary inline / page replica @container / variant conditional).
+      const dropVpId = indicator.layerId.startsWith('__vp_')
+        ? indicator.layerId.replace('__vp_', '')               // viewport-header drop
+        : (indicator.layerId.split(':')[0] || 'desktop');      // node-row drop
+
+      // If the target parent is a flex container OR an auto-placed grid,
+      // CSS `order` decides paint order. Plain JSX `reorder`/`move` is
+      // invisible whenever ANY sibling already carries an explicit `order`
+      // — the new node lands at the default `order: 0` and stays at the
+      // visual top regardless of where the user dropped. Mirror the
+      // LayoutLiftedStrategy + arrow-nudge pipeline: compute desired visual
+      // order, renumber every child sequentially, route via
+      // commitOrderAssignments. Explicit grid placement
+      // (`gridColumn: '1 / 3'`) ignores `order` — skip in that case
+      // (matches the arrow-nudge guard).
+      // The live layout, or — when the parent is HIDDEN on this viewport and so
+      // has nothing to measure — the one it is authored with.
+      const measuredLayout = detectParentLayoutById(finalParentId, dropVpId);
+      const parentLayout = (measuredLayout === 'flex' || measuredLayout === 'grid')
+        ? measuredLayout
+        : (authoredLayoutOfParent(nodes.get(finalParentId)) ?? measuredLayout);
+      if (parentLayout !== measuredLayout) {
+        trace.action('layers-drag:authored-layout-fallback', { parentId: finalParentId, dropVpId, measuredLayout, parentLayout });
+      }
+      let isOrderedLayout = parentLayout === 'flex';
+      if (parentLayout === 'grid') {
+        const gc = findNodeComputedStyle(finalParentId, dropVpId, 'gridColumn');
+        if (!gc || gc === 'auto' || gc === 'auto / auto') isOrderedLayout = true;
+      }
+      // The layout is read on the DROP viewport, so a parent that is flex only
+      // on ANOTHER band reads as unordered here — a frame `display: none` at
+      // base with `display: flex !important` in an @media rule reads as `none`
+      // on Desktop. The drop then queued a bare JSX reorder while the children
+      // kept their existing `order: 0` / `order: 1`, so the layers panel and the
+      // source moved but the mobile tile did not (user report 2026-09-21).
+      //
+      // The condition the comment above already states is the exact one: a plain
+      // reorder is invisible whenever ANY sibling carries an explicit `order`.
+      // Test that directly instead of inferring it from this viewport's display
+      // — it is true regardless of which band the parent is laid out on, and it
+      // stays false for a parent whose children have no `order` at all (there a
+      // JSX move really is enough).
+      if (!isOrderedLayout && siblingsCarryExplicitOrder(nodes, finalParentId)) {
+        isOrderedLayout = true;
+        trace.action('layers-drag:ordered-by-explicit-order', { parentId: finalParentId, dropVpId, parentLayout });
+      }
+
+      flushNow();
+
+      // ── Canvas-node ↔ tree boundary + replica routing — the SAME rules the
+      // canvas drag strategy uses (CanvasDragStrategy + replica-context). ──
+      const destNode = nodes.get(finalParentId);
+      const destIsCanvas = !!destNode?.isCanvasNode;
+      const sourceIsCanvas = !!draggedNode.isCanvasNode;
+
+      // `canvasNode` flag for the move: true → land in the module-scope
+      // `canvasNodes` fragment, false → land in the page tree (EXIT the
+      // fragment — required when a canvas node enters a viewport, else it's
+      // removed from the fragment but never inserted → lost node / crash),
+      // undefined → ordinary tree↔tree move.
+      const canvasNodeFlag: boolean | undefined =
+        destIsCanvas ? true : (sourceIsCanvas ? false : undefined);
+
+      const moveStyles: Record<string, string> = {};
+      if (sourceIsCanvas && !destIsCanvas) {
+        // Position the entering canvas node by the DESTINATION's layout — NOT
+        // by page-vs-component. `parentLayout` was resolved above for the same
+        // finalParentId + dropVpId.
+        if (parentLayout === 'flex' || parentLayout === 'grid') {
+          // FLEX / GRID container → the node must be a FLOW child to take part
+          // in the layout. An absolute box (position:absolute + left/top) is
+          // OUT of flow, so flex/grid ignores it and it floats over the corner
+          // — the bug. Convert to relative + drop the inset (mirrors
+          // `convertChildToRelative`). The order-commit pipeline below then
+          // slots it at the visual drop index.
+          moveStyles.position = 'relative';
+          moveStyles.left = '';
+          moveStyles.top = '';
+          moveStyles.right = '';
+          moveStyles.bottom = '';
+        } else if (isCompMode) {
+          // Component master with an ABSOLUTE root (children are absolutely
+          // positioned) → keep position:absolute and land it at the variant's
+          // top-left so it's visible — the canvas node's old canvas-space
+          // left/top would resolve relative to the root and land off-screen.
+          moveStyles.position = 'absolute';
+          moveStyles.left = '0px';
+          moveStyles.top = '0px';
+        } else {
+          // Page non-layout container → shed absolute canvas positioning so it
+          // lands as a normal flow child (the layers tree is structural —
+          // "last child", not a floating absolute box).
+          moveStyles.position = '';
+          moveStyles.left = '';
+          moveStyles.top = '';
+        }
+      }
+      // ── NO-LAYOUT DESTINATION → the child MUST be absolute-in-frame ──
+      // A frame with neither flex nor grid positions its children by PINS. A
+      // `relative` (or static) child there has no anchors at all, so it stacks at
+      // the parent's top-left in source order — never where the drop meant. This
+      // block previously only ran for `sourceIsCanvas`, so a TREE→TREE drop (a
+      // node already in the viewport dragged into a no-layout frame) kept
+      // `position: relative` and produced exactly that (live find 2026-07-25).
+      //
+      // Same rule the paste engine already enforces — `fixupPositionForParent`:
+      // "No-layout parent → ALL children must be absolute-in-frame". Centre the
+      // node in the destination so it lands visibly where the user aimed;
+      // computed width/height are CSS px (unscaled), so no canvas-zoom math. A
+      // cold cache reads 0 → fall back to the 0,0 anchors `ensureDefaultAnchors`
+      // uses, which is still a valid pin.
+      const destHasLayout = parentLayout === 'flex' || parentLayout === 'grid';
+      if (!destHasLayout) {
+        const pcs = findNodeComputedStyles(finalParentId, dropVpId, ['width', 'height']);
+        const ncs = findNodeComputedStyles(draggedId, dropVpId, ['width', 'height']);
+        const pw = parseFloat(pcs.width) || 0;
+        const ph = parseFloat(pcs.height) || 0;
+        const nw = parseFloat(ncs.width) || 0;
+        const nh = parseFloat(ncs.height) || 0;
+        moveStyles.position = 'absolute';
+        moveStyles.left = `${Math.max(0, Math.round((pw - nw) / 2))}px`;
+        moveStyles.top = `${Math.max(0, Math.round((ph - nh) / 2))}px`;
+        // Clear the OTHER axis anchors: keeping a stale `right`/`bottom` next to
+        // the new left/top pins both edges and stretches the node.
+        moveStyles.right = '';
+        moveStyles.bottom = '';
+        trace.action('layers:drop-into-no-layout-absolute', {
+          draggedId, finalParentId, dropVpId, parentLayout,
+          left: moveStyles.left, top: moveStyles.top, pw, ph, nw, nh,
+        });
+      }
+
+      // Any node entering a FLEX parent must be pinned to `0 0 auto` unless it
+      // already sizes itself — a flow child with no explicit flex defaults to
+      // shrink:1 and collapses to ~0 (the "disappears on drop into a flex
+      // layout" bug). Applies to BOTH canvas nodes and tree rows dragged into a
+      // flex child (drop `inside` OR before/after a flex sibling).
+      // `fixed` never survives a reparent into a frame — see the helper. Only
+      // when no earlier branch already decided the position (canvas-source
+      // flow entry / no-layout absolute both take precedence).
+      const fixedFix = positionFixupForLayersReparent(draggedNode.styles, parentLayout);
+      if (fixedFix && !('position' in moveStyles)) {
+        Object.assign(moveStyles, fixedFix);
+        trace.action('layers:drop-position-fixup', { draggedId, finalParentId, dropVpId, parentLayout, fix: fixedFix });
+      }
+      // Out-of-flow children (absolute/fixed) don't take part in flex layout —
+      // don't stamp inert `flex` on them.
+      const effectivePosition = moveStyles.position !== undefined ? moveStyles.position : (draggedNode.styles?.position ?? '');
+      const outOfFlow = effectivePosition === 'absolute' || effectivePosition === 'fixed';
+      const enterFlex = outOfFlow ? null : flexForFlowChildEnteringFlex(draggedNode.styles, parentLayout);
+      if (enterFlex) moveStyles.flex = enterFlex;
+      // A canvas node (present in NO viewport) entering a NON-PRIMARY page
+      // replica should appear ONLY there — same as the canvas drag. Hide it on
+      // the base here; the entered viewport's `@container` unhides it below. (A
+      // normal tree node is already shared across every viewport — a structural
+      // reorder must NOT silently hide it elsewhere, so it's excluded.)
+      const enteringReplica = sourceIsCanvas && !isPrimaryViewport(dropVpId) && !isCompMode && !destIsCanvas;
+      if (enteringReplica) moveStyles.display = 'none';
+      // Component-master equivalent: a canvas node dropped onto a NON-PRIMARY
+      // VARIANT header is isolated to that variant via setVariantVisibility
+      // (AnimatePresence conditional render — see variant-visibility-gen). NO
+      // inline display:none here: on a component file that freezes into
+      // `variants.default`; the variant system owns visibility. Mirrors the
+      // canvas drag's hideInAllOthers branch for component files. Dropping onto
+      // the PRIMARY (default) variant keeps it as the shared base (shows in all
+      // variants), exactly like dropping into a primary page viewport.
+      const enteringVariant = sourceIsCanvas && !isPrimaryViewport(dropVpId) && isCompMode && !destIsCanvas;
+
+      const moveExtras = {
+        ...(Object.keys(moveStyles).length > 0 ? { styles: moveStyles } : {}),
+        ...(canvasNodeFlag !== undefined ? { canvasNode: canvasNodeFlag } : {}),
+        // Anchor the JSX splice by sibling id — immune to every index-space
+        // divergence (CSS `order`, `<style>` children). Same contract the
+        // canvas drag uses (CanvasDragStrategy → moveNodeInCode).
+        ...(insertBeforeId ? { insertBeforeId } : {}),
+      };
+
+      // Structural mutation always runs — keeps JSX coherent for the parser,
+      // codegen, and undo/redo even when CSS `order` does the visible work.
+      if (indicator.position === 'inside') {
+        // Pass the explicit end index. Moving to the page root ('root') with
+        // NO index hits moveNodeInCode's "exit to canvas" special case
+        // (isMovingToRoot) and re-stamps `data-canvas-node` — turning the node
+        // into a canvas node instead of a child. An index = child insert.
+        queueMutation({ type: 'move', nodeId: draggedId, newParentId: finalParentId, index: structuralInsertIndex, ...moveExtras });
+      } else if (draggedNode.parentId === finalParentId) {
+        queueMutation({ type: 'reorder', nodeId: draggedId, parentId: finalParentId, index: structuralInsertIndex });
+      } else {
+        queueMutation({ type: 'move', nodeId: draggedId, newParentId: finalParentId, index: structuralInsertIndex, ...moveExtras });
+      }
+
+      // Replica visibility — a canvas node entering a non-primary viewport
+      // shows ONLY there. Same sequence as the canvas drag entry:
+      //   1. base inline `display:'none'` (set in moveStyles above) hides it
+      //      on every viewport by default,
+      //   2. RESTORE its natural display in the entered viewport's @container
+      //      (NOT '' — that just clears the override and the base none then
+      //      hides it everywhere, the bug we're fixing) so it shows there,
+      //   3. explicit @container hide on every OTHER replica (primary already
+      //      covered by the inline none), and
+      //   4. a `data-replica-solo` marker so later edits on this vp author the
+      //      base values until it's unhidden elsewhere.
+      if (enteringReplica) {
+        const enteredVpWidth = vpWidths[dropVpId] ?? vpConfigs.find(v => v.id === dropVpId)?.width ?? 0;
+        // An instance restores the master ROOT's display (never `unset`, which
+        // collapses its canvas wrapper to inline) — see instance-replica-visibility.ts.
+        const unhideDisplay = isInstanceLike(draggedNode)
+          ? instanceReplicaUnhideDisplay(draggedNode, nodes)
+          : (draggedNode.styles?.display ?? '');
+        queueReplicaCreationUnhide(draggedId, dropVpId, enteredVpWidth, unhideDisplay);
+        const rctx = getReplicaContext(dropVpId, activeFilePath, vpWidths);
+        for (const hideUpdate of rctx.hideInAllOthers(draggedId)) {
+          if (hideUpdate.type === 'updateContainerStyle') {
+            const tgt = Object.keys(vpWidths).find(k => vpWidths[k] === hideUpdate.maxWidth);
+            if (tgt && isPrimaryViewport(tgt)) continue; // inline display:none covers primary
+          }
+          queueMutation(hideUpdate as any);
+        }
+        queueMutation({ type: 'updateHtmlAttrs', nodeId: draggedId, attrs: { 'data-replica-solo': dropVpId } });
+      }
+
+      // Component-master variant isolation. The move above inserted the canvas
+      // node into the component tree (shared by ALL variants); now restrict it
+      // to the dropped variant by hiding it in every OTHER variant. The replica
+      // context emits a single `setVariantVisibility` (AnimatePresence wrap) for
+      // component files — the exact mutation the canvas drag uses.
+      if (enteringVariant) {
+        const rctx = getReplicaContext(dropVpId, activeFilePath, vpWidths);
+        for (const hideUpdate of rctx.hideInAllOthers(draggedId)) {
+          queueMutation(hideUpdate as any);
+        }
+        trace.action('layers:drop-canvas-into-variant', { draggedId, variant: dropVpId });
+      }
+
+      if (isOrderedLayout) {
+        // Build desired visual order. The current visual order comes from
+        // the bridge rect cache (same source LayoutLiftedStrategy and
+        // arrow-nudge use), sorted on the parent's primary axis. Remove
+        // the dragged id if it's already a child of finalParentId, then
+        // insert it at the user-visible drop slot.
+        const flexDir = getFlexDirectionById(finalParentId, dropVpId);
+        // ORDER THE SIBLINGS THE WAY THE TREE DOES — not by rect.
+        //
+        // The drop indicator is a TREE concept ("before this row"), so the
+        // sequence the commit renumbers has to be the sequence the tree shows,
+        // or "before X" means two different things on the two sides.
+        //
+        // Rects cannot supply that. A child hidden for this viewport/variant
+        // still has a cache entry, as a 0x0 rect parked at the parent's origin,
+        // so it sorts FIRST on either axis regardless of its authored `order`.
+        // It then takes slot 0 and shifts every real sibling down one: the
+        // reported bug was a hidden "Hamburger Menu Button" (order 1, between
+        // two visible siblings) silently renumbered to 0 while the dragged node
+        // landed back where it started — the drag appeared to do nothing, and
+        // the only node that actually moved was the invisible one.
+        //
+        // `sortChildrenByVisualOrder` is the layers tree's OWN sort: effective
+        // `order` per viewport/variant, JSX index as tie-break. Sorting by
+        // effective order is not an approximation of the render order — it is
+        // how flex computes it — so this is both more correct than the rect
+        // proxy and identical to the tree by construction.
+        const parentNode = nodes.get(finalParentId);
+        const currentVisualIds = (parentNode
+          ? sortChildrenByVisualOrder(
+              parentNode, parentNode.children, dropVpId, nodes, vpConfigs,
+              getDefaultStore().get(containerOverridesAtom), isCompMode,
+            )
+          : findChildRects(finalParentId, dropVpId)
+              .slice()
+              .sort((a, b) => flexDir === 'row' ? a.rect.left - b.rect.left : a.rect.top - b.rect.top)
+              .map(c => c.id)
+        ).filter(id => !id.startsWith('layout::'));
+
+        const withoutDragged = currentVisualIds.filter(id => id !== draggedId);
+
+        // visualInsertIndex: for `inside`, append; for `before`/`after`,
+        // anchor relative to the target id's position in the CURRENT visual
+        // order (NOT the JSX index — under CSS `order` they may differ).
+        let visualInsertIndex: number;
+        if (indicator.position === 'inside') {
+          visualInsertIndex = withoutDragged.length;
+        } else {
+          const targetVisualIndex = withoutDragged.indexOf(indicator.nodeId);
+          if (targetVisualIndex === -1) {
+            // Indicator node isn't a visible child (e.g. hidden by display:none
+            // for this viewport, or filtered as layout::). Fall back to
+            // structural index — at least the JSX reorder lands somewhere.
+            visualInsertIndex = withoutDragged.length;
+          } else {
+            visualInsertIndex = indicator.position === 'after' ? targetVisualIndex + 1 : targetVisualIndex;
+          }
+        }
+
+        const desired = [
+          ...withoutDragged.slice(0, visualInsertIndex),
+          draggedId,
+          ...withoutDragged.slice(visualInsertIndex),
+        ];
+
+        const assignments = computeReorderAssignments(desired);
+        // The `default` branch of the per-variant order ternary must PRESERVE the
+        // PRIMARY tile's order. Read the DEFAULT tile's current visual order — NOT
+        // `currentVisualIds`, which is the VARIANT tile being reordered: once the
+        // variant's order diverges from the primary, using it makes the default
+        // branch MIRROR the variant → the primary syncs to it on every drag (the
+        // reported bug: `order: … ? 2 : 3` / `? 3 : 2` swapped the primary too).
+        // Only the component-variant commit branch consumes this; a primary or
+        // page-replica reorder leaves it undefined (its branch doesn't use it).
+        let defaultOrders: Map<string, number> | undefined;
+        if (isCompMode && !isPrimaryViewport(dropVpId)) {
+          // Same tree ordering as above — the default tile's sequence is read
+          // for exactly the same reason and would be corrupted by a hidden
+          // sibling's 0x0 rect in exactly the same way.
+          const primaryParent = nodes.get(finalParentId);
+          const primaryVisualIds = (primaryParent
+            ? sortChildrenByVisualOrder(
+                primaryParent, primaryParent.children, 'default', nodes, vpConfigs,
+                getDefaultStore().get(containerOverridesAtom), isCompMode,
+              )
+            : findChildRects(finalParentId, 'default')
+                .slice()
+                .sort((a, b) => flexDir === 'row' ? a.rect.left - b.rect.left : a.rect.top - b.rect.top)
+                .map(c => c.id)
+          ).filter(id => !id.startsWith('layout::'));
+          if (primaryVisualIds.length > 0) {
+            defaultOrders = new Map(primaryVisualIds.map((id, i) => [id, i] as const));
+          }
+        }
+        const updates = commitOrderAssignments(assignments, contentEl, dropVpId, defaultOrders);
+        // Viewports with an INDEPENDENT @media order map for this parent need
+        // their own band write for the inserted node, or its base order is
+        // evaluated inside a foreign numbering and it lands anywhere — the
+        // same "tablet jumped way above" class the canvas drag fixed via
+        // computeReplicaOrderMirrorUpdates. Page files only: a component
+        // master's per-variant order lives in variant ternaries, not bands.
+        const mirrorUpdates = isCompMode ? [] : computeReplicaOrderMirrorUpdates({
+          draggedIds: [draggedId],
+          desiredVisualOrder: desired,
+          getNodeStyles: (id) => nodes.get(id)?.styles,
+          overrides: getDefaultStore().get(containerOverridesAtom),
+          vpWidths,
+          dropVpId,
+        });
+        trace.action('layers:drop-order-commit', {
+          finalParentId, dropVpId, flexDir, visualInsertIndex, desired,
+          updateCount: updates.length, mirrorCount: mirrorUpdates.length,
+        });
+        queuePendingUpdates([...updates, ...mirrorUpdates]);
+      }
+
+      // FORCE THE RENDER. A Layers-panel drop only queues mutations — unlike a
+      // CANVAS drag it never patches the DOM imperatively, so the render-skip
+      // that path depends on leaves the reorder invisible: the code is right, the
+      // canvas is stale until a page switch or reload rebuilds it (the reported
+      // bug). `move`/`reorder` are structural, so they aren't in the
+      // render-resolved set `onBeforeFlush` consults either. Live find
+      // 2026-07-25.
+      forceRenderAfterExternalEdit('layers-panel:drop', {
+        draggedId, finalParentId, dropVpId, position: indicator.position,
+      });
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+/** Does any child of this parent carry an explicit CSS `order`?
+ *
+ *  When one does, paint order is decided by `order` and a plain JSX reorder
+ *  changes nothing visible — so the drop has to renumber. Checked independently
+ *  of the drop viewport's computed display, because a parent can be laid out on
+ *  a band this viewport does not show (hidden at base, flex in an @media rule).
+ *  Reads the node tree, not the DOM: on the viewport where the parent is hidden
+ *  there is nothing laid out to measure. */
+export function siblingsCarryExplicitOrder(nodes: Map<string, CanvasNode>, parentId: string | null): boolean {
+  if (!parentId) return false;
+  const parent = nodes.get(parentId);
+  if (!parent) return false;
+  for (const childId of parent.children) {
+    const v = nodes.get(childId)?.styles?.order;
+    if (v != null && String(v).trim() !== '') return true;
+  }
+  return false;
+}
+
+/** The layout a parent is AUTHORED with, when the live one can't be measured.
+ *
+ *  `detectParentLayoutById` reads the computed display, so a frame hidden on the
+ *  drop viewport reports `none`/`absolute` and a drop into it took the
+ *  no-layout branch: the child was stamped `position: absolute` with pins, and
+ *  stayed absolute after the frame was unhidden (user report 2026-09-21).
+ *
+ *  Hiding only swaps `display`; the layout properties stay on the node, which is
+ *  what lets unhide restore the frame intact. So they are a reliable record of
+ *  what the frame IS. Only the layout-defining properties count —
+ *  `flexDirection` / `gridTemplate*` / `gridAutoFlow` — never `gap` or
+ *  `alignItems` alone, which a block frame can legitimately carry. */
+export function authoredLayoutOfParent(parent: CanvasNode | null | undefined): 'flex' | 'grid' | null {
+  const st = parent?.styles;
+  if (!st) return null;
+  const display = (st.display || '').trim();
+  if (display === 'flex' || display === 'inline-flex') return 'flex';
+  if (display === 'grid' || display === 'inline-grid') return 'grid';
+  // Only fall back to the authored props when the frame isn't laid out at all
+  // — a real `display: block` frame must stay a no-layout destination.
+  if (display !== 'none' && display !== '') return null;
+  const has = (k: string) => !!st[k] && st[k].trim() !== '';
+  if (has('gridTemplateColumns') || has('gridTemplateRows') || has('gridAutoFlow')) return 'grid';
+  if (has('flexDirection')) return 'flex';
+  return null;
+}
