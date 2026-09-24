@@ -65,17 +65,35 @@ describe('Figma inspector contract', () => {
     expect(tabs).toContain('Prototype');
   });
 
-  it('keeps Position compact and moves constraints out of the main stack', () => {
+  it('keeps Position compact and uses Figma transform/constraint motifs', () => {
     const size = read('src/editor/tools/SizeTool.tsx');
     const position = read('src/editor/tools/PositionTool/index.tsx');
     const alignment = read('src/editor/tools/PositionTool/AlignmentControl.tsx');
+    const pins = read('src/editor/tools/PositionTool/PinControl.tsx');
+    const rotate = read('src/editor/tools/StylesTool/atoms/RotateControl.tsx');
     expect(size).toContain('data-layout-clip-content');
     expect(size).toContain('Clip content');
-    expect(position).toContain('title="Constraints"');
     expect(position).toContain('<ToolPopup');
+    expect(position).toContain('<PinControl');
+    expect(position).toContain('compact');
     expect(position).toContain('<RotateControl compact />');
     expect(position).toContain('updatePositionCoord');
     expect(alignment).toContain('data-position-alignment-groups');
+    expect(pins).toContain('data-figma-constraints');
+    expect(rotate).toContain('data-position-transform-row');
+    expect(rotate).toContain('Flip horizontal');
+    expect(rotate).toContain('Flip vertical');
+    expect(rotate).toContain('Rotate 90°');
+  });
+
+  it('uses the shared compact control motif in Auto layout', () => {
+    const layout = read('src/editor/tools/LayoutTool.tsx');
+    const motif = read('src/editor/controls/InspectorIconButtonGroup.tsx');
+    expect(motif).toContain('data-inspector-icon-group');
+    expect(layout).toContain('ariaLabel="Auto layout mode"');
+    expect(layout).toContain('data-auto-layout-alignment');
+    expect(layout).not.toContain('ControlLabel label="Direction"');
+    expect(layout).not.toContain('ControlLabel label="Wrap"');
   });
 
   it('mounts core appearance separately from advanced web controls', () => {

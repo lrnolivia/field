@@ -14,7 +14,7 @@
 // Read path: parses the rotate value out of the inner shape's transform
 // attribute (SVG shapes) or the CSS transform string (everything else).
 
-import { ToolSlider, ToolInput } from '../../../controls';
+import { ToolSlider, ToolInput, InspectorIconButtonGroup } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import { useControl } from '../../../controls/ControlProvider';
 import type { AtomProps } from '../../../controls/unified/types';
@@ -28,6 +28,45 @@ import { isComponentFilePath } from '@/code/project/active-file-store';
 import { parseSvgRotate, mergeSvgRotate, svgPivotStyles, commitVariantRotation, applyVariantRotatePreviewBase } from '@/canvas/resize/RotateManager';
 import { composeTransformWithRotate } from '@/shared/motion-transform';
 import { useRef } from 'react';
+
+/** Replace only the 2D rotate() function while preserving every other
+ * transform function and its order. This keeps Position rotation from
+ * destroying scale/skew/translate authored elsewhere. */
+export function replaceCssRotate(transform: string | undefined, degrees: number): string {
+  const raw = !transform || transform === 'none' ? '' : transform.trim();
+  const re = /rotate\(\s*-?[\d.]+\s*(?:deg|rad|turn)?\s*\)/i;
+  if (re.test(raw)) {
+    return raw.replace(re, degrees === 0 ? '' : `rotate(${degrees}deg)`).replace(/\s+/g, ' ').trim();
+  }
+  return [raw, degrees === 0 ? '' : `rotate(${degrees}deg)`].filter(Boolean).join(' ');
+}
+
+/** Toggle a local-axis flip without flattening the rest of the transform.
+ * Existing scaleX/scaleY values are sign-flipped in place. A uniform scale()
+ * becomes a two-axis scale so the untouched axis keeps its magnitude. */
+export function toggleCssAxisFlip(transform: string | undefined, axis: 'x' | 'y'): string {
+  const raw = !transform || transform === 'none' ? '' : transform.trim();
+  const axisFn = axis === 'x' ? 'scaleX' : 'scaleY';
+  const axisRe = new RegExp(`${axisFn}\\(\\s*(-?[\\d.]+)\\s*\\)`, 'i');
+  const axisMatch = raw.match(axisRe);
+  if (axisMatch) {
+    const next = -(parseFloat(axisMatch[1]) || 1);
+    return raw.replace(axisRe, Math.abs(next - 1) < 1e-9 ? '' : `${axisFn}(${next})`).replace(/\s+/g, ' ').trim();
+  }
+
+  const scaleRe = /scale\(\s*(-?[\d.]+)(?:\s*,\s*(-?[\d.]+))?\s*\)/i;
+  const scaleMatch = raw.match(scaleRe);
+  if (scaleMatch) {
+    const sx = parseFloat(scaleMatch[1]) || 1;
+    const sy = parseFloat(scaleMatch[2] ?? scaleMatch[1]) || 1;
+    const nx = axis === 'x' ? -sx : sx;
+    const ny = axis === 'y' ? -sy : sy;
+    const replacement = nx === 1 && ny === 1 ? '' : `scale(${nx}, ${ny})`;
+    return raw.replace(scaleRe, replacement).replace(/\s+/g, ' ').trim();
+  }
+
+  return [raw, `${axisFn}(-1)`].filter(Boolean).join(' ');
+}
 
 /** Extract the degree value from a CSS transform string like
  *  `rotate(72deg)` / `rotate(72)` / `matrix(...)`. Returns 0 when no
@@ -232,7 +271,7 @@ function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
         });
       } else {
         updateMultipleStyles({
-          transform: `rotate(${n}deg)`,
+          transform: replaceCssRotate(node?.styles?.transform || value || '', n),
           transformOrigin: '50% 50%',
         });
       }
@@ -250,9 +289,36 @@ function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
     write(n);
   };
   const shownNum = liveRotate ?? num;
+
+  const rotateQuarterTurn = () => write(((shownNum + 90) % 360 + 360) % 360);
+  const flipAxis = (axis: 'x' | 'y') => {
+    const activeFile = getActiveFilePath();
+    const isMotionElement = !!node && (isComponentFilePath(activeFile) || !!node.motionVariants || !!(node as any).motionVariantsRef);
+    if (isMotionElement) {
+      const uniform = parseFloat(String((allProps as any).scale ?? ''));
+      const sx = parseFloat(String((allProps as any).scaleX ?? ''));
+      const sy = parseFloat(String((allProps as any).scaleY ?? ''));
+      const currentX = Number.isFinite(sx) ? sx : Number.isFinite(uniform) ? uniform : 1;
+      const currentY = Number.isFinite(sy) ? sy : Number.isFinite(uniform) ? uniform : 1;
+      onChangeMultiple({
+        scale: '',
+        scaleX: String(axis === 'x' ? -currentX : currentX),
+        scaleY: String(axis === 'y' ? -currentY : currentY),
+      });
+      return;
+    }
+    const next = toggleCssAxisFlip(node?.styles?.transform || value || '', axis);
+    updateMultipleStyles({
+      transform: next,
+      ...(node?.type === 'svg'
+        ? (nodeId ? svgPivotStyles(nodeId, vpId) : { transformBox: 'fill-box', transformOrigin: 'center' })
+        : { transformOrigin: '50% 50%' }),
+    });
+  };
+
   if (compact) {
     return (
-      <div data-position-rotation className="grid grid-cols-2 gap-1 w-full">
+      <div data-position-transform-row className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 w-full">
         <ToolInput
           value={String(Math.round(shownNum * 10) / 10)}
           onChange={writeRaw}
@@ -260,7 +326,29 @@ function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
           chevronLabel="°"
           ariaLabel="Rotation"
         />
-        <div />
+        <InspectorIconButtonGroup
+          ariaLabel="Transform actions"
+          buttons={[
+            {
+              id: 'rotate-90',
+              title: 'Rotate 90°',
+              onClick: rotateQuarterTurn,
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M12.5 6.25A5 5 0 1 0 13 9" /><path d="M10.5 3.5h3v3" /><rect x="5.25" y="5.25" width="5.5" height="5.5" transform="rotate(45 8 8)" /></svg>,
+            },
+            {
+              id: 'flip-horizontal',
+              title: 'Flip horizontal',
+              onClick: () => flipAxis('x'),
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v12" /><path d="M2.5 5.5 6 8l-3.5 2.5z" /><path d="M13.5 5.5 10 8l3.5 2.5z" /></svg>,
+            },
+            {
+              id: 'flip-vertical',
+              title: 'Flip vertical',
+              onClick: () => flipAxis('y'),
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h12" /><path d="M5.5 2.5 8 6l2.5-3.5z" /><path d="M5.5 13.5 8 10l2.5 3.5z" /></svg>,
+            },
+          ]}
+        />
       </div>
     );
   }

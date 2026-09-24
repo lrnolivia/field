@@ -62,9 +62,9 @@ function ConstraintsAction({ nodeId, vpId, position, styles, showPins, onUpdate,
       <ToolPopup
         isOpen={open}
         onClose={() => setOpen(false)}
-        title="Constraints"
+        title={showPins ? 'Constraints' : 'Position'}
         anchorRef={anchorRef}
-        width={320}
+        width={showPins ? 280 : 240}
         resetKey={nodeId}
       >
         <div className="flex flex-col gap-3 p-2">
@@ -77,6 +77,7 @@ function ConstraintsAction({ nodeId, vpId, position, styles, showPins, onUpdate,
           />
           {showPins && (
             <PinControl
+              compact
               styles={styles}
               nodeId={nodeId}
               vpId={vpId}

@@ -11,7 +11,7 @@ import { useAtomValue } from 'jotai';
 import { canvasInteractingAtom, getNodeFromCache } from '@/code/stores/store';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { viewportsConfigAtom } from '@/code/stores/viewport-store';
-import { ToolInput } from '../../controls';
+import { ToolInput, InspectorIconButtonGroup } from '../../controls';
 import { getPinState, mergeVariantPinStyles, type PinSide } from '@/shared/pin-utils';
 import { isPrimaryViewport } from '@/shared/constants';
 import { type VisualRect, toPercentageCenter, toFixedPin, toInsetMode, fromInsetMode, stripTranslateTransforms, buildAxisCenterTransform, centeringChannel, extractAxisTranslate } from '@/shared/position-utils';
@@ -41,9 +41,10 @@ interface Props {
   vpId: string;
   onUpdate: (key: string, value: string) => void;
   onUpdateMultiple: (styles: Record<string, string>) => void;
+  compact?: boolean;
 }
 
-export default function PinControl({ styles, nodeId, vpId, onUpdate, onUpdateMultiple }: Props) {
+export default function PinControl({ styles, nodeId, vpId, onUpdate, onUpdateMultiple, compact = false }: Props) {
   const isInteracting = useAtomValue(canvasInteractingAtom);
   const containerOverrides = useAtomValue(containerOverridesAtom);
   const viewportsConfig = useAtomValue(viewportsConfigAtom);
@@ -428,6 +429,98 @@ export default function PinControl({ styles, nodeId, vpId, onUpdate, onUpdateMul
     writeField(side, value, true);
     gesture.current = null;
   }, [writeField]);
+
+  type AxisMode = 'start' | 'center' | 'end' | 'stretch';
+
+  const horizontalMode: AxisMode = pins.left && pins.right ? 'stretch' : pins.left ? 'start' : pins.right ? 'end' : 'center';
+  const verticalMode: AxisMode = pins.top && pins.bottom ? 'stretch' : pins.top ? 'start' : pins.bottom ? 'end' : 'center';
+
+  const setAxisConstraint = useCallback((axis: 'horizontal' | 'vertical', mode: AxisMode) => {
+    const rect = captureRectViaBridge();
+    if (!rect) return;
+    const horiz = axis === 'horizontal';
+    const startSide: PinSide = horiz ? 'left' : 'top';
+    const endSide: PinSide = horiz ? 'right' : 'bottom';
+    const dimension = horiz ? 'width' : 'height';
+    const mainSide = horiz ? 'left' : 'top';
+    const centerPct = horiz ? rect.centerXPercent : rect.centerYPercent;
+    const otherAxisPct = horiz ? styles.top?.includes('%') : styles.left?.includes('%');
+    const visualTransforms = stripTranslateTransforms(styles.transform);
+    const otherTranslate = extractAxisTranslate(styles.transform, horiz ? 'y' : 'x');
+    const withoutThisAxisCenter = [otherAxisPct ? otherTranslate : '', visualTransforms].filter(Boolean).join(' ');
+
+    let next: Record<string, string>;
+    if (mode === 'stretch') {
+      next = {
+        ...toInsetMode(axis, rect),
+        transform: withoutThisAxisCenter,
+      };
+    } else if (mode === 'center') {
+      next = {
+        [startSide]: '',
+        [endSide]: '',
+        [mainSide]: `${centerPct.toFixed(4)}%`,
+        [dimension]: `${Math.round(horiz ? rect.width : rect.height)}px`,
+        transform: buildAxisCenterTransform(horiz ? 'x' : 'y', styles.transform),
+      };
+    } else {
+      const side = mode === 'start' ? startSide : endSide;
+      next = {
+        ...toFixedPin(side, rect),
+        [mode === 'start' ? endSide : startSide]: '',
+        [dimension]: `${Math.round(horiz ? rect.width : rect.height)}px`,
+        transform: withoutThisAxisCenter,
+      };
+    }
+
+    next = applyReplicaClearSemantics(nodeId, vpId, next);
+    if (centeringChannel(styles) === 'shorthand' && typeof next.transform === 'string') {
+      const axisKey = horiz ? 'x' : 'y';
+      const part = extractAxisTranslate(next.transform, axisKey);
+      next[axisKey] = part ? part.replace(/^translate[XY]\(\s*|\s*\)$/g, '') : '';
+      const visuals = stripTranslateTransforms(next.transform);
+      if (visuals) next.transform = visuals; else delete next.transform;
+    }
+    onUpdateMultiple(next);
+    lockNodePinning(nodeId);
+    trace.action('pin:set-axis-constraint', { nodeId, axis, mode, next });
+  }, [captureRectViaBridge, styles, nodeId, vpId, onUpdateMultiple]);
+
+  if (compact) {
+    const constraintIcon = (axis: 'horizontal' | 'vertical', mode: AxisMode) => {
+      const horizontal = axis === 'horizontal';
+      const line = horizontal
+        ? <path d="M2.5 8h11" />
+        : <path d="M8 2.5v11" />;
+      if (mode === 'center') return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">{line}<circle cx="8" cy="8" r="2.5" /></svg>;
+      if (mode === 'stretch') return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">{horizontal ? <><path d="M2.5 3v10M13.5 3v10" /><path d="M4.5 8h7" /></> : <><path d="M3 2.5h10M3 13.5h10" /><path d="M8 4.5v7" /></>}</svg>;
+      if (horizontal) return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25"><path d={mode === 'start' ? 'M3 2.5v11M5.5 8h6' : 'M13 2.5v11M4.5 8h6'} /></svg>;
+      return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25"><path d={mode === 'start' ? 'M2.5 3h11M8 5.5v6' : 'M2.5 13h11M8 4.5v6'} /></svg>;
+    };
+
+    const row = (axis: 'horizontal' | 'vertical', value: AxisMode) => (
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2 items-center">
+        <span className="text-[11px] text-[var(--text-secondary)]">{axis === 'horizontal' ? 'Horizontal' : 'Vertical'}</span>
+        <InspectorIconButtonGroup
+          ariaLabel={`${axis} constraints`}
+          buttons={(['start', 'center', 'end', 'stretch'] as AxisMode[]).map(mode => ({
+            id: mode,
+            title: mode === 'start' ? (axis === 'horizontal' ? 'Left' : 'Top') : mode === 'end' ? (axis === 'horizontal' ? 'Right' : 'Bottom') : mode === 'center' ? 'Center' : 'Stretch',
+            active: value === mode,
+            onClick: () => setAxisConstraint(axis, mode),
+            icon: constraintIcon(axis, mode),
+          }))}
+        />
+      </div>
+    );
+
+    return (
+      <div data-figma-constraints className="flex flex-col gap-2">
+        {row('horizontal', horizontalMode)}
+        {row('vertical', verticalMode)}
+      </div>
+    );
+  }
 
   // Pin button component
   const PinBtn = ({ side }: { side: PinSide }) => {

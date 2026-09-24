@@ -11,6 +11,7 @@ export { default as ToolSwitch } from './ToolSwitch';
 export { default as ToolSlider } from './ToolSlider';
 export { default as ToolSegmentedControl } from './ToolSegmentedControl';
 export { default as InspectorModeTabs } from './InspectorModeTabs';
+export { default as InspectorIconButtonGroup } from './InspectorIconButtonGroup';
 export { default as ToolPlusMinus } from './ToolPlusMinus';
 export { default as ToolTextArea } from './ToolTextArea';
 export { default as SpacingControl } from './SpacingControl';

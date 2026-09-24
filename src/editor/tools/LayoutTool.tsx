@@ -5,7 +5,7 @@
 
 import { useCallback, useState, useRef, type ReactNode } from 'react';
 import { CSS_LAYOUT_DEFAULTS } from '@/shared/constants';
-import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, ToolSlider, StyleField, ControlLabel, ControlActionRow, ColorSwatch } from '../controls';
+import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, ToolSlider, StyleField, ControlLabel, ControlActionRow, ColorSwatch, InspectorIconButtonGroup } from '../controls';
 import { PaddingControl } from './StylesTool/atoms';
 import ColorInput from '../controls/ColorInput';
 import { LegacyVariableBoundPill } from '../controls/VariableBoundPill';
@@ -1222,6 +1222,90 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
   }, [nodeId, onUpdate]);
 
 
+  type AutoLayoutMode = 'column' | 'row' | 'wrap' | 'grid';
+  const autoLayoutMode: AutoLayoutMode = hasGrid ? 'grid' : styles.flexWrap === 'wrap' ? 'wrap' : flexDirection;
+
+  const handleAutoLayoutMode = useCallback((mode: string) => {
+    const next = mode as AutoLayoutMode;
+    if (next === 'grid') {
+      handleTypeChange('grid');
+      return;
+    }
+    if (hasGrid) handleTypeChange('flex');
+    const nextDirection = next === 'column' ? 'column' : 'row';
+    if (flexDirection !== nextDirection) handleDirectionChange(nextDirection);
+    const nextWrap = next === 'wrap' ? 'wrap' : 'nowrap';
+    if ((styles.flexWrap === 'wrap' ? 'wrap' : 'nowrap') !== nextWrap) handleWrapChange(nextWrap);
+  }, [hasGrid, handleTypeChange, flexDirection, handleDirectionChange, styles.flexWrap, handleWrapChange]);
+
+  const normalizeAlign = (v: string | undefined): 'flex-start' | 'center' | 'flex-end' =>
+    v === 'center' ? 'center' : v === 'flex-end' ? 'flex-end' : 'flex-start';
+  const matrixX = flexDirection === 'row'
+    ? normalizeAlign(styles.justifyContent)
+    : normalizeAlign(styles.alignItems);
+  const matrixY = flexDirection === 'row'
+    ? normalizeAlign(styles.alignItems)
+    : normalizeAlign(styles.justifyContent);
+
+  const setAlignmentCell = (x: 'flex-start' | 'center' | 'flex-end', y: 'flex-start' | 'center' | 'flex-end') => {
+    if (flexDirection === 'row') onUpdateMultiple({ justifyContent: x, alignItems: y });
+    else onUpdateMultiple({ alignItems: x, justifyContent: y });
+    flushNow();
+  };
+
+  const modeButtons = [
+    {
+      id: 'wrap', title: 'Wrap',
+      icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"><circle cx="4" cy="4" r="1.5" /><circle cx="9" cy="4" r="1.5" /><circle cx="4" cy="9" r="1.5" /><path d="M10.5 9H13V6.5" /></svg>,
+    },
+    {
+      id: 'column', title: 'Vertical',
+      icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2.5v10" /><path d="m5.5 10 2.5 2.5 2.5-2.5" /><path d="M3 3.5h2M3 7h2" /></svg>,
+    },
+    {
+      id: 'row', title: 'Horizontal',
+      icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 8h10" /><path d="m10 5.5 2.5 2.5-2.5 2.5" /><path d="M3.5 3v2M7 3v2" /></svg>,
+    },
+    {
+      id: 'grid', title: 'Grid',
+      icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25"><rect x="2.75" y="2.75" width="3.5" height="3.5" rx=".75" /><rect x="9.75" y="2.75" width="3.5" height="3.5" rx=".75" /><rect x="2.75" y="9.75" width="3.5" height="3.5" rx=".75" /><rect x="9.75" y="9.75" width="3.5" height="3.5" rx=".75" /></svg>,
+    },
+  ] as const;
+
+  const alignmentMatrix = !hasGrid ? (
+    <div data-auto-layout-alignment className="grid grid-cols-[minmax(0,1fr)_112px] gap-2 items-start">
+      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 aspect-square max-w-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+        {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
+          (['flex-start', 'center', 'flex-end'] as const).map(x => (
+            <button
+              key={`${x}-${y}`}
+              type="button"
+              title={`Align ${x} / ${y}`}
+              aria-label={`Align ${x} / ${y}`}
+              aria-pressed={matrixX === x && matrixY === y}
+              onClick={() => setAlignmentCell(x, y)}
+              className="flex items-center justify-center rounded-sm hover:bg-[var(--bg-hover)]"
+            >
+              <span className={`w-1 h-1 rounded-full ${matrixX === x && matrixY === y ? 'bg-[var(--accent-text)] scale-150' : 'bg-[var(--text-disabled)]'}`} />
+            </button>
+          )),
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <ToolSelect
+          value={styles.justifyContent || 'flex-start'}
+          onChange={v => onUpdate('justifyContent', v)}
+          options={getJustifyOptions(styles.flexDirection)}
+        />
+        <ToolSelect
+          value={styles.alignItems || 'stretch'}
+          onChange={v => onUpdate('alignItems', v)}
+          options={getAlignOptions(styles.flexDirection)}
+        />
+      </div>
+    </div>
+  ) : null;
+
   // +/- action button for the section title row
   const toggleAction = (
     <button
@@ -1282,30 +1366,48 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
         )}
         {hasLayout && (
           <div className="flex flex-col gap-2">
-            {/* Type selector — Flex vs Grid. */}
-            {(
-              <div className="flex items-center justify-between w-full">
-                {/* Mimic ControlLabel's `pl-[18px] -ml-[18px]` gutter so
-                    the value column gets the same 18 px of width as
-                    Direction / Wrap rows below — without it, Type's
-                    plain span anchored the label flush at the parent's
-                    left edge and the segmented control rendered ~6 px
-                    narrower than its siblings. No chevron / menu here
-                    because Type is a per-tool concept (Flex vs Grid),
-                    not a CSS property the variable / preset system can
-                    bind. */}
-                <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Type</span>
-                <ToolSegmentedControl
-                  value={hasGrid ? 'grid' : 'flex'}
-                  onChange={handleTypeChange}
-                  options={[
-                    { value: 'flex', label: 'Flex' },
-                    { value: 'grid', label: 'Grid' },
-                  ]}
-                  size="sm"
-                />
-              </div>
-            )}
+            <InspectorIconButtonGroup
+              ariaLabel="Auto layout mode"
+              buttons={modeButtons.map(button => ({
+                ...button,
+                active: autoLayoutMode === button.id,
+                onClick: () => handleAutoLayoutMode(button.id),
+              }))}
+            />
+
+            {/* Preserve existing variable bindings while the visible layout
+                controls move to the Figma motif. */}
+            {(() => {
+              const dirSource = getValueSource('flexDirection');
+              const wrapSource = getValueSource('flexWrap');
+              const dirBound = dirSource.source === 'prop' && dirSource.ref;
+              const wrapBound = wrapSource.source === 'prop' && wrapSource.ref;
+              if (!dirBound && !wrapBound) return null;
+              return (
+                <div className="flex flex-col gap-1">
+                  {dirBound && (
+                    <LegacyVariableBoundPill
+                      property="flexDirection"
+                      propertyLabel="Direction"
+                      variableRef={dirSource.ref!}
+                      currentValue={styles.flexDirection || 'row'}
+                      removeVariable={removeVariable}
+                      iconKey="option"
+                    />
+                  )}
+                  {wrapBound && (
+                    <LegacyVariableBoundPill
+                      property="flexWrap"
+                      propertyLabel="Wrap"
+                      variableRef={wrapSource.ref!}
+                      currentValue={styles.flexWrap || 'nowrap'}
+                      removeVariable={removeVariable}
+                      iconKey="boolean"
+                    />
+                  )}
+                </div>
+              );
+            })()}
 
             {sizeContent}
 
@@ -1318,94 +1420,7 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
               </>
             ) : (
               <>
-                {/* Flex: Direction — 2 arrow icon options.
-                    Detect variable binding manually (the row doesn't go
-                    through StyleField, so the binding-pill path needs
-                    its own gate). When `flexDirection` is bound to a
-                    variable, render the same purple `T <varName> ×`
-                    pill StyleField uses so the user sees the binding. */}
-                {(() => {
-                  const dirSource = getValueSource('flexDirection');
-                  const dirBound = dirSource.source === 'prop' && dirSource.ref;
-                  return (
-                    <div className="flex items-center justify-between w-full">
-                      <ControlLabel label="Direction" property="flexDirection" />
-                      {dirBound ? (
-                        // Shared pill: body click → open the Variable modal, × → unbind. Direction is an
-                        // enum (row/column) → the Option glyph.
-                        <LegacyVariableBoundPill
-                          property="flexDirection"
-                          propertyLabel="Direction"
-                          variableRef={dirSource.ref!}
-                          currentValue={styles.flexDirection || 'row'}
-                          removeVariable={removeVariable}
-                          iconKey="option"
-                        />
-                      ) : (
-                        <LocalePillOrLegacy property="flexDirection" label="Direction" nodeId={nodeId ?? null} baseValue={styles.flexDirection || 'row'} onChangeBase={(v) => updateStyle('flexDirection', v)}>
-                        <ToolSegmentedControl
-                          value={flexDirection}
-                          onChange={handleDirectionChange}
-                          options={[
-                            { value: 'row', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> },
-                            { value: 'column', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg> },
-                          ]}
-                          size="sm"
-                        />
-                        </LocalePillOrLegacy>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Flex: Align — direction-aware labels */}
-                <StyleField property="alignItems" label="Align" defaultValue="stretch"
-                  options={getAlignOptions(styles.flexDirection)} />
-
-                {/* Flex: Justify — direction-aware labels */}
-                <StyleField property="justifyContent" label="Justify" defaultValue="flex-start"
-                  options={getJustifyOptions(styles.flexDirection)} />
-
-                {/* Flex: Wrap — human labels No/Yes.
-                    Variable-binding gate matches Direction above. The
-                    chevron menu's "Create Variable" entry is enabled
-                    (was previously suppressed with `hideCreateVariable`
-                    — there's no good reason flexWrap can't be bound to
-                    a boolean variable now that we surface the pill). */}
-                {(() => {
-                  const wrapSource = getValueSource('flexWrap');
-                  const wrapBound = wrapSource.source === 'prop' && wrapSource.ref;
-                  return (
-                    <div className="flex items-center justify-between w-full">
-                      <ControlLabel label="Wrap" property="flexWrap" />
-                      {wrapBound ? (
-                        // Shared pill: body click → open the Variable modal, × → unbind. (Previously a
-                        // bespoke button whose WHOLE body removed the binding — so you could never open
-                        // the modal.) flexWrap variables are always Toggles → the boolean glyph.
-                        <LegacyVariableBoundPill
-                          property="flexWrap"
-                          propertyLabel="Wrap"
-                          variableRef={wrapSource.ref!}
-                          currentValue={styles.flexWrap || 'nowrap'}
-                          removeVariable={removeVariable}
-                          iconKey="boolean"
-                        />
-                      ) : (
-                        <LocalePillOrLegacy property="flexWrap" label="Wrap" nodeId={nodeId ?? null} baseValue={styles.flexWrap || 'nowrap'} onChangeBase={(v) => updateStyle('flexWrap', v)}>
-                        <ToolSegmentedControl
-                          value={styles.flexWrap === 'wrap' ? 'wrap' : 'nowrap'}
-                          onChange={handleWrapChange}
-                          options={[
-                            { value: 'nowrap', label: 'No' },
-                            { value: 'wrap', label: 'Yes' },
-                          ]}
-                          size="sm"
-                        />
-                        </LocalePillOrLegacy>
-                      )}
-                    </div>
-                  );
-                })()}
+                {alignmentMatrix}
 
                 {/* Flex: Align Content — only when wrap is enabled */}
                 {styles.flexWrap === 'wrap' && (
