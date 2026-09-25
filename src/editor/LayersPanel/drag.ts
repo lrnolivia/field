@@ -596,6 +596,20 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
             preserveDraggedGeometry: !!destinationBeforeDrop?.isGroup || !destHasLayout,
           })
         : null;
+      // A Group reparent is geometry-sensitive. If its deterministic planner
+      // refuses (cold rect cache, transform, or a flow-origin shift we cannot
+      // preserve exactly), DO NOT fall through to the generic Layers move.
+      // Failing closed is preferable to changing hierarchy with stale bounds.
+      if (touchesNativeGroup && !groupReparentPlan) {
+        trace.action('layers:native-group-reparent-refused', {
+          draggedId, finalParentId, dropVpId,
+          hasDraggedRect: !!draggedWorldRect,
+          hasDestinationRect: !!destinationWorldRect,
+        });
+        return;
+      }
+
+
       if (groupReparentPlan && Object.keys(groupReparentPlan.moveStyles).length > 0) {
         Object.assign(moveStyles, groupReparentPlan.moveStyles);
         trace.action('layers:native-group-reparent-plan', {

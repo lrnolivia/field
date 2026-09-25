@@ -7,7 +7,7 @@ import { findMatchingRule, getRuleById, conditionCheckers } from './paste';
 import { calculatePosition, findRootNodes } from './core/position';
 import { resolveTargets } from './core/target-resolver';
 import { createIdMapper } from './core/id-mapper';
-import { ensureDefaultAnchors, fixupPositionForParent } from './core/node-creator';
+import { buildAddNodeDef, ensureDefaultAnchors, fixupPositionForParent } from './core/node-creator';
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { ClipboardNode, PasteContext } from './types';
 
@@ -538,6 +538,34 @@ describe('ensureDefaultAnchors (abs-in-frame paste position)', () => {
     expect(out.top).toBe('0px');
   });
 });
+
+describe('native Group clipboard semantics', () => {
+  test('the existing attrs pipeline preserves data-field-group recursively', () => {
+    const group = makeClipboardNode('g', {
+      attrs: { 'data-field-group': 'true', 'data-custom': 'keep-me' },
+      children: ['nested'],
+      styles: { position: 'absolute', width: '100px', height: '50px' },
+    });
+    const nested = makeClipboardNode('nested', {
+      parentId: 'g',
+      attrs: { 'data-field-group': 'true' },
+      children: ['leaf'],
+      styles: { position: 'absolute', left: '10px', top: '10px', width: '40px', height: '20px' },
+    });
+    const leaf = makeClipboardNode('leaf', {
+      parentId: 'nested',
+      styles: { position: 'absolute', left: '0px', top: '0px', width: '10px', height: '10px' },
+    });
+    const mapper = createIdMapper();
+    mapper.mapClipboardToNew('g', 'group-copy');
+    const def = buildAddNodeDef(group, [group, nested, leaf], group.styles, 'group-copy', mapper);
+    expect(def.attrs?.['data-field-group']).toBe('true');
+    expect(def.attrs?.['data-custom']).toBe('keep-me');
+    expect(def.children?.[0]?.attrs?.['data-field-group']).toBe('true');
+    expect(def.children?.[0]?.children?.[0]?.attrs?.['data-field-group']).toBeUndefined();
+  });
+});
+
 
 // ─── makeRelative — the shared "this node now flows" conversion ──────────────
 // Every relative-conversion path in the paste engine funnels here: the

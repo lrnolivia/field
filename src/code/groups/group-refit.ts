@@ -52,6 +52,16 @@ function cloneWithStyles(
   return { ...node, styles: { ...node.styles, ...styles } };
 }
 
+function nativeGroupPositionMode(node: CanvasNode): 'absolute' | 'flow' | null {
+  const position = (node.styles?.position ?? '').trim();
+  if (position === 'absolute') return 'absolute';
+  if (position === 'relative') return 'flow';
+  return null;
+}
+
+function isSupportedNativeGroupContainer(node: CanvasNode): boolean {
+  return !!node.isGroup && nativeGroupPositionMode(node) !== null && !hasUnsupportedTransform(node);
+}
 /**
  * Compute one shrink-wrap step for a native field Group.
  *
@@ -73,13 +83,16 @@ export function planNativeGroupRefit(
   const group = nodes.get(groupId);
   if (!group?.isGroup || group.children.length === 0) return null;
 
-  // A flow-positioned Group inside Auto Layout needs parent-layout-aware
-  // origin semantics. Phase B1 does not guess there; Phase B2 owns it.
-  if ((group.styles?.position ?? '') !== 'absolute') return null;
-  if (hasUnsupportedTransform(group)) return null;
+  // Native Groups may themselves be free-positioned OR one flow item inside
+  // an Auto Layout/flex/grid parent. Their CHILD space is still canonical
+  // absolute geometry. A flow Group must never gain left/top during refit —
+  // its parent layout owns its placement — while an absolute Group shifts its
+  // wrapper origin so child world-space boxes stay fixed.
+  const groupMode = nativeGroupPositionMode(group);
+  if (!groupMode || hasUnsupportedTransform(group)) return null;
 
-  const groupLeft = px(group.styles?.left, 0);
-  const groupTop = px(group.styles?.top, 0);
+  const groupLeft = groupMode === 'absolute' ? px(group.styles?.left, 0) : 0;
+  const groupTop = groupMode === 'absolute' ? px(group.styles?.top, 0) : 0;
   if (groupLeft == null || groupTop == null) return null;
 
   let minX = Number.POSITIVE_INFINITY;
@@ -113,9 +126,17 @@ export function planNativeGroupRefit(
       || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
 
   const patches = new Map<string, Record<string, string>>();
+  // A flow Group's origin belongs to its parent layout. Shrink-wrapping may
+  // change width/height, but it must NEVER rebase children away from that
+  // origin: doing so visually moves the collection inside its Auto Layout slot.
+  // Only a child union already rooted at local 0,0 can refit exactly.
+  if (groupMode === 'flow' && (minX !== 0 || minY !== 0)) return null;
+
   const groupStyles: Record<string, string> = {
-    left: fmtPx(groupLeft + minX),
-    top: fmtPx(groupTop + minY),
+    ...(groupMode === 'absolute' ? {
+      left: fmtPx(groupLeft + minX),
+      top: fmtPx(groupTop + minY),
+    } : {}),
     width: fmtPx(maxX - minX),
     height: fmtPx(maxY - minY),
   };
@@ -185,6 +206,87 @@ export function touchesNativeGroupGeometry(styles: Record<string, string>): bool
   return Object.keys(styles).some((key) => BOX_KEYS.has(key));
 }
 
+export interface NativeGroupResizeBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Start-of-gesture, parent-local geometry for every descendant of a Group. */
+export type NativeGroupResizeSnapshot = Map<string, NativeGroupResizeBox>;
+
+/**
+ * Normal Figma-style Group resize.
+ *
+ * A Group is not a Frame: resizing its selection box scales descendant BOX
+ * geometry together, while typography, strokes, effects and other authored
+ * visual properties remain untouched. The Scale tool is the separate
+ * operation that scales those visual properties too.
+ *
+ * The Group wrapper itself is NOT returned here. ResizeManager already owns
+ * the selected object's pin/unit/left/top commit; this planner only returns
+ * descendant geometry so the whole gesture can land in one mutation batch.
+ */
+export function planNativeGroupResize(
+  args: {
+    groupId: string;
+    nodes: Map<string, CanvasNode>;
+    snapshot: NativeGroupResizeSnapshot;
+    startWidth: number;
+    startHeight: number;
+    nextWidth: number;
+    nextHeight: number;
+  },
+): NativeGroupRefitPlan | null {
+  const { groupId, nodes, snapshot, startWidth, startHeight, nextWidth, nextHeight } = args;
+  const root = nodes.get(groupId);
+  if (!root?.isGroup || root.children.length === 0) return null;
+  if (!(startWidth > 0) || !(startHeight > 0) || !(nextWidth > 0) || !(nextHeight > 0)) return null;
+
+  const sx = nextWidth / startWidth;
+  const sy = nextHeight / startHeight;
+  if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
+
+  const patches = new Map<string, Record<string, string>>();
+  const groupIds: string[] = [groupId];
+  const visiting = new Set<string>();
+
+  const visit = (currentGroupId: string): boolean => {
+    if (visiting.has(currentGroupId)) return false;
+    visiting.add(currentGroupId);
+    const group = nodes.get(currentGroupId);
+    if (!group?.isGroup) return false;
+
+    for (const childId of group.children) {
+      const child = nodes.get(childId);
+      const box = snapshot.get(childId);
+      if (!child || !box) return false;
+      if (![box.left, box.top, box.width, box.height].every(Number.isFinite)) return false;
+      if (box.width < 0 || box.height < 0) return false;
+
+      // Geometry only. Do not touch fontSize/lineHeight/stroke/filter/etc.
+      mergePatch(patches, childId, {
+        left: fmtPx(box.left * sx),
+        top: fmtPx(box.top * sy),
+        width: fmtPx(box.width * sx),
+        height: fmtPx(box.height * sy),
+      });
+
+      if (child.isGroup) {
+        groupIds.push(child.id);
+        if (!visit(child.id)) return false;
+      }
+    }
+    return true;
+  };
+
+  if (!visit(groupId)) return null;
+  return {
+    patches: [...patches].map(([nodeId, styles]) => ({ nodeId, styles })),
+    groupIds,
+  };
+}
 export interface NativeGroupLayersReparentPlan {
   moveStyles: Record<string, string>;
   patches: NativeGroupRefitPatch[];
@@ -264,11 +366,11 @@ export function planNativeGroupLayersReparent(
   const destinationIsGroup = !!destination.isGroup;
   if (!sourceIsGroup && !destinationIsGroup) return null;
 
-  // B2 remains conservative wherever Group shrink-wrap cannot be computed
-  // exactly by the B1 planner. A destination Group must be canonical before we
-  // author Group-local coordinates into it.
-  if (destinationIsGroup && ((destination.styles?.position ?? '') !== 'absolute' || hasUnsupportedTransform(destination))) return null;
-  if (sourceIsGroup && source && ((source.styles?.position ?? '') !== 'absolute' || hasUnsupportedTransform(source))) return null;
+  // Both free-positioned Groups and Groups seated as ONE Auto Layout item
+  // share the same absolute child-space. The destination's live world rect is
+  // supplied by Layers, so reparenting can preserve world geometry either way.
+  if (destinationIsGroup && !isSupportedNativeGroupContainer(destination)) return null;
+  if (sourceIsGroup && source && !isSupportedNativeGroupContainer(source)) return null;
 
   const working = new Map(nodes);
   const patches = new Map<string, Record<string, string>>();

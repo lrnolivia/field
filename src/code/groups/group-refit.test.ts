@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '@/code/parsing/parser';
 import {
   planNativeGroupLayersReparent,
+  planNativeGroupResize,
   planNativeGroupRefit,
   planNativeGroupRefitChain,
   touchesNativeGroupGeometry,
@@ -145,18 +146,35 @@ describe('native Group refit geometry', () => {
     });
   });
 
-  it('refuses transformed or flow-positioned Groups rather than guessing', () => {
+  it('refits a flow-positioned Group when its parent-owned origin stays at local zero', () => {
     const flow = node(
       'group-flow',
       'root',
-      { position: 'relative', width: '100px', height: '40px' },
-      { isGroup: true, children: ['a'] },
+      { position: 'relative', width: '100px', height: '40px', flex: '0 0 auto' },
+      { isGroup: true, children: ['a', 'b'] },
     );
     const a = node('a', 'group-flow', {
       position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px',
     });
-    expect(planNativeGroupRefit(flow.id, new Map([[flow.id, flow], [a.id, a]]))).toBeNull();
+    const b = node('b', 'group-flow', {
+      position: 'absolute', left: '40px', top: '10px', width: '30px', height: '10px',
+    });
+    const plan = planNativeGroupRefit(flow.id, new Map([[flow.id, flow], [a.id, a], [b.id, b]]));
+    const out = patches(plan);
+    expect(out.get(flow.id)).toEqual({ width: '70px', height: '20px' });
+    expect(out.has(a.id)).toBe(false);
+    expect(out.has(b.id)).toBe(false);
+    expect(out.get(flow.id)?.left).toBeUndefined();
+    expect(out.get(flow.id)?.top).toBeUndefined();
+  });
 
+  it('refuses a flow Group refit that would require shifting its Auto Layout-owned origin', () => {
+    const flow = node('group-flow', 'root', { position: 'relative', width: '100px', height: '40px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'group-flow', { position: 'absolute', left: '20px', top: '0px', width: '20px', height: '20px' });
+    expect(planNativeGroupRefit(flow.id, new Map([[flow.id, flow], [a.id, a]]))).toBeNull();
+  });
+
+  it('still refuses transformed Group geometry rather than guessing', () => {
     const transformed = node(
       'group-transform',
       'root',
@@ -174,6 +192,46 @@ describe('native Group refit geometry', () => {
     expect(touchesNativeGroupGeometry({ width: '20px', opacity: '0.5' })).toBe(true);
     expect(touchesNativeGroupGeometry({ opacity: '0.5' })).toBe(false);
   });
+
+describe('native Group resize planning', () => {
+  it('scales descendant box geometry but leaves visual/style properties alone', () => {
+    const g = node('g', 'root', { position: 'absolute', left: '10px', top: '20px', width: '100px', height: '50px' }, { isGroup: true, children: ['a', 'b'] });
+    const a = node('a', 'g', { position: 'absolute', left: '10px', top: '5px', width: '20px', height: '10px', fontSize: '16px' });
+    const b = node('b', 'g', { position: 'absolute', left: '60px', top: '20px', width: '30px', height: '20px', filter: 'blur(2px)' });
+    const snapshot = new Map([
+      ['a', { left: 10, top: 5, width: 20, height: 10 }],
+      ['b', { left: 60, top: 20, width: 30, height: 20 }],
+    ]);
+    const plan = planNativeGroupResize({ groupId: 'g', nodes: new Map([[g.id, g], [a.id, a], [b.id, b]]), snapshot, startWidth: 100, startHeight: 50, nextWidth: 200, nextHeight: 100 });
+    const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+    expect(out.get('a')).toEqual({ left: '20px', top: '10px', width: '40px', height: '20px' });
+    expect(out.get('b')).toEqual({ left: '120px', top: '40px', width: '60px', height: '40px' });
+    expect(out.get('a')?.fontSize).toBeUndefined();
+    expect(out.get('b')?.filter).toBeUndefined();
+    expect(out.has('g')).toBe(false); // ResizeManager owns the selected wrapper commit.
+  });
+
+  it('recursively scales nested Group geometry in the same atomic plan', () => {
+    const outer = node('outer', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['inner'] });
+    const inner = node('inner', 'outer', { position: 'absolute', left: '10px', top: '20px', width: '40px', height: '40px' }, { isGroup: true, children: ['leaf'] });
+    const leaf = node('leaf', 'inner', { position: 'absolute', left: '5px', top: '6px', width: '10px', height: '12px' });
+    const snapshot = new Map([
+      ['inner', { left: 10, top: 20, width: 40, height: 40 }],
+      ['leaf', { left: 5, top: 6, width: 10, height: 12 }],
+    ]);
+    const plan = planNativeGroupResize({ groupId: 'outer', nodes: new Map([[outer.id, outer], [inner.id, inner], [leaf.id, leaf]]), snapshot, startWidth: 100, startHeight: 100, nextWidth: 150, nextHeight: 50 });
+    const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+    expect(out.get('inner')).toEqual({ left: '15px', top: '10px', width: '60px', height: '20px' });
+    expect(out.get('leaf')).toEqual({ left: '7.5px', top: '3px', width: '15px', height: '6px' });
+    expect(plan?.groupIds).toEqual(['outer', 'inner']);
+  });
+
+  it('refuses incomplete snapshots instead of partially resizing a Group', () => {
+    const g = node('g', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '10px', height: '10px' });
+    expect(planNativeGroupResize({ groupId: 'g', nodes: new Map([[g.id, g], [a.id, a]]), snapshot: new Map(), startWidth: 100, startHeight: 100, nextWidth: 200, nextHeight: 200 })).toBeNull();
+  });
+});
 
 describe('native Group Layers reparent planning', () => {
   const box = (left: number, top: number, width = 20, height = 20) => ({ left, top, width, height });

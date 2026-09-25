@@ -209,7 +209,8 @@ interface AddNodeDef {
  * Children always get `preserve` style transform (the parent's transform is
  * a one-shot reframing, not a deep mutation).
  */
-function buildAddNodeDef(
+/** @internal Exported for deterministic clipboard semantic-attribute regression tests. */
+export function buildAddNodeDef(
   root: ClipboardNode,
   allClipboard: ClipboardNode[],
   rootStyles: Record<string, string>,

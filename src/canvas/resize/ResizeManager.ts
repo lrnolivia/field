@@ -46,7 +46,8 @@ import { styleHelperOps } from '@/canvas/selection/style-helper-store';
 import { resizeLiveOps } from '@/canvas/resize/resize-live-store';
 import { getInsetState, mergeVariantPinStyles } from '@/shared/pin-utils';
 import { trace } from '@/shared/debug-trace';
-import { getNodeFromCache, injectNodeIntoCache } from '@/code/stores/store';
+import { getNodeFromCache, injectNodeIntoCache, getCachedNodesMap } from '@/code/stores/store';
+import { planNativeGroupResize, type NativeGroupResizeSnapshot } from '@/code/groups/group-refit';
 import { findChildRects, getContentRootRect } from '@/canvas/node-ops';
 import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/canvas-math';
 import type { SnapGuide, Transform } from '@/shared/types';
@@ -84,6 +85,48 @@ function overlayTopLevelAncestor(nodeId: string, nodes: NodeMap): string {
     cur = next;
   }
   return cur?.id ?? nodeId;
+}
+
+function captureNativeGroupResizeSnapshot(groupId: string, vpId: string): NativeGroupResizeSnapshot | null {
+  const root = getNodeFromCache(groupId);
+  if (!root?.isGroup || root.children.length === 0) return null;
+
+  const snapshot: NativeGroupResizeSnapshot = new Map();
+  const visiting = new Set<string>();
+  const visit = (gid: string): boolean => {
+    if (visiting.has(gid)) return false;
+    visiting.add(gid);
+    const group = getNodeFromCache(gid);
+    if (!group?.isGroup) return false;
+
+    for (const childId of group.children) {
+      const child = getNodeFromCache(childId);
+      if (!child) return false;
+      const cs = findNodeComputedStyles(childId, vpId, [
+        'position', 'left', 'top', 'width', 'height', 'transform', 'rotate', 'scale',
+      ]);
+      // Native Group child-space is absolute. Refuse transformed geometry in
+      // this pass rather than scale an AABB and introduce a mouse-up jump.
+      if (cs.position !== 'absolute') return false;
+      const transform = (cs.transform || '').trim();
+      const rotate = (cs.rotate || '').trim();
+      const scale = (cs.scale || '').trim();
+      if ((transform && transform !== 'none')
+          || (rotate && rotate !== 'none' && rotate !== '0' && rotate !== '0deg')
+          || (scale && scale !== 'none' && scale !== '1')) return false;
+
+      const left = Number.parseFloat(cs.left);
+      const top = Number.parseFloat(cs.top);
+      const width = Number.parseFloat(cs.width);
+      const height = Number.parseFloat(cs.height);
+      if (![left, top, width, height].every(Number.isFinite) || width < 0 || height < 0) return false;
+      snapshot.set(childId, { left, top, width, height });
+      if (child.isGroup && !visit(child.id)) return false;
+    }
+    return true;
+  };
+
+  return visit(groupId) ? snapshot : null;
 }
 
 function collectResizeSiblings(
@@ -1580,6 +1623,19 @@ export function startResize(
     && !isFreePositioned
     && (parentDisplay === 'flex' || parentDisplay === 'inline-flex' || parentDisplay === 'grid' || parentDisplay === 'inline-grid');
 
+  // Native field Group resize snapshots descendant geometry ONCE at gesture
+  // start. Every pointer tick derives from this immutable baseline, so scaling
+  // never compounds and mouse-up can commit the exact same geometry that was
+  // previewed. Transformed descendants are gated for now rather than guessed.
+  const nativeGroupResizeSnapshot = nodeData?.isGroup
+    ? captureNativeGroupResizeSnapshot(nodeId, vpId)
+    : null;
+  if (nodeData?.isGroup && !nativeGroupResizeSnapshot) {
+    trace.action('resize:native-group-unsupported-geometry', { nodeId, vpId });
+    return;
+  }
+  let lastNativeGroupResizePlan: ReturnType<typeof planNativeGroupResize> = null;
+
   // ─── SVG shape → dedicated geometry-baking resize path ───────────────
   // ANY single-shape SVG resize routes here, rotated or not. The
   // function keeps `viewBox` 1:1 with width/height and bakes the size
@@ -2402,6 +2458,25 @@ export function startResize(
     // Un-rotated elements keep integer px (no visible effect, smaller source).
     const posPx = (n: number) => hasTransform ? `${Math.round(n * 1000) / 1000}px` : `${Math.round(n)}px`;
 
+    if (nativeGroupResizeSnapshot) {
+      const plan = planNativeGroupResize({
+        groupId: nodeId,
+        nodes: getCachedNodesMap(),
+        snapshot: nativeGroupResizeSnapshot,
+        startWidth,
+        startHeight,
+        nextWidth: newWidth,
+        nextHeight: newHeight,
+      });
+      if (plan) {
+        lastNativeGroupResizePlan = plan;
+        for (const patch of plan.patches) {
+          patchNodeStyles(contentEl, patch.nodeId, vpPrefix, patch.styles);
+        }
+      }
+    }
+
+
     // Update styles via bridge — pin-aware: update the correct CSS properties.
     // CRITICAL: Only update an axis if the resize handle affects it.
     // Transform compensation can shift newTop/newLeft even for single-axis
@@ -2936,6 +3011,30 @@ export function startResize(
         });
       }
     }
+
+    // Commit every descendant geometry patch in the SAME mutation batch as
+    // the selected Group wrapper. skipGroupRefit prevents each child write
+    // from shrink-wrapping the Group back to an intermediate size; the final
+    // wrapper update below may still refit an OUTER Group if this Group is
+    // nested. No flush here: one visible resize = one history step.
+    if (nodeData?.isGroup && lastNativeGroupResizePlan) {
+      trace.action('resize:native-group-descendants-commit', {
+        nodeId,
+        vpId,
+        patchCount: lastNativeGroupResizePlan.patches.length,
+        groupIds: lastNativeGroupResizePlan.groupIds,
+      });
+      for (const patch of lastNativeGroupResizePlan.patches) {
+        updateNodeStyles({
+          id: patch.nodeId,
+          styles: patch.styles,
+          contentEl,
+          viewportPrefix: vpPrefix,
+          skipGroupRefit: true,
+        });
+      }
+    }
+
 
     if (!routedToConfig) {
       // NOTE: position (left/top) is intentionally kept here — for a component variant root the
