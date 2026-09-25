@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:13:26Z
+Last Updated: 2026-09-25T09:16:32Z
 
 ## Active Assignments
 
@@ -101,15 +101,37 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:native-gallery-responsive-runtime-20260925:START -->
+### native-gallery-responsive-runtime-20260925 — Native Gallery Evolution — Phase 3 Fluid Responsive Runtime
 
+Status: active
+Baseline: d0b3e1ba173dd7324e645bc8cef59aa3a8bf7d7f
+Activation HEAD: bf83171eaa87eb03f970b7119df04ec6f5042952
+Last Sync: 2026-09-25T09:16:32Z
 
+Owned:
+  - src/code/gallery/gallery-views.ts
+  - src/code/gallery/gallery-views.test.ts
+  - src/code/gallery/gallery-carousel.test.ts
 
+Approved Shared:
+  - tracker.md
 
-
-
-
-
-
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/code/stores/**
+  - src/canvas/**
+  - src/editor/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-responsive-runtime-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
