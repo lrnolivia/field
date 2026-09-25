@@ -15,6 +15,9 @@ interface GalleryContentSectionProps {
   selectedItemId: string | null;
   onSelectItem: (itemId: string) => void;
   onAddMedia: () => void;
+  onReplaceItem: (itemId: string) => void;
+  onDuplicateItem: (itemId: string) => void;
+  onMoveItem: (itemId: string, direction: -1 | 1) => void;
   onRemoveItem: (itemId: string) => void;
   onReorder: (fromItemId: string, toItemId: string) => void;
 }
@@ -28,10 +31,15 @@ export default function GalleryContentSection({
   selectedItemId,
   onSelectItem,
   onAddMedia,
+  onReplaceItem,
+  onDuplicateItem,
+  onMoveItem,
   onRemoveItem,
   onReorder,
 }: GalleryContentSectionProps) {
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const selectedIndex = items.findIndex((item) => item.itemId === selectedItemId);
+  const selectedItem = selectedIndex >= 0 ? items[selectedIndex] : null;
 
   return (
     <ToolSection
@@ -77,7 +85,14 @@ export default function GalleryContentSection({
                   setDraggedItemId(null);
                 }}
                 onClick={() => onSelectItem(item.itemId)}
-                className={`group min-h-9 flex items-center gap-2 px-1.5 border cursor-default ${active ? 'border-[var(--border-focus)] bg-[var(--choice-bg)]' : 'border-transparent hover:bg-[var(--bg-hover)]'}`}
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSelectItem(item.itemId);
+                  }
+                }}
+                className={`group min-h-9 flex items-center gap-2 px-1.5 border cursor-default focus:outline-none focus:border-[var(--border-focus)] ${active ? 'border-[var(--border-focus)] bg-[var(--choice-bg)]' : 'border-transparent hover:bg-[var(--bg-hover)]'}`}
               >
                 <span className="w-3 text-[9px] tabular-nums text-[var(--text-disabled)] text-right">{index + 1}</span>
                 <div className="w-7 h-7 shrink-0 overflow-hidden bg-[var(--grid-line)] border border-[var(--control-border)]">
@@ -89,13 +104,56 @@ export default function GalleryContentSection({
                   type="button"
                   aria-label={`Remove image ${index + 1}`}
                   onClick={(event) => { event.stopPropagation(); onRemoveItem(item.itemId); }}
-                  className="w-5 h-5 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100"
+                  className={`w-5 h-5 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 >
                   ×
                 </button>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {selectedItem && (
+        <div className="flex flex-col gap-1.5 pt-1" data-gallery-selected-item-actions>
+          <div className="flex gap-1">
+            <ToolButton className="flex-1" onClick={() => onReplaceItem(selectedItem.itemId)}>Replace</ToolButton>
+            <ToolButton className="flex-1" onClick={() => onDuplicateItem(selectedItem.itemId)}>Duplicate</ToolButton>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="min-w-0 flex-1 text-[10px] tabular-nums text-[var(--text-disabled)]">
+              Item {selectedIndex + 1} of {items.length}
+            </span>
+            <button
+              type="button"
+              aria-label="Move selected image up"
+              title="Move up"
+              disabled={selectedIndex === 0}
+              onClick={() => onMoveItem(selectedItem.itemId, -1)}
+              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              aria-label="Move selected image down"
+              title="Move down"
+              disabled={selectedIndex === items.length - 1}
+              onClick={() => onMoveItem(selectedItem.itemId, 1)}
+              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none"
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              aria-label="Remove selected image"
+              title="Remove"
+              onClick={() => onRemoveItem(selectedItem.itemId)}
+              className="h-6 px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              Remove
+            </button>
+          </div>
         </div>
       )}
     </ToolSection>

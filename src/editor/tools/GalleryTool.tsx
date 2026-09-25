@@ -7,6 +7,7 @@ import GalleryCropOverlay from '../gallery/GalleryCropOverlay';
 import GalleryContentSection, { type GalleryContentItem } from '../gallery/GalleryContentSection';
 import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
+import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
 import { useNodesComputed } from '@/code/stores/node-family';
 import {
   buildGalleryCarouselControlNodes,
@@ -72,6 +73,23 @@ function buildGalleryCarouselSyncMutations(items: readonly GalleryCarouselSyncIt
   ];
 }
 
+function cloneResponsiveOverrideMutations(
+  sourceId: string,
+  targetId: string,
+  overrides: ContainerOverrideMap,
+): Mutation[] {
+  const byWidth = overrides.get(sourceId);
+  if (!byWidth) return [];
+  const mutations: Mutation[] = [];
+  for (const [maxWidth, properties] of byWidth) {
+    const styles = Object.fromEntries(properties);
+    if (Object.keys(styles).length > 0) {
+      mutations.push({ type: 'updateContainerStyle', nodeId: targetId, maxWidth, styles });
+    }
+  }
+  return mutations;
+}
+
 function clearResponsivePatchMutations(
   nodeId: string,
   patch: Record<string, string>,
@@ -116,6 +134,7 @@ function GalleryToolInner() {
     updateStyle,
   } = useControl();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [replaceItemId, setReplaceItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [cropImageId, setCropImageId] = useState<string | null>(null);
   const responsiveOverrides = useAtomValue(containerOverridesAtom);
@@ -140,13 +159,17 @@ function GalleryToolInner() {
   useEffect(() => {
     if (items.length === 0) {
       setSelectedItemId(null);
+      setReplaceItemId(null);
       setCropImageId(null);
       return;
     }
     if (!selectedItemId || !items.some((item) => item.itemId === selectedItemId)) {
       setSelectedItemId(items[0].itemId);
     }
-  }, [items, selectedItemId]);
+    if (replaceItemId && !items.some((item) => item.itemId === replaceItemId)) {
+      setReplaceItemId(null);
+    }
+  }, [items, replaceItemId, selectedItemId]);
 
   // The outer gate guarantees these for the lifetime of this inner component.
   const gallery = node!;
@@ -233,6 +256,43 @@ function GalleryToolInner() {
     trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length });
   }, [currentView, galleryId, items.length]);
 
+  const replaceMedia = useCallback((itemId: string, url: string) => {
+    const target = items.find((item) => item.itemId === itemId);
+    if (!target || !url) return;
+    bridge.setAttribute(target.imageId, prefix, 'src', url);
+    queueMutation({ type: 'updateHtmlAttrs', nodeId: target.imageId, attrs: { src: url } });
+    flushNow();
+    setReplaceItemId(null);
+    trace.action('gallery:replace-media', { nodeId: galleryId, itemId });
+  }, [bridge, galleryId, items, prefix]);
+
+  const duplicateItem = useCallback((itemId: string) => {
+    const sourceIndex = items.findIndex((item) => item.itemId === itemId);
+    if (sourceIndex < 0) return;
+    const source = items[sourceIndex];
+    const insertIndex = sourceIndex + 1;
+    const duplicate = buildGalleryDuplicateItemNode(source, insertIndex, currentView);
+    const duplicateImage = duplicate.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
+    if (!duplicateImage) return;
+
+    const mutations: Mutation[] = [
+      { type: 'addNode', parentId: galleryId, node: duplicate, index: insertIndex },
+      ...cloneResponsiveOverrideMutations(source.itemId, duplicate.id, responsiveOverrides),
+      ...cloneResponsiveOverrideMutations(source.imageId, duplicateImage.id, responsiveOverrides),
+    ];
+    if (currentView === 'strip') {
+      mutations.push({ type: 'updateCssHover', nodeId: duplicate.id, styles: getGalleryStripHoverPatch() });
+    }
+    if (currentView === 'carousel') {
+      const nextItems: GalleryCarouselSyncItem[] = [...items];
+      nextItems.splice(insertIndex, 0, { itemId: duplicate.id, controlIds: [] });
+      mutations.push(...buildGalleryCarouselSyncMutations(nextItems));
+    }
+    queueMutations(mutations);
+    flushNow();
+    trace.action('gallery:duplicate-media', { nodeId: galleryId, itemId, duplicateId: duplicate.id });
+  }, [currentView, galleryId, items, responsiveOverrides]);
+
   const removeItem = useCallback((itemId: string) => {
     const remaining = items.filter((item) => item.itemId !== itemId);
     // Imperative-first: the item disappears and the surviving geometry settles
@@ -291,6 +351,12 @@ function GalleryToolInner() {
     trace.action('gallery:reorder', { nodeId: galleryId, from, to });
   }, [bridge, currentView, galleryId, items, prefix]);
 
+  const moveItem = useCallback((itemId: string, direction: -1 | 1) => {
+    const targetId = galleryAdjacentItemId(items, itemId, direction);
+    if (!targetId) return;
+    reorderItem(itemId, targetId);
+  }, [items, reorderItem]);
+
   const updateAlt = useCallback((value: string) => {
     if (!selectedItem) return;
     queueMutation({ type: 'updateHtmlAttrs', nodeId: selectedItem.imageId, attrs: { alt: value } });
@@ -348,7 +414,10 @@ function GalleryToolInner() {
         items={items}
         selectedItemId={selectedItemId}
         onSelectItem={setSelectedItemId}
-        onAddMedia={() => setPickerOpen(true)}
+        onAddMedia={() => { setReplaceItemId(null); setPickerOpen(true); }}
+        onReplaceItem={(itemId) => { setSelectedItemId(itemId); setReplaceItemId(itemId); setPickerOpen(true); }}
+        onDuplicateItem={duplicateItem}
+        onMoveItem={moveItem}
         onRemoveItem={removeItem}
         onReorder={reorderItem}
       />
@@ -381,9 +450,12 @@ function GalleryToolInner() {
 
       <ImageSearchModal
         isOpen={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        selectionMode="multiple"
-        onSelect={() => {}}
+        onClose={() => { setPickerOpen(false); setReplaceItemId(null); }}
+        selectionMode={replaceItemId ? 'single' : 'multiple'}
+        onSelect={(url) => {
+          if (replaceItemId) replaceMedia(replaceItemId, url);
+          else addMedia([url]);
+        }}
         onSelectMany={addMedia}
       />
 
