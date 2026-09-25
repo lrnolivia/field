@@ -1,13 +1,10 @@
 // ProjectThumbnailCaptureHost.tsx — invisible, best-effort dashboard thumbnail refresh.
 //
-// This deliberately uses the REAL Preview sandbox. It never renders a fake JSX
-// miniature and never places a live iframe on the dashboard. When field's saved
-// main-branch snapshot needs a thumbnail, we briefly boot Preview offscreen,
-// send the canonical Preview payload, navigate to the first Page, ask the
-// existing capture-thumbnail runtime to rasterize it, upload the image to R2,
-// then tear the iframe back down.
+// Uses the REAL Preview sandbox and waits for an explicit render acknowledgement
+// before asking it to rasterize the canonical first Page. The iframe is a real
+// 1440×900 offscreen document: dashboard cards remain static cached images.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { BACKEND_KIND } from '@/backend';
 import {
@@ -31,14 +28,31 @@ import { trace } from '@/shared/debug-trace';
 import { shouldScheduleThumbnailCapture } from './project-thumbnail-capture-state';
 
 const CAPTURE_DELAY_MS = 1500;
-const CAPTURE_TIMEOUT_MS = 20000;
+const CAPTURE_TIMEOUT_MS = 24000;
 const CHANGE_PULSE_MS = 250;
+const READY_PROBE_MS = 250;
+const MAX_SESSION_RETRIES = 2;
 
 function previewOrigin(): string {
   if (typeof window === 'undefined') return 'http://localhost:5175';
   return window.location.port
     ? `${window.location.protocol}//${window.location.hostname}:5175`
     : `${window.location.protocol}//preview.${window.location.hostname}`;
+}
+
+function requestId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `field-thumb-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizePreviewPath(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '/';
+  try {
+    return new URL(value, window.location.origin).pathname || '/';
+  } catch {
+    return value.split('?')[0] || '/';
+  }
 }
 
 interface Props {
@@ -49,6 +63,7 @@ interface Props {
 interface CaptureSession {
   key: number;
   generation: number;
+  requestId: string;
 }
 
 export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
@@ -61,17 +76,19 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
   const lastFailedGenerationRef = useRef(-1);
   const uploadInFlightRef = useRef(false);
   const sessionSerialRef = useRef(0);
+  const retryCountRef = useRef(0);
   const [generation, setGeneration] = useState(0);
+  const [retryTick, setRetryTick] = useState(0);
   const [mainBranchActive, setMainBranchActive] = useState(() => projectFS.isMainActive());
   const [needsInitialCapture, setNeedsInitialCapture] = useState<boolean | null>(null);
   const [captureSession, setCaptureSession] = useState<CaptureSession | null>(null);
 
-  // Coalesce ProjectFS churn. The ref increments for every coarse project pulse;
-  // React only needs a quiet-ish notification to schedule the eventual capture.
   useEffect(() => {
     let pulse: ReturnType<typeof setTimeout> | null = null;
     const unsubscribe = projectFS.subscribe(() => {
       generationRef.current += 1;
+      retryCountRef.current = 0;
+      lastFailedGenerationRef.current = -1;
       setMainBranchActive(projectFS.isMainActive());
       if (pulse !== null) clearTimeout(pulse);
       pulse = setTimeout(() => {
@@ -85,10 +102,6 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     };
   }, []);
 
-  // On editor entry — and again after visible Preview closes — compare the
-  // cached R2 image timestamp with the project's real saved updatedAt. This
-  // backfills old projects and repairs a stale thumbnail left by a very fast
-  // edit→dashboard exit without recapturing every project on every open.
   useEffect(() => {
     if (BACKEND_KIND !== 'field' || suspended) return;
     let cancelled = false;
@@ -96,7 +109,9 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     void getFieldProjectThumbnailState(projectId)
       .then((state) => {
         if (cancelled) return;
-        setNeedsInitialCapture(!state.exists || state.stale);
+        const needsCapture = !state.exists || state.stale;
+        setNeedsInitialCapture(needsCapture);
+        if (!needsCapture) retryCountRef.current = 0;
         trace.action('dashboard-thumbnail:freshness', {
           projectId,
           exists: state.exists,
@@ -107,17 +122,12 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       })
       .catch((error) => {
         if (cancelled) return;
-        // A failed HEAD should not start an expensive capture that will likely
-        // fail to upload for the same connectivity reason. A later project
-        // mutation or a future editor entry gives us another chance.
         setNeedsInitialCapture(false);
         trace.error('dashboard-thumbnail:freshness-failed', { projectId, error: String(error) });
       });
     return () => { cancelled = true; };
   }, [projectId, suspended]);
 
-  // Visible Preview takes precedence. Aborting here is not a failed generation:
-  // once Preview closes the freshness HEAD above decides whether work remains.
   useEffect(() => {
     if (suspended && captureSession) {
       uploadInFlightRef.current = false;
@@ -126,6 +136,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
   }, [captureSession, suspended]);
 
   useEffect(() => {
+    void retryTick;
     const shouldSchedule = shouldScheduleThumbnailCapture({
       isFieldBackend: BACKEND_KIND === 'field',
       suspended,
@@ -140,17 +151,18 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     if (!shouldSchedule) return;
 
     const timer = setTimeout(() => {
-      // Re-check the branch at execution time; it can switch while the delay is
-      // pending and projectFS is the actual authority.
       if (!projectFS.isMainActive()) return;
       const next: CaptureSession = {
         key: ++sessionSerialRef.current,
         generation: generationRef.current,
+        requestId: requestId(),
       };
       setCaptureSession(next);
-      trace.action('dashboard-thumbnail:capture-start', {
+      trace.action('dashboard-thumbnail:scheduled', {
         projectId,
         generation: next.generation,
+        requestId: next.requestId,
+        retry: retryCountRef.current,
       });
     }, CAPTURE_DELAY_MS);
     return () => clearTimeout(timer);
@@ -160,50 +172,75 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     mainBranchActive,
     needsInitialCapture,
     projectId,
+    retryTick,
     saveStatus,
     suspended,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!captureSession) return;
     const session = captureSession;
     const iframe = iframeRef.current;
     const contentWindow = iframe?.contentWindow;
     if (!iframe || !contentWindow) return;
 
-    let captureRequested = false;
     let stopped = false;
+    let readySeen = false;
+    let captureRequested = false;
+    let expectedPath: string | null = null;
 
-    const failSession = (reason: string, error?: unknown) => {
+    const retryOrFail = (reason: string, error?: unknown) => {
       if (stopped) return;
       stopped = true;
       uploadInFlightRef.current = false;
-      lastFailedGenerationRef.current = session.generation;
+      const retry = retryCountRef.current < MAX_SESSION_RETRIES;
+      if (retry) {
+        retryCountRef.current += 1;
+        lastFailedGenerationRef.current = -1;
+      } else {
+        lastFailedGenerationRef.current = session.generation;
+      }
       setCaptureSession(null);
       trace.error('dashboard-thumbnail:capture-failed', {
         projectId,
         generation: session.generation,
+        requestId: session.requestId,
         reason,
+        retry,
+        retryCount: retryCountRef.current,
         ...(error === undefined ? {} : { error: String(error) }),
       });
+      if (retry) setRetryTick((value) => value + 1);
     };
 
-    const timeout = setTimeout(() => failSession('timeout'), CAPTURE_TIMEOUT_MS);
+    const timeout = setTimeout(() => retryOrFail('timeout'), CAPTURE_TIMEOUT_MS);
+
+    const sendReadyProbe = () => {
+      if (stopped || readySeen) return;
+      contentWindow.postMessage({ type: 'preview:probe-ready' }, '*');
+    };
+    const probeTimer = setInterval(sendReadyProbe, READY_PROBE_MS);
+    sendReadyProbe();
 
     const handler = (event: MessageEvent) => {
       if (event.source !== contentWindow) return;
       const message = event.data;
       if (!message || typeof message !== 'object') return;
 
-      if (message.type === 'preview:ready' && !captureRequested) {
+      if (message.type === 'preview:ready' && !readySeen) {
+        readySeen = true;
+        clearInterval(probeTimer);
+        trace.action('dashboard-thumbnail:iframe-ready', {
+          projectId,
+          requestId: session.requestId,
+        });
+
         const page = chooseDashboardThumbnailPage(projectFS.listFiles('app/'));
         if (!page) {
-          failSession('no-page');
+          retryOrFail('no-page');
           return;
         }
         if (!projectFS.isMainActive()) {
-          // Branch switched after session creation. Yield rather than snapshot
-          // unmerged branch work into the project's canonical dashboard card.
           stopped = true;
           clearTimeout(timeout);
           setCaptureSession(null);
@@ -211,6 +248,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         }
 
         const payload = collectPreviewProjectPayload(activeLocale);
+        expectedPath = dashboardThumbnailPageUrl(page);
         postPreviewProjectPayload(contentWindow, payload, '*');
         contentWindow.postMessage({ type: 'preview:component', filePath: null }, '*');
         contentWindow.postMessage({
@@ -218,51 +256,80 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
           variantFilePath: null,
           basePagePath: null,
         }, '*');
-        const url = dashboardThumbnailPageUrl(page);
-        contentWindow.postMessage({ type: 'preview:navigate', url }, '*');
-        contentWindow.postMessage({ type: 'preview:capture-thumbnail' }, '*');
-        captureRequested = true;
-        trace.action('dashboard-thumbnail:capture-requested', {
+        contentWindow.postMessage({ type: 'preview:navigate', url: expectedPath }, '*');
+        trace.action('dashboard-thumbnail:project-pushed', {
           projectId,
           page,
           slug: filePathToSlug(page),
+          route: expectedPath,
           fileCount: payload.files.length,
+          requestId: session.requestId,
+        });
+        return;
+      }
+
+      if (message.type === 'preview:rendered' && expectedPath && !captureRequested) {
+        const renderedPath = normalizePreviewPath(message.url);
+        if (renderedPath !== expectedPath) return;
+        captureRequested = true;
+        trace.action('dashboard-thumbnail:first-page-rendered', {
+          projectId,
+          route: expectedPath,
+          requestId: session.requestId,
+        });
+        contentWindow.postMessage({
+          type: 'preview:capture-thumbnail',
+          requestId: session.requestId,
+        }, '*');
+        trace.action('dashboard-thumbnail:capture-requested', {
+          projectId,
+          requestId: session.requestId,
         });
         return;
       }
 
       if (message.type !== 'preview:thumbnail' || uploadInFlightRef.current) return;
+      if (message.requestId !== session.requestId) return;
       const dataUrl = message.dataUrl;
       if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
-        failSession('bad-payload');
+        retryOrFail('bad-payload');
         return;
       }
 
+      trace.action('dashboard-thumbnail:raster-received', {
+        projectId,
+        requestId: session.requestId,
+        chars: dataUrl.length,
+      });
       uploadInFlightRef.current = true;
       void uploadFieldProjectThumbnail(projectId, dataUrl)
         .then((url) => {
           if (stopped) return;
           stopped = true;
           clearTimeout(timeout);
+          clearInterval(probeTimer);
           uploadInFlightRef.current = false;
+          retryCountRef.current = 0;
           lastSuccessfulGenerationRef.current = session.generation;
           lastFailedGenerationRef.current = -1;
           setNeedsInitialCapture(false);
           setCaptureSession(null);
-          trace.action('dashboard-thumbnail:capture-complete', {
+          trace.action('dashboard-thumbnail:upload-success', {
             projectId,
             generation: session.generation,
+            requestId: session.requestId,
             url,
             changedDuringCapture: generationRef.current !== session.generation,
           });
         })
-        .catch((error) => failSession('upload', error));
+        .catch((error) => retryOrFail('upload', error));
     };
 
     window.addEventListener('message', handler);
     return () => {
       stopped = true;
       clearTimeout(timeout);
+      clearInterval(probeTimer);
       window.removeEventListener('message', handler);
     };
   }, [activeLocale, captureSession, projectId]);
@@ -280,12 +347,12 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
       style={{
         position: 'fixed',
-        left: '-200vw',
+        left: '-10000px',
         top: 0,
         width: 1440,
         height: 900,
         border: 0,
-        opacity: 0,
+        opacity: 0.001,
         pointerEvents: 'none',
         zIndex: -1,
       }}

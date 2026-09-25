@@ -10,6 +10,7 @@ import { saveStatusAtom } from './save-store';
 import type { ProjectData } from './types';
 import { projectFS } from '../code/project/project-fs';
 import { trace } from '@/shared/debug-trace';
+import { consumeIntentionalNavigationBypass } from './intentional-navigation';
 
 const DEBOUNCE_MS = 2000;
 /** Bounded auto-retry after a failed save. */
@@ -284,6 +285,10 @@ const VISIBILITY_HOOK_KEY = '__fieldAutosaveVisibilityHook';
 const PAGEHIDE_HOOK_KEY = '__fieldAutosavePagehideHook';
 
 function onBeforeUnloadSave(e: BeforeUnloadEvent): void {
+  if (consumeIntentionalNavigationBypass()) {
+    trace.action('autosave:unload-bypassed-intentional-navigation');
+    return;
+  }
   if (_disposed) return;
   if (!pendingSave && !isSaving && !currentSave) return;
   if (isHeld) {

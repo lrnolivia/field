@@ -30,6 +30,7 @@
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { flushSaveNow } from './autosave';
 import { trace } from '@/shared/debug-trace';
+import { armIntentionalNavigationBypass } from './intentional-navigation';
 
 /**
  * Commit everything, then hard-navigate to `url`.
@@ -39,14 +40,17 @@ import { trace } from '@/shared/debug-trace';
  */
 export async function leaveBuilderTo(url: string, reason: string): Promise<void> {
   flushNow();
+  let saveSucceeded = false;
   try {
     await flushSaveNow();
+    saveSucceeded = true;
   } catch (err) {
     // performSave already recorded the failure in the save-status store, and
     // the unload guard will still speak up. Never block the exit on it: a user
     // who wants out of a project whose backend is down must be able to leave.
     trace.error('leave-builder:save-failed', { reason, error: String(err) });
   }
-  trace.action('leave-builder:navigate', { reason, url });
+  trace.action('leave-builder:navigate', { reason, url, saveSucceeded });
+  if (saveSucceeded) armIntentionalNavigationBypass();
   window.location.href = url;
 }

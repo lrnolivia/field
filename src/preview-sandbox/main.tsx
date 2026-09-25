@@ -727,6 +727,17 @@ function rebuildRoutes(): void {
   routes = buildRouteTable(projectFiles);
 }
 
+function announcePreviewRendered(): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      parent.postMessage({
+        type: 'preview:rendered',
+        url: window.location.pathname + window.location.search,
+      }, '*');
+    });
+  });
+}
+
 function rerender(): void {
   // Clear compiled cache so file edits propagate.
   compiledModuleCache.clear();
@@ -741,11 +752,13 @@ function rerender(): void {
   // Renders an empty page while loading, then re-renders with content.
   preloadCdnImports().then(() => {
     root.render(<PreviewApp />);
+    announcePreviewRendered();
   }).catch((err) => {
     // Even if preload fails, render so the user sees an error rather
     // than a blank screen. requireFn falls back to a stub component.
     console.error('[preview] preload failed, rendering anyway', err);
     root.render(<PreviewApp />);
+    announcePreviewRendered();
   });
 }
 
@@ -753,7 +766,9 @@ window.addEventListener('message', (e) => {
   const msg = e.data;
   if (!msg || typeof msg !== 'object') return;
 
-  if (msg.type === 'preview:project-files') {
+  if (msg.type === 'preview:probe-ready') {
+    parent.postMessage({ type: 'preview:ready' }, '*');
+  } else if (msg.type === 'preview:project-files') {
     projectFiles.clear();
     for (const [path, content] of msg.files as Array<[string, string]>) {
       projectFiles.set(path, content);
@@ -870,7 +885,7 @@ window.addEventListener('message', (e) => {
     // Parent (PreviewOverlay) asks us to snapshot the rendered page for the
     // dashboard thumbnail. captureThumbnail() defers + posts `preview:thumbnail`
     // back; fire-and-forget so the message handler stays sync.
-    void captureThumbnail();
+    void captureThumbnail(typeof msg.requestId === 'string' ? msg.requestId : undefined);
   }
 });
 
