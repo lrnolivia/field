@@ -67,9 +67,6 @@ import {
   overlayEditingIdAtom,
 } from '@/code/stores/overlay-store';
 import {
-  directSelectionEnabledAtom,
-} from '@/code/stores/user-preferences-store';
-import {
   suppressSelectionOverlayAtom,
 } from '@/code/stores/editor-store';
 import {
@@ -195,14 +192,8 @@ export class CanvasMouseController {
   // Internal state that was previously refs in Canvas.tsx
   lastClick: { nodeId: string; vpId: string | null; time: number; x: number; y: number } | null = null;
   emptyCanvasClick = false;
-  /**
-   * Plain-left press on truly empty canvas temporarily borrows the Hand pan
-   * gesture without changing toolModeAtom. Movement past the same 5px threshold
-   * used by marquee selection turns the gesture into a pan; a stationary click
-   * keeps the existing empty-canvas deselect behavior.
-   */
-  private emptyCanvasPanStart: { x: number; y: number } | null = null;
-  private emptyCanvasPanMoved = false;
+  // Empty-background press remains pending until mouseup. SelectionBox cancels
+  // this as soon as a marquee crosses its activation threshold.
   /** Child of a multi-selected node pressed this gesture. The drag was redirected
    *  to the ancestor (group drag); if the pointer never moves, mouseup selects
    *  this child instead. Null when the press wasn't that case. */
@@ -216,8 +207,9 @@ export class CanvasMouseController {
   private _removeSetInteractingVpListener: (() => void) | null = null;
   private _removeModifierHoverListener: (() => void) | null = null;
   private _removeSandboxMouseBridgeListeners: (() => void) | null = null;
+  private _removeWindowBlurListener: (() => void) | null = null;
   // Last canvas hover position — lets a Ctrl/Cmd keydown/keyup re-run the hover
-  // redirect at the same spot (direct-select UP preview without moving).
+  // redirect at the same spot (temporary deep-select preview without moving).
   private lastHoverClientX = 0;
   private lastHoverClientY = 0;
 
@@ -294,10 +286,10 @@ export class CanvasMouseController {
     document.addEventListener('revyme:ghost-select', ghostBridgeHandler);
     this._removeGhostBridgeListener = () => document.removeEventListener('revyme:ghost-select', ghostBridgeHandler);
 
-    // ─── Direct-select UP preview on Ctrl/Cmd press (no mouse move) ───────
-    // The hover redirect normally only re-evaluates on mousemove. So pressing
-    // Cmd while STATIONARY over a child wouldn't preview the parent until the
-    // user moved. Re-run the hover at the last position whenever Ctrl/Cmd is
+    // ─── Temporary deep-select preview on Ctrl/Cmd (no mouse move) ──────
+    // Normal hover follows the active hierarchy. Ctrl/Cmd temporarily bypasses
+    // that walk-up and previews the deepest eligible hit immediately, even when
+    // the pointer is stationary. Re-run hover whenever Ctrl/Cmd is
     // pressed or released. Gated to Meta/Control keys, skipped while typing in
     // an input/textarea/contentEditable (so Cmd-shortcuts there don't hijack
     // the canvas hover) — `updateHover` itself bails during drag/pan.
@@ -314,15 +306,10 @@ export class CanvasMouseController {
       window.removeEventListener('keyup', modifierHoverHandler);
     };
 
-    // ─── Sandbox background mouse bridge ─────────────────────────────────
-    // The rendered design surface lives inside a sandbox iframe. Native
-    // mousedown/mousemove/mouseup events inside that document do NOT bubble to
-    // this parent controller. bridge-sandbox forwards generic mouse events;
-    // bridge-host re-dispatches them here as CustomEvents.
-    //
-    // We only borrow Hand when the parent rect-cache hit-test says the iframe
-    // press landed on NO design node. Node presses keep their existing
-    // nodeMouseDown selection/drag path.
+    // ─── Sandbox pointer bridge ───────────────────────────────────────────
+    // Sandbox events have already been normalized into parent screen-space by
+    // PostMessageBridge. Node presses keep the authoritative nodeMouseDown path;
+    // background presses come here for click-to-deselect and explicit pan.
     type SandboxMouseDetail = {
       clientX: number;
       clientY: number;
@@ -346,47 +333,51 @@ export class CanvasMouseController {
       stopPropagation: () => {},
     } as unknown as MouseEvent);
 
+    const cancelTransientPointerGesture = () => {
+      handleHandToolUp();
+      handleSpacePanUp();
+      this.emptyCanvasClick = false;
+      this.pendingMultiSelectChild = null;
+      this.opts.setPanCursor(false);
+    };
+
     const sandboxMouseDownHandler = (event: Event) => {
       const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
-      if (!detail) return;
-
-      // Only Select borrows Hand, and only for an unmodified primary press.
-      // Creator tools, explicit Hand mode, marquee extension and alternate
-      // gestures keep their existing meanings.
-      if (this.store.get(toolModeAtom) !== 'select') return;
-      if ((detail.button ?? 0) !== 0) return;
-      if (detail.shiftKey || detail.altKey || detail.ctrlKey || detail.metaKey) return;
-
-      // A real node click is handled by the existing iframe nodeMouseDown
-      // message. Only background/root-space presses enter the temporary pan.
+      if (!detail || (detail.button ?? 0) !== 0) return;
+      // A real node is handled by nodeMouseDown. Background only reaches the
+      // generic path, where Select can arm click-to-deselect and Space/Hand pan
+      // take precedence. SelectionBox independently owns Select-mode movement.
       if (getNodeHitsAtPoint(detail.clientX, detail.clientY).length > 0) return;
-
+      const toolMode = this.store.get(toolModeAtom);
+      if (!isSpaceBarDown() && toolMode !== 'select' && toolMode !== 'hand') return;
       this.handleMouseDown(asMouseEvent(detail));
     };
 
     const sandboxMouseMoveHandler = (event: Event) => {
-      if (!this.emptyCanvasPanStart) return;
+      if (!isPanning() && !isSpacePanning()) return;
       const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
-      if (!detail) return;
-      this.handleMouseMove(asMouseEvent(detail));
+      if (detail) this.handleMouseMove(asMouseEvent(detail));
     };
 
     const sandboxMouseUpHandler = (event: Event) => {
-      if (!this.emptyCanvasPanStart) return;
+      if (!this.emptyCanvasClick && !isPanning() && !isSpacePanning()) return;
       const detail = (event as CustomEvent<SandboxMouseDetail>).detail;
-      if (!detail) return;
-      this.handleMouseUp(asMouseEvent(detail));
+      if (detail) this.handleMouseUp(asMouseEvent(detail));
     };
 
     document.addEventListener('field:sandbox-mousedown', sandboxMouseDownHandler);
     document.addEventListener('field:sandbox-mousemove', sandboxMouseMoveHandler);
     document.addEventListener('field:sandbox-mouseup', sandboxMouseUpHandler);
+    document.addEventListener('field:sandbox-mousecancel', cancelTransientPointerGesture);
+    window.addEventListener('blur', cancelTransientPointerGesture);
 
     this._removeSandboxMouseBridgeListeners = () => {
       document.removeEventListener('field:sandbox-mousedown', sandboxMouseDownHandler);
       document.removeEventListener('field:sandbox-mousemove', sandboxMouseMoveHandler);
       document.removeEventListener('field:sandbox-mouseup', sandboxMouseUpHandler);
+      document.removeEventListener('field:sandbox-mousecancel', cancelTransientPointerGesture);
     };
+    this._removeWindowBlurListener = () => window.removeEventListener('blur', cancelTransientPointerGesture);
   }
 
   /** Wire the node-mousedown ref so the Renderer can install per-node handlers */
@@ -423,25 +414,34 @@ export class CanvasMouseController {
     return null;
   }
 
-  /**
-   * Direct-selection UP-redirect. With direct selection ON (the default), the
-   * canvas targets the DEEPEST hit. Holding Ctrl/Cmd promotes that hit to its
-   * IMMEDIATE PARENT (one level up) for hover, selection AND drag — so the user
-   * can grab the containing frame without leaving direct mode (hover a card's
-   * label + Cmd → target the card). Stops at the viewport root: a top-level
-   * section's parent is the root, and selecting the whole viewport from a single
-   * Cmd-hover isn't the intent, so the section is kept. A `layout::` parent
-   * redirects to the viewport (same as `redirectLayoutNodeToViewport`).
-   */
-  private promoteToParent(nodeId: string): string {
+  /** Resolve a deep hit through field's canonical Figma-style hierarchy.
+   *  Normal selection/hover targets the immediate child of the active container
+   *  (or a top-level object when no container is active). If the pointer is
+   *  outside the active container, preview the top-level target and report the
+   *  escape so the click path can pop the container. Ctrl/Cmd bypasses this
+   *  helper entirely and keeps the deepest eligible hit. */
+  private resolveHierarchyTarget(nodeId: string): { target: string; activeContainer: string | null; escaped: boolean } {
     const nodes = this.store.get(nodesAtom);
-    const parentId = nodes.get(nodeId)?.parentId;
-    if (!parentId) return nodeId; // already top-level / the root itself
-    const parent = nodes.get(parentId);
-    // Immediate parent IS the viewport root → keep the node (don't jump to the
-    // whole viewport from one Cmd-press).
-    if (parent && !parent.parentId && !parent.isCanvasNode) return nodeId;
-    return redirectLayoutNodeToViewport(parentId) ?? parentId;
+    const activeContainer = this.store.get(activeContainerIdAtom);
+    // The root node is the viewport's structural container. Null means the user has
+    // not drilled into a child container yet; selection should therefore stop
+    // at root's immediate child, not select the viewport root itself.
+    const rootContainer = nodes.has('root') ? 'root' : null;
+    let effectiveContainer = activeContainer ?? rootContainer;
+    if (activeContainer) {
+      let cursor: string | null | undefined = nodeId;
+      let inside = false;
+      for (let hops = 0; cursor && hops < 100; hops++) {
+        if (cursor === activeContainer) { inside = true; break; }
+        cursor = nodes.get(cursor)?.parentId;
+      }
+      if (!inside) effectiveContainer = rootContainer;
+    }
+    return {
+      target: redirectToTopLevelChild(nodeId, effectiveContainer, nodes),
+      activeContainer,
+      escaped: activeContainer !== null && effectiveContainer !== activeContainer,
+    };
   }
 
   /** Hover hit-test + redirect chain, parameterized so it can be re-run on a
@@ -494,15 +494,8 @@ export class CanvasMouseController {
     if (fitHover) redirected = fitHover;
     const layoutRedirect = redirectLayoutNodeToViewport(redirected);
     if (layoutRedirect) redirected = layoutRedirect;
-    // Figma-style nested-selection redirect (down) vs direct-select UP-redirect.
-    const directSel = this.store.get(directSelectionEnabledAtom);
-    if (!directSel && !ctrlOrMeta) {
-      const activeContainer = this.store.get(activeContainerIdAtom);
-      redirected = redirectToTopLevelChild(redirected, activeContainer, this.store.get(nodesAtom));
-    } else if (directSel && ctrlOrMeta) {
-      // Ctrl/Cmd promotes the hover to the parent frame (direct-select up).
-      redirected = this.promoteToParent(redirected);
-    }
+    // Normal hover follows the hierarchy; Ctrl/Cmd previews the deepest hit.
+    if (!ctrlOrMeta) redirected = this.resolveHierarchyTarget(redirected).target;
     // SAFETY NET — a component instance rendered INSIDE the template (header,
     // footer, nav…) resolves to an id that isn't in the page's merged node
     // map: template chrome is merged under `layout::…`, but the instance's own
@@ -525,19 +518,8 @@ export class CanvasMouseController {
     if (document.querySelector('[data-modal-root]')) return;
     // Space+drag pan
     if (handleSpacePanMove(e)) return;
-    // Hand tool pan (middle mouse handled natively via attachMiddleMousePan).
-    // When Select temporarily borrowed the Hand gesture from an empty-canvas
-    // press, remember whether the pointer actually moved far enough to count as
-    // a pan. This lets a stationary background click keep its deselect meaning
-    // while a real pan preserves the current selection.
-    if (handleHandToolMove(e)) {
-      if (this.emptyCanvasPanStart && !this.emptyCanvasPanMoved) {
-        const dx = e.clientX - this.emptyCanvasPanStart.x;
-        const dy = e.clientY - this.emptyCanvasPanStart.y;
-        if (Math.hypot(dx, dy) >= 5) this.emptyCanvasPanMoved = true;
-      }
-      return;
-    }
+    // Explicit Hand tool pan (middle mouse remains handled natively).
+    if (handleHandToolMove(e)) return;
 
     // Drag coordinator handles drag movement.
     // Skip if window listeners are active (they handle it already — prevents double processing)
@@ -547,7 +529,7 @@ export class CanvasMouseController {
 
     // Hover tracking — hit test from cached rects (viewport-aware). Stash the
     // position so a Ctrl/Cmd key change can re-run the hover at the same spot
-    // (direct-select UP preview when the user presses Cmd without moving).
+    // (temporary deepest-hit preview without moving).
     this.lastHoverClientX = e.clientX;
     this.lastHoverClientY = e.clientY;
     this.updateHover(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
@@ -575,10 +557,9 @@ export class CanvasMouseController {
       this.opts.dragCoordinatorRef.current?.handleMouseUp();
     }
 
-    // Clear selection only when the empty-canvas gesture stayed a CLICK.
-    // A >=5px background drag is now a temporary Hand pan and must preserve
-    // the user's selection.
-    if (this.emptyCanvasClick && !wasDragging && !this.emptyCanvasPanMoved) {
+    // SelectionBox cancels this pending click as soon as marquee owns movement.
+    // If no marquee/drag took over, mouseup keeps the normal empty-click deselect.
+    if (this.emptyCanvasClick && !wasDragging) {
       this.store.set(selectedIdsAtom, []);
       // Reset the Figma-style nested-selection container — clicking
       // on empty canvas is the user's "back to top-level" gesture.
@@ -594,8 +575,6 @@ export class CanvasMouseController {
     this.pendingMultiSelectChild = null;
 
     this.emptyCanvasClick = false;
-    this.emptyCanvasPanStart = null;
-    this.emptyCanvasPanMoved = false;
   }
 
   /**
@@ -609,15 +588,14 @@ export class CanvasMouseController {
 
   /** Shared node mousedown handler — used by ALL elements (Renderer-created and imperative-created). */
   handleNodeMouseDown(nodeId: string, e: MouseEvent, vpIdOverride?: string): void {
-    // Generic iframe mousedown is forwarded separately from nodeMouseDown.
-    // If a stale rect-cache briefly classified a real node press as background,
-    // the authoritative node event wins and cancels the provisional pan.
-    if (this.emptyCanvasPanStart) {
-      handleHandToolUp();
-      this.opts.setPanCursor(isSpaceBarDown());
-      this.emptyCanvasClick = false;
-      this.emptyCanvasPanStart = null;
-      this.emptyCanvasPanMoved = false;
+    // The authoritative node event wins over any provisional background click.
+    this.emptyCanvasClick = false;
+
+    // Space and explicit Hand own the gesture even when the pointer is over a
+    // node. Route through the normal canvas handler before selection/drag logic.
+    if (isSpaceBarDown() || this.store.get(toolModeAtom) === 'hand') {
+      this.handleMouseDown(e);
+      return;
     }
 
     // Commit a half-typed panel input before this changes the selection — the
@@ -982,29 +960,26 @@ export class CanvasMouseController {
     // on tablet-Hero would otherwise satisfy `last.nodeId === nodeId` and
     // mistakenly trigger enter-master / shape-edit / text-edit.
     if (isLeftButton && noMod && last && last.nodeId === nodeId && last.vpId === vpId && timeDiff > 50 && timeDiff < DOUBLE_CLICK_THRESHOLD && distFromLast <= DOUBLE_CLICK_MAX_DIST) {
-      // Figma-style drill-in PRECEDENCE: when directSelectionEnabled is OFF
-      // and the user hasn't drilled down to this exact deep hit yet, the
-      // double-click means "go one level deeper" — NOT specialized handlers.
-      const directSelDbl = this.store.get(directSelectionEnabledAtom);
-      if (!directSelDbl) {
-        const currentSelectedIds = this.store.get(selectedIdsAtom);
-        const currentSelectedId = currentSelectedIds[0];
-        const currentSelNode = currentSelectedId ? this.store.get(nodesAtom).get(currentSelectedId) : null;
-        if (
-          currentSelectedId &&
-          currentSelectedId !== nodeId &&
-          currentSelNode &&
-          (currentSelNode.children?.length ?? 0) > 0
-        ) {
-          this.store.set(activeContainerIdAtom, currentSelectedId);
-          const innerHit = redirectToTopLevelChild(nodeId, currentSelectedId, this.store.get(nodesAtom));
-          this.store.set(selectedIdsAtom, [innerHit]);
-          trace.action('canvas:direct-selection-drill-in', {
-            container: currentSelectedId, selected: innerHit, deepHit: nodeId,
-          });
-          this.lastClick = null;
-          return;
-        }
+      // Figma-style drill-in PRECEDENCE: before specialized double-click
+      // actions, descend one hierarchy level when the current selection is a
+      // container above the deep hit.
+      const currentSelectedIds = this.store.get(selectedIdsAtom);
+      const currentSelectedId = currentSelectedIds[0];
+      const currentSelNode = currentSelectedId ? this.store.get(nodesAtom).get(currentSelectedId) : null;
+      if (
+        currentSelectedId &&
+        currentSelectedId !== nodeId &&
+        currentSelNode &&
+        (currentSelNode.children?.length ?? 0) > 0
+      ) {
+        this.store.set(activeContainerIdAtom, currentSelectedId);
+        const innerHit = redirectToTopLevelChild(nodeId, currentSelectedId, this.store.get(nodesAtom));
+        this.store.set(selectedIdsAtom, [innerHit]);
+        trace.action('canvas:hierarchy-drill-in', {
+          container: currentSelectedId, selected: innerHit, deepHit: nodeId,
+        });
+        this.lastClick = null;
+        return;
       }
 
       // SVG shape edit / group edit: double-click an SVG either enters
@@ -1577,6 +1552,25 @@ export class CanvasMouseController {
     const fitRedirect = redirectToFitTextWrapper(redirected, this.store.get(nodesAtom));
     if (fitRedirect) redirected = fitRedirect;
 
+    // Hierarchy selection is canonical. Ctrl/Cmd is a temporary direct-select
+    // bypass; it never toggles or persists a second selection model.
+    const ctrlBypass = e.ctrlKey || e.metaKey;
+    if (!ctrlBypass) {
+      const hierarchy = this.resolveHierarchyTarget(redirected);
+      if (hierarchy.escaped) {
+        this.store.set(activeContainerIdAtom, null);
+        trace.action('canvas:hierarchy-pop-container', {
+          from: hierarchy.activeContainer, clicked: redirected,
+        });
+      }
+      if (hierarchy.target !== redirected) {
+        trace.action('canvas:hierarchy-redirect', {
+          from: redirected, to: hierarchy.target, activeContainer: hierarchy.activeContainer,
+        });
+        redirected = hierarchy.target;
+      }
+    }
+
     if (e.shiftKey) {
       // Shift+Click: toggle in multi-select.
       const currentIds = this.store.get(selectedIdsAtom);
@@ -1635,41 +1629,6 @@ export class CanvasMouseController {
             }
             walker = nodesMap.get(walker)?.parentId;
           }
-        }
-      }
-
-      // Figma-style nested selection: when directSelectionEnabled is OFF,
-      // walk UP from the deep hit to the immediate child of the user's "active container".
-      const directSelection = this.store.get(directSelectionEnabledAtom);
-      const ctrlBypass = e.ctrlKey || e.metaKey;
-      if (!directSelection && !ctrlBypass) {
-        const activeContainer = this.store.get(activeContainerIdAtom);
-        const promoted = redirectToTopLevelChild(redirected, activeContainer, this.store.get(nodesAtom));
-        if (activeContainer) {
-          const promotedNode = this.store.get(nodesAtom).get(promoted);
-          // Click outside the active container's subtree → reset.
-          if (promotedNode && promotedNode.parentId === null) {
-            this.store.set(activeContainerIdAtom, null);
-            trace.action('canvas:direct-selection-pop-container', {
-              from: activeContainer, clickedTopLevel: promoted,
-            });
-          }
-        }
-        if (promoted !== redirected) {
-          trace.action('canvas:direct-selection-redirect', {
-            from: redirected, to: promoted, activeContainer,
-          });
-          redirected = promoted;
-        }
-      } else if (directSelection && ctrlBypass) {
-        // Direct-select UP: Ctrl/Cmd promotes the deepest hit to its PARENT for
-        // BOTH selection and drag (the `redirected` id below drives startPending
-        // + the selection write), so mousing down on child B with Cmd held grabs
-        // + drags the containing frame A.
-        const promoted = this.promoteToParent(redirected);
-        if (promoted !== redirected) {
-          trace.action('canvas:direct-selection-promote-parent', { from: redirected, to: promoted });
-          redirected = promoted;
         }
       }
 
@@ -1856,34 +1815,9 @@ export class CanvasMouseController {
         }
       }
 
-      // Empty canvas:
-      // - a plain left press temporarily borrows Hand/pan while Select remains
-      //   the active tool;
-      // - Shift+drag is intentionally left alone so marquee selection remains
-      //   available;
-      // - mouseup decides whether this was a click (deselect) or a real pan
-      //   (preserve selection).
+      // Empty canvas: a click still deselects; Select-mode movement belongs to
+      // SelectionBox. Pan is explicit through Space / Hand / middle mouse.
       this.emptyCanvasClick = true;
-      this.emptyCanvasPanStart = null;
-      this.emptyCanvasPanMoved = false;
-
-      const isPlainLeftPress = e.button === 0
-        && !e.shiftKey
-        && !e.ctrlKey
-        && !e.metaKey
-        && !e.altKey;
-
-      if (toolMode === 'select' && isPlainLeftPress) {
-        // SelectionBox saw the pointerdown before this mouse handler. Flag that
-        // gesture for cancellation on its first move so marquee and pan cannot
-        // run at the same time.
-        suppressSelectionBox();
-        this.emptyCanvasPanStart = { x: e.clientX, y: e.clientY };
-        if (handleHandToolDown(e)) {
-          this.opts.setPanCursor(true);
-          trace.action('canvas:pan-start', { source: 'empty-canvas' });
-        }
-      }
 
       const editId = this.store.get(shapeEditingIdAtom);
       this.opts.setShapeEditingId(null);
@@ -1900,6 +1834,7 @@ export class CanvasMouseController {
     this._removeGhostBridgeListener?.();
     this._removeModifierHoverListener?.();
     this._removeSandboxMouseBridgeListeners?.();
+    this._removeWindowBlurListener?.();
     trace.action('canvas:mouse-controller-disposed', {});
   }
 }

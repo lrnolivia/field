@@ -113,6 +113,13 @@ export function initSandbox(_containerEl: HTMLElement, contentRootEl: HTMLElemen
     emit({ type: 'sandboxMouseUp', event: serializeSandboxMouse(e) });
   });
 
+  // If the iframe loses focus while a gesture is active, the corresponding
+  // mouseup may never arrive in this document. Tell the parent to cancel any
+  // transient marquee/pan state rather than leaving the tool latched.
+  window.addEventListener('blur', () => {
+    emit({ type: 'sandboxMouseCancel' });
+  });
+
   // Forward RAF-throttled mouse position to the parent. Parent uses this to
   // run a ghost-aware hit-test (canvas-dnd's onDndHover only sends canonical
   // data-id, so without this the hover outline always lands on the template

@@ -1,5 +1,7 @@
-import { describe, test, expect, afterEach } from 'vitest';
-import { rectsOverlap, getIntersectingNodeIds, getMarqueeSelection, marqueeSelectionSig, type BoxRect } from './SelectionBox';
+import React from 'react';
+import { render, act } from '@testing-library/react';
+import { describe, test, expect, afterEach, vi } from 'vitest';
+import SelectionBox, { rectsOverlap, getIntersectingNodeIds, getMarqueeSelection, marqueeSelectionSig, type BoxRect } from './SelectionBox';
 import { setActiveBridge, resetActiveBridge, type CanvasBridge } from '../canvas-bridge';
 import { vpIdFromPrefix } from '../node-ops';
 
@@ -249,6 +251,42 @@ describe('getIntersectingNodeIds', () => {
     });
     const ids = getIntersectingNodeIds(contentEl, { x: 0, y: 0, width: 200, height: 200 });
     expect(ids).toEqual(['card']);
+  });
+
+  test('sandbox mouse events drive the same marquee path as host pointer events', () => {
+    installBridge({
+      ':hero': { left: 20, top: 20, width: 40, height: 40 },
+    });
+    const host = document.createElement('div');
+    const content = document.createElement('div');
+    host.appendChild(content);
+    document.body.appendChild(host);
+    const onSelectionChange = vi.fn();
+    const view = render(React.createElement(SelectionBox, {
+      containerEl: host,
+      contentEl: content,
+      onSelectionChange,
+      isActive: true,
+    }));
+
+    act(() => {
+      document.dispatchEvent(new CustomEvent('field:sandbox-mousedown', {
+        detail: { clientX: 0, clientY: 0, button: 0, ctrlKey: false, metaKey: false, altKey: false },
+      }));
+      document.dispatchEvent(new CustomEvent('field:sandbox-mousemove', {
+        detail: { clientX: 100, clientY: 100 },
+      }));
+    });
+
+    expect(onSelectionChange).toHaveBeenCalled();
+    const [ids] = onSelectionChange.mock.calls[onSelectionChange.mock.calls.length - 1]!;
+    expect(ids).toEqual(['hero']);
+
+    act(() => document.dispatchEvent(new CustomEvent('field:sandbox-mouseup', {
+      detail: { clientX: 100, clientY: 100, button: 0 },
+    })));
+    view.unmount();
+    host.remove();
   });
 
   test('template chrome (`layout::` ids + children-slot) is never marquee-selected', () => {

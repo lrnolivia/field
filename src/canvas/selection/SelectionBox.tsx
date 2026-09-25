@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { trace } from '@/shared/debug-trace';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
-import { parseRectCacheKey, vpIdFromPrefix, isNodeLockedById } from '@/canvas/node-ops';
+import { parseRectCacheKey, vpIdFromPrefix, isNodeLockedById, getNodeHitsAtPoint } from '@/canvas/node-ops';
 import { isGhostNodeId } from '@/shared/ghost-id';
 import { getActiveAutoPan, isSpaceBarDown } from '@/canvas/transform';
 import { isViewerMode } from '@/code/stores/viewer-mode-store';
@@ -176,37 +176,76 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
   onSelectionChangeRef.current = onSelectionChange;
   const contentElRef = useRef(contentEl);
   contentElRef.current = contentEl;
-  // Auto-pan integration — registered on pointerdown, torn down on pointerup
-  // / cancellation. The tick callback re-runs the intersect with the latest
-  // cursor + freshly-panned rectCache so nodes scrolling into view via
-  // auto-pan are picked up by the marquee without a real mousemove.
   const autoPanCleanupRef = useRef<(() => void) | null>(null);
   const lastMoveRef = useRef<{ x: number; y: number } | null>(null);
 
+  const stopGesture = useCallback(() => {
+    startRef.current = null;
+    isDraggingRef.current = false;
+    lastMoveRef.current = null;
+    setBox(null);
+    autoPanCleanupRef.current?.();
+    autoPanCleanupRef.current = null;
+  }, []);
+
+  const redraw = useCallback((clientX: number, clientY: number) => {
+    if (!startRef.current || !isDraggingRef.current) return;
+    const dx = clientX - startRef.current.x;
+    const dy = clientY - startRef.current.y;
+    const rect: BoxRect = {
+      x: Math.min(startRef.current.x, clientX),
+      y: Math.min(startRef.current.y, clientY),
+      width: Math.abs(dx),
+      height: Math.abs(dy),
+    };
+    setBox(rect);
+    const content = contentElRef.current;
+    if (!content) return;
+    const sel = getMarqueeSelection(content, rect);
+    onSelectionChangeRef.current(sel.ids, sel.vpId, sel.viewportsByNode);
+  }, []);
+
+  const beginGesture = useCallback((clientX: number, clientY: number) => {
+    _suppressNextSelectionBox = false;
+    startRef.current = { x: clientX, y: clientY };
+    isDraggingRef.current = false;
+    lastMoveRef.current = null;
+
+    const ctrl = getActiveAutoPan();
+    if (!ctrl) return;
+    ctrl.setActive('selection-box', true);
+    const unsub = ctrl.onTick(() => {
+      const last = lastMoveRef.current;
+      if (last) redraw(last.x, last.y);
+    });
+    autoPanCleanupRef.current = () => {
+      unsub();
+      ctrl.setActive('selection-box', false);
+    };
+  }, [redraw]);
+
+  const canBegin = useCallback((detail: {
+    button?: number;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    altKey?: boolean;
+  }) => {
+    if (!isActive || isViewerMode()) return false;
+    if ((detail.button ?? 0) !== 0) return false;
+    if (isSpaceBarDown()) return false;
+    if (detail.ctrlKey || detail.metaKey || detail.altKey) return false;
+    return true;
+  }, [isActive]);
+
   const handlePointerDown = useCallback((e: PointerEvent) => {
-    if (!isActive) return;
-    // View-only: no marquee selection. SelectionBox registers its own
-    // pointerdown listener on the canvas container (independent of
-    // CanvasMouseController), so it needs its own viewer gate.
-    if (isViewerMode()) return;
-    // Only activate on left mouse button
-    if (e.button !== 0) return;
-    // Space-pan: this pointerdown belongs to the pan gesture
-    // (CanvasMouseController's handleSpacePanDown). The marquee registers
-    // its OWN container listener, so without this gate both started — a
-    // selection box drew while the user panned (user report 2026-08-27).
-    // The hand TOOL is already covered by `isActive`; spacebar is transient
-    // key state, so it's checked at event time.
-    if (isSpaceBarDown()) return;
-    // STRICT: Only activate when clicking DIRECTLY on the canvas container or a viewport root.
+    if (!canBegin(e)) return;
     const target = e.target as HTMLElement;
     if (!containerEl) return;
     const isCanvasContainer = target === containerEl;
     const isContentRoot = target === contentElRef.current;
-    // Viewport root without data-id = empty viewport background (pages)
-    // Viewport root WITH data-id = variant root (components) — should drag, not selection box
     const isViewportRoot = target.hasAttribute('data-viewport') && !target.hasAttribute('data-id');
     trace.action('selection-box:pointerdown-check', {
+      source: 'host',
       tagName: target.tagName,
       dataId: target.getAttribute('data-id'),
       dataViewport: target.getAttribute('data-viewport'),
@@ -214,100 +253,56 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
       passed: isCanvasContainer || isContentRoot || isViewportRoot,
     });
     if (!isCanvasContainer && !isContentRoot && !isViewportRoot) return;
-    // Don't activate if modifier keys suggest other actions (except shift for extend)
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    beginGesture(e.clientX, e.clientY);
+  }, [beginGesture, canBegin, containerEl]);
 
-    // Reset the suppress flag at the START of every fresh marquee gesture.
-    // It's set true by the hit-test (`suppressSelectionBox()`) whenever a
-    // mousedown lands on a NODE, and was only ever cleared inside
-    // `handlePointerMove`. A plain node CLICK (select, no drag) never fires a
-    // pointermove, so the flag stayed stale-true — and the user's NEXT
-    // empty-canvas drag had its first pointermove consume that stale flag and
-    // cancel the marquee, forcing a throwaway click first. We've passed all
-    // the empty-canvas guards here, so the hit-test will re-set the flag for
-    // THIS gesture if it actually hits a node; clearing it now scopes the
-    // flag to the current pointerdown only.
-    _suppressNextSelectionBox = false;
+  const handleSandboxMouseDown = useCallback((event: Event) => {
+    const detail = (event as CustomEvent<{
+      clientX: number;
+      clientY: number;
+      button?: number;
+      ctrlKey?: boolean;
+      metaKey?: boolean;
+      altKey?: boolean;
+    }>).detail;
+    if (!detail || !canBegin(detail)) return;
+    // Generic sandbox mousedown fires for nodes too. The nodeMouseDown path owns
+    // those presses; marquee only starts on geometry-empty iframe background.
+    if (getNodeHitsAtPoint(detail.clientX, detail.clientY).length > 0) return;
+    trace.action('selection-box:pointerdown-check', {
+      source: 'sandbox',
+      isCanvasContainer: false,
+      isContentRoot: false,
+      isViewportRoot: true,
+      passed: true,
+    });
+    beginGesture(detail.clientX, detail.clientY);
+  }, [beginGesture, canBegin]);
 
-    startRef.current = { x: e.clientX, y: e.clientY };
-    isDraggingRef.current = false;
-    lastMoveRef.current = null;
-    // Don't show box yet — wait for a minimum drag distance
-
-    // Wire auto-pan now (not on first move) so the loop is ready the
-    // moment the user crosses the 5px activation threshold. The tick
-    // callback re-runs the intersect using the LAST seen cursor — so
-    // when the cursor stops moving at an edge, the canvas keeps panning
-    // and newly-revealed elements get picked up by the marquee.
-    const ctrl = getActiveAutoPan();
-    if (ctrl) {
-      const redraw = (clientX: number, clientY: number) => {
-        if (!startRef.current || !isDraggingRef.current) return;
-        const dx = clientX - startRef.current.x;
-        const dy = clientY - startRef.current.y;
-        const rect: BoxRect = {
-          x: Math.min(startRef.current.x, clientX),
-          y: Math.min(startRef.current.y, clientY),
-          width: Math.abs(dx),
-          height: Math.abs(dy),
-        };
-        setBox(rect);
-        const content = contentElRef.current;
-        if (content) {
-          const sel = getMarqueeSelection(content, rect);
-          onSelectionChangeRef.current(sel.ids, sel.vpId, sel.viewportsByNode);
-        }
-      };
-      ctrl.setActive('selection-box', true);
-      const unsub = ctrl.onTick(() => {
-        const last = lastMoveRef.current;
-        if (last) redraw(last.x, last.y);
-      });
-      autoPanCleanupRef.current = () => {
-        unsub();
-        ctrl.setActive('selection-box', false);
-      };
-    }
-  }, [containerEl, isActive]);
-
-  const handlePointerMove = useCallback((e: PointerEvent) => {
+  const handleMoveAt = useCallback((clientX: number, clientY: number) => {
     if (!startRef.current) return;
-
-    // In iframe mode, the suppress flag is set by the hit test handler (fires between
-    // our pointerdown and this pointermove). Cancel if a node was found.
     if (_suppressNextSelectionBox) {
       _suppressNextSelectionBox = false;
-      startRef.current = null;
-      autoPanCleanupRef.current?.();
-      autoPanCleanupRef.current = null;
+      stopGesture();
       return;
     }
-
-    // Stash the latest cursor so the auto-pan tick has something to redraw
-    // against when the cursor goes stationary at an edge.
-    lastMoveRef.current = { x: e.clientX, y: e.clientY };
-
-    const dx = e.clientX - startRef.current.x;
-    const dy = e.clientY - startRef.current.y;
-
-    // Require minimum 5px drag to activate (avoid flash on clicks)
+    lastMoveRef.current = { x: clientX, y: clientY };
+    const dx = clientX - startRef.current.x;
+    const dy = clientY - startRef.current.y;
     if (!isDraggingRef.current) {
       if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
       isDraggingRef.current = true;
       trace.action('selection-box:start', { x: startRef.current.x, y: startRef.current.y });
     }
-
-    // Calculate screen-space box
-    const x = Math.min(startRef.current.x, e.clientX);
-    const y = Math.min(startRef.current.y, e.clientY);
-    const width = Math.abs(dx);
-    const height = Math.abs(dy);
-    const rect: BoxRect = { x, y, width, height };
-    setBox(rect);
-
-    // Find intersecting nodes — primary AND replica viewports.
+    redraw(clientX, clientY);
     const content = contentElRef.current;
     if (content) {
+      const rect: BoxRect = {
+        x: Math.min(startRef.current.x, clientX),
+        y: Math.min(startRef.current.y, clientY),
+        width: Math.abs(dx),
+        height: Math.abs(dy),
+      };
       const sel = getMarqueeSelection(content, rect);
       trace.action('selection-box:intersect', {
         selectionRect: rect,
@@ -315,41 +310,48 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
         vpId: sel.vpId,
         viewportRootCount: content.querySelectorAll('[data-viewport]').length,
       });
-      onSelectionChangeRef.current(sel.ids, sel.vpId, sel.viewportsByNode);
     }
-  }, []);
+  }, [redraw, stopGesture]);
+
+  const handlePointerMove = useCallback((e: PointerEvent) => handleMoveAt(e.clientX, e.clientY), [handleMoveAt]);
+  const handleSandboxMouseMove = useCallback((event: Event) => {
+    const detail = (event as CustomEvent<{ clientX: number; clientY: number }>).detail;
+    if (detail) handleMoveAt(detail.clientX, detail.clientY);
+  }, [handleMoveAt]);
 
   const handlePointerUp = useCallback(() => {
-    if (isDraggingRef.current) {
-      trace.action('selection-box:end', { hadSelection: box !== null });
-    }
-    startRef.current = null;
-    isDraggingRef.current = false;
-    lastMoveRef.current = null;
-    setBox(null);
-    // Always cleanup — covers the "pointerdown without ever crossing the
-    // drag threshold" case (no box was shown but auto-pan was registered).
-    autoPanCleanupRef.current?.();
-    autoPanCleanupRef.current = null;
-  }, [box]);
+    if (isDraggingRef.current) trace.action('selection-box:end', { hadSelection: true });
+    stopGesture();
+  }, [stopGesture]);
 
   useEffect(() => {
     if (!containerEl || !isActive) return;
-
-    // Use capture phase so we get the event before anything else
-    containerEl.addEventListener('pointerdown', handlePointerDown, { capture: false });
+    containerEl.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('blur', handlePointerUp);
+    document.addEventListener('field:sandbox-mousedown', handleSandboxMouseDown);
+    document.addEventListener('field:sandbox-mousemove', handleSandboxMouseMove);
+    document.addEventListener('field:sandbox-mouseup', handlePointerUp);
+    document.addEventListener('field:sandbox-mousecancel', handlePointerUp);
 
     return () => {
       containerEl.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('blur', handlePointerUp);
+      document.removeEventListener('field:sandbox-mousedown', handleSandboxMouseDown);
+      document.removeEventListener('field:sandbox-mousemove', handleSandboxMouseMove);
+      document.removeEventListener('field:sandbox-mouseup', handlePointerUp);
+      document.removeEventListener('field:sandbox-mousecancel', handlePointerUp);
+      autoPanCleanupRef.current?.();
+      autoPanCleanupRef.current = null;
     };
-  }, [containerEl, isActive, handlePointerDown, handlePointerMove, handlePointerUp]);
+  }, [containerEl, isActive, handlePointerDown, handlePointerMove, handlePointerUp, handleSandboxMouseDown, handleSandboxMouseMove]);
 
   if (!box) return null;
-
   return (
     <div
       data-selection-box

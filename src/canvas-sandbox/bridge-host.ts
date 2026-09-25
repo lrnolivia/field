@@ -669,6 +669,14 @@ export class PostMessageBridge implements CanvasBridge {
     return new DOMRect(rect.x + offset.x, rect.y + offset.y, rect.width, rect.height);
   }
 
+  /** Mouse coordinates emitted by the sandbox are iframe-local. Every parent
+   *  canvas consumer (rect cache hit tests, overlays, drag math, marquee) works
+   *  in browser screen-space, so normalize once at this boundary. */
+  private toParentMousePoint(clientX: number, clientY: number): { clientX: number; clientY: number } {
+    const offset = this.getIframeOffset();
+    return { clientX: clientX + offset.x, clientY: clientY + offset.y };
+  }
+
   /**
    * Adjust a cached rect from cache-time transform space to current transform space.
    * When the user pans/zooms after the last render, cached rects become stale.
@@ -1126,9 +1134,11 @@ export class PostMessageBridge implements CanvasBridge {
         break;
       }
 
-      case 'nodeMouseDown':
-        this.onNodeMouseDown?.(event.nodeId, event.event);
+      case 'nodeMouseDown': {
+        const point = this.toParentMousePoint(event.event.clientX, event.event.clientY);
+        this.onNodeMouseDown?.(event.nodeId, { ...event.event, ...point });
         break;
+      }
 
       case 'ghostSelect':
         // Re-dispatch on parent's document so existing Canvas.tsx listener fires.
@@ -1140,23 +1150,33 @@ export class PostMessageBridge implements CanvasBridge {
         trace.action('postmessage-bridge:ghost-select', { ghostIndex: event.ghostIndex, templateId: event.templateId });
         break;
 
-      case 'sandboxMouseDown':
+      case 'sandboxMouseDown': {
+        const point = this.toParentMousePoint(event.event.clientX, event.event.clientY);
         document.dispatchEvent(new CustomEvent('field:sandbox-mousedown', {
-          detail: event.event,
+          detail: { ...event.event, ...point },
         }));
         break;
+      }
 
-      case 'sandboxMouseMove':
+      case 'sandboxMouseMove': {
+        const point = this.toParentMousePoint(event.clientX, event.clientY);
         document.dispatchEvent(new CustomEvent('field:sandbox-mousemove', {
-          detail: { clientX: event.clientX, clientY: event.clientY },
+          detail: point,
         }));
-        this.onSandboxMouseMove?.(event.clientX, event.clientY);
+        this.onSandboxMouseMove?.(point.clientX, point.clientY);
         break;
+      }
 
-      case 'sandboxMouseUp':
+      case 'sandboxMouseUp': {
+        const point = this.toParentMousePoint(event.event.clientX, event.event.clientY);
         document.dispatchEvent(new CustomEvent('field:sandbox-mouseup', {
-          detail: event.event,
+          detail: { ...event.event, ...point },
         }));
+        break;
+      }
+
+      case 'sandboxMouseCancel':
+        document.dispatchEvent(new CustomEvent('field:sandbox-mousecancel'));
         break;
 
       case 'error':

@@ -16,7 +16,6 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
 import {
-  directSelectionEnabledAtom,
   autoPanSpeedAtom,
   autoFocusLayersAtom,
   showRulersAtom,
@@ -87,7 +86,6 @@ export function LogoButton() {
   // here means the submenu re-renders correctly when the user flips a
   // preference (Edit → Preferences → toggle). The atoms are
   // `atomWithStorage`-backed; the new value persists across reloads.
-  const [directSelectionEnabled, setDirectSelectionEnabled] = useAtom(directSelectionEnabledAtom);
   const [autoPanSpeed, setAutoPanSpeed] = useAtom(autoPanSpeedAtom);
   const [autoFocusLayers, setAutoFocusLayers] = useAtom(autoFocusLayersAtom);
   const [showRulers, setShowRulers] = useAtom(showRulersAtom);
@@ -99,8 +97,8 @@ export function LogoButton() {
 
   const items: DropdownMenuEntry[] = useMemo(() => {
     const preferencesSubmenu = buildPreferencesSubmenu(
-      { directSelectionEnabled, autoPanSpeed, autoFocusLayers, showRulers, useSmoothZoom, showPixelGrid },
-      { setDirectSelectionEnabled, setAutoPanSpeed, setAutoFocusLayers, setShowRulers, setUseSmoothZoom, setShowPixelGrid },
+      { autoPanSpeed, autoFocusLayers, showRulers, useSmoothZoom, showPixelGrid },
+      { setAutoPanSpeed, setAutoFocusLayers, setShowRulers, setUseSmoothZoom, setShowPixelGrid },
     );
     const tabs = buildTabs(preferencesSubmenu);
     // Each tab becomes a single dropdown entry with `submenuItems` —
@@ -197,8 +195,8 @@ export function LogoButton() {
     ];
   }, [
     isViewer, hasActiveSubscription, setSettingsOpen, setSettingsSection,
-    directSelectionEnabled, autoPanSpeed, autoFocusLayers, showRulers, useSmoothZoom, showPixelGrid,
-    setDirectSelectionEnabled, setAutoPanSpeed, setAutoFocusLayers, setShowRulers, setUseSmoothZoom, setShowPixelGrid,
+    autoPanSpeed, autoFocusLayers, showRulers, useSmoothZoom, showPixelGrid,
+    setAutoPanSpeed, setAutoFocusLayers, setShowRulers, setUseSmoothZoom, setShowPixelGrid,
     builderTheme, setBuilderTheme,
   ]);
 

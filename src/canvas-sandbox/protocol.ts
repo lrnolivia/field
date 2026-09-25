@@ -112,6 +112,9 @@ export type SandboxEvent =
   // is an event boundary: background presses never bubble to the parent canvas.
   | { type: 'sandboxMouseDown'; event: SerializedMouseEvent }
   | { type: 'sandboxMouseUp'; event: SerializedMouseEvent }
+  // Gesture cancellation when the iframe loses focus mid-press. No coordinates
+  // are required: consumers only need to tear down transient gesture state.
+  | { type: 'sandboxMouseCancel' }
   // .map() ghost copy was clicked in sandbox. Renderer dispatches a
   // 'revyme:ghost-select' CustomEvent on the iframe's document; bridge-sandbox
   // forwards via this message; bridge-host re-dispatches the same CustomEvent

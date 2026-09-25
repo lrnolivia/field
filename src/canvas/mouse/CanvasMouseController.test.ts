@@ -132,10 +132,11 @@ import {
   shapeEditingIdAtom,
   groupEditingIdAtom,
   selectedPointAtom,
+  activeContainerIdAtom,
 } from '@/code/stores/shape-edit-store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
 import { toolModeAtom } from '@/code/stores/tool-store';
-import { directSelectionEnabledAtom } from '@/code/stores/user-preferences-store';
+import { redirectToTopLevelChild } from '@/canvas/commands';
 
 import {
   redirectToComponentInstance,
@@ -166,9 +167,8 @@ function makeMouseEvent(overrides: Partial<MouseEvent> = {}): MouseEvent {
 function makeController(storeOverride?: ReturnType<typeof createStore>) {
   const store = storeOverride ?? createStore();
 
-  // Ensure toolModeAtom is 'select' by default
+  // Ensure toolModeAtom is 'select' by default.
   store.set(toolModeAtom, 'select' as any);
-  store.set(directSelectionEnabledAtom, true as any); // direct selection ON = no walk-up redirect
 
   const setSelectedIds = vi.fn((ids: string[]) => store.set(selectedIdsAtom, ids));
   const setInteractingViewport = vi.fn((vpId: string) => store.set(interactingViewportIdAtom, vpId));
@@ -227,7 +227,7 @@ describe('CanvasMouseController', () => {
   // Mock each redirect helper to chain: original → layoutRedirected (null here,
   // since layout redirect returns null for non-layout nodes) → componentRedirected
   // → fitRedirected → topLevelRedirected.
-  // With direct-selection ON the topLevel redirect is bypassed.
+  // The default hierarchy mock is identity, so the redirect chain remains observable.
   // The final store write must be the deepest non-null redirect's result.
   test('redirect chain: component instance redirect then fit-text redirect applied in order', () => {
     const { controller, store, setSelectedIds } = makeController();
@@ -537,5 +537,66 @@ describe('CanvasMouseController — CMS-bound text double-click', () => {
 
     expect(opts.openCmsEditor).not.toHaveBeenCalled();
     expect(opts.startTextEdit).not.toHaveBeenCalled();
+  });
+});
+
+
+// ─── Canonical Figma-style hierarchy selection ─────────────────────────────
+describe('CanvasMouseController — canonical hierarchy selection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(redirectLayoutNodeToViewport).mockReturnValue(null);
+    vi.mocked(redirectToComponentInstance).mockImplementation((id: string) => id);
+    vi.mocked(redirectToFitTextWrapper).mockReturnValue(null);
+    vi.mocked(redirectToTopLevelChild).mockImplementation((id: string) => id);
+  });
+
+  test('plain click resolves through the active hierarchy', () => {
+    const { controller, store } = makeController();
+    store.set(nodesAtom, new Map([
+      ['root', { id: 'root', parentId: null, children: ['frame'], styles: {}, attrs: {} }],
+      ['frame', { id: 'frame', parentId: 'root', children: ['leaf'], styles: {}, attrs: {} }],
+      ['leaf', { id: 'leaf', parentId: 'frame', children: [], styles: {}, attrs: {} }],
+    ]) as never);
+    vi.mocked(redirectToTopLevelChild).mockImplementation((id: string, containerId: string | null) =>
+      id === 'leaf' && containerId === 'root' ? 'frame' : id);
+
+    controller.handleNodeMouseDown('leaf', makeMouseEvent(), 'desktop');
+
+    expect(redirectToTopLevelChild).toHaveBeenCalledWith('leaf', 'root', expect.any(Map));
+    expect(store.get(selectedIdsAtom)).toEqual(['frame']);
+  });
+
+  test('Cmd/Ctrl click bypasses hierarchy and selects the deepest eligible hit', () => {
+    const { controller, store } = makeController();
+    store.set(nodesAtom, new Map([
+      ['root', { id: 'root', parentId: null, children: ['frame'], styles: {}, attrs: {} }],
+      ['frame', { id: 'frame', parentId: 'root', children: ['leaf'], styles: {}, attrs: {} }],
+      ['leaf', { id: 'leaf', parentId: 'frame', children: [], styles: {}, attrs: {} }],
+    ]) as never);
+
+    controller.handleNodeMouseDown('leaf', makeMouseEvent({ metaKey: true }), 'desktop');
+
+    expect(redirectToTopLevelChild).not.toHaveBeenCalled();
+    expect(store.get(selectedIdsAtom)).toEqual(['leaf']);
+  });
+
+  test('double click drills exactly one hierarchy level and records the active container', () => {
+    const { controller, store } = makeController();
+    store.set(nodesAtom, new Map([
+      ['root', { id: 'root', parentId: null, children: ['frame'], styles: {}, attrs: {} }],
+      ['frame', { id: 'frame', parentId: 'root', children: ['inner'], styles: {}, attrs: {} }],
+      ['inner', { id: 'inner', parentId: 'frame', children: ['leaf'], styles: {}, attrs: {} }],
+      ['leaf', { id: 'leaf', parentId: 'inner', children: [], styles: {}, attrs: {} }],
+    ]) as never);
+    store.set(selectedIdsAtom, ['frame']);
+    vi.mocked(redirectToTopLevelChild).mockImplementation((id: string, containerId: string | null) =>
+      id === 'leaf' && containerId === 'frame' ? 'inner' : id);
+    (controller as any).lastClick = { nodeId: 'leaf', vpId: 'desktop', time: Date.now() - 120, x: 100, y: 100 };
+
+    controller.handleNodeMouseDown('leaf', makeMouseEvent(), 'desktop');
+
+    expect(store.get(activeContainerIdAtom)).toBe('frame');
+    expect(store.get(selectedIdsAtom)).toEqual(['inner']);
   });
 });

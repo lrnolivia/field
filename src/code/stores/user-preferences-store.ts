@@ -7,9 +7,8 @@
 // (`builder/src/builder/context/atoms/user-preferences-store.ts`) but
 // keeps things minimal — these atoms only define WHAT prefs exist; the
 // File → Preferences submenu reads/writes them. Wiring each pref to its
-// downstream behavior (auto-pan speed → DragCoordinator,
-// `directSelectionEnabled` → SelectionOverlay, etc.) is per-feature work
-// done as each toggle gets connected to a real consumer.
+// downstream behavior (auto-pan speed → DragCoordinator, rulers, zoom, etc.)
+// is per-feature work done as each toggle gets connected to a real consumer.
 
 import { atomWithStorage } from 'jotai/utils';
 
@@ -42,14 +41,6 @@ export const AUTO_PAN_SPEED_VALUES: Record<AutoPanSpeed, AutoPanSpeedValues> = {
 // Each `atomWithStorage` reads from localStorage on first access and
 // writes back on every set. Keys are namespaced under `Revyme:prefs:`
 // so they don't collide with other per-user state in the same origin.
-
-/** Direct selection: when ON, click selects the deepest element under
- *  the cursor — the common default in web-oriented builders. When OFF,
- *  double-click is required to "enter" a container before its children
- *  become selectable, the two-step model familiar from design tools. */
-export const directSelectionEnabledAtom = atomWithStorage<boolean>(
-  'revyme:prefs:directSelectionEnabled', true,
-);
 
 /** Auto-pan speed for edge scrolling during drag. */
 export const autoPanSpeedAtom = atomWithStorage<AutoPanSpeed>(

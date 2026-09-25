@@ -343,7 +343,6 @@ const CheckGlyph = () => (
 );
 
 export interface PrefsState {
-  directSelectionEnabled: boolean;
   autoPanSpeed: AutoPanSpeed;
   autoFocusLayers: boolean;
   showRulers: boolean;
@@ -352,7 +351,6 @@ export interface PrefsState {
 }
 
 export interface PrefsSetters {
-  setDirectSelectionEnabled: (v: boolean) => void;
   setAutoPanSpeed: (v: AutoPanSpeed) => void;
   setAutoFocusLayers: (v: boolean) => void;
   setShowRulers: (v: boolean) => void;
@@ -382,7 +380,6 @@ export function buildPreferencesSubmenu(prefs: PrefsState, set: PrefsSetters): D
     onClick: () => { set.setAutoPanSpeed(level); trace.action(`menu:pref:auto-pan-speed`, { level }); },
   });
   return [
-    toggle('pref-direct-selection', 'Direct selection', prefs.directSelectionEnabled, set.setDirectSelectionEnabled),
     toggle('pref-auto-focus-layers', 'Auto focus layers', prefs.autoFocusLayers, set.setAutoFocusLayers),
     toggle('pref-show-rulers', 'Show rulers', prefs.showRulers, set.setShowRulers),
     toggle('pref-smooth-zoom', 'Use smooth zoom', prefs.useSmoothZoom, set.setUseSmoothZoom),

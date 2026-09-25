@@ -156,9 +156,9 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
       setSelectedIds([groupEditId]);
       return;
     }
-    // Pop the Figma-style nested-selection container by ONE level. With
-    // direct-selection OFF, dblclick on a frame with children sets that
-    // frame as the active container; ESC walks back out — same UX as
+    // Pop the Figma-style nested-selection container by ONE level. Double-click
+    // on a frame with children sets that frame as the active container; Escape
+    // walks back out — same UX as
     // group-edit's exit, just at the page-tree scope. Sets activeContainer
     // to the popped frame's parent (or null if it was top-level), and
     // selects the popped frame so the user keeps a visible selection
@@ -166,10 +166,11 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     const activeContainer = store.get(activeContainerIdAtom);
     if (activeContainer) {
       const popped = nodesRef.current.get(activeContainer);
-      const newContainer = popped?.parentId ?? null;
+      const parentId = popped?.parentId ?? null;
+      const newContainer = parentId === 'root' ? null : parentId;
       store.set(activeContainerIdAtom, newContainer);
       setSelectedIds([activeContainer]);
-      trace.action('canvas:direct-selection-pop-esc', {
+      trace.action('canvas:hierarchy-pop-esc', {
         from: activeContainer, to: newContainer,
       });
       return;
@@ -197,6 +198,14 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     setSpaceBarDown(false);
     setPanHighlight?.(false);
   }));
+  // A browser/app focus loss can swallow the Space keyup. Always clear the
+  // transient hold so the canvas cannot come back stuck in pan mode.
+  const clearSpaceHold = () => {
+    setSpaceBarDown(false);
+    setPanHighlight?.(false);
+  };
+  window.addEventListener('blur', clearSpaceHold);
+  cleanups.push(() => window.removeEventListener('blur', clearSpaceHold));
 
   // ─── Zoom ────────────────────────────────────────────────────────
   cleanups.push(keyboard.register({ key: ['+', '='], ctrl: true, label: 'Zoom in', category: 'zoom', handler: () => zoomIn() }));
