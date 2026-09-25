@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:47:06Z
+Last Updated: 2026-09-25T08:54:25Z
 
 ## Active Assignments
 
@@ -192,7 +192,52 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
+<!-- ASSIGNMENT:field-scroll-integrity-20260925:START -->
+### field-scroll-integrity-20260925 — Scroll Integrity Phase 3 — Menus, Modals, Dashboard, Settings, Comments
 
+Status: active
+Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
+Activation HEAD: e4e36f3b050464fb84cc5e29cdcb97f227157984
+Last Sync: 2026-09-25T08:54:25Z
+
+Owned:
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/Modal.tsx
+  - src/styles/dashboard.css
+  - src/cloud/NewWebsiteTemplatesModal.tsx
+  - src/editor/overlays/SettingsOverlay.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/collab/CollaboratorsModal.tsx
+  - src/editor/component-editor/ComponentEditorOverlay.tsx
+  - src/editor/scroll-integrity-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/ui/**
+  - src/editor/tools/TextStyleTool/**
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-scroll-integrity-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
