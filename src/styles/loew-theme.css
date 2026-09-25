@@ -21,10 +21,10 @@
   --cut: 0px;
   --cut-round: var(--radius-md);
 
-  --control-height: 22px;
-  --control-height-sm: 20px;
-  --control-pad-x: 4px;
-  --control-gap: 3px;
+  --control-height: 24px;
+  --control-height-sm: 22px;
+  --control-pad-x: 6px;
+  --control-gap: 4px;
 
   /* Graphite is intentionally GREY, not white, in both themes. */
   --accent: #6b6b6b;
@@ -72,7 +72,7 @@ textarea {
 }
 
 body {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.25;
   letter-spacing: -0.004em;
   font-synthesis: none;
@@ -82,7 +82,7 @@ button,
 input,
 select,
 textarea {
-  font-size: 9.75px;
+  font-size: 11px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -265,32 +265,32 @@ select {
 /* Sidebars: smaller type, but preserve enough hierarchy to scan quickly. */
 [data-editor-panel],
 [data-properties-panel] {
-  font-size: 9.75px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 [data-editor-panel] .text-sm,
 [data-properties-panel] .text-sm {
-  font-size: 10px;
-  line-height: 13px;
+  font-size: 11px;
+  line-height: 14px;
 }
 
 [data-editor-panel] .text-xs,
 [data-properties-panel] .text-xs {
-  font-size: 9.75px;
-  line-height: 12px;
+  font-size: 11px;
+  line-height: 14px;
 }
 
 [data-editor-panel] [class*="text-[13px]"],
 [data-properties-panel] [class*="text-[13px]"] {
-  font-size: 10px;
-  line-height: 13px;
+  font-size: 12px;
+  line-height: 15px;
 }
 
 [data-editor-panel] [class*="text-[12px]"],
 [data-properties-panel] [class*="text-[12px]"] {
-  font-size: 9.75px;
-  line-height: 12px;
+  font-size: 11px;
+  line-height: 14px;
 }
 
 /* Left rail: keep structural width, reduce visual mass. */
@@ -322,8 +322,8 @@ select {
 
 /* Bottom tool strip: smaller AND floating off the screen edge. */
 #bottom-toolbar-container {
-  padding: 3px 5px;
-  gap: 1px;
+  padding: 4px 5px;
+  gap: 0;
 }
 
 #bottom-toolbar-container > [aria-hidden="true"] {
@@ -331,15 +331,15 @@ select {
 }
 
 #bottom-toolbar-container button {
-  min-height: 24px;
-  height: 24px;
+  min-height: 28px;
+  height: 28px;
   border-radius: var(--radius-md);
-  font-size: 9.75px;
+  font-size: 11px;
 }
 
 #bottom-toolbar-container svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 #bottom-toolbar-container [class*="h-[26px]"] {
@@ -413,4 +413,137 @@ select {
 [data-viewport-header],
 [data-frame-header] {
   border-radius: var(--radius-sm);
+}/* -------------------------------------------------------------------------- */
+/* FIGUI3_GLOBAL_PARITY_20260925                                               */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Semantic aliases used by newer Inspector work. */
+  --control-radius: var(--radius-md);
+  --bg-selected: var(--bg-active);
+  --bg-raised: var(--control-bg);
+  --field-ui-font-size: 11px;
+  --field-ui-font-size-compact: 10px;
+  --field-row-height: 24px;
+  --field-menu-row-height: 28px;
+  --panel-inset: 10px;
+}
+
+/* Level 2 is the current Light/Dark palette (Default). Levels 1 and 3 only
+ * move neutral chrome. Accent, selection, website colors and page overrides
+ * remain independent. */
+html[data-neutral-level="1"]:not(.dark) {
+  --bg-canvas: #f0f0f0;
+  --bg-surface: #ffffff;
+  --bg-toolbar: #ffffff;
+  --bg-panel: #fbfbfb;
+  --bg-hover: #eeeeee;
+  --bg-active: #e6e6e6;
+  --bg-tertiary: #f5f5f5;
+  --grid-line: #f1f1f1;
+  --control-bg: #f1f1f1;
+  --control-bg-hover: #e8e8e8;
+  --control-bg-active: #dfdfdf;
+  --choice-bg: #efefef;
+  --segmented-bg: #ffffff;
+  --border-light: rgba(0, 0, 0, 0.08);
+  --border-default: rgba(0, 0, 0, 0.14);
+  --control-border: rgba(0, 0, 0, 0.08);
+  --control-border-hover: rgba(0, 0, 0, 0.16);
+  --dropdown-bg: #ffffff;
+}
+
+html[data-neutral-level="3"]:not(.dark) {
+  --bg-canvas: #dedede;
+  --bg-surface: #f5f5f5;
+  --bg-toolbar: #f2f2f2;
+  --bg-panel: #eeeeee;
+  --bg-hover: #e2e2e2;
+  --bg-active: #d8d8d8;
+  --bg-tertiary: #e8e8e8;
+  --grid-line: #e7e7e7;
+  --control-bg: #e7e7e7;
+  --control-bg-hover: #dddddd;
+  --control-bg-active: #d3d3d3;
+  --choice-bg: #e4e4e4;
+  --segmented-bg: #f5f5f5;
+  --border-light: rgba(0, 0, 0, 0.11);
+  --border-default: rgba(0, 0, 0, 0.18);
+  --control-border: rgba(0, 0, 0, 0.10);
+  --control-border-hover: rgba(0, 0, 0, 0.20);
+  --dropdown-bg: #f5f5f5;
+}
+
+html.dark[data-neutral-level="1"] {
+  --bg-canvas: #242424;
+  --bg-surface: #2b2b2b;
+  --bg-toolbar: #2b2b2b;
+  --bg-panel: #2b2b2b;
+  --bg-hover: #363636;
+  --bg-active: #3e3e3e;
+  --bg-tertiary: #303030;
+  --grid-line: #323232;
+  --control-bg: #323232;
+  --control-bg-hover: #3a3a3a;
+  --control-bg-active: #424242;
+  --choice-bg: #292929;
+  --segmented-bg: #404040;
+  --border-light: rgba(255, 255, 255, 0.075);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --control-border: rgba(255, 255, 255, 0.075);
+  --control-border-hover: rgba(255, 255, 255, 0.16);
+  --dropdown-bg: #303030;
+}
+
+html.dark[data-neutral-level="3"] {
+  --bg-canvas: #171717;
+  --bg-surface: #1d1d1d;
+  --bg-toolbar: #1d1d1d;
+  --bg-panel: #1d1d1d;
+  --bg-hover: #282828;
+  --bg-active: #303030;
+  --bg-tertiary: #222222;
+  --grid-line: #242424;
+  --control-bg: #242424;
+  --control-bg-hover: #2c2c2c;
+  --control-bg-active: #343434;
+  --choice-bg: #1b1b1b;
+  --segmented-bg: #303030;
+  --border-light: rgba(255, 255, 255, 0.065);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --control-border: rgba(255, 255, 255, 0.065);
+  --control-border-hover: rgba(255, 255, 255, 0.14);
+  --dropdown-bg: #222222;
+}
+
+/* Stronger optical content inside tighter structures: Figma density comes from
+ * construction, not microscopic text. */
+[data-properties-panel] [data-inspector-object-header] > div:first-child {
+  min-height: 32px;
+  padding-left: var(--panel-inset);
+  padding-right: var(--panel-inset);
+}
+
+[data-properties-panel] [data-inspector-object-header] button,
+[data-properties-panel] [data-inspector-object-header] [class*="text-[13px]"] {
+  font-size: 12px;
+}
+
+[data-tool-popup] {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+[role="menu"],
+[role="listbox"],
+[data-tool-popup],
+[data-theme-neutral-popover] {
+  font-size: 11px;
+}
+
+/* Keep the canvas editor backdrop independent of the website iframe. The
+ * actual root consumes this variable in Canvas.tsx; explicit page overrides
+ * are written by PageAppearanceBridge, otherwise this follows --bg-canvas. */
+html[data-page-canvas-visible="false"] {
+  --page-canvas-background: var(--bg-canvas);
 }

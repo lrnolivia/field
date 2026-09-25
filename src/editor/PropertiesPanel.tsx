@@ -51,6 +51,7 @@ import { shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
 import type { CanvasNode } from '@/code/parsing/parser';
 import TemplatePicker from './TemplatePicker';
 import { VariableModalHost } from './ui/VariableModalHost';
+import PageAppearanceTool from './tools/PageAppearanceTool';
 
 // React.memo: Canvas re-renders at every drag transition (drag-state,
 // interacting-viewport, highlight state) and each one cascaded through this
@@ -70,17 +71,19 @@ export default React.memo(function PropertiesPanel() {
   }
 
   if (!selectedId) {
-    // Nothing selected → empty shell. The Template picker lives in the
-    // inner panel, gated to viewport selection (root / layout::root) so
-    // it's visible only when the user has a clear "I'm editing this
-    // page" anchor — not in the deselected state.
+    // FigUI3 no-selection state is a real Page inspector, not a blank slab.
+    // PageAppearanceTool edits only project _meta/editor canvas appearance;
+    // it never writes website source or Preview styles.
     return (
       <div
         data-properties-panel
         data-tutorial="right-toolbar"
         className="w-full h-full overflow-y-auto scrollbar-hide relative z-[5000]"
         style={{ willChange: 'transform', isolation: 'isolate' }}
-      />
+      >
+        <InspectorModeTabs />
+        <PageAppearanceTool />
+      </div>
     );
   }
 

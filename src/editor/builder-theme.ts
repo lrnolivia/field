@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
@@ -16,6 +16,7 @@ import {
   type BuilderTheme,
 } from '@/shared/builder-themes';
 import { trace } from '@/shared/debug-trace';
+import { normalizeEditorNeutralLevel, normalizeEditorThemeMode } from '@/shared/editor-neutral-theme';
 
 const OWNED_VARS = [
   '--accent',
@@ -36,6 +37,28 @@ let suspended = false;
 
 function isDarkMode(): boolean {
   return document.documentElement.classList.contains('dark');
+}
+
+
+function readStoredString(key: string): unknown {
+  if (typeof localStorage === 'undefined') return undefined;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return undefined;
+    try { return JSON.parse(raw); } catch { return raw; }
+  } catch {
+    return undefined;
+  }
+}
+
+function applyEditorChromePreferences(): void {
+  const store = getDefaultStore();
+  const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
+  const level = normalizeEditorNeutralLevel(store.get(editorNeutralLevelAtom));
+  const root = document.documentElement;
+  root.classList.toggle('dark', mode === 'dark');
+  root.dataset.themeMode = mode;
+  root.dataset.neutralLevel = level;
 }
 
 function currentTheme(): BuilderTheme {
@@ -173,6 +196,14 @@ export function resumeBuilderTheme(): void {
 export function subscribeBuilderTheme(): void {
   const store = getDefaultStore();
 
+  // Restore editor mode + neutral tone before first paint. atomWithStorage is
+  // still the persistence owner; this eager read prevents a Dark/neutral flash.
+  const storedMode = normalizeEditorThemeMode(readStoredString('revyme:prefs:themeMode') ?? store.get(editorThemeModeAtom));
+  const storedNeutral = normalizeEditorNeutralLevel(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom));
+  if (store.get(editorThemeModeAtom) !== storedMode) store.set(editorThemeModeAtom, storedMode);
+  if (store.get(editorNeutralLevelAtom) !== storedNeutral) store.set(editorNeutralLevelAtom, storedNeutral);
+  applyEditorChromePreferences();
+
   // One-time compatibility migration:
   // graphite -> monochrome
   // amber    -> gold
@@ -191,6 +222,17 @@ export function subscribeBuilderTheme(): void {
     trace.action('builder-theme:changed', {
       id: store.get(builderThemeAtom),
     });
+  });
+
+  store.sub(editorThemeModeAtom, () => {
+    applyEditorChromePreferences();
+    applyBuilderTheme();
+    trace.action('editor-theme-mode:changed', { mode: store.get(editorThemeModeAtom) });
+  });
+
+  store.sub(editorNeutralLevelAtom, () => {
+    applyEditorChromePreferences();
+    trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
   });
 
   if (observer || typeof MutationObserver === 'undefined') return;

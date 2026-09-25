@@ -23,7 +23,7 @@ const SIZE_CLASSES: Record<SectionLabelSize, string> = {
 
 export default function SectionLabel({ children, size = 'md', right, className = '' }: SectionLabelProps) {
   return (
-    <div className={`px-3 pt-3 pb-1.5 flex items-center justify-between ${className}`}>
+    <div className={`px-3 h-7 flex items-center justify-between ${className}`}>
       <span className={SIZE_CLASSES[size]}>{children}</span>
       {right}
     </div>

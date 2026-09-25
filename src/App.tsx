@@ -7,6 +7,7 @@ import CommentsListPanel from './editor/CommentsListPanel';
 import { commentModeActiveAtom } from './code/stores/comment-store';
 import DebugToolbar from './editor/ui/DebugToolbar';
 import ChromeIslands from './editor/ChromeIslands';
+import PageAppearanceBridge from './editor/PageAppearanceBridge';
 import BottomToolbar from './editor/BottomToolbar';
 import PageChat from './editor/PageChat';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
@@ -208,6 +209,7 @@ export default function App() {
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <ChromeIslands />
+      <PageAppearanceBridge />
       {/* Live-collab broadcast loops + remote cursor overlay. Renders
           inside the provider so its hooks have context; the overlay
           itself is `position: fixed` and floats above the canvas. */}

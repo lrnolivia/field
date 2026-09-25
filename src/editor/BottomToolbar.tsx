@@ -38,6 +38,9 @@ import {
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
+import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
+import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
+import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 
 // ─── Chevron & Check icons ─────────────────────────────────────────────────
 
@@ -432,48 +435,52 @@ function LocaleDropdown() {
 // ─── Theme Switcher ─────────────────────────────────────────────────────────
 
 function ThemeSwitcher() {
-  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const [mode, setMode] = useAtom(editorThemeModeAtom);
+  const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
 
-  const toggle = useCallback(() => {
-    const next = !isDark;
+  const applyChoice = useCallback((nextMode: EditorThemeMode, nextLevel: EditorNeutralLevel) => {
     const root = document.documentElement;
-    // Smooth the flip: `.theme-transition` (globals.css) eases every
-    // color / background / border on the editor chrome for the duration
-    // of the toggle, then we drop it so the transition doesn't ride along
-    // on unrelated background changes (drags, hovers, selection).
     root.classList.add('theme-transition');
-    setIsDark(next);
-    if (next) root.classList.add('dark');
-    else root.classList.remove('dark');
+    setMode(nextMode);
+    setNeutralLevel(nextLevel);
     window.setTimeout(() => root.classList.remove('theme-transition'), 200);
-    // The canvas shows the website in the editor's mode: re-lift the token
-    // blocks so `:root.dark` values apply (or stop applying) right away.
-    refreshCanvasTokens();
-    trace.action('toolbar:theme-toggle', { dark: next });
-  }, [isDark]);
+    requestAnimationFrame(() => refreshCanvasTokens());
+    setOpen(false);
+    trace.action('toolbar:theme-neutral', { mode: nextMode, level: nextLevel });
+  }, [setMode, setNeutralLevel]);
 
   return (
-    // Plain ToolButton — no permanent background, hover-only highlight,
-    // exactly like the comment tool (and how it was before). The icon swap
-    // stays JS-animated (framer-motion) so the flip is still smooth.
-    <ToolButton onClick={toggle} title={isDark ? 'Theme: Dark' : 'Theme: Light'} dataTutorial="theme-tool">
-      {/* Icon swap is JS-animated (framer-motion) rather than CSS so it
-          stays smooth even while `.theme-transition` overrides CSS
-          transitions globally during the flip. The new icon rotates +
-          fades + scales in. `key` change remounts → plays the enter. */}
-      <motion.span
-        key={isDark ? 'sun' : 'moon'}
-        initial={{ opacity: 0, rotate: -90, scale: 0.4 }}
-        animate={{ opacity: 1, rotate: 0, scale: 1 }}
-        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-        className="flex items-center justify-center w-4 h-4"
+    <div className="relative" ref={anchorRef}>
+      <ToolButton
+        onClick={() => setOpen((value) => !value)}
+        title={'Theme: ' + (mode === 'dark' ? 'Dark' : 'Light') + ' · Neutral ' + neutralLevel}
+        dataTutorial="theme-tool"
       >
-        {isDark
-          ? <ThemeSunIcon className="w-4 h-4" />
-          : <ThemeMoonIcon className="w-4 h-4" />
-        }
-      </motion.span>
-    </ToolButton>
+        <motion.span
+          key={mode}
+          initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
+          className="flex items-center justify-center w-4 h-4"
+        >
+          {mode === 'dark'
+            ? <ThemeMoonIcon className="w-4 h-4" />
+            : <ThemeSunIcon className="w-4 h-4" />
+          }
+        </motion.span>
+      </ToolButton>
+      {open && (
+        <ThemeNeutralPopover
+          mode={mode}
+          level={neutralLevel}
+          anchorRef={anchorRef}
+          onSelect={applyChoice}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
   );
 }
 

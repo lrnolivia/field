@@ -11,6 +11,7 @@
 // is per-feature work done as each toggle gets connected to a real consumer.
 
 import { atomWithStorage } from 'jotai/utils';
+import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -77,4 +78,14 @@ export const showPixelGridAtom = atomWithStorage<boolean>(
  *  re-paint live in `editor/builder-theme.ts`, which subscribes to this. */
 export const builderThemeAtom = atomWithStorage<string>(
   'revyme:prefs:builderTheme', 'monochrome',
+);
+
+/** Editor chrome mode; independent from the builder accent palette. */
+export const editorThemeModeAtom = atomWithStorage<EditorThemeMode>(
+  'revyme:prefs:themeMode', 'dark',
+);
+
+/** Three neutral chrome levels per Light/Dark mode. Level 2 is Default. */
+export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
+  'revyme:prefs:neutralLevel', '2',
 );

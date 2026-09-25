@@ -54,7 +54,7 @@ function FontRow({ index, style, filteredFonts, currentFontName, onSelect, onPre
 
   return (
     <div
-      style={{ ...style, padding: '2px 0' }}
+      style={{ ...style, padding: '1px 0' }}
       onClick={() => onSelect(font)}
       onMouseDown={e => e.stopPropagation()}
       // Only fire ENTER per row. The container below has a single
@@ -69,15 +69,15 @@ function FontRow({ index, style, filteredFonts, currentFontName, onSelect, onPre
       onMouseEnter={() => onPreview?.(cssFamily)}
     >
       <div
-        className={`flex items-center justify-between px-3 py-2 cut-corners cursor-pointer transition-colors ${
+        className={`flex items-center justify-between px-2 py-1.5 cut-corners cursor-pointer transition-colors ${
           isSelected
             ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
             : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
         }`}
         style={{ fontFamily: font.family }}
       >
-        <span className="text-sm truncate">{font.family}</span>
-        <span className={`text-sm flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
+        <span className="text-[12px] truncate">{font.family}</span>
+        <span className={`text-[11px] flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
       </div>
     </div>
   );
@@ -330,7 +330,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
   const content = (
     <div onMouseLeave={handleContainerLeave}>
       {/* Search + Category filter */}
-      <div className={`flex flex-col gap-2 ${inline ? '' : '-mx-3 px-3'} pb-2 border-b border-[var(--border-light)]`}>
+      <div className={`flex flex-col gap-1.5 ${inline ? '' : '-mx-2.5 px-2.5'} pb-1.5 border-b border-[var(--border-light)]`}>
         <div className="relative">
           <input
             ref={searchInputRef}
@@ -338,20 +338,20 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onMouseDown={(e) => e.stopPropagation()}
-            className="w-full bg-[var(--bg-hover)] cut-corners px-8 py-1.5 text-sm focus:outline-none text-[var(--text-primary)]"
+            className="w-full h-7 bg-[var(--bg-hover)] cut-corners pl-7 pr-2 py-0 text-[11px] focus:outline-none text-[var(--text-primary)]"
             placeholder="Search fonts..."
           />
-          <svg className="absolute left-2 top-2 w-3.5 h-3.5 text-[var(--text-secondary)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-secondary)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <ControlLabel label="Category" property="" plain />
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 bg-[var(--bg-hover)] cut-corners px-2 py-1 text-xs focus:outline-none text-[var(--text-primary)] cursor-pointer"
+            className="flex-1 h-7 bg-[var(--bg-hover)] cut-corners px-2 py-0 text-[11px] focus:outline-none text-[var(--text-primary)] cursor-pointer"
           >
             {FEELING_CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>
@@ -361,7 +361,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
       </div>
 
       {/* Font list */}
-      <div className="-mx-3 px-1.5">
+      <div className="-mx-2.5 px-1">
         {/* Workspace fonts — uploaded to the workspace library, shown above
             the Google catalog under their own divider, each in its own face. */}
         {workspaceFamilies.length > 0 && (
@@ -376,21 +376,21 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
                 return (
                   <div
                     key={font.id}
-                    className="py-[2px]"
+                    className="py-px"
                     onClick={() => handleWorkspaceSelect(font)}
                     onMouseDown={e => e.stopPropagation()}
                     onMouseEnter={() => onPreview?.(cssFamily)}
                   >
                     <div
-                      className={`flex items-center justify-between px-3 py-2 cut-corners cursor-pointer transition-colors ${
+                      className={`flex items-center justify-between px-2 py-1.5 cut-corners cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                           : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
                       }`}
                       style={{ fontFamily: `"${font.family}"` }}
                     >
-                      <span className="text-sm truncate">{font.family}</span>
-                      <span className={`text-sm flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
+                      <span className="text-[12px] truncate">{font.family}</span>
+                      <span className={`text-[11px] flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
                     </div>
                   </div>
                 );
@@ -416,10 +416,10 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
           <List
             listRef={listRef}
             rowCount={filteredFonts.length}
-            rowHeight={36}
+            rowHeight={30}
             rowComponent={FontRow}
             rowProps={rowProps}
-            style={{ height: workspaceFamilies.length > 0 ? 200 : 308, scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
+            style={{ height: workspaceFamilies.length > 0 ? 180 : 286, scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
             className="[&::-webkit-scrollbar]:hidden"
           />
         )}
@@ -430,7 +430,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
   if (inline) return content;
 
   return (
-    <ToolPopup isOpen={isOpen} onClose={onClose} title="Font Family" anchorRef={anchorRef} width={280}>
+    <ToolPopup isOpen={isOpen} onClose={onClose} title="Fonts" anchorRef={anchorRef} width={264}>
       {content}
     </ToolPopup>
   );

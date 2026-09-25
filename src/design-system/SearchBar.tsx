@@ -28,7 +28,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
   return (
     <div className={`relative ${className}`}>
       <svg
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)] pointer-events-none"
+        className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-secondary)] pointer-events-none"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -49,7 +49,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-8 pr-2 py-1.5 text-xs bg-black/[0.06] hover:bg-black/[0.09] focus:bg-black/[0.12] dark:bg-white/[0.1] dark:hover:bg-white/[0.14] dark:focus:bg-white/[0.18] cut-corners text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors"
+        className="w-full h-6 pl-6 pr-2 py-0 text-[11px] bg-black/[0.06] hover:bg-black/[0.09] focus:bg-black/[0.12] dark:bg-white/[0.08] dark:hover:bg-white/[0.12] dark:focus:bg-white/[0.15] cut-corners text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors"
       />
     </div>
   );

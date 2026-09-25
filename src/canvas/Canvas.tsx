@@ -1304,7 +1304,7 @@ export default function Canvas() {
         });
       }}
       style={{
-        flex: 1, overflow: 'hidden', backgroundColor: 'transparent',
+        flex: 1, overflow: 'hidden', backgroundColor: 'var(--page-canvas-background, var(--bg-canvas))',
         position: 'relative', cursor: toolMode === 'frame' || toolMode === 'text' || toolMode === 'sketch' || isShapeMode(toolMode) || isLayoutMode(toolMode) ? 'crosshair' : panCursor ? 'grabbing' : toolMode === 'hand' || isSpaceBarDown() ? 'grab' : 'default',
         userSelect: 'none', WebkitUserSelect: 'none',
       }}

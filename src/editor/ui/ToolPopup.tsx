@@ -448,7 +448,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header — draggable, back arrow when navigated, title, close × */}
-        <div className="flex items-center justify-between px-3 pt-3 pb-1.5 cursor-grab active:cursor-grabbing select-none"
+        <div className="h-8 flex items-center justify-between px-2.5 py-0 cursor-grab active:cursor-grabbing select-none"
           onPointerDown={handleDragStart}>
           <div className="flex items-center gap-1.5">
             {canGoBack && (
@@ -461,7 +461,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
                 </svg>
               </button>
             )}
-            <span className="text-xs font-bold text-[var(--text-primary)]">{currentTitle}</span>
+            <span className="text-[11px] font-semibold text-[var(--text-primary)]">{currentTitle}</span>
           </div>
           <button
             onClick={onClose}
@@ -490,14 +490,14 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
                 than growing the popup past the viewport. */}
             <div
               ref={panelStack.length === 0 ? activePanelRef : undefined}
-              className="w-full flex-shrink-0 px-3 pb-3 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+              className="w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
               style={{ maxHeight: maxContentHeight }}
             >
               {/* Keyed by resetKey so the content REMOUNTS when the selected node/tile
                   changes — the children hold local useState (e.g. a Scroll Animation's
                   direction/replay), which a plain re-render wouldn't re-seed. Switching
                   Desktop→Tablet now instantly shows the active viewport's values. */}
-              <div key={resetKey ?? 'root'} className="flex flex-col gap-3.5">
+              <div key={resetKey ?? 'root'} className="flex flex-col gap-1.5">
                 {children}
               </div>
             </div>
@@ -506,10 +506,10 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
               <div
                 key={i}
                 ref={i === panelStack.length - 1 ? activePanelRef : undefined}
-                className="w-full flex-shrink-0 px-3 pb-3 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                className="w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
                 style={{ maxHeight: maxContentHeight }}
               >
-                <div className="flex flex-col gap-3.5">
+                <div className="flex flex-col gap-1.5">
                   {typeof panel.content === 'function'
                     ? <PanelRender render={panel.content} />
                     : panel.content}

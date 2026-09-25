@@ -30,19 +30,19 @@ const SIZE_CLASSES: Record<
   // contain a different mix of inline elements — visible as a faint
   // height jitter between folder headers and component rows.
   sm: {
-    row: "gap-1.5 px-2 h-[28px]",
+    row: "gap-1.5 px-2 h-6",
     icon: "w-3.5 h-3.5",
-    label: "text-[12px] font-medium",
+    label: "text-[11px] font-normal",
   },
   md: {
-    row: "gap-1.5 px-2 h-8",
+    row: "gap-1.5 px-2 h-7",
     icon: "w-4 h-4",
-    label: "text-xs font-medium",
+    label: "text-[11px] font-medium",
   },
   lg: {
-    row: "gap-2.5 px-2 h-9",
-    icon: "w-5 h-5",
-    label: "text-[13px] font-semibold",
+    row: "gap-2 px-2 h-8",
+    icon: "w-[18px] h-[18px]",
+    label: "text-[12px] font-semibold",
   },
 };
 
