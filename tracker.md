@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:42:57.855108Z
+Last Updated: 2026-09-25T08:43:14Z
 
 ## Active Assignments
 
@@ -241,48 +241,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
-<!-- ASSIGNMENT:figui3-corrective-hierarchy-20260925:START -->
-### figui3-corrective-hierarchy-20260925 — FigUI3 Corrective Phase 2 — Inspector Hierarchy + Residual Revyme Cleanup
 
-Status: active
-Baseline: 56720ae35ceb78802a40a6c1ee65208742075524
-Activation HEAD: 9991c8e75f439161a448e5cf93de54afd599c6de
-Last Sync: 2026-09-25T08:37:15Z
-
-Owned:
-  - src/editor/controls/ToolRow.tsx
-  - src/editor/controls/ControlLabel.tsx
-  - src/editor/controls/BindButton.tsx
-  - src/editor/figui3-inspector-hierarchy-polish.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/styles/**
-  - src/editor/ui/**
-  - src/editor/tools/**
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/controls/FieldSelect.tsx
-  - src/editor/controls/ToolSelect.tsx
-  - src/editor/controls/ToolSection.tsx
-  - src/editor/controls/InspectorObjectHeader.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:figui3-corrective-hierarchy-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1636,4 +1595,51 @@ Protected:
   - wrangler.jsonc` unless a verified binding change is required
   - public `loew.fi` portfolio source
 <!-- ASSIGNMENT:field-project-dashboard-20260925:END -->
+
+<!-- ASSIGNMENT:figui3-corrective-hierarchy-20260925:START -->
+### figui3-corrective-hierarchy-20260925 — FigUI3 Corrective Phase 2 — Inspector Hierarchy + Residual Revyme Cleanup
+
+Status: complete
+Baseline: 56720ae35ceb78802a40a6c1ee65208742075524
+Activation HEAD: 9991c8e75f439161a448e5cf93de54afd599c6de
+Last Sync: 2026-09-25T08:43:14Z
+
+Owned:
+  - src/editor/controls/ToolRow.tsx
+  - src/editor/controls/ControlLabel.tsx
+  - src/editor/controls/BindButton.tsx
+  - src/editor/figui3-inspector-hierarchy-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/styles/**
+  - src/editor/ui/**
+  - src/editor/tools/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/controls/ToolSelect.tsx
+  - src/editor/controls/ToolSection.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+Deferred:
+  - Live screenshot-level QA against the Figma UI3 references.
+  - If QA finds residual issues, reopen them as a new narrow polish assignment rather than retaining ownership while idle.
+
+<!-- ASSIGNMENT:figui3-corrective-hierarchy-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
