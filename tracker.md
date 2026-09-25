@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:16:58Z
+Last Updated: 2026-09-25T04:21:13Z
 
 ## Active Assignments
 
@@ -19,13 +19,15 @@ Last Updated: 2026-09-25T04:16:58Z
 Status: active
 Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
 Activation HEAD: 42502f7db62980401bd4a2ccfdd981ba62f7f565
-Last Sync: 2026-09-25T04:00:34Z
+Last Sync: 2026-09-25T04:21:13Z
 
 Owned:
   - src/canvas-sandbox/protocol.ts
   - src/canvas-sandbox/bridge-host.ts
   - src/canvas-sandbox/bridge-sandbox.ts
   - src/canvas-sandbox/bridge-host-camera.test.ts
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
 
 Approved Shared:
   - none
