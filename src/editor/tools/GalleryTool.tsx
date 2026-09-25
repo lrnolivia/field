@@ -9,7 +9,10 @@ import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
 import { useNodesComputed } from '@/code/stores/node-family';
 import {
+  buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
+  galleryCarouselSlideDomId,
+  getGalleryCarouselControls,
   getGalleryItems,
   getGalleryView,
   isGalleryNode,
@@ -43,6 +46,32 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
  * the properties owned by the new view patch at widths where they actually
  * exist. Image fit/focal state is not part of those patches and is preserved.
  */
+interface GalleryCarouselSyncItem {
+  itemId: string;
+  controlIds: readonly string[];
+}
+
+function removeGalleryCarouselControlMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
+  return items.flatMap((item) => item.controlIds.map((controlId) => ({ type: 'removeNode' as const, nodeId: controlId })));
+}
+
+function buildGalleryCarouselSyncMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
+  const itemIds = items.map((item) => item.itemId);
+  return [
+    ...removeGalleryCarouselControlMutations(items),
+    ...items.map((item) => ({
+      type: 'updateHtmlAttrs' as const,
+      nodeId: item.itemId,
+      attrs: { id: galleryCarouselSlideDomId(item.itemId) },
+    })),
+    ...items.flatMap((item, index) => buildGalleryCarouselControlNodes(itemIds, index).map((node) => ({
+      type: 'addNode' as const,
+      parentId: item.itemId,
+      node,
+    }))),
+  ];
+}
+
 function clearResponsivePatchMutations(
   nodeId: string,
   patch: Record<string, string>,
@@ -94,14 +123,18 @@ function GalleryToolInner() {
   const items = useNodesComputed((nodes) => {
     const gallery = nodeId ? nodes.get(nodeId) : undefined;
     if (!gallery || !isGalleryNode(gallery)) return [];
-    return getGalleryItems(gallery, nodes).map(({ item, image }): GalleryContentItem => ({
-      itemId: item.id,
-      imageId: image.id,
-      src: image.attrs?.src ?? '',
-      alt: image.attrs?.alt ?? '',
-      objectFit: image.styles?.objectFit ?? 'cover',
-      objectPosition: image.styles?.objectPosition ?? '50% 50%',
-    }));
+    return getGalleryItems(gallery, nodes).map(({ item, image }): GalleryContentItem & GalleryCarouselSyncItem => {
+      const controls = getGalleryCarouselControls(item, nodes);
+      return {
+        itemId: item.id,
+        imageId: image.id,
+        src: image.attrs?.src ?? '',
+        alt: image.attrs?.alt ?? '',
+        objectFit: image.styles?.objectFit ?? 'cover',
+        objectPosition: image.styles?.objectPosition ?? '50% 50%',
+        controlIds: [controls.previous?.id, controls.counter?.id, controls.next?.id].filter((id): id is string => !!id),
+      };
+    });
   }, [nodeId]);
 
   useEffect(() => {
@@ -165,6 +198,10 @@ function GalleryToolInner() {
         : { type: 'removeCssHover', nodeId: item.itemId });
     });
 
+    mutations.push(...(view === 'carousel'
+      ? buildGalleryCarouselSyncMutations(items)
+      : removeGalleryCarouselControlMutations(items)));
+
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:view-change', { nodeId: galleryId, view, items: items.length });
@@ -177,13 +214,20 @@ function GalleryToolInner() {
     if (unique.length === 0) return;
 
     const mutations: Mutation[] = [];
-    unique.forEach((url, offset) => {
-      const sourceNode = buildGalleryItemNode(url, items.length + offset, currentView);
+    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(url, items.length + offset, currentView));
+    addedNodes.forEach((sourceNode) => {
       mutations.push({ type: 'addNode', parentId: galleryId, node: sourceNode });
       if (currentView === 'strip') {
         mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch() });
       }
     });
+    if (currentView === 'carousel') {
+      const nextItems: GalleryCarouselSyncItem[] = [
+        ...items,
+        ...addedNodes.map((node) => ({ itemId: node.id, controlIds: [] })),
+      ];
+      mutations.push(...buildGalleryCarouselSyncMutations(nextItems));
+    }
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length });
@@ -197,7 +241,7 @@ function GalleryToolInner() {
     remaining.forEach((item, index) => {
       bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index));
     });
-    queueMutations([
+    const mutations: Mutation[] = [
       // Remove Gallery-owned pseudo state while the source element still exists.
       { type: 'removeCssHover', nodeId: itemId },
       { type: 'removeNode', nodeId: itemId },
@@ -206,7 +250,9 @@ function GalleryToolInner() {
         nodeId: item.itemId,
         styles: getGalleryItemPatch(currentView, index),
       })),
-    ]);
+    ];
+    if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(remaining));
+    queueMutations(mutations);
     flushNow();
     if (selectedItemId === itemId) setSelectedItemId(null);
     trace.action('gallery:remove-media', { nodeId: galleryId, itemId });
@@ -238,6 +284,7 @@ function GalleryToolInner() {
         styles: getGalleryItemPatch(currentView, index),
       })),
     ];
+    if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(ordered));
 
     queueMutations(mutations);
     flushNow();

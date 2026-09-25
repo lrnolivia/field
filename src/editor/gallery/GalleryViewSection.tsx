@@ -119,6 +119,12 @@ export default function GalleryViewSection({
         </>
       )}
 
+      {currentView === 'carousel' && (
+        <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
+          Native scroll-snap runtime · 1240×820 stage · 520×720 image · 38px previous/next controls. Order and counters follow real Gallery source children.
+        </div>
+      )}
+
       <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
         Layout settings follow field's current responsive override routing. View identity remains one Gallery semantic across breakpoints.
       </div>

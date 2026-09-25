@@ -20,16 +20,16 @@ export interface GalleryViewDescriptor {
  *   Story   — full-width 620/720px alternating editorial frames, 54px rhythm
  *   Carousel— 520×720 active image inside an 820px stage + prev/next controls
  *
- * Carousel remains registered but deferred because it needs real runtime state.
- * Strip is available because its hover expansion can be expressed through the
- * existing source-backed CSS :hover mutation path — no editor-only simulation.
+ * Carousel uses native source-backed horizontal scroll snap plus real anchor
+ * controls derived from source order. There is no Gallery-only runtime store.
+ * Strip remains source-backed through the existing CSS :hover mutation path.
  */
 export const GALLERY_VIEWS: readonly GalleryViewDescriptor[] = [
   { id: 'grid', label: 'Grid', description: 'Three-column square grid with 24px gutters.', runtime: 'static', status: 'available' },
   { id: 'natural', label: 'Natural', description: 'Four-track editorial mosaic: large, stacked small, and tall frames.', runtime: 'static', status: 'available' },
   { id: 'strip', label: 'Strip', description: 'Tall 120px image strips; the hovered strip expands to 380px.', runtime: 'interactive', status: 'available' },
   { id: 'story', label: 'Story', description: 'Full-width editorial story frames alternating 620px and 720px high.', runtime: 'static', status: 'available' },
-  { id: 'carousel', label: 'Carousel', description: 'Centered 520×720 stage with previous/next runtime controls.', runtime: 'interactive', status: 'deferred' },
+  { id: 'carousel', label: 'Carousel', description: 'Native scroll-snap carousel with a centered 520×720 active image and real previous/next controls.', runtime: 'interactive', status: 'available' },
 ] as const;
 
 export const AVAILABLE_GALLERY_VIEWS = GALLERY_VIEWS.filter((view) => view.status === 'available');
@@ -43,6 +43,12 @@ export const GALLERY_ITEM_STYLE_PROPERTY = '--field-gallery-item';
 export const TERRA_GALLERY_MAX_WIDTH = '1240px';
 export const TERRA_GALLERY_RADIUS = '12px';
 export const TERRA_STRIP_HOVER_WIDTH = '380px';
+export const TERRA_CAROUSEL_STAGE_HEIGHT = '820px';
+export const TERRA_CAROUSEL_IMAGE_WIDTH = '520px';
+export const TERRA_CAROUSEL_IMAGE_HEIGHT = '720px';
+export const TERRA_CAROUSEL_CONTROL_SIZE = '38px';
+export const GALLERY_CAROUSEL_CONTROL_STYLE_PROPERTY = '--field-gallery-carousel-control';
+export type GalleryCarouselControlRole = 'previous' | 'counter' | 'next';
 
 /**
  * Accessible naming is intentionally independent from Gallery's editor/runtime
@@ -81,6 +87,10 @@ const ROOT_RESET: Record<string, string> = {
   justifyContent: '',
   overflowX: '',
   overflowY: '',
+  scrollSnapType: '',
+  scrollBehavior: '',
+  scrollbarWidth: '',
+  overscrollBehaviorX: '',
   maxWidth: '',
   marginLeft: '',
   marginRight: '',
@@ -101,6 +111,12 @@ const ITEM_RESET: Record<string, string> = {
   aspectRatio: '',
   alignSelf: '',
   transition: '',
+  display: '',
+  gridTemplateRows: '',
+  gridTemplateColumns: '',
+  rowGap: '',
+  scrollSnapAlign: '',
+  scrollSnapStop: '',
   borderRadius: TERRA_GALLERY_RADIUS,
 };
 
@@ -108,6 +124,12 @@ const IMAGE_BASE: Record<string, string> = {
   display: 'block',
   width: '100%',
   height: '100%',
+  maxWidth: '',
+  borderRadius: '',
+  gridColumn: '',
+  gridRow: '',
+  justifySelf: '',
+  alignSelf: '',
 };
 
 export function getGalleryRootPatch(view: GalleryViewId): Record<string, string> {
@@ -155,9 +177,19 @@ export function getGalleryRootPatch(view: GalleryViewId): Record<string, string>
         gap: '54px',
       };
     case 'carousel':
-      // Registered semantic identity only. Do not invent a fake static
-      // carousel layout: the runtime interaction is intentionally deferred.
-      return base;
+      return {
+        ...base,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: '0px',
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        scrollSnapType: 'x mandatory',
+        scrollBehavior: 'smooth',
+        scrollbarWidth: 'none',
+        overscrollBehaviorX: 'contain',
+      };
   }
 }
 
@@ -217,20 +249,71 @@ export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<
         aspectRatio: index % 2 === 0 ? '2 / 1' : '31 / 18',
       };
     case 'carousel':
-      return base;
+      return {
+        ...base,
+        display: 'grid',
+        flex: '0 0 100%',
+        width: '100%',
+        height: '874px',
+        gridTemplateRows: TERRA_CAROUSEL_STAGE_HEIGHT + ' ' + TERRA_CAROUSEL_CONTROL_SIZE,
+        gridTemplateColumns: '1fr 38px 22px auto 22px 38px 1fr',
+        rowGap: '16px',
+        scrollSnapAlign: 'center',
+        scrollSnapStop: 'always',
+      };
   }
 }
 
 /** Per-item image box styles applied when a Gallery view changes. */
-export function getGalleryImagePatch(_view: GalleryViewId): Record<string, string> {
+export function getGalleryImagePatch(view: GalleryViewId): Record<string, string> {
   // Deliberately excludes objectFit + objectPosition. Those are per-item
   // presentation overrides and must survive view switches.
+  if (view === 'carousel') {
+    return {
+      ...IMAGE_BASE,
+      width: TERRA_CAROUSEL_IMAGE_WIDTH,
+      height: TERRA_CAROUSEL_IMAGE_HEIGHT,
+      maxWidth: 'none',
+      borderRadius: TERRA_GALLERY_RADIUS,
+      gridColumn: '1 / -1',
+      gridRow: '1',
+      justifySelf: 'center',
+      alignSelf: 'center',
+    };
+  }
   return { ...IMAGE_BASE };
 }
 
 /** Default fit for a newly-added Gallery image. Existing items keep overrides. */
 export function getGalleryDefaultImageFit(_view: GalleryViewId): string {
   return 'cover';
+}
+
+/** Source-backed runtime geometry for Carousel controls. */
+export function getGalleryCarouselControlPatch(role: GalleryCarouselControlRole): Record<string, string> {
+  const isCounter = role === 'counter';
+  return {
+    [GALLERY_CAROUSEL_CONTROL_STYLE_PROPERTY]: role,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gridRow: '2',
+    gridColumn: role === 'previous' ? '2' : role === 'counter' ? '4' : '6',
+    width: isCounter ? 'auto' : TERRA_CAROUSEL_CONTROL_SIZE,
+    minWidth: isCounter ? '0' : TERRA_CAROUSEL_CONTROL_SIZE,
+    height: TERRA_CAROUSEL_CONTROL_SIZE,
+    border: isCounter ? 'none' : '1px solid currentColor',
+    borderRadius: isCounter ? '0' : '19px',
+    textDecorationLine: 'none',
+    fontSize: isCounter ? '11px' : '15.5px',
+    lineHeight: '1',
+    color: 'inherit',
+    opacity: isCounter ? '0.72' : '1',
+    cursor: isCounter ? 'default' : 'pointer',
+    pointerEvents: isCounter ? 'none' : 'auto',
+    alignSelf: 'center',
+    justifySelf: 'center',
+  };
 }
 
 /** Source-backed runtime behavior for the Terra Prime Strip reference. */
