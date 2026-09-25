@@ -91,6 +91,12 @@ const FrameGlyph = ({ display, flexDirection, size = 14 }: {
 
 const ComponentIcon = ComponentClusterIcon;
 
+const GroupIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round">
+    <path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />
+  </svg>
+);
+
 // ─── Overlay Icon ──────────────────────────────────────────────────────────
 // A panel floating OVER a base panel — the layer glyph for overlay nodes
 // (fixed/relative), replacing the generic frame square so overlays read at a
@@ -902,7 +908,8 @@ export const LayerRow = React.memo(function LayerRow({
             )
             : (
               <span style={{ color: isSelected ? selFg : semanticColor }}>
-                {isTextTag(node.type) ? <TextIcon size={14} />
+                {node.isGroup ? <GroupIcon size={14} />
+                    : isTextTag(node.type) ? <TextIcon size={14} />
                     : <FrameGlyph
                         display={layerDisplay ?? node.styles?.display}
                         flexDirection={layerFlexDirection ?? node.styles?.flexDirection}

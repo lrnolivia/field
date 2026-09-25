@@ -32,6 +32,7 @@ import { transformManager } from './transform';
 import { trace } from '@/shared/debug-trace';
 import { copyNodes } from '@/code/features/paste-engine';
 import { executePaste } from '@/code/features/paste-engine/execute-from-ui';
+import { canGroupSelection, canUngroupNode } from '@/code/groups/group-semantics';
 
 // ─── Selection Navigation ───────────────────────────────────────────────────
 
@@ -490,7 +491,31 @@ export function wrapInFrame(
    *  Frame gesture never sets it. */
   opts?: { keepFlowChildren?: boolean },
 ): string | null {
-  return wrapInternal(nodeIds, nodesMap, /* layout */ false, !opts?.keepFlowChildren);
+  return wrapInternal(nodeIds, nodesMap, /* layout */ false, !opts?.keepFlowChildren, 'frame');
+}
+
+/** Figma-style Group: derived geometry + collective manipulation, without
+ * Frame paint/layout semantics. The proven frame encapsulation geometry is
+ * reused so grouping never changes the rendered result at creation time. */
+export function groupSelection(
+  nodeIds: string[],
+  nodesMap: Map<string, CanvasNode>,
+  _contentEl: HTMLElement,
+): string | null {
+  return wrapInternal(nodeIds, nodesMap, /* layout */ false, /* bakeFlowToAbsolute */ true, 'group');
+}
+
+/** Native Group inverse. Selection policy is left to the caller. */
+export function ungroupSelection(
+  nodeId: string,
+  nodesMap: Map<string, CanvasNode>,
+  contentEl: HTMLElement,
+): string[] | null {
+  const node = nodesMap.get(nodeId);
+  if (!canUngroupNode(node)) return null;
+  const children = [...node.children];
+  unfoldChildren(nodeId, nodesMap, contentEl);
+  return children;
 }
 
 /**
@@ -646,8 +671,10 @@ function wrapInternal(
   nodesMap: Map<string, CanvasNode>,
   layout: boolean,
   bakeFlowToAbsolute = false,
+  semantic: 'frame' | 'group' = 'frame',
 ): string | null {
   if (nodeIds.length === 0) return null;
+  if (semantic === 'group' && !canGroupSelection(nodeIds, nodesMap)) return null;
   const nodes = nodeIds.map((id) => nodesMap.get(id)).filter((n): n is CanvasNode => !!n);
   if (nodes.length === 0) return null;
 
@@ -745,7 +772,7 @@ function wrapInternal(
     }
   }
 
-  const frameId = generateNodeId();
+  const frameId = generateNodeId(semantic === 'group' ? 'group' : 'frame');
   // A frame that wraps TEXT must CLIP its overflow. Text with `line-height < 1`
   // (a tight display font like Koulen at 0.8) has a font-box far TALLER than its
   // line box, and that invisible overflow is HIT-TESTABLE. Stacked text frames
@@ -756,7 +783,7 @@ function wrapInternal(
   // which clips. Non-text wraps keep `visible` (unchanged) so a wrapped child's
   // shadow/overhang isn't clipped.
   const wrapsText = nodes.length > 0 && nodes.every((n) => isTextTag(n.type));
-  const wrapOverflow = wrapsText ? 'hidden' : 'visible';
+  const wrapOverflow = semantic === 'group' ? 'visible' : (wrapsText ? 'hidden' : 'visible');
   // Flow wrapper must INHERIT the wrapped child's placement in the parent —
   // a flow child carries position/order/flex/margin/alignSelf that seat it
   // among its siblings. Left off the wrapper, the group loses its order (jumps
@@ -916,17 +943,34 @@ function wrapInternal(
     };
   }
 
-  trace.action('commands:wrap-in-frame:plan', {
+  // A Group has a geometry box so it can be selected/moved as one Figma-style
+  // unit, but it is not a Frame: no authored paint or clipping semantics.
+  if (semantic === 'group') {
+    delete baseFrameStyles.backgroundColor;
+    delete baseFrameStyles.overflow;
+  }
+
+  trace.action(semantic === 'group' ? 'commands:group-selection:plan' : 'commands:wrap-in-frame:plan', {
     frameId, childIds: nodeIds, layout, allCanvas, parentId: sharedParentId,
     bbox,
   });
 
   // Queue create + moves. The mutation queue applies them in order against
   // the same code string, so insert order is preserved.
+  const wrapperNode = {
+    id: frameId,
+    type: 'div',
+    name: semantic === 'group' ? 'Group' : 'Frame',
+    styles: baseFrameStyles,
+    ...(semantic === 'group' ? { attrs: { 'data-field-group': 'true' } } : {}),
+  };
+
   if (allCanvas) {
+    const firstCanvasIndex = Math.min(...nodes.map((n) => Number.isFinite(n.order) ? n.order : Number.MAX_SAFE_INTEGER));
     queueMutation({
       type: 'addCanvasNode',
-      node: { id: frameId, type: 'div', name: 'Frame', styles: baseFrameStyles },
+      node: wrapperNode,
+      index: Number.isFinite(firstCanvasIndex) ? firstCanvasIndex : undefined,
     });
   } else {
     // Insert before the first selected child so the wrapper appears in
@@ -943,7 +987,7 @@ function wrapInternal(
       type: 'addNode',
       parentId: sharedParentId!,
       index: Number.isFinite(firstIdx) ? firstIdx : undefined,
-      node: { id: frameId, type: 'div', name: 'Frame', styles: baseFrameStyles },
+      node: wrapperNode,
     });
   }
 

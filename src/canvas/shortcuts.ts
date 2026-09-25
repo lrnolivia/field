@@ -12,7 +12,7 @@ import {
   selectParent, selectChildren, selectNextSibling, selectPrevSibling,
   selectNextReplica,
   deleteNode, toggleLock, toggleVisibility, wrapInFrame, wrapInLayout, unfoldChildren,
-  duplicateSelection,
+  groupSelection, ungroupSelection, duplicateSelection,
 } from './commands';
 import { getContentRoot } from './node-ops';
 import { getCanvasBridge } from './canvas-bridge';
@@ -37,8 +37,6 @@ import type { CanvasNode } from '../code/parsing/parser';
 import { getDefaultStore } from 'jotai';
 import { shapeEditingIdAtom, selectedPointAtom, groupEditingIdAtom, activeContainerIdAtom } from '../code/stores/shape-edit-store';
 import { flushNow, syncQueueCode, setForceRender } from '../code/mutation/mutation-queue';
-import { groupSvgs, ungroupSvgs } from '../code/svg/group-svgs';
-import { buildGroupSvgsOpts } from './svg-group-helper';
 import { activeFilePathAtom, activeCodeAtom, isIconSetFilePath, isDesignComponentFile } from '../code/project/active-file-store';
 import { detachInstance } from '../code/components/component-ops';
 import { isReplicaViewportAtom, isComponentVariantViewportAtom } from '../code/stores/viewport-store';
@@ -329,63 +327,31 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     if (frameId) { flushNow(); setSelectedIds([frameId]); }
   }}));
 
-  // Group SVGs (Ctrl+G) — wraps 2+ selected SVGs sharing a parent into a
-  // single composite <svg>. Bails silently for non-SVG / single selections
-  // so the shortcut doesn't surprise the user when they just want browser
-  // find-in-page (which Ctrl+F handles, but Ctrl+G is the default browser
-  // "find next"; we override only when the selection is groupable).
-  cleanups.push(keyboard.register({ key: 'g', ctrl: true, label: 'Group SVGs', category: 'structure', handler: () => {
-    const ids = selectedIdsRef.current;
-    // Bails are traced (not silent): "Cmd+G does nothing on my sketches" is
-    // undiagnosable from a debug trace otherwise — the trace must show the
-    // ids + how the gate saw them (user report 2026-07-29, pure-sketch
-    // group unreproducible locally).
-    if (ids.length < 2) {
-      trace.action('shortcut:group-svgs-bail', { reason: 'need-2-selected', ids: [...ids] });
-      return;
-    }
-    const allSvg = ids.every(id => nodesRef.current.get(id)?.type === 'svg');
-    if (!allSvg) {
-      trace.action('shortcut:group-svgs-bail', {
-        reason: 'not-all-svg',
-        ids: [...ids],
-        types: ids.map(id => nodesRef.current.get(id)?.type ?? 'MISSING-FROM-MAP'),
-      });
-      return;
-    }
-    const firstParent = nodesRef.current.get(ids[0])?.parentId;
-    const sameParent = ids.every(id => nodesRef.current.get(id)?.parentId === firstParent);
-    if (!sameParent) {
-      trace.action('shortcut:group-svgs-bail', {
-        reason: 'mixed-parents',
-        ids: [...ids],
-        parents: ids.map(id => nodesRef.current.get(id)?.parentId ?? null),
-      });
-      return;
-    }
-    const filePath = getDefaultStore().get(activeFilePathAtom);
-    const vpId = getDefaultStore().get(interactingViewportIdAtom) || 'desktop';
-    const newId = groupSvgs(ids, nodesRef.current, filePath, buildGroupSvgsOpts(ids, vpId));
-    trace.action('shortcut:group-svgs', { ids, newId });
+  // Native Figma-style Group / Ungroup own the standard structural shortcuts.
+  // SVG combination remains a separate explicit command in menus/palette.
+  cleanups.push(keyboard.register({ key: 'g', ctrl: true, label: 'Group Selection', category: 'structure', handler: () => {
+    const ids = selectedIdsRef.current.length > 0
+      ? selectedIdsRef.current
+      : (selectedIdRef.current ? [selectedIdRef.current] : []);
+    const contentEl = contentRef.current;
+    if (!contentEl) return;
+    const newId = groupSelection(ids, nodesRef.current, contentEl);
+    trace.action('shortcut:group-selection', { ids, newId });
     if (newId) { flushNow(); setSelectedIds([newId]); }
   }}));
 
-  // Ungroup SVGs (Ctrl+Shift+G) — inverse of Group. Bails silently unless
-  // the single selected node IS a group (an <svg> whose children are all
-  // nested <svg> wrappers), so it doesn't surprise other Ctrl+Shift+G uses.
-  cleanups.push(keyboard.register({ key: 'g', ctrl: true, shift: true, label: 'Ungroup SVGs', category: 'structure', handler: () => {
+  cleanups.push(keyboard.register({ key: 'g', ctrl: true, shift: true, label: 'Ungroup', category: 'structure', handler: () => {
     const sel = selectedIdRef.current;
-    if (!sel) return;
-    const node = nodesRef.current.get(sel);
-    const kids = node?.children ?? [];
-    if (node?.type !== 'svg' || kids.length === 0 || !kids.every(id => nodesRef.current.get(id)?.type === 'svg')) return;
-    const filePath = getDefaultStore().get(activeFilePathAtom);
-    const ids = ungroupSvgs(sel, nodesRef.current, filePath);
-    trace.action('shortcut:ungroup-svgs', { groupId: sel, resultIds: ids });
-    if (ids && ids.length > 0) { flushNow(); setSelectedIds(ids); }
+    const contentEl = contentRef.current;
+    if (!sel || !contentEl) return;
+    const ids = ungroupSelection(sel, nodesRef.current, contentEl);
+    trace.action('shortcut:ungroup-selection', { groupId: sel, resultIds: ids });
+    if (ids?.length) { flushNow(); setSelectedIds(ids); }
   }}));
 
   cleanups.push(keyboard.register({ key: 'backspace', ctrl: true, label: 'Unfold Children', category: 'structure', handler: () => {
+
+
     const sel = selectedIdRef.current;
     const contentEl = contentRef.current;
     if (!sel || !contentEl) return;

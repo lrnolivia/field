@@ -34,6 +34,8 @@ import {
   wrapInFrame,
   wrapInLayout,
   unfoldChildren,
+  groupSelection,
+  ungroupSelection,
 } from '@/canvas/commands';
 import {
   dispatchCopy,
@@ -337,6 +339,18 @@ function executeCommand(commandId: string): void {
       break;
 
     // Structure
+    case 'group-selection':
+      if (selected.length > 0 && contentEl) {
+        const groupId = groupSelection(selected, nodes, contentEl);
+        if (groupId) { flushNow(); store.set(selectedIdsAtom, [groupId]); }
+      }
+      break;
+    case 'ungroup':
+      if (first && contentEl) {
+        const ids = ungroupSelection(first, nodes, contentEl);
+        if (ids?.length) { flushNow(); store.set(selectedIdsAtom, ids); }
+      }
+      break;
     case 'wrap-in-frame':
       if (selected.length > 0 && contentEl) wrapInFrame(selected, nodes, contentEl);
       break;

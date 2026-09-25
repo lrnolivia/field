@@ -29,10 +29,12 @@ const COMMANDS: Array<{
   { id: 'toggle-lock',       name: 'Lock / Unlock',       shortcut: '⌃L',  keywords: ['lock', 'unlock', 'freeze'] },
   { id: 'toggle-visibility', name: 'Hide / Show',         shortcut: '⌃H',  keywords: ['hide', 'show', 'visibility'] },
   // Structure
-  { id: 'wrap-in-frame',     name: 'Wrap in Frame',       shortcut: '⌥⇧A', keywords: ['wrap', 'frame', 'group', 'container'] },
-  { id: 'wrap-in-layout',    name: 'Wrap in Layout',      shortcut: '⇧A',  keywords: ['wrap', 'layout', 'group', 'flex'] },
-  { id: 'group-svgs',        name: 'Group SVGs',          shortcut: '⌃G',  keywords: ['group', 'svg', 'merge'] },
-  { id: 'unfold-children',   name: 'Unfold Children',     shortcut: '⌃⌫',  keywords: ['unfold', 'unwrap', 'flatten', 'ungroup'] },
+  { id: 'group-selection',   name: 'Group Selection',     shortcut: '⌃G',  keywords: ['group', 'selection', 'organize'] },
+  { id: 'ungroup',           name: 'Ungroup',             shortcut: '⌃⇧G', keywords: ['ungroup', 'group', 'separate'] },
+  { id: 'wrap-in-frame',     name: 'Frame Selection',     shortcut: '⌥⇧A', keywords: ['wrap', 'frame', 'container'] },
+  { id: 'wrap-in-layout',    name: 'Add Auto Layout',     shortcut: '⇧A',  keywords: ['auto layout', 'layout', 'flex'] },
+  { id: 'group-svgs',        name: 'Group SVGs',                         keywords: ['group', 'svg', 'merge'] },
+  { id: 'unfold-children',   name: 'Unfold Children',     shortcut: '⌃⌫',  keywords: ['unfold', 'unwrap', 'flatten'] },
   // Zoom
   { id: 'zoom-in',           name: 'Zoom In',             shortcut: '⌃+',  keywords: ['zoom', 'in', 'magnify'] },
   { id: 'zoom-out',          name: 'Zoom Out',            shortcut: '⌃-',  keywords: ['zoom', 'out'] },

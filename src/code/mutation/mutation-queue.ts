@@ -248,7 +248,7 @@ export type Mutation =
   /** Insert a new element inside a parent. Requires unique id. Index is optional insert position. */
   | { type: 'addNode'; parentId: string; node: { id: string; type: string; styles: Record<string, string>; attrs?: Record<string, string>; name?: string; textContent?: string; children?: any[] }; index?: number }
   /** Add a new absolute-positioned element to the canvas root (no parent). */
-  | { type: 'addCanvasNode'; node: { id: string; type: string; styles: Record<string, string>; attrs?: Record<string, string>; name?: string; textContent?: string; children?: any[] } }
+  | { type: 'addCanvasNode'; node: { id: string; type: string; styles: Record<string, string>; attrs?: Record<string, string>; name?: string; textContent?: string; children?: any[] }; index?: number }
   /** Replica drag-out of a CMS collection list: COPY the literal `.map()` subtree
    *  into `canvasNodes` (id-renamed by `suffix`, map + bindings preserved). The
    *  original stays in the page; the caller hides it on the source replica. */
@@ -2573,7 +2573,7 @@ function applyMutationCore(code: string, mutation: Mutation): string {
       }
 
       case 'addCanvasNode': {
-        let next = addCanvasNodeInCode(code, mutation.node);
+        let next = addCanvasNodeInCode(code, mutation.node, mutation.index);
         // Form dropped on the CANVAS (floating, outside any viewport): still
         // swap the submit <button> for a <FormSubmit> instance so it reads as a
         // component on the canvas. No lifecycle wiring — canvas nodes live in a

@@ -13,7 +13,7 @@ import { copyNodes, hasClipboard } from '@/code/features/paste-engine';
 import {
   deleteNode, toggleLock, toggleVisibility,
   selectParent, selectChildren, selectNextSibling, selectPrevSibling, selectNextReplica,
-  wrapInFrame, wrapInLayout, unfoldChildren,
+  wrapInFrame, wrapInLayout, unfoldChildren, groupSelection, ungroupSelection,
 } from '../commands';
 import { getContentRoot, findNodeRect, parseRectCacheKey } from '../node-ops';
 import { isTextTag } from '@/shared/constants';
@@ -34,6 +34,7 @@ import { trace } from '@/shared/debug-trace';
 import NameInputModal from '@/editor/ui/NameInputModal';
 import { useSuppressCanvasHover, stopHoverProbe } from './useSuppressCanvasHover';
 import ReplaceWithMenu from './ReplaceWithMenu';
+import { canGroupSelection, canUngroupNode } from '@/code/groups/group-semantics';
 
 // ─── Menu Item Components ───────────────────────────────────────────────────
 
@@ -496,7 +497,9 @@ export default function ContextMenu() {
   // separator orphaned at the top for CODE-component instances (Detach hidden,
   // nothing else in the section).
   const canGoToMainComponent = !!instanceComponentFile && isComponentFilePath(instanceComponentFile);
-  const showNativeGroupPlaceholder = selectedIds.length >= 2 && !canGroupSvgs;
+  const nativeGroupIds = selectedIds.length > 0 ? selectedIds : (nodeId ? [nodeId] : []);
+  const canGroupNative = canGroupSelection(nativeGroupIds, getNodesSnapshot());
+  const canUngroupNative = canUngroupNode(node);
   const hasTopSection = isComponentInstanceForReplace || canGoToMainComponent
     || isDesignInstance || showComponentOrMap || showMakeVectorSet;
 
@@ -734,6 +737,26 @@ export default function ContextMenu() {
     close();
   };
 
+  const handleGroupSelection = () => {
+    const ids = selectedIds.length > 0 ? selectedIds : (nodeId ? [nodeId] : []);
+    const contentEl = getContentRoot();
+    if (!contentEl) return;
+    const newId = groupSelection(ids, getNodesSnapshot(), contentEl);
+    trace.action('context-menu:group-selection', { ids, newId });
+    if (newId) { flushNow(); setSelectedIds([newId]); }
+    close();
+  };
+
+  const handleUngroupSelection = () => {
+    if (!nodeId) return;
+    const contentEl = getContentRoot();
+    if (!contentEl) return;
+    const ids = ungroupSelection(nodeId, getNodesSnapshot(), contentEl);
+    trace.action('context-menu:ungroup-selection', { nodeId, resultIds: ids });
+    if (ids?.length) { flushNow(); setSelectedIds(ids); }
+    close();
+  };
+
   // Group — wrap N selected SVGs into a single composite <svg>. Routes
   // through the orphaned `groupSvgs` helper which writes to ProjectFS via
   // modifyProjectFile + computes the union bounding box. Selection lands on
@@ -948,14 +971,17 @@ export default function ContextMenu() {
 
         {/* Structure — native field Group/Ungroup is a separate deterministic
             primitive; the existing implementation only groups SVGs. */}
+        {canGroupNative && (
+          <MenuItem label="Group Selection" shortcut="Ctrl+G" onClick={handleGroupSelection} />
+        )}
+        {canUngroupNative && (
+          <MenuItem label="Ungroup" shortcut="Ctrl+Shift+G" onClick={handleUngroupSelection} />
+        )}
         {canGroupSvgs && (
-          <MenuItem label="Group SVGs" shortcut="Ctrl+G" onClick={handleGroupSvgs} />
+          <MenuItem label="Group SVGs" onClick={handleGroupSvgs} />
         )}
         {canUngroupSvg && (
-          <MenuItem label="Ungroup SVGs" shortcut="Ctrl+Shift+G" onClick={handleUngroupSvgs} />
-        )}
-        {showNativeGroupPlaceholder && (
-          <MenuItem label="Group Selection" shortcut="Ctrl+G" onClick={() => {}} disabled />
+          <MenuItem label="Ungroup SVGs" onClick={handleUngroupSvgs} />
         )}
         <MenuItem label="Frame Selection" shortcut="Shift+Alt+A" onClick={handleCreateFrame} disabled={!nodeId} />
         <MenuItem label="Add Auto Layout" shortcut="Shift+A" onClick={handleCreateLayout} disabled={!nodeId} />

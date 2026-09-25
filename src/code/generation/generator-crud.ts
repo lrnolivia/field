@@ -3629,6 +3629,7 @@ function addNodeAST(code: string, parentId: string, jsxStr: string, index?: numb
 export function addCanvasNodeInCode(
   code: string,
   node: AddNodeDef,
+  index?: number,
 ): string {
   trace.fn('generator.addCanvasNodeInCode', { nodeId: node.id });
 
@@ -3673,6 +3674,35 @@ export function addCanvasNodeInCode(
     jsxStr = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}>\n    ${textContent}\n  </${tag}>`;
   } else {
     jsxStr = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}></${tag}>`;
+  }
+
+  // Indexed canvas insertion preserves source/stack position for structural
+  // wrappers such as native Groups. The common append path stays string-only.
+  if (index != null && index >= 0) {
+    try {
+      const ast = parseJSX(code);
+      let insertAt = -1;
+      if (ast) {
+        traverse(ast, {
+          VariableDeclarator(path) {
+            if (path.node.id.type !== 'Identifier' || path.node.id.name !== 'canvasNodes' || !path.node.init) return;
+            let expr: any = path.node.init;
+            if (expr.type === 'ParenthesizedExpression') expr = expr.expression;
+            if (expr.type !== 'JSXFragment') return;
+            const els = expr.children.filter((c: any) => c.type === 'JSXElement') as t.JSXElement[];
+            const target = els[index];
+            if (target?.start != null) insertAt = target.start;
+            path.stop();
+          },
+        });
+      }
+      if (insertAt >= 0) {
+        trace.action('generator:addCanvasNode-indexed', { nodeId: node.id, index, insertAt });
+        return code.slice(0, insertAt) + jsxStr + '\n  ' + code.slice(insertAt);
+      }
+    } catch (error) {
+      trace.error('generator:addCanvasNode-indexed-failed', { nodeId: node.id, index, error: String(error) });
+    }
   }
 
   // Strategy 1: Append to existing `const canvasNodes = (<>...</>)` block
