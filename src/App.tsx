@@ -283,7 +283,7 @@ export default function App() {
           className="fixed z-[5001] w-6 h-6 flex items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
           style={{
             top: rightPaneOpen ? workspaceLayout.right.top + 60 : 12,
-            right: rightPaneOpen ? workspaceLayout.right.inset + workspaceLayout.right.width - 28 : 8,
+            right: rightPaneOpen ? workspaceLayout.right.inset + workspaceLayout.right.width + 8 : 8,
           }}
         >
           <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="14" height="14">
