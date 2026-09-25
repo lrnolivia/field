@@ -6,12 +6,46 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T02:17:03Z
+Last Updated: 2026-09-25T02:32:07Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-CONTINUATION-001:START -->
+### FIELD-INSPECTOR-CONTINUATION-001 — Continue field Inspector Panel Figma-Parity Cleanup
+
+Status: planned
+Baseline: c74f5b1ccc538638fef558422bcad12d4edf55f2
+Activation HEAD: db624f649453facfae305b28b3cb0f0cea4592f4
+Last Sync: 2026-09-25T02:32:07Z
+
+Owned:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/StylesTool/**
+  - src/editor/tools/TextStyleTool/**
+  - src/editor/tools/SvgShapeTool.tsx
+  - src/editor/tools/SizeTool.tsx
+  - src/editor/tools/LayoutTool.tsx
+  - src/editor/controls/ToolSection.tsx
+  - src/editor/controls/ToolDivider.tsx
+  - src/editor/controls/ControlActionRow.tsx
+  - src/editor/controls/ColorSwatch.tsx
+  - src/editor/controls/RemoveButton.tsx
+  - src/editor/controls/ToolSegmentedControl.tsx
+  - src/editor/controls/InspectorModeTabs.tsx
+  - src/editor/controls/SingleEntryRow.tsx
+  - src/editor/controls/EntryList.tsx
+
+Approved Shared:
+  - src/styles/loew-theme.css
+
+Protected:
+  - src/canvas/**
+  - src/editor/left-toolbar/**
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+<!-- ASSIGNMENT:FIELD-INSPECTOR-CONTINUATION-001:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
