@@ -491,7 +491,7 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
                   onClick={(e) => { e.stopPropagation(); patchVideo({ poster: '' }); }}
                   className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm leading-none cursor-pointer shrink-0 px-1"
                 >
-                  &times;
+                  &minus;
                 </span>
               )}
             </ControlActionRow>
@@ -1623,7 +1623,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
                 onClick={handleClearAll}
                 className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm leading-none cursor-pointer shrink-0 px-1"
               >
-                &times;
+                &minus;
               </span>
             )}
           </ControlActionRow>

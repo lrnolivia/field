@@ -8,7 +8,7 @@
 // prefixes pointing at different radii.
 
 import { useState } from 'react';
-import { ToolSlider, ToolInput } from '../../../controls';
+import { ToolSlider, ToolInput, RemoveButton } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import type { AtomProps } from '../../../controls/unified/types';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
@@ -34,11 +34,12 @@ function BackdropFilterAtom({ compactSection = false }: { compactSection?: boole
 
   if (compactSection) {
     return (
-      <div className="grid grid-cols-[minmax(0,1fr)_68px] gap-1 items-center w-full">
+      <div className="grid grid-cols-[minmax(0,1fr)_56px_auto] gap-1 items-center w-full">
         <div className="h-[var(--control-height)] px-2 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-xs text-[var(--text-primary)]">
           Background blur
         </div>
         <ToolInput value={String(displayNum)} onChange={(v) => commit(parseFloat(v) || 0)} step={0.5} />
+        <RemoveButton onClick={() => onChangeMultiple({ backdropFilter: '', WebkitBackdropFilter: '' })} />
       </div>
     );
   }

@@ -1386,8 +1386,8 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
             {sizeContent}
             {/* Align — a flex COLUMN's cross axis is horizontal: left / center
                 / right. Writes `alignItems`. */}
-            <div className="flex items-center justify-between w-full">
-              <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Align</span>
+            <div data-layout-context-row className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+              <ControlLabel label="Align" property="alignItems" plain cell />
               <ToolSegmentedControl
                 value={styles.alignItems || 'flex-start'}
                 onChange={(v) => { onUpdate('alignItems', v); flushNow(); }}

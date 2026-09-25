@@ -877,7 +877,7 @@ function BorderPresetPillRow({ group, onClear, hideLabel = false }: {
             onClick={(e) => { e.stopPropagation(); onClear(); }}
             className="text-[var(--accent-fg)] opacity-70 hover:opacity-100 text-sm leading-none cursor-pointer shrink-0"
           >
-            &times;
+            &minus;
           </span>
         </button>
       </div>

@@ -78,7 +78,7 @@ export default React.memo(function PropertiesPanel() {
       <div
         data-properties-panel
         data-tutorial="right-toolbar"
-        className="w-[260px] shrink-0 overflow-y-auto scrollbar-hide relative z-5000"
+        className="w-[260px] shrink-0 overflow-y-auto scrollbar-hide relative z-[5000]"
         style={{ marginTop: 52, marginLeft: -260, willChange: 'transform', isolation: 'isolate' }}
       />
     );
@@ -238,7 +238,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       <div
         data-properties-panel
         data-tutorial="right-toolbar"
-        className="w-[260px] shrink-0 overflow-y-auto scrollbar-hide relative z-5000"
+        className="w-[260px] shrink-0 overflow-y-auto scrollbar-hide relative z-[5000]"
         style={{ marginTop: 52, marginLeft: -260, willChange: 'transform', isolation: 'isolate' }}
       />
     );
@@ -436,7 +436,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     <div
       data-properties-panel
       data-tutorial="right-toolbar"
-      className="w-[260px] shrink-0 flex flex-col relative z-5000"
+      className="w-[260px] shrink-0 flex flex-col relative z-[5000]"
       style={{ marginTop: 52, marginLeft: -260, boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
       onMouseDown={(e) => {
         if (activeEditor && !(e.target instanceof HTMLSelectElement)) {
@@ -456,7 +456,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       <div
         data-properties-context
         data-inspector-object-header
-        className="shrink-0 min-h-8 px-3 py-1 border-b border-[var(--border-light)] flex items-center"
+        className="shrink-0 min-h-7 px-3 py-0.5 border-b border-[var(--border-light)] flex items-center"
         title={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
       >
         <div className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-primary)] truncate">
@@ -467,7 +467,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             type="button"
             data-inspector-variables
             onClick={() => setPageVariablesOpen(true)}
-            className="ml-1 h-7 w-7 shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            className="ml-1 h-[var(--control-height)] w-[var(--control-height)] shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             title="Variables"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
@@ -519,7 +519,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           control isn't flush with the panel's bottom edge — scroll-to-end
           previously left the Export Frame button kissing the viewport
           bottom which felt cramped. */}
-      <div className="flex-1 pt-0 pb-6 flex flex-col">
+      <div className="flex-1 pt-0 pb-3 flex flex-col">
         {inspectorMode === 'design' ? <>
 
         {/* Shape edit mode: PathTool (Position + Curve for the selected

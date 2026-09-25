@@ -547,6 +547,7 @@ export default function SvgShapeTool() {
         title="Stroke"
         collapsible
         defaultOpen
+        renderWhenEmpty
         action={
           <StyleSectionActions
             property="stroke"

@@ -280,7 +280,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
   }
 
   return (
-    <div className="flex items-center justify-between w-full">
+    <div data-layout-value-row className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
       {property
         // `hideCreateVariable` — width / height (and the min/max
         // variants this row also serves) carry unit-suffixed length
@@ -294,7 +294,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
         // variable type. Same rationale `pageVariableTypeForProperty`
         // in `page-variables.ts` already documents — this just makes
         // the UI match the data layer.
-        ? <ControlLabel label={label} property={property} overridden={overridden} onResetOverride={onResetOverride} hideResetStyle={hideResetStyle} hideCreateVariable />
+        ? <ControlLabel label={label} property={property} overridden={overridden} onResetOverride={onResetOverride} hideResetStyle={hideResetStyle} hideCreateVariable cell />
         // `pl-[18px] -ml-[18px]` mirrors ControlLabel's chevron-gutter geometry
         // so rows that fall into the plain-label branch claim the SAME flex
         // width as rows that use ControlLabel. Without it the negative margin
@@ -303,9 +303,9 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
         // 18 px wider than on plain-label rows — visible misalignment
         // between, e.g., the viewport-frame Width row (plain) and the
         // Height row (ControlLabel) sitting right above each other.
-        : <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px] mr-[2px]">{label}</span>
+        : <span className="pr-2 text-xs font-bold text-[var(--text-secondary)]">{label}</span>
       }
-      <div className="flex items-center gap-1 w-full">
+      <div className="flex items-center gap-1 w-full min-w-0">
         <div className="flex-1">
           <ToolInput
             value={displayValue}
@@ -1732,9 +1732,11 @@ if (heightIsAuto) {
                 CSS-default leak when no flex is set). All drop/create paths now
                 bake `flex: '0 0 auto'`; the "shrink-to-fit" need is served by
                 Fill (grow + min:0). No user-facing toggle. */}
-            <div className="flex items-center justify-between w-full">
-              <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Align Self</span>
-              <ToolSelect value={styles.alignSelf || 'auto'} onChange={v => onUpdate('alignSelf', v === 'auto' ? '' : v)} options={SELF_ALIGN_OPTIONS} />
+            <div data-layout-context-row className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+              <ControlLabel label="Align Self" property="alignSelf" plain cell />
+              <div className="min-w-0">
+                <ToolSelect value={styles.alignSelf || 'auto'} onChange={v => onUpdate('alignSelf', v === 'auto' ? '' : v)} options={SELF_ALIGN_OPTIONS} />
+              </div>
             </div>
           </>
         );

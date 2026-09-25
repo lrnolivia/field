@@ -184,6 +184,10 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const nonShadowFilter = extractNonShadowFilter(value || '');
   const hasFilter = !!nonShadowFilter;
 
+  // Effects owns its empty state in the section header. A drop-shadow-only
+  // filter must not leak a second empty Layer blur row into the typed list.
+  if (compactSection && !hasFilter) return null;
+
   const openEditor = () => {
     openPanel();
   };

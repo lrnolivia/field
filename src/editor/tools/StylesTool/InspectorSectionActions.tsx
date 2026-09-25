@@ -65,7 +65,7 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
           type="button"
           data-appearance-visibility
           onClick={toggleVisibility}
-          className={`h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${hidden ? 'text-[var(--text-disabled)]' : 'text-[var(--text-primary)]'}`}
+          className={`h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${hidden ? 'text-[var(--text-disabled)]' : 'text-[var(--text-primary)]'}`}
           title={hidden ? 'Show' : 'Hide'}
           aria-pressed={hidden}
         >
@@ -81,7 +81,7 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
           type="button"
           data-appearance-blend-mode
           onClick={() => setBlendOpen(v => !v)}
-          className={`h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${blend !== 'normal' || blendOpen ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}
+          className={`h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${blend !== 'normal' || blendOpen ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}
           title="Apply blend mode"
           aria-expanded={blendOpen}
         >
