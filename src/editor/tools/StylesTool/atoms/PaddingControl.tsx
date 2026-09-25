@@ -25,6 +25,26 @@ function PaddingAtom() {
           paddingBottom: s[2], paddingLeft: s[3],
         });
       }}
+      axisPair
+      onChangeAxis={(axis, val) => {
+        if (axis === 'horizontal') {
+          onChangeMultiple({
+            padding: '',
+            paddingTop: sides[0],
+            paddingRight: val,
+            paddingBottom: sides[2],
+            paddingLeft: val,
+          });
+        } else {
+          onChangeMultiple({
+            padding: '',
+            paddingTop: val,
+            paddingRight: sides[1],
+            paddingBottom: val,
+            paddingLeft: sides[3],
+          });
+        }
+      }}
       onChangeAll={(val) => onChangeMultiple({
         padding: val, paddingTop: '', paddingRight: '', paddingBottom: '', paddingLeft: '',
       })}

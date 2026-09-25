@@ -44,6 +44,7 @@ interface FontFamilyControlProps {
   /** Row label (external mode only). Defaults to "Family"; a code-component `font`
    *  control passes its own @control label here. */
   label?: string;
+  compact?: boolean;
 }
 
 /** Inner component for text editing context (has ControlProvider) */
@@ -65,7 +66,7 @@ function FontFamilyInner() {
 }
 
 /** Shared base component — renders the button + popup/panel */
-function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label = 'Family' }: {
+function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label = 'Family', compact = false }: {
   value: string;
   isMixed?: boolean;
   onChange: (v: string) => void;
@@ -77,6 +78,7 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
    *  selected-text-portion case (TipTap mark on the active selection)
    *  rather than re-implementing that here. */
   onPreviewWrite?: (v: string) => void;
+  compact?: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -254,8 +256,8 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
 
   return (
     <>
-      <div ref={rowRef} className="flex items-center justify-between w-full">
-        <ControlLabel label={label} property="fontFamily" plain={plain} />
+      <div ref={rowRef} className={compact ? "w-full" : "flex items-center justify-between w-full"}>
+        {!compact && <ControlLabel label={label} property="fontFamily" plain={plain} />}
         <ControlActionRow onClick={handleClick} className="min-w-0 overflow-hidden">
           <span
             className="text-xs truncate flex-1 min-w-0"
@@ -284,9 +286,24 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
 }
 
 /** Public API — uses text hooks when no props, external value when props provided */
-export function FontFamilyControl({ value, onChange, label }: FontFamilyControlProps = {}) {
+export function FontFamilyControl({ value, onChange, label, compact = false }: FontFamilyControlProps = {}) {
   if (value !== undefined && onChange !== undefined) {
-    return <FontFamilyBase value={value} onChange={onChange} plain label={label} />;
+    return <FontFamilyBase value={value} onChange={onChange} plain label={label} compact={compact} />;
   }
+  if (compact) return <FontFamilyInnerCompact />;
   return <FontFamilyInner />;
+}
+
+function FontFamilyInnerCompact() {
+  const text = useTextStyles();
+  const { value, isMixed } = text.get('fontFamily');
+  return (
+    <FontFamilyBase
+      value={value}
+      isMixed={isMixed}
+      compact
+      onChange={(v) => text.set('fontFamily', v)}
+      onPreviewWrite={(v) => text.set('fontFamily', v)}
+    />
+  );
 }

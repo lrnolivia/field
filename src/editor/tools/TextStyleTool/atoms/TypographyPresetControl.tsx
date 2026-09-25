@@ -332,7 +332,7 @@ function StandalonePresetPanel({ groups, activeGroupName, nodeId, onApply, onClo
   );
 }
 
-export function TypographyPresetControl() {
+export function TypographyPresetControl({ compact = false, actionOnly = false }: { compact?: boolean; actionOnly?: boolean } = {}) {
   const { styles, updateMultipleStyles, node } = useControl();
   const selectedIds = node ? [node.id] : [];
   const popupCtx = useToolPopupOptional();
@@ -473,7 +473,69 @@ export function TypographyPresetControl() {
     }
   };
 
-  trace.fn('TypographyPresetControl:render', { active: activeGroup?.name ?? 'none' });
+  const activeSize = activeGroup ? getTypoTokenValue(activeGroup, 'size').replace(/px$/, '') : '';
+  const activeLineHeightRaw = activeGroup ? getTypoTokenValue(activeGroup, 'line-height') : '';
+  const activeLineHeight = !activeLineHeightRaw || activeLineHeightRaw === 'normal' ? 'Auto' : activeLineHeightRaw;
+  const compactSummary = activeGroup
+    ? `${activeGroup.label}${activeSize ? ` · ${activeSize}/${activeLineHeight}` : ''}`
+    : 'Text style';
+
+  const standalonePopup = !popupCtx ? (
+    <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text styles" anchorRef={rowRef}>
+      <StandalonePresetPanel
+        groups={typoGroups}
+        activeGroupName={activeGroup?.name ?? null}
+        nodeId={selectedIds[0]}
+        onApply={applyPreset}
+        onClose={() => setIsOpen(false)}
+      />
+    </ToolPopup>
+  ) : null;
+
+  trace.fn('TypographyPresetControl:render', { active: activeGroup?.name ?? 'none', compact, actionOnly });
+
+  if (actionOnly) {
+    return (
+      <>
+        <div ref={rowRef} className="flex items-center">
+          <button
+            type="button"
+            data-typography-style-action
+            onClick={handleClick}
+            className="h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            title="Text styles"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="4" cy="4" r="1.35" /><circle cx="12" cy="4" r="1.35" />
+              <circle cx="4" cy="12" r="1.35" /><circle cx="12" cy="12" r="1.35" />
+            </svg>
+          </button>
+        </div>
+        {standalonePopup}
+      </>
+    );
+  }
+
+  if (compact) {
+    return (
+      <>
+        <div ref={rowRef} className="w-full group">
+          <ControlActionRow onClick={handleClick}>
+            <span className="font-semibold text-[var(--text-primary)]">Ag</span>
+            <span className="text-xs text-[var(--text-primary)] truncate flex-1 text-left" style={{ fontFamily: activeGroup ? `'${presetFontFamily(activeGroup)}', Inter, sans-serif` : undefined }}>
+              {compactSummary}
+            </span>
+            {activeGroup && (
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <RemoveButton onClick={removePreset} />
+              </span>
+            )}
+          </ControlActionRow>
+        </div>
+        {standalonePopup}
+      </>
+    );
+  }
 
   return (
     <>

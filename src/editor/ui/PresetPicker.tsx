@@ -45,6 +45,7 @@ function getMatchingCategories(property: string): Set<PresetToken['category']> {
   if (SPACING_PROPS.has(property)) cats.add('spacing');
   if (RADIUS_PROPS.has(property)) cats.add('radius');
   if (SHADOW_PROPS.has(property)) cats.add('shadow');
+  if (property === 'border' || property === 'WebkitTextStroke') cats.add('border');
   // 'other' category always matches
   cats.add('other');
   return cats;

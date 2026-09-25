@@ -18,7 +18,7 @@ import { activeFilePathAtom, isVectorSetComponentFile } from '@/code/project/act
 import { modifyProjectFile } from '@/code/project/modify-file';
 import { setForceRender, queueMutation } from '@/code/mutation/mutation-queue';
 import { FIT_SIZE, isFitSize, isFrameTag } from '@/shared/constants';
-import { ToolSection, ToolInput, ToolSelect, ToolSwitch } from '../controls';
+import { ToolSection, ToolInput, ToolSelect } from '../controls';
 import { isPrimaryViewport } from '@/canvas/node-ops';
 import { useControl } from '../controls/ControlProvider';
 import ControlLabel from '../controls/ControlLabel';
@@ -74,7 +74,88 @@ const UNIT_OPTIONS: { value: string; label: string }[] = [
 
 // ─── Dimension Row ──────────────────────────────────────────────────────────
 
-function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitChange, computedSize, parentSize, unitOptions, currentUnit, chevronLabel, disabled, overridden, onResetOverride, hideResetStyle, mirrorNegative }: {
+function DimensionSizingMenu({
+  axis,
+  activeUnit,
+  computedSize,
+  unitOptions,
+  onUnitChange,
+  onAddMin,
+  onAddMax,
+}: {
+  axis: 'width' | 'height';
+  activeUnit: DimUnit;
+  computedSize: number;
+  unitOptions: { value: string; label: string; disabled?: boolean }[];
+  onUnitChange: (fromUnit: DimUnit, toUnit: DimUnit) => void;
+  onAddMin?: () => void;
+  onAddMax?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const can = (unit: string) => !!unitOptions.find(o => o.value === unit && !o.disabled);
+  const axisLabel = axis === 'width' ? 'width' : 'height';
+  const modeLabel = activeUnit === 'auto' ? 'Hug' : activeUnit === 'fill' ? 'Fill' : activeUnit === 'px' ? '' : activeUnit;
+
+  const choose = (unit: DimUnit) => {
+    if (unit !== activeUnit) onUnitChange(activeUnit, unit);
+    setOpen(false);
+  };
+
+  const row = (label: string, unit: DimUnit, disabled = false) => (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => choose(unit)}
+      className="w-full px-3 py-1.5 flex items-center gap-2 text-xs text-left hover:bg-[var(--bg-hover)] disabled:opacity-35 disabled:cursor-default"
+    >
+      <span className="w-3">{activeUnit === unit ? '✓' : ''}</span>
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        data-dimension-sizing-menu={axis}
+        onClick={() => setOpen(v => !v)}
+        className="h-[var(--control-height)] min-w-7 px-2 flex items-center justify-center gap-1 border-l border-[var(--control-border)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+        title={`${axisLabel} sizing`}
+      >
+        {modeLabel && <span>{modeLabel}</span>}
+        <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m4 6 4 4 4-4" /></svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[10030]" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-[10031] w-[220px] py-1.5 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-lg shadow-[var(--shadow-lg)]">
+            {row(`Fixed ${axisLabel} (${Math.round(computedSize)})`, 'px', !can('px'))}
+            {row('Hug contents', 'auto', !can('auto'))}
+            {row('Fill container', 'fill', !can('fill'))}
+            <div className="h-px bg-[var(--border-light)] my-1" />
+            {onAddMin && <button type="button" onClick={() => { onAddMin(); setOpen(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--bg-hover)]">Add min {axisLabel}…</button>}
+            {onAddMax && <button type="button" onClick={() => { onAddMax(); setOpen(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--bg-hover)]">Add max {axisLabel}…</button>}
+            {(can('%') || can('vw') || can('vh')) && <div className="h-px bg-[var(--border-light)] my-1" />}
+            {can('%') && row('Relative (%)', '%')}
+            {axis === 'width' && can('vw') && row('Viewport width (vw)', 'vw')}
+            {axis === 'height' && can('vh') && row('Viewport height (vh)', 'vh')}
+            <div className="h-px bg-[var(--border-light)] my-1" />
+            <button
+              type="button"
+              disabled
+              title="Length variables need a unit-aware length variable type before this can be source-safe."
+              className="w-full px-3 py-1.5 text-xs text-left text-[var(--text-disabled)]"
+            >
+              ◇ Apply variable…
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitChange, computedSize, parentSize, unitOptions, currentUnit, chevronLabel, disabled, overridden, onResetOverride, hideResetStyle, mirrorNegative, figmaSizingMenu = false, axis, onAddMin, onAddMax }: {
   label: string;
   /** Zero-crossing display for the chevron scrub — see ToolInput.mirrorNegative. */
   mirrorNegative?: boolean;
@@ -99,6 +180,10 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
   currentUnit?: DimUnit;
   /** Override label shown on the unit selector chevron (e.g. 'fr') */
   chevronLabel?: string;
+  figmaSizingMenu?: boolean;
+  axis?: 'width' | 'height';
+  onAddMin?: () => void;
+  onAddMax?: () => void;
   /** Disable input (e.g. FIT height) */
   disabled?: boolean;
   /** Force the responsive-override accent on the label even when the
@@ -163,6 +248,36 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
     // is a dropdown pick, so the parent converts the RENDERED size.
     onUnitChange(activeUnit, u);
   };
+
+  if (figmaSizingMenu && axis) {
+    return (
+      <div data-figma-dimension={axis} className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-visible">
+        <span className="w-7 shrink-0 text-center text-xs text-[var(--text-secondary)] uppercase">{axis === 'width' ? 'W' : 'H'}</span>
+        <div className="min-w-0 flex-1">
+          <ToolInput
+            value={displayValue}
+            ariaLabel={label}
+            onChange={disabled ? () => {} : handleNumChange}
+            onChangeLive={disabled || !onChangeLive ? undefined : handleNumChangeLive}
+            onCommit={disabled ? undefined : handleNumChange}
+            step={1}
+            className={isAuto || disabled ? 'opacity-60 border-0' : 'border-0'}
+            disabled={disabled}
+            mirrorNegative={mirrorNegative}
+          />
+        </div>
+        <DimensionSizingMenu
+          axis={axis}
+          activeUnit={activeUnit}
+          computedSize={computedSize}
+          unitOptions={unitOptions}
+          onUnitChange={(from, to) => onUnitChange(from, to)}
+          onAddMin={onAddMin}
+          onAddMax={onAddMax}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between w-full">
@@ -241,6 +356,8 @@ interface Props {
   pxOnly?: boolean;
   /** Compose the size controls into another canonical inspector section. */
   bare?: boolean;
+  /** Active Auto layout owns Clip content at the bottom of its section. */
+  deferClipContent?: boolean;
 }
 
 /** Is this axis in FILL mode? Main-axis fill = a fill flex with no explicit
@@ -269,7 +386,7 @@ function clampNonNegative(v: string): string {
   return m ? `0${m[2] ?? 'px'}` : v;
 }
 
-export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly, bare = false }: Props) {
+export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly, bare = false, deferClipContent = false }: Props) {
   const { parentLayout, parentFlexDirection, node, updateStyleLive, hasOverride } = useControl();
   // FIT-TEXT REDIRECT — selecting the INNER <p> of a fit pair (layers panel,
   // exiting text edit) must size the SVG WRAPPER. The inner's width/height
@@ -1455,242 +1572,140 @@ if (heightIsAuto) {
     </div>
   ) : null;
 
+  const primaryWidthControl = isViewportFrame && currentViewportConfig ? (
+    <DimensionRow
+      figmaSizingMenu
+      axis="width"
+      label="Width"
+      value={`${currentViewportConfig.width}px`}
+      onChange={handleViewportBreakpointChange}
+      onChangeLive={handleViewportBreakpointLive}
+      onUnitChange={() => {}}
+      computedSize={currentViewportConfig.width}
+      parentSize={currentViewportConfig.width}
+      unitOptions={[{ value: 'px', label: 'px' }]}
+      hideResetStyle
+    />
+  ) : (
+    <DimensionRow
+      figmaSizingMenu
+      axis="width"
+      label="Width"
+      property="width"
+      value={widthHug ? 'auto' : isWidthFillMain ? String(fillMultiplier) : isWidthFillCross ? String(Math.round(computed.width)) : (inset.horizontalInset ? `${Math.round(computed.width)}px` : (roundPxDisplay(pickLiveDim(styles.width, liveSize?.w) || styles.width) || 'auto'))}
+      onChange={handleWidthChange}
+      onChangeLive={isWidthFill || inset.horizontalInset ? undefined : (v) => liveSizeScrub('width', v)}
+      mirrorNegative={canMirrorThroughZero && !isWidthFill && !inset.horizontalInset}
+      onUnitChange={handleWidthUnitChange}
+      computedSize={isVectorSet && liveSize?.w ? parseFloat(liveSize.w) : computed.width}
+      parentSize={computed.parentWidth}
+      unitOptions={widthUnitOptions}
+      currentUnit={isFitRow(vectorFitDim, 'width') ? 'auto' : widthHug ? 'auto' : isWidthFill ? 'fill' : undefined}
+      hideResetStyle={isPrimary}
+      overridden={isWidthFill && flexFillOverridden ? true : undefined}
+      onResetOverride={isVectorSet ? resetVectorSetSize : (isWidthFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
+      onAddMin={() => addProp('minWidth')}
+      onAddMax={() => addProp('maxWidth')}
+    />
+  );
+
+  const primaryHeightControl = isViewportFrame && currentViewportConfig ? (() => {
+    const vpHeight = currentViewportConfig.height;
+    const isPxMode = typeof vpHeight === 'number' && vpHeight > 0;
+    const primaryVp = viewportsConfig.find(v => v.isPrimary) ?? viewportsConfig[0];
+    const isReplicaDetached = !currentViewportConfig.isPrimary
+      && !!primaryVp
+      && typeof primaryVp.height === 'number' && primaryVp.height > 0
+      && typeof vpHeight === 'number' && vpHeight > 0
+      && vpHeight !== primaryVp.height;
+    const handleResetReplicaHeight = () => {
+      if (!primaryVp || typeof primaryVp.height !== 'number' || primaryVp.height <= 0) return;
+      handleViewportHeightChange(String(primaryVp.height));
+      trace.action('size:viewport-height-reset', { vpId, to: primaryVp.height });
+    };
+    return (
+      <DimensionRow
+        figmaSizingMenu
+        axis="height"
+        label="Height"
+        property="height"
+        value={isPxMode ? `${vpHeight}px` : `${Math.round(computed.height) || 0}px`}
+        onChange={handleViewportHeightChange}
+        onChangeLive={!isPxMode ? undefined : (v) => updateStyleLive('height', v)}
+        onUnitChange={handleViewportHeightUnitChange}
+        computedSize={computed.height}
+        parentSize={computed.parentHeight}
+        unitOptions={[{ value: 'px', label: 'px' }, { value: 'auto', label: 'auto' }]}
+        currentUnit={isPxMode ? 'px' : 'auto'}
+        disabled={!isPxMode}
+        overridden={isReplicaDetached}
+        onResetOverride={isReplicaDetached ? handleResetReplicaHeight : undefined}
+        hideResetStyle
+      />
+    );
+  })() : (
+    <DimensionRow
+      figmaSizingMenu
+      axis="height"
+      label="Height"
+      property="height"
+      value={heightHug ? 'auto' : isFitSvgWrapper ? `${Math.round(computed.height) || 0}px` : isHeightFillMain ? String(fillMultiplier) : isHeightFillCross ? String(Math.round(computed.height)) : (inset.verticalInset ? `${Math.round(computed.height)}px` : (roundPxDisplay(pickLiveDim(styles.height, liveSize?.h) || styles.height) || 'auto'))}
+      onChange={isFitSvgWrapper ? () => {} : handleHeightChange}
+      onChangeLive={isFitSvgWrapper || isHeightFill || inset.verticalInset ? undefined : (v) => liveSizeScrub('height', v)}
+      mirrorNegative={canMirrorThroughZero && !isFitSvgWrapper && !isHeightFill && !inset.verticalInset}
+      onUnitChange={isFitSvgWrapper ? () => {} : handleHeightUnitChange}
+      computedSize={isVectorSet && liveSize?.h ? parseFloat(liveSize.h) : computed.height}
+      parentSize={computed.parentHeight}
+      unitOptions={isFitSvgWrapper ? [{ value: 'auto', label: 'Fit' }, ...heightUnitOptions.map(o => ({ ...o, disabled: true }))] : heightUnitOptions}
+      currentUnit={isFitRow(vectorFitDim, 'height') ? 'auto' : heightHug ? 'auto' : isFitSvgWrapper ? 'auto' : isHeightFill ? 'fill' : undefined}
+      disabled={!!isFitSvgWrapper}
+      hideResetStyle={isPrimary}
+      overridden={isHeightFill && flexFillOverridden ? true : undefined}
+      onResetOverride={isVectorSet ? resetVectorSetSize : (isHeightFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
+      onAddMin={() => addProp('minHeight')}
+      onAddMax={() => addProp('maxHeight')}
+    />
+  );
+
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      {isViewportFrame && currentViewportConfig ? (
-        // Viewport breakpoint row: writes the canvas viewport `width` config
-        // (persisted to the @canvas block), NOT a CSS dimension. Height is
-        // always content-driven for viewports, so keep it auto/computed.
-        // `property={undefined}` hides the chevron menu — there's no CSS
-        // property bound to this row, so variable / preset bindings don't
-        // apply. Unit is locked to px.
-        <DimensionRow
-          label="Width"
-          value={`${currentViewportConfig.width}px`}
-          onChange={handleViewportBreakpointChange}
-          // Chevron scrub live-tracks the tile via the widths atom only; the
-          // commit (onChange via ToolInput's onCommit) runs the band rewrite
-          // ONCE on release — same live/commit split as the tile drag.
-          onChangeLive={handleViewportBreakpointLive}
-          onUnitChange={() => {}}
-          computedSize={currentViewportConfig.width}
-          parentSize={currentViewportConfig.width}
-          unitOptions={[{ value: 'px', label: 'px' }]}
-          hideResetStyle
-        />
-      ) : (
-        <DimensionRow
-          label="Width"
-          property="width"
-          value={widthHug ? 'auto' : isWidthFillMain ? String(fillMultiplier) : isWidthFillCross ? String(Math.round(computed.width)) : (inset.horizontalInset ? `${Math.round(computed.width)}px` : (roundPxDisplay(pickLiveDim(styles.width, liveSize?.w) || styles.width) || 'auto'))}
-          onChange={handleWidthChange}
-          // LIVE scrub — without this the chevron drag fell back to the FULL
-          // commit pipeline per tick (the DimensionRow comment documents the
-          // failure mode; the min/max rows were wired, the main rows never
-          // were — "panel resize is choppy while the overlay circles are
-          // smooth", live find 2026-07-19). DOM-only patch per tick; the
-          // release commits once via onCommit → handleWidthChange. Fill
-          // multipliers and inset-derived widths keep the legacy path.
-          onChangeLive={isWidthFill || inset.horizontalInset ? undefined : (v) => liveSizeScrub('width', v)}
-          mirrorNegative={canMirrorThroughZero && !isWidthFill && !inset.horizontalInset}
-          onUnitChange={handleWidthUnitChange}
-          computedSize={isVectorSet && liveSize?.w ? parseFloat(liveSize.w) : computed.width}
-          parentSize={computed.parentWidth}
-          unitOptions={widthUnitOptions}
-          currentUnit={isFitRow(vectorFitDim, 'width') ? 'auto' : widthHug ? 'auto' : isWidthFill ? 'fill' : undefined}
-          hideResetStyle={isPrimary}
-          overridden={isWidthFill && flexFillOverridden ? true : undefined}
-          onResetOverride={isVectorSet ? resetVectorSetSize : (isWidthFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
-        />
-      )}
-
-      {/* ─── Aspect Ratio Lock between Width / Height ───────────────────
-          Visually sits in the gutter between the two rows, anchored
-          horizontally just before the input column starts (left: 35%).
-          Two SVG arcs hint at the connection between width and height
-          inputs — they tint accent when locked, secondary text colour
-          when not. Wrapper is 0 px tall + has negative top/bottom margins
-          so the lock floats between the rows without changing the gap. */}
-      {shouldShowAspectLock && (
-        <div
-          className="relative"
-          // Wrapper occupies 0 vertical space; the lock icon inside is
-          // absolutely positioned to overlay the gap between rows. The
-          // negative top/bottom margins (-0.25rem each = 4 px) cancel
-          // exactly half of ToolSection's gap-2 (8 px) above and below
-          // this 0-height row, restoring the SAME 8 px gap between Width
-          // and Height the panel had before the lock affordance existed.
-          // Without these margins, inserting the wrapper as a flex
-          // sibling doubles the spacing (16 px) and squishes nothing —
-          // but with the previous −0.375 rem values, the wrapper ate too
-          // much of the gap and the two rows visibly collapsed onto
-          // each other. -0.25 rem hits the original cadence exactly.
-          style={{ height: 0, marginTop: '-0.25rem', marginBottom: '-0.25rem' }}
-        >
-          <div
-            className="absolute flex items-center justify-center pointer-events-none"
-            style={{ left: '35%', top: -10, transform: 'translateX(-50%)' }}
+      <div data-layout-size-pair className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-2 items-center">
+        {primaryWidthControl}
+        {primaryHeightControl}
+        {shouldShowAspectLock ? (
+          <button
+            type="button"
+            data-aspect-ratio-lock
+            onClick={isVectorSet ? undefined : handleAspectRatioToggle}
+            disabled={isVectorSet}
+            className={`h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] ${isVectorSet ? 'opacity-45 cursor-default' : 'hover:bg-[var(--bg-hover)]'} ${isAspectRatioLocked ? 'text-[var(--accent-text)]' : 'text-[var(--text-primary)]'}`}
+            title={isVectorSet ? 'A vector keeps its aspect ratio' : isAspectRatioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
           >
-            {/* Top connector — curves from the width input down toward
-                the lock button. Path starts bottom-left and bends to the
-                right side of a 10×40 box, matching the old builder. */}
-            <svg
-              className="absolute pointer-events-none"
-              style={{ left: 1, top: -38, width: 10, height: 40, overflow: 'visible' }}
-            >
-              <path
-                d="M 0,37 Q 0,31 6,29 L 11,29"
-                fill="none"
-                stroke={isAspectRatioLocked ? 'var(--accent)' : 'var(--text-secondary)'}
-                strokeWidth="1"
-              />
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">
+              <path d="M5.5 5.5h-2v2M10.5 10.5h2v-2M6 10l4-4" />
             </svg>
+          </button>
+        ) : <span />}
+      </div>
 
-            {/* A VECTOR SET's ratio is not a user choice — the artwork has one
-                aspect and both dimensions derive from it, so the toggle is shown
-                locked and disabled (reference parity: the reference greys this icon out
-                for a vector). Everything else keeps the normal toggle. */}
-            <button
-              type="button"
-              onClick={isVectorSet ? undefined : handleAspectRatioToggle}
-              disabled={isVectorSet}
-              className={`p-0.5 cut-corners transition-colors absolute z-10 pointer-events-auto ${
-                isVectorSet
-                  ? 'text-[var(--text-secondary)] opacity-50 cursor-default'
-                  : `cursor-pointer hover:bg-[var(--bg-hover)] ${isAspectRatioLocked ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`
-              }`}
-              style={{ left: -7, top: 2 }}
-              title={isVectorSet
-                ? 'A vector keeps its aspect ratio'
-                : isAspectRatioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
-            >
-              {(isAspectRatioLocked || isVectorSet) ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                </svg>
-              )}
-            </button>
-
-            {/* Bottom connector — mirror of the top, leading into the
-                height input. */}
-            <svg
-              className="absolute pointer-events-none"
-              style={{ left: 1, top: 19, width: 10, height: 40, overflow: 'visible' }}
-            >
-              <path
-                d="M 0,3 Q 0,8 6,11 L 11,11"
-                fill="none"
-                stroke={isAspectRatioLocked ? 'var(--accent)' : 'var(--text-secondary)'}
-                strokeWidth="1"
-              />
-            </svg>
-          </div>
-        </div>
-      )}
-
-      {isViewportFrame && currentViewportConfig ? (
-        // Viewport height: px (fixed pixel height stored in viewport config)
-        // OR auto (omitted from config, content-driven). Unit chevron lets
-        // the user toggle between the two. When px, the value comes from
-        // the persisted config; when auto, the value displays the current
-        // content-driven measurement (read-only).
-        //
-        // Override accent: a REPLICA whose vp.height differs from the
-        // primary's vp.height is "detached" — the user dragged its own
-        // height handle past the primary-broadcast value, so it's no
-        // longer synced. Mirror the same blue/accent ControlLabel +
-        // "Reset Override" menu every other replica-aware property gets.
-        // Reset copies the primary's current vp.height back onto this
-        // replica.
-        (() => {
-          const vpHeight = currentViewportConfig.height;
-          const isPxMode = typeof vpHeight === 'number' && vpHeight > 0;
-          const primaryVp = viewportsConfig.find(v => v.isPrimary) ?? viewportsConfig[0];
-          const isReplicaDetached = !currentViewportConfig.isPrimary
-            && !!primaryVp
-            && typeof primaryVp.height === 'number' && primaryVp.height > 0
-            && typeof vpHeight === 'number' && vpHeight > 0
-            && vpHeight !== primaryVp.height;
-          const handleResetReplicaHeight = () => {
-            if (!primaryVp || typeof primaryVp.height !== 'number' || primaryVp.height <= 0) return;
-            handleViewportHeightChange(String(primaryVp.height));
-            trace.action('size:viewport-height-reset', { vpId, to: primaryVp.height });
-          };
-          return (
-            <DimensionRow
-              label="Height"
-              property="height"
-              value={isPxMode ? `${vpHeight}px` : `${Math.round(computed.height) || 0}px`}
-              onChange={handleViewportHeightChange}
-              // Live (per-frame) scrub = DOM-only patch of this viewport's root —
-              // the SAME imperative path the resize overlay uses. Without it every
-              // chevron-drag tick ran the FULL commit (viewport-config write +
-              // JSX mirror + forceCanvasRender → project write + re-parse of the
-              // whole file per tick; 16 writes/38 parses in one drag on a big
-              // canvasNodes page — "extremely slow and replicas glitching",
-              // 2026-08-07). The release commits ONCE via onCommit → onChange.
-              onChangeLive={!isPxMode ? undefined : (v) => updateStyleLive('height', v)}
-              onUnitChange={handleViewportHeightUnitChange}
-              computedSize={computed.height}
-              parentSize={computed.parentHeight}
-              unitOptions={[
-                { value: 'px', label: 'px' },
-                { value: 'auto', label: 'auto' },
-              ]}
-              currentUnit={isPxMode ? 'px' : 'auto'}
-              disabled={!isPxMode}
-              overridden={isReplicaDetached}
-              onResetOverride={isReplicaDetached ? handleResetReplicaHeight : undefined}
-              // Suppress the "Remove" menu entry on every viewport.
-              // ControlLabel reads `value = styles['height']` (the root div's
-              // CSS height) which is unrelated to the value this row
-              // displays (the viewport-config height from `@canvas`).
-              // Clicking "Remove" would silently wipe the root's
-              // inline height and collapse the page to 0px. Reset Override
-              // (replicas only) stays — that one routes through the
-              // `onResetOverride` handler and syncs vp.height back to the
-              // primary's value, which is what the user actually wants.
-              hideResetStyle
-            />
-          );
-        })()
-      ) : (
-        <DimensionRow
-          label="Height"
-          property="height"
-          value={heightHug ? 'auto' : isFitSvgWrapper ? `${Math.round(computed.height) || 0}px` : isHeightFillMain ? String(fillMultiplier) : isHeightFillCross ? String(Math.round(computed.height)) : (inset.verticalInset ? `${Math.round(computed.height)}px` : (roundPxDisplay(pickLiveDim(styles.height, liveSize?.h) || styles.height) || 'auto'))}
-          onChange={isFitSvgWrapper ? () => {} : handleHeightChange}
-          // LIVE scrub — same as the Width row above.
-          onChangeLive={isFitSvgWrapper || isHeightFill || inset.verticalInset ? undefined : (v) => liveSizeScrub('height', v)}
-          mirrorNegative={canMirrorThroughZero && !isFitSvgWrapper && !isHeightFill && !inset.verticalInset}
-          onUnitChange={isFitSvgWrapper ? () => {} : handleHeightUnitChange}
-          computedSize={isVectorSet && liveSize?.h ? parseFloat(liveSize.h) : computed.height}
-          parentSize={computed.parentHeight}
-          unitOptions={isFitSvgWrapper ? [{ value: 'fit', label: 'Fit' }, ...heightUnitOptions.map(o => ({ ...o, disabled: true }))] : heightUnitOptions}
-          currentUnit={isFitRow(vectorFitDim, 'height') ? 'auto' : heightHug ? 'auto' : isFitSvgWrapper ? 'fit' as DimUnit : isHeightFill ? 'fill' : undefined}
-          disabled={!!isFitSvgWrapper}
-          hideResetStyle={isPrimary}
-          overridden={isHeightFill && flexFillOverridden ? true : undefined}
-          onResetOverride={isVectorSet ? resetVectorSetSize : (isHeightFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
-        />
-      )}
-
-      {showClipContent && (
-        <div data-layout-clip-content className="flex items-center justify-between w-full">
-          <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Clip content</span>
-          <div className="w-full flex justify-end">
-            <ToolSwitch
-              value={['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim())}
-              onChange={(enabled) => onUpdate('overflow', enabled ? 'hidden' : 'visible')}
-            />
-          </div>
-        </div>
+      {showClipContent && !deferClipContent && (
+        <button
+          type="button"
+          data-layout-clip-content
+          aria-pressed={['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim())}
+          onClick={() => {
+            const enabled = ['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim());
+            onUpdate('overflow', enabled ? 'visible' : 'hidden');
+          }}
+          className="self-start flex items-center gap-2 text-xs text-[var(--text-primary)]"
+        >
+          <span className="w-4 h-4 rounded-[3px] border border-[var(--control-border)] flex items-center justify-center bg-[var(--control-bg)]">
+            {['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim()) && (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="m2 6 2.4 2.4L10 3" /></svg>
+            )}
+          </span>
+          <span>Clip content</span>
+        </button>
       )}
 
       {/* Flex/Grid child controls — only for relative children in flex/grid parents, never for top-level */}

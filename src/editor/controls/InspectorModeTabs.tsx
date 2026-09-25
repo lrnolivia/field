@@ -1,5 +1,6 @@
 import { useAtom } from 'jotai';
 import { inspectorModeAtom } from '@/code/stores/editor-store';
+import InspectorZoomControl from './InspectorZoomControl';
 
 export default function InspectorModeTabs() {
   const [mode, setMode] = useAtom(inspectorModeAtom);
@@ -33,6 +34,7 @@ export default function InspectorModeTabs() {
       >
         Prototype
       </button>
+      <InspectorZoomControl />
     </div>
   );
 }

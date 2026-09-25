@@ -161,9 +161,12 @@ interface TextPropertyControlProps {
   value?: string;
   /** External onChange (for preset editing mode) */
   onChange?: (value: string) => void;
+  /** Compact Figma typography row: omit the external property label and
+   *  collapse slider+input pairs to the value control. */
+  compact?: boolean;
 }
 
-export function TextPropertyControl({ property, label, value: externalValue, onChange: externalOnChange }: TextPropertyControlProps) {
+export function TextPropertyControl({ property, label, value: externalValue, onChange: externalOnChange, compact = false }: TextPropertyControlProps) {
   const isExternal = externalValue !== undefined && externalOnChange !== undefined;
   // Only call useTextStyles when NOT in external mode (it requires ControlProvider)
   const text = isExternal ? null : useTextStyles(); // eslint-disable-line react-hooks/rules-of-hooks
@@ -278,8 +281,8 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
 
   if (isVariableBound && ctl && valueSource?.ref) {
     return (
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label={label} property={property} plain={isExternal} />
+      <div className={compact ? "w-full" : "flex items-center justify-between w-full"}>
+        {!compact && <ControlLabel label={label} property={property} plain={isExternal} />}
         <div className="flex items-center gap-2 w-full">
           <LegacyVariableBoundPill
             property={property}
@@ -298,8 +301,8 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
   // the registry's map/unmap sit between the CSS value and the segment.
   if (registryDef?.type === 'segmented') {
     return (
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label={label} property={property} plain={isExternal} />
+      <div className={compact ? "w-full" : "flex items-center justify-between w-full"}>
+        {!compact && <ControlLabel label={label} property={property} plain={isExternal} />}
         <ToolSegmentedControl
           value={isMixed ? '' : registryDef.map(value)}
           onChange={(seg) => setValue(registryDef.unmap(seg))}
@@ -313,8 +316,8 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
   // Select-type properties (textTransform, whiteSpace, etc.)
   if (registryDef?.type === 'select') {
     return (
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label={label} property={property} plain={isExternal} />
+      <div className={compact ? "w-full" : "flex items-center justify-between w-full"}>
+        {!compact && <ControlLabel label={label} property={property} plain={isExternal} />}
         <ToolSelect value={isMixed ? '' : value} onChange={setValue} options={registryDef.options} />
       </div>
     );
@@ -476,6 +479,26 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
       trace.action('font-size:fit-scale-reset-override', { textId: fitTextNode.id, vpWidth: interactingW });
     };
 
+    if (compact) {
+      return (
+        <div className="grid grid-cols-[minmax(0,1fr)_60px] gap-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)]">
+          <ToolInput
+            value={isMixed ? '' : isFitMode ? String(fitScalePct) : isClamp ? '' : String(numValue)}
+            onChange={(v) => {
+              if (isFitMode && fitTextNode) commitFitScale(v);
+              else if (currentUnit !== 'clamp') setValue(`${parseFloat(v) || 0}${currentUnit}`);
+            }}
+            onChangeLive={isFitMode && fitTextNode ? liveFitScale : undefined}
+            onCommit={isFitMode && fitTextNode ? commitFitScale : undefined}
+            step={registryDef.step ?? 1}
+            disabled={currentUnit === 'clamp'}
+            className="border-0"
+          />
+          <ToolSelect value={currentUnit} onChange={handleUnitChange} options={FONT_SIZE_UNITS} />
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col gap-2 w-full">
         <div className="flex items-center justify-between w-full">
@@ -536,6 +559,30 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
   if (registryDef?.type === 'numeric') {
     const numValue = parseFloat(value) || 0;
     const unit = value.replace(/^-?[\d.]+/, '') || (property === 'lineHeight' ? '' : 'px');
+    if (compact) {
+      const compactValue = property === 'lineHeight' && (!value || value === 'normal')
+        ? 'Auto'
+        : (isMixed ? '' : value || String(numValue));
+      return (
+        <ToolInput
+          value={compactValue}
+          text
+          onChange={(v) => {
+            const typed = v.trim();
+            if (property === 'lineHeight' && typed.toLowerCase() === 'auto') {
+              setValue('normal');
+              return;
+            }
+            const preservedUnit = /^-?[\d.]+/.test(value)
+              ? value.replace(/^-?[\d.]+/, '')
+              : '';
+            if (/^-?[\d.]+$/.test(typed) && preservedUnit) setValue(`${typed}${preservedUnit}`);
+            else setValue(typed);
+          }}
+          placeholder={label}
+        />
+      );
+    }
     return (
       <div className="flex items-center justify-between w-full">
         <ControlLabel label={label} property={property} plain={isExternal} />
@@ -561,6 +608,7 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
   }
 
   // Fallback: plain text input
+  if (compact) return <ToolInput value={isMixed ? '' : value} onChange={setValue} text placeholder={label} />;
   return (
     <div className="flex items-center justify-between w-full">
       <ControlLabel label={label} property={property} plain={isExternal} />

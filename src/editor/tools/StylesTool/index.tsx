@@ -13,6 +13,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { AppearanceHeaderActions, StyleSectionActions } from './InspectorSectionActions';
+import { parseBackgroundLayers, formatBackgroundLayers, createDefaultLayer } from '../../ui/background-layer-utils';
 import { ToolSection, ToolDivider } from '../../controls';
 import { useControl } from '../../controls/ControlProvider';
 import { isTextTag } from '@/shared/constants';
@@ -22,11 +24,11 @@ import { isVectorSetComponentFile } from '@/code/project/active-file-store';
 import { trace } from '@/shared/debug-trace';
 import {
   FillControl, RadiusControl, MarginControl,
-  OverflowControl, OverflowXControl, OverflowYControl, OpacityControl, HideControl,
+  OverflowControl, OverflowXControl, OverflowYControl, OpacityControl,
   BorderControl, ShadowControl, MaskControl,
   ClipPathControl, TransformControl, FilterControl, BackdropFilterControl, ZIndexControl,
   VariantTransitionControl, PseudoElementControl,
-  PointerEventsControl, UserSelectControl, BackfaceControl, MixBlendModeControl, FormStateControl,
+  PointerEventsControl, UserSelectControl, BackfaceControl, FormStateControl,
   GroupFillControl,
 } from './atoms';
 import { DYNAMIC_STYLES, type DynamicStyleSpec } from './dynamic-styles';
@@ -36,7 +38,7 @@ import { DYNAMIC_STYLES, type DynamicStyleSpec } from './dynamic-styles';
 type StylesToolScope = 'all' | 'appearance' | 'advanced';
 
 export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope } = {}) {
-  const { node, styles, hasOverride, updateMultipleStyles } = useControl();
+  const { node, styles, hasOverride, updateStyle, updateMultipleStyles } = useControl();
   const pseudoStyles = useAtomValue(pseudoStylesAtom);
   const isText = !!node && isTextTag(node.type);
   // SVG GROUP — a <svg> wrapper whose children are themselves <svg> shape
@@ -168,6 +170,7 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
       // Vector sets get the same curated + as component instances (no Fill,
       // Radius, Padding, Border, Shadow, Transform — only wrapper-safe extras).
       if ((isComponentInstance || isVectorSet) && !COMPONENT_INSTANCE_ALLOWED.has(s.id)) return false;
+      if (s.id === 'mixBlendMode') return false; // Appearance header owns blend mode.
       return !visibleIds.has(s.id);
     }),
     [visibleIds, isText, isComponentInstance, isVectorSet],
@@ -274,6 +277,33 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
     </div>
   ) : null;
 
+  const addFill = useCallback(() => {
+    const existing = parseBackgroundLayers(styles);
+    if (existing.length > 0) {
+      updateMultipleStyles(formatBackgroundLayers([createDefaultLayer('color'), ...existing]));
+      return;
+    }
+    if (styles.backgroundColor && styles.backgroundColor !== 'transparent') {
+      const current = createDefaultLayer('color');
+      current.value = `linear-gradient(${styles.backgroundColor}, ${styles.backgroundColor})`;
+      updateMultipleStyles(formatBackgroundLayers([createDefaultLayer('color'), current]));
+      return;
+    }
+    updateStyle('backgroundColor', '#FFFFFF');
+  }, [styles, updateStyle, updateMultipleStyles]);
+
+  const hasStroke = !!(styles.border || styles.borderWidth || styles.borderColor);
+  const addStroke = useCallback(() => {
+    if (hasStroke) return;
+    updateMultipleStyles({ borderWidth: '1px', borderStyle: 'solid', borderColor: '#000000' });
+  }, [hasStroke, updateMultipleStyles]);
+
+  const addEffect = useCallback(() => {
+    const current = (styles.boxShadow || '').trim();
+    const next = '0 4px 8px rgba(0, 0, 0, 0.25)';
+    updateStyle('boxShadow', current && current !== 'none' ? `${current}, ${next}` : next);
+  }, [styles.boxShadow, updateStyle]);
+
   // Inner nodes of an expanded component instance belong to the master.
   if (isInsideComponentInstance) return null;
 
@@ -283,9 +313,8 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
     trace.action('styles-tool:render-group', { nodeId: node!.id, childCount: node!.children?.length ?? 0 });
     return (
       <>
-        <ToolSection title="Appearance">
+        <ToolSection title="Appearance" action={<AppearanceHeaderActions />}>
           <OpacityControl />
-          <HideControl />
         </ToolSection>
         <ToolDivider />
         <ToolSection title="Fill">
@@ -301,25 +330,23 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
     <>
       {showAppearance && (
         <>
-          <ToolSection title="Appearance">
+          <ToolSection title="Appearance" action={<AppearanceHeaderActions canHide={!isViewportFrame} />}>
             <OpacityControl />
-            {!isViewportFrame && <HideControl />}
             {!isText && !isWrapper && <RadiusControl />}
-            {visibleIds.has('mixBlendMode') && <MixBlendModeControl />}
           </ToolSection>
 
           {!isText && !isWrapper && (
             <>
               <ToolDivider />
-              <ToolSection title="Fill">
+              <ToolSection title="Fill" action={<StyleSectionActions property="backgroundColor" onAdd={addFill} addTitle="Add fill" />}>
                 <FillControl />
               </ToolSection>
               <ToolDivider />
-              <ToolSection title="Stroke">
+              <ToolSection title="Stroke" action={<StyleSectionActions property="border" onAdd={addStroke} addDisabled={hasStroke} addTitle="Add stroke" />}>
                 <BorderControl />
               </ToolSection>
               <ToolDivider />
-              <ToolSection title="Effects">
+              <ToolSection title="Effects" action={<StyleSectionActions property="boxShadow" onAdd={addEffect} addTitle="Add effect" />}>
                 <ShadowControl />
                 {visibleIds.has('mask') && <MaskControl />}
                 {visibleIds.has('clipPath') && <ClipPathControl />}

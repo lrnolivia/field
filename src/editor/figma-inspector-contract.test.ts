@@ -35,34 +35,51 @@ describe('Figma inspector contract', () => {
     expect(panel).toContain('bare');
   });
 
-  it('keeps the text core stack in Figma order', () => {
+  it('keeps the text core stack in Figma order and tucks typography details away', () => {
     const text = read('src/editor/tools/TextStyleTool/index.tsx');
+    const advanced = read('src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx');
     const titles = ['Typography', 'Fill', 'Stroke', 'Effects'];
     let prev = -1;
     for (const title of titles) {
-      const i = text.indexOf(`<ToolSection title="${title}"`);
+      const i = text.indexOf(`title="${title}"`);
       expect(i, title).toBeGreaterThan(prev);
       prev = i;
     }
-    expect(text).not.toContain('<ToolSection title="Text"');
+    expect(text).toContain('<TypographyPresetControl compact />');
+    expect(text).toContain('<FontFamilyControl compact />');
+    expect(text).toContain('data-typography-weight-size');
+    expect(text).toContain('data-typography-leading-spacing');
+    expect(text).toContain('<TypographyAdvancedPopover />');
+    expect(advanced).toContain('Basics');
+    expect(advanced).toContain('Details');
+    expect(advanced).toContain('Vertical trim');
+    expect(advanced).toContain('Truncate text');
   });
 
   it('splits the inherited Styles mega-panel into Figma property sections', () => {
     const styles = read('src/editor/tools/StylesTool/index.tsx');
     for (const title of ['Appearance', 'Fill', 'Stroke', 'Effects', 'Advanced']) {
-      expect(styles).toContain(`<ToolSection title="${title}"`);
+      expect(styles).toContain(`title="${title}"`);
     }
+    expect(styles).toContain('<AppearanceHeaderActions');
+    expect(styles).toContain('<StyleSectionActions property="backgroundColor"');
+    expect(styles).toContain('<StyleSectionActions property="border"');
+    expect(styles).toContain('<StyleSectionActions property="boxShadow"');
     expect(styles).not.toContain('<ToolSection title="Styles"');
   });
 
-  it('keeps Design and Prototype as distinct inspector modes', () => {
+  it('keeps Design and Prototype as distinct inspector modes with inspector zoom', () => {
     const panel = read('src/editor/PropertiesPanel.tsx');
     const tabs = read('src/editor/controls/InspectorModeTabs.tsx');
+    const zoom = read('src/editor/controls/InspectorZoomControl.tsx');
     expect(panel).toContain('<InspectorModeTabs />');
     expect(panel).toContain("inspectorMode === 'design'");
     expect(panel).toContain('data-inspector-group="prototype"');
+    expect(panel).toContain('data-inspector-variables');
     expect(tabs).toContain('Design');
     expect(tabs).toContain('Prototype');
+    expect(tabs).toContain('<InspectorZoomControl />');
+    expect(zoom).toContain('data-inspector-zoom');
   });
 
   it('keeps Position compact and uses Figma transform/constraint motifs', () => {
@@ -71,6 +88,8 @@ describe('Figma inspector contract', () => {
     const alignment = read('src/editor/tools/PositionTool/AlignmentControl.tsx');
     const pins = read('src/editor/tools/PositionTool/PinControl.tsx');
     const rotate = read('src/editor/tools/StylesTool/atoms/RotateControl.tsx');
+    expect(size).toContain('data-layout-size-pair');
+    expect(size).toContain('data-dimension-sizing-menu');
     expect(size).toContain('data-layout-clip-content');
     expect(size).toContain('Clip content');
     expect(position).toContain('<ToolPopup');
@@ -92,8 +111,14 @@ describe('Figma inspector contract', () => {
     expect(motif).toContain('data-inspector-icon-group');
     expect(layout).toContain('ariaLabel="Auto layout mode"');
     expect(layout).toContain('data-auto-layout-alignment');
+    expect(layout).toContain('data-auto-layout-clip-content');
+    expect(layout).toContain('Distribution');
     expect(layout).not.toContain('ControlLabel label="Direction"');
     expect(layout).not.toContain('ControlLabel label="Wrap"');
+    // The normal Figma Auto layout branch owns Gap inside its compact
+    // alignment/spacing composition. Template-root layout intentionally keeps
+    // its simpler legacy Gap field, so do not assert against the whole file.
+    expect(layout).toContain('{alignmentMatrix}\n                <PaddingControl />');
   });
 
   it('mounts core appearance separately from advanced web controls', () => {

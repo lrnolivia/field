@@ -1272,9 +1272,13 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
     },
   ] as const;
 
+  const [distributionOpen, setDistributionOpen] = useState(false);
+  const distributionRef = useRef<HTMLButtonElement>(null);
+  const gapValue = String(parseFloat(styles.gap || '0') || 0);
+
   const alignmentMatrix = !hasGrid ? (
-    <div data-auto-layout-alignment className="grid grid-cols-[minmax(0,1fr)_112px] gap-2 items-start">
-      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 aspect-square max-w-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+    <div data-auto-layout-alignment className="grid grid-cols-[112px_minmax(0,1fr)] gap-2 items-start">
+      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-[112px] h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
         {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
           (['flex-start', 'center', 'flex-end'] as const).map(x => (
             <button
@@ -1291,17 +1295,65 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
           )),
         )}
       </div>
-      <div className="flex flex-col gap-1">
-        <ToolSelect
-          value={styles.justifyContent || 'flex-start'}
-          onChange={v => onUpdate('justifyContent', v)}
-          options={getJustifyOptions(styles.flexDirection)}
-        />
-        <ToolSelect
-          value={styles.alignItems || 'stretch'}
-          onChange={v => onUpdate('alignItems', v)}
-          options={getAlignOptions(styles.flexDirection)}
-        />
+
+      <div className="flex flex-col gap-2 min-w-0">
+        <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] overflow-hidden">
+          <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Gap">
+            ↔
+          </span>
+          <ToolInput
+            value={gapValue}
+            onChange={(v) => onUpdate('gap', `${Math.max(0, parseFloat(v) || 0)}px`)}
+            min={0}
+            className="border-0"
+          />
+          <span className="text-[var(--text-secondary)] text-[10px]">⌄</span>
+        </div>
+
+        <button
+          ref={distributionRef}
+          type="button"
+          onClick={() => setDistributionOpen(true)}
+          className="h-[var(--control-height)] w-full flex items-center justify-center gap-2 rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+          title="Advanced auto layout alignment"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round">
+            <path d="M4 2v12M12 2v12M2 5h4M10 11h4" />
+            <circle cx="4" cy="5" r="1.5" fill="var(--control-bg)" />
+            <circle cx="12" cy="11" r="1.5" fill="var(--control-bg)" />
+          </svg>
+          <span className="text-[11px]">Distribution</span>
+        </button>
+
+        <ToolPopup
+          isOpen={distributionOpen}
+          onClose={() => setDistributionOpen(false)}
+          title="Auto layout"
+          anchorRef={distributionRef}
+          width={260}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-[var(--text-secondary)]">Justify</span>
+              <ToolSelect
+                value={styles.justifyContent || 'flex-start'}
+                onChange={v => onUpdate('justifyContent', v)}
+                options={getJustifyOptions(styles.flexDirection)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-[var(--text-secondary)]">Align</span>
+              <ToolSelect
+                value={styles.alignItems || 'stretch'}
+                onChange={v => onUpdate('alignItems', v)}
+                options={getAlignOptions(styles.flexDirection)}
+              />
+            </div>
+            {styles.flexWrap === 'wrap' && (
+              <StyleField property="alignContent" label="Align Content" defaultValue="stretch" options={FLEX_CONTENT_OPTIONS} />
+            )}
+          </div>
+        </ToolPopup>
       </div>
     </div>
   ) : null;
@@ -1421,21 +1473,28 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
             ) : (
               <>
                 {alignmentMatrix}
-
-                {/* Flex: Align Content — only when wrap is enabled */}
-                {styles.flexWrap === 'wrap' && (
-                  <StyleField property="alignContent" label="Align Content" defaultValue="stretch"
-                    options={FLEX_CONTENT_OPTIONS} />
-                )}
-
-                {/* Flex: Gap */}
-                <StyleField property="gap" label="Gap" />
-                {/* Padding — belongs to the layout (design-tool parity): only an
-                    element WITH a flex/grid layout has an inner content box to
-                    inset, so Padding lives here right after Gap, not in the
-                    Styles tool. */}
                 <PaddingControl />
               </>
+            )}
+
+            {sizeContent && (
+              <button
+                type="button"
+                data-auto-layout-clip-content
+                aria-pressed={['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim())}
+                onClick={() => {
+                  const enabled = ['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim());
+                  onUpdate('overflow', enabled ? 'visible' : 'hidden');
+                }}
+                className="self-start flex items-center gap-2 text-xs text-[var(--text-primary)]"
+              >
+                <span className="w-4 h-4 rounded-[3px] border border-[var(--control-border)] flex items-center justify-center bg-[var(--control-bg)]">
+                  {['hidden', 'clip', 'auto', 'scroll'].includes((styles.overflow || '').trim()) && (
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="m2 6 2.4 2.4L10 3" /></svg>
+                  )}
+                </span>
+                <span>Clip content</span>
+              </button>
             )}
           </div>
         )}

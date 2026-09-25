@@ -57,6 +57,10 @@ interface SpacingControlProps {
    *  CSS, so they leave this off and the lower bound stays 0. Margin passes true
    *  (negative margins are valid + needed for overlap/pull-up layouts). */
   allowNegative?: boolean;
+  /** Figma Auto layout padding motif: show horizontal + vertical values as
+   *  the compact default, expanding to four individual sides only on demand. */
+  axisPair?: boolean;
+  onChangeAxis?: (axis: 'horizontal' | 'vertical', value: string) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -88,10 +92,14 @@ function allEqual(values: [string, string, string, string]): boolean {
   return values.every(v => parseNum(v) === n);
 }
 
+function axisPairCompatible(values: [string, string, string, string]): boolean {
+  return parseNum(values[0]) === parseNum(values[2]) && parseNum(values[1]) === parseNum(values[3]);
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function SpacingControl({ values, labels, onChange, onChangeAll, onChangeAllLive, allowNegative = false }: SpacingControlProps) {
-  const [showIndividual, setShowIndividual] = useState(() => !allEqual(values));
+export default function SpacingControl({ values, labels, onChange, onChangeAll, onChangeAllLive, allowNegative = false, axisPair = false, onChangeAxis }: SpacingControlProps) {
+  const [showIndividual, setShowIndividual] = useState(() => axisPair ? !axisPairCompatible(values) : !allEqual(values));
   const userToggledRef = useRef(false); // tracks if user explicitly toggled individual mode
   const [localValues, setLocalValues] = useState(values.map(v => String(parseNum(v))));
   const focusedRef = useRef<number | null>(null);
@@ -102,7 +110,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
       setLocalValues(values.map(v => String(parseNum(v))));
       // Only auto-toggle if user hasn't explicitly set the mode
       if (!userToggledRef.current) {
-        setShowIndividual(!allEqual(values));
+        setShowIndividual(axisPair ? !axisPairCompatible(values) : !allEqual(values));
       }
     }
   }, [values]);
@@ -162,17 +170,39 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
 
   return (
     <div className="w-full">
-      {/* Row 1: Global input + toggle */}
+      {/* Row 1: Figma axis-pair padding or legacy global value + toggle */}
       <div className="flex items-center w-full gap-2">
-        {/* Global input */}
-        <ToolInput
-          value={globalValue}
-          onChange={handleGlobalChange}
-          onChangeLive={onChangeAllLive ? handleGlobalChangeLive : undefined}
-          onCommit={onChangeAllLive ? handleGlobalChange : undefined}
-          min={allowNegative ? undefined : 0}
-          className="flex-1"
-        />
+        {axisPair && !showIndividual && onChangeAxis ? (
+          <div data-spacing-axis-pair className="grid grid-cols-2 gap-2 flex-1 min-w-0">
+            <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
+              <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Horizontal padding">↔</span>
+              <ToolInput
+                value={String(parseNum(values[1]))}
+                onChange={(v) => onChangeAxis('horizontal', `${clampSpacingValue(parseFloat(v) || 0, allowNegative)}px`)}
+                min={allowNegative ? undefined : 0}
+                className="border-0"
+              />
+            </div>
+            <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
+              <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Vertical padding">↕</span>
+              <ToolInput
+                value={String(parseNum(values[0]))}
+                onChange={(v) => onChangeAxis('vertical', `${clampSpacingValue(parseFloat(v) || 0, allowNegative)}px`)}
+                min={allowNegative ? undefined : 0}
+                className="border-0"
+              />
+            </div>
+          </div>
+        ) : (
+          <ToolInput
+            value={globalValue}
+            onChange={handleGlobalChange}
+            onChangeLive={onChangeAllLive ? handleGlobalChangeLive : undefined}
+            onCommit={onChangeAllLive ? handleGlobalChange : undefined}
+            min={allowNegative ? undefined : 0}
+            className="flex-1"
+          />
+        )}
 
         {/* Toggle group: uniform shows the static px badge, individual shows uniform icon */}
         <div className="flex items-center border border-[var(--control-border)] cut-corners cut-border [--cut-border-color:var(--control-border)] overflow-hidden shrink-0">
