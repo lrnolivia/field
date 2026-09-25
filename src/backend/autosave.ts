@@ -369,13 +369,50 @@ function removeLifecycleHooks(): void {
   }
 }
 
+// ProjectFS is the authored-document persistence boundary.
+//
+// Canvas mutations already schedule autosave through the mutation queue, but
+// several legitimate field operations write ProjectFS directly — including
+// Page appearance/background state. Listen here as well so those writes cannot
+// remain browser-session-only.
+//
+// The existing 2s debounce coalesces this with the mutation-queue autosave, so
+// ordinary canvas edits still result in one durable save rather than duplicate
+// R2 writes.
+let projectFsAutosaveUnsubscribe: (() => void) | null = null;
+
+function installProjectFsAutosaveHook(): void {
+  projectFsAutosaveUnsubscribe?.();
+
+  projectFsAutosaveUnsubscribe = projectFS.subscribeWrites((event) => {
+    // Never echo collaboration-originated writes back through persistence.
+    if (event.origin !== 'local') return;
+
+    trace.action('autosave:project-fs-write', {
+      kind: event.kind,
+      path: event.path,
+      oldPath: event.oldPath,
+      newPath: event.newPath,
+    });
+
+    triggerAutosave();
+  });
+}
+
+function removeProjectFsAutosaveHook(): void {
+  projectFsAutosaveUnsubscribe?.();
+  projectFsAutosaveUnsubscribe = null;
+}
+
 installLifecycleHooks();
+installProjectFsAutosaveHook();
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     _disposed = true;
     if (debounceTimer !== null) { clearTimeout(debounceTimer); debounceTimer = null; }
     removeLifecycleHooks();
+    removeProjectFsAutosaveHook();
     trace.action('autosave:hmr-disposed', {});
   });
 }
