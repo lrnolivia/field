@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T02:43:04Z
+Last Updated: 2026-09-25T02:45:46Z
 
 ## Active Assignments
 
@@ -22,6 +22,24 @@ Last Updated: 2026-09-25T02:43:04Z
 - 2026-09-25T02:17:03Z — Existing-chat adoption: this tracker was initialized after `81a7dbd633db` had already landed because the generic handoff kit was introduced midstream. No pre-implementation tracker reservation existed. Git history is authoritative.
 - 2026-09-25T02:17:03Z — Pages/Layers source work is landed and deployed. Screenshot-level post-deploy visual parity remains unverified and should be registered as a new assignment before further implementation.
 <!-- FIELD_BLOCKED_NOTES_END -->
+
+## Installer / Handoff Kit Lessons
+
+These notes are coordination-infrastructure guidance. They are not product behavior and do not expand any completed assignment's source ownership.
+
+### FIELD-INSPECTOR-CONTINUATION-001 packaging lessons
+
+- **Preserve Git porcelain prefix spacing.** An installer preflight parsed `git status --porcelain` with whole-output `.strip()`, which removed the leading status-space from the first dirty line. A later fixed-position slice then corrupted `src/editor/PropertiesPanel.tsx` into `rc/editor/PropertiesPanel.tsx` and produced a false ownership violation. Parse porcelain output without trimming leading whitespace; only remove trailing newlines or use a status-aware parser.
+
+- **Resume must adopt an existing active reservation.** A repaired package re-ran reservation publication even though `FIELD-INSPECTOR-CONTINUATION-001` was already active, creating redundant tracker-only reservation commits. Resumable installers must detect and preserve the live active assignment instead of publishing another reservation.
+
+- **Expanded repair scope must propagate through every gate.** When `src/editor/tools/SvgShapeTool.tsx` was added to the repair package after validation exposed an existing SVG Stroke contract issue, that path also had to be added to the explicit staging/final commit allowlist. Any revision that expands owned repair paths must update target manifests, ownership checks, staging allowlists, commit allowlists, validation, and resume-state recognition together.
+
+- **Package revisions must resume from a predecessor's partial postimage.** The successful r3 package recognized the 12 already-applied inspector files plus one pending SVG repair as a valid mixed state, applied only the missing repair, and later recognized the complete postimage as a no-op before final commit/push. Future r2/r3/r4-style repairs must not require destructive reset/reapply when the previous package stopped safely.
+
+- **Differentiate installer defects from product/test findings.** The SVG Stroke failure that triggered the first repair was not an installer bug: the focused regression test correctly exposed that an SVG without an authored stroke hid the entire addable Stroke section. Product/test findings belong in assignment implementation history; this section is for packaging, coordination, resume, ownership, staging, and deployment-verifier defects.
+
+- **Any installer defect that forces r2/r3/r4/etc. must be recorded here.** Record the failed revision, symptom, root cause, whether repository/source work was affected, the repair, and the reusable prevention rule so parallel chats do not rediscover the same failure.
 
 ## Commit Ledger
 
