@@ -1,8 +1,11 @@
 import { createRoot } from 'react-dom/client';
 import { Provider, getDefaultStore } from 'jotai';
 import ProjectLoader from './ProjectLoader';
+import Dashboard from './Dashboard';
+import { resolveFieldSurface } from './dashboard/dashboard-route';
 import './styles/globals.css';
 import './styles/loew-theme.css'; // Minimal UI theme — must stay AFTER globals.css (see LOEW_THEME.md)
+import './styles/dashboard.css';
 import { subscribeBuilderTheme } from './editor/builder-theme';
 
 // Restore the saved builder accent BEFORE the first paint (so a non-default
@@ -18,6 +21,6 @@ subscribeBuilderTheme();
 // from one path become invisible to readers on the other.
 createRoot(document.getElementById('root')!).render(
   <Provider store={getDefaultStore()}>
-    <ProjectLoader />
+    {resolveFieldSurface(window.location.pathname) === 'dashboard' ? <Dashboard /> : <ProjectLoader />}
   </Provider>
 );

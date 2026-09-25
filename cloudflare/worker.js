@@ -713,6 +713,316 @@ async function handleFieldProfileRequest(
   }
 }
 
+/* FIELD_DASHBOARD_API_START */
+function isValidFieldProjectId(id) {
+  return PROJECT_ID_RE.test(id) && id !== "." && id !== ".." && !id.includes("..");
+}
+
+function parseDashboardProjectRoute(pathname, method) {
+  if (pathname === FIELD_API_ROOT) return { kind: "collection" };
+  if (!pathname.startsWith(`${FIELD_API_ROOT}/`)) return null;
+
+  const rest = pathname.slice(FIELD_API_ROOT.length + 1);
+  const parts = rest.split("/");
+  let id;
+  try {
+    id = decodeURIComponent(parts[0]);
+  } catch {
+    return { invalid: true };
+  }
+  if (!isValidFieldProjectId(id)) return { invalid: true };
+
+  if (parts.length === 2 && parts[1] === "duplicate") {
+    return { id, kind: "duplicate" };
+  }
+  if (parts.length === 1 && method === "DELETE") {
+    return { id, kind: "permanent-delete" };
+  }
+  return null;
+}
+
+function isoTimestamp(value) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+  if (typeof value !== "string" || !value.trim()) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function r2UploadedTimestamp(object) {
+  return isoTimestamp(object?.uploaded ?? null);
+}
+
+function parseStoredProjectMeta(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function readR2Text(object) {
+  if (typeof object?.text === "function") return object.text();
+  if (typeof object?.body === "string") return object.body;
+  return new Response(object?.body ?? "").text();
+}
+
+function normalizeFieldProjectMeta(raw, id, fallbackTimestamp) {
+  const fallback = isoTimestamp(fallbackTimestamp) ?? new Date().toISOString();
+  const createdAt = isoTimestamp(raw?.createdAt) ?? isoTimestamp(raw?.updatedAt) ?? fallback;
+  const updatedAt = isoTimestamp(raw?.updatedAt) ?? fallback ?? createdAt;
+  const trashedAt = raw?.trashedAt === null ? null : isoTimestamp(raw?.trashedAt);
+  const thumbnail = typeof raw?.thumbnail === "string" && raw.thumbnail.trim()
+    ? raw.thumbnail.trim()
+    : null;
+
+  return {
+    id,
+    name: typeof raw?.name === "string" && raw.name.trim() ? raw.name.trim() : "Untitled",
+    createdAt,
+    updatedAt,
+    starred: raw?.starred === true,
+    trashedAt,
+    thumbnail,
+  };
+}
+
+async function loadRawProjectMeta(bucket, id) {
+  const object = await bucket.get(`projects/${id}/meta.json`);
+  if (!object) return { object: null, raw: {} };
+  return { object, raw: parseStoredProjectMeta(await readR2Text(object)) };
+}
+
+async function listFieldProjectRecords(bucket) {
+  const seen = new Map();
+  let cursor;
+
+  do {
+    const page = await bucket.list({ prefix: "projects/", cursor });
+    for (const object of page.objects ?? []) {
+      const match = /^projects\/([^/]+)\/(current|meta)\.json$/.exec(object.key);
+      if (!match || !isValidFieldProjectId(match[1])) continue;
+      const id = match[1];
+      const row = seen.get(id) ?? { timestamps: [] };
+      const uploaded = r2UploadedTimestamp(object);
+      if (uploaded) row.timestamps.push(uploaded);
+      seen.set(id, row);
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+
+  const projects = await Promise.all([...seen.entries()].map(async ([id, row]) => {
+    const { object, raw } = await loadRawProjectMeta(bucket, id);
+    const timestamps = [...row.timestamps];
+    const metaUploaded = r2UploadedTimestamp(object);
+    if (metaUploaded) timestamps.push(metaUploaded);
+    timestamps.sort();
+    const fallback = timestamps[timestamps.length - 1] ?? new Date().toISOString();
+    return normalizeFieldProjectMeta(raw, id, fallback);
+  }));
+
+  projects.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  return projects;
+}
+
+async function touchFieldProjectMeta(bucket, id) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { object, raw } = await loadRawProjectMeta(bucket, id);
+    const current = object ? null : await bucket.get(`projects/${id}/current.json`);
+    const fallback = r2UploadedTimestamp(object) ?? r2UploadedTimestamp(current) ?? new Date().toISOString();
+    const normalized = normalizeFieldProjectMeta(raw, id, fallback);
+    const next = {
+      ...raw,
+      ...normalized,
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+    const onlyIf = new Headers();
+    if (object?.httpEtag) onlyIf.set("If-Match", object.httpEtag);
+    else onlyIf.set("If-None-Match", "*");
+    const stored = await bucket.put(`projects/${id}/meta.json`, JSON.stringify(next), {
+      onlyIf,
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    if (stored) return;
+  }
+  console.warn("field dashboard metadata touch conflicted twice", { id });
+}
+
+function parseFieldProjectMetaPatch(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { error: "Malformed project metadata" };
+  }
+
+  const patch = {};
+  let touched = false;
+
+  if (Object.prototype.hasOwnProperty.call(value, "name")) {
+    if (typeof value.name !== "string") return { error: "Project name must be a string" };
+    const name = value.name.trim();
+    if (name.length > 200) return { error: "Project name is too long" };
+    patch.name = name;
+    touched = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(value, "starred")) {
+    if (typeof value.starred !== "boolean") return { error: "starred must be boolean" };
+    patch.starred = value.starred;
+    touched = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(value, "trashedAt")) {
+    if (value.trashedAt === null) patch.trashedAt = null;
+    else {
+      const trashedAt = isoTimestamp(value.trashedAt);
+      if (!trashedAt) return { error: "trashedAt must be an ISO timestamp or null" };
+      patch.trashedAt = trashedAt;
+    }
+    touched = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(value, "thumbnail")) {
+    if (value.thumbnail === null || value.thumbnail === "") patch.thumbnail = null;
+    else if (typeof value.thumbnail === "string" && value.thumbnail.length <= 4096) patch.thumbnail = value.thumbnail;
+    else return { error: "thumbnail must be a string or null" };
+    touched = true;
+  }
+
+  if (!touched) return { error: "No supported project metadata fields supplied" };
+  return { patch };
+}
+
+async function putFieldProjectMetaPatch(bucket, id, parsedValue, request) {
+  const onlyIf = conditionalHeaders(request);
+  if (!onlyIf) return jsonResponse({ error: "Conditional write required" }, 428);
+
+  const parsed = parseFieldProjectMetaPatch(parsedValue);
+  if (parsed.error) return jsonResponse({ error: parsed.error }, 400);
+
+  const { object, raw } = await loadRawProjectMeta(bucket, id);
+  const current = object ? null : await bucket.get(`projects/${id}/current.json`);
+  const fallback = r2UploadedTimestamp(object) ?? r2UploadedTimestamp(current) ?? new Date().toISOString();
+  const normalized = normalizeFieldProjectMeta(raw, id, fallback);
+  const nextProject = {
+    ...normalized,
+    ...parsed.patch,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
+  const storedBody = {
+    ...raw,
+    ...nextProject,
+  };
+
+  const stored = await bucket.put(`projects/${id}/meta.json`, JSON.stringify(storedBody), {
+    onlyIf,
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+  if (!stored) return jsonResponse({ error: "Persistence conflict" }, 412);
+  return jsonResponse({ project: nextProject }, 200, { ETag: stored.httpEtag });
+}
+
+async function handleFieldDashboardRequest(request, env, accessVerifier = verifyAccessRequest) {
+  const incoming = new URL(request.url);
+  const route = parseDashboardProjectRoute(incoming.pathname, request.method);
+  if (!route) return null;
+  if (route.invalid) return jsonResponse({ error: "Invalid project route" }, 400);
+
+  const auth = await accessVerifier(request, env);
+  if (!auth?.ok) return jsonResponse({ error: "Forbidden" }, 403);
+  if (!env.FIELD_PROJECTS) return jsonResponse({ error: "Project storage is not configured" }, 503);
+
+  try {
+    if (route.kind === "collection") {
+      if (request.method === "GET") {
+        return jsonResponse({ projects: await listFieldProjectRecords(env.FIELD_PROJECTS) });
+      }
+      if (request.method === "POST") {
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        const project = {
+          id,
+          name: "Untitled",
+          createdAt: now,
+          updatedAt: now,
+          starred: false,
+          trashedAt: null,
+          thumbnail: null,
+        };
+        await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(project), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+        return jsonResponse({ project }, 201);
+      }
+      return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET, POST" });
+    }
+
+    if (route.kind === "duplicate") {
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "POST" });
+      }
+      const baseKey = `projects/${route.id}`;
+      const [current, metaObject] = await Promise.all([
+        env.FIELD_PROJECTS.get(`${baseKey}/current.json`),
+        env.FIELD_PROJECTS.get(`${baseKey}/meta.json`),
+      ]);
+      if (!current && !metaObject) return jsonResponse({ error: "Not found" }, 404);
+
+      const rawMeta = metaObject ? parseStoredProjectMeta(await readR2Text(metaObject)) : {};
+      const fallback = r2UploadedTimestamp(metaObject) ?? r2UploadedTimestamp(current) ?? new Date().toISOString();
+      const source = normalizeFieldProjectMeta(rawMeta, route.id, fallback);
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const project = {
+        ...source,
+        id,
+        name: `${source.name} Copy`,
+        createdAt: now,
+        updatedAt: now,
+        starred: false,
+        trashedAt: null,
+        thumbnail: null,
+      };
+      const storedMeta = { ...rawMeta, ...project };
+
+      if (current) {
+        await env.FIELD_PROJECTS.put(`projects/${id}/current.json`, await current.arrayBuffer(), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+      }
+      await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(storedMeta), {
+        httpMetadata: { contentType: "application/json; charset=utf-8" },
+      });
+      return jsonResponse({ project }, 201);
+    }
+
+    const baseKey = `projects/${route.id}`;
+    const [current, metaObject] = await Promise.all([
+      env.FIELD_PROJECTS.get(`${baseKey}/current.json`),
+      env.FIELD_PROJECTS.get(`${baseKey}/meta.json`),
+    ]);
+    if (!current && !metaObject) return jsonResponse({ error: "Not found" }, 404);
+
+    const rawMeta = metaObject ? parseStoredProjectMeta(await readR2Text(metaObject)) : {};
+    const fallback = r2UploadedTimestamp(metaObject) ?? r2UploadedTimestamp(current) ?? new Date().toISOString();
+    const project = normalizeFieldProjectMeta(rawMeta, route.id, fallback);
+    if (!project.trashedAt) {
+      return jsonResponse({ error: "Project must be in Trash before permanent deletion" }, 409);
+    }
+
+    await env.FIELD_PROJECTS.delete([
+      `${baseKey}/current.json`,
+      `${baseKey}/meta.json`,
+      `${baseKey}/thumbnail.webp`,
+    ]);
+    return new Response(null, { status: 204, headers: apiHeaders() });
+  } catch (error) {
+    console.error("field dashboard project error", error);
+    return jsonResponse({ error: "Project storage failure" }, 503);
+  }
+}
+/* FIELD_DASHBOARD_API_END */
+
 async function handleFieldPersistenceRequest(request, env, accessVerifier = verifyAccessRequest) {
   const incoming = new URL(request.url);
   const route = parseProjectRoute(incoming.pathname);
@@ -745,18 +1055,21 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
       if (!isProjectData(parsed.value)) {
         return jsonResponse({ error: "Malformed ProjectData" }, 400);
       }
-      return await putR2Object(env.FIELD_PROJECTS, key, JSON.stringify(parsed.value), request);
+      const response = await putR2Object(env.FIELD_PROJECTS, key, JSON.stringify(parsed.value), request);
+      if (response.ok) {
+        await touchFieldProjectMeta(env.FIELD_PROJECTS, route.id);
+      }
+      return response;
     }
 
     const parsed = await readJsonBody(request, MAX_META_BYTES);
     if (parsed.error) return parsed.error;
-    if (!parsed.value || typeof parsed.value !== "object" || typeof parsed.value.name !== "string") {
-      return jsonResponse({ error: "Malformed project metadata" }, 400);
-    }
-    const name = parsed.value.name.trim();
-    if (name.length > 200) return jsonResponse({ error: "Project name is too long" }, 400);
-    const storedMeta = JSON.stringify({ name, updatedAt: new Date().toISOString() });
-    return await putR2Object(env.FIELD_PROJECTS, key, storedMeta, request);
+    return await putFieldProjectMetaPatch(
+      env.FIELD_PROJECTS,
+      route.id,
+      parsed.value,
+      request,
+    );
   } catch (error) {
     console.error("field persistence error", error);
     return jsonResponse({ error: "Project storage failure" }, 503);
@@ -766,6 +1079,7 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
 export {
   handleGoogleFontsRequest,
   handleFieldProfileRequest,
+  handleFieldDashboardRequest,
   handleFieldPersistenceRequest,
   parseProjectRoute,
   verifyAccessRequest,
@@ -797,6 +1111,13 @@ export default {
       accessVerifier,
     );
     if (profileResponse) return profileResponse;
+
+    const dashboardResponse = await handleFieldDashboardRequest(
+      request,
+      env,
+      accessVerifier,
+    );
+    if (dashboardResponse) return dashboardResponse;
 
     const apiResponse = await handleFieldPersistenceRequest(
       request,

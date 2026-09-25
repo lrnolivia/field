@@ -73,7 +73,7 @@ export default function ProjectChip() {
       label: 'Go to Dashboard',
       onClick: () => {
         trace.action('project-chip:dashboard');
-        void leaveBuilderTo('/dashboard', 'project-chip-dashboard');
+        void leaveBuilderTo('/', 'project-chip-dashboard');
       },
     },
   ], [isViewer, setExportOpen, setSettingsOpen, setSettingsSection]);
