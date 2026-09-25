@@ -118,7 +118,9 @@ describe('Figma inspector contract', () => {
     // The normal Figma Auto layout branch owns Gap inside its compact
     // alignment/spacing composition. Template-root layout intentionally keeps
     // its simpler legacy Gap field, so do not assert against the whole file.
-    expect(layout).toContain('{alignmentMatrix}\n                <PaddingControl />');
+    expect(layout).toContain('{alignmentMatrix}');
+    expect(layout).toContain('<AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />');
+    expect(layout).not.toContain('<PaddingControl />');
   });
 
   it('mounts core appearance separately from advanced web controls', () => {

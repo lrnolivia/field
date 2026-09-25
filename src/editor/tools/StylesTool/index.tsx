@@ -313,8 +313,8 @@ export default function StylesTool({ scope = 'all', advancedExtras }: { scope?: 
     updateMultipleStyles({ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' });
   }, [updateMultipleStyles]);
   const effectAddOptions = [
-    { label: 'Inner shadow', onClick: addInnerShadow },
     { label: 'Drop shadow', onClick: addDropShadow },
+    { label: 'Inner shadow', onClick: addInnerShadow },
     { label: 'Layer blur', onClick: addLayerBlur },
     { label: 'Background blur', onClick: addBackgroundBlur },
   ];

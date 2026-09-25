@@ -8,7 +8,7 @@
 // prefixes pointing at different radii.
 
 import { useState } from 'react';
-import { ToolSlider, ToolInput, RemoveButton } from '../../../controls';
+import { ToolSlider, ToolInput, EffectRow } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import type { AtomProps } from '../../../controls/unified/types';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
@@ -34,13 +34,23 @@ function BackdropFilterAtom({ compactSection = false }: { compactSection?: boole
 
   if (compactSection) {
     return (
-      <div className="grid grid-cols-[minmax(0,1fr)_56px_auto] gap-1 items-center w-full">
-        <div className="h-[var(--control-height)] px-2 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-xs text-[var(--text-primary)]">
-          Background blur
-        </div>
-        <ToolInput value={String(displayNum)} onChange={(v) => commit(parseFloat(v) || 0)} step={0.5} />
-        <RemoveButton onClick={() => onChangeMultiple({ backdropFilter: '', WebkitBackdropFilter: '' })} />
-      </div>
+      <EffectRow
+        control={
+          <div className="grid grid-cols-[minmax(0,1fr)_56px] h-full items-center min-w-0">
+            <span className="px-2 truncate text-xs text-[var(--text-primary)]">Background blur</span>
+            <div className="h-full border-l border-[var(--control-border)] overflow-hidden">
+              <ToolInput
+                value={String(displayNum)}
+                onChange={(v) => commit(parseFloat(v) || 0)}
+                step={0.5}
+                className="min-w-0 !h-full !border-0 !bg-transparent !rounded-none ![clip-path:none]"
+                ariaLabel="Background blur"
+              />
+            </div>
+          </div>
+        }
+        onRemove={() => onChangeMultiple({ backdropFilter: '', WebkitBackdropFilter: '' })}
+      />
     );
   }
 

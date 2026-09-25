@@ -28,11 +28,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { ToolSection, ToolInput, ToolSegmentedControl, ToolSelect, ToolPlusMinus, ColorInput, ToolDivider } from '../controls';
+import { ToolSection, ToolInput, ToolSegmentedControl, ToolSelect, ToolPlusMinus, ColorInput, ToolDivider, PaintRow } from '../controls';
 import ControlLabel from '../controls/ControlLabel';
 import { LocalizeGate } from '../controls/localize-gate';
 import { useControl } from '../controls/ControlProvider';
-import { OpacityControl } from './StylesTool/atoms/OpacityControl';
+import { OpacityControl, ShadowControl, FilterControl } from './StylesTool/atoms';
 import { AppearanceHeaderActions, StyleSectionActions } from './StylesTool/InspectorSectionActions';
 import ToolPopup from '../ui/ToolPopup';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
@@ -462,6 +462,21 @@ export default function SvgShapeTool() {
   const strokeAlign = attrs['data-stroke-align'] || 'center';
   const strokeStyle = getStrokeStyle(strokeDasharray);
   const hasStroke = !!stroke && stroke !== 'none' && (Number.parseFloat(strokeWidth) || 0) > 0;
+  const pct = (raw: string | undefined) => Math.max(0, Math.min(100, (Number.parseFloat(raw || '1') || 0) * 100));
+  const fillOpacity = pct(attrs['fill-opacity'] || attrs.fillOpacity);
+  const strokeOpacity = pct(attrs['stroke-opacity'] || attrs.strokeOpacity);
+  const writeOpacity = (key: 'fill-opacity' | 'stroke-opacity', value: number, live = false) => {
+    const normalized = String(Math.max(0, Math.min(100, value)) / 100);
+    (live ? updateAttrLive : updateAttr)(key, normalized);
+  };
+  const appendVectorFilter = (value: string) => {
+    const current = (styles.filter || '').trim();
+    updateStyle('filter', current && current !== 'none' ? `${current} ${value}` : value);
+  };
+  const vectorEffectAddOptions = [
+    { label: 'Drop shadow', onClick: () => appendVectorFilter('drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.25))') },
+    { label: 'Layer blur', onClick: () => appendVectorFilter('blur(8px)') },
+  ];
   const [strokeDetailsOpen, setStrokeDetailsOpen] = useState(false);
   const strokeDetailsRef = useRef<HTMLButtonElement>(null);
   // standard "Array" — single number that scales the dash/gap
@@ -519,24 +534,22 @@ export default function SvgShapeTool() {
         }
       >
         {!!fill && fill !== 'none' && (
-          <div className="flex items-center gap-1 w-full">
-            <div className="flex-1 min-w-0">
+          <PaintRow
+            control={
               <ColorInput
                 value={fill}
                 onChange={v => updateAttr('fill', v)}
                 onChangeLive={v => updateAttrLive('fill', v)}
                 showAlpha
+                embedded
               />
-            </div>
-            <button
-              type="button"
-              onClick={() => updateAttr('fill', 'none')}
-              className="h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-              title="Remove fill"
-            >
-              <span className="text-base leading-none">−</span>
-            </button>
-          </div>
+            }
+            opacity={fillOpacity}
+            onOpacityChange={(value) => writeOpacity('fill-opacity', value)}
+            onOpacityChangeLive={(value) => writeOpacity('fill-opacity', value, true)}
+            onRemove={() => { updateAttr('fill', 'none'); updateAttr('fill-opacity', ''); }}
+            opacityLabel="Fill opacity"
+          />
         )}
       </ToolSection>
 
@@ -566,24 +579,22 @@ export default function SvgShapeTool() {
       >
         {hasStroke && (
           <>
-            <div className="flex items-center gap-1 w-full">
-              <div className="flex-1 min-w-0">
+            <PaintRow
+              control={
                 <ColorInput
                   value={stroke || '#000000'}
                   onChange={v => updateAttr('stroke', v)}
                   onChangeLive={v => updateAttrLive('stroke', v)}
                   showAlpha
+                  embedded
                 />
-              </div>
-              <button
-                type="button"
-                onClick={() => { updateAttr('stroke', 'none'); updateAttr('stroke-width', '0'); }}
-                className="h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                title="Remove stroke"
-              >
-                <span className="text-base leading-none">−</span>
-              </button>
-            </div>
+              }
+              opacity={strokeOpacity}
+              onOpacityChange={(value) => writeOpacity('stroke-opacity', value)}
+              onOpacityChangeLive={(value) => writeOpacity('stroke-opacity', value, true)}
+              onRemove={() => { updateAttr('stroke', 'none'); updateAttr('stroke-width', '0'); updateAttr('stroke-opacity', ''); }}
+              opacityLabel="Stroke opacity"
+            />
 
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px] gap-1 items-center">
               <ToolSelect
@@ -692,6 +703,19 @@ export default function SvgShapeTool() {
             </ToolPopup>
           </>
         )}
+      </ToolSection>
+
+      <ToolDivider />
+
+      <ToolSection
+        title="Effects"
+        collapsible
+        defaultOpen
+        renderWhenEmpty
+        action={<StyleSectionActions property="filter" addOptions={vectorEffectAddOptions} addTitle="Add effect" />}
+      >
+        <ShadowControl compactSection />
+        <FilterControl compactSection />
       </ToolSection>
     </LocalizeGate>
   );

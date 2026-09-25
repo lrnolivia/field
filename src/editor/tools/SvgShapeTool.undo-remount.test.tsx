@@ -53,7 +53,8 @@ describe('SvgShapeTool — undo does not remount the shape sections', () => {
       });
       // The sections must survive the window between the cache seed and the parsed fan-out.
       expect(r.container.textContent).toContain('Stroke');
-      expect(r.container.textContent).toContain('#FF0000');
+      // FigUI3 inline paint values omit the leading # while preserving the same color.
+      expect(r.container.textContent).toContain('FF0000');
       // Deferred fan-out: code + version bump + reselect.
       await act(async () => {
         store.set(codeAtom, restored);

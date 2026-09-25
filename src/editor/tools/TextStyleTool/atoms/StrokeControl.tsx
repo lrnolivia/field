@@ -4,12 +4,14 @@
 // Uses text.get/set('webkitTextStroke') for TipTap-aware property.
 
 import { useRef, useState, useCallback } from 'react';
-import { ToolSlider, ToolInput, ControlLabel, ColorInput, ControlActionRow, ColorSwatch, RemoveButton } from '../../../controls';
+import { ToolSlider, ToolInput, ControlLabel, ColorInput, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
 import { TextStrokeIcon } from '@/design-system/PropertyIcons';
 import { useTextStyles } from '../../../hooks/useTextStyles';
 import { useControl } from '../../../controls/ControlProvider';
 import ToolPopup from '../../../ui/ToolPopup';
 import { trace } from '@/shared/debug-trace';
+import { toHexDisplay } from '../../../ui/color-utils';
+import { canAdjustLiteralPaintOpacity, serializeLiteralPaintOpacity, splitPaintOpacity } from '../../../ui/paint-opacity';
 
 export function StrokeControl({ compactSection = false }: { compactSection?: boolean } = {}) {
   const text = useTextStyles();
@@ -40,28 +42,30 @@ export function StrokeControl({ compactSection = false }: { compactSection?: boo
 
   trace.fn('StrokeControl:render', { strokeVal, strokeWidth, strokeColor, isEditing: text.isEditing, isOpen });
 
+  const strokePaint = splitPaintOpacity(strokeColor);
+  const canEditOpacity = strokeWidth > 0 && canAdjustLiteralPaintOpacity(strokeColor);
+
   if (compactSection && strokeWidth <= 0) return null;
 
   return (
     <>
       <div ref={rowRef} className="flex items-center justify-between w-full">
         {!compactSection && <ControlLabel label="Stroke" property="WebkitTextStroke" />}
-        <ControlActionRow onClick={() => setIsOpen(true)}>
-          {strokeWidth > 0 ? (
-            <>
-              <ColorSwatch style={{ backgroundColor: strokeColor }} />
-              <span className="text-xs truncate flex-1">
-                {strokeWidth}PX
-              </span>
-              <RemoveButton onClick={() => setStroke(0, strokeColor)} />
-            </>
-          ) : (
-            <>
-              <TextStrokeIcon width={20} height={20} bg="var(--control-border)" className="shrink-0 opacity-50" />
-              <span className="text-[var(--text-secondary)]">Add</span>
-            </>
-          )}
-        </ControlActionRow>
+        {strokeWidth > 0 ? (
+          <div className="w-full min-w-0">
+            <PaintRow
+              control={<ControlActionRow onClick={() => setIsOpen(true)} embedded><ColorSwatch style={{ backgroundColor: strokeColor }} /><span className="text-xs truncate flex-1 text-left">{toHexDisplay(strokePaint.base).replace(/^#/, '')}</span></ControlActionRow>}
+              opacity={strokePaint.opacity}
+              opacityDisabled={!canEditOpacity}
+              onOpacityChange={canEditOpacity ? (value) => setStroke(strokeWidth, serializeLiteralPaintOpacity(strokeColor, value)) : undefined}
+              onOpacityChangeLive={canEditOpacity ? (value) => setStrokeLive(strokeWidth, serializeLiteralPaintOpacity(strokeColor, value)) : undefined}
+              onRemove={() => setStroke(0, strokeColor)}
+              opacityLabel="Text stroke opacity"
+            />
+          </div>
+        ) : (
+          <ControlActionRow onClick={() => setIsOpen(true)}><TextStrokeIcon width={20} height={20} bg="var(--control-border)" className="shrink-0 opacity-50" /><span className="text-[var(--text-secondary)]">Add</span></ControlActionRow>
+        )}
       </div>
       <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Stroke" anchorRef={rowRef}>
         {/* Own gap-2 wrapper: Width + Color rows are otherwise direct children of

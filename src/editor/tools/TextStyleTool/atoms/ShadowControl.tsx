@@ -8,7 +8,7 @@
 // Supports external value/onChange for preset editing.
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { ToolSlider, ToolInput, ControlLabel, ColorInput, EntryList } from '../../../controls';
+import { ToolSlider, ToolInput, ControlLabel, ColorInput, EntryList, EffectRow, ControlActionRow, ColorSwatch } from '../../../controls';
 import { useControl } from '../../../controls/ControlProvider';
 import ToolPopup, { useToolPopupOptional } from '../../../ui/ToolPopup';
 import { ShadowIcon } from '@/design-system/PropertyIcons';
@@ -61,30 +61,17 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
   if (!activeEntry) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <ControlLabel label="X Offset" property="textShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={activeEntry.x} min={-50} max={50} step={1} onChange={(v) => updateEntry({ x: v })} />
-          <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} />
-        </div>
+    <div data-text-effect-editor className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-2 gap-1">
+        <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} chevronLabel="X" ariaLabel="Text shadow X" />
+        <ToolInput value={String(activeEntry.y)} onChange={(v) => updateEntry({ y: parseFloat(v) || 0 })} step={1} chevronLabel="Y" ariaLabel="Text shadow Y" />
       </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Y Offset" property="textShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={activeEntry.y} min={-50} max={50} step={1} onChange={(v) => updateEntry({ y: v })} />
-          <ToolInput value={String(activeEntry.y)} onChange={(v) => updateEntry({ y: parseFloat(v) || 0 })} step={1} />
-        </div>
+      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+        <ControlLabel label="Blur" property="textShadow" plain cell />
+        <ToolInput value={String(activeEntry.blur)} onChange={(v) => updateEntry({ blur: parseFloat(v) || 0 })} step={1} min={0} ariaLabel="Text shadow blur" />
       </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Blur" property="textShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={activeEntry.blur} min={0} max={50} step={1} onChange={(v) => updateEntry({ blur: v })} />
-          <ToolInput value={String(activeEntry.blur)} onChange={(v) => updateEntry({ blur: parseFloat(v) || 0 })} step={1} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Color" property="textShadow" plain />
+      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+        <ControlLabel label="Color" property="textShadow" plain cell />
         <ColorInput value={activeEntry.color} onChange={(c) => updateEntry({ color: c })} showAlpha />
       </div>
     </div>
@@ -131,6 +118,29 @@ function TextShadowList({ value, onCommit, plain, compactSection = false }: {
     n.splice(idx, 1);
     onCommit(formatTextShadowEntries(n));
   };
+
+  if (compactSection) {
+    return (
+      <>
+        <div className="flex flex-col gap-1 w-full">
+          {entries.map((entry, idx) => (
+            <div key={entry.id} ref={idx === 0 ? rowRef : undefined}>
+              <EffectRow
+                control={
+                  <ControlActionRow onClick={() => openEditor(idx)} embedded>
+                    <ColorSwatch style={{ backgroundColor: entry.color }} />
+                    <span className="flex-1 min-w-0 text-xs text-[var(--text-primary)] truncate text-left">Drop shadow</span>
+                  </ControlActionRow>
+                }
+                onRemove={() => handleRemove(idx)}
+              />
+            </div>
+          ))}
+        </div>
+        {!popupCtx && <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef}>{entries[activeIdx] && <TextShadowEditorPanel initialIdx={activeIdx} initialValue={value} onCommit={onCommit} />}</ToolPopup>}
+      </>
+    );
+  }
 
   return (
     <>

@@ -6,7 +6,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLivePreview } from '../../../hooks/useLivePreview';
 import { useAtomValue } from 'jotai';
-import { ControlLabel, ControlActionRow, ColorSwatch } from '../../../controls';
+import { ControlLabel, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
 import ToolSegmentedControl from '../../../controls/ToolSegmentedControl';
 import ToolPopup, { useToolPopupOptional, useToolPopup } from '../../../ui/ToolPopup';
 import ColorPicker from '../../../ui/ColorPicker';
@@ -18,6 +18,7 @@ import { queueMutation, setForceRender } from '@/code/mutation/mutation-queue';
 import { isComponentVariantViewportAtom } from '@/code/stores/viewport-store';
 import { injectCanvasCSS, removeCanvasCSS, getInteractingViewport, getViewportPrefix } from '@/canvas/node-ops';
 import { toHexDisplay } from '../../../ui/color-utils';
+import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
 import { useTextStyles, readFromSnapshot } from '../../../hooks/useTextStyles';
 import { textEditSnapshotAtom } from '@/code/stores/editor-store';
 import { useControl } from '../../../controls/ControlProvider';
@@ -191,7 +192,9 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
     return r.isMixed ? '' : (r.value || '');
   };
   const selGradient = selMark('backgroundGradient');
-  const selColor = selMark('color');
+  const selColorRaw = selMark('color');
+  const selColorPaint = splitPaintOpacity(selColorRaw);
+  const selColor = selColorPaint.base;
   const fallbackTab: ColorTab = gradientContext ? 'gradient' : detectTab(styles);
   const liveTab: ColorTab | null = isEditing && editSnapshot
     ? (selGradient ? 'gradient' : (selColor && !isFullyTransparentColor(selColor) ? 'solid' : fallbackTab))
@@ -245,8 +248,9 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
   // typography preset already set the color via `--typo-*-color`. Only color
   // presets count (we filter by category) so a typography token like
   // --typo-heading-color won't accidentally highlight a row.
+  const currentPaint = splitPaintOpacity(currentValue || '');
   const activePresetName = (() => {
-    const v = currentValue || '';
+    const v = currentPaint.base;
     const name = parseVarRef(v);
     if (!name) return undefined;
     return colorPresets.some(p => p.name === name) ? name : undefined;
@@ -257,10 +261,10 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
   // ColorPicker can't read `var()`; passing the raw string falls back to
   // black and confuses the user.
   // Prefer the LIVE selection's color mark (edit mode) over the frozen prop.
-  const rawSolid = (isEditing && selColor && !isFullyTransparentColor(selColor) ? selColor : '') || currentValue || styles.color || '';
-  const resolvedSolid = rawSolid.startsWith('var(')
-    ? (resolveTokenValue(rawSolid, allTokens) ?? rawSolid)
-    : rawSolid;
+  const rawSolidSource = (isEditing && selColorRaw && !isFullyTransparentColor(selColorRaw) ? selColorRaw : '') || currentValue || styles.color || '';
+  const rawSolidPaint = splitPaintOpacity(rawSolidSource);
+  const rawSolid = rawSolidPaint.base;
+  const resolvedSolid = rawSolid.startsWith('var(') ? (resolveTokenValue(rawSolid, allTokens) ?? rawSolid) : rawSolid;
   const solidColor = isFullyTransparentColor(resolvedSolid) ? '#ffffff' : resolvedSolid;
 
   return (
@@ -314,6 +318,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   const rowRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const colorResult = text.get('color');
+  const solidPaint = splitPaintOpacity(colorResult.value || styles.color || '');
   const allTokens = useAtomValue(presetTokensAtom);
   const livePreset = useAtomValue(livePresetTokenAtom);
 
@@ -376,18 +381,19 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   /** Solid color — LIVE (every drag frame). Node mode: cheap DOM-only patch,
    *  no code write. Edit mode: TipTap mark (its own live editor transaction). */
   const handleColorChange = useCallback((c: string) => {
-    trace.action('text-color:solid-change', { color: c });
-    setLivePreviewColor(c); // drive the row swatch live
+    const painted = serializePaintOpacity(c, solidPaint.opacity);
+    trace.action('text-color:solid-change', { color: painted, opacity: solidPaint.opacity });
+    setLivePreviewColor(painted);
     if (text.isEditing) {
-      text.set('color', c);
+      text.set('color', painted);
       // SOLID RUN INSIDE GRADIENT TEXT: the node-level gradient's inherited
       // `-webkit-text-fill-color: transparent` out-paints the span's `color`
       // (fill-color paints glyphs), so the mark alone was invisible. Carry the
       // fill-color on the run so it renders solid; scoped to gradient context
       // so plain solid text never accumulates fill-color spans.
-      if (nodeHasGradientText) text.set('textFillColor', c);
+      if (nodeHasGradientText) text.set('textFillColor', painted);
     } else {
-      updateStyleLive('color', c);
+      updateStyleLive('color', painted);
       // Rich node: also override the per-portion span paint live so the WHOLE
       // node previews `c` while dragging (the bare `<p>` patch above is hidden
       // behind the spans' inline color). Content probe, not hasMixedContent —
@@ -397,28 +403,32 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
       if (node?.id && contentHasSpanRuns((node as any)?.textContent)) {
         const sel = `[data-node-id="${getViewportPrefix(getInteractingViewport().vpId)}${node.id}"] span`;
         liveSpanSelRef.current = sel;
-        injectCanvasCSS(sel, `color: ${c} !important; -webkit-text-fill-color: ${c} !important;`);
+        injectCanvasCSS(sel, `color: ${painted} !important; -webkit-text-fill-color: ${painted} !important;`);
       }
     }
-  }, [text, updateStyleLive, node, nodeHasGradientText, setLivePreviewColor]);
+  }, [text, updateStyleLive, node, nodeHasGradientText, setLivePreviewColor, solidPaint.opacity]);
 
   /** Solid color — COMMIT (drag release + one-shot edits: hex, preset, clear).
    *  Writes to code. Routes through `text.set` so a rich node's per-portion span
    *  colors are FLATTENED (the spans inherit the node's new color) — `updateStyle`
    *  alone only set the `<p>`, which the spans overrode. `text.set` handles both
    *  modes: node → updateStyle + stripInlineSpanStyle; edit → TipTap mark. */
-  const handleColorCommit = useCallback((c: string) => {
-    trace.action('text-color:solid-commit', { color: c, gradientContext: nodeHasGradientText });
-    text.set('color', c);
+  const commitPaintedColor = useCallback((painted: string) => {
+    trace.action('text-color:solid-commit', { color: painted, gradientContext: nodeHasGradientText });
+    text.set('color', painted);
     if (text.isEditing && nodeHasGradientText) {
       // Selection inside gradient text: drop any gradient MARK on the run
       // (mixed selections) and pin the fill-color so the run paints solid.
       // The NODE-level gradient is untouched — the rest of the text keeps it.
       text.set('backgroundGradient', '');
-      text.set('textFillColor', c);
+      text.set('textFillColor', painted);
     }
     clearLiveSpanRule();
   }, [text, clearLiveSpanRule, nodeHasGradientText]);
+
+  const handleColorCommit = useCallback((c: string) => {
+    commitPaintedColor(serializePaintOpacity(c, solidPaint.opacity));
+  }, [commitPaintedColor, solidPaint.opacity]);
 
   /** Gradient change — COMMIT (drag release + one-shot). TipTap mark in edit
    *  mode, element-level otherwise. */
@@ -522,7 +532,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
           onGradientChange={handleGradientChange}
           onGradientLiveChange={handleGradientLive}
           onClearGradient={handleClearGradient}
-          currentValue={colorResult.value || ''}
+          currentValue={solidPaint.base}
         />
       ));
     } else {
@@ -550,9 +560,8 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   // color so the label reads "#ffffff" instead of the raw var() string —
   // matches what the user sees on canvas. The swatch already paints the
   // resolved color via CSS so this only affects the label text.
-  const resolvedColor = !isGradient && colorResult.value?.startsWith('var(')
-    ? (resolveTokenValue(colorResult.value, allTokens) ?? colorResult.value)
-    : colorResult.value;
+  const resolvedBaseColor = !isGradient && solidPaint.base.startsWith('var(') ? (resolveTokenValue(solidPaint.base, allTokens) ?? solidPaint.base) : solidPaint.base;
+  const resolvedColor = !isGradient && resolvedBaseColor ? serializePaintOpacity(resolvedBaseColor, solidPaint.opacity) : resolvedBaseColor;
   // During a solid-color drag, the live raw color overrides the committed
   // value/preset so the row swatch + hex track the picker in real time.
   const solidSwatch = (!isGradient && livePreviewColor != null) ? livePreviewColor : (resolvedColor || '#000000');
@@ -571,7 +580,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
     ? 'Mixed'
     : isGradient
       ? 'Gradient'
-      : toHexDisplay(solidSwatch);
+      : toHexDisplay(solidPaint.base || solidSwatch).replace(/^#/, '');
 
   // Detect an active color preset on this control's value. Mirrors the
   // logic in the popup so the row stays in sync with the picker grid.
@@ -579,8 +588,8 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   // is not a color preset and shouldn't make the row turn blue.
   const colorPresetTokens = allTokens.filter(t => t.category === 'color');
   const activePresetToken = (() => {
-    if (isGradient || colorResult.isMixed || !colorResult.value) return null;
-    const name = parseVarRef(colorResult.value);
+    if (isGradient || colorResult.isMixed || !solidPaint.base) return null;
+    const name = parseVarRef(solidPaint.base);
     if (!name) return null;
     return colorPresetTokens.find(p => p.name === name) ?? null;
   })();
@@ -638,32 +647,23 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
     );
   }
 
+  const canEditInlineOpacity = !isGradient && !nodeMixed && !colorResult.isMixed && solidPaint.adjustable;
+  const activePresetLabel = activePresetToken ? activePresetToken.label || activePresetToken.name.replace(/^color-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : null;
+  const rowSwatch = activePresetToken ? serializePaintOpacity(livePreset?.name === activePresetToken.name ? livePreset.value : activePresetToken.value, solidPaint.opacity) : swatchBg;
+
   return (
     <>
       <div ref={rowRef} className="flex items-center justify-between w-full">
         {!compactSection && <ControlLabel label="Color" property="color" />}
-        {activePresetToken ? (
-          <button
-            onClick={handleClick}
-            className="w-full h-8 flex items-center gap-2 px-2 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
-          >
-            <ColorSwatch style={{ background: livePreset?.name === activePresetToken.name ? livePreset.value : activePresetToken.value }} />
-            <span className="text-xs text-[var(--accent-fg)] truncate flex-1 text-left">
-              {activePresetToken.label || activePresetToken.name.replace(/^color-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-            </span>
-            <span
-              className="text-[var(--accent-fg)] opacity-70 hover:opacity-100 text-sm leading-none cursor-pointer shrink-0"
-              onClick={clearPreset}
-            >
-              &times;
-            </span>
-          </button>
-        ) : (
-          <ControlActionRow onClick={handleClick}>
-            <ColorSwatch style={{ background: swatchBg }} />
-            <span className={`text-xs truncate flex-1 text-left ${nodeMixed || colorResult.isMixed || isGradient ? 'text-[var(--text-secondary)]' : ''}`}>{label}</span>
-          </ControlActionRow>
-        )}
+        <div className="w-full min-w-0">
+          <PaintRow
+            control={<ControlActionRow onClick={handleClick} embedded><ColorSwatch style={{ background: rowSwatch }} /><span className={`text-xs truncate flex-1 text-left ${nodeMixed || colorResult.isMixed || isGradient ? 'text-[var(--text-secondary)]' : ''}`}>{activePresetLabel || label}</span></ControlActionRow>}
+            opacity={isGradient ? 100 : solidPaint.opacity}
+            opacityDisabled={!canEditInlineOpacity}
+            onOpacityChange={canEditInlineOpacity ? (value) => commitPaintedColor(serializePaintOpacity(solidPaint.base, value)) : undefined}
+            opacityLabel="Text fill opacity"
+          />
+        </div>
       </div>
       {!popupCtx && (
         <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Color" anchorRef={rowRef}>
@@ -675,7 +675,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
             onGradientChange={handleGradientChange}
             onGradientLiveChange={handleGradientLive}
             onClearGradient={handleClearGradient}
-            currentValue={colorResult.value || ''}
+            currentValue={solidPaint.base}
           />
         </ToolPopup>
       )}

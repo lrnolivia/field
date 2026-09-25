@@ -12,9 +12,10 @@ import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import type { AtomProps } from '../../../controls/unified/types';
 import ToolInput from '../../../controls/ToolInput';
 import ToolSegmentedControl from '../../../controls/ToolSegmentedControl';
-import ToolPlusMinus from '../../../controls/ToolPlusMinus';
 import ColorInput from '../../../controls/ColorInput';
 import { EntryList } from '../../../controls/EntryList';
+import { EffectRow } from '../../../controls/EffectRow';
+import { ControlActionRow } from '../../../controls/ControlActionRow';
 import ControlLabel from '../../../controls/ControlLabel';
 import { ColorSwatch } from '../../../controls/ColorSwatch';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
@@ -106,66 +107,18 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   // atom carries `hideLabel`, but inside the expanded editor X / Y / Blur / Spread / Color MUST be labelled.
   return (
     <ShowControlLabels>
-    <div className="flex flex-col gap-2">
-      <ToolSegmentedControl
-        value={activeEntry.type}
-        onChange={(v) => {
-          const patch: Partial<ShadowEntry> = { type: v as 'box' | 'drop' };
-          if (v === 'drop') { patch.spread = 0; patch.inset = false; }
-          updateEntry(activeIdx, patch);
-        }}
-        options={[{ value: 'box', label: 'Box' }, { value: 'drop', label: 'Drop' }]}
-        size="sm"
-      />
-      {activeEntry.type === 'box' && (
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Position" property="boxShadow" plain />
-          <div className="w-full">
-            <ToolSegmentedControl
-              value={activeEntry.inset ? 'inside' : 'outside'}
-              onChange={(v) => updateEntry(activeIdx, { inset: v === 'inside' })}
-              options={[{ value: 'outside', label: 'Outside' }, { value: 'inside', label: 'Inside' }]}
-              size="sm"
-            />
-          </div>
-        </div>
-      )}
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Color" property="boxShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ColorInput value={activeEntry.color} onChange={(v) => updateEntry(activeIdx, { color: v })} onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })} showAlpha />
-        </div>
+    <div data-effect-editor className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Type" property="boxShadow" plain cell /><ToolSegmentedControl value={activeEntry.type} onChange={(v) => { const patch: Partial<ShadowEntry> = { type: v as 'box' | 'drop' }; if (v === 'drop') { patch.spread = 0; patch.inset = false; } updateEntry(activeIdx, patch); }} options={[{ value: 'box', label: 'Shadow' }, { value: 'drop', label: 'Filter' }]} size="sm" /></div>
+      {activeEntry.type === 'box' && <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Position" property="boxShadow" plain cell /><ToolSegmentedControl value={activeEntry.inset ? 'inside' : 'outside'} onChange={(v) => updateEntry(activeIdx, { inset: v === 'inside' })} options={[{ value: 'outside', label: 'Drop shadow' }, { value: 'inside', label: 'Inner shadow' }]} size="sm" /></div>}
+      <div className="grid grid-cols-2 gap-1">
+        <ToolInput value={formatPx(activeEntry.x)} onChange={(v) => updateEntry(activeIdx, { x: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { x: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { x: parsePx(v) })} step={1} chevronLabel="X" ariaLabel="Shadow X" />
+        <ToolInput value={formatPx(activeEntry.y)} onChange={(v) => updateEntry(activeIdx, { y: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { y: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { y: parsePx(v) })} step={1} chevronLabel="Y" ariaLabel="Shadow Y" />
       </div>
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="X" property="boxShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolInput value={formatPx(activeEntry.x)} onChange={(v) => updateEntry(activeIdx, { x: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { x: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { x: parsePx(v) })} step={1} />
-          <ToolPlusMinus value={activeEntry.x} onChange={(v) => updateEntry(activeIdx, { x: v })} min={-100} max={100} />
-        </div>
+      <div className="grid grid-cols-2 gap-1">
+        <ToolInput value={formatPx(activeEntry.blur)} onChange={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { blur: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} step={1} min={0} chevronLabel="Blur" ariaLabel="Shadow blur" />
+        {activeEntry.type === 'box' ? <ToolInput value={formatPx(activeEntry.spread)} onChange={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { spread: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} step={1} chevronLabel="Spread" ariaLabel="Shadow spread" /> : <div aria-hidden />}
       </div>
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Y" property="boxShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolInput value={formatPx(activeEntry.y)} onChange={(v) => updateEntry(activeIdx, { y: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { y: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { y: parsePx(v) })} step={1} />
-          <ToolPlusMinus value={activeEntry.y} onChange={(v) => updateEntry(activeIdx, { y: v })} min={-100} max={100} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Blur" property="boxShadow" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolInput value={formatPx(activeEntry.blur)} onChange={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { blur: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} step={1} />
-          <ToolPlusMinus value={activeEntry.blur} onChange={(v) => updateEntry(activeIdx, { blur: v })} min={0} max={200} />
-        </div>
-      </div>
-      {activeEntry.type === 'box' && (
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Spread" property="boxShadow" plain />
-          <div className="flex items-center gap-2 w-full">
-            <ToolInput value={formatPx(activeEntry.spread)} onChange={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { spread: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} step={1} />
-            <ToolPlusMinus value={activeEntry.spread} onChange={(v) => updateEntry(activeIdx, { spread: v })} min={-100} max={100} />
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Color" property="boxShadow" plain cell /><ColorInput value={activeEntry.color} onChange={(v) => updateEntry(activeIdx, { color: v })} onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })} showAlpha /></div>
     </div>
     </ShowControlLabels>
   );
@@ -314,6 +267,31 @@ function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
   }
 
   if (compactSection && entries.length === 0) return null;
+
+  if (compactSection) {
+    return (
+      <>
+        <div className="flex flex-col gap-1 w-full">
+          {entries.map((entry, idx) => (
+            <div key={entry.id} ref={idx === 0 ? btnRef as React.RefObject<HTMLDivElement> : undefined}>
+              <EffectRow
+                control={
+                  <ControlActionRow onClick={() => openEditor(idx)} embedded>
+                    <ColorSwatch style={{ backgroundColor: resolvePresetColor(entry.color, allTokens) }} />
+                    <span className="flex-1 min-w-0 text-xs text-[var(--text-primary)] truncate text-left">
+                      {entry.type === 'drop' ? 'Drop shadow' : entry.inset ? 'Inner shadow' : 'Drop shadow'}
+                    </span>
+                  </ControlActionRow>
+                }
+                onRemove={() => handleRemove(idx)}
+              />
+            </div>
+          ))}
+        </div>
+        {panelPopup(btnRef)}
+      </>
+    );
+  }
 
   return (
     <>

@@ -24,6 +24,8 @@ export { ControlActionRow } from './ControlActionRow';
 export { RemoveButton } from './RemoveButton';
 export { SingleEntryRow } from './SingleEntryRow';
 export { ColorSwatch } from './ColorSwatch';
+export { PaintRow } from './PaintRow';
+export { EffectRow } from './EffectRow';
 export { EntryList } from './EntryList';
 export { TypoTagBadge } from './TypoTagBadge';
 export { BindButton } from './BindButton';

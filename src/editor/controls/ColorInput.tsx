@@ -26,6 +26,8 @@ interface ColorInputProps {
    *  `onChange` only on pointer-up — keeps the picker drag at 60fps. */
   onChangeLive?: (color: string) => void;
   showAlpha?: boolean;
+  /** PaintRow compound mode: parent owns background, border, and cut-corner shell. */
+  embedded?: boolean;
   /** Show only the color swatch square, no hex text */
   swatchOnly?: boolean;
   /** Show a × remove button inside the control. Clicking calls this instead of onChange. */
@@ -53,7 +55,7 @@ const CHECKER_STYLE: CSSProperties = {
 };
 
 
-export default function ColorInput({ value, onChange, onChangeLive, showAlpha, swatchOnly, onRemove, mixed, empty }: ColorInputProps) {
+export default function ColorInput({ value, onChange, onChangeLive, showAlpha, embedded = false, swatchOnly, onRemove, mixed, empty }: ColorInputProps) {
   const popupCtx = useToolPopupOptional();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -86,6 +88,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, s
   // oklch / named colours are all converted, so the control reads
   // consistently regardless of how the value is authored in code.
   const displayText = toHexDisplay(livePreview ?? value) || '#000000';
+  const inlineDisplayText = embedded ? displayText.replace(/^#/, '') : displayText;
   const presetLabel = presetName
     ? presetName.replace(/^color-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
     : '';
@@ -204,9 +207,11 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, s
           // Hover moves the BORDER, not a ring: clip-path clips box-shadows, so
           // the old hover:ring-1 was sliced open at both notches.
           ? "w-7 h-7 cut-corners cut-border [--cut-border-color:rgba(255,255,255,0.1)] border border-white/10 shrink-0 cursor-pointer hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-all"
-          : isPresetRef
-            ? "w-full h-8 flex items-center gap-2 px-1 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
-            : "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors min-w-0 overflow-hidden"}
+          : embedded
+            ? "w-full h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden"
+            : isPresetRef
+              ? "w-full h-8 flex items-center gap-2 px-1 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
+              : "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors min-w-0 overflow-hidden"}
         style={swatchOnly ? { backgroundColor: displayColor } : undefined}
       >
         {!swatchOnly && (
@@ -214,16 +219,16 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, s
             <>
               <ColorSwatch style={{ backgroundColor: displayColor }} />
               {/* Label sits ON the accent fill, so it takes --accent-fg. */}
-              <span className="text-xs font-medium text-[var(--accent-fg)] truncate flex-1">
+              <span className={`text-xs font-medium truncate flex-1 ${embedded ? 'text-[var(--text-primary)]' : 'text-[var(--accent-fg)]'}`}>
                 {presetLabel}
               </span>
-              <span onClick={(e) => { e.stopPropagation(); onChange(''); }}
-                className="text-[var(--accent-fg)]/70 hover:text-[var(--accent-fg)] transition-colors cursor-pointer text-sm ml-1 shrink-0">&times;</span>
+              {!embedded && <span onClick={(e) => { e.stopPropagation(); onChange(''); }}
+                className="text-[var(--accent-fg)]/70 hover:text-[var(--accent-fg)] transition-colors cursor-pointer text-sm ml-1 shrink-0">&times;</span>}
             </>
           ) : (
             <>
               <ColorSwatch style={(mixed || empty) ? CHECKER_STYLE : { backgroundColor: displayColor }} />
-              <span className={`text-xs truncate flex-1 text-left ${empty && !mixed ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>{mixed ? 'Mixed' : empty ? 'Add' : displayText}</span>
+              <span className={`text-xs truncate flex-1 text-left ${empty && !mixed ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>{mixed ? 'Mixed' : empty ? 'Add' : inlineDisplayText}</span>
               {onRemove && (
                 <RemoveButton onClick={(e) => { e.stopPropagation(); onRemove(); }} />
               )}

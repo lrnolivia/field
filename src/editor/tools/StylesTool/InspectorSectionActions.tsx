@@ -15,6 +15,13 @@ function DotsIcon() {
   );
 }
 
+function EffectMenuIcon({ label }: { label: string }) {
+  if (label.includes('shadow')) {
+    return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="3" width="8" height="8" rx="1" /><path d="M6 13h6a1 1 0 0 0 1-1V6" opacity=".55" /></svg>;
+  }
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="4" r=".8" /><circle cx="8" cy="4" r=".8" /><circle cx="12" cy="4" r=".8" /><circle cx="4" cy="8" r=".8" /><circle cx="8" cy="8" r=".8" /><circle cx="12" cy="8" r=".8" /><circle cx="4" cy="12" r=".8" /><circle cx="8" cy="12" r=".8" /><circle cx="12" cy="12" r=".8" /></svg>;
+}
+
 export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean }) {
   const { node, nodeId, styles, updateStyle } = useControl();
   const [blendOpen, setBlendOpen] = useState(false);
@@ -187,9 +194,10 @@ export function StyleSectionActions({
                     key={option.label}
                     type="button"
                     onClick={() => { option.onClick(); setAddOpen(false); }}
-                    className="w-full px-3 py-1.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]"
                   >
-                    {option.label}
+                    <EffectMenuIcon label={option.label} />
+                    <span>{option.label}</span>
                   </button>
                 ))}
               </div>

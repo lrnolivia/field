@@ -2,7 +2,7 @@
 // Fully migrated — uses useControlContext(), no legacy delegation.
 
 import { useState, useRef, useEffect } from 'react';
-import { ToolInput, ToolSlider, ControlLabel, SingleEntryRow } from '../../../controls';
+import { ToolInput, ToolSlider, ControlLabel, SingleEntryRow, EffectRow, ControlActionRow } from '../../../controls';
 import { useOverriddenLabel } from '../../../controls/label-override-context';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
 import { FilterIcon } from '@/design-system/PropertyIcons';
@@ -153,7 +153,7 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { openPanel, panelPopup } = useEditorPanel('Filter', () => (
     <FilterEditorPanel initialValue={value || ''} rawFilter={allProps.filter || ''} onChangeLive={onChangeLive} onCommit={onChange} />
   ));
-  const btnRef = useRef<HTMLSpanElement>(null);
+  const btnRef = useRef<HTMLDivElement>(null);
   // Variable-name override for the instance-prop row (see useOverriddenLabel).
   const { label: ovLabel, subLabel: ovSubLabel } = useOverriddenLabel('Filter');
   // Plain label (no chevron, matches ControlRow atoms) on a page instance;
@@ -192,6 +192,33 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
     openPanel();
   };
 
+  const fns = (nonShadowFilter || '').match(/\w+\(/g) || [];
+  const fn = fns.length === 1 ? fns[0].replace('(', '') : '';
+  const effectLabel = fn === 'blur' ? 'Layer blur' : fns.length === 1 ? fn.replace(/^\w/, c => c.toUpperCase()) : 'Mixed';
+  const removeFilter = () => {
+    const dropOnly = (allProps.filter || '').match(/drop-shadow\([^)]*(?:\([^)]*\)[^)]*)*\)/gi)?.join(' ') || '';
+    onChange(dropOnly);
+  };
+
+  if (compactSection) {
+    return (
+      <>
+        <div ref={btnRef} className="w-full min-w-0">
+          <EffectRow
+            control={
+              <ControlActionRow onClick={openEditor} embedded>
+                <FilterIcon width={16} height={16} bg="var(--control-border)" className="shrink-0 opacity-70" />
+                <span className="truncate flex-1 text-left">{effectLabel}</span>
+              </ControlActionRow>
+            }
+            onRemove={removeFilter}
+          />
+        </div>
+        {panelPopup(btnRef)}
+      </>
+    );
+  }
+
   return (
     <>
       <SingleEntryRow
@@ -201,16 +228,8 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
         onOpen={openEditor}
         anchorRef={btnRef}
         EmptyIcon={FilterIcon}
-        renderPreview={() => {
-          const fns = (nonShadowFilter || '').match(/\w+\(/g) || [];
-          const fn = fns.length === 1 ? fns[0].replace('(', '') : '';
-          const label = fn === 'blur' ? 'Layer blur' : fns.length === 1 ? fn.replace(/^\w/, c => c.toUpperCase()) : 'Mixed';
-          return <span className="truncate flex-1">{label}</span>;
-        }}
-        onRemove={() => {
-          const dropOnly = (allProps.filter || '').match(/drop-shadow\([^)]*(?:\([^)]*\)[^)]*)*\)/gi)?.join(' ') || '';
-          onChange(dropOnly);
-        }}
+        renderPreview={() => <span className="truncate flex-1">{effectLabel}</span>}
+        onRemove={removeFilter}
       />
       {panelPopup(btnRef)}
     </>

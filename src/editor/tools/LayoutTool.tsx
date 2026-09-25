@@ -6,7 +6,6 @@
 import { useCallback, useState, useRef, type ReactNode } from 'react';
 import { CSS_LAYOUT_DEFAULTS } from '@/shared/constants';
 import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, ToolSlider, StyleField, ControlLabel, ControlActionRow, ColorSwatch, InspectorIconButtonGroup } from '../controls';
-import { PaddingControl } from './StylesTool/atoms';
 import ColorInput from '../controls/ColorInput';
 import { LegacyVariableBoundPill } from '../controls/VariableBoundPill';
 import ToolPopup from '../ui/ToolPopup';
@@ -27,6 +26,7 @@ import { presetTokensAtom } from '@/code/stores/preset-store';
 import { isFitSize } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
+import { collapsePaddingToAxes, paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
 import { parseAutoTrack, formatAutoTrack,
   type TrackList, type Track, type TrackUnit,
   TRACK_UNIT_OPTIONS,
@@ -54,6 +54,56 @@ interface Props {
   /** Mature size/clipping controls composed into an ACTIVE Auto layout
    *  section. Keeps the engine split while matching Figma's one-panel model. */
   sizeContent?: ReactNode;
+}
+
+function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
+  styles: Record<string, string>;
+  onUpdateMultiple: (styles: Record<string, string>) => void;
+}) {
+  const sides = readPaddingSides(styles);
+  const axisCompatible = paddingAxisCompatible(sides);
+  const [expandedByUser, setExpandedByUser] = useState(false);
+  const expanded = expandedByUser || !axisCompatible;
+  const display = (value: string) => String(Number.parseFloat(value) || 0);
+  const apply = (next: Record<string, string>) => {
+    onUpdateMultiple(next);
+    flushNow();
+  };
+
+  return (
+    <div data-auto-layout-padding className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full">
+      <ControlLabel label="Padding" property="padding" plain cell />
+      <div className="min-w-0">
+      {!expanded ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full">
+          <ToolInput value={display(sides[1])} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} chevronLabel="↔" ariaLabel="Horizontal padding" />
+          <ToolInput value={display(sides[0])} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} chevronLabel="↕" ariaLabel="Vertical padding" />
+          <button type="button" onClick={() => setExpandedByUser(true)}
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            title="Individual padding" aria-label="Show individual padding sides">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <rect x="3" y="3" width="10" height="10" rx="1.5" />
+              <path d="M5 1.5v3M11 1.5v3M14.5 5h-3M14.5 11h-3M11 14.5v-3M5 14.5v-3M1.5 11h3M1.5 5h3" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_28px] gap-1 items-center w-full">
+          {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
+            <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
+          ))}
+          <button type="button" onClick={() => { apply(collapsePaddingToAxes(sides)); setExpandedByUser(false); }}
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            title="Use horizontal and vertical padding" aria-label="Use horizontal and vertical padding">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <path d="M2 5h12M2 11h12M5 2v12M11 2v12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      </div>
+    </div>
+  );
 }
 
 // ─── GridChildControls ──────────────────────────────────────────────────────
@@ -1402,7 +1452,7 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
             {/* Gap */}
             <StyleField property="gap" label="Gap" />
             {/* Padding (T/R/B/L with the global ↔ individual toggle) */}
-            <PaddingControl />
+            <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
           </div>
         </ToolSection>
         <ToolDivider />
@@ -1466,12 +1516,12 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
                 <GridLayoutControls styles={styles} onUpdateMultiple={onUpdateMultiple} />
                 {/* Padding — same as the flex branch: a grid container has an
                     inner content box, so Padding lives in Layout (design-tool parity). */}
-                <PaddingControl />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
               </>
             ) : (
               <>
                 {alignmentMatrix}
-                <PaddingControl />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
               </>
             )}
 

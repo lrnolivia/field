@@ -14,8 +14,9 @@ import { CmsBoundPill, CmsMissingPill, cmsOrphanInScope } from '../../../control
 import type { MenuItem } from '../../../controls/control-menu-items';
 import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
 import { toHexDisplay } from '../../../ui/color-utils';
+import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton } from '../../../controls';
+import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow } from '../../../controls';
 import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
 import { useToolPopup } from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
@@ -544,7 +545,7 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
   );
 }
 
-function SingleModeFillContent({ styles, onUpdate, onLivePreview, solidOnly }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; onLivePreview?: (color: string | null) => void; solidOnly?: boolean }) {
+function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, solidOnly }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; onUpdateLive?: (k: string, v: string) => void; onLivePreview?: (color: string | null) => void; solidOnly?: boolean }) {
   const ctx = useControlContextOptional();
   // Legacy control ctx exposes `updateStyleLive` — the fast canvas-only DOM
   // patch used for smooth drags (commit via onUpdate on release).
@@ -626,7 +627,11 @@ function SingleModeFillContent({ styles, onUpdate, onLivePreview, solidOnly }: {
             // immediately for one-shot edits: hex input, eyedropper). Falls back
             // to a per-frame code write when there's no live ctx.
             onChange={legacyCtl
-              ? (c) => { legacyCtl.updateStyleLive('backgroundColor', c); onLivePreview?.(c); }
+              ? (c) => {
+                  if (onUpdateLive) onUpdateLive('backgroundColor', c);
+                  else legacyCtl.updateStyleLive('backgroundColor', c);
+                  onLivePreview?.(c);
+                }
               : (c) => { trace.action('fill:color', { value: c }); commitColor(c); }}
             onChangeEnd={legacyCtl ? (c) => { trace.action('fill:color', { value: c }); onLivePreview?.(c); commitColor(c); } : undefined}
             showAlpha
@@ -1117,9 +1122,10 @@ function isFormControlNode(node: { type?: string } | null | undefined): boolean 
   return node?.type === 'input' || node?.type === 'textarea' || node?.type === 'select';
 }
 
-function FillPopupContent({ styles, onUpdate, onChangeMultiple, nodeId: nodeIdProp, onLivePreview }: {
+function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, nodeId: nodeIdProp, onLivePreview }: {
   styles: Record<string, string>;
   onUpdate: (k: string, v: string) => void;
+  onUpdateLive?: (k: string, v: string) => void;
   onChangeMultiple: (s: Record<string, string>) => void;
   nodeId?: string | null;
   /** Per-frame solid-color preview for the row swatch during a picker drag. */
@@ -1201,7 +1207,7 @@ function FillPopupContent({ styles, onUpdate, onChangeMultiple, nodeId: nodeIdPr
       />}
 
       {solidOnly || mode === 'single' ? (
-        <SingleModeFillContent styles={styles} onUpdate={onUpdate} onLivePreview={onLivePreview} solidOnly={solidOnly} />
+        <SingleModeFillContent styles={styles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onLivePreview={onLivePreview} solidOnly={solidOnly} />
       ) : (
         <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
       )}
@@ -1216,10 +1222,20 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   const legacyCtl = useControlOptional();
   const fillCmsPageMeta = useAtomValue(cmsPageMetaAtom);
   const styles = allProps;
-  const btnRef = useRef<HTMLSpanElement>(null);
+  const rawBackgroundColor = styles.backgroundColor || '';
+  const fillPaint = splitPaintOpacity(rawBackgroundColor);
+  const popupStyles = fillPaint.base !== rawBackgroundColor ? { ...styles, backgroundColor: fillPaint.base } : styles;
+  const onUpdate = (k: string, v: string) => {
+    onChangeMultiple({ [k]: k === 'backgroundColor' && v ? serializePaintOpacity(v, fillPaint.opacity) : v });
+  };
+  const onUpdateLive = (k: string, v: string) => {
+    if (!legacyCtl?.updateStyleLive) return;
+    legacyCtl.updateStyleLive(k, k === 'backgroundColor' && v ? serializePaintOpacity(v, fillPaint.opacity) : v);
+  };
+  const btnRef = useRef<HTMLDivElement>(null);
   const allTokens = useAtomValue(presetTokensAtom);
   const { openPanel, panelPopup } = useEditorPanel('Fill', () => (
-    <FillPopupContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} onLivePreview={setLivePreviewColor} />
+    <FillPopupContent styles={popupStyles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onChangeMultiple={onChangeMultiple} onLivePreview={(color) => setLivePreviewColor(color ? serializePaintOpacity(color, fillPaint.opacity) : color)} />
   ), { width: 280 });
   // File-aware accent: purple ("--accent-secondary") on component master files,
   // standard accent (blue) on regular pages — same convention applied across
@@ -1459,13 +1475,8 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
     );
   }
 
-  // Bridge: onUpdate(key, value) → onChangeMultiple({ key: value })
-  const onUpdate = (k: string, v: string) => {
-    onChangeMultiple({ [k]: v });
-  };
-
-  // Detect fill type for preview swatch
-  const bgColor = styles.backgroundColor || '';
+  // Detect fill type for preview swatch. Opacity is surfaced separately.
+  const bgColor = fillPaint.base;
   const bgImage = styles.backgroundImage || '';
   // Video lives on the node (bg-video child), not as a fake CSS prop anymore.
   const bgVideoUrl = node?.bgVideo?.src ?? '';
@@ -1490,9 +1501,9 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   // True when ANY fill is present — drives the empty alpha-checker placeholder
   // and gates the × clear button. A live color drag counts as a fill so the
   // row doesn't flash to the "Add" placeholder mid-drag.
-  // A fully transparent colour (the frame creator's `rgba(0, 0, 0, 0)`, or a
-  // variant's cleared fill) is NO fill: placeholder + "Add", not a swatch.
-  const hasSolidColor = !!bgColor && !isTransparentColor(bgColor);
+  // Legacy transparent literals remain empty; an authored color-mix at 0%
+  // stays a real paint so the inline opacity can be brought back up.
+  const hasSolidColor = !!rawBackgroundColor && (rawBackgroundColor.includes('color-mix(') || !isTransparentColor(rawBackgroundColor));
   const hasAnyFill = livePreviewColor != null || isMulti || isPresetRef || hasGradient || hasImage || hasVideo || hasSolidColor;
 
   // Empty Fill is represented by the section header + button, not a second
@@ -1507,8 +1518,8 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   // (bound / hasVariable above), so wrapping in a hook would violate the
   // hooks-rule when the bound branch returns early — fewer hooks than a
   // normal render → "Rendered fewer hooks than expected" crash.
-  const handleClearAll = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClearAll = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     onChangeMultiple(fillClearStyles(onNonDefaultVariant, styles));
     if (node?.id && node.bgVideo) {
       forSelectionTargets(node.id, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
@@ -1551,7 +1562,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
       // Color preset — reflect an in-progress edit of THIS preset live.
       const liveColor = livePreset && colorPresetToken && livePreset.name === colorPresetToken.name
         ? livePreset.value : token.value;
-      swatchStyle = { backgroundColor: liveColor };
+      swatchStyle = { backgroundColor: serializePaintOpacity(liveColor, fillPaint.opacity) };
     }
   } else if (hasGradient) {
     const gradientCSS = bgProp || bgImage;
@@ -1572,63 +1583,47 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
     swatchStyle = { background: '#000' };
     labelText = 'Video';
   } else if (hasSolidColor) {
-    const displayColor = bgColor.startsWith('#') && bgColor.length === 4
-      ? `#${bgColor[1]}${bgColor[1]}${bgColor[2]}${bgColor[2]}${bgColor[3]}${bgColor[3]}`
-      : bgColor;
-    swatchStyle = { backgroundColor: displayColor };
-    // Label always shows the HEX equivalent — rgb / rgba / hsl / oklch /
-    // named are all converted, matching every other color control.
-    labelText = toHexDisplay(bgColor);
+    swatchStyle = { backgroundColor: rawBackgroundColor };
+    labelText = toHexDisplay(bgColor).replace(/^#/, '');
   }
+
+  const solidPaintOpacity = (presetKind === 'color' || hasSolidColor) ? fillPaint.opacity : 100;
+  const canEditSolidOpacity = (presetKind === 'color' || hasSolidColor) && fillPaint.adjustable;
+  const openFillEditor = () => openPanel(
+    <FillPopupContent
+      styles={popupStyles}
+      onUpdate={onUpdate}
+      onUpdateLive={onUpdateLive}
+      onChangeMultiple={onChangeMultiple}
+      nodeId={node?.id}
+      onLivePreview={(color) => setLivePreviewColor(color ? serializePaintOpacity(color, fillPaint.opacity) : color)}
+    />,
+  );
 
   return (
     <>
       <div className="flex items-center justify-between w-full">
         {!compactSection && (
-          <ControlLabel
-            label="Fill"
-            property="backgroundColor"
-            hideCreateVariable
-            extraMenuItems={fillExtraMenuItems}
+          <ControlLabel label="Fill" property="backgroundColor" hideCreateVariable extraMenuItems={fillExtraMenuItems} />
+        )}
+        <div ref={btnRef} className={compactSection ? "flex-1 min-w-0" : "w-full min-w-0"}>
+          <PaintRow
+            control={
+              <ControlActionRow onClick={openFillEditor} embedded className="justify-between">
+                <span className="flex items-center gap-2 truncate">
+                  <ColorSwatch style={swatchStyle} />
+                  <span className={`text-xs truncate ${hasAnyFill ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{labelText}</span>
+                </span>
+              </ControlActionRow>
+            }
+            opacity={solidPaintOpacity}
+            opacityDisabled={!canEditSolidOpacity}
+            onOpacityChange={canEditSolidOpacity ? (value) => onChangeMultiple({ backgroundColor: serializePaintOpacity(bgColor, value) }) : undefined}
+            onOpacityChangeLive={canEditSolidOpacity && legacyCtl?.updateStyleLive ? (value) => legacyCtl.updateStyleLive('backgroundColor', serializePaintOpacity(bgColor, value)) : undefined}
+            onRemove={hasAnyFill ? () => handleClearAll() : undefined}
+            opacityLabel="Fill opacity"
           />
-        )}
-        <span ref={btnRef} className={compactSection ? "flex-1 min-w-0" : "contents"}>
-        {isPresetRef ? (
-          <button
-            className="w-full h-8 flex items-center justify-between px-2 bg-[var(--accent)] cut-corners text-xs font-medium text-[var(--accent-fg)] cursor-pointer transition-colors hover:opacity-90 truncate"
-            onClick={() => {
-              openPanel(<FillPopupContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} nodeId={node?.id} onLivePreview={setLivePreviewColor} />);
-            }}
-          >
-            <span className="flex items-center gap-2 truncate">
-              <ColorSwatch style={swatchStyle} />
-              <span className="truncate">{labelText}</span>
-            </span>
-            <span onClick={handleClearAll}
-              className="text-[var(--accent-fg)] opacity-70 hover:opacity-100 text-sm ml-1">×</span>
-          </button>
-        ) : (
-          <ControlActionRow
-            onClick={() => {
-              openPanel(<FillPopupContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} nodeId={node?.id} onLivePreview={setLivePreviewColor} />);
-            }}
-            className="justify-between"
-          >
-            <span className="flex items-center gap-2 truncate">
-              <ColorSwatch style={swatchStyle} />
-              <span className={`text-xs truncate ${hasAnyFill ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{labelText}</span>
-            </span>
-            {hasAnyFill && (
-              <span
-                onClick={handleClearAll}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm leading-none cursor-pointer shrink-0 px-1"
-              >
-                &minus;
-              </span>
-            )}
-          </ControlActionRow>
-        )}
-        </span>
+        </div>
       </div>
       {panelPopup(btnRef)}
 

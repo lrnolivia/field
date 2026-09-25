@@ -10,7 +10,7 @@ import { BorderIcon } from '@/design-system/PropertyIcons';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolInput, ToolSelect, ToolSegmentedControl, ColorInput, ControlLabel, SingleEntryRow } from '../../../controls';
+import { ToolInput, ToolSelect, ToolSegmentedControl, ColorInput, ControlLabel, SingleEntryRow, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
 import { useOverriddenLabel } from '../../../controls/label-override-context';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
 import ToolPopup from '../../../ui/ToolPopup';
@@ -41,6 +41,8 @@ import { forSelectionTargets } from '../../../controls/multi-select-targets';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { trace } from '@/shared/debug-trace';
 import { resolvePresetColor } from '@/shared/css-utils';
+import { toHexDisplay } from '../../../ui/color-utils';
+import { canAdjustLiteralPaintOpacity, serializeLiteralPaintOpacity, splitPaintOpacity } from '../../../ui/paint-opacity';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
 import { formatBorderAfterCSSVars, borderStateToOverlayVars, clearedOverlayVars, isVarBackedBorderAfterBody, resolveBorderAfterBodyVars } from '../../../ui/border-overlay-vars';
 
@@ -522,7 +524,7 @@ function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
   const code = useAtomValue(codeAtom);
   const overlayVariant = useBorderOverlayVariant();
 
-  const btnRef = useRef<HTMLSpanElement>(null);
+  const btnRef = useRef<HTMLDivElement>(null);
 
   // ─── Read border state for preview ─────────────────────────────────────
   const afterBodyRaw = extractBorderAfterRuleBody(extractStyleCSS(code), nodeId, overlayVariant);
@@ -766,6 +768,48 @@ function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
   // Empty Stroke is header-only in the canonical property stack.
   if (compactSection && !hasAnyBorder) return null;
 
+  if (compactSection) {
+    const paintState = splitPaintOpacity(borderState.top.color);
+    const canEditOpacity = !isGradient && borderState.isUniform && canAdjustLiteralPaintOpacity(borderState.top.color);
+    const paintLabel = isGradient ? 'Gradient' : borderState.isUniform ? toHexDisplay(paintState.base).replace(/^#/, '') : 'Mixed';
+    const swatch = isGradient
+      ? { background: gradientFormatGradient(activeGradient) }
+      : { backgroundColor: resolvePresetColor(borderState.top.color, allTokens) };
+    const setPaintOpacity = (value: number) => {
+      if (!canEditOpacity) return;
+      const color = serializeLiteralPaintOpacity(borderState.top.color, value);
+      const top = { ...borderState.top, color };
+      writeBorder({ isUniform: true, top, right: { ...top }, bottom: { ...top }, left: { ...top } }, renderMode);
+    };
+    const setUniformWidth = (raw: string) => {
+      if (isGradient || !borderState.isUniform) return;
+      const width = Math.max(0, Number.parseFloat(raw) || 0);
+      const top = { ...borderState.top, width, style: width > 0 && borderState.top.style === 'none' ? 'solid' : borderState.top.style };
+      writeBorder({ isUniform: true, top, right: { ...top }, bottom: { ...top }, left: { ...top } }, renderMode);
+    };
+    return (
+      <>
+        <div ref={btnRef} className="w-full min-w-0">
+          <PaintRow
+            control={<ControlActionRow onClick={openEditor} embedded className="justify-between"><span className="flex items-center gap-2 truncate"><ColorSwatch style={swatch} /><span className="text-xs truncate text-[var(--text-primary)]">{paintLabel}</span></span></ControlActionRow>}
+            opacity={paintState.opacity}
+            opacityDisabled={!canEditOpacity}
+            onOpacityChange={canEditOpacity ? setPaintOpacity : undefined}
+            onRemove={mode !== 'variableDefault' ? clearAllBorder : undefined}
+            opacityLabel="Stroke opacity"
+          />
+        </div>
+        <div data-inspector-stroke-geometry className="grid grid-cols-[minmax(0,1fr)_28px] gap-1 items-center w-full">
+          <ToolInput value={String(borderState.top.width)} onChange={setUniformWidth} min={0} disabled={isGradient || !borderState.isUniform} ariaLabel="Stroke width" />
+          <button type="button" onClick={openEditor} className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Stroke details" aria-label="Stroke details">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><path d="M4 2v12M12 2v12M2 5h4M10 11h4" /><circle cx="4" cy="5" r="1.5" fill="var(--dropdown-bg)" /><circle cx="12" cy="11" r="1.5" fill="var(--dropdown-bg)" /></svg>
+          </button>
+        </div>
+        {panelPopup(btnRef)}
+      </>
+    );
+  }
+
   return (
     <>
       <SingleEntryRow
@@ -860,26 +904,18 @@ function BorderPresetPillRow({ group, onClear, hideLabel = false }: {
         borderRadius: '3px',
       };
 
+  const presetControl = (
+    <button ref={anchorRef} className="w-full h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden" onClick={() => setEditOpen(true)}>
+      <span className="w-4 h-4 bg-[var(--bg-surface)] flex-shrink-0 cut-corners cut-sm border border-[var(--control-border)]" style={previewStyle} />
+      <span className="text-xs text-[var(--text-primary)] truncate flex-1 text-left">{group.label}</span>
+    </button>
+  );
+
   return (
     <>
       <div className="flex items-center justify-between w-full">
         {!hideLabel && <ControlLabel label="Border" property="border" />}
-        <button
-          ref={anchorRef}
-          className="w-full h-8 flex items-center gap-2 px-2 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
-          onClick={() => setEditOpen(true)}
-        >
-          <span className="w-5 h-5 rounded bg-[var(--bg-surface)] flex-shrink-0" style={previewStyle} />
-          <span className="text-xs font-medium text-[var(--accent-fg)] truncate flex-1 text-left">
-            {group.label}
-          </span>
-          <span
-            onClick={(e) => { e.stopPropagation(); onClear(); }}
-            className="text-[var(--accent-fg)] opacity-70 hover:opacity-100 text-sm leading-none cursor-pointer shrink-0"
-          >
-            &minus;
-          </span>
-        </button>
+        <div className="w-full min-w-0"><PaintRow control={presetControl} opacity={100} opacityDisabled onRemove={onClear} opacityLabel="Stroke opacity" /></div>
       </div>
 
       {editOpen && (
