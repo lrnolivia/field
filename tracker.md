@@ -6,15 +6,42 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T03:20:57Z
+Last Updated: 2026-09-25T03:36:05Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
+<!-- ASSIGNMENT:trackpad-pan-feel-20260924:START -->
+### trackpad-pan-feel-20260924 — Tune trackpad canvas pan responsiveness
 
+Status: active
+Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
+Activation HEAD: 2333f0c65c351d38a32f1cc59cc78f6ddf5795d2
+Last Sync: 2026-09-25T03:36:05Z
 
+Owned:
+  - src/canvas/transform/InputHandler.ts
+  - src/canvas/transform/constants.ts
+  - src/canvas/transform/InputHandler.pan.test.ts
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/canvas/mouse/**
+  - src/canvas/selection/**
+  - src/canvas/drag/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:trackpad-pan-feel-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
