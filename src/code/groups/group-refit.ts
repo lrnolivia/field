@@ -263,6 +263,74 @@ function applyAffine(m: Affine2D, x: number, y: number): { x: number; y: number 
 }
 
 /**
+ * Rebase an absolute transformed Group after its child-derived local bounds
+ * change. The wrapper's authored 2D affine transform stays untouched while
+ * left/top compensate for the child-space rebase, transform-origin movement,
+ * and percentage transform translations that resolve against width/height.
+ *
+ * Old mapping:
+ *   world(p) = L + O_old + M_old * (p - O_old)
+ * Child rebase:
+ *   p' = p - delta
+ * Required wrapper position:
+ *   L' = L + A*delta + (I-A)*(O_old-O_new) + (t_old-t_new)
+ */
+function resolveTransformedGroupRebasePosition(
+  group: CanvasNode,
+  left: number,
+  top: number,
+  deltaX: number,
+  deltaY: number,
+  nextWidth: number,
+  nextHeight: number,
+): { left: number; top: number } | null {
+  const oldWidth = px(group.styles?.width);
+  const oldHeight = px(group.styles?.height);
+  if (oldWidth == null || oldHeight == null || oldWidth < 0 || oldHeight < 0) return null;
+  if (nextWidth < 0 || nextHeight < 0) return null;
+
+  const transformBox = group.styles?.transformBox?.trim();
+  if (transformBox && transformBox !== 'border-box') return null;
+
+  const transform = effectiveNodeTransform(group);
+  if (!transform || transform === 'none') {
+    return { left: left + deltaX, top: top + deltaY };
+  }
+
+  const oldAffine = parseAffineTransform(transform, oldWidth, oldHeight);
+  const nextAffine = parseAffineTransform(transform, nextWidth, nextHeight);
+  const oldOrigin = parseTransformOrigin(group.styles?.transformOrigin, oldWidth, oldHeight);
+  const nextOrigin = parseTransformOrigin(group.styles?.transformOrigin, nextWidth, nextHeight);
+  if (!oldAffine || !nextAffine || !oldOrigin || !nextOrigin) return null;
+
+  // Resizing only changes percentage-backed translation and transform origin.
+  // The affine linear part must remain identical; otherwise preserving the
+  // painted artifact would require rewriting the authored transform itself.
+  const EPSILON = 1e-9;
+  for (let i = 0; i < 4; i += 1) {
+    if (Math.abs(oldAffine[i] - nextAffine[i]) > EPSILON) return null;
+  }
+
+  const [a, b, c, d, oldTx, oldTy] = oldAffine;
+  const nextTx = nextAffine[4];
+  const nextTy = nextAffine[5];
+  const originDx = oldOrigin.x - nextOrigin.x;
+  const originDy = oldOrigin.y - nextOrigin.y;
+
+  const nextLeft = left
+    + a * deltaX + c * deltaY
+    + (1 - a) * originDx - c * originDy
+    + (oldTx - nextTx);
+  const nextTop = top
+    + b * deltaX + d * deltaY
+    - b * originDx + (1 - d) * originDy
+    + (oldTy - nextTy);
+
+  if (!Number.isFinite(nextLeft) || !Number.isFinite(nextTop)) return null;
+  return { left: nextLeft, top: nextTop };
+}
+
+/**
  * Resolve one direct child's AXIS-ALIGNED visual bounds in Group-local space.
  *
  * This supports the 2D affine transform family field itself authors/imports:
@@ -283,10 +351,6 @@ function resolveNativeGroupChildVisualBounds(child: CanvasNode): VisualBounds | 
 
   const transform = effectiveNodeTransform(child);
   if (!transform || transform === 'none') return { left, top, width, height };
-
-  // A transformed Group wrapper needs its own local-coordinate rebasing law;
-  // this pass intentionally handles transformed LEAF/ordinary children only.
-  if (child.isGroup) return null;
 
   const affine = parseAffineTransform(transform, width, height);
   const origin = parseTransformOrigin(child.styles?.transformOrigin, width, height);
@@ -352,16 +416,11 @@ function isSupportedNativeGroupContainer(node: CanvasNode): boolean {
 /**
  * Compute one shrink-wrap step for a native field Group.
  *
- * Phase B1 is intentionally conservative: it handles the canonical absolute,
- * pixel-backed geometry produced by native Group creation. It refuses to guess
- * through transformed, percentage, calc(), viewport-unit, or flow children.
- *
- * The returned patches preserve every child's world-space box:
- *
- *   newGroup.left = oldGroup.left + min(child.left)
- *   newChild.left = oldChild.left - min(child.left)
- *
- * and likewise for Y. Width/height become the direct-child union.
+ * Native Group refit is exact for canonical pixel-backed child geometry and the
+ * supported 2D affine transform family. Absolute transformed Group wrappers
+ * compensate their own origin/translation changes so descendant world-space
+ * appearance is preserved. Transformed flow Group wrappers remain gated until
+ * parent-layout-aware compensation is modeled explicitly.
  */
 export function planNativeGroupRefit(
   groupId: string,
@@ -376,7 +435,13 @@ export function planNativeGroupRefit(
   // its parent layout owns its placement — while an absolute Group shifts its
   // wrapper origin so child world-space boxes stay fixed.
   const groupMode = nativeGroupPositionMode(group);
-  if (!groupMode || hasUnsupportedTransform(group)) return null;
+  if (!groupMode) return null;
+
+  const groupTransform = effectiveNodeTransform(group);
+  const groupHasTransform = !!groupTransform && groupTransform !== 'none';
+  // Parent Auto Layout owns a flow Group's origin. A transformed flow wrapper
+  // needs a parent-layout-aware compensation model and remains gated in B9.
+  if (groupMode === 'flow' && groupHasTransform) return null;
 
   const groupLeft = groupMode === 'absolute' ? px(group.styles?.left, 0) : 0;
   const groupTop = groupMode === 'absolute' ? px(group.styles?.top, 0) : 0;
@@ -416,13 +481,31 @@ export function planNativeGroupRefit(
   // Only a child union already rooted at local 0,0 can refit exactly.
   if (groupMode === 'flow' && (minX !== 0 || minY !== 0)) return null;
 
+  const nextWidth = maxX - minX;
+  const nextHeight = maxY - minY;
+  let nextPosition: { left: number; top: number } | null = null;
+  if (groupMode === 'absolute') {
+    nextPosition = groupHasTransform
+      ? resolveTransformedGroupRebasePosition(
+        group,
+        groupLeft,
+        groupTop,
+        minX,
+        minY,
+        nextWidth,
+        nextHeight,
+      )
+      : { left: groupLeft + minX, top: groupTop + minY };
+    if (!nextPosition) return null;
+  }
+
   const groupStyles: Record<string, string> = {
-    ...(groupMode === 'absolute' ? {
-      left: fmtPx(groupLeft + minX),
-      top: fmtPx(groupTop + minY),
+    ...(nextPosition ? {
+      left: fmtPx(nextPosition.left),
+      top: fmtPx(nextPosition.top),
     } : {}),
-    width: fmtPx(maxX - minX),
-    height: fmtPx(maxY - minY),
+    width: fmtPx(nextWidth),
+    height: fmtPx(nextHeight),
   };
   mergePatch(patches, groupId, groupStyles);
 

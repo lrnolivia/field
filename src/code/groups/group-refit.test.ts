@@ -310,7 +310,131 @@ describe('native Group refit geometry', () => {
       expect(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]))).toBeNull();
     });
 
-    it('still refuses a transformed Group WRAPPER rather than guessing its rebasing pivot', () => {
+    it('refits an absolute transformed Group wrapper while preserving its painted child geometry', () => {
+      const group = node(
+        'g',
+        'root',
+        {
+          position: 'absolute',
+          left: '100px',
+          top: '50px',
+          width: '100px',
+          height: '80px',
+          transform: 'rotate(90deg)',
+        },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute', left: '20px', top: '10px', width: '40px', height: '20px',
+      });
+      const out = patches(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]])));
+      // Old painted child AABB is x=160..180, y=60..100. After the local
+      // 20/10 rebase, the wrapper moves to 150/70 so those world coordinates
+      // remain identical even though the default transform origin changes.
+      expect(out.get(group.id)).toEqual({
+        left: '150px',
+        top: '70px',
+        width: '40px',
+        height: '20px',
+      });
+      expect(out.get(a.id)).toEqual({ left: '0px', top: '0px' });
+    });
+
+    it('compensates percentage transform translations when wrapper dimensions change', () => {
+      const group = node(
+        'g',
+        'root',
+        {
+          position: 'absolute',
+          left: '10px',
+          top: '20px',
+          width: '200px',
+          height: '100px',
+          transform: 'translate(50%, 25%) scale(2, 1)',
+          transformOrigin: '0px 0px',
+        },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute', left: '20px', top: '10px', width: '40px', height: '20px',
+      });
+      const out = patches(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]])));
+      // translate(50%,25%) changes from 100/25px to 20/5px as the Group
+      // shrink-wraps from 200x100 to 40x20. left/top absorb that 80/20 delta.
+      expect(out.get(group.id)).toEqual({
+        left: '130px',
+        top: '50px',
+        width: '40px',
+        height: '20px',
+      });
+      expect(out.get(a.id)).toEqual({ left: '0px', top: '0px' });
+    });
+
+    it('propagates a transformed nested Group through the ancestor chain without moving painted geometry', () => {
+      const outer = node(
+        'outer',
+        'root',
+        { position: 'absolute', left: '0px', top: '0px', width: '300px', height: '200px' },
+        { isGroup: true, children: ['inner'] },
+      );
+      const inner = node(
+        'inner',
+        'outer',
+        {
+          position: 'absolute',
+          left: '100px',
+          top: '50px',
+          width: '100px',
+          height: '80px',
+          transform: 'rotate(90deg)',
+        },
+        { isGroup: true, children: ['leaf'] },
+      );
+      const leaf = node('leaf', 'inner', {
+        position: 'absolute', left: '20px', top: '10px', width: '40px', height: '20px',
+      });
+
+      const plan = planNativeGroupRefitChain(
+        leaf.id,
+        new Map([[outer.id, outer], [inner.id, inner], [leaf.id, leaf]]),
+      );
+      expect(plan?.groupIds).toEqual(['inner', 'outer']);
+      const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+
+      // Inner refit alone moves its layout origin to 150/70 and becomes 40x20.
+      // Its transformed painted AABB remains x=160..180, y=60..100. The outer
+      // Group therefore shrink-wraps to exactly that AABB (160/60, 20x40), then
+      // rebases inner to -10/10 in the new outer-local space. Adding the outer
+      // 160/60 offset returns the same painted world coordinates.
+      expect(out.get(outer.id)).toEqual({
+        left: '160px',
+        top: '60px',
+        width: '20px',
+        height: '40px',
+      });
+      expect(out.get(inner.id)).toEqual({
+        left: '-10px',
+        top: '10px',
+        width: '40px',
+        height: '20px',
+      });
+      expect(out.get(leaf.id)).toEqual({ left: '0px', top: '0px' });
+    });
+
+    it('keeps transformed flow Group wrappers gated', () => {
+      const group = node(
+        'g',
+        'root',
+        { position: 'relative', width: '100px', height: '100px', transform: 'rotate(10deg)' },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px',
+      });
+      expect(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]))).toBeNull();
+    });
+
+    it('keeps perspective/3D Group wrappers gated', () => {
       const group = node(
         'g',
         'root',
@@ -320,7 +444,7 @@ describe('native Group refit geometry', () => {
           top: '0px',
           width: '100px',
           height: '100px',
-          transform: 'rotate(10deg)',
+          transform: 'perspective(500px) rotateY(30deg)',
         },
         { isGroup: true, children: ['a'] },
       );
