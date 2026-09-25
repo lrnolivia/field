@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:09:29Z
+Last Updated: 2026-09-25T08:14:06Z
 
 ## Active Assignments
 
@@ -425,6 +425,17 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r4 repair:** accept a descendant of the Gallery reservation only after proving the entire intervening source pathset is disjoint from the exact Gallery postimage, then pin the resolved descendant HEAD while publishing Gallery's ownership expansion.
 - **Prevention rule:** resumable field installers should distinguish *ancestry drift* from *ownership overlap*: a newer descendant HEAD is safe only after path-level reconciliation proves no assignment integration surface changed.
 <!-- LESSON:native-gallery-authoring-r3-concurrent-main:END -->
+
+<!-- LESSON:native-gallery-authoring-r4-typecheck:START -->
+### native-gallery-authoring r4 validation lesson
+
+- **r4 successfully reconciled concurrent Group B3 work, published Gallery's expanded ownership, and passed all 5 focused Gallery suites / 22 tests before stopping at TypeScript.**
+- **TypeScript finding 1:** `gallery-model.test.ts` constructed the test helper with `id` both before and inside `...partial`, triggering TS2783 even though runtime behavior was harmless.
+- **TypeScript finding 2:** `naturalPatch()` covers all runtime values of `index % 4`, but TypeScript does not narrow arithmetic modulo to the finite set 0..3, so the function required an explicit unreachable fallback return to satisfy TS2366.
+- **Repository/source impact:** no Gallery source commit was created by r4. Ownership expansion commit `7a531419506f6d1482d635b993a1b7fd26a77358` is pushed; all 21 Gallery implementation files remain unstaged and resumable.
+- **r5 repair:** preserve the validated r4 postimage, patch only those two TypeScript findings, rerun the focused suites, full TypeScript, `build:all`, exact ownership/staging gates, source commit, production verification, and tracker completion.
+- **Prevention rule:** generated test helpers must avoid duplicate object keys across explicit properties and spreads; finite arithmetic invariants that TypeScript cannot prove need an explicit exhaustive fallback or type-level narrowing.
+<!-- LESSON:native-gallery-authoring-r4-typecheck:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
