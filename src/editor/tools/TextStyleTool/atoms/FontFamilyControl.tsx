@@ -8,6 +8,7 @@ import { ControlLabel, ControlActionRow } from '../../../controls';
 import { useTextStyles } from '../../../hooks/useTextStyles';
 import { useToolPopupOptional } from '../../../ui/ToolPopup';
 import FontFamilyPopup from '../../../ui/FontFamilyPopup';
+import { DEFAULT_FONTS } from '@/shared/google-fonts';
 import { loadGoogleFont } from '@/shared/font-loader';
 import { ensureGoogleFontImport } from '@/code/project/preset-ops';
 import { injectCanvasCSS, removeCanvasCSS, getInteractingViewport, getViewportPrefix } from '@/canvas/node-ops';
@@ -256,21 +257,63 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
 
   return (
     <>
-      <div ref={rowRef} className={compact ? "w-full" : "flex items-center justify-between w-full"}>
+      <div ref={rowRef} className={compact ? "w-full grid grid-cols-[minmax(0,1fr)_28px] gap-1" : "flex items-center justify-between w-full"}>
         {!compact && <ControlLabel label={label} property="fontFamily" plain={plain} />}
-        <ControlActionRow onClick={handleClick} className="min-w-0 overflow-hidden">
-          <span
-            className="text-xs truncate flex-1 min-w-0"
-            style={{ fontFamily: isMixed ? undefined : value || undefined }}
+        {compact ? (
+          <div className="relative min-w-0">
+            <select
+              data-typography-font-family-select
+              value={isMixed ? '' : value}
+              onChange={(e) => handleChange(e.target.value)}
+              className="w-full h-[var(--control-height)] pl-2 pr-7 text-xs text-left appearance-none bg-[var(--grid-line)] border border-[var(--control-border)] text-[var(--text-primary)] rounded-[var(--control-radius)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] focus:outline-none cursor-pointer truncate"
+              style={{ fontFamily: isMixed ? undefined : value || undefined }}
+              aria-label="Font family"
+            >
+              {isMixed && <option value="">Mixed</option>}
+              {!isMixed && value && !DEFAULT_FONTS.some(font => `${font.family}, ${font.category}` === value) && (
+                <option value={value}>{displayName}</option>
+              )}
+              {DEFAULT_FONTS.map((font) => {
+                const cssFamily = `${font.family}, ${font.category}`;
+                return <option key={font.family} value={cssFamily}>{font.family}</option>;
+              })}
+            </select>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)]">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        ) : (
+          <ControlActionRow onClick={handleClick} className="min-w-0 overflow-hidden text-left">
+            <span
+              className="text-xs text-left truncate flex-1 min-w-0"
+              style={{ fontFamily: isMixed ? undefined : value || undefined }}
+            >
+              {displayName}
+            </span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-[var(--text-secondary)]">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </ControlActionRow>
+        )}
+        {compact && (
+          <button
+            type="button"
+            data-typography-font-browser-button
+            onClick={handleClick}
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--grid-line)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)]"
+            title="Browse fonts"
+            aria-label="Browse fonts"
           >
-            {displayName}
-          </span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-[var(--text-secondary)]">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </ControlActionRow>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M2.5 4.5h11M2.5 8h7.5M2.5 11.5h5" />
+              <circle cx="12" cy="11.5" r="1.5" />
+            </svg>
+          </button>
+        )}
       </div>
-      {/* Standalone popup — only when NOT inside a parent ToolPopup */}
+      {/* Standalone rich browser — compact mode reaches this from the dedicated
+          button next to the family dropdown; non-compact mode keeps the legacy
+          single-control entry point. */}
       {!popupCtx && (
         <FontFamilyPopup
           value={isMixed ? '' : value}

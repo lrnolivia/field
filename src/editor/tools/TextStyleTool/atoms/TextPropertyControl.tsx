@@ -117,6 +117,8 @@ function formatConvertedValue(n: number): string {
   return String(Math.round(n));
 }
 
+const FONT_SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 20, 24, 32, 36, 40, 48, 64, 96, 128];
+
 const FONT_SIZE_UNITS = [
   { value: 'px', label: 'px' },
   { value: 'rem', label: 'rem' },
@@ -489,10 +491,13 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
             : currentUnit === 'px'
               ? String(numValue)
               : `${numValue}${currentUnit}`;
-      return (
+      const presetValue = !isMixed && !isFitMode && !isClamp && currentUnit === 'px' && FONT_SIZE_PRESETS.includes(numValue)
+        ? String(numValue)
+        : '';
+      const input = (
         <ToolInput
           value={compactFontSize}
-          text
+          text={isClamp}
           onChange={(v) => {
             if (isFitMode && fitTextNode) {
               commitFitScale(v);
@@ -507,9 +512,46 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
           onCommit={isFitMode && fitTextNode ? commitFitScale : undefined}
           step={registryDef.step ?? 1}
           disabled={currentUnit === 'clamp'}
+          ariaLabel="Font size"
+          alwaysShowStepper={!isClamp}
         />
       );
+
+      if (isFitMode || isClamp || currentUnit !== 'px') return input;
+
+      return (
+        <div data-typography-font-size-control className="grid grid-cols-[minmax(0,1fr)_24px] gap-1 min-w-0">
+          {input}
+          <div className="relative h-[var(--control-height)]">
+            <select
+              data-typography-font-size-presets
+              value={presetValue}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setValue(`${e.target.value}px`);
+              }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              aria-label="Font size presets"
+              title="Font size presets"
+            >
+              <option value="">Custom</option>
+              {FONT_SIZE_PRESETS.map((size) => <option key={size} value={size}>{size}</option>)}
+            </select>
+            <button
+              type="button"
+              tabIndex={-1}
+              className="absolute inset-0 h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--grid-line)] text-[var(--text-secondary)] pointer-events-none"
+              aria-hidden
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      );
     }
+
 
     return (
       <div className="flex flex-col gap-2 w-full">
@@ -589,6 +631,41 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
                   ? `${Math.round((parseFloat(value) || 0) * 100)}%`
                   : value)
             : (value || String(numValue));
+
+      const percentMatch = compactValue.match(/^(-?[\d.]+)%$/);
+      const numericInputValue = /^-?[\d.]+(?:px|%|em|rem|vh|vw|deg|fr)?$/.test(compactValue) ? compactValue : null;
+      if (numericInputValue !== null) {
+        return (
+          <ToolInput
+            value={numericInputValue}
+            onChange={(v) => {
+              const n = parseFloat(v) || 0;
+              if (percentMatch) {
+                if (property === 'letterSpacing') {
+                  setValue(`${n / 100}em`);
+                  return;
+                }
+                if (property === 'lineHeight' && /^-?[\d.]+$/.test(value)) {
+                  setValue(String(n / 100));
+                  return;
+                }
+                setValue(`${n}%`);
+                return;
+              }
+              const preservedUnit = /^-?[\d.]+/.test(value)
+                ? value.replace(/^-?[\d.]+/, '')
+                : '';
+              if (preservedUnit) setValue(`${n}${preservedUnit}`);
+              else setValue(String(n));
+            }}
+            step={percentMatch ? 1 : (registryDef.step ?? 1)}
+            placeholder={label}
+            ariaLabel={label}
+            alwaysShowStepper
+          />
+        );
+      }
+
       return (
         <ToolInput
           value={compactValue}
@@ -614,9 +691,12 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
             else setValue(typed);
           }}
           placeholder={label}
+          ariaLabel={label}
         />
       );
     }
+
+
     return (
       <div className="flex items-center justify-between w-full">
         <ControlLabel label={label} property={property} plain={isExternal} />
