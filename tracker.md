@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:03:43Z
+Last Updated: 2026-09-25T05:08:07Z
 
 ## Active Assignments
 
@@ -206,6 +206,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** use the canonical activation preimage, keep the intended postimage (FigUI3 inline hex without `#`), adopt the existing assignment reservation instead of creating another one, and add package regression coverage for this canonical preimage.
 - **Prevention rule:** exact-string installers must derive required preimages from the verified activation blob, never from an intermediate local draft. When the manifest asserts a blob hash, any manually authored transform anchor must be checked against that blob's literal source before delivery.
 <!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r1-fill-anchor:END -->
+
+
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r2-fileurl-space:START -->
+### FIELD-INSPECTOR-FIGUI3-002 r2 packaging lesson
+
+- **r2 stopped safely during no-write validation after adopting the existing Inspector reservation and publishing the r1 lesson.** The source tree was still clean; no Inspector product files were written, staged, committed, or pushed by r2.
+- **Root cause: the Node installer derived its own directory from `new URL(import.meta.url).pathname`.** When macOS Finder extracted the package into a suffixed directory containing a space (`...-work 2`), the URL pathname contained percent-encoding (`%20`). The installer therefore looked for payload files under a non-existent percent-encoded filesystem path and reported `missing payload: src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx` even though the payload was present in the ZIP.
+- **r3 repair:** resolve the module path with Node's `fileURLToPath(import.meta.url)` before taking `dirname`, preserving spaces and other URL-escaped filesystem characters. r3 also adds a package self-test executed from a temporary directory whose name contains spaces.
+- **Prevention rule:** Node ESM installers must never use `new URL(import.meta.url).pathname` as a filesystem path. Always convert file URLs with `fileURLToPath`, and validate self-contained packages from a path containing spaces before delivery.
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r2-fileurl-space:END -->
 
 ## Commit Ledger
 
