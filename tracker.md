@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:00:34Z
+Last Updated: 2026-09-25T04:02:42Z
 
 ## Active Assignments
 
@@ -264,6 +264,28 @@ Validation / Build / Deploy:
 - `Workers Builds: field`: completed / success
 - Cloudflare/GitHub check-run ID: 107935502945
 - production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/2f0352f7-6925-46b0-b307-582d7eab3601
+
+### 2026-09-25T04:02:42Z — canvas-camera-fast-path-20260924 — 0de7d3090d3e
+
+Summary: One-way latest-wins canvas camera transport replacing per-frame Comlink RPC
+Commit: 0de7d3090d3eedfa76627b6ba9ab38b03197b069
+
+Paths:
+  - src/canvas-sandbox/bridge-host-camera.test.ts
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/protocol.ts
+
+Validation / Build / Deploy:
+- focused camera/bridge + pan/zoom tests: passed
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed (main field + sandbox + Preview sandbox)
+- ownership allowlist: passed for exactly 4 assignment paths
+- implementation push: `origin main`
+- `Workers Builds: field`: completed / success
+- Cloudflare/GitHub check-run ID: 107938598530
+- production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/a882e386-caf4-4953-86ca-43255644aa46
+- live visual cadence verification: PENDING USER CHECK — assignment intentionally remains active
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
