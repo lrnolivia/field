@@ -6,6 +6,7 @@ import { generateNodeId } from '@/shared/id-utils';
 import { ellipsePathD } from '@/shared/svg-geometry';
 import { getCollectionSchema } from '@/code/project/cms-ops';
 import type { NewNodeDescriptor } from '@/shared/types';
+import { galleryAriaLabel, getGalleryRootPatch } from '@/code/gallery/gallery-views';
 
 export interface ToolbarItem {
   /** Insert panel item ID (e.g. 'frame', 'image') */
@@ -176,6 +177,14 @@ const TOOLBAR_ITEMS: Record<string, ToolbarItem> = {
     defaultStyles: { display: 'block', width: '200px', height: '150px', maxWidth: 'none', objectFit: 'cover', backgroundColor: '#e5e7eb' },
     defaultAttrs: { src: 'https://images.unsplash.com/photo-1573655349936-de6bed86f839?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w2MjE1NjZ8MHwxfHNlYXJjaHwxNXx8dGV4dHVyZXxlbnwwfHx8fDE3NzUzMzI3Njd8MA&ixlib=rb-4.1.0&q=80&w=1080', alt: '' },
     ghostSize: { width: 200, height: 150 },
+  },
+  gallery: {
+    id: 'gallery', elementType: 'div', name: 'Gallery',
+    // Empty Gallery is still a real, selectable layout object. No fake image
+    // children are inserted and no editor-only placeholder leaks to Preview.
+    defaultStyles: { ...getGalleryRootPatch('grid'), minHeight: '180px' },
+    defaultAttrs: { role: 'region', 'aria-label': galleryAriaLabel('grid') },
+    ghostSize: { width: 360, height: 220 },
   },
   video: {
     id: 'video', elementType: 'video',

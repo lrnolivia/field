@@ -21,6 +21,27 @@ import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 
+const GALLERY_INSERT_ITEM: InsertItem = {
+  id: 'gallery',
+  name: 'Gallery',
+  iconKey: 'image',
+};
+
+// Keep the shared Insert registry untouched while Gallery's assignment owns
+// this integration surface. Gallery is injected immediately after Image in
+// Elements → Basic and therefore uses the exact same drag/insertion path.
+const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES.map((category) =>
+  category.id !== 'elements' ? category : {
+    ...category,
+    sections: category.sections.map((section) =>
+      section.id !== 'basic' ? section : {
+        ...section,
+        items: section.items.flatMap((item) => item.id === 'image' ? [item, GALLERY_INSERT_ITEM] : [item]),
+      },
+    ),
+  },
+);
+
 // ─── Chevron Right ─────────────────────────────────────────────────────────
 
 function ChevronRight({ className }: { className?: string }) {
@@ -578,7 +599,7 @@ export default function InsertOverlay() {
   const searchResults = useMemo(() => {
     if (!searchActive) return [];
     const q = debouncedQuery.trim().toLowerCase();
-    const all = [...CATEGORIES, ...CREATIVE_CATEGORIES, ...cmsCategories];
+    const all = [...FIELD_INSERT_CATEGORIES, ...CREATIVE_CATEGORIES, ...cmsCategories];
     const groups: Array<{ id: string; label: string; items: InsertItem[] }> = [];
     for (const cat of all) {
       const categoryMatches = cat.label.toLowerCase().includes(q);
@@ -610,7 +631,7 @@ export default function InsertOverlay() {
   // CATEGORIES is the Insert group — CMS / Creative no longer live there.
   // The secondary-panel lookup must search Insert + Creative + CMS
   // categories so hovering any of those rows opens the right detail panel.
-  const renderedCategories = CATEGORIES;
+  const renderedCategories = FIELD_INSERT_CATEGORIES;
   const activeCategoryData = activeCategory
     ? [...renderedCategories, ...CREATIVE_CATEGORIES, ...cmsCategories].find(c => c.id === activeCategory) ?? null
     : null;

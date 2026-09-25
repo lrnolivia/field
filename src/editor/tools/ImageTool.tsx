@@ -17,6 +17,7 @@ import { queueMutation } from '@/code/mutation/mutation-queue';
 import { getViewportPrefix } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import ImageSearchModal from '../ui/ImageSearchModal';
+import GalleryImageCropTool from '../gallery/GalleryImageCropTool';
 import { trace } from '@/shared/debug-trace';
 
 // ─── Options ────────────────────────────────────────────────────────────────
@@ -204,6 +205,11 @@ function ImageToolInner({
           />
         </div>
       </ToolSection>
+
+      {/* A normal image keeps the exact existing Image tool. When this image is
+          a real Gallery child, the self-gating companion adds visual focal
+          repositioning without teaching PropertiesPanel about Gallery. */}
+      <GalleryImageCropTool />
 
       {/* Image Search Modal */}
       <ImageSearchModal

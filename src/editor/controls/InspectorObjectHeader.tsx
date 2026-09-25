@@ -7,6 +7,8 @@ import { pageVariablesModalOpenAtom } from '@/code/stores/page-variables-store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
 import { suppressSelectionOverlayAtom } from '@/code/stores/editor-store';
 import { enterComponentFile } from '@/canvas/component-navigation';
+import { useControlOptional } from './ControlProvider';
+import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 
 interface InspectorObjectHeaderProps {
   title: string;
@@ -104,6 +106,10 @@ export default function InspectorObjectHeader({
   const setInteractingViewport = useSetAtom(interactingViewportIdAtom);
   const setVariablesOpen = useSetAtom(pageVariablesModalOpenAtom);
   const revealComponentTool = useSetAtom(componentToolRevealAtom);
+  const control = useControlOptional();
+  const isGallery = !isMultiSelect && isGalleryViewId(control?.styles?.[GALLERY_VIEW_STYLE_PROPERTY]);
+  const semanticTitle = isGallery ? 'Gallery' : title;
+  const semanticKind = isGallery ? 'Gallery' : kind;
 
   const matchingIds = useNodesComputed((nodes) => {
     if (!componentFile || isMultiSelect) return [] as string[];
@@ -161,9 +167,9 @@ export default function InspectorObjectHeader({
     <div
       data-properties-context
       data-inspector-object-header
-      data-inspector-object-kind={kind}
+      data-inspector-object-kind={semanticKind}
       className="relative shrink-0 border-b border-[var(--border-light)]"
-      title={sourceTitle || title}
+      title={sourceTitle || semanticTitle}
     >
       <div className="min-h-9 px-3 flex items-center gap-1">
         <div className="min-w-0 flex-1 flex items-center gap-1.5">
@@ -174,11 +180,11 @@ export default function InspectorObjectHeader({
               className="min-w-0 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-primary)] hover:text-[var(--text-primary)]"
               aria-expanded={menuOpen}
             >
-              <span className="truncate">{title}</span>
+              <span className="truncate">{semanticTitle}</span>
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M2.3 3.7 5 6.3l2.7-2.6" /></svg>
             </button>
           ) : (
-            <div className="min-w-0 text-[13px] font-semibold text-[var(--text-primary)] truncate">{title}</div>
+            <div className="min-w-0 text-[13px] font-semibold text-[var(--text-primary)] truncate">{semanticTitle}</div>
           )}
         </div>
 

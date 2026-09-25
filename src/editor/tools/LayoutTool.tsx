@@ -25,6 +25,8 @@ import { isPrimaryViewport } from '@/canvas/node-ops';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { isFitSize } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
+import GalleryTool from './GalleryTool';
+import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 import { parseVarRef } from '@/shared/css-utils';
 import { collapsePaddingToAxes, paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
 import { parseAutoTrack, formatAutoTrack,
@@ -887,7 +889,27 @@ export function detectLayoutFlags(
   return { hasFlex, hasGrid, hasLayout: hasFlex || hasGrid };
 }
 
-export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent }: Props) {
+export default function LayoutTool(props: Props) {
+  const galleryView = props.styles[GALLERY_VIEW_STYLE_PROPERTY];
+  if (isGalleryViewId(galleryView)) {
+    return (
+      <>
+        {props.sizeContent && (
+          <>
+            <ToolSection title="Size" collapsible>
+              {props.sizeContent}
+            </ToolSection>
+            <ToolDivider />
+          </>
+        )}
+        <GalleryTool />
+      </>
+    );
+  }
+  return <StandardLayoutTool {...props} />;
+}
+
+function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent }: Props) {
   // useControl gives us the variable-binding helpers (`getValueSource`,
   // `removeVariable`) the Direction + Wrap rows need to surface the
   // purple variable pill — these rows are rendered as custom segmented

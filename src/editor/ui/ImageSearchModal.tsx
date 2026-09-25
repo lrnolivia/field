@@ -10,6 +10,7 @@ import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
+import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
 
 // Unsplash search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/unsplash`) so Revyme's key stays server-side and out of the
@@ -30,6 +31,9 @@ interface ImageSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (url: string) => void;
+  /** Existing consumers stay single-select by default. Gallery opts into multiple. */
+  selectionMode?: 'single' | 'multiple';
+  onSelectMany?: (urls: string[]) => void;
 }
 
 interface UnsplashImage {
@@ -53,7 +57,7 @@ interface Asset3D {
 
 type Tab = 'unsplash' | 'upload' | 'create' | '3d';
 
-export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSearchModalProps) {
+export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany }: ImageSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnsplashImage[]>([]);
@@ -69,6 +73,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
   // MediaGalleryPanel reads (`/api/upload?...&type=image`), so the Upload tab
   // lists the website's existing images instead of only an empty drop zone.
   const [uploads, setUploads] = useState<{ url: string; size?: number }[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   // ── Admin-only 3D assets tab ──
   const [isAdmin, setIsAdmin] = useState(false);
@@ -145,6 +150,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
       setQuery(term);
       setResults([]);
       setUploadError(null);
+      setSelectedUrls([]);
       setTab(HAS_UNSPLASH ? 'unsplash' : 'upload');
       if (HAS_UNSPLASH) searchUnsplash(term);
     }
@@ -235,21 +241,36 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
       const projectId = getProjectId();
       const url = await backend.uploadAsset(projectId, file);
       trace.action('image-search:upload-success', { url });
-      onSelect(url);
-      onClose();
+      if (selectionMode === 'multiple') {
+        // Upload is still the canonical project-media backend. Keep the modal
+        // open, surface the new asset immediately, and include it in this
+        // Gallery add operation without uploading it a second time.
+        setUploads((prev) => prev.some((item) => item.url === url) ? prev : [{ url }, ...prev]);
+        setSelectedUrls((prev) => appendUniqueMedia(prev, url));
+      } else {
+        onSelect(url);
+        onClose();
+      }
     } catch (err) {
       trace.error('image-search:upload-failed', err);
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
-  }, [onSelect, onClose]);
+  }, [onSelect, onClose, selectionMode]);
 
   const handleSelect = (url: string) => {
-    trace.action('image-search:select', { url: url.slice(0, 80) });
-    onSelect(url);
-    onClose();
+    trace.action('image-search:select', { url: url.slice(0, 80), selectionMode });
+    const decision = chooseMedia(selectionMode, selectedUrls, url);
+    if (decision.directUrl) {
+      onSelect(decision.directUrl);
+      if (decision.close) onClose();
+      return;
+    }
+    setSelectedUrls(decision.selectedUrls);
   };
+
+  const isSelected = (url: string) => selectionMode === 'multiple' && selectedUrls.includes(url);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -319,7 +340,8 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
               <button
                 key={img.id}
                 onClick={() => handleSelect(img.urls.regular)}
-                className="relative group cursor-pointer aspect-square cut-corners overflow-hidden"
+                aria-pressed={selectionMode === 'multiple' ? isSelected(img.urls.regular) : undefined}
+                className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(img.urls.regular) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
               >
                 <div
                   className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
@@ -361,13 +383,22 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
                 <input
                   type="file"
                   accept="image/*"
+                  multiple={selectionMode === 'multiple'}
                   className="hidden"
                   disabled={uploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    handleFileUpload(file);
-                    e.target.value = ''; // allow re-uploading the same file
+                  onChange={async (e) => {
+                    const input = e.currentTarget;
+                    const files = Array.from(input.files ?? []);
+                    if (files.length === 0) return;
+                    // Gallery multi-select also means multi-UPLOAD: one native
+                    // file pick may contain several images. Upload sequentially
+                    // through the existing canonical backend so the busy state
+                    // stays truthful and every returned URL lands in the same
+                    // pending Gallery selection. Single-image consumers keep
+                    // the historical one-file behavior.
+                    const chosen = selectionMode === 'multiple' ? files : files.slice(0, 1);
+                    for (const file of chosen) await handleFileUpload(file);
+                    input.value = ''; // allow re-uploading the same file(s)
                   }}
                 />
               </label>
@@ -377,7 +408,8 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
                 <button
                   key={item.url + i}
                   onClick={() => handleSelect(item.url)}
-                  className="relative group cursor-pointer aspect-square cut-corners overflow-hidden"
+                  aria-pressed={selectionMode === 'multiple' ? isSelected(item.url) : undefined}
+                  className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(item.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
                 >
                   <div
                     className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
@@ -428,7 +460,8 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
                 title={`${a.shape} · ${a.material}${a.color ? ` · ${a.color}` : ''}`}
                 // Light tile so dark + light renders are both visible (the WebPs
                 // are trimmed/transparent), matching the revyme-cloud asset cards.
-                className="relative group cursor-pointer aspect-square cut-corners overflow-hidden bg-[#ececec]"
+                aria-pressed={selectionMode === 'multiple' ? isSelected(a.url) : undefined}
+                className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden bg-[#ececec] ${isSelected(a.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
               >
                 <img src={a.url} loading="lazy" alt={a.shape} className="w-full h-full object-contain p-2 transition-transform group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
@@ -439,6 +472,36 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect }: ImageSea
                 No 3D assets found.
               </div>
             )}
+          </div>
+        )}
+
+        {selectionMode === 'multiple' && (
+          <div data-image-multi-select-footer className="pt-3 border-t border-[var(--border-light)] flex items-center justify-between gap-3">
+            <span className="text-[11px] tabular-nums text-[var(--text-secondary)]">
+              {selectedUrls.length} {selectedUrls.length === 1 ? 'image' : 'images'} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedUrls([])}
+                disabled={selectedUrls.length === 0}
+                className="h-[var(--control-height)] px-3 text-xs border border-[var(--control-border)] text-[var(--text-secondary)] disabled:opacity-40"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                disabled={selectedUrls.length === 0}
+                onClick={() => {
+                  if (onSelectMany) onSelectMany(selectedUrls);
+                  else selectedUrls.forEach(onSelect);
+                  onClose();
+                }}
+                className="h-[var(--control-height)] px-3 text-xs bg-[var(--accent)] text-white disabled:opacity-40"
+              >
+                Add {selectedUrls.length > 0 ? selectedUrls.length : ''}
+              </button>
+            </div>
           </div>
         )}
       </div>
