@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:20:01.302489Z
+Last Updated: 2026-09-25T08:20:35Z
 
 ## Active Assignments
 
@@ -189,6 +189,45 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:native-gallery-authoring-20260925:END -->
+
+<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:START -->
+### figui3-corrective-destroke-font-20260925 — FigUI3 Corrective De-stroke + Font Browser Polish
+
+Status: active
+Baseline: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
+Activation HEAD: f195fa500f68f1523d167a224180e61a540c134f
+Last Sync: 2026-09-25T08:20:35Z
+
+Owned:
+  - src/styles/loew-theme.css
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/controls/ToolSegmentedControl.tsx
+  - src/editor/controls/InspectorIconButtonGroup.tsx
+  - src/editor/figui3-global-parity.test.ts
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/figui3-corrective-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
