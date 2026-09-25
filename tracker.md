@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:27:04Z
+Last Updated: 2026-09-25T04:27:06Z
 
 ## Active Assignments
 
@@ -91,6 +91,57 @@ Notes:
   - Collapsible Workspace may land after this reservation. If it changes none of the owned paths, this installer integrates it and proceeds. If it changes an owned path, the installer stops with INTEGRATION OVERLAP DETECTED.
   - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
 <!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
+
+<!-- ASSIGNMENT:workspace-chrome-floating-panes:START -->
+### workspace-chrome-floating-panes — Figma-style floating workspace chrome
+
+Status: active
+Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
+Activation HEAD: 4044ba6404f82cec551dee6a3e3421459b230114
+Last Sync: 2026-09-25T04:27:06Z
+
+Owned:
+  - src/App.tsx
+  - src/code/stores/workspace-panels-store.ts
+  - src/code/stores/left-panel-store.ts
+  - src/editor/ChromeIslands.tsx
+  - src/editor/header/RightHeader.tsx
+  - src/editor/left-toolbar/LeftPanel.tsx
+  - src/editor/workspace-layout.ts
+  - src/editor/workspace-layout.test.ts
+  - src/editor/WorkspaceRestoreBar.tsx
+  - src/editor/collab/InspectorCollaborators.tsx
+
+Approved Shared:
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/VibeDockShell.tsx
+  - tracker.md
+
+Protected:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/mutation/**
+  - src/code/parsing/**
+  - src/code/components/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+  - .env*
+<!-- ASSIGNMENT:workspace-chrome-floating-panes:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -98,6 +149,7 @@ Notes:
 <!-- FIELD_BLOCKED_NOTES_START -->
 - 2026-09-25T02:17:03Z — Existing-chat adoption: this tracker was initialized after `81a7dbd633db` had already landed because the generic handoff kit was introduced midstream. No pre-implementation tracker reservation existed. Git history is authoritative.
 - 2026-09-25T02:17:03Z — Pages/Layers source work is landed and deployed. Screenshot-level post-deploy visual parity remains unverified and should be registered as a new assignment before further implementation.
+- Workspace chrome housing integration: user explicitly authorized `workspace-chrome-floating-panes` against the Pages/Layers source postimage landed at `9a74cb253444`. `LeftHeader.tsx` and `LeftMenu.tsx` are shared integration surfaces only; the installer is exact-postimage guarded and must stop on later drift rather than replay stale changes.
 <!-- FIELD_BLOCKED_NOTES_END -->
 
 ## Installer / Handoff Kit Lessons
