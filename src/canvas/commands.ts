@@ -33,6 +33,7 @@ import { trace } from '@/shared/debug-trace';
 import { copyNodes } from '@/code/features/paste-engine';
 import { executePaste } from '@/code/features/paste-engine/execute-from-ui';
 import { canGroupSelection, canUngroupNode } from '@/code/groups/group-semantics';
+import { planNativeGroupDeletionCleanup } from '@/code/groups/group-refit';
 
 // ─── Selection Navigation ───────────────────────────────────────────────────
 
@@ -310,6 +311,11 @@ export function deleteNode(nodeIdOrIds: string | string[], contentEl: HTMLElemen
     const overlayCalls = parseOverlayCalls(overlayCode);
     const triggerCalls = parseOverlayTriggerCalls(overlayCode);
     const deletedSet = new Set(filteredIds);
+
+    const nativeGroupDeletionPlan = planNativeGroupDeletionCleanup(
+      filteredIds,
+      getDefaultStore().get(nodesAtom),
+    );
     // Dedupe overlay teardowns — an overlay can be reached as the directly
     // deleted node, as a trigger cascade, AND as an orphan; only queue once.
     const removedOverlayIds = new Set<string>();
@@ -345,6 +351,26 @@ export function deleteNode(nodeIdOrIds: string | string[], contentEl: HTMLElemen
         if (o.config.triggerId === id) removeOverlay(o.overlayId, id, 'trigger-cascade');
       }
       removeNode({ id, contentEl });
+    }
+
+    if (nativeGroupDeletionPlan) {
+      trace.action('commands:delete-native-group-cleanup', {
+        deletedIds: filteredIds,
+        groupIds: nativeGroupDeletionPlan.groupIds,
+        removeGroupIds: nativeGroupDeletionPlan.removeGroupIds,
+        patchCount: nativeGroupDeletionPlan.patches.length,
+      });
+      for (const groupId of nativeGroupDeletionPlan.removeGroupIds) {
+        if (!deletedSet.has(groupId)) removeNode({ id: groupId, contentEl });
+      }
+      for (const patch of nativeGroupDeletionPlan.patches) {
+        updateNodeStyles({
+          id: patch.nodeId,
+          styles: patch.styles,
+          contentEl,
+          skipGroupRefit: true,
+        });
+      }
     }
 
     // Orphan sweep. A relative overlay whose trigger node no longer exists —

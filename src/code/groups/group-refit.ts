@@ -337,6 +337,100 @@ function refitGroupChainFrom(
 }
 
 /**
+ * Collapse an empty native Group, then keep walking upward while removing that
+ * Group makes its native-Group parent empty too. Returns the first surviving
+ * native Group whose derived bounds now need refitting, or null when the chain
+ * reaches a non-Group/root parent.
+ */
+function collapseEmptyGroupChainFrom(
+  startGroupId: string | null,
+  working: Map<string, CanvasNode>,
+  patches: Map<string, Record<string, string>>,
+  removeGroupIds: string[],
+): string | null {
+  let groupId = startGroupId;
+  const visited = new Set<string>();
+
+  while (groupId && !visited.has(groupId)) {
+    visited.add(groupId);
+    const group = working.get(groupId);
+    if (!group?.isGroup) return null;
+    if (group.children.length > 0) return group.id;
+
+    if (!removeGroupIds.includes(group.id)) removeGroupIds.push(group.id);
+    patches.delete(group.id);
+
+    const parentId = group.parentId;
+    working.delete(group.id);
+    if (!parentId) return null;
+
+    const parent = working.get(parentId);
+    if (!parent) return null;
+    working.set(parentId, {
+      ...parent,
+      children: parent.children.filter((id) => id !== group.id),
+    });
+    groupId = parent.isGroup ? parent.id : null;
+  }
+
+  return null;
+}
+
+export interface NativeGroupDeletionCleanupPlan {
+  patches: NativeGroupRefitPatch[];
+  groupIds: string[];
+  removeGroupIds: string[];
+}
+
+export function planNativeGroupDeletionCleanup(
+  deletedIds: readonly string[],
+  nodes: Map<string, CanvasNode>,
+): NativeGroupDeletionCleanupPlan | null {
+  if (deletedIds.length === 0) return null;
+
+  const working = new Map(nodes);
+  const deleted = new Set(deletedIds);
+  const affectedGroups = new Set<string>();
+
+  for (const id of deleted) {
+    const node = working.get(id);
+    const parentId = node?.parentId ?? null;
+    if (!parentId) continue;
+    const parent = working.get(parentId);
+    if (!parent) continue;
+    working.set(parentId, {
+      ...parent,
+      children: parent.children.filter((childId) => childId !== id),
+    });
+    if (parent.isGroup) affectedGroups.add(parent.id);
+  }
+  for (const id of deleted) working.delete(id);
+
+  if (affectedGroups.size === 0) return null;
+
+  const patches = new Map<string, Record<string, string>>();
+  const groupIds: string[] = [];
+  const removeGroupIds: string[] = [];
+  const survivingStarts = new Set<string>();
+
+  for (const groupId of affectedGroups) {
+    if (!working.has(groupId)) continue;
+    const survivor = collapseEmptyGroupChainFrom(groupId, working, patches, removeGroupIds);
+    if (survivor) survivingStarts.add(survivor);
+  }
+
+  for (const groupId of survivingStarts) {
+    refitGroupChainFrom(groupId, working, patches, groupIds);
+  }
+
+  return {
+    patches: [...patches].map(([nodeId, styles]) => ({ nodeId, styles })),
+    groupIds: [...new Set(groupIds)].filter((id) => working.has(id)),
+    removeGroupIds,
+  };
+}
+
+/**
  * Plan the native-Group-specific part of a Layers reparent gesture.
  *
  * The structural move itself remains owned by the existing Layers mutation
@@ -398,21 +492,15 @@ export function planNativeGroupLayersReparent(
   });
 
   if (sourceIsGroup && source) {
-    const postSource = working.get(source.id)!;
-    if (postSource.children.length > 0 && !planNativeGroupRefit(source.id, working)) return null;
-    if (postSource.children.length === 0) {
-      removeGroupIds.push(source.id);
-      const sourceParentId = source.parentId;
-      working.delete(source.id);
-      if (sourceParentId) {
-        const sourceParent = working.get(sourceParentId);
-        if (sourceParent) {
-          working.set(sourceParentId, { ...sourceParent, children: sourceParent.children.filter((id) => id !== source.id) });
-          if (sourceParent.isGroup) refitGroupChainFrom(sourceParent.id, working, patches, groupIds);
-        }
-      }
-    } else {
-      refitGroupChainFrom(source.id, working, patches, groupIds);
+    const survivingSourceGroupId = collapseEmptyGroupChainFrom(
+      source.id,
+      working,
+      patches,
+      removeGroupIds,
+    );
+    if (survivingSourceGroupId) {
+      if (!planNativeGroupRefit(survivingSourceGroupId, working)) return null;
+      refitGroupChainFrom(survivingSourceGroupId, working, patches, groupIds);
     }
   }
 
