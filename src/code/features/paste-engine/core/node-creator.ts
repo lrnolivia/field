@@ -20,6 +20,7 @@ import { hasLayout } from './target-resolver';
 import { buildIdRenamePairs, renameVarStyleValues } from './id-renames';
 import { stripDeadFxStyleRefs } from '@/code/generation/instance-fx-gen';
 import { stripTranslateTransforms } from '@/shared/position-utils';
+import { NATIVE_GROUP_FLOW_STATE_ATTR, remapNativeGroupFlowState } from '@/code/groups/group-semantics';
 
 const POSITION_KEYS = ['left', 'top', 'right', 'bottom'] as const;
 
@@ -224,11 +225,22 @@ export function buildAddNodeDef(
     return buildAddNodeDef(child, allClipboard, child.styles, childNewId, idMapper);
   });
 
+  let attrs = root.attrs;
+  const groupFlowState = root.attrs?.[NATIVE_GROUP_FLOW_STATE_ATTR];
+  if (groupFlowState) {
+    const remapped = remapNativeGroupFlowState(groupFlowState, (oldId) =>
+      idMapper.getNewIdsForClipboard(oldId)[0],
+    );
+    if (remapped !== groupFlowState) {
+      attrs = { ...root.attrs, [NATIVE_GROUP_FLOW_STATE_ATTR]: remapped };
+    }
+  }
+
   return {
     id: newId,
     type: root.type,
     styles: stripInternalStyleFlags(rootStyles),
-    attrs: root.attrs,
+    attrs,
     name: root.name,
     textContent: root.textContent,
     children: childrenDefs.length > 0 ? childrenDefs : undefined,

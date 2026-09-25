@@ -10,6 +10,7 @@ import { createIdMapper } from './core/id-mapper';
 import { buildAddNodeDef, ensureDefaultAnchors, fixupPositionForParent } from './core/node-creator';
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { ClipboardNode, PasteContext } from './types';
+import { NATIVE_GROUP_FLOW_STATE_ATTR, encodeNativeGroupFlowState, planNativeGroupFlowRestore } from '@/code/groups/group-semantics';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -563,6 +564,54 @@ describe('native Group clipboard semantics', () => {
     expect(def.attrs?.['data-custom']).toBe('keep-me');
     expect(def.children?.[0]?.attrs?.['data-field-group']).toBe('true');
     expect(def.children?.[0]?.children?.[0]?.attrs?.['data-field-group']).toBeUndefined();
+  });
+
+  test('remaps reversible flow snapshot child ids with the pasted subtree', () => {
+    const sourceChild = makeCanvasNode('a', {
+      parentId: 'g',
+      styles: { position: 'relative', width: 'auto', order: '1' },
+    });
+    const encoded = encodeNativeGroupFlowState([{
+      node: sourceChild,
+      bakedStyles: { position: 'absolute', left: '0px', top: '0px', width: '200px', order: '' },
+    }])!;
+    const group = makeClipboardNode('g', {
+      attrs: {
+        'data-field-group': 'true',
+        [NATIVE_GROUP_FLOW_STATE_ATTR]: encoded,
+      },
+      children: ['a'],
+      styles: { position: 'relative', width: '200px', height: '40px' },
+    });
+    const child = makeClipboardNode('a', {
+      parentId: 'g',
+      styles: { position: 'absolute', left: '0px', top: '0px', width: '200px' },
+    });
+    const mapper = createIdMapper();
+    mapper.mapClipboardToNew('g', 'g-copy');
+    const def = buildAddNodeDef(group, [group, child], group.styles, 'g-copy', mapper);
+    const copiedChildId = def.children?.[0]?.id;
+    expect(copiedChildId).toBeTruthy();
+
+    const parsedGroup = makeCanvasNode('g-copy', {
+      isGroup: true,
+      children: [copiedChildId!],
+      attrs: def.attrs ?? {},
+      styles: def.styles,
+    });
+    const parsedChild = makeCanvasNode(copiedChildId!, {
+      parentId: 'g-copy',
+      styles: def.children?.[0]?.styles ?? {},
+    });
+    const restore = planNativeGroupFlowRestore(
+      parsedGroup,
+      new Map([[parsedGroup.id, parsedGroup], [parsedChild.id, parsedChild]]),
+    );
+    expect(restore.get(copiedChildId!)).toMatchObject({
+      position: 'relative',
+      width: 'auto',
+      order: '1',
+    });
   });
 });
 

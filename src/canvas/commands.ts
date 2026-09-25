@@ -32,7 +32,13 @@ import { transformManager } from './transform';
 import { trace } from '@/shared/debug-trace';
 import { copyNodes } from '@/code/features/paste-engine';
 import { executePaste } from '@/code/features/paste-engine/execute-from-ui';
-import { canGroupSelection, canUngroupNode } from '@/code/groups/group-semantics';
+import {
+  NATIVE_GROUP_FLOW_STATE_ATTR,
+  canGroupSelection,
+  canUngroupNode,
+  encodeNativeGroupFlowState,
+  planNativeGroupFlowRestore,
+} from '@/code/groups/group-semantics';
 import { planNativeGroupDeletionCleanup } from '@/code/groups/group-refit';
 
 // ─── Selection Navigation ───────────────────────────────────────────────────
@@ -540,7 +546,10 @@ export function ungroupSelection(
   const node = nodesMap.get(nodeId);
   if (!canUngroupNode(node)) return null;
   const children = [...node.children];
-  unfoldChildren(nodeId, nodesMap, contentEl);
+  const exactFlowRestore = planNativeGroupFlowRestore(node, nodesMap);
+  unfoldChildren(nodeId, nodesMap, contentEl, {
+    childStyleOverrides: exactFlowRestore,
+  });
   return children;
 }
 
@@ -670,6 +679,29 @@ function isShrinkWrapSize(v: string | undefined): boolean {
   return v === 'min-content' || v === FIT_SIZE;
 }
 
+function flowToAbsoluteStyles(
+  node: CanvasNode,
+  rect: BoundingBox,
+  flowBbox: BoundingBox,
+): Record<string, string> {
+  const own = node.styles ?? {};
+  const width = isShrinkWrapSize(own.width) ? '' : `${Math.round(rect.width)}px`;
+  const height = isShrinkWrapSize(own.height)
+    ? ''
+    : isTextTag(node.type) ? 'auto' : `${Math.round(rect.height)}px`;
+
+  return {
+    position: 'absolute',
+    left: `${Math.round(rect.left - flowBbox.left)}px`,
+    top: `${Math.round(rect.top - flowBbox.top)}px`,
+    right: '', bottom: '',
+    ...(width ? { width } : {}),
+    ...(height ? { height } : {}),
+    margin: '', marginTop: '', marginRight: '', marginBottom: '', marginLeft: '',
+    flex: '', flexGrow: '', flexShrink: '', flexBasis: '', alignSelf: '', order: '',
+  };
+}
+
 function unionBoxes(boxes: BoundingBox[]): BoundingBox | null {
   if (boxes.length === 0) return null;
   let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
@@ -765,7 +797,10 @@ function wrapInternal(
   const flowBbox = flowBoxes ? unionBoxes([...flowBoxes.values()]) : null;
   const flowToAbsolute = !!flowBoxes && !!flowBbox;
   if (wantsFlowBake && !flowToAbsolute) {
-    trace.action('commands:wrap-in-frame:flow-unmeasurable', { ids: nodeIds });
+    trace.action(semantic === 'group'
+      ? 'commands:group-selection:flow-unmeasurable'
+      : 'commands:wrap-in-frame:flow-unmeasurable', { ids: nodeIds });
+    if (semantic === 'group') return null;
   }
 
   // MULTI-NODE ABSOLUTE BBOX. Inline geometry first — it's exact, needs no
@@ -981,6 +1016,19 @@ function wrapInternal(
     bbox,
   });
 
+  const flowBakeById = flowToAbsolute
+    ? new Map(nodes.map((node) => [
+        node.id,
+        flowToAbsoluteStyles(node, flowBoxes!.get(node.id)!, flowBbox!),
+      ]))
+    : null;
+  const nativeGroupFlowState = semantic === 'group' && flowBakeById
+    ? encodeNativeGroupFlowState(nodes.map((node) => ({
+        node,
+        bakedStyles: flowBakeById.get(node.id)!,
+      })))
+    : null;
+
   // Queue create + moves. The mutation queue applies them in order against
   // the same code string, so insert order is preserved.
   const wrapperNode = {
@@ -988,7 +1036,14 @@ function wrapInternal(
     type: 'div',
     name: semantic === 'group' ? 'Group' : 'Frame',
     styles: baseFrameStyles,
-    ...(semantic === 'group' ? { attrs: { 'data-field-group': 'true' } } : {}),
+    ...(semantic === 'group' ? {
+      attrs: {
+        'data-field-group': 'true',
+        ...(nativeGroupFlowState
+          ? { [NATIVE_GROUP_FLOW_STATE_ATTR]: nativeGroupFlowState }
+          : {}),
+      },
+    } : {}),
   };
 
   if (allCanvas) {
@@ -1027,37 +1082,7 @@ function wrapInternal(
   for (const node of nodes) {
     let styles: Record<string, string> | undefined;
     if (flowToAbsolute) {
-      // Flow → absolute inside the new frame. Position is the child's measured
-      // offset from the frame's origin: the frame has no border or padding, so
-      // its padding box (an absolute child's containing block) starts exactly
-      // at the union bbox's top-left.
-      const r = flowBoxes!.get(node.id)!;
-      const own = node.styles ?? {};
-      // Size has to be baked for the same reason position does — it was the
-      // parent layout's output. A flex-grown width or a stretched height reads
-      // `auto`, and `auto` on an out-of-flow box means shrink-to-fit, so the
-      // child would visibly collapse. Two values are left alone: a shrink-wrap
-      // size (identical in both models) and a TEXT node's height, which stays
-      // `auto` so editing the copy can still grow it — the baked width already
-      // pins the wrap, so the resolved height is unchanged either way.
-      const width = isShrinkWrapSize(own.width) ? '' : `${Math.round(r.width)}px`;
-      const height = isShrinkWrapSize(own.height)
-        ? ''
-        : isTextTag(node.type) ? 'auto' : `${Math.round(r.height)}px`;
-      styles = {
-        position: 'absolute',
-        left: `${Math.round(r.left - flowBbox!.left)}px`,
-        top: `${Math.round(r.top - flowBbox!.top)}px`,
-        right: '', bottom: '',
-        ...(width ? { width } : {}),
-        ...(height ? { height } : {}),
-        // Margins still apply to an absolute box and would offset it off the
-        // computed left/top; the flex props are inert on an out-of-flow child
-        // (an abspos child of a flex container is not a flex item) but keeping
-        // them would mislead the panel about how the node is placed.
-        margin: '', marginTop: '', marginRight: '', marginBottom: '', marginLeft: '',
-        flex: '', flexGrow: '', flexShrink: '', flexBasis: '', alignSelf: '', order: '',
-      };
+      styles = flowBakeById!.get(node.id)!;
     } else if (allSameParentFlow) {
       // The wrapper now carries the flow placement (flowPlacement above). Clear
       // the SINGLE wrapped child's copy so it doesn't double-apply (margin
@@ -1170,6 +1195,7 @@ export function unfoldChildren(
   nodeId: string,
   nodesMap: Map<string, CanvasNode>,
   contentEl: HTMLElement,
+  opts?: { childStyleOverrides?: Map<string, Record<string, string>> },
 ): void {
   const node = nodesMap.get(nodeId);
   if (!node || node.children.length === 0) return;
@@ -1261,8 +1287,12 @@ export function unfoldChildren(
     if (!child) continue;
 
     let styles: Record<string, string> | undefined;
+    const exactOverride = opts?.childStyleOverrides?.get(childId);
 
-    if (frameHasLayout && !gpHasLayout) {
+    if (exactOverride) {
+      styles = exactOverride;
+      trace.action('commands:unfold-children:exact-group-flow-restore', { childId, styles });
+    } else if (frameHasLayout && !gpHasLayout) {
       // CASE 1: layout → no-layout. Children become absolute at their
       // currently-rendered position. Use the bridge rect — it reflects the
       // layout engine's resolution. Set explicit width/height if the child
