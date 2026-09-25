@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:11:44Z
+Last Updated: 2026-09-25T09:12:31Z
 
 ## Active Assignments
 
@@ -167,49 +167,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
-<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-20260925:START -->
-### field-dashboard-thumbnail-previews-20260925 — Cached First-Page Project Thumbnails
 
-Status: planned
-Baseline: 1785dbb85b9fea391ce12f8f79ac55a84de775ca
-Activation HEAD: d0b3e1ba173dd7324e645bc8cef59aa3a8bf7d7f
-Last Sync: 2026-09-25T09:09:16Z
-
-Owned:
-  - src/backend/field-projects.ts
-  - src/backend/field-project-thumbnails.test.ts
-  - src/dashboard/ProjectCard.tsx
-  - src/styles/dashboard.css
-  - src/preview/dashboard-thumbnail-page.ts
-  - src/preview/dashboard-thumbnail-page.test.ts
-  - src/preview/preview-project-payload.ts
-  - src/preview/preview-project-payload.test.ts
-  - src/editor/header/ProjectThumbnailCaptureHost.tsx
-  - src/editor/header/project-thumbnail-capture-state.ts
-  - src/editor/header/project-thumbnail-capture-state.test.ts
-  - src/editor/header/usePreviewThumbnail.ts
-  - src/editor/header/usePreviewThumbnail.test.ts
-  - src/editor/header/PreviewOverlay.tsx
-  - src/App.tsx
-  - cloudflare/worker.js
-  - cloudflare/field-thumbnail.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/preview-sandbox/capture-thumbnail.ts
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/editor/LayersPanel/**
-  - src/editor/PropertiesPanel.tsx
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1929,4 +1887,48 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:native-gallery-content-ops-20260925:END -->
+
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-20260925:START -->
+### field-dashboard-thumbnail-previews-20260925 — Cached First-Page Project Thumbnails
+
+Status: complete
+Baseline: 1785dbb85b9fea391ce12f8f79ac55a84de775ca
+Activation HEAD: d0b3e1ba173dd7324e645bc8cef59aa3a8bf7d7f
+Last Sync: 2026-09-25T09:12:31Z
+
+Owned:
+  - src/backend/field-projects.ts
+  - src/backend/field-project-thumbnails.test.ts
+  - src/dashboard/ProjectCard.tsx
+  - src/styles/dashboard.css
+  - src/preview/dashboard-thumbnail-page.ts
+  - src/preview/dashboard-thumbnail-page.test.ts
+  - src/preview/preview-project-payload.ts
+  - src/preview/preview-project-payload.test.ts
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/project-thumbnail-capture-state.test.ts
+  - src/editor/header/usePreviewThumbnail.ts
+  - src/editor/header/usePreviewThumbnail.test.ts
+  - src/editor/header/PreviewOverlay.tsx
+  - src/App.tsx
+  - cloudflare/worker.js
+  - cloudflare/field-thumbnail.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/editor/LayersPanel/**
+  - src/editor/PropertiesPanel.tsx
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
