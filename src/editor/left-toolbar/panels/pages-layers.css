@@ -1,6 +1,5 @@
 [data-field-document-panel] {
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 24%, var(--bg-active));
-  --field-layer-selected-subtree-bg: color-mix(in srgb, var(--accent) 15%, var(--bg-active));
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 16%, var(--bg-active));
 }
 
 [data-field-pages-splitter] {
@@ -33,7 +32,7 @@
 
 [data-field-pages-splitter]:hover::after,
 [data-field-pages-splitter]:focus-visible::after {
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--text-secondary) 40%, transparent);
 }
 
 .field-pages-section-header,

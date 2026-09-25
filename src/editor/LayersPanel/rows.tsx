@@ -10,7 +10,8 @@ import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { isVectorSetComponentFile } from '@/code/project/active-file-store';
 import { DesktopViewportIcon, TabletViewportIcon, MobileViewportIcon, ComponentClusterIcon, CmsIcon, CmsItemIcon, FrameToolbarIcon } from '@/shared/icons';
 import { IconSetIcon } from '@/editor/left-toolbar/panels/LibraryPanel/items/IconSetRow';
-import LayerPreview, { deriveLayerPreview } from './LayerPreview';
+import { deriveLayerPreview } from './LayerPreview';
+import { FigmaColumnsIcon, FigmaGridIcon, FigmaPathIcon, FigmaRowsIcon, FigmaTextIcon } from '@/shared/loew-figma-icons';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
 
@@ -64,26 +65,11 @@ const FrameIcon = ({ size = 14 }: { size?: number }) => (
 // second path keeps the two reading as the same idea seen from two angles, and
 // there's only one shape to keep in sync.
 const FlexLayoutIcon = ({ column, size = 14 }: { column: boolean; size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    xmlns="http://www.w3.org/2000/svg"
-    style={column ? undefined : { transform: 'rotate(90deg)' }}
-  >
-    <path d="M0 0h24v24H0z" fill="none" />
-    <path fill="currentColor" d="M4 21q-.425 0-.712-.288T3 20v-2.65q0-.425.288-.712T4 16.35h16q.425 0 .713.288t.287.712V20q0 .425-.288.713T20 21zm0-6.65q-.425 0-.712-.288T3 13.35v-2.725q0-.425.288-.712T4 9.625h16q.425 0 .713.288t.287.712v2.725q0 .425-.288.713T20 14.35zm0-6.725q-.425 0-.712-.288T3 6.626V4q0-.425.288-.712T4 3h16q.425 0 .713.288T21 4v2.625q0 .425-.288.713T20 7.625z" />
-  </svg>
+  column ? <FigmaRowsIcon size={size} /> : <FigmaColumnsIcon size={size} />
 );
 
 const GridLayoutIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 0h24v24H0z" fill="none" />
-    <rect width="8" height="8" x="3" y="3" fill="currentColor" rx="1.5" ry="1.5" />
-    <rect width="8" height="8" x="13" y="3" fill="currentColor" rx="1.5" ry="1.5" />
-    <rect width="8" height="8" x="3" y="13" fill="currentColor" rx="1.5" ry="1.5" />
-    <rect width="8" height="8" x="13" y="13" fill="currentColor" rx="1.5" ry="1.5" />
-  </svg>
+  <FigmaGridIcon size={size} />
 );
 
 /** Frame glyph by LAYOUT: flex (split by direction) and grid get their own,
@@ -123,9 +109,7 @@ const OverlayIcon = ({ size = 14 }: { size?: number }) => (
 // the tree instead of falling through to the generic frame square. Neutral
 // Inherits currentColor so it flips with the row.
 const TextIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M6 6.5h12M12 6.5v11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
+  <FigmaTextIcon size={size} />
 );
 
 /** Walk up `parentId` from `nodeId` to see if it sits inside `overlayId`'s
@@ -736,26 +720,15 @@ export const LayerRow = React.memo(function LayerRow({
     || !!node.componentInstanceId;
   const selColor = 'var(--accent)';
   const semanticColor = usePurple ? 'var(--accent-secondary)' : 'var(--text-secondary)';
-  const selFg = usePurple ? 'var(--accent-secondary)' : 'var(--text-primary)';
+  const selFg = 'var(--text-primary)';
 
   const bgStyle: React.CSSProperties = {};
   if (isSelected) {
     s.color = selFg;
     bgStyle.backgroundColor = 'var(--field-layer-selected-bg, var(--bg-active))';
-  } else if (isChildOfSelected) {
-    s.color = usePurple ? 'var(--accent-secondary)' : 'var(--text-primary)';
-    bgStyle.backgroundColor = 'var(--field-layer-selected-subtree-bg, var(--bg-hover))';
   }
 
-  const bgShape = isSelected
-    ? hasHighlightedChildren
-      ? 'rounded-t-[4px]'
-      : 'rounded-[4px]'
-    : isChildOfSelected
-      ? isLastHighlightedChild
-        ? 'rounded-b-[4px]'
-        : ''
-      : 'rounded-[4px]';
+  const bgShape = 'rounded-[4px]';
 
   const isVpHeader = !layer.nodeId;
 
@@ -774,7 +747,7 @@ export const LayerRow = React.memo(function LayerRow({
           never bleeds to the edges, no matter how far the tree is scrolled. */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute top-0 bottom-0 z-0 ${bgShape} ${!isSelected && !isChildOfSelected ? 'group-hover:bg-[var(--bg-hover)]' : ''}`}
+        className={`pointer-events-none absolute top-0 bottom-0 z-0 ${bgShape} ${!isSelected ? 'group-hover:bg-[var(--bg-hover)]' : ''}`}
         style={{
           left: 0,
           width: 'calc(var(--layers-vw, 100%) - 16px)',
@@ -890,19 +863,19 @@ export const LayerRow = React.memo(function LayerRow({
         <div className="shrink-0 flex items-center justify-center" style={{
           width: 14,
           height: 14,
-          color: isVpHeader
-            ? (isSelected ? selFg : 'var(--accent)')
-            : isSelected ? selFg : (node.isCanvasNode || isSvgVector)
-              // Vector/canvas-node icons: blue on pages, purple on a master —
-              // same component-mode rule as the row selection color above.
-              ? (isComponentMode ? 'var(--accent-secondary)' : 'var(--accent)')
+          color: isSelected
+            ? selFg
+            : usePurple
+              ? 'var(--accent-secondary)'
               : 'var(--text-secondary)',
           opacity: node.fromLayout ? 0.5 : 1,
         }}>
           {isVpHeader && layer.isVariantHeader ? <span style={{ color: 'var(--accent-secondary)' }}><ComponentIcon size={14} /></span>
-            : isSvgVector ? (preview?.kind === 'svg'
-                ? <LayerPreview spec={preview} size={14} />
-                : <IconSetIcon size={14} />)
+            : isSvgVector ? (
+                node.componentFile && isContainerSetInstance
+                  ? <IconSetIcon size={14} />
+                  : <FigmaPathIcon size={14} data-vector-kind={preview?.kind ?? 'semantic'} />
+              )
             : isVpHeader ? <ViewportIcon width={layer.viewportWidth} size={14} />
             : node.isChildrenSlot ? (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -961,10 +934,10 @@ export const LayerRow = React.memo(function LayerRow({
             ref={textRef}
             className="text-[11px] font-normal select-none transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
             style={{
-              color: usePurple
-                ? 'var(--accent-secondary)'
-                : isSelected || isChildOfSelected
-                  ? 'var(--text-primary)'
+              color: isSelected
+                ? 'var(--text-primary)'
+                : usePurple
+                  ? 'var(--accent-secondary)'
                   : 'var(--text-secondary)',
               opacity: node.fromLayout ? 0.5 : 1,
               // Always fit the visible width (sx + vw) minus this text's indent
@@ -972,7 +945,7 @@ export const LayerRow = React.memo(function LayerRow({
               // Updates on horizontal scroll purely via the CSS vars → the name
               // expands as you scroll right and never overflows the edge.
               maxWidth: textIndent != null
-                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 60)}px)`
+                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 48)}px)`
                 : undefined,
             }}
           >
@@ -998,28 +971,25 @@ export const LayerRow = React.memo(function LayerRow({
           // crossed eye — the other icon stays hover-only. Showing both at once made
           // the lock read as generic hover chrome (user report 2026-09-09).
           const hoverOnly = 'opacity-0 group-hover:opacity-100';
-          const strokeColor = isSelected ? `color-mix(in srgb, ${selFg} 70%, transparent)` : '#666';
-          const onColor = isSelected ? selFg : 'var(--text-primary)';
+          const strokeColor = isSelected ? 'var(--text-primary)' : 'var(--text-secondary)';
+          const onColor = isSelected ? 'var(--text-primary)' : 'var(--text-secondary)';
           return (
-            <div className="flex items-center gap-0.5 shrink-0 sticky right-2 z-10">
+            <div className="flex items-center gap-0.5 shrink-0 sticky right-1.5 z-10">
               <button
                 draggable={false}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleLock(layer.nodeId!); }}
-                className={`p-0.5 rounded hover:bg-[var(--bg-hover)] transition-all ${isLocked ? 'opacity-100' : hoverOnly}`}
+                className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isLocked ? 'opacity-100' : hoverOnly}`}
                 title={isLocked ? 'Unlock layer' : 'Lock layer'}
                 data-locked={isLocked ? 'true' : undefined}
               >
                 {isLocked ? (
-                  // SOLID padlock: filled body + closed shackle, full colour.
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" fill={onColor} /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5" />
                   </svg>
                 ) : (
-                  // Open padlock outline (shackle lifted) — no slash, so "unlocked"
-                  // can't be mistaken for "locked and crossed".
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 8.8-1.3" />
                   </svg>
                 )}
               </button>
@@ -1027,26 +997,27 @@ export const LayerRow = React.memo(function LayerRow({
                 draggable={false}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleVisibility(layer.nodeId!, layer.viewportId); }}
-                className={`p-0.5 rounded hover:bg-[var(--bg-hover)] transition-all ${isHidden ? 'opacity-100' : hoverOnly}`}
+                className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isHidden ? 'opacity-100' : hoverOnly}`}
                 title={isHidden ? 'Show layer' : 'Hide layer'}
               >
                 {isHidden ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
                   </svg>
                 )}
               </button>
             </div>
           );
+
         })()}
 
         {/* Viewport width badge */}
         {layer.viewportWidth && (
-          <span className="text-[10px] shrink-0 sticky right-1.5 z-10" style={{ color: isSelected ? selFg : 'var(--accent)', fontWeight: 500 }}>
+          <span className="text-[10px] shrink-0 sticky right-1.5 z-10" style={{ color: isSelected ? selFg : 'var(--text-secondary)', fontWeight: 500 }}>
             {layer.viewportWidth}
           </span>
         )}

@@ -118,7 +118,7 @@ const MenuButton = React.memo(function MenuButton({
 
 export default function LeftMenu() {
   const [activePanel, togglePanel] = useAtom(togglePanelAtom);
-  const [leftPaneOpen, setLeftPaneOpen] = useAtom(leftPaneOpenAtom);
+  const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
   // Viewer mode — only Pages + Layers stay interactive (navigation /
   // inspection). VIBE, Insert, Library, Presets, Media, Locale, CMS,
@@ -358,20 +358,6 @@ export default function LeftMenu() {
           Replaces the prior Help (?) icon — at the bottom of the
           strip we want the share affordance, not docs. */}
       <div className="relative z-10 flex flex-col items-center gap-3">
-        <button
-          type="button"
-          aria-label={leftPaneOpen ? 'Collapse left pane' : 'Expand left pane'}
-          title={leftPaneOpen ? 'Collapse left pane' : 'Expand left pane'}
-          onClick={() => setLeftPaneOpen(v => !v)}
-          className="flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-        >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="16" height="16">
-            <rect x="1.5" y="2" width="13" height="12" rx="1" />
-            <path d="M5.5 2v12" />
-            <path d={leftPaneOpen ? 'm11 6-2 2 2 2' : 'm9 6 2 2-2 2'} />
-          </svg>
-        </button>
-        <div className="w-5 h-px bg-[var(--border-light)]" />
         <CollaboratorsSection
           onAddClick={() => setCollabModalOpen(true)}
           onTooltipEnter={handleEnter}

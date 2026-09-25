@@ -232,6 +232,7 @@ export function LogoButton() {
 export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   trace.fn('LeftHeader:render', { previewMode });
 
   return (
@@ -272,25 +273,44 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      {leftPaneOpen && <div className="flex-1 min-w-0 flex items-center" style={{ paddingLeft: 10, paddingRight: 10 }}>
-        {previewMode ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            tabIndex={-1}
-            className="cut-corners"
-            icon={<BackChevronIcon />}
-            onClick={() => {
-              trace.action('left-header:exit-preview');
-              setPreviewMode(false);
-            }}
-            title="Exit preview"
-          >
-            Back
-          </Button>
-        ) : (
-          <ProjectChip />
-        )}
+      {leftPaneOpen && <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
+        <div className="flex-1 min-w-0 flex items-center">
+          {previewMode ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              tabIndex={-1}
+              className="cut-corners"
+              icon={<BackChevronIcon />}
+              onClick={() => {
+                trace.action('left-header:exit-preview');
+                setPreviewMode(false);
+              }}
+              title="Exit preview"
+            >
+              Back
+            </Button>
+          ) : (
+            <ProjectChip />
+          )}
+        </div>
+
+        <button
+          type="button"
+          aria-label="Collapse left pane"
+          title="Collapse left pane"
+          onClick={() => {
+            trace.action('left-header:collapse-pane');
+            setLeftPaneOpen(false);
+          }}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none"
+          data-field-pane-collapse
+        >
+          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">
+            <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
+            <path d="M5.25 2.25v11.5" />
+          </svg>
+        </button>
       </div>}
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's

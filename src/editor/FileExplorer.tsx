@@ -1599,7 +1599,7 @@ export default function Page() {
             data-field-page-row=""
             data-active={activeFile === NOT_FOUND_PATH ? 'true' : 'false'}
             className="field-page-row"
-            icon={null}
+            icon={<NotFoundIcon size={12} aria-hidden />}
             label="Not Found"
             iconColor="var(--text-secondary)"
             isActive={activeFile === NOT_FOUND_PATH}
@@ -1992,9 +1992,11 @@ const TreeRow = React.memo(function TreeRow({
       );
     }
     if (entry.type === 'layout') return <LayoutIcon />;
-    // Figma UI3's Pages list is typographic navigation, not a file-browser
-    // icon grid. Leaf pages intentionally reserve only SidebarRow's compact
-    // alignment slot; hierarchy is communicated by disclosure chevrons.
+    if (entry.type === 'page') {
+      return entry.isHome
+        ? <PageHomeIcon size={12} aria-hidden />
+        : <PageDocumentIcon size={12} aria-hidden />;
+    }
     return null;
   };
 
