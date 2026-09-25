@@ -180,3 +180,74 @@ export async function permanentlyDeleteFieldProject(
   if (response.status === 204) return;
   if (!response.ok) throw await responseError(response, 'Project delete');
 }
+/* FIELD_PROJECT_THUMBNAIL_CLIENT_START */
+export interface FieldProjectThumbnailState {
+  exists: boolean;
+  stale: boolean;
+  thumbnailUpdatedAt: string | null;
+  projectUpdatedAt: string | null;
+}
+
+function parseThumbnailClock(value: string | null): string | null {
+  if (!value) return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+export function thumbnailDataUrlToBlob(dataUrl: string): Blob {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl);
+  if (!match) throw new Error('Thumbnail capture did not return a supported image data URL');
+  const binary = atob(match[2].replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes.buffer], { type: match[1] });
+}
+
+export async function getFieldProjectThumbnailState(
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FieldProjectThumbnailState> {
+  const response = await fetchImpl(projectPath(id, '/thumbnail'), {
+    method: 'HEAD',
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  const projectUpdatedAt = parseThumbnailClock(response.headers.get('X-Field-Project-Updated-At'));
+  const thumbnailUpdatedAt = parseThumbnailClock(response.headers.get('X-Field-Thumbnail-Updated-At'));
+  if (response.status === 404) {
+    return { exists: false, stale: true, thumbnailUpdatedAt: null, projectUpdatedAt };
+  }
+  if (!response.ok) throw await responseError(response, 'Project thumbnail status');
+
+  const stale = Boolean(
+    projectUpdatedAt &&
+    thumbnailUpdatedAt &&
+    Date.parse(projectUpdatedAt) > Date.parse(thumbnailUpdatedAt),
+  );
+  return { exists: true, stale, thumbnailUpdatedAt, projectUpdatedAt };
+}
+
+export async function uploadFieldProjectThumbnail(
+  id: string,
+  dataUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string> {
+  const blob = thumbnailDataUrlToBlob(dataUrl);
+  const response = await fetchImpl(projectPath(id, '/thumbnail'), {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': blob.type,
+      Accept: 'application/json',
+    },
+    body: blob,
+  });
+  if (!response.ok) throw await responseError(response, 'Project thumbnail upload');
+  const body = await response.json().catch(() => null) as { url?: unknown } | null;
+  if (typeof body?.url !== 'string' || !body.url) {
+    throw new Error('Project thumbnail upload succeeded without a URL');
+  }
+  return body.url;
+}
+/* FIELD_PROJECT_THUMBNAIL_CLIENT_END */

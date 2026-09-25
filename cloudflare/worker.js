@@ -7,6 +7,7 @@ const GOOGLE_FONTS_UPSTREAM = "https://www.googleapis.com/webfonts/v1/webfonts";
 const GOOGLE_FONTS_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
 const MAX_META_BYTES = 64 * 1024;
+const MAX_THUMBNAIL_BYTES = 8 * 1024 * 1024;
 const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
 const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const jwksCache = new Map();
@@ -732,6 +733,9 @@ function parseDashboardProjectRoute(pathname, method) {
   }
   if (!isValidFieldProjectId(id)) return { invalid: true };
 
+  if (parts.length === 2 && parts[1] === "thumbnail") {
+    return { id, kind: "thumbnail" };
+  }
   if (parts.length === 2 && parts[1] === "duplicate") {
     return { id, kind: "duplicate" };
   }
@@ -767,6 +771,60 @@ async function readR2Text(object) {
   return new Response(object?.body ?? "").text();
 }
 
+function fieldProjectThumbnailKey(id) {
+  return `projects/${id}/thumbnail`;
+}
+
+function fieldProjectLegacyThumbnailKey(id) {
+  return `projects/${id}/thumbnail.webp`;
+}
+
+function fieldProjectThumbnailUrl(id, version) {
+  const query = version ? `?v=${encodeURIComponent(version)}` : "";
+  return `${FIELD_API_ROOT}/${encodeURIComponent(id)}/thumbnail${query}`;
+}
+
+async function getFieldProjectThumbnailObject(bucket, id) {
+  const current = await bucket.get(fieldProjectThumbnailKey(id));
+  if (current) return { object: current, legacy: false };
+  const legacy = await bucket.get(fieldProjectLegacyThumbnailKey(id));
+  return legacy ? { object: legacy, legacy: true } : { object: null, legacy: false };
+}
+
+function withFieldProjectThumbnail(project, id, thumbnailUpdatedAt) {
+  if (!thumbnailUpdatedAt) return project;
+  return {
+    ...project,
+    thumbnail: fieldProjectThumbnailUrl(id, thumbnailUpdatedAt),
+  };
+}
+
+async function loadFieldProjectClock(bucket, id) {
+  const [{ object: metaObject, raw }, current] = await Promise.all([
+    loadRawProjectMeta(bucket, id),
+    bucket.get(`projects/${id}/current.json`),
+  ]);
+  if (!metaObject && !current) return { exists: false, updatedAt: null };
+  const fallback = r2UploadedTimestamp(metaObject) ?? r2UploadedTimestamp(current) ?? new Date().toISOString();
+  return {
+    exists: true,
+    updatedAt: normalizeFieldProjectMeta(raw, id, fallback).updatedAt,
+  };
+}
+
+function thumbnailResponseHeaders(object, projectUpdatedAt, versioned) {
+  const thumbnailUpdatedAt = r2UploadedTimestamp(object);
+  return apiHeaders({
+    "Content-Type": object?.httpMetadata?.contentType ?? "image/webp",
+    ...(object?.httpEtag ? { ETag: object.httpEtag } : {}),
+    ...(thumbnailUpdatedAt ? { "X-Field-Thumbnail-Updated-At": thumbnailUpdatedAt } : {}),
+    ...(projectUpdatedAt ? { "X-Field-Project-Updated-At": projectUpdatedAt } : {}),
+    "Cache-Control": versioned
+      ? "private, max-age=31536000, immutable"
+      : "private, max-age=0, must-revalidate",
+  });
+}
+
 function normalizeFieldProjectMeta(raw, id, fallbackTimestamp) {
   const fallback = isoTimestamp(fallbackTimestamp) ?? new Date().toISOString();
   const createdAt = isoTimestamp(raw?.createdAt) ?? isoTimestamp(raw?.updatedAt) ?? fallback;
@@ -800,26 +858,42 @@ async function listFieldProjectRecords(bucket) {
   do {
     const page = await bucket.list({ prefix: "projects/", cursor });
     for (const object of page.objects ?? []) {
-      const match = /^projects\/([^/]+)\/(current|meta)\.json$/.exec(object.key);
+      const match = /^projects\/([^/]+)\/(current\.json|meta\.json|thumbnail|thumbnail\.webp)$/.exec(object.key);
       if (!match || !isValidFieldProjectId(match[1])) continue;
       const id = match[1];
-      const row = seen.get(id) ?? { timestamps: [] };
+      const row = seen.get(id) ?? { timestamps: [], thumbnailUpdatedAt: null, hasCurrentOrMeta: false };
       const uploaded = r2UploadedTimestamp(object);
-      if (uploaded) row.timestamps.push(uploaded);
+      if (match[2] === "thumbnail" || match[2] === "thumbnail.webp") {
+        // Prefer the extensionless canonical object when both it and the legacy
+        // reserved .webp key exist. Thumbnail time must NEVER feed project
+        // updatedAt / Recents ordering.
+        if (match[2] === "thumbnail" || !row.thumbnailUpdatedAt) {
+          row.thumbnailUpdatedAt = uploaded;
+        }
+      } else {
+        row.hasCurrentOrMeta = true;
+        if (uploaded) row.timestamps.push(uploaded);
+      }
       seen.set(id, row);
     }
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
 
-  const projects = await Promise.all([...seen.entries()].map(async ([id, row]) => {
-    const { object, raw } = await loadRawProjectMeta(bucket, id);
-    const timestamps = [...row.timestamps];
-    const metaUploaded = r2UploadedTimestamp(object);
-    if (metaUploaded) timestamps.push(metaUploaded);
-    timestamps.sort();
-    const fallback = timestamps[timestamps.length - 1] ?? new Date().toISOString();
-    return normalizeFieldProjectMeta(raw, id, fallback);
-  }));
+  const projects = await Promise.all([...seen.entries()]
+    .filter(([, row]) => row.hasCurrentOrMeta)
+    .map(async ([id, row]) => {
+      const { object, raw } = await loadRawProjectMeta(bucket, id);
+      const timestamps = [...row.timestamps];
+      const metaUploaded = r2UploadedTimestamp(object);
+      if (metaUploaded) timestamps.push(metaUploaded);
+      timestamps.sort();
+      const fallback = timestamps[timestamps.length - 1] ?? new Date().toISOString();
+      return withFieldProjectThumbnail(
+        normalizeFieldProjectMeta(raw, id, fallback),
+        id,
+        row.thumbnailUpdatedAt,
+      );
+    }));
 
   projects.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   return projects;
@@ -919,7 +993,13 @@ async function putFieldProjectMetaPatch(bucket, id, parsedValue, request) {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
   if (!stored) return jsonResponse({ error: "Persistence conflict" }, 412);
-  return jsonResponse({ project: nextProject }, 200, { ETag: stored.httpEtag });
+  const { object: thumbnailObject } = await getFieldProjectThumbnailObject(bucket, id);
+  const responseProject = withFieldProjectThumbnail(
+    nextProject,
+    id,
+    r2UploadedTimestamp(thumbnailObject),
+  );
+  return jsonResponse({ project: responseProject }, 200, { ETag: stored.httpEtag });
 }
 
 async function handleFieldDashboardRequest(request, env, accessVerifier = verifyAccessRequest) {
@@ -933,6 +1013,58 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
   if (!env.FIELD_PROJECTS) return jsonResponse({ error: "Project storage is not configured" }, 503);
 
   try {
+    if (route.kind === "thumbnail") {
+      if (!["GET", "HEAD", "PUT"].includes(request.method)) {
+        return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET, HEAD, PUT" });
+      }
+
+      const clock = await loadFieldProjectClock(env.FIELD_PROJECTS, route.id);
+      if (!clock.exists) return jsonResponse({ error: "Not found" }, 404);
+
+      if (request.method === "PUT") {
+        const contentType = (request.headers.get("Content-Type") ?? "")
+          .split(";")[0]
+          .trim()
+          .toLowerCase();
+        if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+          return jsonResponse({ error: "Thumbnail must be JPEG, PNG, or WebP" }, 415);
+        }
+        const declared = Number(request.headers.get("Content-Length") ?? "0");
+        if (Number.isFinite(declared) && declared > MAX_THUMBNAIL_BYTES) {
+          return jsonResponse({ error: "Thumbnail is too large" }, 413);
+        }
+        const bytes = await request.arrayBuffer();
+        if (bytes.byteLength === 0) return jsonResponse({ error: "Thumbnail is empty" }, 400);
+        if (bytes.byteLength > MAX_THUMBNAIL_BYTES) {
+          return jsonResponse({ error: "Thumbnail is too large" }, 413);
+        }
+        const stored = await env.FIELD_PROJECTS.put(fieldProjectThumbnailKey(route.id), bytes, {
+          httpMetadata: { contentType },
+        });
+        // Best-effort cleanup of the assignment-era reserved legacy key.
+        await env.FIELD_PROJECTS.delete(fieldProjectLegacyThumbnailKey(route.id));
+        const version = r2UploadedTimestamp(stored) ?? new Date().toISOString();
+        return jsonResponse({ url: fieldProjectThumbnailUrl(route.id, version) }, 200);
+      }
+
+      const { object: thumbnailObject } = await getFieldProjectThumbnailObject(env.FIELD_PROJECTS, route.id);
+      const headers = thumbnailResponseHeaders(
+        thumbnailObject,
+        clock.updatedAt,
+        incoming.searchParams.has("v"),
+      );
+      if (!thumbnailObject) {
+        return new Response(null, {
+          status: 404,
+          headers: apiHeaders({
+            ...(clock.updatedAt ? { "X-Field-Project-Updated-At": clock.updatedAt } : {}),
+          }),
+        });
+      }
+      if (request.method === "HEAD") return new Response(null, { status: 200, headers });
+      return new Response(thumbnailObject.body, { status: 200, headers });
+    }
+
     if (route.kind === "collection") {
       if (request.method === "GET") {
         return jsonResponse({ projects: await listFieldProjectRecords(env.FIELD_PROJECTS) });
@@ -962,9 +1094,10 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "POST" });
       }
       const baseKey = `projects/${route.id}`;
-      const [current, metaObject] = await Promise.all([
+      const [current, metaObject, thumbnailResult] = await Promise.all([
         env.FIELD_PROJECTS.get(`${baseKey}/current.json`),
         env.FIELD_PROJECTS.get(`${baseKey}/meta.json`),
+        getFieldProjectThumbnailObject(env.FIELD_PROJECTS, route.id),
       ]);
       if (!current && !metaObject) return jsonResponse({ error: "Not found" }, 404);
 
@@ -981,13 +1114,20 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         updatedAt: now,
         starred: false,
         trashedAt: null,
-        thumbnail: null,
+        thumbnail: thumbnailResult.object ? fieldProjectThumbnailUrl(id, now) : null,
       };
-      const storedMeta = { ...rawMeta, ...project };
+      const storedMeta = { ...rawMeta, ...project, thumbnail: null };
 
       if (current) {
         await env.FIELD_PROJECTS.put(`projects/${id}/current.json`, await current.arrayBuffer(), {
           httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+      }
+      if (thumbnailResult.object) {
+        await env.FIELD_PROJECTS.put(fieldProjectThumbnailKey(id), await thumbnailResult.object.arrayBuffer(), {
+          httpMetadata: {
+            contentType: thumbnailResult.object.httpMetadata?.contentType ?? (thumbnailResult.legacy ? "image/webp" : "image/jpeg"),
+          },
         });
       }
       await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(storedMeta), {
@@ -1013,7 +1153,8 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
     await env.FIELD_PROJECTS.delete([
       `${baseKey}/current.json`,
       `${baseKey}/meta.json`,
-      `${baseKey}/thumbnail.webp`,
+      fieldProjectThumbnailKey(route.id),
+      fieldProjectLegacyThumbnailKey(route.id),
     ]);
     return new Response(null, { status: 204, headers: apiHeaders() });
   } catch (error) {

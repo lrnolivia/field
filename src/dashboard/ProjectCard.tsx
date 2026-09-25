@@ -46,7 +46,16 @@ export default function ProjectCard(props: Props) {
         disabled={trashed}
         aria-label={trashed ? `${project.name} is in Trash` : `Open ${project.name}`}
       >
-        {project.thumbnail ? <img src={project.thumbnail} alt="" /> : <Placeholder />}
+        <Placeholder />
+        {project.thumbnail && (
+          <img
+            src={project.thumbnail}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={(event) => event.currentTarget.remove()}
+          />
+        )}
         {project.starred && !trashed && <StarBadge />}
       </button>
 

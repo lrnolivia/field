@@ -15,11 +15,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
-import { flushNow } from '@/code/mutation/mutation-queue';
 import { activeFilePathAtom, filePathToSlug, isComponentFilePath, getVariantBasePage } from '@/code/project/active-file-store';
 import { templateGroupFromLayoutFile, templatePreviewRoute } from '@/preview/template-preview';
-import { migrateLegacyDarkBlock } from '@/code/project/preset-ops';
-import { canvasThemeMode } from '@/canvas/canvas-theme';
 import { activePreviewSlugAtom } from '@/code/stores/cms-page-store';
 import { selectedNodeAtom, codeAtom, getNodesSnapshot } from '@/code/stores/store';
 import { interactingViewportIdAtom, interactingViewportRenderWidthAtom } from '@/code/stores/viewport-store';
@@ -34,6 +31,8 @@ import {
 } from '@/shared/icons';
 import { trace } from '@/shared/debug-trace';
 import { usePreviewThumbnail } from './usePreviewThumbnail';
+import { chooseDashboardThumbnailPage } from '@/preview/dashboard-thumbnail-page';
+import { collectPreviewProjectPayload, postPreviewProjectPayload } from '@/preview/preview-project-payload';
 import ToolInput from '@/editor/controls/ToolInput';
 import Button from '@/design-system/Button';
 
@@ -316,85 +315,21 @@ export default function PreviewOverlay({ open, onClose }: Props) {
     };
   }, [open, reloadKey]);
 
-  // Push the full ProjectFS contents on first ready, and again on EVERY file
-  // write (`fsTick`, above) — not just when `projectVersionAtom` bumps, which
-  // misses the mutation-queue flush that carries almost every canvas edit. The
-  // in-iframe runtime handles route rebuild + re-render (it clears its
-  // `compiledModuleCache` on each push, so re-pushed files really do recompile).
+  // Push the canonical Preview payload on first ready and after every ProjectFS
+  // write. The same serializer is used by the invisible dashboard-thumbnail
+  // capture host, so card pixels and visible Preview cannot drift by using
+  // different theme/locale/token/file preparation.
   useEffect(() => {
     if (!open || !iframeReady) return;
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
 
-    // Flush the mutation queue BEFORE snapshotting. Queued mutations apply to
-    // the queue's own `currentCode` first and only reach `projectFS` when a
-    // flush lands — and the drag path deliberately DEFERS that write to the end
-    // of the gesture. Reading projectFS unflushed therefore ships a snapshot
-    // that is one or more edits behind, and the preview renders a layout the
-    // canvas has already moved past (reported as "the live site shows a flex row
-    // where the canvas shows my grid", 2026-07-26). Publish
-    // (`RightHeader.handlePublish`) and the remix-link builder
-    // (`menu-builders.menuCreateRemixLink`) both flush first — this was the one
-    // snapshot reader that didn't.
-    flushNow();
-
-    const files: Array<[string, string]> = [];
-    let globalsCssContent = '';
-    for (const path of projectFS.listFiles()) {
-      let content = projectFS.readFile(path);
-      if (content === null) continue;
-      // Older projects store dark-mode tokens under `[data-theme="dark"]`,
-      // which doesn't match the `<html class="dark">` that next-themes adds
-      // (providers.tsx uses `attribute="class"`). Fold those entries into
-      // `:root.dark` on the way to the preview so the theme toggle works
-      // even before the user re-saves a preset (the canonical fix lives in
-      // preset-ops.setDarkTokenValue, which writes :root.dark going forward).
-      if (path === 'app/globals.css') {
-        content = migrateLegacyDarkBlock(content);
-        globalsCssContent = content;
-      }
-      files.push([path, content]);
-    }
-    // Pin the preview to the theme the CANVAS shows — the editor's own mode
-    // (canvas-theme.ts) — so canvas, preview and chrome agree. Without a pin,
-    // next-themes' `enableSystem` follows the OS instead. Sent BEFORE files so
-    // the iframe's theme is set on the first paint, not a flash of the other
-    // mode. A Theme Toggle on the page can still switch it afterwards.
-    iframe.contentWindow.postMessage({ type: 'preview:force-theme', theme: canvasThemeMode() }, POST_MESSAGE_TARGET);
-    // Pin the LOCALE too, same reasoning as the theme above. The generated
-    // `providers.tsx` resolves an unprefixed route's locale from
-    // `localStorage.getItem('locale')` — and the preview iframe runs on its OWN
-    // ORIGIN, so it has its own localStorage. A locale picked in an earlier
-    // preview session stuck, `<html lang>` became that locale, and every
-    // `:lang(xx)` rule in the page fired — a legacy `:lang(fr) […] { display:
-    // flex !important }` turned a 3-column grid into a row in the preview while
-    // the published site (localStorage `en`) rendered it correctly
-    // (user find 2026-07-26).
-    iframe.contentWindow.postMessage({ type: 'preview:force-locale', locale: activeLocale }, POST_MESSAGE_TARGET);
-    iframe.contentWindow.postMessage({ type: 'preview:project-files', files }, POST_MESSAGE_TARGET);
-
-    // Dedicated tokens channel — extract `:root { … }` (and `:root.dark { … }`)
-    // out of globals.css and forward as a high-priority style block. The
-    // regular CSS file pipeline already injects globals.css, but only fires
-    // once the iframe processes `preview:project-files`. Sending tokens
-    // separately as their own injection guarantees `var(--shadow-elevated)`
-    // (and any other preset token) resolves even on the first paint, and
-    // gives us a single style element to debug if tokens look off.
-    const rootBlocks: string[] = [];
-    if (globalsCssContent) {
-      const rootMatch = globalsCssContent.match(/:root\s*\{[\s\S]*?\}/);
-      if (rootMatch) rootBlocks.push(rootMatch[0]);
-      const darkMatch = globalsCssContent.match(/:root\.dark\s*\{[\s\S]*?\}/);
-      if (darkMatch) rootBlocks.push(darkMatch[0]);
-    }
-    iframe.contentWindow.postMessage({
-      type: 'preview:tokens',
-      css: rootBlocks.join('\n'),
-    }, POST_MESSAGE_TARGET);
+    const payload = collectPreviewProjectPayload(activeLocale);
+    postPreviewProjectPayload(iframe.contentWindow, payload, POST_MESSAGE_TARGET);
     trace.action('preview-overlay:project-pushed', {
-      fileCount: files.length,
+      fileCount: payload.files.length,
       version: projectVersion,
-      tokenBlocks: rootBlocks.length,
+      tokenBlocks: payload.tokenBlockCount,
     });
   }, [open, iframeReady, projectVersion, reloadKey, readyTick, fsTick, activeLocale]);
 
@@ -536,19 +471,15 @@ export default function PreviewOverlay({ open, onClose }: Props) {
     if (!open && previewOverride) setPreviewOverride(null);
   }, [open, previewOverride, setPreviewOverride]);
 
-  // Dashboard thumbnail — when the preview opens on the HOME page (and the
-  // project changed since the last capture), the iframe snapshots its own
-  // rendered page and we upload it as the website's preview_image. Only the
-  // home page may set it — `preview_image` is one thumbnail per site, so
-  // previewing a sub-page or a component master must not overwrite it.
-  // Deferred inside the iframe so it never slows the preview. Replaces the
-  // puppeteer screenshot-service.
-  const isHomePage =
-    !isComponentFilePath(activeFilePath) && filePathToSlug(activeFilePath) === 'home';
+  // Dashboard thumbnail — only the Page selected by the same deterministic
+  // authority as the background capture host may overwrite the single project
+  // card. Today that is Home-first, then route-alphabetical.
+  const thumbnailPage = chooseDashboardThumbnailPage(projectFS.listFiles('app/'));
+  const isThumbnailPage = thumbnailPage !== null && activeFilePath === thumbnailPage;
   usePreviewThumbnail({
     open,
     iframeReady,
-    isHomePage,
+    isThumbnailPage,
     projectVersion,
     iframeRef,
     postMessageTarget: POST_MESSAGE_TARGET,

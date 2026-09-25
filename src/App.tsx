@@ -14,6 +14,7 @@ import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { isComponentFileAtom } from './code/stores/store';
 import KeyframeSheet from './editor/tools/AnimationTool/css/KeyframeSheet';
 import PreviewOverlay from './editor/header/PreviewOverlay';
+import ProjectThumbnailCaptureHost from './editor/header/ProjectThumbnailCaptureHost';
 import { LeftMenu, LeftPanel, leftPanelAtom } from './editor/left-toolbar';
 import LeftHeader from './editor/header/LeftHeader';
 import RightHeader from './editor/header/RightHeader';
@@ -316,6 +317,7 @@ export default function App() {
           (Next.js dev server in live-renderer/preview-project) — see
           `src/editor/header/PreviewOverlay.tsx` for the postMessage
           protocol that ships ProjectFS into the iframe. */}
+      <ProjectThumbnailCaptureHost suspended={previewMode} />
       <PreviewOverlay open={previewMode} onClose={() => setPreviewMode(false)} />
 
       {/* Global overlays — portaled, always rendered */}
