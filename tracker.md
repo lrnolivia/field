@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:27:24Z
+Last Updated: 2026-09-25T09:29:52Z
 
 ## Active Assignments
 
@@ -101,7 +101,45 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:native-gallery-media-insert-20260925:START -->
+### native-gallery-media-insert-20260925 — Native Gallery Evolution — Phase 4 Media Multi-Select → Gallery Insert
 
+Status: active
+Baseline: 55484eb31ea5f7b777045b928f96bb2486adbdc1
+Activation HEAD: cbbc68932927b79a3a7d34d3e0880464b8aa3a2c
+Last Sync: 2026-09-25T09:29:52Z
+
+Owned:
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/stores/**
+  - src/canvas/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/ui/**
+  - src/editor/controls/**
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/panels/media-gallery-utils.ts
+  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
+  - src/code/gallery/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-media-insert-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
