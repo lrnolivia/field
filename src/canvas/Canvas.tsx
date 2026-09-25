@@ -1355,6 +1355,26 @@ export default function Canvas() {
         tabIndex={-1}
       />
 
+      {/* Parent-document input surface.
+          Safari/WebKit can treat trackpad wheel input over an embedded iframe
+          as belonging to the frame's scrolling/event region even when the
+          iframe is pointer-events:none. Keep a real same-document hit target
+          directly above the iframe so two-finger pan/zoom enters field through
+          the parent document deterministically. Mouse/pointer events bubble to
+          containerRef's existing handlers; higher-z interactive canvas chrome
+          remains above this surface. */}
+      <div
+        data-canvas-input-surface=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: 'auto',
+          background: 'transparent',
+        }}
+      />
+
       {/* Canvas-space overlay for viewport headers (imperative, transforms with content).
           zIndex:1 keeps it above the iframe (zIndex:0). Without an explicit
           z-index the iframe's stacking context wins on some browser/GPU paths
