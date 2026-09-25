@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:51:50.158Z
+Last Updated: 2026-09-25T04:56:43Z
 
 ## Active Assignments
 
@@ -62,6 +62,58 @@ Architecture:
   - generic Group/Ungroup remains separate from existing SVG Group/Ungroup
   - Phase B canvas derived-bounds/drag ownership must be verified and expanded explicitly after source touch points are audited against then-current main
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:START -->
+### FIELD-INSPECTOR-FIGUI3-002 — FigUI3 Paint Rows, Effects, Auto Layout Padding, and Typography
+
+Status: planned
+Baseline: 93c230621054903aa71d0f57441fa9a2924dfd9d
+Activation HEAD: 52f6f8e646b12b3ef644406c64e7fdf36daad004
+Last Sync: 2026-09-25T04:56:43Z
+
+Owned:
+  - src/editor/controls/PaintRow.tsx
+  - src/editor/controls/EffectRow.tsx
+  - src/editor/controls/index.ts
+  - src/editor/controls/ControlActionRow.tsx
+  - src/editor/controls/ColorInput.tsx
+  - src/editor/ui/paint-opacity.ts
+  - src/editor/ui/paint-opacity.test.ts
+  - src/editor/tools/layout-padding.ts
+  - src/editor/tools/layout-padding.test.ts
+  - src/editor/tools/LayoutTool.tsx
+  - src/editor/tools/SvgShapeTool.tsx
+  - src/editor/tools/StylesTool/index.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/tools/StylesTool/atoms/FillControl.tsx
+  - src/editor/tools/StylesTool/atoms/BorderControl.tsx
+  - src/editor/tools/StylesTool/atoms/ShadowControl.tsx
+  - src/editor/tools/StylesTool/atoms/FilterControl.tsx
+  - src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/tools/TextStyleTool/atoms/ShadowControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/StrokeControl.tsx
+  - src/editor/figui3-inspector-parity.test.ts
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/editor/header/**
+  - src/code/stores/user-preferences-store.ts
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
