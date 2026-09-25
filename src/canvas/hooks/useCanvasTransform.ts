@@ -36,12 +36,36 @@ import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
  *  still zoom/pan the canvas under the wheel (see the passthrough below). */
 export const CANVAS_WHEEL_MARKER = 'data-canvas-wheel';
 
-/** True when a wheel event's target is marked chrome living outside `container`
- *  (events inside the container already reach its own listener). */
+/** True when a wheel event's target is marked chrome living outside `container`. */
 export function isCanvasChromeWheel(target: EventTarget | null, container: Element): boolean {
   const el = target instanceof Element ? target : null;
   if (!el || container.contains(el)) return false;
   return el.closest(`[${CANVAS_WHEEL_MARKER}]`) !== null;
+}
+
+type WheelRouteRect = Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>;
+
+/** Route wheel input to the canvas without depending on browser-specific
+ * event retargeting around the cross-origin, pointer-events:none iframe.
+ *
+ * Chrome normally targets an element inside the canvas. Safari can surface
+ * the same trackpad wheel sequence on an ancestor/root instead, so coordinates
+ * inside the canvas viewport are authoritative too. Portalled canvas chrome
+ * remains opt-in via CANVAS_WHEEL_MARKER. */
+export function shouldRouteCanvasWheel(
+  target: EventTarget | null,
+  clientX: number,
+  clientY: number,
+  container: Element,
+  rect: WheelRouteRect = container.getBoundingClientRect(),
+): boolean {
+  const el = target instanceof Element ? target : null;
+  if (el && container.contains(el)) return true;
+  if (isCanvasChromeWheel(target, container)) return true;
+  return clientX >= rect.left
+    && clientX <= rect.right
+    && clientY >= rect.top
+    && clientY <= rect.bottom;
 }
 
 
@@ -183,8 +207,16 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
 
     trace.action('canvas-transform:wheel-attach', {});
 
-    const onWheel = (e: WheelEvent) => handleWheel(e, container.getBoundingClientRect());
-    container.addEventListener('wheel', onWheel, { passive: false });
+    // Capture wheel once at window level and route by canvas hit geometry.
+    // Safari/WebKit can retarget trackpad wheel events around the cross-origin
+    // pointer-events:none iframe so they never bubble through `container`.
+    // Coordinate routing makes the canvas boundary deterministic across engines.
+    const onWindowWheel = (e: WheelEvent) => {
+      const rect = container.getBoundingClientRect();
+      if (!shouldRouteCanvasWheel(e.target, e.clientX, e.clientY, container, rect)) return;
+      handleWheel(e, rect as DOMRect);
+    };
+    window.addEventListener('wheel', onWindowWheel, { passive: false, capture: true });
 
     // Middle-mouse pan via native pointer events + pointer capture.
     // This prevents browser auto-scroll AND gives reliable button-matched up/down.
@@ -211,24 +243,11 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     };
     window.addEventListener('message', onIframeWheel);
 
-    // Canvas CHROME portalled to document.body (connection handles, the
-    // Add Variant / Add Vector cards) sits visually over the canvas but
-    // OUTSIDE the container, so a pinch or wheel while the cursor rests on
-    // it never reaches the listener above — the browser zoomed the whole page
-    // instead of the canvas (live find 2026-09-07). Chrome opts in with the
-    // `data-canvas-wheel` marker; route those events into the same handler.
-    const onChromeWheel = (e: WheelEvent) => {
-      if (!isCanvasChromeWheel(e.target, container)) return;
-      handleWheel(e, container.getBoundingClientRect());
-    };
-    window.addEventListener('wheel', onChromeWheel, { passive: false, capture: true });
-
     return () => {
       trace.action('canvas-transform:wheel-detach', {});
-      container.removeEventListener('wheel', onWheel);
+      window.removeEventListener('wheel', onWindowWheel, { capture: true } as any);
       detachMiddlePan();
       window.removeEventListener('message', onIframeWheel);
-      window.removeEventListener('wheel', onChromeWheel, { capture: true } as any);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
