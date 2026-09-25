@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:44:44Z
+Last Updated: 2026-09-25T09:48:32Z
 
 ## Active Assignments
 
@@ -1085,6 +1085,24 @@ Paths:
   - src/editor/figui3-sidebar-system-polish.test.ts
   - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
   - src/editor/left-toolbar/panels/pages-layers.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:48:32Z — field-dashboard-thumbnail-previews-r2-20260925 — b75035c1c8c0
+
+Summary: r2 thumbnail repair: reliable Preview readiness/render handshake, correlated capture response, bounded retry, and one-shot successful-save Dashboard unload bypass. Focused regressions, TypeScript, build:all, and Workers Builds: field passed. Manual production smoke remains required.
+Commit: b75035c1c8c0fb69aafa955612f8858d3a0dcc54
+
+Paths:
+  - src/backend/autosave.ts
+  - src/backend/intentional-navigation.test.ts
+  - src/backend/intentional-navigation.ts
+  - src/backend/leave-builder.ts
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/preview-sandbox/main.tsx
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
