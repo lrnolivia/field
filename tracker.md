@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:14:52.680Z
+Last Updated: 2026-09-25T04:16:58Z
 
 ## Active Assignments
 
@@ -154,6 +154,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Repository/source impact: none.** The r2 runner stopped before its installer `--check`, test repair, staging, commit, or push. The r1 partial postimage and existing tracker reservation remained authoritative.
 - **r3 prevention rule: exact ownership/path gates compare sets, never locale-dependent sorted strings.** Diagnostic output may be sorted for readability, but ordering must not determine equality. The staged-path gate uses the same set semantics.
 <!-- LESSON:trackpad-pan-feel-20260924-r2-locale-order:END -->
+
+<!-- LESSON:workspace-chrome-floating-panes-r1-comments-indent:START -->
+### workspace-chrome-floating-panes r1 packaging lesson
+
+- **r1 stopped safely during the no-write compatibility preflight.** `CommentsListPanel.tsx` contains two right-sidebar shell returns; the installer expected two byte-identical multiline anchors but found only one, so it emitted `INTEGRATION OVERLAP DETECTED` before tracker/source writes.
+- **Root cause: indentation-sensitive repeated-JSX matching.** The empty-state shell is nested one JSX level deeper than the populated shell, so the same `className`/`style` pair has eight leading spaces in one branch and six in the other. r1 incorrectly counted them with one exact-indentation anchor.
+- **Repository/source impact: none.** The failing r1 run occurred in `--check` mode with a clean working tree and explicitly reported that no source files were written.
+- **r2 repair:** transform the empty and populated comment shells as two bounded anchors, preserving exact activation-blob guards and resumable postimage checks. r2 also checks active tracker ownership before source work so broad protected areas are respected even when target blobs have not changed.
+- **Prevention rule:** repeated JSX/source transforms must not assume identical indentation across separate branches. Match bounded occurrences independently or use an indentation-aware structural pattern, then assert the exact intended transformed occurrences before writes.
+<!-- LESSON:workspace-chrome-floating-panes-r1-comments-indent:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
