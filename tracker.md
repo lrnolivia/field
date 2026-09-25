@@ -1,0 +1,92 @@
+# field Work Tracker
+
+> Canonical repo coordination ledger.
+>
+> Git/repository state remains implementation truth.
+>
+> Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
+
+Last Updated: 2026-09-25T02:17:03Z
+
+## Active Assignments
+
+<!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
+<!-- Active assignment blocks are maintained between these markers. -->
+<!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
+
+## Blocked / Integration Notes
+
+<!-- FIELD_BLOCKED_NOTES_START -->
+- 2026-09-25T02:17:03Z — Existing-chat adoption: this tracker was initialized after `81a7dbd633db` had already landed because the generic handoff kit was introduced midstream. No pre-implementation tracker reservation existed. Git history is authoritative.
+- 2026-09-25T02:17:03Z — Pages/Layers source work is landed and deployed. Screenshot-level post-deploy visual parity remains unverified and should be registered as a new assignment before further implementation.
+<!-- FIELD_BLOCKED_NOTES_END -->
+
+## Commit Ledger
+
+<!-- FIELD_COMMIT_LEDGER_START -->
+### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
+
+Summary: Match Figma UI3 Pages and Layers panel
+Commit: 81a7dbd633dbb7bd64ff22615250323627eefd54
+
+Paths:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+
+Validation / Build / Deploy:
+- `git diff --check`: passed
+- focused tests: 4 files / 37 tests passed
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed (main field + sandbox + Preview sandbox)
+- ownership allowlist: passed for exactly 7 assignment-owned paths
+- push: `c74f5b1..81a7dbd` → `main`
+- final Git state after source push: `main...origin/main`, clean
+- Cloudflare check: `Workers Builds: field`
+- Cloudflare status: completed
+- Cloudflare conclusion: success
+- Cloudflare Build ID: `27a22ab1-ec65-486b-9594-39544207e9a3`
+- Cloudflare Version ID: `f423ab95-5dbe-4ed3-9fcd-e4bee02c1d95`
+
+<!-- FIELD_COMMIT_LEDGER_END -->
+
+## Completed Assignments
+
+<!-- FIELD_COMPLETED_ASSIGNMENTS_START -->
+<!-- ASSIGNMENT:pages-layers-ui3-20260924:START -->
+### pages-layers-ui3-20260924 — Figma UI3 Pages / Layers parity pass
+
+Status: complete
+Baseline: c74f5b1ccc538638fef558422bcad12d4edf55f2
+Activation HEAD: 81a7dbd633dbb7bd64ff22615250323627eefd54
+Last Sync: 2026-09-25T02:17:03Z
+Scope: Figma UI3 Pages/Layers density, semantic hierarchy/glyphs, selection treatment, and persistent resizable document-panel split while preserving existing layer-order/reorder architecture.
+
+Owned:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/canvas/**
+  - src/code/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Deferred:
+  - Post-deploy screenshot-level visual parity review before declaring the surface visually final.
+<!-- ASSIGNMENT:{assignment_id}:END -->
+<!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
