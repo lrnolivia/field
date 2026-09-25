@@ -26,6 +26,7 @@ import { type ToolbarItem } from '@/canvas/drag/toolbar-item-config';
 import { ConfirmModal } from '@/editor/overlays/settings-shared';
 import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
+import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
 
 const TAB_OPTIONS = [
   { value: 'images', label: 'Images' },
@@ -126,6 +127,44 @@ function useMediaDrag(url: string, kind: 'image' | 'video') {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
   }, [url, kind]);
+}
+
+/**
+ * Multi-selected images become ONE native Gallery toolbar item. This mirrors
+ * useMediaDrag's threshold behavior so a pointer click remains selection-only;
+ * source is untouched until the normal canvas drop pipeline commits a drag.
+ */
+function useGallerySelectionDrag(urls: readonly string[]) {
+  return useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0 || urls.length < 2) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const snapshot = [...urls];
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startEvent = e.nativeEvent;
+    let dragStarted = false;
+    const cleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    const onMove = (moveEvent: PointerEvent) => {
+      if (dragStarted) return;
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      if (dx * dx + dy * dy < MEDIA_DRAG_THRESHOLD_PX * MEDIA_DRAG_THRESHOLD_PX) return;
+      dragStarted = true;
+      cleanup();
+      const item = buildGalleryMediaToolbarItem(snapshot);
+      trace.action('media-panel:gallery-drag-start', { count: snapshot.length });
+      startToolbarDrag(item, startEvent);
+    };
+    const onUp = () => cleanup();
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [urls]);
 }
 
 /** Single tile in the gallery grid. Wraps the image/video preview in a
@@ -235,6 +274,11 @@ export default function MediaGalleryPanel() {
   const projectId = getProjectId();
   const isCloud = !!CLOUD_ENABLED;
   const noun: 'image' | 'video' = tab === 'images' ? 'image' : 'video';
+  const selectedImageUrls = React.useMemo(
+    () => tab === 'images' ? selectedGalleryMediaUrls(uploads, selectedKeys) : [],
+    [tab, uploads, selectedKeys],
+  );
+  const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
   trace.fn('MediaGalleryPanel:render', { tab, count: uploads.length, selected: selectedKeys.size });
 
@@ -518,6 +562,30 @@ export default function MediaGalleryPanel() {
       {/* Gallery grid */}
       {uploads.length > 0 ? (
         <div ref={scrollRef} onPointerDown={onGridPointerDown} className="flex-1 overflow-y-auto scrollbar-hide p-3">
+          {tab === 'images' && selectedImageUrls.length >= 2 && (
+            <div
+              data-media-gallery-bulk-insert
+              className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 border border-[var(--border-light)] bg-[var(--bg-surface)] px-2 py-1.5"
+            >
+              <span className="min-w-0 truncate text-[10px] tabular-nums text-[var(--text-secondary)]">
+                {selectedImageUrls.length} images selected
+              </span>
+              <div
+                data-media-gallery-drag
+                onPointerDown={beginGallerySelectionDrag}
+                className="shrink-0 h-7 px-2 flex items-center gap-1.5 border border-[var(--control-border)] text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-grab active:cursor-grabbing select-none"
+                title={`Drag ${selectedImageUrls.length} selected images to Canvas as one Gallery`}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true">
+                  <rect x="1.5" y="1.5" width="4" height="4" />
+                  <rect x="6.5" y="1.5" width="4" height="4" />
+                  <rect x="1.5" y="6.5" width="4" height="4" />
+                  <rect x="6.5" y="6.5" width="4" height="4" />
+                </svg>
+                Drag as Gallery
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {uploads.map((item, i) => (
               <MediaTile
