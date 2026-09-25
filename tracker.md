@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:05:36Z
+Last Updated: 2026-09-25T09:06:32Z
 
 ## Active Assignments
 
@@ -157,7 +157,38 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
+<!-- ASSIGNMENT:native-gallery-content-ops-20260925:START -->
+### native-gallery-content-ops-20260925 — Native Gallery Evolution — Phase 2 Content Maintenance Operations
 
+Status: active
+Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
+Activation HEAD: bbe6bb37a1c99d7a0798b064ae5cbf85882f7001
+Last Sync: 2026-09-25T09:06:32Z
+
+Owned:
+  - src/editor/gallery/**
+  - src/editor/tools/GalleryTool.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/code/stores/project-store.ts
+  - src/canvas/commands.ts
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-content-ops-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
