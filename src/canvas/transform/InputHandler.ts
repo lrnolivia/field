@@ -8,6 +8,7 @@
 import { transformManager } from './TransformManager';
 import {
   ZOOM_WHEEL_SENSITIVITY, ZOOM_PINCH_SENSITIVITY, PINCH_MAX_DELTA, ZOOM_MAX_DELTA,
+  PAN_TRACKPAD_MAX_GAIN, PAN_TRACKPAD_GAIN_CUTOFF, PAN_LINE_STEP_PX,
 } from './constants';
 import { trace } from '@/shared/debug-trace';
 
@@ -55,6 +56,45 @@ export function wheelZoomFactor(
   return Math.exp(-delta * k);
 }
 
+export interface WheelPanDelta {
+  dx: number;
+  dy: number;
+  gain: number;
+  deltaMode: number;
+}
+
+/** Normalize a regular wheel/two-finger pan into screen-space camera deltas.
+ *
+ * Pixel-mode events are already screen-space, but tiny high-resolution
+ * trackpad deltas feel sluggish at raw 1:1. Apply a shared-axis gain curve
+ * that is strongest near zero and reaches exactly 1× at the cutoff. Large
+ * mouse-style notches and strong momentum remain untouched.
+ *
+ * Line/page modes are not pixels, so normalize them before reaching the
+ * camera. One shared gain for X/Y preserves diagonal gesture direction. */
+export function wheelPanDelta(
+  e: Pick<WheelEvent, 'deltaMode' | 'deltaX' | 'deltaY'>,
+  viewport: Pick<DOMRect, 'width' | 'height'>,
+): WheelPanDelta {
+  let x = e.deltaX;
+  let y = e.deltaY;
+
+  if (e.deltaMode === 1) {
+    x *= PAN_LINE_STEP_PX;
+    y *= PAN_LINE_STEP_PX;
+  } else if (e.deltaMode === 2) {
+    x *= viewport.width;
+    y *= viewport.height;
+  }
+
+  const magnitude = Math.max(Math.abs(x), Math.abs(y));
+  const gain = e.deltaMode === 0 && magnitude < PAN_TRACKPAD_GAIN_CUTOFF
+    ? 1 + (PAN_TRACKPAD_MAX_GAIN - 1) * (1 - magnitude / PAN_TRACKPAD_GAIN_CUTOFF)
+    : 1;
+
+  return { dx: -x * gain, dy: -y * gain, gain, deltaMode: e.deltaMode };
+}
+
 // ─── Wheel Handler ──────────────────────────────────────────────────────────
 
 /**
@@ -81,9 +121,15 @@ export function handleWheel(e: WheelEvent, containerRect: DOMRect): void {
       factor, pinch: isTrackpadPinch(e), deltaY: e.deltaY, anchorX, anchorY,
     });
   } else {
-    // Pan — regular scroll / trackpad two-finger swipe
-    transformManager.pan(-e.deltaX, -e.deltaY);
-    trace.action('input:pan', { dx: -e.deltaX, dy: -e.deltaY });
+    // Pan — regular scroll / trackpad two-finger swipe. Normalize non-pixel
+    // wheel modes and give small high-resolution trackpad deltas a restrained
+    // gain so the canvas follows the hand instead of crawling behind it.
+    const pan = wheelPanDelta(e, containerRect);
+    transformManager.pan(pan.dx, pan.dy);
+    trace.action('input:pan', {
+      dx: pan.dx, dy: pan.dy, gain: pan.gain, deltaMode: pan.deltaMode,
+      rawDx: e.deltaX, rawDy: e.deltaY,
+    });
   }
 }
 

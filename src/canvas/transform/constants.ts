@@ -36,6 +36,17 @@ export const PINCH_MAX_DELTA = 50;
  *  emit several hundred in one event, which exponentiates into a jarring jump. */
 export const ZOOM_MAX_DELTA = 120;
 
+// ─── Wheel / trackpad pan ──────────────────────────────────────────────────
+//
+// Two-finger trackpad pan arrives as high-resolution pixel wheel deltas. Raw
+// 1:1 application is technically correct but feels under-driven on the field
+// canvas. Give only SMALL pixel deltas a restrained direct-manipulation gain,
+// then smoothly fall back to 1× for large mouse-style notches / momentum.
+// The browser still owns inertia; field does not synthesize animation.
+export const PAN_TRACKPAD_MAX_GAIN = 1.8;
+export const PAN_TRACKPAD_GAIN_CUTOFF = 80; // px/event: >= this stays 1×
+export const PAN_LINE_STEP_PX = 16;         // DOM_DELTA_LINE normalization
+
 // Animation durations (ms)
 export const ANIM_ZOOM_STEP = 150;    // zoom in/out keyboard shortcut
 export const ANIM_ZOOM_TO_100 = 300;  // zoom to 100%
