@@ -1,4 +1,5 @@
 /* field dashboard — FigUI3-style project browser using the editor token system. */
+/* FIELD_SCROLL_INTEGRITY_DASHBOARD_20260925: keep project scrolling local to the dashboard content surface. */
 
 html:has(.field-dashboard-page),
 body:has(.field-dashboard-page),
@@ -256,6 +257,7 @@ body:has(.field-dashboard-page),
   min-height: 0;
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 24px 28px 40px;
 }
 

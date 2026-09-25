@@ -1,4 +1,5 @@
 // Modal.tsx — Centralized modal shell matching the builder's design system.
+// FIELD_SCROLL_INTEGRITY_MODAL_20260925
 // Portal to body, animated backdrop + panel (framer-motion), close on Escape.
 // Design reference: builder/CollaboratorsModal.tsx
 
@@ -113,7 +114,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
+            <div data-scroll-surface="modal-content" className="flex-1 min-h-0 overflow-auto overscroll-contain" onWheel={(e) => e.stopPropagation()}>
               {children}
             </div>
           </motion.div>

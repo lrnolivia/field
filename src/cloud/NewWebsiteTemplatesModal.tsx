@@ -1,3 +1,4 @@
+// FIELD_SCROLL_INTEGRITY_TEMPLATES_20260925
 // NewWebsiteTemplatesModal.tsx — "Start from a template" prompt for
 // brand-new cloud websites.
 //
@@ -152,7 +153,7 @@ export default function NewWebsiteTemplatesModal() {
           Pick a template to start from, or start from a blank canvas.
         </p>
 
-        <div className="grid max-h-[56vh] grid-cols-3 gap-3 overflow-auto pr-1">
+        <div className="grid max-h-[56vh] grid-cols-3 gap-3 overflow-auto overscroll-contain pr-1">
           <ScratchCard disabled={!!applyingId} onPick={dismiss} />
           {(templates ?? []).map((tpl) => {
             const free = isFreeTemplate(tpl);

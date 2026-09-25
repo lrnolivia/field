@@ -1,3 +1,4 @@
+// FIELD_SCROLL_INTEGRITY_SETTINGS_20260925
 // SettingsOverlay.tsx — Full-screen settings takeover.
 //
 // Replaces the entire editor surface with a standard settings UI: a top
@@ -1043,7 +1044,7 @@ export default function SettingsOverlay() {
         {/* Sidebar -- desktop only */}
         {!isMobile && (
           <div
-            className="w-60 border-r border-[var(--control-border)] flex flex-col overflow-y-auto shrink-0"
+            className="w-60 border-r border-[var(--control-border)] flex flex-col overflow-y-auto overscroll-contain shrink-0"
             style={{ backgroundColor: 'var(--bg-surface)' }}
           >
             <nav className="flex-1 px-3 py-8 space-y-5">
@@ -1225,7 +1226,7 @@ export default function SettingsOverlay() {
           {(activeSection === 'ab-tests' && selectedAbTestPage) || activeSection === 'pages' ? (
             <div className="flex-1 min-h-0">{renderContent()}</div>
           ) : (
-            <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-4 py-5' : 'px-10 py-8'}`}>
+            <div className={`flex-1 overflow-y-auto overscroll-contain ${isMobile ? 'px-4 py-5' : 'px-10 py-8'}`}>
               <div className="mx-auto max-w-4xl">
                 {renderContent()}
               </div>

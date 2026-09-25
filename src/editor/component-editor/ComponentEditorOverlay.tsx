@@ -1,3 +1,4 @@
+// FIELD_SCROLL_INTEGRITY_COMPONENT_EDITOR_20260925
 // ComponentEditorOverlay.tsx — Full-screen overlay for editing Code components.
 // Layers on top of the canvas (canvas stays mounted behind).
 // Header bar sits between LeftHeader and RightHeader (same row, 52px).
@@ -293,7 +294,7 @@ function EditorBody({ code, savedCode, fileName, onCodeChange, onSave, controls,
       {/* Right: Controls sidebar */}
       {hasControls && (
         <div
-          className="shrink-0 h-full border-l border-[var(--border-light)] bg-[var(--bg-surface)] overflow-y-auto scrollbar-hide"
+          className="shrink-0 h-full min-h-0 border-l border-[var(--border-light)] bg-[var(--bg-surface)] overflow-y-auto overscroll-contain scrollbar-hide"
           style={{ width: CONTROLS_WIDTH }}
         >
           <ComponentPropsPanel controls={controls} values={props} onChange={onPropChange} />

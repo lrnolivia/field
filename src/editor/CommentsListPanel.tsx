@@ -1,3 +1,4 @@
+// FIELD_SCROLL_INTEGRITY_COMMENTS_20260925
 // CommentsListPanel.tsx — Right-sidebar comment list.
 //
 // Mounted in `App.tsx` IN PLACE of `<PropertiesPanel />` while
@@ -127,7 +128,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ value, options, onChang
         // ~280 px so a project with dozens of pages still scrolls
         // gracefully instead of running off the bottom of the panel.
         <div
-          className="absolute right-0 top-full mt-1 min-w-[180px] max-h-[280px] overflow-y-auto bg-[var(--dropdown-bg,var(--bg-surface))] cut-corners cut-lg shadow-lg p-1"
+          className="absolute right-0 top-full mt-1 min-w-[180px] max-h-[280px] overflow-y-auto overscroll-contain bg-[var(--dropdown-bg,var(--bg-surface))] cut-corners cut-lg shadow-lg p-1"
           style={{ zIndex: 5500 }}
         >
           {options.map((opt) => {
@@ -326,7 +327,7 @@ export default function CommentsListPanel() {
           </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-hide">
           {displayed.map((c, idx) => {
             const messageCount = c.messages?.length ?? 0;
             const lastMessageAt = c.messages?.[c.messages.length - 1]?.createdAt ?? c.createdAt;

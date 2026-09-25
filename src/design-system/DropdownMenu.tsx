@@ -1,4 +1,5 @@
 // DropdownMenu.tsx — Centralized dropdown menu matching context menu design.
+// FIELD_SCROLL_INTEGRITY_DROPDOWN_20260925
 // Used for: Components +, Pages +, toolbar dropdowns, any popup menu.
 // Configurable hover accent: blue (context menu) or subtle gray (panel menus).
 //
@@ -226,6 +227,8 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
         panelRef.current = el;
         if (rootRef) rootRef.current = el;
       }}
+      data-scroll-surface="dropdown-menu"
+      onWheel={(event) => event.stopPropagation()}
       className="fixed bg-[var(--dropdown-bg,var(--bg-surface))] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)]"
       style={{
         ...style,
@@ -239,6 +242,10 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
         rowGap: compact ? 0 : 2,
         paddingTop: compact ? 5 : 8,
         paddingBottom: compact ? 5 : 8,
+        maxHeight: 'min(360px, calc(100dvh - 16px))',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'contain',
       }}
     >
       {searchable && (

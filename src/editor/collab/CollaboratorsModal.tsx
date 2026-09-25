@@ -1,3 +1,4 @@
+// FIELD_SCROLL_INTEGRITY_COLLAB_20260925
 // CollaboratorsModal.tsx — Pixel-for-pixel port of the old builder's
 // `CollaboratorsModal.tsx`. Structure, copy, and class lists match
 // the original so the muscle memory of returning users carries over
@@ -377,7 +378,7 @@ function CloudBody() {
               No collaborators yet
             </p>
           ) : (
-            <div className="space-y-1 max-h-[240px] overflow-y-auto">
+            <div className="space-y-1 max-h-[240px] overflow-y-auto overscroll-contain">
               {rows.map((row) => (
                 <MemberRow
                   key={row.user_id}
