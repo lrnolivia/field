@@ -13,42 +13,6 @@ Last Updated: 2026-09-25T04:51:50.158Z
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
-<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:START -->
-### canvas-camera-fast-path-20260924 — Remove stop-motion canvas camera updates
-
-Status: active
-Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
-Activation HEAD: 42502f7db62980401bd4a2ccfdd981ba62f7f565
-Last Sync: 2026-09-25T04:21:13Z
-
-Owned:
-  - src/canvas/Canvas.tsx
-  - src/canvas-sandbox/protocol.ts
-  - src/canvas-sandbox/bridge-host.ts
-  - src/canvas-sandbox/bridge-sandbox.ts
-  - src/canvas-sandbox/bridge-host-camera.test.ts
-  - src/canvas/hooks/useCanvasTransform.ts
-  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
-
-Approved Shared:
-  - none
-
-Protected:
-  - src/canvas/transform/**
-  - src/canvas/mouse/**
-  - src/canvas/selection/**
-  - src/canvas/drag/**
-  - src/code/**
-  - src/editor/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-
-Notes:
-  - Safari r5 adds a same-document transparent input surface above the canvas iframe so trackpad wheel input no longer depends on WebKit iframe event-region routing.
-<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
 
 
 
@@ -152,6 +116,34 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** remove only the optional lowercase/uppercase comment-token requirements while retaining exact semantic anchors and all product scope.
 - **Prevention rule:** installer compatibility gates must distinguish semantic required anchors from optional comment/text cleanup. Optional substitutions may run conditionally, but their absence must never invalidate a package.
 <!-- LESSON:context-components-command-surface-r1-purple-anchor:END -->
+
+<!-- LESSON:canvas-camera-fast-path-safari-r2-mapfile:START -->
+### canvas-camera-fast-path Safari r2 packaging lesson
+
+- **Safari r2 stopped after the tracker ownership expansion because macOS system Bash 3.2 does not provide `mapfile`.**
+- **Repository/source impact:** tracker-only scope expansion landed; Safari product source was untouched.
+- **Repair:** subsequent runners use Bash-3.2-compatible indexed arrays + `while read` for dirty/staged path gates.
+- **Prevention rule:** field shell installers must target macOS system Bash 3.2 unless they explicitly invoke and verify a newer Bash.
+<!-- LESSON:canvas-camera-fast-path-safari-r2-mapfile:END -->
+
+<!-- LESSON:canvas-camera-fast-path-safari-r3-package-path:START -->
+### canvas-camera-fast-path Safari r3 packaging lesson
+
+- **Safari r3 resolved its package directory after changing into the repository.** When launched with a relative script path, `dirname "$0"` therefore resolved to the repo root and Node searched for repo-root `apply.mjs`.
+- The user's manual copy of `apply.mjs` then correctly tripped the unrelated-dirt ownership gate.
+- **Repository/source impact:** no Safari product source landed.
+- **Repair:** resolve the absolute package directory before `cd "$REPO"`; r4 also self-healed only the exact byte-identical untracked installer residue.
+- **Prevention rule:** self-contained installers must resolve their own absolute path before changing working directories and must never require helper files to be copied into the target repo.
+<!-- LESSON:canvas-camera-fast-path-safari-r3-package-path:END -->
+
+<!-- LESSON:canvas-camera-fast-path-safari-r5-worktree-deps:START -->
+### canvas-camera-fast-path Safari r5 packaging lesson
+
+- **Safari r5 correctly created a clean detached worktree but did not provide the repository dependency tree inside it.** `npx vitest` downloaded a standalone Vitest and then failed to resolve field's Vite/Vitest plugins.
+- **Repository/source impact:** tracker-only Canvas.tsx ownership expansion landed; product source remained untouched.
+- **Repair:** r6 linked the real repo's installed `node_modules` into the isolated worktree and invoked repo-local `./node_modules/.bin/vitest` / `tsc` directly.
+- **Prevention rule:** isolated validation must pair clean source with the exact project dependency tree; never let `npx` silently fetch a replacement toolchain during validation.
+<!-- LESSON:canvas-camera-fast-path-safari-r5-worktree-deps:END -->
 
 ## Commit Ledger
 
@@ -450,6 +442,31 @@ Validation / Build / Deploy:
 - Cloudflare/GitHub check-run ID: 107946994267
 - Cloudflare Build ID: 2c750344-82c1-4ed9-a7af-318bfb39d1cf
 - Cloudflare Version ID: c63b492e-3a92-4888-b0cf-58bd0d75d7eb
+
+
+### 2026-09-25 — canvas-camera-fast-path-20260924 — a10af177e311
+
+Summary:
+- eliminated stop-motion camera transport by moving live transforms off Comlink RPC
+- tuned high-resolution trackpad pan input
+- made Safari trackpad routing deterministic with a same-document parent input surface above the iframe
+- preserved Chrome's smooth camera behavior
+
+Commits:
+- c78cbbfe090be9cbdb0b0fd407a2ef709a362980 — Improve trackpad canvas pan responsiveness
+- 0de7d3090d3eedfa76627b6ba9ab38b03197b069 — Fix canvas camera frame transport
+- 1d5ced54297537fa2b3462d83c74896d8e6d4156 — Route Safari trackpad wheel input to canvas
+- a10af177e311dba88197164658d7e16f7233a377 — Add Safari-safe parent canvas input surface
+
+Validation / Deploy:
+- focused regression tests passed
+- TypeScript passed
+- `npm run build:all` passed
+- ownership / scoped staging passed
+- `Workers Builds: field`: completed / success
+- Cloudflare Build ID: c5818c96-d456-42fb-8bb1-53edf510c78a
+- live QA: Chrome smooth; Safari pan fixed
+- assignment status: complete
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -755,4 +772,48 @@ Validation / Deploy:
   - build ID: 2c750344-82c1-4ed9-a7af-318bfb39d1cf
   - version ID: c63b492e-3a92-4888-b0cf-58bd0d75d7eb
 <!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
+<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:START -->
+### canvas-camera-fast-path-20260924 — Remove stop-motion canvas camera updates
+
+Status: complete
+Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Activation HEAD: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Last Sync: 2026-09-25T04:51:36Z
+
+Scope:
+- make trackpad pan responsive rather than under-driven
+- remove frame-rate camera traffic from Comlink RPC
+- preserve Chrome's smooth camera path
+- restore two-finger pan in Safari and Safari Private Browsing
+
+Implementation:
+- c78cbbfe090be9cbdb0b0fd407a2ef709a362980 — Improve trackpad canvas pan responsiveness
+- 0de7d3090d3eedfa76627b6ba9ab38b03197b069 — Fix canvas camera frame transport
+- 1d5ced54297537fa2b3462d83c74896d8e6d4156 — Route Safari trackpad wheel input to canvas
+- a10af177e311dba88197164658d7e16f7233a377 — Add Safari-safe parent canvas input surface
+
+Final architecture:
+- TransformManager remains the camera authority.
+- high-frequency camera transforms bypass Comlink request/reply traffic through the raw one-way parent→sandbox fast path.
+- trackpad wheel normalization remains in InputHandler with the tuned gain curve.
+- Safari uses the same camera transport as Chrome.
+- the canvas iframe remains non-interactive; a transparent same-document parent input surface above it gives WebKit a deterministic wheel hit target without relying on iframe event-region routing.
+- interactive field overlays remain above the input surface.
+
+Validation / Build / Deploy:
+- focused camera/pan/zoom/Safari routing regression tests passed during the implementation sequence.
+- TypeScript passed.
+- `npm run build:all` passed.
+- implementation ownership gates passed.
+- `Workers Builds: field` completed / success for a10af177e311dba88197164658d7e16f7233a377.
+- Cloudflare Build ID: c5818c96-d456-42fb-8bb1-53edf510c78a.
+- live physical QA: Chrome smooth; Safari two-finger pan fixed after the parent input surface revision.
+- user acceptance: fixed.
+
+Notes:
+- the Safari failure was not a transform-math problem after Chrome was proven smooth.
+- coordinate/window wheel rerouting alone did not restore Safari pan.
+- first point of divergence was the embedded iframe input boundary; moving the physical input hit target into the parent document fixed WebKit without browser-specific gesture APIs.
+<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
+
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
