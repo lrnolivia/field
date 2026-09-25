@@ -22,6 +22,7 @@ Activation HEAD: 42502f7db62980401bd4a2ccfdd981ba62f7f565
 Last Sync: 2026-09-25T04:21:13Z
 
 Owned:
+  - src/canvas/Canvas.tsx
   - src/canvas-sandbox/protocol.ts
   - src/canvas-sandbox/bridge-host.ts
   - src/canvas-sandbox/bridge-sandbox.ts
@@ -44,6 +45,9 @@ Protected:
   - wrangler.jsonc
   - package.json
   - package-lock.json
+
+Notes:
+  - Safari r5 adds a same-document transparent input surface above the canvas iframe so trackpad wheel input no longer depends on WebKit iframe event-region routing.
 <!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
 <!-- ASSIGNMENT:context-components-command-surface-20260925:START -->
 ### context-components-command-surface-20260925 — Context Commands + Component Interaction
