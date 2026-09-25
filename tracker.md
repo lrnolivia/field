@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T03:10:31Z
+Last Updated: 2026-09-25T03:17:55.009Z
 
 ## Active Assignments
 
@@ -14,6 +14,45 @@ Last Updated: 2026-09-25T03:10:31Z
 <!-- Active assignment blocks are maintained between these markers. -->
 
 
+<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:START -->
+### pages-layers-ui3-refinement-ii-20260924 — Pages / Layers UI3 Refinement II
+
+Status: active
+Baseline: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
+Activation HEAD: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
+Last Sync: 2026-09-25T03:17:55.009Z
+
+Scope: Restore compact page icons and Layers search, move pane collapse into the Figma-style header, convert project/page identity to two-line UI3 hierarchy, localize layer selection to one row, and tighten semantic glyph/action chrome without changing layer ordering, drag/reparent, search, rename, visibility, lock, component, viewport/variant, or canvas-selection semantics.
+
+Owned:
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/editor/header/project-chip-label.ts
+  - src/editor/header/project-chip-label.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - src/editor/header/menu-builders.tsx
+  - src/design-system/**
+  - src/styles/loew-theme.css
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -48,6 +87,15 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 resumes the validated partial postimage instead of resetting/reapplying.** It requires the exact 11-file dirty assignment set, checks strong r1 postimage signatures, repairs only the test expression to indexed access, and adopts the existing active tracker reservation.
 - **Prevention rule:** generated tests must use syntax compatible with the repository's configured TypeScript target, and package validation should include the real `npx tsc --noEmit --pretty false` gate before handoff whenever a dependency-complete validation environment is available.
 <!-- LESSON:canvas-interaction-parity-20260924-r1-ts-target:END -->
+
+<!-- LESSON:pages-layers-ui3-refinement-ii-r1-global-clean:START -->
+### pages-layers-ui3-refinement-ii r1 packaging lesson
+
+- **r1 stopped safely before any write because its clean-tree gate was repository-global.** While `canvas-interaction-parity-20260924` was actively modifying canvas files plus approved-shared `src/editor/header/LeftHeader.tsx`, r1 rejected the entire dirty working tree before it could distinguish unrelated work from the genuine shared-path overlap. It made no source writes, tracker writes, commits, or pushes.
+- **The shared `LeftHeader.tsx` dirtiness was a real overlap at that moment.** A silo-aware installer still must refuse a dirty/actively-owned path that it intends to change; the defect was treating every other dirty canvas path as equally blocking.
+- **r2 uses silo-scoped dirtiness and isolated validation.** Unrelated unstaged/untracked files are fingerprinted and allowed; unrelated staged changes are refused because a commit could accidentally capture them. Owned/shared dirtiness must either be clean baseline state or this package's exact resumable postimage. Tests, TypeScript, and `build:all` run in a detached clean worktree so another chat's uncommitted work cannot contaminate validation.
+- **Prevention rule:** field installers must gate on owned/shared overlap, not global cleanliness; preserve and verify unrelated dirty state; never stage outside the allowlist; and validate buildable source in an isolated clean worktree whenever unrelated local work exists.
+<!-- LESSON:pages-layers-ui3-refinement-ii-r1-global-clean:END -->
 
 ## Commit Ledger
 
@@ -191,7 +239,7 @@ Protected:
 
 Deferred:
   - Post-deploy screenshot-level visual parity review before declaring the surface visually final.
-<!-- ASSIGNMENT:{assignment_id}:END -->
+<!-- ASSIGNMENT:pages-layers-ui3-20260924:END -->
 
 <!-- ASSIGNMENT:FIELD-INSPECTOR-CONTINUATION-001:START -->
 ### FIELD-INSPECTOR-CONTINUATION-001 — Continue field Inspector Panel Figma-Parity Cleanup
