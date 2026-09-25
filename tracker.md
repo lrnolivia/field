@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:32:39Z
+Last Updated: 2026-09-25T08:33:45Z
 
 ## Active Assignments
 
@@ -239,52 +239,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
-<!-- ASSIGNMENT:field-project-dashboard-20260925:START -->
-### field-project-dashboard-20260925 — FigUI3 Project Dashboard / File Browser
 
-Status: planned
-Baseline: `d6c2a691f0f95ffd7bb8c0ab38969f414db8235c`
-Activation HEAD: 56720ae35ceb78802a40a6c1ee65208742075524
-Last Sync: 2026-09-25T08:26:10Z
-
-Owned:
-  - src/Dashboard.tsx
-  - src/dashboard/**
-  - src/main.tsx
-  - src/backend/field-projects.ts
-  - src/backend/field-projects.test.ts
-  - cloudflare/worker.js
-  - cloudflare/field-dashboard.test.ts
-  - src/editor/header/ProjectChip.tsx
-
-Approved Shared:
-  - src/backend/types.ts
-  - src/backend/field-backend.ts
-  - src/backend/project-id.ts
-  - src/backend/leave-builder.ts
-  - src/shared/loew-figma-icons.tsx
-  - src/styles/dashboard.css
-  - tracker.md
-
-Protected:
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/editor/tools/**
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/BottomToolbar.tsx
-  - src/editor/LayersPanel/**
-  - src/preview/**
-  - src/styles/globals.css
-  - src/styles/loew-theme.css
-  - package.json
-  - package-lock.json
-  - wrangler.jsonc` unless a verified binding change is required
-  - public `loew.fi` portfolio source
-<!-- ASSIGNMENT:field-project-dashboard-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1578,4 +1533,50 @@ Reconciliation:
   - 2026-09-25T08:26:10Z — repository truth already contains FieldBackend + Access-protected R2 project persistence; dashboard assignment documented the active planned reservation as stale.
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 
+<!-- ASSIGNMENT:field-project-dashboard-20260925:START -->
+### field-project-dashboard-20260925 — FigUI3 Project Dashboard / File Browser
+
+Status: complete
+Baseline: `d6c2a691f0f95ffd7bb8c0ab38969f414db8235c`
+Activation HEAD: 56720ae35ceb78802a40a6c1ee65208742075524
+Last Sync: 2026-09-25T08:33:45Z
+
+Owned:
+  - src/Dashboard.tsx
+  - src/dashboard/**
+  - src/main.tsx
+  - src/backend/field-projects.ts
+  - src/backend/field-projects.test.ts
+  - cloudflare/worker.js
+  - cloudflare/field-dashboard.test.ts
+  - src/editor/header/ProjectChip.tsx
+
+Approved Shared:
+  - src/backend/types.ts
+  - src/backend/field-backend.ts
+  - src/backend/project-id.ts
+  - src/backend/leave-builder.ts
+  - src/shared/loew-figma-icons.tsx
+  - src/styles/dashboard.css
+  - tracker.md
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/editor/tools/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/LayersPanel/**
+  - src/preview/**
+  - src/styles/globals.css
+  - src/styles/loew-theme.css
+  - package.json
+  - package-lock.json
+  - wrangler.jsonc` unless a verified binding change is required
+  - public `loew.fi` portfolio source
+<!-- ASSIGNMENT:field-project-dashboard-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
