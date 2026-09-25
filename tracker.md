@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T07:11:54Z
+Last Updated: 2026-09-25T07:20:06Z
 
 ## Active Assignments
 
@@ -312,6 +312,27 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** encode actual newline characters in the parser replacement, adopt the already-updated active Group tracker state, and add a package self-test that rejects literal escaped-newline artifacts in the `isGroup` replacement payload.
 - **Prevention rule:** package validation must distinguish installer syntax from generated-source syntax. For generated exact-replacement payloads, self-tests must validate critical postimage strings themselves, and the detached TypeScript/Vitest/build gate remains mandatory before any real-tree source apply.
 <!-- LESSON:native-group-ungroup-phase-a-r1-escaped-newline:END -->
+
+<!-- LESSON:figui3-global-visual-parity-r1-record-commit-args:START -->
+### figui3-global-visual-parity r1 packaging lesson
+
+- **r1 fully validated and pushed the intended 22-file implementation, then stopped only at tracker publication.** The landed product commit is `3dd7fafebb83c054f7b89c987d025266ed6c2609`; focused tests, TypeScript, `build:all`, ownership checks, and the implementation push had already succeeded.
+- **Root cause: the runner called `field_handoff_kit.py record-commit` with unsupported `--sha` / `--summary` flags.** The helper's argparse contract defines `sha` and `summary` as positional arguments, so the CLI rejected the call after source publication.
+- **Repository/source impact:** no product rollback is needed. The implementation is already on `main`; only the commit-ledger/tracker publication step was skipped and the assignment correctly remained active.
+- **r2 repair:** adopt the existing active reservation, verify the exact implementation commit/pathset, verify the source deployment before moving HEAD with a tracker-only commit, call `record-commit` with positional `sha` / `summary`, and leave the assignment active for screenshot QA.
+- **Prevention rule:** package self-tests must exercise the exact helper CLI invocation shape used by the runner (including argparse positional-vs-option semantics), not merely syntax-check the shell/Python files.
+<!-- LESSON:figui3-global-visual-parity-r1-record-commit-args:END -->
+
+
+<!-- LESSON:figui3-global-visual-parity-r2-ledger-detection:START -->
+### figui3-global-visual-parity r2 packaging lesson
+
+- **r2 correctly verified the landed implementation and successful Cloudflare build, then stopped before any tracker commit.**
+- **Root cause:** after inserting the r1 lesson, r2 tested `grep -q "$IMPL_SHA" tracker.md` to decide whether the implementation ledger entry already existed. The r1 lesson itself contains that SHA, so the test produced a false positive and skipped `record-commit`. The following deployment annotator correctly required `Commit: <sha>` and then failed because no ledger block existed.
+- **Repository/source impact:** product source remained untouched; the only local change was the intended uncommitted tracker lesson from r2.
+- **r3 repair:** detect an existing ledger entry only by the exact `Commit: <sha>` field, adopt the known dirty tracker partial postimage, write the ledger entry with the helper's positional CLI, annotate deployment, and commit only `tracker.md`.
+- **Prevention rule:** coordination-state detection must test the semantic record being sought, not a broad substring that may also occur in lessons, notes, or historical text.
+<!-- LESSON:figui3-global-visual-parity-r2-ledger-detection:END -->
 
 ## Commit Ledger
 
@@ -720,6 +741,38 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-25T07:20:06Z — figui3-global-visual-parity-20260925 — 3dd7fafebb83
+
+Summary: Global FigUI3 polish, neutral chrome levels, compact font/popup/tooling geometry, and editor-only per-page canvas appearance. Isolated focused tests, TypeScript, build:all, and diff checks passed.
+Commit: 3dd7fafebb83c054f7b89c987d025266ed6c2609
+
+Paths:
+  - src/App.tsx
+  - src/canvas/Canvas.tsx
+  - src/code/project/page-appearance-config.test.ts
+  - src/code/project/page-appearance-config.ts
+  - src/code/stores/page-appearance-store.ts
+  - src/code/stores/user-preferences-store.ts
+  - src/design-system/SearchBar.tsx
+  - src/design-system/SectionLabel.tsx
+  - src/design-system/SidebarRow.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/PageAppearanceBridge.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/builder-theme.ts
+  - src/editor/controls/ToolSection.tsx
+  - src/editor/figui3-global-parity.test.ts
+  - src/editor/tools/PageAppearanceTool.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/ThemeNeutralPopover.tsx
+  - src/editor/ui/ToolPopup.tsx
+  - src/shared/editor-neutral-theme.test.ts
+  - src/shared/editor-neutral-theme.ts
+  - src/styles/loew-theme.css
+
+Validation / Build / Deploy:
+- Production verified: Workers Builds: field completed successfully; check-run id 107980451951; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/1b266cbd-3ac2-4e64-8f18-abdd82542918
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
