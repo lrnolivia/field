@@ -15,6 +15,8 @@ import {
   toggleVisibility,
   wrapInFrame,
   wrapInLayout,
+  groupSelection,
+  ungroupSelection,
 } from './commands';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -484,6 +486,108 @@ describe('toggleVisibility', () => {
     const nodesMap = buildMap([]);
     toggleVisibility('nonexistent', contentEl, nodesMap);
     expect(mockUpdateNodeStyles).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Native Group command boundary ──────────────────────────────────────────
+//
+// Group is exposed through several entry points (menu, shortcut, command
+// palette). The command itself is the authority so a caller cannot bypass
+// semantic selection rules just because its UI forgot to pre-disable itself.
+describe('native Group command boundary', () => {
+  const dummyEl = {} as unknown as HTMLElement;
+  let q: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    const mutQueue = await import('@/code/mutation/mutation-queue');
+    q = mutQueue.queueMutation as ReturnType<typeof vi.fn>;
+    q.mockClear();
+  });
+
+  const abs = (id: string, parentId = 'page', left = 0) => makeNode(
+    id,
+    parentId,
+    [],
+    { position: 'absolute', left: `${left}px`, top: '0px', width: '20px', height: '20px' },
+  );
+
+  it('creates a semantic paintless Group and reparents valid siblings in source order', () => {
+    const map = buildMap([
+      makeNode('page', null, ['a', 'b']),
+      abs('a', 'page', 10),
+      abs('b', 'page', 50),
+    ]);
+
+    const groupId = groupSelection(['a', 'b'], map, dummyEl);
+    expect(groupId).toBeTruthy();
+
+    const muts = q.mock.calls.map((c) => c[0]);
+    const add = muts.find((m) => m.type === 'addNode');
+    expect(add?.node?.id).toBe(groupId);
+    expect(add?.node?.name).toBe('Group');
+    expect(add?.node?.attrs).toEqual({ 'data-field-group': 'true' });
+    expect(add?.node?.styles?.backgroundColor).toBeUndefined();
+    expect(add?.node?.styles?.overflow).toBeUndefined();
+    expect(add?.node?.styles?.display).toBeUndefined();
+
+    const moves = muts.filter((m) => m.type === 'move');
+    expect(moves.map((m) => m.nodeId)).toEqual(['a', 'b']);
+    expect(moves.every((m) => m.newParentId === groupId)).toBe(true);
+  });
+
+  it('rejects a single-node Group request before queueing any mutation', () => {
+    const map = buildMap([
+      makeNode('page', null, ['a']),
+      abs('a'),
+    ]);
+    expect(groupSelection(['a'], map, dummyEl)).toBeNull();
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate ids before queueing the same node twice', () => {
+    const map = buildMap([
+      makeNode('page', null, ['a']),
+      abs('a'),
+    ]);
+    expect(groupSelection(['a', 'a'], map, dummyEl)).toBeNull();
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('rejects mixed-parent selections at the command boundary', () => {
+    const map = buildMap([
+      makeNode('page-a', null, ['a']),
+      makeNode('page-b', null, ['b']),
+      abs('a', 'page-a'),
+      abs('b', 'page-b'),
+    ]);
+    expect(groupSelection(['a', 'b'], map, dummyEl)).toBeNull();
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('rejects component-instance internals at the command boundary', () => {
+    const a = abs('a') as CanvasNode;
+    const b = abs('b', 'page', 30) as CanvasNode;
+    (a as any).componentInstanceId = 'instance-1';
+    (b as any).componentInstanceId = 'instance-1';
+    const map = buildMap([makeNode('page', null, ['a', 'b']), a, b]);
+
+    expect(groupSelection(['a', 'b'], map, dummyEl)).toBeNull();
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('Ungroup refuses an ordinary Frame even if it has children', () => {
+    const frame = makeNode('frame', 'page', ['a', 'b'], {
+      position: 'absolute', left: '0px', top: '0px', width: '80px', height: '20px',
+    });
+    const map = buildMap([
+      makeNode('page', null, ['frame']),
+      frame,
+      abs('a', 'frame'),
+      abs('b', 'frame', 40),
+    ]);
+
+    expect(ungroupSelection('frame', map, dummyEl)).toBeNull();
+    expect(q).not.toHaveBeenCalled();
   });
 });
 

@@ -534,6 +534,13 @@ export function groupSelection(
   nodesMap: Map<string, CanvasNode>,
   _contentEl: HTMLElement,
 ): string | null {
+  // Enforce Group semantics HERE, not only in the menu that happened to expose
+  // the command first. Shortcuts, command palette, stale UI state and future
+  // callers must all bottom out at the same deterministic boundary.
+  if (!canGroupSelection(nodeIds, nodesMap)) {
+    trace.action('commands:group-selection:invalid-selection', { nodeIds });
+    return null;
+  }
   return wrapInternal(nodeIds, nodesMap, /* layout */ false, /* bakeFlowToAbsolute */ true, 'group');
 }
 

@@ -54,6 +54,15 @@ describe('native Group semantics', () => {
     expect(canGroupSelection(['a', 'c'], nodes)).toBe(false);
   });
 
+  it('rejects duplicate ids at the semantic boundary', () => {
+    const nodes = new Map<string, CanvasNode>([
+      ['parent', node('parent', null)],
+      ['a', node('a', 'parent')],
+    ]);
+
+    expect(canGroupSelection(['a', 'a'], nodes)).toBe(false);
+  });
+
   it('allows free-canvas siblings and rejects instance internals', () => {
     const nodes = new Map<string, CanvasNode>([
       ['a', node('a', null, { isCanvasNode: true })],

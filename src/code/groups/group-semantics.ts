@@ -11,6 +11,10 @@ export function canGroupSelection(
   nodes: Map<string, CanvasNode>,
 ): boolean {
   if (nodeIds.length < 2) return false;
+  // Selection state should already be unique, but the semantic command is a
+  // public boundary used by shortcuts/palette/future callers. Treat duplicate
+  // ids as an invalid selection rather than queueing the same node twice.
+  if (new Set(nodeIds).size !== nodeIds.length) return false;
 
   const selected: CanvasNode[] = [];
   for (const id of nodeIds) {
