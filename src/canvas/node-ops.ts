@@ -27,7 +27,7 @@ import { queueMutation, setForceRender, flushNow } from '@/code/mutation/mutatio
 import { RENDER_RESOLVED_MUTATIONS } from '@/code/mutation/render-resolved-mutations';
 import { dragStateOps } from '@/canvas/drag/drag-state-store';
 import { isComponentVariantRootNode } from '@/canvas/variant-root';
-import { injectNodeIntoCache, updateNodeInCache, removeNodeFromCache, moveNodeInCache, isComponentInstanceInCache, getVariantOverriddenKeys, getNodeFromCache } from '@/code/stores/store';
+import { injectNodeIntoCache, updateNodeInCache, removeNodeFromCache, moveNodeInCache, isComponentInstanceInCache, getVariantOverriddenKeys, getNodeFromCache, getCachedNodesMap } from '@/code/stores/store';
 import { DEFAULT_VIEWPORT_WIDTH, SVG_SHAPE_TAGS } from '@/shared/constants';
 import { getReplicaContext, svgChildCarrierOrigin, groupChildBoxToMotion, groupChildrenCarryVariantGeometry, compensateGroupChildVariantsForBaseBox } from '@/canvas/drag/replica-context';
 import { motionPropsToCSSTransform } from '@/shared/motion-transform';
@@ -36,6 +36,7 @@ import { extractCanvasGlobals, canvasThemeMode } from './canvas-theme';
 import { getCanvasBridge } from './canvas-bridge';
 import { transformManager } from './transform/TransformManager';
 import { moveChildAndRefitGroup, normalizeGroupOnResize, refitGroupChain } from '@/code/svg/refit-group';
+import { planNativeGroupRefitChain, touchesNativeGroupGeometry } from '@/code/groups/group-refit';
 import { getViewportWidths } from '@/code/stores/viewport-store';
 import type { ScreenCorners } from '@/shared/types';
 import { isGhostNodeId, stripGhostSuffix } from '@/shared/ghost-id';
@@ -1842,6 +1843,9 @@ export function updateNodeStyles(options: {
    *  (the bake commit, which has the fresh geometry in hand) — the redirect's
    *  generic compensation must not run a second time. */
   skipVariantCompensation?: boolean;
+  /** Internal native-Group guard: refit-generated child/group writes must not
+   *  recursively trigger another refit pass. */
+  skipGroupRefit?: boolean;
 }): void {
   // View-only gate. Every style write in the editor (drag, resize,
   // controls, etc.) lands here — early-return for viewers so writes
@@ -2847,6 +2851,44 @@ export function updateNodeStyles(options: {
       trace.action('nodeOps.updateNodeStyles:solo-replica-clear', {
         nodeId: id, soloVpId, unhiddenOnVpId: _interactingVpId,
       });
+    }
+  }
+
+  // ── Native Group derived-bounds refit ────────────────────────────────────
+  // Phase B1: canonical absolute/pixel Groups on the primary PAGE surface.
+  //
+  // Ordinary drag + resize commits already converge here. Run the refit AFTER
+  // the user's own style mutation has been routed/queued so any local child
+  // rebase is later in the same mutation batch and therefore wins without a
+  // second render/undo step.
+  //
+  // Component variants / page replicas / flow-positioned Groups are left to
+  // later Phase B slices; the pure planner deliberately returns null for
+  // geometry it cannot preserve exactly.
+  if (!options.skipGroupRefit
+      && !isComponentFile
+      && isPrimary
+      && touchesNativeGroupGeometry(styles)) {
+    const changed = getNodeFromCache(id);
+    const parent = changed?.parentId ? getNodeFromCache(changed.parentId) : null;
+    if (parent?.isGroup) {
+      const plan = planNativeGroupRefitChain(id, getCachedNodesMap());
+      if (plan && plan.patches.length > 0) {
+        trace.action('nodeOps:native-group-refit', {
+          changedNodeId: id,
+          groupIds: plan.groupIds,
+          patchCount: plan.patches.length,
+        });
+        for (const patch of plan.patches) {
+          updateNodeStyles({
+            id: patch.nodeId,
+            styles: patch.styles,
+            contentEl,
+            viewportPrefix: options.viewportPrefix,
+            skipGroupRefit: true,
+          });
+        }
+      }
     }
   }
 }
