@@ -320,16 +320,33 @@ async function verifyAccessRequest(request, env) {
   }
 }
 
+async function stableAccessEmailSubject(email) {
+  const normalized = email.trim().toLowerCase();
+
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(normalized),
+  );
+
+  const hex = Array.from(
+    new Uint8Array(digest),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  return `access-email:${hex}`;
+}
+
 async function verifyWorkerAccess(request, env, ctx) {
-  // Current Cloudflare Workers Access integration provides a verified identity
-  // directly on the execution context. Prefer it when present: Cloudflare has
-  // already authenticated + authorized the request before this Worker runs.
+  // Native Worker Access context when available.
   if (ctx?.access) {
     try {
       const identity = await ctx.access.getIdentity();
 
       if (!identity || typeof identity !== "object") {
-        return { ok: false, reason: "Worker Access identity unavailable" };
+        return {
+          ok: false,
+          reason: "Worker Access identity unavailable",
+        };
       }
 
       const subjectCandidates = [
@@ -344,7 +361,10 @@ async function verifyWorkerAccess(request, env, ctx) {
       );
 
       if (!subject) {
-        return { ok: false, reason: "Worker Access identity has no stable subject" };
+        return {
+          ok: false,
+          reason: "Worker Access identity has no stable subject",
+        };
       }
 
       return {
@@ -357,14 +377,54 @@ async function verifyWorkerAccess(request, env, ctx) {
     } catch (error) {
       return {
         ok: false,
-        reason: error instanceof Error ? error.message : String(error),
+        reason: error instanceof Error
+          ? error.message
+          : String(error),
       };
     }
   }
 
-  // Classic hostname Access / direct-origin validation path. This still
-  // cryptographically validates issuer, audience, expiry, and signature.
-  return verifyAccessRequest(request, env);
+  // Prefer cryptographic JWT validation whenever the Access token survives
+  // the Static Assets router.
+  const verified = await verifyAccessRequest(request, env);
+
+  if (verified?.ok) {
+    return verified;
+  }
+
+  // Workers Static Assets uses an internal router which does not propagate
+  // ctx.access to the user Worker. Access still protects field.loew.fi and
+  // injects the authenticated-user email header.
+  //
+  // Accept this fallback ONLY on the exact protected editor hostname. This
+  // prevents the public workers.dev deployment from becoming an auth bypass.
+  const incoming = new URL(request.url);
+
+  if (incoming.hostname !== "field.loew.fi") {
+    return verified;
+  }
+
+  const email =
+    request.headers
+      .get("Cf-Access-Authenticated-User-Email")
+      ?.trim()
+      .toLowerCase() ?? "";
+
+  if (!email || !email.includes("@")) {
+    return verified;
+  }
+
+  return {
+    ok: true,
+    payload: {
+      sub: await stableAccessEmailSubject(email),
+      email,
+    },
+    identity: {
+      email,
+    },
+    source: "access-authenticated-email",
+  };
 }
 
 async function readJsonBody(request, maxBytes) {

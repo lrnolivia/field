@@ -60,6 +60,54 @@ test('native Worker Access context authenticates field APIs', async () => {
   assert.equal(verified.payload?.sub, 'worker-access-user');
 });
 
+test('Static Assets Access email authenticates field profile API', async () => {
+  const env = {
+    FIELD_PROJECTS: new MockR2(),
+    ASSETS: {
+      fetch: async () => new Response('asset'),
+    },
+  };
+
+  const response = await worker.fetch(
+    new Request('https://field.loew.fi/api/field/profile', {
+      headers: {
+        'Cf-Access-Authenticated-User-Email': 'Lauren@example.com',
+      },
+    }),
+    env,
+    {},
+  );
+
+  assert.equal(response.status, 200);
+
+  assert.deepEqual(await response.json(), {
+    hasCustomAvatar: false,
+    avatarUpdatedAt: null,
+    avatarUrl: null,
+  });
+});
+
+test('Static Assets Access email cannot authenticate workers.dev', async () => {
+  const env = {
+    FIELD_PROJECTS: new MockR2(),
+    ASSETS: {
+      fetch: async () => new Response('asset'),
+    },
+  };
+
+  const response = await worker.fetch(
+    new Request('https://field.lrnoliv.workers.dev/api/field/profile', {
+      headers: {
+        'Cf-Access-Authenticated-User-Email': 'Lauren@example.com',
+      },
+    }),
+    env,
+    {},
+  );
+
+  assert.equal(response.status, 403);
+});
+
 test('profile API uses the verified Access subject', async () => {
   const env = {
     FIELD_PROJECTS: new MockR2(),
