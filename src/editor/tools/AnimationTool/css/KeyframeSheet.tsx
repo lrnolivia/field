@@ -30,6 +30,7 @@ import {
   type AnimationData,
 } from '@/shared/animation-utils';
 import { trace } from '@/shared/debug-trace';
+import FieldSelect from '@/editor/controls/FieldSelect';
 // ToolPopupContext no longer provided — controls open standalone popups for full-size editors
 import MotionPropsEditor, { buildTransformPreview } from '../motion/MotionPropsEditor';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
@@ -519,33 +520,42 @@ export default function KeyframeSheet() {
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] text-[var(--text-secondary)]">Ease</span>
-              <select
-                className="h-5 px-1 text-[10px] bg-[var(--bg-input)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-sm cut-border text-[var(--text-primary)] focus:outline-none cursor-pointer"
+              <FieldSelect
                 value={animData.easing}
-                onChange={(e) => writeAnimData({ ...animData, easing: e.target.value })}
-              >
-                {CSS_EASING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+                onChange={(value) => writeAnimData({ ...animData, easing: value })}
+                options={CSS_EASING_OPTIONS}
+                ariaLabel="Ease"
+                density="compact"
+                className="min-w-[78px] max-w-[118px]"
+                triggerClassName="bg-[var(--bg-input)]"
+                menuMinWidth={150}
+              />
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] text-[var(--text-secondary)]">Repeat</span>
-              <select
-                className="h-5 px-1 text-[10px] bg-[var(--bg-input)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-sm cut-border text-[var(--text-primary)] focus:outline-none cursor-pointer"
+              <FieldSelect
                 value={animData.iterationCount}
-                onChange={(e) => writeAnimData({ ...animData, iterationCount: e.target.value })}
-              >
-                {CSS_ITERATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+                onChange={(value) => writeAnimData({ ...animData, iterationCount: value })}
+                options={CSS_ITERATION_OPTIONS}
+                ariaLabel="Repeat"
+                density="compact"
+                className="min-w-[66px] max-w-[96px]"
+                triggerClassName="bg-[var(--bg-input)]"
+                menuMinWidth={112}
+              />
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] text-[var(--text-secondary)]">Fill</span>
-              <select
-                className="h-5 px-1 text-[10px] bg-[var(--bg-input)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-sm cut-border text-[var(--text-primary)] focus:outline-none cursor-pointer"
+              <FieldSelect
                 value={animData.fillMode}
-                onChange={(e) => writeAnimData({ ...animData, fillMode: e.target.value })}
-              >
-                {CSS_FILL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+                onChange={(value) => writeAnimData({ ...animData, fillMode: value })}
+                options={CSS_FILL_OPTIONS}
+                ariaLabel="Fill"
+                density="compact"
+                className="min-w-[66px] max-w-[102px]"
+                triggerClassName="bg-[var(--bg-input)]"
+                menuMinWidth={116}
+              />
             </div>
           </div>
         </div>
