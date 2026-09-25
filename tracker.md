@@ -431,6 +431,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Prevention rule:** coordination-state detection must test the semantic record being sought, not a broad substring that may also occur in lessons, notes, or historical text.
 <!-- LESSON:figui3-global-visual-parity-r2-ledger-detection:END -->
 
+<!-- LESSON:field-project-dashboard-r1-vitest-file-url:START -->
+### field-project-dashboard-20260925 r1 validation lesson
+
+- **r1 applied the exact 19-file dashboard postimage, then stopped safely at focused Vitest before staging or committing product source.** The dashboard reservation commit `937d378` was already pushed; the implementation remained an unstaged resumable postimage.
+- **Root cause:** `src/dashboard/dashboard-route.test.ts` read `ProjectChip.tsx` with `readFileSync(new URL(..., import.meta.url))`. Under the repository's Vitest/Vite transform, that module URL was not a `file:` URL, so Node rejected it with `TypeError: The URL must be of scheme file`.
+- **Repository/source impact:** no dashboard implementation commit was created by r1. The intended 19 dashboard/integration files remained local and unstaged; product behavior was not implicated by the failing assertion harness.
+- **r2 repair:** resolve the repository file from `process.cwd()` + `node:path.resolve`, explicitly accept r1's broken test as a predecessor state, replace only that test during resume, and continue the same focused tests, Worker regressions, TypeScript, `build:all`, scoped staging, commit, push, and deployment verification.
+- **Prevention rule:** filesystem-reading Vitest tests must not assume transformed `import.meta.url` is a local `file:` URL. Use a repository-root path when the test runner owns `cwd`, or convert a known file URL with `fileURLToPath`; package validation should execute the real focused test command, not only syntax/idempotence checks.
+<!-- LESSON:field-project-dashboard-r1-vitest-file-url:END -->
+
 ## Commit Ledger
 
 
