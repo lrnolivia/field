@@ -1,4 +1,5 @@
 // FontFamilyControl.tsx — Font family selector.
+// FIGUI3_CORRECTIVE_FONT_TRIGGER_20260925
 // Shows current font name rendered in that font, click opens FontFamilyPopup.
 // Two modes: text mode (reads from useTextStyles) and external mode (value/onChange props).
 
@@ -7,8 +8,7 @@ import { useAtomValue } from 'jotai';
 import { ControlLabel, ControlActionRow } from '../../../controls';
 import { useTextStyles } from '../../../hooks/useTextStyles';
 import { useToolPopupOptional } from '../../../ui/ToolPopup';
-import FontFamilyPopup from '../../../ui/FontFamilyPopup';
-import { DEFAULT_FONTS } from '@/shared/google-fonts';
+import FontFamilyPopup, { shouldRenderFontNameWithUiFace } from '../../../ui/FontFamilyPopup';
 import { loadGoogleFont } from '@/shared/font-loader';
 import { ensureGoogleFontImport } from '@/code/project/preset-ops';
 import { injectCanvasCSS, removeCanvasCSS, getInteractingViewport, getViewportPrefix } from '@/canvas/node-ops';
@@ -261,32 +261,27 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
         {!compact && <ControlLabel label={label} property="fontFamily" plain={plain} />}
         {compact ? (
           <div className="relative min-w-0">
-            <select
-              data-typography-font-family-select
-              value={isMixed ? '' : value}
-              onChange={(e) => handleChange(e.target.value)}
-              className="w-full h-[var(--control-height)] pl-2 pr-7 text-xs text-left appearance-none bg-[var(--grid-line)] border border-[var(--control-border)] text-[var(--text-primary)] rounded-[var(--control-radius)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] focus:outline-none cursor-pointer truncate"
-              style={{ fontFamily: isMixed ? undefined : value || undefined }}
-              aria-label="Font family"
+            <button
+              type="button"
+              data-typography-font-family-trigger
+              onClick={handleClick}
+              className="w-full h-[var(--control-height)] px-2 flex items-center justify-between gap-2 text-xs text-left bg-[var(--control-bg)] border border-transparent text-[var(--text-primary)] rounded-[var(--control-radius)] hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)] cursor-pointer min-w-0"
+              style={{ fontFamily: isMixed || shouldRenderFontNameWithUiFace(displayName) ? undefined : value || undefined }}
+              aria-label="Choose font family"
+              aria-haspopup="dialog"
+              aria-expanded={isOpen}
             >
-              {isMixed && <option value="">Mixed</option>}
-              {!isMixed && value && !DEFAULT_FONTS.some(font => `${font.family}, ${font.category}` === value) && (
-                <option value={value}>{displayName}</option>
-              )}
-              {DEFAULT_FONTS.map((font) => {
-                const cssFamily = `${font.family}, ${font.category}`;
-                return <option key={font.family} value={cssFamily}>{font.family}</option>;
-              })}
-            </select>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)]">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+              <span className="truncate min-w-0">{displayName}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-secondary)]">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
           </div>
         ) : (
           <ControlActionRow onClick={handleClick} className="min-w-0 overflow-hidden text-left">
             <span
               className="text-xs text-left truncate flex-1 min-w-0"
-              style={{ fontFamily: isMixed ? undefined : value || undefined }}
+              style={{ fontFamily: isMixed || shouldRenderFontNameWithUiFace(displayName) ? undefined : value || undefined }}
             >
               {displayName}
             </span>
@@ -300,7 +295,7 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
             type="button"
             data-typography-font-browser-button
             onClick={handleClick}
-            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--grid-line)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)]"
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] border border-transparent bg-[var(--control-bg)] text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)]"
             title="Browse fonts"
             aria-label="Browse fonts"
           >

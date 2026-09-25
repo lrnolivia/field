@@ -1,8 +1,10 @@
 // FontFamilyPopup.tsx -- Font family picker using react-window v2 List.
-// Opens inside a ToolPopup. Shows search, category filter, and virtualised font list.
-// Each row renders the font name in its own typeface with "Aa" preview.
+// FIGUI3_CORRECTIVE_FONT_BROWSER_20260925
+// Opens inside a ToolPopup. Shows search, source/category filtering, and a virtualised font list.
+// Family names are the preview; symbol/icon families fall back to field UI type for legibility.
 
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useSetAtom } from 'jotai';
 import { List, useListRef, type RowComponentProps } from 'react-window';
 import { fetchGoogleFonts, DEFAULT_FONTS, FEELING_CATEGORIES, type FontItem } from '@/shared/google-fonts';
@@ -10,7 +12,6 @@ import { loadGoogleFont, loadFontFromCSSValue, loadCustomFont } from '@/shared/f
 import { useWorkspaceFonts, ensureWorkspaceFonts, applyWorkspaceFontToProject } from '@/code/stores/workspace-fonts-store';
 import type { WorkspaceFont } from '@/backend/types';
 import ToolPopup from './ToolPopup';
-import { ControlLabel } from '../controls';
 import { suppressSelectionOverlayAtom } from '@/code/stores/editor-store';
 import { trace } from '@/shared/debug-trace';
 
@@ -29,6 +30,30 @@ interface FontFamilyPopupProps {
    *  fontFamily write (selected-text-portion preview), then reverts on
    *  unhover so nothing commits to the user's code unless they click. */
   onPreview?: (family: string | null) => void;
+}
+
+type FontFilter = 'all' | 'workspace' | 'google' | `tag:${string}`;
+
+const SYMBOL_FONT_FAMILY_RE = /^(?:Material (?:Symbols|Icons)|Noto (?:Color )?Emoji)\b/i;
+
+export function shouldRenderFontNameWithUiFace(family: string): boolean {
+  return SYMBOL_FONT_FAMILY_RE.test(family.trim());
+}
+
+function SelectedCheck({ selected }: { selected: boolean }) {
+  return (
+    <span
+      data-font-selected-check
+      aria-hidden
+      className="w-5 shrink-0 flex items-center justify-center text-[var(--text-primary)]"
+    >
+      {selected && (
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m2.2 6.1 2.2 2.2 5.2-5.2" />
+        </svg>
+      )}
+    </span>
+  );
 }
 
 /** Extra props passed to each row via rowProps (react-window v2 injects index+style automatically) */
@@ -69,15 +94,15 @@ function FontRow({ index, style, filteredFonts, currentFontName, onSelect, onPre
       onMouseEnter={() => onPreview?.(cssFamily)}
     >
       <div
-        className={`flex items-center justify-between px-2 py-1.5 cut-corners cursor-pointer transition-colors ${
+        className={`h-7 flex items-center px-1.5 rounded-[3px] cursor-pointer transition-colors ${
           isSelected
-            ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
+            ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
             : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
         }`}
-        style={{ fontFamily: font.family }}
+        style={{ fontFamily: shouldRenderFontNameWithUiFace(font.family) ? 'var(--loew-ui-font)' : `"${font.family}", var(--loew-ui-font)` }}
       >
-        <span className="text-[12px] truncate">{font.family}</span>
-        <span className={`text-[11px] flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
+        <SelectedCheck selected={isSelected} />
+        <span className="text-[11px] leading-none truncate min-w-0">{font.family}</span>
       </div>
     </div>
   );
@@ -86,7 +111,10 @@ function FontRow({ index, style, filteredFonts, currentFontName, onSelect, onPre
 export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anchorRef, inline, onPreview }: FontFamilyPopupProps) {
   const [fonts, setFonts] = useState<FontItem[]>(DEFAULT_FONTS);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedFilter, setSelectedFilter] = useState<FontFilter>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterMenuPos, setFilterMenuPos] = useState({ left: 0, top: 0 });
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useListRef(null);
@@ -149,25 +177,29 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
     if (isOpen && value) loadFontFromCSSValue(value);
   }, [isOpen, value]);
 
-  // Reset search/category when popup closes
+  // Reset search/filter when popup closes
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery('');
-      setSelectedCategory('All');
+      setSelectedFilter('all');
+      setFilterOpen(false);
     }
   }, [isOpen]);
 
-  // Filter fonts by category + search
+  // Filter Google fonts by source/tag + search. Workspace source selection
+  // intentionally empties this list; workspace families are rendered by the
+  // dedicated section below without sacrificing Google-list virtualization.
   const filteredFonts = useMemo(() => {
-    let filtered = fonts;
+    if (selectedFilter === 'workspace') return [] as FontItem[];
 
-    if (selectedCategory !== 'All') {
+    let filtered = fonts;
+    if (selectedFilter.startsWith('tag:')) {
+      const category = selectedFilter.slice(4).toLowerCase();
       filtered = filtered.filter(font => {
         if (!font.tags || !Array.isArray(font.tags)) return false;
         return font.tags.some(tag => {
           const tagName = typeof tag === 'string' ? tag : tag?.name;
-          if (!tagName || typeof tagName !== 'string') return false;
-          return tagName.toLowerCase().includes(selectedCategory.toLowerCase());
+          return typeof tagName === 'string' && tagName.toLowerCase().includes(category);
         });
       });
     }
@@ -178,7 +210,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
     }
 
     return filtered;
-  }, [fonts, searchQuery, selectedCategory]);
+  }, [fonts, searchQuery, selectedFilter]);
 
   // Fetch the workspace font library the first time the picker opens.
   useEffect(() => {
@@ -186,12 +218,11 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
   }, [isOpen]);
 
   // Workspace fonts → one representative entry per family (prefer the
-  // closest-to-Regular upright weight), search-filtered. Only shown under the
-  // 'All' category since custom fonts carry no feeling tags. The faces are
-  // already registered with the FontFace API (by the store) so each row paints
-  // in its own typeface.
+  // closest-to-Regular upright weight). Source/category filtering is unified
+  // with the Google catalog: Workspace is visible for all/workspace, hidden
+  // for Google-only and feeling/tag filters.
   const workspaceFamilies = useMemo(() => {
-    if (selectedCategory !== 'All') return [] as WorkspaceFont[];
+    if (selectedFilter === 'google' || selectedFilter.startsWith('tag:')) return [] as WorkspaceFont[];
     const rep = new Map<string, WorkspaceFont>();
     for (const f of workspaceFonts) {
       const cur = rep.get(f.family);
@@ -207,7 +238,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
       arr = arr.filter(f => f.family.toLowerCase().includes(q));
     }
     return arr.sort((a, b) => a.family.localeCompare(b.family));
-  }, [workspaceFonts, searchQuery, selectedCategory]);
+  }, [workspaceFonts, searchQuery, selectedFilter]);
 
   // Current font name for highlighting. CRITICAL: frozen to the value at
   // popup-open time, NOT the live `value` prop. Why:
@@ -311,6 +342,61 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
     if (!isOpen) onPreview?.(null);
   }, [isOpen, onPreview]);
 
+  const filterLabel = selectedFilter === 'all'
+    ? 'All fonts'
+    : selectedFilter === 'workspace'
+      ? 'Workspace fonts'
+      : selectedFilter === 'google'
+        ? 'Google Fonts'
+        : selectedFilter.slice(4);
+
+  const toggleFilterMenu = useCallback(() => {
+    if (filterOpen) {
+      setFilterOpen(false);
+      return;
+    }
+    const rect = filterButtonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = 184;
+    const pad = 8;
+    const estimatedHeight = 320;
+    const left = Math.min(Math.max(pad, rect.left), Math.max(pad, window.innerWidth - width - pad));
+    const below = rect.bottom + 4;
+    const top = below + estimatedHeight <= window.innerHeight - pad
+      ? below
+      : Math.max(pad, rect.top - estimatedHeight - 4);
+    setFilterMenuPos({ left, top });
+    setFilterOpen(true);
+  }, [filterOpen]);
+
+  const chooseFilter = useCallback((next: FontFilter) => {
+    didInitialScrollRef.current = false;
+    setSelectedFilter(next);
+    setFilterOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (filterButtonRef.current?.contains(target) || target.closest('[data-font-filter-menu]')) return;
+      setFilterOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [filterOpen]);
+
   // Row props for react-window v2
   const rowProps: FontRowExtraProps = useMemo(() => ({
     filteredFonts,
@@ -327,110 +413,163 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
     onPreview?.(null);
   }, [onPreview]);
 
-  const content = (
-    <div onMouseLeave={handleContainerLeave}>
-      {/* Search + Category filter */}
-      <div className={`flex flex-col gap-1.5 ${inline ? '' : '-mx-2.5 px-2.5'} pb-1.5 border-b border-[var(--border-light)]`}>
-        <div className="relative">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="w-full h-7 bg-[var(--bg-hover)] cut-corners pl-7 pr-2 py-0 text-[11px] focus:outline-none text-[var(--text-primary)]"
-            placeholder="Search fonts..."
-          />
-          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-secondary)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ControlLabel label="Category" property="" plain />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex-1 h-7 bg-[var(--bg-hover)] cut-corners px-2 py-0 text-[11px] focus:outline-none text-[var(--text-primary)] cursor-pointer"
-          >
-            {FEELING_CATEGORIES.map(cat => (
-              <option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+  const noResults = workspaceFamilies.length === 0 && filteredFonts.length === 0;
 
-      {/* Font list */}
-      <div className="-mx-2.5 px-1">
-        {/* Workspace fonts — uploaded to the workspace library, shown above
-            the Google catalog under their own divider, each in its own face. */}
-        {workspaceFamilies.length > 0 && (
-          <div className="mb-1">
-            <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-              Workspace fonts
-            </div>
-            <div className="max-h-[150px] overflow-y-auto [&::-webkit-scrollbar]:hidden">
-              {workspaceFamilies.map(font => {
-                const isSelected = font.family === currentFontName;
-                const cssFamily = `${font.family}, sans-serif`;
-                return (
-                  <div
-                    key={font.id}
-                    className="py-px"
-                    onClick={() => handleWorkspaceSelect(font)}
-                    onMouseDown={e => e.stopPropagation()}
-                    onMouseEnter={() => onPreview?.(cssFamily)}
-                  >
+  const content = (
+    <>
+      <div onMouseLeave={handleContainerLeave}>
+        <div className={`flex flex-col gap-1 ${inline ? '' : '-mx-2.5 px-2.5'} pb-1.5 border-b border-[var(--border-light)]`}>
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full h-7 bg-[var(--control-bg)] rounded-[3px] border border-transparent pl-7 pr-2 py-0 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--selection)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+              placeholder="Search fonts…"
+            />
+            <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-secondary)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <button
+            ref={filterButtonRef}
+            type="button"
+            data-font-filter-trigger
+            aria-haspopup="menu"
+            aria-expanded={filterOpen}
+            onClick={toggleFilterMenu}
+            className="h-7 w-full px-2 flex items-center justify-between rounded-[3px] border border-transparent bg-transparent hover:bg-[var(--bg-hover)] text-[11px] text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)]"
+          >
+            <span className="truncate">{filterLabel}</span>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="shrink-0 text-[var(--text-secondary)]">
+              <path d="m4 6 4 4 4-4" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="-mx-2.5 px-1 pt-1">
+          {workspaceFamilies.length > 0 && (
+            <div className="mb-0.5">
+              <div className="px-2 py-1 text-[10px] font-medium text-[var(--text-tertiary)]">
+                Workspace fonts
+              </div>
+              <div className={selectedFilter === 'workspace' ? 'max-h-[286px] overflow-y-auto [&::-webkit-scrollbar]:hidden' : 'max-h-[112px] overflow-y-auto [&::-webkit-scrollbar]:hidden'}>
+                {workspaceFamilies.map(font => {
+                  const isSelected = font.family === currentFontName;
+                  const cssFamily = `${font.family}, sans-serif`;
+                  return (
                     <div
-                      className={`flex items-center justify-between px-2 py-1.5 cut-corners cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
-                          : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      }`}
-                      style={{ fontFamily: `"${font.family}"` }}
+                      key={font.id}
+                      className="h-7"
+                      onClick={() => handleWorkspaceSelect(font)}
+                      onMouseDown={e => e.stopPropagation()}
+                      onMouseEnter={() => onPreview?.(cssFamily)}
                     >
-                      <span className="text-[12px] truncate">{font.family}</span>
-                      <span className={`text-[11px] flex-shrink-0 ml-2 ${isSelected ? 'text-[var(--accent-fg)]/70' : 'text-[var(--text-secondary)]'}`}>Aa</span>
+                      <div
+                        className={`h-7 flex items-center px-1.5 rounded-[3px] cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+                            : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                        }`}
+                        style={{ fontFamily: shouldRenderFontNameWithUiFace(font.family) ? 'var(--loew-ui-font)' : `"${font.family}", var(--loew-ui-font)` }}
+                      >
+                        <SelectedCheck selected={isSelected} />
+                        <span className="text-[11px] leading-none truncate min-w-0">{font.family}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-            <div className="mt-1 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] border-t border-[var(--border-light)]">
+          )}
+
+          {selectedFilter === 'all' && workspaceFamilies.length > 0 && filteredFonts.length > 0 && (
+            <div className="px-2 py-1 text-[10px] font-medium text-[var(--text-tertiary)] border-t border-[var(--border-light)]">
               Google Fonts
             </div>
-          </div>
-        )}
+          )}
 
-        {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--text-primary)]" />
-          </div>
-        ) : filteredFonts.length === 0 ? (
-          workspaceFamilies.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-[var(--text-secondary)] text-sm">
-              No fonts found
+          {loading && selectedFilter !== 'workspace' ? (
+            <div className="flex items-center justify-center h-28">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--text-secondary)]" />
             </div>
-          ) : null
-        ) : (
-          <List
-            listRef={listRef}
-            rowCount={filteredFonts.length}
-            rowHeight={30}
-            rowComponent={FontRow}
-            rowProps={rowProps}
-            style={{ height: workspaceFamilies.length > 0 ? 180 : 286, scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
-            className="[&::-webkit-scrollbar]:hidden"
-          />
-        )}
+          ) : noResults ? (
+            <div className="flex items-center justify-center h-28 text-[var(--text-secondary)] text-[11px]">
+              {selectedFilter === 'workspace' ? 'No workspace fonts' : 'No fonts found'}
+            </div>
+          ) : filteredFonts.length > 0 ? (
+            <List
+              listRef={listRef}
+              rowCount={filteredFonts.length}
+              rowHeight={28}
+              rowComponent={FontRow}
+              rowProps={rowProps}
+              style={{ height: workspaceFamilies.length > 0 ? 174 : 294, scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
+              className="[&::-webkit-scrollbar]:hidden"
+            />
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      {filterOpen && createPortal(
+        <div
+          data-font-filter-menu
+          role="menu"
+          aria-label="Font filter"
+          className="fixed w-[184px] max-h-[320px] overflow-y-auto py-1 rounded-[5px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] scrollbar-hide"
+          style={{ left: filterMenuPos.left, top: filterMenuPos.top, zIndex: 100020 }}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {([
+            ['all', 'All fonts'],
+            ['workspace', 'Workspace fonts'],
+            ['google', 'Google Fonts'],
+          ] as const).map(([filter, label]) => (
+            <button
+              key={filter}
+              type="button"
+              role="menuitemradio"
+              aria-checked={selectedFilter === filter}
+              onClick={() => chooseFilter(filter)}
+              className={`h-7 w-full px-1.5 flex items-center rounded-[3px] text-left text-[11px] ${
+                selectedFilter === filter ? 'bg-[var(--bg-active)]' : 'hover:bg-[var(--bg-hover)]'
+              }`}
+            >
+              <SelectedCheck selected={selectedFilter === filter} />
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
+          <div className="h-px bg-[var(--border-light)] my-1 mx-2" />
+          {FEELING_CATEGORIES.filter(category => category !== 'All').map(category => {
+            const filter = `tag:${category}` as FontFilter;
+            return (
+              <button
+                key={category}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selectedFilter === filter}
+                onClick={() => chooseFilter(filter)}
+                className={`h-7 w-full px-1.5 flex items-center rounded-[3px] text-left text-[11px] ${
+                  selectedFilter === filter ? 'bg-[var(--bg-active)]' : 'hover:bg-[var(--bg-hover)]'
+                }`}
+              >
+                <SelectedCheck selected={selectedFilter === filter} />
+                <span className="truncate">{category}</span>
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 
   if (inline) return content;
 
   return (
-    <ToolPopup isOpen={isOpen} onClose={onClose} title="Fonts" anchorRef={anchorRef} width={264}>
+    <ToolPopup isOpen={isOpen} onClose={onClose} title="Fonts" anchorRef={anchorRef} width={276}>
       {content}
     </ToolPopup>
   );

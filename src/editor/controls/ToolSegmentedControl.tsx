@@ -1,4 +1,5 @@
 // ToolSegmentedControl.tsx — Button group with animated highlight.
+// FIGUI3_CORRECTIVE_SEGMENTED_20260925
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import { trace } from '@/shared/debug-trace';
@@ -64,7 +65,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
     // Outlined like the inputs and selects: the track was a bare fill with no
     // border, so when the other controls moved to outlined-and-recessed this
     // one stayed a filled slab and stood out as the odd control.
-    <div ref={containerRef} className="relative flex w-full bg-[var(--choice-bg)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border p-0.5">
+    <div ref={containerRef} className="relative flex w-full bg-[var(--control-bg)] border border-transparent cut-corners p-0.5">
       {/* Animated highlight */}
       <div
         className="absolute cut-corners cut-sm"
@@ -72,11 +73,11 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
           left: highlight.left,
           width: highlight.width,
           top: 2, bottom: 2,
-          backgroundColor: 'var(--segmented-bg)',
+          backgroundColor: 'var(--bg-active)',
           // The track is close to the panel now, so the thumb carries the
           // "raised" reading on its own. Matters most on light, where the
           // thumb is white on a near-white track.
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.18)',
+          boxShadow: 'none',
           transition: hasMounted.current ? 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
           zIndex: 1,
         }}

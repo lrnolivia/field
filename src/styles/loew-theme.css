@@ -113,14 +113,14 @@ textarea {
 
   --border-light: rgba(0, 0, 0, 0.10);
   --border-default: rgba(0, 0, 0, 0.17);
-  --border-focus: var(--accent);
+  --border-focus: var(--selection);
 
   --grid-line: #ededed;
   --control-bg: var(--grid-line);
   --control-bg-hover: #e3e3e3;
   --control-bg-active: #d9d9d9;
-  --control-border: rgba(0, 0, 0, 0.10);
-  --control-border-hover: rgba(0, 0, 0, 0.18);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --choice-bg: #e9e9e9;
   --segmented-bg: #e9e9e9;
   --slider-bg: #d7d7d7;
@@ -162,14 +162,14 @@ textarea {
 
   --border-light: rgba(255, 255, 255, 0.07);
   --border-default: rgba(255, 255, 255, 0.13);
-  --border-focus: var(--accent);
+  --border-focus: var(--selection);
 
   --grid-line: #2b2b2b;
   --control-bg: var(--grid-line);
   --control-bg-hover: #333333;
   --control-bg-active: #3a3a3a;
-  --control-border: rgba(255, 255, 255, 0.07);
-  --control-border-hover: rgba(255, 255, 255, 0.15);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --choice-bg: #1f1f1f;
   --segmented-bg: #393939;
   --slider-bg: #383838;
@@ -448,8 +448,8 @@ html[data-neutral-level="1"]:not(.dark) {
   --segmented-bg: #ffffff;
   --border-light: rgba(0, 0, 0, 0.08);
   --border-default: rgba(0, 0, 0, 0.14);
-  --control-border: rgba(0, 0, 0, 0.08);
-  --control-border-hover: rgba(0, 0, 0, 0.16);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --dropdown-bg: #ffffff;
 }
 
@@ -469,8 +469,8 @@ html[data-neutral-level="3"]:not(.dark) {
   --segmented-bg: #f5f5f5;
   --border-light: rgba(0, 0, 0, 0.11);
   --border-default: rgba(0, 0, 0, 0.18);
-  --control-border: rgba(0, 0, 0, 0.10);
-  --control-border-hover: rgba(0, 0, 0, 0.20);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --dropdown-bg: #f5f5f5;
 }
 
@@ -490,8 +490,8 @@ html.dark[data-neutral-level="1"] {
   --segmented-bg: #404040;
   --border-light: rgba(255, 255, 255, 0.075);
   --border-default: rgba(255, 255, 255, 0.14);
-  --control-border: rgba(255, 255, 255, 0.075);
-  --control-border-hover: rgba(255, 255, 255, 0.16);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --dropdown-bg: #303030;
 }
 
@@ -511,8 +511,8 @@ html.dark[data-neutral-level="3"] {
   --segmented-bg: #303030;
   --border-light: rgba(255, 255, 255, 0.065);
   --border-default: rgba(255, 255, 255, 0.12);
-  --control-border: rgba(255, 255, 255, 0.065);
-  --control-border-hover: rgba(255, 255, 255, 0.14);
+  --control-border: transparent;
+  --control-border-hover: transparent;
   --dropdown-bg: #222222;
 }
 
@@ -547,3 +547,10 @@ html.dark[data-neutral-level="3"] {
 html[data-page-canvas-visible="false"] {
   --page-canvas-background: var(--bg-canvas);
 }
+
+
+/* FIGUI3_CORRECTIVE_DESTROKE_20260925
+ * Inspector controls are intentionally fill-led, not outline-led.
+ * Resting and hover control edges stay transparent; functional focus uses
+ * Figma selection blue. Semantic section dividers and bounded swatches keep
+ * their own edge tokens. */

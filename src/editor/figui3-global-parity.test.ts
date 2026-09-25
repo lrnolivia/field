@@ -1,3 +1,4 @@
+// FIGUI3_CORRECTIVE_GLOBAL_TEST_20260925
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -38,9 +39,9 @@ describe('FigUI3 global parity contract', () => {
   it('tightens the font picker and generic popup instead of shrinking text further', () => {
     const fonts = read('src/editor/ui/FontFamilyPopup.tsx');
     const popup = read('src/editor/ui/ToolPopup.tsx');
-    expect(fonts).toContain('rowHeight={30}');
+    expect(fonts).toContain('rowHeight={28}');
     expect(fonts).toContain('title="Fonts"');
-    expect(fonts).toContain('width={264}');
+    expect(fonts).toContain('width={276}');
     expect(popup).toContain('gap-1.5');
   });
 });

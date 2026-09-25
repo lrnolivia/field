@@ -1,17 +1,19 @@
+// FIGUI3_CORRECTIVE_TYPOGRAPHY_TEST_20260925
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 typography controls', () => {
-  it('uses a left-aligned family dropdown with a separate rich browser button', () => {
+  it('uses one field-native family trigger plus the rich browser button', () => {
     const family = read('src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx');
-    expect(family).toContain('data-typography-font-family-select');
+    expect(family).toContain('data-typography-font-family-trigger');
     expect(family).toContain('data-typography-font-browser-button');
     expect(family).toContain('title="Browse fonts"');
     expect(family).toContain('text-left');
-    expect(family).toContain('DEFAULT_FONTS');
     expect(family).toContain('<FontFamilyPopup');
+    expect(family).not.toContain('data-typography-font-family-select');
+    expect(family).not.toContain('<select');
   });
 
   it('adds the supplied Figma font-size preset ladder', () => {

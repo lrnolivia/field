@@ -1,3 +1,4 @@
+// FIGUI3_CORRECTIVE_ICON_GROUP_20260925
 import type { ReactNode } from 'react';
 
 export interface InspectorIconButton {
@@ -34,9 +35,9 @@ export default function InspectorIconButtonGroup({
       data-inspector-icon-group
       role="group"
       aria-label={ariaLabel}
-      className={`flex overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] ${className}`}
+      className={`flex overflow-hidden rounded-[var(--control-radius)] bg-[var(--control-bg)] ${className}`}
     >
-      {buttons.map((button, index) => (
+      {buttons.map((button) => (
         <button
           key={button.id}
           type="button"
@@ -46,7 +47,6 @@ export default function InspectorIconButtonGroup({
           disabled={button.disabled}
           onClick={button.onClick}
           className={`${equal ? 'flex-1' : ''} h-[var(--control-height)] min-w-0 px-2 flex items-center justify-center transition-colors
-            ${index > 0 ? 'border-l border-[var(--control-border)]' : ''}
             ${button.active
               ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}
