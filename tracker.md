@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T03:17:55.009Z
+Last Updated: 2026-09-25T03:20:57Z
 
 ## Active Assignments
 
@@ -14,45 +14,7 @@ Last Updated: 2026-09-25T03:17:55.009Z
 <!-- Active assignment blocks are maintained between these markers. -->
 
 
-<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:START -->
-### pages-layers-ui3-refinement-ii-20260924 — Pages / Layers UI3 Refinement II
 
-Status: active
-Baseline: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
-Activation HEAD: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
-Last Sync: 2026-09-25T03:17:55.009Z
-
-Scope: Restore compact page icons and Layers search, move pane collapse into the Figma-style header, convert project/page identity to two-line UI3 hierarchy, localize layer selection to one row, and tighten semantic glyph/action chrome without changing layer ordering, drag/reparent, search, rename, visibility, lock, component, viewport/variant, or canvas-selection semantics.
-
-Owned:
-  - src/editor/header/LeftHeader.tsx
-  - src/editor/header/ProjectChip.tsx
-  - src/editor/left-toolbar/LeftMenu.tsx
-  - src/editor/FileExplorer.tsx
-  - src/editor/LayersPanel.tsx
-  - src/editor/LayersPanel/rows.tsx
-  - src/editor/left-toolbar/panels/pages-layers.css
-  - src/editor/header/project-chip-label.ts
-  - src/editor/header/project-chip-label.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/tools/**
-  - src/editor/controls/**
-  - src/editor/header/menu-builders.tsx
-  - src/design-system/**
-  - src/styles/loew-theme.css
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -203,6 +165,37 @@ Validation / Build / Deploy:
 - Cloudflare/GitHub check-run ID: 107927933152
 - production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/83cdb347-738c-41f0-9449-bdc12e14fdff
 
+### 2026-09-25T03:20:57Z — pages-layers-ui3-refinement-ii-20260924 — 9a74cb253444
+
+Summary: Restore Layers search/page icons, move pane collapse into Figma-style header, refine project/page identity, localize layer selection, and tighten semantic layer chrome.
+Commit: 9a74cb25344466ef4ba9adc9046a3365b245a661
+
+Paths:
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/header/project-chip-label.ts
+  - src/editor/header/project-chip-label.test.ts
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
+
+Validation / Build / Deploy:
+- tracker reservation commit: a61f6ec042209d30b09462cbe7f869a7386e16be
+- focused regression tests: 7 files / 78 tests passed
+- `git diff --check`: passed
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed (main field + sandbox + Preview sandbox)
+- isolated detached-worktree validation: passed
+- exact source ownership / scoped staging: passed
+- implementation push: `9a74cb25344466ef4ba9adc9046a3365b245a661` → `main`
+- `Workers Builds: field`: completed / success
+- Cloudflare/GitHub check-run ID: 107930190103
+- Cloudflare Build ID: 05e8b7f2-3a40-4084-a46e-f97fed2c6e0a
+- Cloudflare Version ID: ed439218-c57d-42c9-ba0b-a95e7e7757a3
+- production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/05e8b7f2-3a40-4084-a46e-f97fed2c6e0a
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -316,4 +309,54 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:canvas-interaction-parity-20260924:END -->
+<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:START -->
+### pages-layers-ui3-refinement-ii-20260924 — Pages / Layers UI3 Refinement II
+
+Status: complete
+Baseline: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
+Activation HEAD: 7664c15eb7b81d5c07aaa7a554cfa28a1681c339
+Landed Commit: 9a74cb25344466ef4ba9adc9046a3365b245a661
+Last Sync: 2026-09-25T03:20:57Z
+
+Scope: Restore compact page icons and Layers search, move pane collapse into the Figma-style header, convert project/page identity to two-line UI3 hierarchy, localize layer selection to one row, and tighten semantic glyph/action chrome without changing layer ordering, drag/reparent, search, rename, visibility, lock, component, viewport/variant, or canvas-selection semantics.
+
+Owned:
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/header/project-chip-label.ts
+  - src/editor/header/project-chip-label.test.ts
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - src/editor/header/menu-builders.tsx
+  - src/design-system/**
+  - src/styles/loew-theme.css
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Validation / Deploy:
+  - 7 focused test files / 78 tests passed
+  - TypeScript passed
+  - `npm run build:all` passed
+  - production Cloudflare build completed successfully
+  - check-run ID: 107930190103
+  - build ID: 05e8b7f2-3a40-4084-a46e-f97fed2c6e0a
+  - version ID: ed439218-c57d-42c9-ba0b-a95e7e7757a3
+<!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:END -->
+
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
