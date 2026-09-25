@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:29:52Z
+Last Updated: 2026-09-25T09:32:36Z
 
 ## Active Assignments
 
@@ -101,45 +101,7 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
-<!-- ASSIGNMENT:native-gallery-media-insert-20260925:START -->
-### native-gallery-media-insert-20260925 — Native Gallery Evolution — Phase 4 Media Multi-Select → Gallery Insert
 
-Status: active
-Baseline: 55484eb31ea5f7b777045b928f96bb2486adbdc1
-Activation HEAD: cbbc68932927b79a3a7d34d3e0880464b8aa3a2c
-Last Sync: 2026-09-25T09:29:52Z
-
-Owned:
-  - src/editor/gallery/gallery-media-drag.ts
-  - src/editor/gallery/gallery-media-drag.test.ts
-  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - .env*
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/mutation/**
-  - src/code/stores/**
-  - src/canvas/**
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/tools/**
-  - src/editor/ui/**
-  - src/editor/controls/**
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/editor/left-toolbar/panels/media-gallery-utils.ts
-  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
-  - src/code/gallery/**
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:native-gallery-media-insert-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -407,6 +369,17 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Repair:** Gallery evolution r2 verifies the v1 source commit is an ancestor of current main, verifies the complete v1 Gallery source pathset has not changed since that commit, probes the production surfaces, records the source commit, and moves the original assignment to Completed before reserving follow-up work.
 - **Prevention rule:** a deploy-verification/closeout interruption must have an idempotent coordination-only recovery path; follow-up installers may repair stale ownership only after proving the landed source state, never by stealing or deleting an active reservation blindly.
 <!-- LESSON:native-gallery-authoring-r5-stale-closeout:END -->
+
+
+<!-- LESSON:native-gallery-media-insert-r5-transform-interpolation:START -->
+### native-gallery-media-insert r5 packaging lesson
+
+- **r5 stopped safely in EXACT RESUME GUARD before active-overlap checks, tracker reservation, isolated validation, real source application, staging, commit, or push.**
+- **Root cause:** the installer generated React source inside a JavaScript template literal and escaped the nested backticks but not the nested `${selectedImageUrls.length}` interpolation. Node therefore evaluated `selectedImageUrls` inside the installer process while constructing the replacement string, where that React variable does not exist, producing `ReferenceError`.
+- **Repository/source impact:** none from r5. The exception happened while generating the expected postimage in a temporary directory; no Phase 4 source or tracker write had begun.
+- **r6 repair:** escape the nested `${...}` sequence so it remains literal React source, and extend package self-test to execute the real transform against a fixture instead of merely scanning transform source for marker strings.
+- **Prevention rule:** any installer that emits code containing nested template literals must execute its transform in package self-test and verify the resulting bytes; syntax/marker scans alone do not prove nested interpolation safety.
+<!-- LESSON:native-gallery-media-insert-r5-transform-interpolation:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
@@ -1037,6 +1010,19 @@ Paths:
   - src/editor/ui/SearchableDropdown.tsx
   - src/editor/ui/ThemeNeutralPopover.tsx
   - src/editor/ui/ToolPopup.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:32:36Z — native-gallery-media-insert-20260925 — c3004f11bbba
+
+Summary: Phase 4: drag a multi-selected set of project images from Media as one pre-populated native Gallery through the normal toolbar insertion pipeline.
+Commit: c3004f11bbbabffb08f040464b16ebe0a0f61443
+
+Paths:
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
@@ -2139,4 +2125,44 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:figui3-corrective-popovers-20260925:END -->
+
+<!-- ASSIGNMENT:native-gallery-media-insert-20260925:START -->
+### native-gallery-media-insert-20260925 — Native Gallery Evolution — Phase 4 Media Multi-Select → Gallery Insert
+
+Status: complete
+Baseline: 55484eb31ea5f7b777045b928f96bb2486adbdc1
+Activation HEAD: cbbc68932927b79a3a7d34d3e0880464b8aa3a2c
+Last Sync: 2026-09-25T09:32:36Z
+
+Owned:
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/stores/**
+  - src/canvas/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/ui/**
+  - src/editor/controls/**
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/panels/media-gallery-utils.ts
+  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
+  - src/code/gallery/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-media-insert-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
