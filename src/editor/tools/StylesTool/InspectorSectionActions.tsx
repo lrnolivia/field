@@ -8,9 +8,9 @@ import { queueMutation } from '@/code/mutation/mutation-queue';
 
 function DotsIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <circle cx="4" cy="4" r="1.4" /><circle cx="12" cy="4" r="1.4" />
-      <circle cx="4" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" />
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" aria-hidden>
+      <circle cx="4" cy="4" r="1.45" /><circle cx="12" cy="4" r="1.45" />
+      <circle cx="4" cy="12" r="1.45" /><circle cx="12" cy="12" r="1.45" />
     </svg>
   );
 }
@@ -153,7 +153,7 @@ export function StyleSectionActions({
             data-inspector-style-action={property}
             onClick={() => setStyleOpen(true)}
             className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            title="Apply styles and variables"
+            title="Style"
           >
             <DotsIcon />
           </button>
@@ -194,7 +194,7 @@ export function StyleSectionActions({
                     key={option.label}
                     type="button"
                     onClick={() => { option.onClick(); setAddOpen(false); }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]"
+                    className="w-full h-8 flex items-center gap-2 px-2.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                   >
                     <EffectMenuIcon label={option.label} />
                     <span>{option.label}</span>

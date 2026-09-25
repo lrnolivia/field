@@ -210,7 +210,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           : embedded
             ? "w-full h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden"
             : isPresetRef
-              ? "w-full h-8 flex items-center gap-2 px-1 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
+              ? "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] rounded-[var(--control-radius)] cursor-pointer transition-colors min-w-0 overflow-hidden hover:border-[var(--control-border-hover)]"
               : "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors min-w-0 overflow-hidden"}
         style={swatchOnly ? { backgroundColor: displayColor } : undefined}
       >
@@ -219,11 +219,11 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             <>
               <ColorSwatch style={{ backgroundColor: displayColor }} />
               {/* Label sits ON the accent fill, so it takes --accent-fg. */}
-              <span className={`text-xs font-medium truncate flex-1 ${embedded ? 'text-[var(--text-primary)]' : 'text-[var(--accent-fg)]'}`}>
+              <span className={`text-xs font-medium truncate flex-1 text-[var(--text-primary)]`}>
                 {presetLabel}
               </span>
               {!embedded && <span onClick={(e) => { e.stopPropagation(); onChange(''); }}
-                className="text-[var(--accent-fg)]/70 hover:text-[var(--accent-fg)] transition-colors cursor-pointer text-sm ml-1 shrink-0">&times;</span>}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-sm ml-1 shrink-0">&times;</span>}
             </>
           ) : (
             <>

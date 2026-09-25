@@ -67,44 +67,52 @@ interface PresetPickerProps {
 export default function PresetPicker({ property, tokens, onSelect, isOpen, onClose, anchorRef }: PresetPickerProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [query, setQuery] = useState('');
 
-  // Filter tokens by property compatibility
   const matchingCategories = useMemo(() => getMatchingCategories(property), [property]);
 
   const filteredTokens = useMemo(() => {
     return tokens.filter(t => matchingCategories.has(t.category));
   }, [tokens, matchingCategories]);
 
-  // Position popup near the anchor
+  const visibleTokens = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return filteredTokens;
+    return filteredTokens.filter((token) =>
+      token.name.toLowerCase().includes(q)
+      || (token.label || '').toLowerCase().includes(q)
+      || token.value.toLowerCase().includes(q),
+    );
+  }, [filteredTokens, query]);
+
   const recalcPosition = useCallback(() => {
     if (!anchorRef.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
-    const menuWidth = 220;
+    const menuWidth = 280;
     const padding = 16;
 
     let x: number;
-    if (rect.left - menuWidth - 8 > padding) {
-      x = rect.left - menuWidth - 8;
-    } else {
-      x = rect.right + 8;
-    }
+    if (rect.left - menuWidth - 8 > padding) x = rect.left - menuWidth - 8;
+    else x = rect.right + 8;
 
+    const menuHeight = Math.min(visibleTokens.length * 34 + 108, 420);
     let y = rect.top;
-    const menuHeight = Math.min(filteredTokens.length * 36 + 12, 320);
     if (y + menuHeight > window.innerHeight - padding) {
       y = Math.max(padding, window.innerHeight - menuHeight - padding);
     }
 
     setPos({ x, y });
-  }, [anchorRef, filteredTokens.length]);
+  }, [anchorRef, visibleTokens.length]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setQuery('');
+      return;
+    }
     recalcPosition();
     trace.action('preset-picker:open', { property, tokenCount: filteredTokens.length });
   }, [isOpen, recalcPosition, property, filteredTokens.length]);
 
-  // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -124,50 +132,76 @@ export default function PresetPicker({ property, tokens, onSelect, isOpen, onClo
 
   return createPortal(
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 z-50"
         onClick={onClose}
         onContextMenu={(e) => { e.preventDefault(); onClose(); }}
       />
 
-      {/* Popup */}
       <div
         ref={popupRef}
-        className="fixed bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] py-1.5 z-51 min-w-[220px] max-h-[320px] overflow-y-auto border border-[var(--border-light)]"
+        data-preset-picker-figui3
+        className="fixed z-51 w-[280px] max-h-[420px] overflow-hidden bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-[12px] shadow-[var(--shadow-lg)]"
         style={{ left: pos.x, top: pos.y }}
       >
-        {filteredTokens.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-[var(--text-disabled)]">
-            No matching presets
-          </div>
-        ) : (
-          filteredTokens.map((token) => (
-            <button
-              key={token.name}
-              onClick={() => handleSelect(token.name)}
-              className="group flex items-center gap-2 mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer hover:bg-[var(--accent)] transition-colors"
-            >
-              {/* Color swatch for color tokens */}
-              {token.category === 'color' && (
-                <span
-                  className="w-4 h-4 rounded-[3px] border border-white/15 flex-shrink-0"
-                  style={{ backgroundColor: token.value }}
-                />
-              )}
+        <div className="h-10 px-3 flex items-center gap-1 border-b border-[var(--border-light)]">
+          <button type="button" className="h-7 px-2 rounded-[7px] bg-[var(--bg-selected)] text-xs font-medium text-[var(--text-primary)]">Custom</button>
+          <button
+            type="button"
+            aria-disabled="true"
+            title="Shared libraries are not connected in field yet"
+            className="h-7 px-2 rounded-[7px] text-xs text-[var(--text-disabled)] cursor-default"
+          >
+            Libraries
+          </button>
+          <button type="button" onClick={onClose} className="ml-auto h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" aria-label="Close styles">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="m3 3 10 10M13 3 3 13" /></svg>
+          </button>
+        </div>
 
-              {/* Token info */}
-              <span className="flex flex-col min-w-0">
-                <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)] truncate">
-                  {token.label || token.name}
-                </span>
-                <span className="text-[10px] text-[var(--text-disabled)] group-hover:text-[var(--accent-fg)]/60 truncate">
-                  {token.value}
-                </span>
-              </span>
-            </button>
-          ))
-        )}
+        <div className="px-3 pt-2 pb-1.5">
+          <button
+            type="button"
+            disabled
+            title="Shared libraries are not connected in field yet"
+            className="w-full h-7 px-2 flex items-center justify-between rounded-[7px] text-xs text-[var(--text-secondary)] bg-[var(--grid-line)] border border-[var(--control-border)] cursor-default"
+          >
+            <span>All libraries</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" aria-hidden><path d="M2.3 3.7 5 6.3l2.7-2.6" /></svg>
+          </button>
+        </div>
+
+        <div className="px-3 pb-2 border-b border-[var(--border-light)]">
+          <label className="h-8 px-2 flex items-center gap-2 rounded-[7px] bg-[var(--grid-line)] border border-[var(--control-border)] focus-within:border-[var(--border-focus)]">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" className="text-[var(--text-secondary)]" aria-hidden><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3 3" /></svg>
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search styles"
+              className="min-w-0 flex-1 bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)]"
+            />
+          </label>
+        </div>
+
+        <div className="max-h-[328px] overflow-y-auto py-1.5" style={{ scrollbarWidth: 'thin' }}>
+          {visibleTokens.length === 0 ? (
+            <div className="px-3 py-3 text-xs text-[var(--text-disabled)]">No matching styles</div>
+          ) : (
+            visibleTokens.map((token) => (
+              <button
+                key={token.name}
+                onClick={() => handleSelect(token.name)}
+                className="group w-[calc(100%-12px)] h-8 mx-1.5 px-2.5 flex items-center gap-2 rounded-[7px] text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+              >
+                {token.category === 'color' && (
+                  <span className="w-4 h-4 rounded-[3px] border border-[var(--control-border)] flex-shrink-0" style={{ backgroundColor: token.value }} />
+                )}
+                <span className="min-w-0 flex-1 text-xs truncate">{token.label || token.name}</span>
+              </button>
+            ))
+          )}
+        </div>
       </div>
     </>,
     document.body,

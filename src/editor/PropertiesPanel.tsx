@@ -2,15 +2,15 @@
 // All tools sit inside <ControlProvider> which handles style read/write routing.
 
 import React from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { selectedNodeAtom, selectedIdsAtom } from '../code/stores/store';
 import { useNodesComputed } from '../code/stores/node-family';
 import { activeFilePathAtom, isComponentFilePath, isIconSetFilePath, isPageClientFile, isPageServerFile, isDesignComponentFile, isVariantFile, isTemplateFilePath } from '../code/project/active-file-store';
 import { activeEditorAtom, inspectorModeAtom } from '../code/stores/editor-store';
 import { isDefaultLocaleAtom } from '../code/stores/locale-store';
-import { pageVariablesModalOpenAtom } from '../code/stores/page-variables-store';
 import TranslationPanel from './tools/TranslationPanel';
 import { ToolDivider, InspectorModeTabs } from './controls';
+import InspectorObjectHeader from './controls/InspectorObjectHeader';
 import { ControlProvider, useControl } from './controls/ControlProvider';
 import { trace } from '@/shared/debug-trace';
 import PanelErrorBoundary from '@/editor/ui/PanelErrorBoundary';
@@ -129,7 +129,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const filePath = useAtomValue(activeFilePathAtom);
   const allOverlayCalls = useAtomValue(overlayCallsAtom);
-  const setPageVariablesOpen = useSetAtom(pageVariablesModalOpenAtom);
 
   // Live-map lookups — the panel must reflect the current parent immediately
   // when a reparent commits mid-drag (parent-layout indicator, child controls
@@ -451,32 +450,18 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
       <InspectorModeTabs />
 
-      {/* Figma reference contract: one compact selected-object row.
-          Do not turn this back into a card or a two-line breadcrumb. */}
-      <div
-        data-properties-context
-        data-inspector-object-header
-        className="shrink-0 min-h-7 px-3 py-0.5 border-b border-[var(--border-light)] flex items-center"
-        title={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
-      >
-        <div className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-primary)] truncate">
-          {inspectorContextTitle}
-        </div>
-        {!isComponentFilePath(filePath) && (
-          <button
-            type="button"
-            data-inspector-variables
-            onClick={() => setPageVariablesOpen(true)}
-            className="ml-1 h-[var(--control-height)] w-[var(--control-height)] shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            title="Variables"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-              <circle cx="4" cy="4" r="1.35" /><circle cx="12" cy="4" r="1.35" />
-              <circle cx="4" cy="12" r="1.35" /><circle cx="12" cy="12" r="1.35" />
-            </svg>
-          </button>
-        )}
-      </div>
+      <InspectorObjectHeader
+        title={isMultiSelect
+          ? inspectorContextTitle
+          : (isComponentInstance || isContainerSetInstance)
+            ? (node.name || inspectorContextTitle)
+            : inspectorContextTitle}
+        kind={inspectorContextTitle}
+        isMultiSelect={isMultiSelect}
+        componentFile={!isMultiSelect && (isComponentInstance || isContainerSetInstance) ? cf : null}
+        canGoToMainComponent={!isMultiSelect && !!cf && !isCodeComponentInstance && !cf.startsWith('http')}
+        sourceTitle={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
+      />
 
       {/* (The CMS detail-page "ITEM 1 / 4" item switcher moved OUT of the
           panel to the canvas-top SlugPageBreadcrumb — standard, with a

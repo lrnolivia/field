@@ -12,9 +12,11 @@ describe('Figma inspector contract', () => {
     expect(section).toContain('data-inspector-section-content');
   });
 
-  it('uses a one-line object-kind header', () => {
+  it('uses the dedicated FigUI3 object header', () => {
     const panel = read('src/editor/PropertiesPanel.tsx');
-    expect(panel).toContain('data-inspector-object-header');
+    const header = read('src/editor/controls/InspectorObjectHeader.tsx');
+    expect(panel).toContain('<InspectorObjectHeader');
+    expect(header).toContain('data-inspector-object-header');
     expect(panel).not.toContain('inspectorContextDetail');
     expect(panel).toContain("? 'Text'");
     expect(panel).toContain("? 'Frame'");
@@ -75,7 +77,8 @@ describe('Figma inspector contract', () => {
     expect(panel).toContain('<InspectorModeTabs />');
     expect(panel).toContain("inspectorMode === 'design'");
     expect(panel).toContain('data-inspector-group="prototype"');
-    expect(panel).toContain('data-inspector-variables');
+    const header = read('src/editor/controls/InspectorObjectHeader.tsx');
+    expect(header).toContain('Variables');
     expect(tabs).toContain('Design');
     expect(tabs).toContain('Prototype');
     expect(tabs).toContain('<InspectorZoomControl />');
