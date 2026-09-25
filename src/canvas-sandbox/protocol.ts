@@ -1,11 +1,46 @@
 // protocol.ts — Iframe → parent event protocol.
 //
-// Parent → iframe RPC goes through Comlink (see sandbox-api.ts).
+// Parent → iframe RPC goes through Comlink (see sandbox-api.ts), except the
+// high-frequency camera transform stream. Camera motion uses a one-way raw
+// postMessage fast path so pan/zoom never queues RPC request/reply traffic.
 // Iframe → parent events stay as raw postMessage because they are high-
 // frequency emit-only (cache updates, render-complete signals, mouse events)
 // — no request/response correlation needed.
 
 import type { CanvasNode } from '@/code/parsing/parser';
+
+// ─── Parent → Sandbox Fast-Path Events ───────────────────────────────────
+//
+// The normal SandboxApi remains Comlink RPC. Camera transforms are different:
+// they are frame-rate state, not commands. Only the newest value matters, so
+// they travel one-way and are coalesced to the sandbox's next animation frame.
+export interface CanvasHostViewportTransformMessage {
+  __fieldHost: true;
+  type: 'viewportTransform';
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export type CanvasHostMessage = CanvasHostViewportTransformMessage;
+
+export function wrapCanvasHostViewportTransform(
+  x: number,
+  y: number,
+  scale: number,
+): CanvasHostViewportTransformMessage {
+  return { __fieldHost: true, type: 'viewportTransform', x, y, scale };
+}
+
+export function isCanvasHostMessage(data: unknown): data is CanvasHostMessage {
+  if (!data || typeof data !== 'object') return false;
+  const msg = data as Partial<CanvasHostViewportTransformMessage>;
+  return msg.__fieldHost === true
+    && msg.type === 'viewportTransform'
+    && Number.isFinite(msg.x)
+    && Number.isFinite(msg.y)
+    && Number.isFinite(msg.scale);
+}
 
 // ─── Sandbox → Parent Events ───────────────────────────────────────────────
 

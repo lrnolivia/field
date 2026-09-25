@@ -14,7 +14,11 @@
 import { CullingController } from './culling-controller';
 import * as Comlink from 'comlink';
 import type { SandboxApi, RenderInput } from './sandbox-api';
-import { deserializeNodeMap } from './protocol';
+import {
+  deserializeNodeMap,
+  isCanvasHostMessage,
+  type CanvasHostViewportTransformMessage,
+} from './protocol';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { setSandboxGlobalsCSS } from './stubs/project-fs';
@@ -92,6 +96,15 @@ export function initSandbox(_containerEl: HTMLElement, contentRootEl: HTMLElemen
   // callback, where it can deterministically emit ghostSelect before
   // nodeMouseDown — see the api.render method below.)
 
+  // Camera transforms are the one parent→sandbox hot path that intentionally
+  // bypasses Comlink. A one-way message avoids RPC acknowledgement traffic,
+  // and latest-wins RAF coalescing prevents stale camera positions from
+  // replaying as visible "stop motion" when the iframe is busy.
+  window.addEventListener('message', (event) => {
+    if (event.source !== window.parent || !isCanvasHostMessage(event.data)) return;
+    scheduleHostViewportTransform(event.data);
+  });
+
   // Forward generic mouse down/up as well as RAF-throttled movement. The
   // iframe is a hard DOM event boundary, so a press on viewport/background
   // space would otherwise never reach the parent CanvasMouseController.
@@ -165,6 +178,43 @@ function hintCameraGesture(): void {
     _gestureHintTimer = null;
     if (contentRoot) contentRoot.style.willChange = '';
   }, 250);
+}
+
+let pendingHostViewportTransform: CanvasHostViewportTransformMessage | null = null;
+let hostViewportTransformRaf: number | null = null;
+
+function cancelPendingHostViewportTransform(): void {
+  pendingHostViewportTransform = null;
+  if (hostViewportTransformRaf !== null) {
+    cancelAnimationFrame(hostViewportTransformRaf);
+    hostViewportTransformRaf = null;
+  }
+}
+
+function scheduleHostViewportTransform(message: CanvasHostViewportTransformMessage): void {
+  pendingHostViewportTransform = message;
+  if (hostViewportTransformRaf !== null) return;
+  hostViewportTransformRaf = requestAnimationFrame(() => {
+    hostViewportTransformRaf = null;
+    const next = pendingHostViewportTransform;
+    pendingHostViewportTransform = null;
+    if (next) applyViewportTransform(next.x, next.y, next.scale, true);
+  });
+}
+
+function applyViewportTransform(
+  x: number,
+  y: number,
+  scale: number,
+  cameraGesture: boolean,
+): void {
+  if (!contentRoot) return;
+  setCurrentSandboxTransform({ x, y, scale });
+  if (cameraGesture) hintCameraGesture();
+  contentRoot.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+  contentRoot.style.transformOrigin = '0 0';
+  setSandboxDndTransform(x, y, scale);
+  getCulling()?.onTransform(x, y, scale);
 }
 
 // Viewport culling — created lazily on first render (needs contentRoot).
@@ -246,12 +296,11 @@ const api: SandboxApi = {
       // Mirror CMS schemas + item data into the sandbox stubs so collection
       // lists render real ghost copies instead of the empty-state placeholder.
       if (input.cmsCollections) setSandboxCmsCollections(input.cmsCollections);
-      // Apply transform BEFORE render so getBoundingClientRect includes pan/zoom
+      // Apply transform BEFORE render so getBoundingClientRect includes pan/zoom.
+      // A full render is authoritative over any previously queued camera frame.
       if (input.transform) {
-        setCurrentSandboxTransform({ ...input.transform });
-        contentRoot.style.transform = `translate3d(${input.transform.x}px, ${input.transform.y}px, 0) scale(${input.transform.scale})`;
-        contentRoot.style.transformOrigin = '0 0';
-        getCulling()?.onTransform(input.transform.x, input.transform.y, input.transform.scale);
+        cancelPendingHostViewportTransform();
+        applyViewportTransform(input.transform.x, input.transform.y, input.transform.scale, false);
       }
       trace.action('canvas-sandbox:render', { nodeCount: nodes.size, vpCount: input.viewports.length, codeLen: input.code ? input.code.length : 0 });
       // Culled roots STAY culled through renders: patching display:none DOM is
@@ -450,16 +499,10 @@ const api: SandboxApi = {
   getBBox,
 
   setViewportTransform(x: number, y: number, scale: number): void {
-    if (!contentRoot) return;
-    setCurrentSandboxTransform({ x, y, scale });
-    hintCameraGesture();
-    contentRoot.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
-    contentRoot.style.transformOrigin = '0 0';
-    // Forward to canvas-dnd so drag/snap math uses the right scale + offset
-    setSandboxDndTransform(x, y, scale);
-    // Viewport culling: evaluate when the camera settles (idle debounce) —
-    // culled roots materialise at gesture END, never mid-pan.
-    getCulling()?.onTransform(x, y, scale);
+    // Compatibility fallback for callers that still reach this through
+    // Comlink. An RPC transform is authoritative over a queued raw frame.
+    cancelPendingHostViewportTransform();
+    applyViewportTransform(x, y, scale, true);
   },
 
   setDndHovered(nodeId: string | null, viewport?: string): void {

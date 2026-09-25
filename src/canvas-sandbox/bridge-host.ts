@@ -17,7 +17,12 @@ import * as Comlink from 'comlink';
 import type { CanvasBridge } from '@/canvas/canvas-bridge';
 import type { SandboxApi, RenderInput, PatchUpdate, TextEditCommand } from './sandbox-api';
 import type { TextEditFitResult, SandboxEvent, TextEditSnapshot } from './protocol';
-import { isSandboxEvent, serializeNodeMap } from './protocol';
+import {
+  isSandboxEvent,
+  serializeNodeMap,
+  wrapCanvasHostViewportTransform,
+  SANDBOX_ORIGIN,
+} from './protocol';
 import type { ViewportConfig } from '@/shared/types';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
@@ -325,9 +330,21 @@ export class PostMessageBridge implements CanvasBridge {
     this.remote?.patchMultipleStyles(updates as PatchUpdate[]);
   }
 
-  /** Fire-and-forget transform update. */
+  /** High-frequency camera transform.
+   *
+   * This intentionally bypasses Comlink's request/reply RPC path. Camera
+   * motion is frame-rate state where only the newest value matters; sending
+   * every frame as an RPC can queue acknowledgements and make the visual
+   * iframe advance in visible bursts. The sandbox coalesces these raw
+   * messages to its next animation frame. Keep the RPC fallback for the
+   * narrow pre-iframe/compatibility case. */
   setViewportTransform(x: number, y: number, scale: number): void {
     this.currentTransform = { x, y, scale };
+    const target = this.iframe?.contentWindow;
+    if (target) {
+      target.postMessage(wrapCanvasHostViewportTransform(x, y, scale), SANDBOX_ORIGIN);
+      return;
+    }
     this.remote?.setViewportTransform(x, y, scale);
   }
 
