@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T07:59:27Z
+Last Updated: 2026-09-25T08:04:44Z
 
 ## Active Assignments
 
@@ -86,10 +86,14 @@ Phase B:
   - Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
   - derived Group bounds/refit after child move/resize, recursively through nested Groups
   - Group move remains one wrapper move; never rewrite every descendant per drag tick
-  - normal resize follows child constraint/pin semantics; Scale remains a separate operation
+  - normal Group resize scales descendant box geometry as one collection while leaving type sizes, strokes, and effects unchanged; Scale remains a separate operation that can scale those visual properties too
   - Layers drag supports enter/exit/Group-to-Group with geometry preservation and empty-Group deletion
   - copy/paste/duplicate must preserve data-field-group via the existing attrs pipeline unless tests prove a gap
   - undo/redo must coalesce each visible Group gesture into one coherent history step
+Phase B progress:
+  - Phase B3 landed at 2cd41e95461b39bdbf5cc56ed63aac31214fca92: flow-positioned Group refit, native Group descendant geometry resize, recursive nested-Group resize, and deterministic clipboard semantic-marker regression coverage
+  - Existing mutation/history regression suite passed with the B3 postimage; Group resize descendant writes and wrapper write remain one mutation batch / one visible history gesture
+  - Dedicated Scale-tool behavior remains separate future work; transformed-descendant Group resize remains conservatively gated rather than approximated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:START -->
