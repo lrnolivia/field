@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:23:02Z
+Last Updated: 2026-09-25T08:23:14Z
 
 ## Active Assignments
 
@@ -228,6 +228,56 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:START -->
+### FIELD-INSPECTOR-FIGUI3-005 — Field-native Inspector dropdowns — Phase A core select primitive + Animation migration
+
+Status: active — partial implementation; Typography round intentionally deferred
+Baseline: 41fd215381b8bf40bb68eb7cc7ed75c15002b2f6
+Activation HEAD: 19b787f501fcbf40b40a9082acd16008493aaddd
+Last Sync: 2026-09-25T08:23:14Z
+
+Owned:
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
+  - src/editor/figui3-inspector-native-select-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/controls/ToolSelect.tsx
+  - src/editor/controls/index.ts
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/ToolSection.tsx
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/canvas/drag/**
+  - src/canvas/resize/**
+  - src/canvas-sandbox/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
