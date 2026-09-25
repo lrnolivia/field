@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:56:43Z
+Last Updated: 2026-09-25T05:03:43Z
 
 ## Active Assignments
 
@@ -196,6 +196,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Repair:** r6 linked the real repo's installed `node_modules` into the isolated worktree and invoked repo-local `./node_modules/.bin/vitest` / `tsc` directly.
 - **Prevention rule:** isolated validation must pair clean source with the exact project dependency tree; never let `npx` silently fetch a replacement toolchain during validation.
 <!-- LESSON:canvas-camera-fast-path-safari-r5-worktree-deps:END -->
+
+
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r1-fill-anchor:START -->
+### FIELD-INSPECTOR-FIGUI3-002 r1 packaging lesson
+
+- **r1 stopped safely during no-write validation after the tracker reservation landed.** The source tree was still clean; no Inspector product files were written, staged, committed, or pushed.
+- **Root cause: one required FillControl transform anchor encoded an intermediate/hypothetical preimage rather than the canonical activation blob.** The installer expected `labelText = toHexDisplay(bgColor).replace(/^#/, '');`, while the verified `FillControl.tsx` blob `e094a510a128134ee3a4cb19cd824f56d8c1def5` actually contains `labelText = toHexDisplay(bgColor);`. The manifest was correct; the exact-string transform was not.
+- **r2 repair:** use the canonical activation preimage, keep the intended postimage (FigUI3 inline hex without `#`), adopt the existing assignment reservation instead of creating another one, and add package regression coverage for this canonical preimage.
+- **Prevention rule:** exact-string installers must derive required preimages from the verified activation blob, never from an intermediate local draft. When the manifest asserts a blob hash, any manually authored transform anchor must be checked against that blob's literal source before delivery.
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r1-fill-anchor:END -->
 
 ## Commit Ledger
 
