@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:41:15Z
+Last Updated: 2026-09-25T05:48:17.282Z
 
 ## Active Assignments
 
@@ -22,10 +22,11 @@ Last Updated: 2026-09-25T05:41:15Z
 Status: active
 Baseline: a10af177e311dba88197164658d7e16f7233a377
 Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
-Last Sync: 2026-09-25T05:25:47.288Z
+Last Sync: 2026-09-25T05:48:17.282Z
 Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
+Phase B baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
 
-Scope: Implement first-class deterministic Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is structural hierarchy with layout-transparent semantics; grouping/ungrouping must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
+Scope: Implement first-class deterministic Figma-style Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is a semantic collection with child-derived bounds and collective manipulation; grouping/ungrouping and subsequent child edits must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
 
 Owned:
   - src/code/parsing/parser.ts
@@ -40,6 +41,21 @@ Owned:
   - src/editor/command-palette/useSearchActions.ts
   - src/code/mutation/mutation-queue.ts
   - src/code/generation/generator-crud.ts
+  - src/code/groups/group-refit.ts
+  - src/code/groups/group-refit.test.ts
+  - src/canvas/node-ops.ts
+  - src/canvas/resize/ResizeManager.ts
+  - src/canvas/resize/ResizeManager.test.ts
+  - src/canvas/drag/CanvasDragOrchestrator.ts
+  - src/canvas/drag/CanvasDragOrchestrator.test.ts
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/LayersPanel/resolve-drop-structure.test.ts
+  - src/editor/LayersPanel/position-fixup.test.ts
+  - src/code/features/paste-engine/copy/index.ts
+  - src/code/features/paste-engine/core/node-creator.ts
+  - src/code/features/paste-engine/paste/executor.ts
+  - src/code/features/paste-engine/types.ts
+  - src/code/features/paste-engine/paste-engine.test.ts
 
 Approved Shared:
   - tracker.md
@@ -66,6 +82,14 @@ Architecture:
   - generic Group/Ungroup owns Cmd/Ctrl+G and Shift+Cmd/Ctrl+G; SVG Group/Ungroup remains separate
   - Phase A: structural creation/ungroup, parser, Layers glyph, menus/shortcuts/palette, source-stack preservation
   - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
+Phase B:
+  - Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
+  - derived Group bounds/refit after child move/resize, recursively through nested Groups
+  - Group move remains one wrapper move; never rewrite every descendant per drag tick
+  - normal resize follows child constraint/pin semantics; Scale remains a separate operation
+  - Layers drag supports enter/exit/Group-to-Group with geometry preservation and empty-Group deletion
+  - copy/paste/duplicate must preserve data-field-group via the existing attrs pipeline unless tests prove a gap
+  - undo/redo must coalesce each visible Group gesture into one coherent history step
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:START -->
