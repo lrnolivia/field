@@ -1,4 +1,5 @@
 import type { CanvasNode } from '@/code/parsing/parser';
+import { foldEffectiveTransform } from '@/shared/motion-transform';
 
 export interface NativeGroupRefitPatch {
   nodeId: string;
@@ -10,7 +11,14 @@ export interface NativeGroupRefitPlan {
   groupIds: string[];
 }
 
-const BOX_KEYS = new Set(['left', 'top', 'width', 'height']);
+const GROUP_BOUNDS_KEYS = new Set([
+  'left', 'top', 'right', 'bottom', 'width', 'height',
+  'transform', 'transformOrigin', 'transformBox',
+  'x', 'y', 'z', 'translateX', 'translateY', 'translateZ',
+  'scale', 'scaleX', 'scaleY',
+  'rotate', 'rotateX', 'rotateY', 'rotateZ',
+  'skewX', 'skewY', 'transformPerspective',
+]);
 
 function px(value: string | undefined, fallback?: number): number | null {
   if (value == null || value === '') return fallback ?? null;
@@ -27,13 +35,292 @@ function fmtPx(value: number): string {
   return `${normalized}px`;
 }
 
+type Affine2D = [number, number, number, number, number, number];
+
+interface VisualBounds {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function effectiveNodeTransform(node: CanvasNode): string {
+  return foldEffectiveTransform({
+    styles: node.styles,
+    motionVariants: node.motionVariants,
+    conditionalStyles: node.conditionalStyles,
+    variantKey: 'default',
+  }).trim();
+}
+
 function hasUnsupportedTransform(node: CanvasNode): boolean {
-  const transform = node.styles?.transform?.trim();
-  const rotate = node.styles?.rotate?.trim();
-  const scale = node.styles?.scale?.trim();
-  return (!!transform && transform !== 'none')
-    || (!!rotate && rotate !== '0' && rotate !== '0deg')
-    || (!!scale && scale !== '1');
+  const transform = effectiveNodeTransform(node);
+  return !!transform && transform !== 'none';
+}
+
+function mulAffine(a: Affine2D, b: Affine2D): Affine2D {
+  return [
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ];
+}
+
+function parseFinite(raw: string): number | null {
+  const n = Number.parseFloat(raw.trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseAngle(raw: string): number | null {
+  const value = raw.trim().toLowerCase();
+  const m = /^(-?(?:\d+|\d*\.\d+))(deg|rad|turn|grad)?$/.exec(value);
+  if (!m) return null;
+  const n = Number.parseFloat(m[1]);
+  const unit = m[2] ?? 'deg';
+  if (!Number.isFinite(n)) return null;
+  if (unit === 'rad') return n;
+  if (unit === 'turn') return n * Math.PI * 2;
+  if (unit === 'grad') return n * Math.PI / 200;
+  return n * Math.PI / 180;
+}
+
+function parseLength(raw: string, percentBase: number): number | null {
+  const value = raw.trim().toLowerCase();
+  if (value === '0' || value === '+0' || value === '-0') return 0;
+  const pxMatch = /^(-?(?:\d+|\d*\.\d+))px$/.exec(value);
+  if (pxMatch) {
+    const n = Number.parseFloat(pxMatch[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+  const pctMatch = /^(-?(?:\d+|\d*\.\d+))%$/.exec(value);
+  if (pctMatch) {
+    const n = Number.parseFloat(pctMatch[1]);
+    return Number.isFinite(n) ? percentBase * n / 100 : null;
+  }
+  return null;
+}
+
+function splitArgs(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  return (trimmed.includes(',')
+    ? trimmed.split(',')
+    : trimmed.split(/\s+/)
+  ).map((s) => s.trim()).filter(Boolean);
+}
+
+function parseAffineTransform(
+  transform: string,
+  width: number,
+  height: number,
+): Affine2D | null {
+  if (!transform || transform === 'none') return [1, 0, 0, 1, 0, 0];
+
+  const fnRe = /([a-zA-Z0-9]+)\(([^()]*)\)/g;
+  let cursor = 0;
+  let composite: Affine2D = [1, 0, 0, 1, 0, 0];
+  let match: RegExpExecArray | null;
+
+  while ((match = fnRe.exec(transform)) !== null) {
+    if (transform.slice(cursor, match.index).trim() !== '') return null;
+    cursor = fnRe.lastIndex;
+
+    const fn = match[1].toLowerCase();
+    const args = splitArgs(match[2]);
+    let next: Affine2D | null = null;
+
+    if (fn === 'translate' || fn === 'translatex' || fn === 'translatey') {
+      let tx = 0;
+      let ty = 0;
+      if (fn === 'translatex') {
+        if (args.length !== 1) return null;
+        const parsed = parseLength(args[0], width);
+        if (parsed == null) return null;
+        tx = parsed;
+      } else if (fn === 'translatey') {
+        if (args.length !== 1) return null;
+        const parsed = parseLength(args[0], height);
+        if (parsed == null) return null;
+        ty = parsed;
+      } else {
+        if (args.length < 1 || args.length > 2) return null;
+        const x = parseLength(args[0], width);
+        const y = args[1] == null ? 0 : parseLength(args[1], height);
+        if (x == null || y == null) return null;
+        tx = x;
+        ty = y;
+      }
+      next = [1, 0, 0, 1, tx, ty];
+    } else if (fn === 'scale' || fn === 'scalex' || fn === 'scaley') {
+      let sx = 1;
+      let sy = 1;
+      if (fn === 'scalex') {
+        if (args.length !== 1) return null;
+        const parsed = parseFinite(args[0]);
+        if (parsed == null) return null;
+        sx = parsed;
+      } else if (fn === 'scaley') {
+        if (args.length !== 1) return null;
+        const parsed = parseFinite(args[0]);
+        if (parsed == null) return null;
+        sy = parsed;
+      } else {
+        if (args.length < 1 || args.length > 2) return null;
+        const x = parseFinite(args[0]);
+        const y = args[1] == null ? x : parseFinite(args[1]);
+        if (x == null || y == null) return null;
+        sx = x;
+        sy = y;
+      }
+      next = [sx, 0, 0, sy, 0, 0];
+    } else if (fn === 'rotate' || fn === 'rotatez') {
+      if (args.length !== 1) return null;
+      const angle = parseAngle(args[0]);
+      if (angle == null) return null;
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      next = [c, s, -s, c, 0, 0];
+    } else if (fn === 'skewx' || fn === 'skewy' || fn === 'skew') {
+      let ax = 0;
+      let ay = 0;
+      if (fn === 'skewx') {
+        if (args.length !== 1) return null;
+        const parsed = parseAngle(args[0]);
+        if (parsed == null) return null;
+        ax = parsed;
+      } else if (fn === 'skewy') {
+        if (args.length !== 1) return null;
+        const parsed = parseAngle(args[0]);
+        if (parsed == null) return null;
+        ay = parsed;
+      } else {
+        if (args.length < 1 || args.length > 2) return null;
+        const x = parseAngle(args[0]);
+        const y = args[1] == null ? 0 : parseAngle(args[1]);
+        if (x == null || y == null) return null;
+        ax = x;
+        ay = y;
+      }
+      next = [1, Math.tan(ay), Math.tan(ax), 1, 0, 0];
+    } else if (fn === 'matrix') {
+      if (args.length !== 6) return null;
+      const nums = args.map(parseFinite);
+      if (nums.some((n) => n == null)) return null;
+      next = nums as Affine2D;
+    } else {
+      // perspective / rotateX / rotateY / matrix3d / translateZ / scale3d …
+      // require a 3D projection model. Keep them gated rather than flattening.
+      return null;
+    }
+
+    composite = mulAffine(composite, next);
+  }
+
+  if (transform.slice(cursor).trim() !== '') return null;
+  return composite;
+}
+
+function parseOriginToken(raw: string, size: number, axis: 'x' | 'y'): number | null {
+  const v = raw.trim().toLowerCase();
+  if (v === 'center') return size / 2;
+  if (axis === 'x' && v === 'left') return 0;
+  if (axis === 'x' && v === 'right') return size;
+  if (axis === 'y' && v === 'top') return 0;
+  if (axis === 'y' && v === 'bottom') return size;
+  return parseLength(v, size);
+}
+
+function parseTransformOrigin(
+  raw: string | undefined,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  if (!raw || raw.trim() === '') return { x: width / 2, y: height / 2 };
+  const parts = raw.trim().split(/\s+/);
+  if (parts.length > 2) return null;
+
+  let xRaw = parts[0];
+  let yRaw = parts[1] ?? 'center';
+
+  // CSS permits vertical keyword first: "top left".
+  if ((xRaw === 'top' || xRaw === 'bottom') && (yRaw === 'left' || yRaw === 'right' || yRaw === 'center')) {
+    [xRaw, yRaw] = [yRaw, xRaw];
+  }
+
+  const x = parseOriginToken(xRaw, width, 'x');
+  const y = parseOriginToken(yRaw, height, 'y');
+  return x == null || y == null ? null : { x, y };
+}
+
+function applyAffine(m: Affine2D, x: number, y: number): { x: number; y: number } {
+  return {
+    x: m[0] * x + m[2] * y + m[4],
+    y: m[1] * x + m[3] * y + m[5],
+  };
+}
+
+/**
+ * Resolve one direct child's AXIS-ALIGNED visual bounds in Group-local space.
+ *
+ * This supports the 2D affine transform family field itself authors/imports:
+ * translate, scale, rotate, skew and matrix(), including motion shorthand
+ * channels folded through the same static-canvas transform helper. Transform
+ * origin is honored. Perspective/3D and non-border transform boxes stay gated.
+ */
+function resolveNativeGroupChildVisualBounds(child: CanvasNode): VisualBounds | null {
+  const left = px(child.styles?.left, 0);
+  const top = px(child.styles?.top, 0);
+  const width = px(child.styles?.width);
+  const height = px(child.styles?.height);
+  if (left == null || top == null || width == null || height == null) return null;
+  if (width < 0 || height < 0) return null;
+
+  const transformBox = child.styles?.transformBox?.trim();
+  if (transformBox && transformBox !== 'border-box') return null;
+
+  const transform = effectiveNodeTransform(child);
+  if (!transform || transform === 'none') return { left, top, width, height };
+
+  // A transformed Group wrapper needs its own local-coordinate rebasing law;
+  // this pass intentionally handles transformed LEAF/ordinary children only.
+  if (child.isGroup) return null;
+
+  const affine = parseAffineTransform(transform, width, height);
+  const origin = parseTransformOrigin(child.styles?.transformOrigin, width, height);
+  if (!affine || !origin) return null;
+
+  const corners = [
+    [0, 0],
+    [width, 0],
+    [0, height],
+    [width, height],
+  ] as const;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const [x, y] of corners) {
+    const local = applyAffine(affine, x - origin.x, y - origin.y);
+    const tx = left + origin.x + local.x;
+    const ty = top + origin.y + local.y;
+    minX = Math.min(minX, tx);
+    minY = Math.min(minY, ty);
+    maxX = Math.max(maxX, tx);
+    maxY = Math.max(maxY, ty);
+  }
+
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  return {
+    left: minX,
+    top: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
 }
 
 function mergePatch(
@@ -100,26 +387,23 @@ export function planNativeGroupRefit(
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
 
-  const children: Array<{ node: CanvasNode; left: number; top: number; width: number; height: number }> = [];
+  const children: Array<{ node: CanvasNode; left: number; top: number }> = [];
 
   for (const childId of group.children) {
     const child = nodes.get(childId);
     if (!child) return null;
     if ((child.styles?.position ?? '') !== 'absolute') return null;
-    if (hasUnsupportedTransform(child)) return null;
 
-    const left = px(child.styles?.left, 0);
-    const top = px(child.styles?.top, 0);
-    const width = px(child.styles?.width);
-    const height = px(child.styles?.height);
-    if (left == null || top == null || width == null || height == null) return null;
-    if (width < 0 || height < 0) return null;
+    const sourceLeft = px(child.styles?.left, 0);
+    const sourceTop = px(child.styles?.top, 0);
+    const bounds = resolveNativeGroupChildVisualBounds(child);
+    if (sourceLeft == null || sourceTop == null || !bounds) return null;
 
-    children.push({ node: child, left, top, width, height });
-    minX = Math.min(minX, left);
-    minY = Math.min(minY, top);
-    maxX = Math.max(maxX, left + width);
-    maxY = Math.max(maxY, top + height);
+    children.push({ node: child, left: sourceLeft, top: sourceTop });
+    minX = Math.min(minX, bounds.left);
+    minY = Math.min(minY, bounds.top);
+    maxX = Math.max(maxX, bounds.left + bounds.width);
+    maxY = Math.max(maxY, bounds.top + bounds.height);
   }
 
   if (!Number.isFinite(minX) || !Number.isFinite(minY)
@@ -203,7 +487,7 @@ export function planNativeGroupRefitChain(
 }
 
 export function touchesNativeGroupGeometry(styles: Record<string, string>): boolean {
-  return Object.keys(styles).some((key) => BOX_KEYS.has(key));
+  return Object.keys(styles).some((key) => GROUP_BOUNDS_KEYS.has(key));
 }
 
 export interface NativeGroupResizeBox {

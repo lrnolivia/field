@@ -175,22 +175,169 @@ describe('native Group refit geometry', () => {
     expect(planNativeGroupRefit(flow.id, new Map([[flow.id, flow], [a.id, a]]))).toBeNull();
   });
 
-  it('still refuses transformed Group geometry rather than guessing', () => {
-    const transformed = node(
-      'group-transform',
-      'root',
-      { position: 'absolute', left: '0px', top: '0px', width: '100px', height: '40px' },
-      { isGroup: true, children: ['t'] },
-    );
-    const t = node('t', 'group-transform', {
-      position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px', transform: 'rotate(10deg)',
+  describe('refits exact 2D affine child transforms', () => {
+    it('shrink-wraps a rotated child around its visual AABB without changing rotation', () => {
+      const group = node(
+        'group-transform',
+        'root',
+        { position: 'absolute', left: '100px', top: '80px', width: '100px', height: '40px' },
+        { isGroup: true, children: ['t'] },
+      );
+      const t = node('t', 'group-transform', {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: '40px',
+        height: '20px',
+        transform: 'rotate(90deg)',
+      });
+
+      const plan = planNativeGroupRefit(group.id, new Map([[group.id, group], [t.id, t]]));
+      const out = patches(plan);
+      expect(out.get(group.id)).toEqual({
+        left: '110px',
+        top: '70px',
+        width: '20px',
+        height: '40px',
+      });
+      expect(out.get(t.id)).toEqual({ left: '-10px', top: '10px' });
+      expect(out.get(t.id)?.transform).toBeUndefined();
     });
-    expect(planNativeGroupRefit(transformed.id, new Map([[transformed.id, transformed], [t.id, t]]))).toBeNull();
+
+    it('honors scale, translation percentages and an authored transform origin', () => {
+      const group = node(
+        'g',
+        'root',
+        { position: 'absolute', left: '0px', top: '0px', width: '200px', height: '100px' },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute',
+        left: '10px',
+        top: '20px',
+        width: '40px',
+        height: '20px',
+        transform: 'translateX(50%) scale(2, 0.5)',
+        transformOrigin: '0% 0%',
+      });
+      const plan = planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]));
+      const out = patches(plan);
+
+      // CSS transform list matrix = translateX(20) * scale(2,.5):
+      // visual box = x 30..110, y 20..30.
+      expect(out.get(group.id)).toEqual({
+        left: '30px',
+        top: '20px',
+        width: '80px',
+        height: '10px',
+      });
+      expect(out.get(a.id)).toEqual({ left: '-20px', top: '0px' });
+    });
+
+    it('supports authored affine matrix transforms', () => {
+      const group = node(
+        'g',
+        'root',
+        { position: 'absolute', left: '10px', top: '10px', width: '100px', height: '100px' },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: '20px',
+        height: '10px',
+        transform: 'matrix(1, 0, 0.5, 1, 5, 0)',
+        transformOrigin: '0px 0px',
+      });
+      const plan = planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]));
+      const out = patches(plan);
+      expect(out.get(group.id)).toEqual({
+        left: '15px',
+        top: '10px',
+        width: '25px',
+        height: '10px',
+      });
+      expect(out.get(a.id)).toEqual({ left: '-5px', top: '0px' });
+    });
+
+    it('refits nested Group chains after a rotated leaf changes', () => {
+      const outer = node(
+        'outer',
+        'root',
+        { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '200px' },
+        { isGroup: true, children: ['inner'] },
+      );
+      const inner = node(
+        'inner',
+        'outer',
+        { position: 'absolute', left: '20px', top: '30px', width: '100px', height: '100px' },
+        { isGroup: true, children: ['leaf'] },
+      );
+      const leaf = node('leaf', 'inner', {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: '40px',
+        height: '20px',
+        rotate: '90',
+      });
+      const plan = planNativeGroupRefitChain(
+        leaf.id,
+        new Map([[outer.id, outer], [inner.id, inner], [leaf.id, leaf]]),
+      );
+      expect(plan?.groupIds).toEqual(['inner', 'outer']);
+      const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+      expect(out.get(inner.id)).toMatchObject({ width: '20px', height: '40px' });
+      expect(out.get(outer.id)).toMatchObject({ width: '20px', height: '40px' });
+    });
+
+    it('keeps perspective/3D geometry gated instead of flattening it', () => {
+      const group = node(
+        'g',
+        'root',
+        { position: 'absolute', left: '0px', top: '0px', width: '100px', height: '100px' },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: '20px',
+        height: '20px',
+        transform: 'perspective(500px) rotateY(30deg)',
+      });
+      expect(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]))).toBeNull();
+    });
+
+    it('still refuses a transformed Group WRAPPER rather than guessing its rebasing pivot', () => {
+      const group = node(
+        'g',
+        'root',
+        {
+          position: 'absolute',
+          left: '0px',
+          top: '0px',
+          width: '100px',
+          height: '100px',
+          transform: 'rotate(10deg)',
+        },
+        { isGroup: true, children: ['a'] },
+      );
+      const a = node('a', 'g', {
+        position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px',
+      });
+      expect(planNativeGroupRefit(group.id, new Map([[group.id, group], [a.id, a]]))).toBeNull();
+    });
   });
 
-  it('recognizes only geometry writes as refit triggers', () => {
+  it('recognizes box and transform writes as derived-bounds triggers', () => {
     expect(touchesNativeGroupGeometry({ left: '20px' })).toBe(true);
     expect(touchesNativeGroupGeometry({ width: '20px', opacity: '0.5' })).toBe(true);
+    expect(touchesNativeGroupGeometry({ rotate: '30' })).toBe(true);
+    expect(touchesNativeGroupGeometry({ scaleX: '1.2' })).toBe(true);
+    expect(touchesNativeGroupGeometry({ x: '10px' })).toBe(true);
+    expect(touchesNativeGroupGeometry({ transformOrigin: '0% 0%' })).toBe(true);
     expect(touchesNativeGroupGeometry({ opacity: '0.5' })).toBe(false);
   });
 
