@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:25:47.288Z
+Last Updated: 2026-09-25T05:29:00Z
 
 ## Active Assignments
 
@@ -68,61 +68,7 @@ Architecture:
   - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:START -->
-### FIELD-INSPECTOR-FIGUI3-002 — FigUI3 Paint Rows, Effects, Auto Layout Padding, and Typography
 
-Status: planned
-Baseline: 93c230621054903aa71d0f57441fa9a2924dfd9d
-Activation HEAD: 52f6f8e646b12b3ef644406c64e7fdf36daad004
-Last Sync: 2026-09-25T04:56:43Z
-
-Owned:
-  - src/editor/controls/PaintRow.tsx
-  - src/editor/controls/EffectRow.tsx
-  - src/editor/controls/index.ts
-  - src/editor/controls/ControlActionRow.tsx
-  - src/editor/controls/ColorInput.tsx
-  - src/editor/ui/paint-opacity.ts
-  - src/editor/ui/paint-opacity.test.ts
-  - src/editor/tools/layout-padding.ts
-  - src/editor/tools/layout-padding.test.ts
-  - src/editor/tools/LayoutTool.tsx
-  - src/editor/tools/SvgShapeTool.tsx
-  - src/editor/tools/StylesTool/index.tsx
-  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
-  - src/editor/tools/StylesTool/atoms/FillControl.tsx
-  - src/editor/tools/StylesTool/atoms/BorderControl.tsx
-  - src/editor/tools/StylesTool/atoms/ShadowControl.tsx
-  - src/editor/tools/StylesTool/atoms/FilterControl.tsx
-  - src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx
-  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
-  - src/editor/tools/TextStyleTool/atoms/ShadowControl.tsx
-  - src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx
-  - src/editor/tools/TextStyleTool/atoms/StrokeControl.tsx
-  - src/editor/figui3-inspector-parity.test.ts
-
-  - src/editor/figma-inspector-contract.test.ts
-
-  - src/editor/tools/SvgShapeTool.undo-remount.test.tsx
-
-Approved Shared:
-  - none
-
-Protected:
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/FileExplorer.tsx
-  - src/editor/LayersPanel.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/left-toolbar/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/editor/header/**
-  - src/code/stores/user-preferences-store.ts
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -571,6 +517,41 @@ Validation / Deploy:
 - live QA: Chrome smooth; Safari pan fixed
 - assignment status: complete
 
+### 2026-09-25T05:29:00Z — FIELD-INSPECTOR-FIGUI3-002 — 2d5cbcc74340
+
+Summary: FigUI3 Inspector paint rows, vector effects, Auto layout padding, and Typography implementation; r5 repaired a TypeScript narrowing defect in the Typography number-style preservation array; focused tests, TypeScript, build:all, and visual QA passed. Production verified: Workers Builds: field completed successfully; check-run id 107956486532.
+Commit: 2d5cbcc743403c121d729c18fb7c3835e28b152f
+
+Paths:
+  - src/editor/controls/ColorInput.tsx
+  - src/editor/controls/ControlActionRow.tsx
+  - src/editor/controls/EffectRow.tsx
+  - src/editor/controls/PaintRow.tsx
+  - src/editor/controls/index.ts
+  - src/editor/figma-inspector-contract.test.ts
+  - src/editor/figui3-inspector-parity.test.ts
+  - src/editor/tools/LayoutTool.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx
+  - src/editor/tools/StylesTool/atoms/BorderControl.tsx
+  - src/editor/tools/StylesTool/atoms/FillControl.tsx
+  - src/editor/tools/StylesTool/atoms/FilterControl.tsx
+  - src/editor/tools/StylesTool/atoms/ShadowControl.tsx
+  - src/editor/tools/StylesTool/index.tsx
+  - src/editor/tools/SvgShapeTool.tsx
+  - src/editor/tools/SvgShapeTool.undo-remount.test.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/tools/TextStyleTool/atoms/ShadowControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/StrokeControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx
+  - src/editor/tools/layout-padding.test.ts
+  - src/editor/tools/layout-padding.ts
+  - src/editor/ui/paint-opacity.test.ts
+  - src/editor/ui/paint-opacity.ts
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -919,4 +900,59 @@ Notes:
 - first point of divergence was the embedded iframe input boundary; moving the physical input hit target into the parent document fixed WebKit without browser-specific gesture APIs.
 <!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
 
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:START -->
+### FIELD-INSPECTOR-FIGUI3-002 — FigUI3 Paint Rows, Effects, Auto Layout Padding, and Typography
+
+Status: complete
+Baseline: 93c230621054903aa71d0f57441fa9a2924dfd9d
+Activation HEAD: 52f6f8e646b12b3ef644406c64e7fdf36daad004
+Last Sync: 2026-09-25T05:29:00Z
+
+Owned:
+  - src/editor/controls/PaintRow.tsx
+  - src/editor/controls/EffectRow.tsx
+  - src/editor/controls/index.ts
+  - src/editor/controls/ControlActionRow.tsx
+  - src/editor/controls/ColorInput.tsx
+  - src/editor/ui/paint-opacity.ts
+  - src/editor/ui/paint-opacity.test.ts
+  - src/editor/tools/layout-padding.ts
+  - src/editor/tools/layout-padding.test.ts
+  - src/editor/tools/LayoutTool.tsx
+  - src/editor/tools/SvgShapeTool.tsx
+  - src/editor/tools/StylesTool/index.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/tools/StylesTool/atoms/FillControl.tsx
+  - src/editor/tools/StylesTool/atoms/BorderControl.tsx
+  - src/editor/tools/StylesTool/atoms/ShadowControl.tsx
+  - src/editor/tools/StylesTool/atoms/FilterControl.tsx
+  - src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/tools/TextStyleTool/atoms/ShadowControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/StrokeControl.tsx
+  - src/editor/figui3-inspector-parity.test.ts
+
+  - src/editor/figma-inspector-contract.test.ts
+
+  - src/editor/tools/SvgShapeTool.undo-remount.test.tsx
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/editor/header/**
+  - src/code/stores/user-preferences-store.ts
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
