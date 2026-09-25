@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:22:34Z
+Last Updated: 2026-09-25T09:27:21Z
 
 ## Active Assignments
 
@@ -101,7 +101,44 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:figui3-corrective-popovers-20260925:START -->
+### figui3-corrective-popovers-20260925 — FigUI3 Corrective Phase 4 — Popover Geometry + De-stroke
 
+Status: active
+Baseline: 2fd0a57fcd1ba2aba105610c76ad601bafe5daad
+Activation HEAD: 2fd0a57fcd1ba2aba105610c76ad601bafe5daad
+Last Sync: 2026-09-25T09:27:21Z
+
+Owned:
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/editor/ui/ThemeNeutralPopover.tsx
+  - src/editor/figui3-popup-geometry-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/controls/**
+  - src/editor/tools/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/design-system/**
+  - src/styles/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-popovers-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
