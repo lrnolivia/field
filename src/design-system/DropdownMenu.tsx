@@ -227,6 +227,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
         panelRef.current = el;
         if (rootRef) rootRef.current = el;
       }}
+      data-field-no-canvas-input
       data-scroll-surface="dropdown-menu"
       onWheel={(event) => event.stopPropagation()}
       className="fixed bg-[var(--dropdown-bg,var(--bg-surface))] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)]"
@@ -432,6 +433,7 @@ function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePa
   return (
     <div
       data-cascading-menu
+      data-field-no-canvas-input
       onMouseLeave={onMouseLeavePanel}
       style={{ position: 'fixed', left, top, zIndex: 99999 }}
     >
@@ -584,7 +586,7 @@ export default function DropdownMenu({
     : { left: -9999, top: -9999 };
 
   return createPortal(
-    <div ref={rootRef} data-cascading-menu>
+    <div ref={rootRef} data-cascading-menu data-field-no-canvas-input>
       {/* Invisible full-screen click-catcher → context-menu behavior: a click
           anywhere outside the panel ONLY closes the menu, it does NOT also
           select a canvas node / another row / clear selection.

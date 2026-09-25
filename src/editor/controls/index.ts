@@ -5,6 +5,7 @@ export { default as ToolSection } from './ToolSection';
 export { default as ToolRow } from './ToolRow';
 export { default as ToolInput } from './ToolInput';
 export { default as ToolSelect } from './ToolSelect';
+export { default as FieldSelect } from './FieldSelect';
 export { default as ToolDivider } from './ToolDivider';
 export { default as ToolButton } from './ToolButton';
 export { default as ToolSwitch } from './ToolSwitch';

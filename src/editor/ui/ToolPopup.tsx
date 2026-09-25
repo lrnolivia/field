@@ -412,6 +412,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
       <motion.div
         ref={popupRef}
         data-tool-popup=""
+        data-field-no-canvas-input
         className="fixed bg-[var(--bg-surface)] border border-[var(--border-light)] [--cut-border-color:var(--border-light)] cut-corners cut-lg cut-border shadow-2xl flex flex-col overflow-hidden"
         // initial ensures the very first paint is invisible — prevents the
         // one-frame flash at left:0/top:0 before recalcPosition runs.
@@ -446,6 +447,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
           x:       { duration: 0.12, ease: 'easeOut' },
         }}
         onMouseDown={(e) => e.stopPropagation()}
+        onWheelCapture={(e) => e.stopPropagation()}
       >
         {/* Header — draggable, back arrow when navigated, title, close × */}
         <div className="h-8 flex items-center justify-between px-2.5 py-0 cursor-grab active:cursor-grabbing select-none"

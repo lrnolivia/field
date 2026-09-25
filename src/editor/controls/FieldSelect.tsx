@@ -27,6 +27,8 @@ export interface FieldSelectProps {
   ariaLabel?: string;
   className?: string;
   triggerClassName?: string;
+  /** Hide the selected-value text while retaining the field-owned chevron trigger. */
+  showSelectedLabel?: boolean;
   density?: 'default' | 'compact';
   align?: 'left' | 'right';
   menuMinWidth?: number;
@@ -82,6 +84,7 @@ export default function FieldSelect({
   ariaLabel,
   className = '',
   triggerClassName = '',
+  showSelectedLabel = true,
   density = 'default',
   align = 'left',
   menuMinWidth,
@@ -274,7 +277,7 @@ export default function FieldSelect({
         }}
         onKeyDown={handleTriggerKeyDown}
         className={`
-          group w-full min-w-0 flex items-center justify-between gap-1.5
+          group w-full min-w-0 flex items-center ${showSelectedLabel ? 'justify-between' : 'justify-center'} gap-1.5
           ${triggerDensity}
           bg-[var(--grid-line,var(--bg-input))]
           border border-[var(--control-border)] [--cut-border-color:var(--control-border)]
@@ -287,7 +290,7 @@ export default function FieldSelect({
           ${triggerClassName}
         `}
       >
-        <span className="min-w-0 flex-1 truncate">{selectedOption?.label ?? value}</span>
+        {showSelectedLabel && <span className="min-w-0 flex-1 truncate">{selectedOption?.label ?? value}</span>}
         <svg
           width="10"
           height="10"

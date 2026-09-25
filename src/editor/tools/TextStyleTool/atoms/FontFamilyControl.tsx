@@ -9,6 +9,7 @@ import { ControlLabel, ControlActionRow } from '../../../controls';
 import { useTextStyles } from '../../../hooks/useTextStyles';
 import { useToolPopupOptional } from '../../../ui/ToolPopup';
 import FontFamilyPopup, { shouldRenderFontNameWithUiFace } from '../../../ui/FontFamilyPopup';
+import CompactFontFamilyDropdown from '../../../ui/CompactFontFamilyDropdown';
 import { loadGoogleFont } from '@/shared/font-loader';
 import { ensureGoogleFontImport } from '@/code/project/preset-ops';
 import { injectCanvasCSS, removeCanvasCSS, getInteractingViewport, getViewportPrefix } from '@/canvas/node-ops';
@@ -82,7 +83,9 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
   compact?: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const quickAnchorRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isQuickOpen, setIsQuickOpen] = useState(false);
   const popupCtx = useToolPopupOptional();
   const selectedId = useAtomValue(selectedNodeAtom);
   const isTextEditing = useAtomValue(isTextEditingAtom);
@@ -234,8 +237,9 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
   useEffect(() => clearFontPreview, [clearFontPreview]);
 
   const handleClick = useCallback(() => {
+    setIsQuickOpen(false);
     if (popupCtx) {
-      // Inside a ToolPopup (preset editor) — push font list as sliding panel
+      // Inside a ToolPopup (preset editor) — push the full rich browser as a sliding panel.
       popupCtx.pushPanel('Font Family', (
         <FontFamilyPopup
           value={isMixed ? '' : value}
@@ -248,12 +252,20 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
         />
       ));
     } else {
-      // Standalone — open own popup
       setIsOpen(true);
     }
   }, [popupCtx, value, isMixed, handleChange, handlePreview]);
 
-  trace.fn('FontFamilyControl:render', { value, isMixed, displayName, isOpen });
+  const handleQuickClick = useCallback(() => {
+    if (popupCtx) {
+      handleClick();
+      return;
+    }
+    setIsOpen(false);
+    setIsQuickOpen(true);
+  }, [handleClick, popupCtx]);
+
+  trace.fn('FontFamilyControl:render', { value, isMixed, displayName, isOpen, isQuickOpen });
 
   return (
     <>
@@ -262,14 +274,15 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
         {compact ? (
           <div className="relative min-w-0">
             <button
+              ref={quickAnchorRef}
               type="button"
               data-typography-font-family-trigger
-              onClick={handleClick}
+              onClick={handleQuickClick}
               className="w-full h-[var(--control-height)] px-2 flex items-center justify-between gap-2 text-xs text-left bg-[var(--control-bg)] border border-transparent text-[var(--text-primary)] rounded-[var(--control-radius)] hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)] cursor-pointer min-w-0"
               style={{ fontFamily: isMixed || shouldRenderFontNameWithUiFace(displayName) ? undefined : value || undefined }}
               aria-label="Choose font family"
               aria-haspopup="dialog"
-              aria-expanded={isOpen}
+              aria-expanded={isQuickOpen}
             >
               <span className="truncate min-w-0">{displayName}</span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-secondary)]">
@@ -306,6 +319,16 @@ function FontFamilyBase({ value, isMixed, onChange, plain, onPreviewWrite, label
           </button>
         )}
       </div>
+      {compact && !popupCtx && (
+        <CompactFontFamilyDropdown
+          value={isMixed ? '' : value}
+          onChange={handleChange}
+          onPreview={handlePreview}
+          isOpen={isQuickOpen}
+          onClose={() => setIsQuickOpen(false)}
+          anchorRef={quickAnchorRef}
+        />
+      )}
       {/* Standalone rich browser — compact mode reaches this from the dedicated
           button next to the family dropdown; non-compact mode keeps the legacy
           single-control entry point. */}

@@ -12,6 +12,8 @@ describe('FigUI3 typography controls', () => {
     expect(family).toContain('title="Browse fonts"');
     expect(family).toContain('text-left');
     expect(family).toContain('<FontFamilyPopup');
+    expect(family).toContain('CompactFontFamilyDropdown');
+    expect(family).toContain('handleQuickClick');
     expect(family).not.toContain('data-typography-font-family-select');
     expect(family).not.toContain('<select');
   });
@@ -20,7 +22,10 @@ describe('FigUI3 typography controls', () => {
     const property = read('src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx');
     expect(property).toContain('FONT_SIZE_PRESETS = [10, 11, 12, 13, 14, 15, 16, 20, 24, 32, 36, 40, 48, 64, 96, 128]');
     expect(property).toContain('data-typography-font-size-presets');
-    expect(property).toContain('aria-label="Font size presets"');
+    expect(property).toContain('ariaLabel="Font size presets"');
+    expect(property).toContain('<FieldSelect');
+    expect(property).toContain('showSelectedLabel={false}');
+    expect(property).not.toContain('<select');
   });
 
   it('keeps compact numeric typography fields editable with visible steppers', () => {

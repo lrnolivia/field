@@ -35,12 +35,20 @@ import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 /** Marker for canvas chrome portalled OUTSIDE the canvas container that must
  *  still zoom/pan the canvas under the wheel (see the passthrough below). */
 export const CANVAS_WHEEL_MARKER = 'data-canvas-wheel';
+/** Marker for portalled/editor UI that must own wheel input rather than routing it to the canvas. */
+export const CANVAS_WHEEL_BLOCK_MARKER = 'data-field-no-canvas-input';
 
 /** True when a wheel event's target is marked chrome living outside `container`. */
 export function isCanvasChromeWheel(target: EventTarget | null, container: Element): boolean {
   const el = target instanceof Element ? target : null;
   if (!el || container.contains(el)) return false;
   return el.closest(`[${CANVAS_WHEEL_MARKER}]`) !== null;
+}
+
+/** True when a wheel target belongs to editor UI that explicitly owns the gesture. */
+export function isCanvasWheelBlocked(target: EventTarget | null): boolean {
+  const el = target instanceof Element ? target : null;
+  return el?.closest(`[${CANVAS_WHEEL_BLOCK_MARKER}]`) !== null;
 }
 
 type WheelRouteRect = Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>;
@@ -60,6 +68,7 @@ export function shouldRouteCanvasWheel(
   rect: WheelRouteRect = container.getBoundingClientRect(),
 ): boolean {
   const el = target instanceof Element ? target : null;
+  if (isCanvasWheelBlocked(target)) return false;
   if (el && container.contains(el)) return true;
   if (isCanvasChromeWheel(target, container)) return true;
   return clientX >= rect.left

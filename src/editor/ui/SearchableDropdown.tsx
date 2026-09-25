@@ -232,8 +232,10 @@ export default function SearchableDropdown<T>({
       <div
         ref={subRef}
         data-testid="searchable-dropdown-submenu"
+        data-field-no-canvas-input
         style={{ position: 'fixed', left, top, width: SUBMENU_WIDTH }}
         className="z-[99999] bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-[var(--shadow-lg)] py-1"
+        onWheelCapture={(event) => event.stopPropagation()}
       >
         {menu.title && (
           <div className="px-2.5 pt-1.5 pb-1 text-[9px] uppercase tracking-wider text-[var(--text-secondary)]">{menu.title}</div>
@@ -264,6 +266,7 @@ export default function SearchableDropdown<T>({
     return (
         <div
           ref={panelRef}
+          data-field-no-canvas-input
           style={style ?? undefined}
           className={`${style ? 'z-[99999]' : `absolute ${panelClassName} z-[100]`} bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-[var(--shadow-lg)] overflow-hidden`}
         >

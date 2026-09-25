@@ -3,6 +3,8 @@ import {
   isCanvasChromeWheel,
   shouldRouteCanvasWheel,
   CANVAS_WHEEL_MARKER,
+  CANVAS_WHEEL_BLOCK_MARKER,
+  isCanvasWheelBlocked,
 } from './useCanvasTransform';
 
 // A pinch/wheel with the cursor on a body-portalled connection handle zoomed
@@ -66,5 +68,16 @@ describe('shouldRouteCanvasWheel', () => {
     chrome.setAttribute(CANVAS_WHEEL_MARKER, '');
     document.body.appendChild(chrome);
     expect(shouldRouteCanvasWheel(chrome, 20, 20, container, rect)).toBe(true);
+  });
+
+  it('blocks field-owned portalled Inspector UI even when its coordinates overlap the canvas', () => {
+    const container = document.createElement('div');
+    const menu = document.createElement('div');
+    menu.setAttribute(CANVAS_WHEEL_BLOCK_MARKER, '');
+    const row = document.createElement('button');
+    menu.appendChild(row);
+    document.body.appendChild(menu);
+    expect(isCanvasWheelBlocked(row)).toBe(true);
+    expect(shouldRouteCanvasWheel(row, 350, 240, container, rect)).toBe(false);
   });
 });

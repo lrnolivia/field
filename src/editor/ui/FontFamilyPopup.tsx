@@ -23,6 +23,8 @@ interface FontFamilyPopupProps {
   anchorRef: React.RefObject<HTMLElement | null>;
   /** Render inline (no ToolPopup wrapper) — for use inside pushPanel */
   inline?: boolean;
+  /** Compact quick-family surface: reuse browser data/rows, omit source/category filtering and shorten the list. */
+  compact?: boolean;
   /** Hover preview — called with the CSS family value when the user hovers
    *  a row, and `null` when the cursor leaves it (or when the popup
    *  closes / a font is selected). The control wires this into either a
@@ -108,7 +110,7 @@ function FontRow({ index, style, filteredFonts, currentFontName, onSelect, onPre
   );
 }
 
-export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anchorRef, inline, onPreview }: FontFamilyPopupProps) {
+export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anchorRef, inline, compact = false, onPreview }: FontFamilyPopupProps) {
   const [fonts, setFonts] = useState<FontItem[]>(DEFAULT_FONTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<FontFilter>('all');
@@ -433,6 +435,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
+{!compact && (
           <button
             ref={filterButtonRef}
             type="button"
@@ -447,6 +450,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
               <path d="m4 6 4 4 4-4" />
             </svg>
           </button>
+          )}
         </div>
 
         <div className="-mx-2.5 px-1 pt-1">
@@ -455,7 +459,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
               <div className="px-2 py-1 text-[10px] font-medium text-[var(--text-tertiary)]">
                 Workspace fonts
               </div>
-              <div className={selectedFilter === 'workspace' ? 'max-h-[286px] overflow-y-auto [&::-webkit-scrollbar]:hidden' : 'max-h-[112px] overflow-y-auto [&::-webkit-scrollbar]:hidden'}>
+              <div className={compact ? 'max-h-[84px] overflow-y-auto [&::-webkit-scrollbar]:hidden' : selectedFilter === 'workspace' ? 'max-h-[286px] overflow-y-auto [&::-webkit-scrollbar]:hidden' : 'max-h-[112px] overflow-y-auto [&::-webkit-scrollbar]:hidden'}>
                 {workspaceFamilies.map(font => {
                   const isSelected = font.family === currentFontName;
                   const cssFamily = `${font.family}, sans-serif`;
@@ -506,7 +510,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
               rowHeight={28}
               rowComponent={FontRow}
               rowProps={rowProps}
-              style={{ height: workspaceFamilies.length > 0 ? 174 : 294, scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
+              style={{ height: compact ? (workspaceFamilies.length > 0 ? 132 : 196) : (workspaceFamilies.length > 0 ? 174 : 294), scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
               className="[&::-webkit-scrollbar]:hidden"
             />
           ) : null}
@@ -516,11 +520,13 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
       {filterOpen && createPortal(
         <div
           data-font-filter-menu
+          data-field-no-canvas-input
           role="menu"
           aria-label="Font filter"
           className="fixed w-[184px] max-h-[320px] overflow-y-auto py-1 rounded-[5px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] scrollbar-hide"
           style={{ left: filterMenuPos.left, top: filterMenuPos.top, zIndex: 100020 }}
           onMouseDown={(event) => event.stopPropagation()}
+          onWheelCapture={(event) => event.stopPropagation()}
         >
           {([
             ['all', 'All fonts'],

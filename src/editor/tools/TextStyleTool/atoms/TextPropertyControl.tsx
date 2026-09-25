@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ToolInput, ToolSlider, ToolSelect, ToolSegmentedControl, ControlLabel } from '../../../controls';
+import { ToolInput, ToolSlider, ToolSelect, ToolSegmentedControl, ControlLabel, FieldSelect } from '../../../controls';
 import { resolveControl } from '../../../controls/control-registry';
 import { LegacyVariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useControlOptional } from '../../../controls/ControlProvider';
@@ -522,31 +522,25 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
       return (
         <div data-typography-font-size-control className="grid grid-cols-[minmax(0,1fr)_24px] gap-1 min-w-0">
           {input}
-          <div className="relative h-[var(--control-height)]">
-            <select
-              data-typography-font-size-presets
+          <div data-typography-font-size-presets className="w-6 min-w-0">
+            <FieldSelect
               value={presetValue}
-              onChange={(e) => {
-                if (!e.target.value) return;
-                setValue(`${e.target.value}px`);
+              onChange={(nextPreset) => {
+                if (!nextPreset) return;
+                setValue(`${nextPreset}px`);
               }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              aria-label="Font size presets"
-              title="Font size presets"
-            >
-              <option value="">Custom</option>
-              {FONT_SIZE_PRESETS.map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
-            <button
-              type="button"
-              tabIndex={-1}
-              className="absolute inset-0 h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--grid-line)] text-[var(--text-secondary)] pointer-events-none"
-              aria-hidden
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
+              options={[
+                { value: '', label: 'Custom' },
+                ...FONT_SIZE_PRESETS.map((size) => ({ value: String(size), label: String(size) })),
+              ]}
+              ariaLabel="Font size presets"
+              density="compact"
+              className="w-6"
+              triggerClassName="!h-[var(--control-height)] !w-6 !px-0 bg-[var(--grid-line)]"
+              menuMinWidth={84}
+              menuMaxHeight={240}
+              showSelectedLabel={false}
+            />
           </div>
         </div>
       );
