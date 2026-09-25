@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:06:32Z
+Last Updated: 2026-09-25T09:08:45Z
 
 ## Active Assignments
 
@@ -157,38 +157,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
-<!-- ASSIGNMENT:native-gallery-content-ops-20260925:START -->
-### native-gallery-content-ops-20260925 — Native Gallery Evolution — Phase 2 Content Maintenance Operations
 
-Status: active
-Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
-Activation HEAD: bbe6bb37a1c99d7a0798b064ae5cbf85882f7001
-Last Sync: 2026-09-25T09:06:32Z
-
-Owned:
-  - src/editor/gallery/**
-  - src/editor/tools/GalleryTool.tsx
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - .env*
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/mutation/mutation-queue.ts
-  - src/code/stores/project-store.ts
-  - src/canvas/commands.ts
-  - src/canvas/shortcuts.ts
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:native-gallery-content-ops-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -985,6 +954,20 @@ Paths:
 
 Validation / Build / Deploy:
 - Production verified: Workers Builds: field completed successfully; check-run id 108010150811; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/f0e2f6a7-81fd-4ce3-9bf8-e02d9a1c7ba3
+
+### 2026-09-25T09:08:44Z — native-gallery-content-ops-20260925 — 734566adc9a5
+
+Summary: Phase 2: replace, duplicate, precise move up/down, explicit remove, keyboard row selection, responsive override cloning, and Carousel-safe content operations.
+Commit: 734566adc9a5bfdc0ecf10d58b95a46954c6a476
+
+Paths:
+  - src/editor/gallery/GalleryContentSection.tsx
+  - src/editor/gallery/content-operations.test.ts
+  - src/editor/gallery/content-operations.ts
+  - src/editor/tools/GalleryTool.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -1834,4 +1817,37 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:END -->
+
+<!-- ASSIGNMENT:native-gallery-content-ops-20260925:START -->
+### native-gallery-content-ops-20260925 — Native Gallery Evolution — Phase 2 Content Maintenance Operations
+
+Status: complete
+Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
+Activation HEAD: bbe6bb37a1c99d7a0798b064ae5cbf85882f7001
+Last Sync: 2026-09-25T09:08:45Z
+
+Owned:
+  - src/editor/gallery/**
+  - src/editor/tools/GalleryTool.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/code/stores/project-store.ts
+  - src/canvas/commands.ts
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-content-ops-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
