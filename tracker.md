@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:27:29Z
+Last Updated: 2026-09-25T04:37:39Z
 
 ## Active Assignments
 
@@ -92,56 +92,7 @@ Notes:
   - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
 <!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
 
-<!-- ASSIGNMENT:workspace-chrome-floating-panes:START -->
-### workspace-chrome-floating-panes — Figma-style floating workspace chrome
 
-Status: active
-Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
-Activation HEAD: 4044ba6404f82cec551dee6a3e3421459b230114
-Last Sync: 2026-09-25T04:27:06Z
-
-Owned:
-  - src/App.tsx
-  - src/code/stores/workspace-panels-store.ts
-  - src/code/stores/left-panel-store.ts
-  - src/editor/ChromeIslands.tsx
-  - src/editor/header/RightHeader.tsx
-  - src/editor/left-toolbar/LeftPanel.tsx
-  - src/editor/workspace-layout.ts
-  - src/editor/workspace-layout.test.ts
-  - src/editor/WorkspaceRestoreBar.tsx
-  - src/editor/collab/InspectorCollaborators.tsx
-
-Approved Shared:
-  - src/editor/header/LeftHeader.tsx
-  - src/editor/left-toolbar/LeftMenu.tsx
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/CommentsListPanel.tsx
-  - src/editor/VibeDockShell.tsx
-  - tracker.md
-
-Protected:
-  - src/editor/FileExplorer.tsx
-  - src/editor/LayersPanel.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
-  - src/editor/left-toolbar/panels/pages-layers-split.ts
-  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
-  - src/editor/left-toolbar/panels/pages-layers.css
-  - src/editor/tools/**
-  - src/editor/controls/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/mutation/**
-  - src/code/parsing/**
-  - src/code/components/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-  - .env*
-<!-- ASSIGNMENT:workspace-chrome-floating-panes:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -228,6 +179,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r3 repair:** cross-assignment overlap checks consider only active `Owned` paths, with `Approved Shared` acting as an explicit exception. `Protected` remains enforced by each assignment against its own writes, but never blocks unrelated work.
 - **Prevention rule:** coordination tooling must preserve the distinction between `Owned`, `Approved Shared`, and `Protected`: Owned reserves; Shared permits deliberate overlap; Protected constrains the declaring assignment itself. Never merge Owned + Protected into one conflict set.
 <!-- LESSON:workspace-chrome-floating-panes-r2-protected-ownership:END -->
+
+<!-- LESSON:workspace-chrome-floating-panes-r3-stale-sha-verifier:START -->
+### workspace-chrome-floating-panes r3 packaging lesson
+
+- **r3 landed the implementation successfully but its final production waiter appeared hung.** It pushed implementation commit `5427d5446a2215b22e0b8ee1a6a0e79bd0422479`, then immediately pushed tracker-only commit `87d4c01a08c5ad7cc2930cffc677150054ec0b9e`, and only afterward polled the implementation SHA for `Workers Builds: field`.
+- **Root cause: the verifier polled a superseded SHA.** Cloudflare built the later tracker commit at the head of `main`, so the production UI showed the workspace implementation live while the installer kept waiting for a check run on the earlier implementation SHA.
+- **Repository/source impact: none.** The implementation and tracker record were already committed and pushed; the user visually verified the workspace chrome was live and otherwise golden. The only remaining product defect was the Inspector collapse-control placement corrected by r4.
+- **r4 repair:** verify the source patch commit while it is still the pushed remote HEAD; only after that check succeeds publish tracker completion.
+- **Prevention rule:** a deployment verifier must poll the actual build-triggering HEAD that contains the source change, or verify the source commit before any tracker-only follow-up advances `main`. Never require an exact stale SHA check after deliberately moving HEAD.
+<!-- LESSON:workspace-chrome-floating-panes-r3-stale-sha-verifier:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
@@ -438,6 +399,22 @@ Validation / Build / Deploy:
 - source staging restricted to the workspace assignment allowlist
 - production verification: pending
 
+### 2026-09-25T04:37:39Z — workspace-chrome-floating-panes — c25a5cd15b94
+
+Summary: Move the Inspector collapse control into the canvas gutter so it no longer overlaps the Design / Prototype row.
+Commit: c25a5cd15b945e01a3e8b0cd8765b7cd78187a7b
+
+Paths:
+  - src/App.tsx
+
+Validation / Build / Deploy:
+- `git diff --check`: passed
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed in isolated detached worktree
+- visual QA: workspace chrome confirmed golden except this collapse-control placement defect
+- fix: 24px Inspector collapse control moved to the canvas gutter, 8px outside the Inspector
+- `Workers Builds: field`: completed / success
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -630,4 +607,55 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:trackpad-pan-feel-20260924:END -->
+
+<!-- ASSIGNMENT:workspace-chrome-floating-panes:START -->
+### workspace-chrome-floating-panes — Figma-style floating workspace chrome
+
+Status: complete
+Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
+Activation HEAD: 4044ba6404f82cec551dee6a3e3421459b230114
+Last Sync: 2026-09-25T04:37:39Z
+
+Owned:
+  - src/App.tsx
+  - src/code/stores/workspace-panels-store.ts
+  - src/code/stores/left-panel-store.ts
+  - src/editor/ChromeIslands.tsx
+  - src/editor/header/RightHeader.tsx
+  - src/editor/left-toolbar/LeftPanel.tsx
+  - src/editor/workspace-layout.ts
+  - src/editor/workspace-layout.test.ts
+  - src/editor/WorkspaceRestoreBar.tsx
+  - src/editor/collab/InspectorCollaborators.tsx
+
+Approved Shared:
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/VibeDockShell.tsx
+  - tracker.md
+
+Protected:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/mutation/**
+  - src/code/parsing/**
+  - src/code/components/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+  - .env*
+<!-- ASSIGNMENT:workspace-chrome-floating-panes:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
