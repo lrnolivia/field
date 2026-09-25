@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:22:31Z
+Last Updated: 2026-09-25T09:22:34Z
 
 ## Active Assignments
 
@@ -101,47 +101,7 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
-<!-- ASSIGNMENT:figui3-corrective-toolbar-20260925:START -->
-### figui3-corrective-toolbar-20260925 — FigUI3 Corrective Phase 3 — Bottom Toolbar Optical Parity
 
-Status: active
-Baseline: b1924c3209cf9ddad69f0e0a7748c71a4672b40d
-Activation HEAD: 55484eb31ea5f7b777045b928f96bb2486adbdc1
-Last Sync: 2026-09-25T09:22:31Z
-
-Owned:
-  - src/editor/BottomToolbar.tsx
-  - src/editor/figui3-bottom-toolbar-polish.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/controls/**
-  - src/editor/ui/**
-  - src/editor/tools/**
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/editor/left-toolbar/**
-  - src/editor/header/**
-  - src/editor/agent/**
-  - src/design-system/**
-  - src/styles/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:figui3-corrective-toolbar-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1013,6 +973,18 @@ Paths:
   - src/code/gallery/gallery-carousel.test.ts
   - src/code/gallery/gallery-views.test.ts
   - src/code/gallery/gallery-views.ts
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:22:34Z — figui3-corrective-toolbar-20260925 — b8847d33d981
+
+Summary: FigUI3 Phase 3: true-float rounded bottom toolbar, 36px optical control height, tighter separators, neutral utility chips, and compact rounded local dropdowns. Focused tests, TypeScript, isolated validation, and exact allowlist passed. Deployment observation is intentionally non-blocking.
+Commit: b8847d33d9811f00256dc4780550524bf5b6a220
+
+Paths:
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-polish.test.ts
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
@@ -2034,4 +2006,46 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:native-gallery-responsive-runtime-20260925:END -->
+
+<!-- ASSIGNMENT:figui3-corrective-toolbar-20260925:START -->
+### figui3-corrective-toolbar-20260925 — FigUI3 Corrective Phase 3 — Bottom Toolbar Optical Parity
+
+Status: complete
+Baseline: b1924c3209cf9ddad69f0e0a7748c71a4672b40d
+Activation HEAD: 55484eb31ea5f7b777045b928f96bb2486adbdc1
+Last Sync: 2026-09-25T09:22:34Z
+
+Owned:
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/controls/**
+  - src/editor/ui/**
+  - src/editor/tools/**
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/design-system/**
+  - src/styles/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-toolbar-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
