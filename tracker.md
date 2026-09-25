@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:37:15Z
+Last Updated: 2026-09-25T08:39:20Z
 
 ## Active Assignments
 
@@ -990,6 +990,20 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-25T08:39:20Z — figui3-corrective-hierarchy-20260925 — 989304379424
+
+Summary: FigUI3 Phase 2: lighter property-label hierarchy, neutral property-menu hover grammar, and removal of inherited purple/pill/emoji CMS binding chrome. Isolated focused tests, TypeScript, build:all and allowlist validation passed.
+Commit: 9893043794244d0823b48cc3e821ae6782ea06ea
+
+Paths:
+  - src/editor/controls/BindButton.tsx
+  - src/editor/controls/ControlLabel.tsx
+  - src/editor/controls/ToolRow.tsx
+  - src/editor/figui3-inspector-hierarchy-polish.test.ts
+
+Validation / Build / Deploy:
+- Production verified: Workers Builds: field completed successfully; check-run id 108003981065; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/4f558380-27d7-41c3-a812-f365d2ae4947
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
