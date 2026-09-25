@@ -1,4 +1,5 @@
 // ToolRow.tsx — Single control row on the shared two-column grid:
+// FIGUI3_HIERARCHY_TOOLROW_20260925
 //   grid-template-columns: var(--tool-label-col) minmax(0, 1fr)
 //   ├── label cell (min-w-0, truncation; chevron overlays absolutely
 //   │   inside the cell — negative margins only extend hit areas and
@@ -120,7 +121,7 @@ export default function ToolRow({ label, children, labelStyle, onResetOverride, 
                 </svg>
               </span>
               <span
-                className={`text-xs font-bold transition-colors ${isOverride ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}
+                className={`text-xs font-medium transition-colors ${isOverride ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}
                 style={!isOverride ? labelStyle : undefined}
               >
                 {label}
@@ -128,7 +129,7 @@ export default function ToolRow({ label, children, labelStyle, onResetOverride, 
             </button>
           ) : (
             <span
-              className={`text-xs font-bold text-[var(--text-secondary)]${truncateLabel ? ' block truncate' : ''}`}
+              className={`text-xs font-medium text-[var(--text-secondary)]${truncateLabel ? ' block truncate' : ''}`}
               style={labelStyle}
               title={truncateLabel ? label : undefined}
             >
@@ -155,9 +156,9 @@ export default function ToolRow({ label, children, labelStyle, onResetOverride, 
             {onResetOverride && (
               <button
                 onClick={() => { onResetOverride(); setMenuOpen(false); }}
-                className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer hover:bg-[var(--accent)] transition-colors"
+                className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
               >
-                <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">
+                <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--text-primary)]">
                   Reset Override
                 </span>
               </button>

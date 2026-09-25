@@ -1,10 +1,11 @@
 // ControlLabel.tsx — Clickable property label with dropdown menu for variable/override ops.
+// FIGUI3_HIERARCHY_CONTROLLABEL_20260925
 // Exact UX port from old builder's ControlLabel.
 //
 // Visual states:
-//   Default:      text-xs font-bold text-[var(--text-secondary)]
+//   Default:      text-xs font-medium text-[var(--text-secondary)]
 //   Has override: text-[var(--accent-text)] (blue)
-//   Hover master: text-[var(--accent-secondary)] (purple)
+//   Hover master: text-[var(--accent-secondary)] (secondary-accent)
 //   Hover page:   text-[var(--text-primary)]
 //   Has variable: two-line stack (var name + property label)
 //
@@ -105,7 +106,7 @@ interface ControlLabelProps {
   subLabel?: string;
 }
 
-/** A `plain` ControlLabel that has an active override: accent-coloured (purple in a
+/** A `plain` ControlLabel that has an active override: accent-coloured (secondary-accent in a
  *  component file, blue on a page) + a chevron that opens a one-item "Reset Override"
  *  dropdown — the same affordance non-plain labels get, for the Collection List
  *  Filters/Sorting rows when editing a replica / variant artboard. */
@@ -128,7 +129,7 @@ function PlainOverrideLabel({ label, subLabel, onReset, cell }: { label: string;
         className="flex items-center gap-1 w-full text-left bg-transparent border-none cursor-pointer p-0"
         title={label}
       >
-        <span className="text-xs font-bold truncate" style={{ color: accent }}>{label}</span>
+        <span className="text-xs font-medium truncate" style={{ color: accent }}>{label}</span>
         {onReset && (
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: accent }}>
             <polyline points="6 9 12 15 18 9" />
@@ -154,9 +155,9 @@ function PlainOverrideLabel({ label, subLabel, onReset, cell }: { label: string;
                 forceRenderAfterExternalEdit('control-label:plain-reset-override', { label });
                 setOpen(false);
               }}
-              className="group flex items-center w-full px-3 py-1.5 text-left cursor-pointer bg-transparent hover:!bg-[var(--accent)] border-none whitespace-nowrap"
+              className="group flex items-center w-full px-3 py-1.5 text-left cursor-pointer bg-transparent hover:!bg-[var(--bg-hover)] border-none whitespace-nowrap"
             >
-              <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">Reset Override</span>
+              <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--text-primary)]">Reset Override</span>
             </button>
           </div>
         </>
@@ -197,7 +198,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
   // left than the Border row directly below it.
   if (plain) {
     // A plain label that carries a responsive/variant OVERRIDE renders in the
-    // accent (blue page / purple component) with a chevron → "Reset Override",
+    // accent (blue page / secondary-accent component) with a chevron → "Reset Override",
     // matching the standard non-plain override UX. Used by the Collection List
     // Filters/Sorting rows on a replica / variant artboard.
     if (overridden) {
@@ -217,13 +218,13 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
       // `zeagzegazeg…` would otherwise touch the value without this gap.
       return (
         <span className={`min-w-0 select-none pl-[18px] -ml-[18px] pr-2 flex flex-col leading-tight${cell ? '' : ' w-3/4 mr-[2px]'}`}>
-          <span className="text-xs font-bold text-[var(--text-secondary)] block truncate" title={label}>{label}</span>
+          <span className="text-xs font-medium text-[var(--text-secondary)] block truncate" title={label}>{label}</span>
           <span className="text-[10px] text-[var(--text-disabled)] font-normal block truncate" title={subLabel}>{subLabel}</span>
         </span>
       );
     }
     return (
-      <span className={`min-w-0 text-xs font-bold text-[var(--text-secondary)] select-none pl-[18px] -ml-[18px] block truncate${cell ? '' : ' w-3/4 mr-[2px]'}`} title={label}>
+      <span className={`min-w-0 text-xs font-medium text-[var(--text-secondary)] select-none pl-[18px] -ml-[18px] block truncate${cell ? '' : ' w-3/4 mr-[2px]'}`} title={label}>
         {label}
       </span>
     );
@@ -801,7 +802,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
     : 'group-hover:text-[var(--accent-text)]';
 
   if (isOverride) {
-    // Component-file overrides use the purple secondary accent (matching the bound pill + the rest of the
+    // Component-file overrides use the secondary-accent secondary accent (matching the bound pill + the rest of the
     // component-editing chrome); page overrides use the standard blue accent.
     labelColorClass = isComponentFile ? 'text-[var(--accent-secondary)]' : 'text-[var(--accent-text)]';
     hoverColorClass = '';
@@ -888,7 +889,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
             variables still show their two-line "varRef above label" form. */}
         {hasVar && varRef ? (
           <span className="flex flex-col min-w-0">
-            <span className={`text-xs font-bold ${effectiveLabelColor} ${effectiveLabelHover} truncate max-w-20 transition-colors`} title={varDisplayName ?? undefined}>
+            <span className={`text-xs font-medium ${effectiveLabelColor} ${effectiveLabelHover} truncate max-w-20 transition-colors`} title={varDisplayName ?? undefined}>
               {varDisplayName}
             </span>
             <span className="text-[10px] text-[var(--text-disabled)] leading-tight font-normal truncate" title={label}>
@@ -903,7 +904,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
           // which row drives which CSS property at a glance.
           // `pr-2` keeps a long truncated name off the value column.
           <span className="flex flex-col min-w-0 leading-tight pr-2">
-            <span className={`text-xs font-bold ${effectiveLabelColor} ${effectiveLabelHover} block truncate transition-colors`} title={label}>{label}</span>
+            <span className={`text-xs font-medium ${effectiveLabelColor} ${effectiveLabelHover} block truncate transition-colors`} title={label}>{label}</span>
             <span className="text-[10px] text-[var(--text-disabled)] font-normal block truncate" title={subLabel}>{subLabel}</span>
           </span>
         ) : (
@@ -911,7 +912,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
           // names (`initialVarianthoist`, `transitiontransition2`) would
           // otherwise push the value column right and produce ragged
           // rows when sitting next to short-labelled siblings.
-          <span className={`block truncate text-xs font-bold ${effectiveLabelColor} ${effectiveLabelHover} transition-colors`} title={label}>
+          <span className={`block truncate text-xs font-medium ${effectiveLabelColor} ${effectiveLabelHover} transition-colors`} title={label}>
             {label}
           </span>
         )}
@@ -995,7 +996,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
               return (
                 <div key={i}>
                   {item.separator && i > 0 && (
-                    <div className="h-px bg-white/10 mx-2 my-1" />
+                    <div className="h-px bg-[var(--border-light)] mx-2 my-1" />
                   )}
                   <button
                     onMouseEnter={(e) => {
@@ -1014,19 +1015,15 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
                       item.onClick();
                       closeMenu();
                     }}
-                    className={`group flex items-center justify-between gap-2 mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer ${
-                      item.hoverColor === 'accent-secondary'
-                        ? 'hover:bg-[var(--accent-secondary)]'
-                        : 'hover:bg-[var(--accent)]'
-                    } transition-colors`}
+                    className={`group flex items-center justify-between gap-2 mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer ${'hover:bg-[var(--bg-hover)]'} transition-colors`}
                   >
-                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)] flex-1">
+                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--text-primary)] flex-1">
                       {item.label}
                     </span>
                     {/* Submenu chevron — RIGHT side, pointing RIGHT (standard cascade
                         indicator). `justify-between` on the row pushes it to the edge. */}
                     {hasSubmenu && (
-                      <span className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] flex-shrink-0">
+                      <span className="text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] flex-shrink-0">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="9 18 15 12 9 6" />
                         </svg>
@@ -1053,13 +1050,13 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
               ) : submenuOpen.items.map((sub, i) => (
                 <div key={i}>
                   {sub.separator && i > 0 && (
-                    <div className="h-px bg-white/10 mx-2 my-1" />
+                    <div className="h-px bg-[var(--border-light)] mx-2 my-1" />
                   )}
                   <button
                     onClick={() => { sub.onClick(); closeMenu(); }}
-                    className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer hover:bg-[var(--accent)] transition-colors"
+                    className="group flex items-center mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
                   >
-                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)] truncate">
+                    <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--text-primary)] truncate">
                       {sub.label}
                     </span>
                   </button>

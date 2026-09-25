@@ -1,5 +1,6 @@
 // BindButton.tsx — Small bind/unbind button for CMS field binding.
-// Shows a plug icon when unbound, a purple pill with field name when bound.
+// FIGUI3_HIERARCHY_CMS_BINDING_20260925
+// Shows a quiet field-native binding control with semantic line icons.
 // Click opens a dropdown of fields from the parent collection.
 // Only shown when selected node is inside a collection template (.map()).
 
@@ -89,21 +90,28 @@ export function BindButton({ nodeId, property, currentBinding, collectionSlug, i
     <>
       <button
         ref={btnRef}
+        data-cms-bind-button
         onClick={openDropdown}
         title={isBound ? `Bound to ${currentBinding}` : `Bind ${property} to collection field`}
-        className={`shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-all ${
+        className={`shrink-0 inline-flex items-center gap-1 rounded-[var(--control-radius)] px-1.5 py-0.5 text-[10px] font-medium cursor-pointer border border-transparent transition-colors ${
           isBound
-            ? 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 border border-purple-500/30'
-            : 'text-[var(--text-disabled)] hover:text-[var(--text-secondary)] hover:bg-[var(--grid-line)]'
+            ? 'bg-[var(--bg-active)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+            : 'text-[var(--text-disabled)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
         }`}
       >
         {isBound ? (
           <>
-            <span className="text-purple-400">&#x26A1;</span>
+            <svg data-cms-binding-icon width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--selection)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 10 10 6" />
+              <path d="M5.2 11.8 3.7 13.3a2.1 2.1 0 0 1-3-3l2.6-2.6a2.1 2.1 0 0 1 3 0" transform="translate(2 -1)" />
+              <path d="m10.8 4.2 1.5-1.5a2.1 2.1 0 0 1 3 3l-2.6 2.6a2.1 2.1 0 0 1-3 0" transform="translate(-2 1)" />
+            </svg>
             <span className="truncate max-w-[60px]">{boundField?.name ?? currentBinding}</span>
           </>
         ) : (
-          <span title="Bind to CMS field">&#x1F50C;</span>
+          <svg data-cms-binding-icon width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5.5 2.5v4M10.5 2.5v4M4 6.5h8v1.25A4 4 0 0 1 8 11.75v1.75" />
+          </svg>
         )}
       </button>
 
@@ -119,7 +127,7 @@ export function BindButton({ nodeId, property, currentBinding, collectionSlug, i
             style={{ left: dropdownPos.x, top: dropdownPos.y }}
           >
             {/* Header */}
-            <div className="px-3 py-1.5 text-[10px] font-bold text-[var(--text-disabled)] uppercase">
+            <div className="px-3 py-1.5 text-[10px] font-medium text-[var(--text-tertiary)]">
               Bind {property}
             </div>
 
@@ -130,8 +138,8 @@ export function BindButton({ nodeId, property, currentBinding, collectionSlug, i
                 onClick={() => handleBind(field.id)}
                 className={`w-[calc(100%-8px)] mx-1 flex items-center gap-2 px-2.5 py-1.5 cut-corners text-left cursor-pointer transition-colors ${
                   currentBinding === field.id
-                    ? 'bg-purple-600/20 text-purple-300'
-                    : 'hover:bg-[var(--accent)] text-[var(--text-primary)] hover:text-[var(--accent-fg)]'
+                    ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+                    : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]'
                 }`}
               >
                 <span className="text-xs font-medium">{field.name}</span>
@@ -142,7 +150,7 @@ export function BindButton({ nodeId, property, currentBinding, collectionSlug, i
             {/* Unbind option */}
             {isBound && (
               <>
-                <div className="h-px bg-white/10 mx-2 my-1" />
+                <div className="h-px bg-[var(--border-light)] mx-2 my-1" />
                 <button
                   onClick={handleUnbind}
                   className="w-[calc(100%-8px)] mx-1 flex items-center gap-2 px-2.5 py-1.5 cut-corners text-left cursor-pointer transition-colors hover:bg-red-600/20 text-red-400"
