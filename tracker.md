@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T07:23:37Z
+Last Updated: 2026-09-25T07:37:00Z
 
 ## Active Assignments
 
@@ -134,60 +134,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 
-<!-- ASSIGNMENT:figui3-global-visual-parity-20260925:START -->
-### figui3-global-visual-parity-20260925 — FigUI3 Global Visual Parity + Neutral Chrome + Page Appearance
 
-Status: active
-Baseline: f4e1139b2b95588b65d4f34d209ec2d9a58c0c19
-Activation HEAD: d9bb916d4f03b0f1d0f54718dc8dda046ab11c4b
-Last Sync: 2026-09-25T07:11:54Z
-
-Owned:
-  - src/styles/loew-theme.css
-  - src/code/stores/user-preferences-store.ts
-  - src/editor/builder-theme.ts
-  - src/editor/BottomToolbar.tsx
-  - src/editor/PropertiesPanel.tsx
-  - src/App.tsx
-  - src/canvas/Canvas.tsx
-  - src/editor/ui/FontFamilyPopup.tsx
-  - src/editor/ui/ToolPopup.tsx
-  - src/editor/controls/ToolSection.tsx
-  - src/design-system/SectionLabel.tsx
-  - src/design-system/SidebarRow.tsx
-  - src/design-system/SearchBar.tsx
-  - src/shared/editor-neutral-theme.ts
-  - src/shared/editor-neutral-theme.test.ts
-  - src/editor/ui/ThemeNeutralPopover.tsx
-  - src/code/project/page-appearance-config.ts
-  - src/code/project/page-appearance-config.test.ts
-  - src/code/stores/page-appearance-store.ts
-  - src/editor/PageAppearanceBridge.tsx
-  - src/editor/tools/PageAppearanceTool.tsx
-  - src/editor/figui3-global-parity.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/LayersPanel/rows.tsx
-  - src/editor/LayersPanel/drag.ts
-  - src/editor/command-palette/**
-  - src/canvas/drag/**
-  - src/canvas/resize/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/preview/**
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:figui3-global-visual-parity-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1279,4 +1226,63 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-004:END -->
+
+<!-- ASSIGNMENT:figui3-global-visual-parity-20260925:START -->
+### figui3-global-visual-parity-20260925 — FigUI3 Global Visual Parity + Neutral Chrome + Page Appearance
+
+Status: complete
+Baseline: f4e1139b2b95588b65d4f34d209ec2d9a58c0c19
+Activation HEAD: d9bb916d4f03b0f1d0f54718dc8dda046ab11c4b
+Last Sync: 2026-09-25T07:37:00Z
+
+Owned:
+  - src/styles/loew-theme.css
+  - src/code/stores/user-preferences-store.ts
+  - src/editor/builder-theme.ts
+  - src/editor/BottomToolbar.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/App.tsx
+  - src/canvas/Canvas.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/controls/ToolSection.tsx
+  - src/design-system/SectionLabel.tsx
+  - src/design-system/SidebarRow.tsx
+  - src/design-system/SearchBar.tsx
+  - src/shared/editor-neutral-theme.ts
+  - src/shared/editor-neutral-theme.test.ts
+  - src/editor/ui/ThemeNeutralPopover.tsx
+  - src/code/project/page-appearance-config.ts
+  - src/code/project/page-appearance-config.test.ts
+  - src/code/stores/page-appearance-store.ts
+  - src/editor/PageAppearanceBridge.tsx
+  - src/editor/tools/PageAppearanceTool.tsx
+  - src/editor/figui3-global-parity.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/command-palette/**
+  - src/canvas/drag/**
+  - src/canvas/resize/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/preview/**
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+Deferred:
+  - Live screenshot-level visual QA against the supplied Figma UI3 references.
+  - Any corrections discovered during that review reopen as a new, narrowly scoped polish assignment; this completed implementation does not retain file ownership while waiting.
+
+<!-- ASSIGNMENT:figui3-global-visual-parity-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
