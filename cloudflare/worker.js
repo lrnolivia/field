@@ -203,6 +203,33 @@ function decodeJwtPart(value) {
   return JSON.parse(new TextDecoder().decode(base64UrlBytes(value)));
 }
 
+function getCookieValue(request, name) {
+  const cookie = request.headers.get("Cookie") ?? "";
+
+  for (const part of cookie.split(";")) {
+    const trimmed = part.trim();
+    const separator = trimmed.indexOf("=");
+    if (separator < 0) continue;
+
+    const key = trimmed.slice(0, separator).trim();
+    if (key !== name) continue;
+
+    return trimmed.slice(separator + 1).trim() || null;
+  }
+
+  return null;
+}
+
+function getAccessToken(request) {
+  const assertion = request.headers.get("Cf-Access-Jwt-Assertion")?.trim();
+  if (assertion) return assertion;
+
+  // Browser traffic authenticated by Access also carries the application JWT
+  // in CF_Authorization. Validate it exactly like the assertion rather than
+  // trusting the cookie merely because it exists.
+  return getCookieValue(request, "CF_Authorization");
+}
+
 async function getAccessJwks(teamDomain) {
   const now = Date.now();
   const cached = jwksCache.get(teamDomain);
@@ -245,8 +272,13 @@ async function verifyAccessRequest(request, env) {
   }
   const teamDomain = teamUrl.origin;
 
-  const token = request.headers.get("Cf-Access-Jwt-Assertion");
-  if (!token) return { ok: false, reason: "Missing Cloudflare Access assertion" };
+  const token = getAccessToken(request);
+  if (!token) {
+    return {
+      ok: false,
+      reason: "Missing Cloudflare Access assertion and authorization cookie",
+    };
+  }
 
   try {
     const parts = token.split(".");
@@ -286,6 +318,53 @@ async function verifyAccessRequest(request, env) {
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
+}
+
+async function verifyWorkerAccess(request, env, ctx) {
+  // Current Cloudflare Workers Access integration provides a verified identity
+  // directly on the execution context. Prefer it when present: Cloudflare has
+  // already authenticated + authorized the request before this Worker runs.
+  if (ctx?.access) {
+    try {
+      const identity = await ctx.access.getIdentity();
+
+      if (!identity || typeof identity !== "object") {
+        return { ok: false, reason: "Worker Access identity unavailable" };
+      }
+
+      const subjectCandidates = [
+        identity.user_uuid,
+        identity.userUuid,
+        identity.id,
+        identity.email,
+      ];
+
+      const subject = subjectCandidates.find(
+        (value) => typeof value === "string" && value.trim(),
+      );
+
+      if (!subject) {
+        return { ok: false, reason: "Worker Access identity has no stable subject" };
+      }
+
+      return {
+        ok: true,
+        payload: {
+          sub: subject.trim(),
+        },
+        identity,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  // Classic hostname Access / direct-origin validation path. This still
+  // cryptographically validates issuer, audience, expiry, and signature.
+  return verifyAccessRequest(request, env);
 }
 
 async function readJsonBody(request, maxBytes) {
@@ -630,23 +709,40 @@ export {
   handleFieldPersistenceRequest,
   parseProjectRoute,
   verifyAccessRequest,
+  verifyWorkerAccess,
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const incoming = new URL(request.url);
 
+    // Prefer Cloudflare's verified Worker Access context. Fall back to our
+    // explicit JWT validation for classic hostname Access and direct requests.
+    // An unprotected workers.dev request has neither and therefore fails closed.
+    const accessVerifier = (candidateRequest, candidateEnv) =>
+      verifyWorkerAccess(candidateRequest, candidateEnv, ctx);
+
     // field APIs are handled before static assets so API failures can never
-    // fall through to index.html. Authentication is re-validated even when the
-    // custom hostname is already behind Cloudflare Access; this also closes an
-    // unprotected workers.dev bypass.
-    const fontsResponse = await handleGoogleFontsRequest(request, env);
+    // fall through to index.html.
+    const fontsResponse = await handleGoogleFontsRequest(
+      request,
+      env,
+      accessVerifier,
+    );
     if (fontsResponse) return fontsResponse;
 
-    const profileResponse = await handleFieldProfileRequest(request, env);
+    const profileResponse = await handleFieldProfileRequest(
+      request,
+      env,
+      accessVerifier,
+    );
     if (profileResponse) return profileResponse;
 
-    const apiResponse = await handleFieldPersistenceRequest(request, env);
+    const apiResponse = await handleFieldPersistenceRequest(
+      request,
+      env,
+      accessVerifier,
+    );
     if (apiResponse) return apiResponse;
 
     const target = new URL(request.url);

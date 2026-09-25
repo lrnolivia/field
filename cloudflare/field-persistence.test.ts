@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { handleFieldPersistenceRequest, handleFieldProfileRequest, verifyAccessRequest } from './worker.js';
+import worker, { handleFieldPersistenceRequest, handleFieldProfileRequest, verifyAccessRequest, verifyWorkerAccess } from './worker.js';
 
 class MockR2 {
   objects = new Map<string, { body: string; etag: string }>();
@@ -39,6 +39,25 @@ test('persistence API fails closed when Access validation cannot be established'
   });
   assert.equal(res.status, 403);
   assert.equal(assetCalls, 0);
+});
+
+test('native Worker Access context authenticates field APIs', async () => {
+  const verified = await verifyWorkerAccess(
+    req('/api/field/profile'),
+    {},
+    {
+      access: {
+        getIdentity: async () => ({
+          user_uuid: 'worker-access-user',
+          email: 'lauren@example.com',
+          name: 'Lauren Olivia',
+        }),
+      },
+    },
+  );
+
+  assert.equal(verified.ok, true);
+  assert.equal(verified.payload?.sub, 'worker-access-user');
 });
 
 test('profile API uses the verified Access subject', async () => {
@@ -203,6 +222,19 @@ test('Access verifier validates RS256 signature, issuer, audience, and expiry', 
       FIELD_ACCESS_AUD: 'field-aud',
     });
     assert.equal(verified.ok, true);
+
+    const cookieVerified = await verifyAccessRequest(
+      new Request('https://field.loew.fi/', {
+        headers: {
+          Cookie: `CF_Authorization=${token}`,
+        },
+      }),
+      {
+        FIELD_ACCESS_TEAM_DOMAIN: 'https://unit-test.cloudflareaccess.com',
+        FIELD_ACCESS_AUD: 'field-aud',
+      },
+    );
+    assert.equal(cookieVerified.ok, true);
 
     const wrongAudience = await verifyAccessRequest(new Request('https://field.loew.fi/', {
       headers: { 'Cf-Access-Jwt-Assertion': token },
