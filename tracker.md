@@ -6,14 +6,54 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T02:45:46Z
+Last Updated: 2026-09-25T02:59:24Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
+<!-- ASSIGNMENT:canvas-interaction-parity-20260924:START -->
+### canvas-interaction-parity-20260924 — Figma-style canvas selection, marquee, and pan parity
 
+Status: active
+Baseline: c74f5b1ccc538638fef558422bcad12d4edf55f2
+Activation HEAD: bff959b01a6cac352fad3685638274457f89a5dc
+Last Sync: 2026-09-25T02:59:24Z
+
+Owned:
+  - src/canvas/mouse/CanvasMouseController.ts
+  - src/canvas/mouse/CanvasMouseController.test.ts
+  - src/canvas/selection/SelectionBox.tsx
+  - src/canvas/selection/SelectionBox.test.ts
+  - src/canvas/shortcuts.ts
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/bridge-host.ts
+
+Approved Shared:
+  - src/code/stores/user-preferences-store.ts
+  - src/editor/header/menu-builders.tsx
+  - src/editor/header/LeftHeader.tsx
+
+Protected:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/canvas/drag/**
+  - src/code/mutation/**
+  - src/code/parsing/**
+  - src/code/components/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:canvas-interaction-parity-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
