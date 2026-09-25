@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T06:04:17Z
+Last Updated: 2026-09-25T06:07:04Z
 
 ## Active Assignments
 
@@ -134,45 +134,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-003:START -->
-### FIELD-INSPECTOR-FIGUI3-003 — FigUI3 Inspector Header, Selection Colors, Styles, and Overflow
 
-Status: planned
-Baseline: 2aabfa52e7f053405511f5604e8b988c9b089df1
-Activation HEAD: 37c5097cf2a8a2cfb447d5be30255c7d0a0f0571
-Last Sync: 2026-09-25T06:04:17Z
-
-Owned:
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/controls/InspectorObjectHeader.tsx
-  - src/editor/tools/SelectionTool.tsx
-  - src/editor/controls/ColorInput.tsx
-  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
-  - src/editor/ui/PresetPicker.tsx
-  - src/editor/figui3-inspector-header-selection.test.ts
-  - src/editor/figma-inspector-contract.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/LayersPanel/**
-  - src/editor/FileExplorer.tsx
-  - src/editor/left-toolbar/**
-  - src/editor/header/**
-  - src/editor/PropertiesPanel.tsx workspace dock/float shell semantics outside the object-header composition
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-003:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -674,6 +636,24 @@ Paths:
 Validation / Build / Deploy:
 - update this event if production verification is still pending
 
+### 2026-09-25T06:07:04Z — FIELD-INSPECTOR-FIGUI3-003 — c4f884aa7d6e
+
+Summary: FigUI3 Inspector object/component header depth, Selection colors overflow and hover actions, neutral linked-style rows, and searchable Custom styles popup. Focused tests, TypeScript, build:all, and visual QA passed. Production verified: Workers Builds: field completed successfully; check-run id 107964533315.
+Commit: c4f884aa7d6e398cd6bddcc4de455ee0c17bff4a
+
+Paths:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/ColorInput.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/figma-inspector-contract.test.ts
+  - src/editor/figui3-inspector-header-selection.test.ts
+  - src/editor/tools/SelectionTool.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/ui/PresetPicker.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -1077,4 +1057,44 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-003:START -->
+### FIELD-INSPECTOR-FIGUI3-003 — FigUI3 Inspector Header, Selection Colors, Styles, and Overflow
+
+Status: complete
+Baseline: 2aabfa52e7f053405511f5604e8b988c9b089df1
+Activation HEAD: 37c5097cf2a8a2cfb447d5be30255c7d0a0f0571
+Last Sync: 2026-09-25T06:07:04Z
+
+Owned:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/tools/SelectionTool.tsx
+  - src/editor/controls/ColorInput.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/ui/PresetPicker.tsx
+  - src/editor/figui3-inspector-header-selection.test.ts
+  - src/editor/figma-inspector-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/**
+  - src/editor/FileExplorer.tsx
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/PropertiesPanel.tsx workspace dock/float shell semantics outside the object-header composition
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-003:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
