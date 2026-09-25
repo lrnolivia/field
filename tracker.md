@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:32:36Z
+Last Updated: 2026-09-25T09:39:38Z
 
 ## Active Assignments
 
@@ -101,7 +101,52 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:START -->
+### figui3-corrective-sidebar-system-20260925 — FigUI3 Corrective Phase 5 — Sidebar System + Document Panel
 
+Status: active
+Baseline: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
+Activation HEAD: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
+Last Sync: 2026-09-25T09:39:38Z
+
+Owned:
+  - src/design-system/SectionLabel.tsx
+  - src/design-system/SearchBar.tsx
+  - src/design-system/PanelSearchButton.tsx
+  - src/design-system/AddButton.tsx
+  - src/design-system/SidebarRow.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/figui3-sidebar-system-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/LayersPanel/resolve-drop-structure.test.ts
+  - src/editor/LayersPanel/position-fixup.test.ts
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/features/paste-engine/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/editor/command-palette/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
