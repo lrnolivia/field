@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:41:04.661Z
+Last Updated: 2026-09-25T04:51:50.158Z
 
 ## Active Assignments
 
@@ -49,58 +49,55 @@ Protected:
 Notes:
   - Safari r5 adds a same-document transparent input surface above the canvas iframe so trackpad wheel input no longer depends on WebKit iframe event-region routing.
 <!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
-<!-- ASSIGNMENT:context-components-command-surface-20260925:START -->
-### context-components-command-surface-20260925 — Context Commands + Component Interaction
+
+
+
+<!-- ASSIGNMENT:native-group-ungroup-20260925:START -->
+### native-group-ungroup-20260925 — Native Group / Ungroup document primitive
 
 Status: active
-Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
-Activation HEAD: 27a2d58506765eae2386cb7573b5c06a47d53e64
-Last Sync: 2026-09-25T04:14:52.680Z
+Baseline: a10af177e311dba88197164658d7e16f7233a377
+Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
+Last Sync: 2026-09-25T04:51:50.158Z
 
-Scope: Refine field's object/layer context menu, Pages context menu, and project/title menu; keep component controls at the top; and migrate component identity to a semantic component accent derived from the active field accent. Only already-real component/navigation behavior is surfaced. Native generic Group/Ungroup remains a separate deterministic document-model feature immediately after this UI pass.
+Scope: Implement first-class deterministic Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is structural hierarchy with layout-transparent semantics; grouping/ungrouping must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
 
 Owned:
+  - src/code/parsing/parser.ts
+  - src/code/generation/runtime-guarantees.ts
+  - src/code/groups/group-semantics.ts
+  - src/code/groups/group-semantics.test.ts
+  - src/canvas/commands.ts
   - src/canvas/ui/ContextMenu.tsx
-  - src/editor/FileExplorer.tsx
-  - src/editor/header/ProjectChip.tsx
+  - src/canvas/shortcuts.ts
   - src/editor/LayersPanel/rows.tsx
-  - src/editor/left-toolbar/panels/LibraryPanel/sections/ComponentsSection.tsx
-  - src/editor/left-toolbar/panels/LibraryPanel/items/ComponentRow.tsx
-  - src/canvas/ui/ComponentBreadcrumb.tsx
-  - src/editor/ui/NameInputModal.tsx
-  - src/styles/loew-theme.css
-  - src/editor/page-menu-commands.ts
-  - src/editor/page-menu-commands.test.ts
-  - src/design-system/DropdownMenu.tsx
+  - src/editor/command-palette/sources/commands.ts
+  - src/editor/command-palette/useSearchActions.ts
 
 Approved Shared:
   - tracker.md
 
 Protected:
-  - src/canvas/** except src/canvas/ui/ContextMenu.tsx and src/canvas/ui/ComponentBreadcrumb.tsx
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/editor/left-toolbar/LeftPanel.tsx
-  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
-  - src/editor/header/LeftHeader.tsx
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/bridge-host-camera.test.ts
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
   - workspace collapse / dock / float implementation
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/tools/**
-  - src/editor/controls/**
   - cloudflare/**
   - wrangler.jsonc
   - package.json
   - package-lock.json
 
-Notes:
-  - Collapsible Workspace may land after this reservation. If it changes none of the owned paths, this installer integrates it and proceeds. If it changes an owned path, the installer stops with INTEGRATION OVERLAP DETECTED.
-  - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
-
-Notes:
-  - Title-menu final polish: project menu anchors from title end/chevron and uses opt-in compact dropdown density.
-<!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
-
-
+Architecture:
+  - source marker: data-field-group="true"
+  - layout-transparent wrapper target: display: contents
+  - parser exposes semantic isGroup; never infer from display: contents alone
+  - runtime layout guarantees must flatten Group when reasoning about ancestor flex/grid children
+  - generic Group/Ungroup remains separate from existing SVG Group/Ungroup
+  - Phase B canvas derived-bounds/drag ownership must be verified and expanded explicitly after source touch points are audited against then-current main
+<!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -145,6 +142,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 uses silo-scoped dirtiness and isolated validation.** Unrelated unstaged/untracked files are fingerprinted and allowed; unrelated staged changes are refused because a commit could accidentally capture them. Owned/shared dirtiness must either be clean baseline state or this package's exact resumable postimage. Tests, TypeScript, and `build:all` run in a detached clean worktree so another chat's uncommitted work cannot contaminate validation.
 - **Prevention rule:** field installers must gate on owned/shared overlap, not global cleanliness; preserve and verify unrelated dirty state; never stage outside the allowlist; and validate buildable source in an isolated clean worktree whenever unrelated local work exists.
 <!-- LESSON:pages-layers-ui3-refinement-ii-r1-global-clean:END -->
+
+<!-- LESSON:context-components-command-surface-r1-purple-anchor:START -->
+### context-components-command-surface r1 packaging lesson
+
+- **r1 stopped safely during complete no-write validation before tracker reservation or source writes.** The installer required every bulk replacement token to exist in `src/editor/LayersPanel/rows.tsx`; semantic tokens `usePurple` and `var(--accent-secondary)` existed, but the comment-only literal `Purple` did not.
+- **Root cause: optional/comment cleanup was encoded as a required source anchor.** A cosmetic string replacement was placed in the same mandatory bulk-transform list as semantic code migrations.
+- **Repository/source impact: none.** The failing run wrote no tracker/source files and created no commits.
+- **r2 repair:** remove only the optional lowercase/uppercase comment-token requirements while retaining exact semantic anchors and all product scope.
+- **Prevention rule:** installer compatibility gates must distinguish semantic required anchors from optional comment/text cleanup. Optional substitutions may run conditionally, but their absence must never invalidate a package.
+<!-- LESSON:context-components-command-surface-r1-purple-anchor:END -->
 
 ## Commit Ledger
 
@@ -423,6 +430,27 @@ Validation / Build / Deploy:
 - fix: 24px Inspector collapse control moved to the canvas gutter, 8px outside the Inspector
 - `Workers Builds: field`: completed / success
 
+### 2026-09-25T04:43:04Z — context-components-command-surface-20260925 — 9ea4ededb270
+
+Summary: Complete command-surface/component interaction pass, including final project-title menu anchoring/density polish.
+Commit: 9ea4ededb2706509270e96c0cbc601e3c88b53fb
+
+Implementation chain:
+- 2e053876a7cc3ecbf8ac4bfb7c62f9b4f2238782 — Refine context commands and component semantics
+- 06155d9b05ece916c5fb77c14bf5e50b623a57e5 — Expand title menu polish ownership
+- 9ea4ededb2706509270e96c0cbc601e3c88b53fb — Polish project title menu anchoring
+
+Validation / Build / Deploy:
+- command-surface source passed isolated focused tests, TypeScript, and `npm run build:all`
+- final title-menu focused tests: 4 files / 16 tests passed
+- final title-menu `npx tsc --noEmit --pretty false`: passed
+- final title-menu `npm run build:all`: passed
+- source ownership / scoped staging: passed
+- `Workers Builds: field`: completed / success for final source HEAD
+- Cloudflare/GitHub check-run ID: 107946994267
+- Cloudflare Build ID: 2c750344-82c1-4ed9-a7af-318bfb39d1cf
+- Cloudflare Version ID: c63b492e-3a92-4888-b0cf-58bd0d75d7eb
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -666,4 +694,65 @@ Protected:
   - package-lock.json
   - .env*
 <!-- ASSIGNMENT:workspace-chrome-floating-panes:END -->
+<!-- ASSIGNMENT:context-components-command-surface-20260925:START -->
+### context-components-command-surface-20260925 — Context Commands + Component Interaction
+
+Status: complete
+Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Activation HEAD: 27a2d58506765eae2386cb7573b5c06a47d53e64
+Landed Commit: 9ea4ededb2706509270e96c0cbc601e3c88b53fb
+Last Sync: 2026-09-25T04:43:04Z
+
+Scope: Refine field's object/layer context menu, Pages context menu, and project/title menu; keep component controls at the top; and migrate component identity to a semantic component accent derived from the active field accent. Only already-real component/navigation behavior is surfaced. Native generic Group/Ungroup remains a separate deterministic document-model feature immediately after this UI pass.
+
+Owned:
+  - src/canvas/ui/ContextMenu.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/LibraryPanel/sections/ComponentsSection.tsx
+  - src/editor/left-toolbar/panels/LibraryPanel/items/ComponentRow.tsx
+  - src/canvas/ui/ComponentBreadcrumb.tsx
+  - src/editor/ui/NameInputModal.tsx
+  - src/styles/loew-theme.css
+  - src/editor/page-menu-commands.ts
+  - src/editor/page-menu-commands.test.ts
+  - src/design-system/DropdownMenu.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/canvas/** except src/canvas/ui/ContextMenu.tsx and src/canvas/ui/ComponentBreadcrumb.tsx
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/left-toolbar/LeftPanel.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/header/LeftHeader.tsx
+  - workspace collapse / dock / float implementation
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Notes:
+  - Collapsible Workspace may land after this reservation. If it changes none of the owned paths, this installer integrates it and proceeds. If it changes an owned path, the installer stops with INTEGRATION OVERLAP DETECTED.
+  - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
+
+Notes:
+  - Title-menu final polish: project menu anchors from title end/chevron and uses opt-in compact dropdown density.
+Validation / Deploy:
+  - implementation commit: 2e053876a7cc3ecbf8ac4bfb7c62f9b4f2238782
+  - final title-menu polish: 9ea4ededb2706509270e96c0cbc601e3c88b53fb
+  - final focused tests: 4 files / 16 tests passed
+  - TypeScript passed
+  - npm run build:all passed
+  - Workers Builds: field completed successfully
+  - check-run ID: 107946994267
+  - build ID: 2c750344-82c1-4ed9-a7af-318bfb39d1cf
+  - version ID: c63b492e-3a92-4888-b0cf-58bd0d75d7eb
+<!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
