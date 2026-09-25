@@ -6,54 +6,14 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T02:59:24Z
+Last Updated: 2026-09-25T03:10:31Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
-<!-- ASSIGNMENT:canvas-interaction-parity-20260924:START -->
-### canvas-interaction-parity-20260924 — Figma-style canvas selection, marquee, and pan parity
 
-Status: active
-Baseline: c74f5b1ccc538638fef558422bcad12d4edf55f2
-Activation HEAD: bff959b01a6cac352fad3685638274457f89a5dc
-Last Sync: 2026-09-25T02:59:24Z
-
-Owned:
-  - src/canvas/mouse/CanvasMouseController.ts
-  - src/canvas/mouse/CanvasMouseController.test.ts
-  - src/canvas/selection/SelectionBox.tsx
-  - src/canvas/selection/SelectionBox.test.ts
-  - src/canvas/shortcuts.ts
-  - src/canvas-sandbox/protocol.ts
-  - src/canvas-sandbox/bridge-sandbox.ts
-  - src/canvas-sandbox/bridge-host.ts
-
-Approved Shared:
-  - src/code/stores/user-preferences-store.ts
-  - src/editor/header/menu-builders.tsx
-  - src/editor/header/LeftHeader.tsx
-
-Protected:
-  - src/editor/FileExplorer.tsx
-  - src/editor/LayersPanel.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
-  - src/editor/left-toolbar/panels/pages-layers-split.ts
-  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
-  - src/editor/left-toolbar/panels/pages-layers.css
-  - src/canvas/drag/**
-  - src/code/mutation/**
-  - src/code/parsing/**
-  - src/code/components/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:canvas-interaction-parity-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -80,6 +40,14 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Differentiate installer defects from product/test findings.** The SVG Stroke failure that triggered the first repair was not an installer bug: the focused regression test correctly exposed that an SVG without an authored stroke hid the entire addable Stroke section. Product/test findings belong in assignment implementation history; this section is for packaging, coordination, resume, ownership, staging, and deployment-verifier defects.
 
 - **Any installer defect that forces r2/r3/r4/etc. must be recorded here.** Record the failed revision, symptom, root cause, whether repository/source work was affected, the repair, and the reusable prevention rule so parallel chats do not rediscover the same failure.
+
+<!-- LESSON:canvas-interaction-parity-20260924-r1-ts-target:START -->
+### canvas-interaction-parity-20260924 r1 packaging lesson
+
+- **r1 stopped safely at TypeScript after focused tests passed.** The newly added sandbox-marquee regression test used `onSelectionChange.mock.calls.at(-1)`, but field's configured TypeScript library target does not include `Array.prototype.at()`. No source commit was created; the already-pushed assignment reservation remained authoritative.
+- **r2 resumes the validated partial postimage instead of resetting/reapplying.** It requires the exact 11-file dirty assignment set, checks strong r1 postimage signatures, repairs only the test expression to indexed access, and adopts the existing active tracker reservation.
+- **Prevention rule:** generated tests must use syntax compatible with the repository's configured TypeScript target, and package validation should include the real `npx tsc --noEmit --pretty false` gate before handoff whenever a dependency-complete validation environment is available.
+<!-- LESSON:canvas-interaction-parity-20260924-r1-ts-target:END -->
 
 ## Commit Ledger
 
@@ -158,6 +126,35 @@ Paths:
 Validation / Build / Deploy:
 - update this event if production verification is still pending
 
+### 2026-09-25T03:10:31Z — canvas-interaction-parity-20260924 — 18bde1edec94
+
+Summary: Figma-style hierarchy selection, iframe/host marquee parity, explicit pan priority, and Direct Selection preference retirement
+Commit: 18bde1edec94b97ae519e0a206f99f2e7eda674f
+
+Paths:
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas/mouse/CanvasMouseController.test.ts
+  - src/canvas/mouse/CanvasMouseController.ts
+  - src/canvas/selection/SelectionBox.test.ts
+  - src/canvas/selection/SelectionBox.tsx
+  - src/canvas/shortcuts.ts
+  - src/code/stores/user-preferences-store.ts
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/header/menu-builders.tsx
+
+Validation / Build / Deploy:
+- focused canvas tests: 3 files / 54 passed / 1 todo
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed (main field + sandbox + Preview sandbox)
+- ownership allowlist: passed for exactly 11 assignment paths
+- implementation push: `origin main`
+- r2 repair: replaced TypeScript-target-incompatible `Array.prototype.at()` in SelectionBox regression test
+- `Workers Builds: field`: completed / success
+- Cloudflare/GitHub check-run ID: 107927933152
+- production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/83cdb347-738c-41f0-9449-bdc12e14fdff
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -229,4 +226,46 @@ Protected:
   - src/editor/left-toolbar/**
   - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
 <!-- ASSIGNMENT:FIELD-INSPECTOR-CONTINUATION-001:END -->
+
+<!-- ASSIGNMENT:canvas-interaction-parity-20260924:START -->
+### canvas-interaction-parity-20260924 — Figma-style canvas selection, marquee, and pan parity
+
+Status: complete
+Baseline: c74f5b1ccc538638fef558422bcad12d4edf55f2
+Activation HEAD: bff959b01a6cac352fad3685638274457f89a5dc
+Last Sync: 2026-09-25T03:10:31Z
+
+Owned:
+  - src/canvas/mouse/CanvasMouseController.ts
+  - src/canvas/mouse/CanvasMouseController.test.ts
+  - src/canvas/selection/SelectionBox.tsx
+  - src/canvas/selection/SelectionBox.test.ts
+  - src/canvas/shortcuts.ts
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/bridge-host.ts
+
+Approved Shared:
+  - src/code/stores/user-preferences-store.ts
+  - src/editor/header/menu-builders.tsx
+  - src/editor/header/LeftHeader.tsx
+
+Protected:
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers-split.ts
+  - src/editor/left-toolbar/panels/pages-layers-split.test.ts
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/canvas/drag/**
+  - src/code/mutation/**
+  - src/code/parsing/**
+  - src/code/components/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:canvas-interaction-parity-20260924:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
