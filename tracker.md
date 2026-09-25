@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T07:37:00Z
+Last Updated: 2026-09-25T07:59:27Z
 
 ## Active Assignments
 
@@ -134,7 +134,54 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 
+<!-- ASSIGNMENT:native-gallery-authoring-20260925:START -->
+### native-gallery-authoring-20260925 — Native Gallery Component + Media Authoring Foundation
 
+Status: planned
+Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
+Activation HEAD: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
+Last Sync: 2026-09-25T07:59:27Z
+
+Owned:
+  - src/code/gallery/**
+  - src/editor/gallery/**
+  - src/editor/tools/GalleryTool.tsx
+  - src/canvas/gallery/**
+  - src/editor/ui/ImageSearchModal.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/canvas/drag/toolbar-item-config.ts
+  - src/editor/left-toolbar/panels/insert/index.tsx
+  - src/**/gallery*.test.ts
+  - src/**/Gallery*.test.tsx
+
+Approved Shared:
+  - src/canvas/Canvas.tsx
+  - src/shared/types.ts
+  - src/editor/tools/ImageTool.tsx
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+  - src/editor/left-toolbar/panels/media-gallery-utils.ts
+  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/canvas/commands.ts
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/command-palette/sources/commands.ts
+  - src/editor/command-palette/useSearchActions.ts
+  - src/code/generation/generator-crud.ts
+  - src/code/stores/project-store.ts
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-authoring-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -342,6 +389,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** preserve porcelain leading whitespace, parse resume state with NUL-delimited porcelain bytes, require the exact five intended unstaged paths plus strong B2 postimage signatures, and continue from the existing dirty postimage.
 - **Prevention rule:** wrappers around `git status --porcelain` must never trim leading whitespace. Strip only terminal newlines or parse `--porcelain=v1 -z` bytes directly. A failed post-validation ownership gate must resume the validated postimage instead of resetting/reapplying it.
 <!-- LESSON:native-group-ungroup-b2-r1-porcelain-trim:END -->
+
+<!-- LESSON:native-gallery-authoring-r1-porcelain-trim:START -->
+### native-gallery-authoring r1 packaging lesson
+
+- **r1 stopped safely after registering Gallery in the local tracker and before any Gallery product source was written.** The repository source tree remained otherwise clean; the only dirty file was `tracker.md`.
+- **Root cause:** the bundled handoff helper called `.strip()` on `git status --porcelain`, removing the first record's leading status-space. Fixed-position slicing then turned `tracker.md` into `racker.md`, causing a false ownership violation.
+- **Repository/source impact:** no Gallery source files were staged, committed, pushed, or reset. The uncommitted Gallery reservation in `tracker.md` is an exact resumable partial state.
+- **r2 repair:** preserve leading command output whitespace, parse ownership state with `git status --porcelain=v1 -z` bytes, self-test the first dirty path from a temporary repo, adopt the existing local Gallery reservation, then publish reservation + lesson together before source edits.
+- **Prevention rule:** ownership tooling must never trim Git porcelain prefixes; use NUL-delimited porcelain parsing and test the first dirty record explicitly.
+<!-- LESSON:native-gallery-authoring-r1-porcelain-trim:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
