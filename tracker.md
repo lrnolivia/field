@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T07:20:06Z
+Last Updated: 2026-09-25T07:23:37Z
 
 ## Active Assignments
 
@@ -385,6 +385,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r4 repair:** verify the source patch commit while it is still the pushed remote HEAD; only after that check succeeds publish tracker completion.
 - **Prevention rule:** a deployment verifier must poll the actual build-triggering HEAD that contains the source change, or verify the source commit before any tracker-only follow-up advances `main`. Never require an exact stale SHA check after deliberately moving HEAD.
 <!-- LESSON:workspace-chrome-floating-panes-r3-stale-sha-verifier:END -->
+
+<!-- LESSON:native-group-ungroup-b2-r1-porcelain-trim:START -->
+### native-group-ungroup B2 r1 packaging lesson
+
+- **r1 applied the exact five-file Phase B2 Layers reparent/refit postimage and all validation passed before the ownership gate.** Focused validation passed 6 files / 139 tests, TypeScript passed, and `npm run build:all` passed.
+- **r1 then stopped before staging or committing product source because its copied handoff-kit ownership parser corrupted the first Git porcelain path.** `run()` called `.strip()` on `git status --porcelain`, removing the first line's leading status-space; `dirty_paths()` then sliced from character 3 and turned `src/code/groups/group-refit.test.ts` into `rc/code/groups/group-refit.test.ts`.
+- **Repository/source impact:** the five intended B2 product files remain as the validated unstaged r1 postimage. No B2 implementation commit was created by r1; no reset/reapply is required.
+- **r2 repair:** preserve porcelain leading whitespace, parse resume state with NUL-delimited porcelain bytes, require the exact five intended unstaged paths plus strong B2 postimage signatures, and continue from the existing dirty postimage.
+- **Prevention rule:** wrappers around `git status --porcelain` must never trim leading whitespace. Strip only terminal newlines or parse `--porcelain=v1 -z` bytes directly. A failed post-validation ownership gate must resume the validated postimage instead of resetting/reapplying it.
+<!-- LESSON:native-group-ungroup-b2-r1-porcelain-trim:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
@@ -773,6 +783,21 @@ Paths:
 
 Validation / Build / Deploy:
 - Production verified: Workers Builds: field completed successfully; check-run id 107980451951; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/1b266cbd-3ac2-4e64-8f18-abdd82542918
+
+### 2026-09-25T07:23:37Z — native-group-ungroup-20260925 — 6a0a8c07f2b7
+
+Summary: Phase B2 r2 resume: semantic Group inside-drop, world-geometry-preserving Layers reparent, source/destination refit, nested refit chaining, and empty-Group cleanup. Focused tests 139/139, TypeScript, build:all, and Workers Builds: field passed.
+Commit: 6a0a8c07f2b77ecc8b6606ac3c890eea10d73f6c
+
+Paths:
+  - src/code/groups/group-refit.test.ts
+  - src/code/groups/group-refit.ts
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/LayersPanel/resolve-drop-structure.test.ts
+  - src/editor/LayersPanel/rows.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
