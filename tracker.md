@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:44:31Z
+Last Updated: 2026-09-25T09:44:44Z
 
 ## Active Assignments
 
@@ -102,7 +102,47 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed flow Group wrappers and perspective/3D child or Group transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
+### field-dashboard-thumbnail-previews-r2-20260925 — Thumbnail Capture + Native Dashboard Exit Repair
 
+Status: active
+Baseline: 1785dbb85b9fea391ce12f8f79ac55a84de775ca
+Activation HEAD: 14fcfb5ce358951eaa5e0176540ca065837af394
+Last Sync: 2026-09-25T09:44:44Z
+
+Owned:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/preview-sandbox/main.tsx
+  - src/backend/intentional-navigation.ts
+  - src/backend/intentional-navigation.test.ts
+  - src/backend/autosave.ts
+  - src/backend/leave-builder.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/**
+  - src/dashboard/**
+  - src/styles/dashboard.css
+  - src/backend/field-projects.ts
+  - cloudflare/**
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/header/PreviewOverlay.tsx
+  - src/preview/dashboard-thumbnail-page.ts
+  - src/preview/preview-project-payload.ts
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - package.json
+  - package-lock.json
+  - wrangler.jsonc
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
