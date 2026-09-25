@@ -1,11 +1,13 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
+const FIELD_PROFILE_ROOT = "/api/field/profile";
 const FIELD_FONTS_API_PATH = "/api/field/fonts";
 const GOOGLE_FONTS_UPSTREAM = "https://www.googleapis.com/webfonts/v1/webfonts";
 const GOOGLE_FONTS_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
 const MAX_META_BYTES = 64 * 1024;
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
 const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const jwksCache = new Map();
 
@@ -145,6 +147,22 @@ async function handleGoogleFontsRequest(
   } catch {
     return jsonResponse({ error: "Google Fonts catalog unavailable" }, 502);
   }
+}
+
+function parseProfileRoute(pathname) {
+  if (pathname === FIELD_PROFILE_ROOT) {
+    return { kind: "profile" };
+  }
+
+  if (pathname === `${FIELD_PROFILE_ROOT}/avatar`) {
+    return { kind: "avatar" };
+  }
+
+  if (pathname.startsWith(`${FIELD_PROFILE_ROOT}/`)) {
+    return { invalid: true };
+  }
+
+  return null;
 }
 
 function parseProjectRoute(pathname) {
@@ -335,6 +353,221 @@ async function putR2Object(bucket, key, json, request) {
   return jsonResponse({ ok: true }, 200, { ETag: stored.httpEtag });
 }
 
+async function handleFieldProfileRequest(
+  request,
+  env,
+  accessVerifier = verifyAccessRequest,
+) {
+  const incoming = new URL(request.url);
+  const route = parseProfileRoute(incoming.pathname);
+
+  if (!route) return null;
+  if (route.invalid) {
+    return jsonResponse({ error: "Invalid profile route" }, 400);
+  }
+
+  const auth = await accessVerifier(request, env);
+
+  if (!auth?.ok) {
+    return jsonResponse({ error: "Forbidden" }, 403);
+  }
+
+  if (!env.FIELD_PROJECTS) {
+    return jsonResponse(
+      { error: "Profile storage is not configured" },
+      503,
+    );
+  }
+
+  const subject =
+    typeof auth.payload?.sub === "string"
+      ? auth.payload.sub.trim()
+      : "";
+
+  if (!subject) {
+    return jsonResponse(
+      { error: "Authenticated user has no subject" },
+      403,
+    );
+  }
+
+  const userKey = encodeURIComponent(subject);
+  const baseKey = `profiles/${userKey}`;
+  const metaKey = `${baseKey}/profile.json`;
+  const avatarKey = `${baseKey}/avatar`;
+
+  try {
+    if (route.kind === "profile") {
+      if (request.method !== "GET") {
+        return jsonResponse(
+          { error: "Method not allowed" },
+          405,
+          { Allow: "GET" },
+        );
+      }
+
+      const profileObject = await env.FIELD_PROJECTS.get(metaKey);
+
+      if (!profileObject) {
+        return jsonResponse({
+          hasCustomAvatar: false,
+          avatarUpdatedAt: null,
+          avatarUrl: null,
+        });
+      }
+
+      let profile = {};
+
+      try {
+        profile = JSON.parse(await profileObject.text());
+      } catch {
+        profile = {};
+      }
+
+      const avatarUpdatedAt =
+        typeof profile?.avatarUpdatedAt === "string"
+          ? profile.avatarUpdatedAt
+          : null;
+
+      return jsonResponse({
+        hasCustomAvatar: Boolean(avatarUpdatedAt),
+        avatarUpdatedAt,
+        avatarUrl: avatarUpdatedAt
+          ? `${FIELD_PROFILE_ROOT}/avatar?v=${encodeURIComponent(avatarUpdatedAt)}`
+          : null,
+      });
+    }
+
+    if (request.method === "GET") {
+      const avatar = await env.FIELD_PROJECTS.get(avatarKey);
+
+      if (!avatar) {
+        return jsonResponse({ error: "Not found" }, 404);
+      }
+
+      return new Response(avatar.body, {
+        status: 200,
+        headers: apiHeaders({
+          "Content-Type":
+            avatar.httpMetadata?.contentType ?? "image/webp",
+          "Cache-Control":
+            "private, max-age=31536000, immutable",
+          ETag: avatar.httpEtag,
+        }),
+      });
+    }
+
+    if (request.method === "PUT") {
+      const contentType =
+        (request.headers.get("Content-Type") ?? "")
+          .split(";")[0]
+          .trim()
+          .toLowerCase();
+
+      if (
+        ![
+          "image/webp",
+          "image/jpeg",
+          "image/png",
+        ].includes(contentType)
+      ) {
+        return jsonResponse(
+          { error: "Avatar must be WebP, JPEG, or PNG" },
+          415,
+        );
+      }
+
+      const declared = Number(
+        request.headers.get("Content-Length") ?? "0",
+      );
+
+      if (
+        Number.isFinite(declared) &&
+        declared > MAX_AVATAR_BYTES
+      ) {
+        return jsonResponse(
+          { error: "Avatar is too large" },
+          413,
+        );
+      }
+
+      const bytes = await request.arrayBuffer();
+
+      if (bytes.byteLength === 0) {
+        return jsonResponse(
+          { error: "Avatar is empty" },
+          400,
+        );
+      }
+
+      if (bytes.byteLength > MAX_AVATAR_BYTES) {
+        return jsonResponse(
+          { error: "Avatar is too large" },
+          413,
+        );
+      }
+
+      const updatedAt = new Date().toISOString();
+
+      await env.FIELD_PROJECTS.put(
+        avatarKey,
+        bytes,
+        {
+          httpMetadata: {
+            contentType,
+          },
+        },
+      );
+
+      await env.FIELD_PROJECTS.put(
+        metaKey,
+        JSON.stringify({
+          avatarUpdatedAt: updatedAt,
+        }),
+        {
+          httpMetadata: {
+            contentType:
+              "application/json; charset=utf-8",
+          },
+        },
+      );
+
+      return jsonResponse({
+        hasCustomAvatar: true,
+        avatarUpdatedAt: updatedAt,
+        avatarUrl:
+          `${FIELD_PROFILE_ROOT}/avatar?v=${encodeURIComponent(updatedAt)}`,
+      });
+    }
+
+    if (request.method === "DELETE") {
+      await Promise.all([
+        env.FIELD_PROJECTS.delete(avatarKey),
+        env.FIELD_PROJECTS.delete(metaKey),
+      ]);
+
+      return jsonResponse({
+        hasCustomAvatar: false,
+        avatarUpdatedAt: null,
+        avatarUrl: null,
+      });
+    }
+
+    return jsonResponse(
+      { error: "Method not allowed" },
+      405,
+      { Allow: "GET, PUT, DELETE" },
+    );
+  } catch (error) {
+    console.error("field profile error", error);
+
+    return jsonResponse(
+      { error: "Profile storage failure" },
+      503,
+    );
+  }
+}
+
 async function handleFieldPersistenceRequest(request, env, accessVerifier = verifyAccessRequest) {
   const incoming = new URL(request.url);
   const route = parseProjectRoute(incoming.pathname);
@@ -387,6 +620,7 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
 
 export {
   handleGoogleFontsRequest,
+  handleFieldProfileRequest,
   handleFieldPersistenceRequest,
   parseProjectRoute,
   verifyAccessRequest,
@@ -402,6 +636,9 @@ export default {
     // unprotected workers.dev bypass.
     const fontsResponse = await handleGoogleFontsRequest(request, env);
     if (fontsResponse) return fontsResponse;
+
+    const profileResponse = await handleFieldProfileRequest(request, env);
+    if (profileResponse) return profileResponse;
 
     const apiResponse = await handleFieldPersistenceRequest(request, env);
     if (apiResponse) return apiResponse;

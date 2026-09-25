@@ -120,6 +120,9 @@ export class FieldBackend implements ProjectBackend {
       user_uuid?: unknown;
       name?: unknown;
       email?: unknown;
+      picture?: unknown;
+      oidc_fields?: unknown;
+      idp?: unknown;
     } | null;
 
     const email = typeof body?.email === 'string' ? body.email.trim() : '';
@@ -138,7 +141,57 @@ export class FieldBackend implements ProjectBackend {
       throw new Error('Cloudflare Access identity response is incomplete');
     }
 
-    return { id, name, email };
+    const oidcFields =
+      body?.oidc_fields && typeof body.oidc_fields === 'object'
+        ? body.oidc_fields as Record<string, unknown>
+        : null;
+
+    const providerImageCandidate = [
+      body?.picture,
+      oidcFields?.picture,
+      oidcFields?.avatar,
+      oidcFields?.avatar_url,
+      oidcFields?.image,
+    ].find((value) => typeof value === 'string' && value.trim()) as
+      | string
+      | undefined;
+
+    let providerImage: string | undefined;
+    if (providerImageCandidate) {
+      try {
+        const parsed = new URL(providerImageCandidate);
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+          providerImage = parsed.toString();
+        }
+      } catch {
+        // Ignore malformed/non-web provider images.
+      }
+    }
+
+    const idp =
+      body?.idp && typeof body.idp === 'object'
+        ? body.idp as Record<string, unknown>
+        : null;
+
+    const identityProvider =
+      typeof idp?.type === 'string' && idp.type.trim()
+        ? idp.type.trim()
+        : typeof idp?.name === 'string' && idp.name.trim()
+          ? idp.name.trim()
+          : undefined;
+
+    const user: RevymeUser = { id, name, email };
+
+    if (providerImage) {
+      user.image = providerImage;
+      user.providerImage = providerImage;
+    }
+
+    if (identityProvider) {
+      user.identityProvider = identityProvider;
+    }
+
+    return user;
   }
 
   private async fetchRemoteProject(id: string): Promise<{ found: boolean; data: ProjectData | null }> {

@@ -71,6 +71,12 @@ export interface RevymeUser {
   name: string;
   email: string;
   image?: string;
+  /** Identity-provider photo when Cloudflare Access exposes one. */
+  providerImage?: string;
+  /** Cloudflare Access IdP identifier, e.g. google/github/apple. */
+  identityProvider?: string;
+  /** True when field's own profile image overrides the provider image. */
+  hasCustomImage?: boolean;
   /** Mirrors the server `role === 'admin'` (email allowlist). Surfaced so the
    *  editor can show admin-only affordances (e.g. the 3D-assets media tab).
    *  The server still gates /api/admin/* — this is purely UI state. */

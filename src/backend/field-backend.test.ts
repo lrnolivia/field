@@ -56,6 +56,31 @@ describe('FieldBackend Access identity', () => {
     expect(init.cache).toBe('no-store');
   });
 
+  it('uses a provider picture when Access exposes one', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-photo',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+      idp: { type: 'google' },
+      oidc_fields: {
+        picture: 'https://example.com/lauren.jpg',
+      },
+    }, 200));
+
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-photo',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+      image: 'https://example.com/lauren.jpg',
+      providerImage: 'https://example.com/lauren.jpg',
+      identityProvider: 'google',
+    });
+  });
+
   it('falls back to the verified email identity when Access has no display name', async () => {
     const fetchImpl = vi.fn().mockResolvedValueOnce(response({
       user_uuid: 'access-user-2',

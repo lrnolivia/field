@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { handleFieldPersistenceRequest, verifyAccessRequest } from './worker.js';
+import worker, { handleFieldPersistenceRequest, handleFieldProfileRequest, verifyAccessRequest } from './worker.js';
 
 class MockR2 {
   objects = new Map<string, { body: string; etag: string }>();
@@ -39,6 +39,33 @@ test('persistence API fails closed when Access validation cannot be established'
   });
   assert.equal(res.status, 403);
   assert.equal(assetCalls, 0);
+});
+
+test('profile API uses the verified Access subject', async () => {
+  const env = {
+    FIELD_PROJECTS: new MockR2(),
+  };
+
+  const allowUser = async () => ({
+    ok: true,
+    payload: {
+      sub: 'access-user-1',
+    },
+  });
+
+  const response = await handleFieldProfileRequest(
+    req('/api/field/profile'),
+    env,
+    allowUser,
+  );
+
+  assert.equal(response?.status, 200);
+
+  assert.deepEqual(await response?.json(), {
+    hasCustomAvatar: false,
+    avatarUpdatedAt: null,
+    avatarUrl: null,
+  });
 });
 
 test('conditional create/update round-trips JSON + ETag and rejects stale writes', async () => {
