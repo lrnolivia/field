@@ -136,7 +136,7 @@ interface NameInputModalProps {
    * `--accent-fg` label sitting on purple (user report 2026-08-08). A rule a
    * comment has to enforce is a rule that gets broken; one variant can't drift.
    */
-  accent?: 'primary' | 'secondary';
+  accent?: 'primary' | 'secondary' | 'component';
   /** Escape hatch for a bespoke fill (destructive red, etc.). Prefer `accent`. */
   accentColor?: string;
   /** Escape hatch for a bespoke label colour. Prefer `accent`. */
@@ -154,8 +154,17 @@ export default function NameInputModal({
   accentFg,
 }: NameInputModalProps) {
   const isSecondary = accent === 'secondary';
-  const fill = accentColor ?? (isSecondary ? 'var(--accent-secondary, #9a66ff)' : 'var(--accent, #3388ff)');
-  const fg = accentFg ?? (isSecondary ? 'var(--accent-secondary-fg, #ffffff)' : 'var(--accent-fg)');
+  const isComponent = accent === 'component';
+  const fill = accentColor ?? (isComponent
+    ? 'var(--component-accent, var(--accent, #3388ff))'
+    : isSecondary
+      ? 'var(--accent-secondary, #9a66ff)'
+      : 'var(--accent, #3388ff)');
+  const fg = accentFg ?? (isComponent
+    ? 'var(--component-accent-fg, var(--accent-fg))'
+    : isSecondary
+      ? 'var(--accent-secondary-fg, #ffffff)'
+      : 'var(--accent-fg)');
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);

@@ -8,7 +8,7 @@ import {
   activeFilePathAtom, getFileDisplayName, createPageFile, deletePageFile,
   movePageFile, createRouteGroup, getRouteGroup, getPageSlug,
   switchActiveFile, createNotFoundPageFile, NOT_FOUND_PATH, notFoundExists,
-  componentBreadcrumbAtom, filePathToAbPagePath,
+  componentBreadcrumbAtom, filePathToAbPagePath, filePathToSlug,
 } from '../code/project/active-file-store';
 import { createTemplate, validateTemplateName } from '../code/project/template-ops';
 import { createCmsIndexPageFile, createCmsDetailPageFile, findCmsPageFile } from '../code/project/cms-page-ops';
@@ -36,6 +36,7 @@ import NameInputModal from '@/editor/ui/NameInputModal';
 import { settingsOverlayOpenAtom, settingsSectionAtom, selectedSeoPageAtom } from '@/code/stores/website-settings-store';
 import { trace } from '../shared/debug-trace';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
+import { buildPageEditorLink } from './page-menu-commands';
 
 // Pages panel reuses the Library panel's pointer-drag hit-test
 // helpers (resolveFolderTreeDrop / folderTreeIndicatorAtom). Same
@@ -2139,34 +2140,40 @@ const TreeRow = React.memo(function TreeRow({
             && onBulkDelete
         ) ? [
           { id: 'delete', label: `Delete ${multiSelectedPages.size} page${multiSelectedPages.size === 1 ? '' : 's'}`, onClick: onBulkDelete } as DropdownMenuEntry,
-        ] : (entry.type === 'page' || entry.type === 'layout') ? [
-          ...(entry.type === 'page' ? [{ id: 'duplicate', label: 'Duplicate', onClick: () => onDuplicate(entry.filePath) } as DropdownMenuEntry] : []),
-          { id: 'edit', label: 'Edit', onClick: () => onSwitch(entry.filePath) },
-          ...(entry.type === 'page' && onStartRename && !entry.isHome ? [
-            { id: 'rename', label: 'Rename', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
+        ] : entry.type === 'page' ? [
+          {
+            id: 'copy-link',
+            label: 'Copy link to page',
+            onClick: () => {
+              const href = buildPageEditorLink(window.location.href, filePathToSlug(entry.filePath));
+              void navigator.clipboard.writeText(href)
+                .then(() => trace.action('FileExplorer.copyPageLink', { filePath: entry.filePath, href }))
+                .catch((error) => trace.error('FileExplorer.copyPageLink:failed', { filePath: entry.filePath, error: String(error) }));
+            },
+          } as DropdownMenuEntry,
+          { type: 'separator' } as DropdownMenuEntry,
+          ...(onStartRename && !entry.isHome ? [
+            { id: 'rename', label: 'Rename page', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
           ] : []),
-          ...(entry.type === 'page' && onOpenPageSettings ? [
-            { type: 'separator' } as DropdownMenuEntry,
-            // "Settings" → opens the SettingsOverlay on the Pages SEO
-            // tab pre-selected to THIS page. URL-encoded so a refresh
-            // lands the user back on the same row.
-            { id: 'settings', label: 'Settings', onClick: () => onOpenPageSettings(entry.filePath) } as DropdownMenuEntry,
+          { id: 'duplicate', label: 'Duplicate page', onClick: () => onDuplicate(entry.filePath) } as DropdownMenuEntry,
+          ...((onOpenPageSettings || onCreateAbTest) ? [{ type: 'separator' } as DropdownMenuEntry] : []),
+          ...(onOpenPageSettings ? [
+            { id: 'settings', label: 'Page settings…', onClick: () => onOpenPageSettings(entry.filePath) } as DropdownMenuEntry,
           ] : []),
-          ...(entry.type === 'page' && onCreateAbTest ? [
-            { type: 'separator' } as DropdownMenuEntry,
-            // Label flips when the page already has a test — clicking
-            // "Add variant" extends the existing test rather than
-            // creating a duplicate test on the same page (which would
-            // double up Baseline/Variant B rows in the tree).
+          ...(onCreateAbTest ? [
             {
               id: 'ab-test',
-              label: entry.children.some(c => c.type === 'variant')
-                ? 'Add variant'
-                : 'New A/B test',
+              label: entry.children.some(c => c.type === 'variant') ? 'Add variant' : 'New A/B test',
               onClick: () => onCreateAbTest(entry.filePath),
             } as DropdownMenuEntry,
           ] : []),
-          ...(canDelete ? [{ id: 'delete', label: 'Delete', onClick: () => onDelete(entry.filePath) } as DropdownMenuEntry] : []),
+          ...(canDelete ? [
+            { type: 'separator' } as DropdownMenuEntry,
+            { id: 'delete', label: 'Delete page', onClick: () => onDelete(entry.filePath) } as DropdownMenuEntry,
+          ] : []),
+        ] : entry.type === 'layout' ? [
+          { id: 'edit-layout', label: 'Edit layout', onClick: () => onSwitch(entry.filePath) } as DropdownMenuEntry,
+
         ] : entry.type === 'variant' && (onStartRename || onDeleteVariant || onMakeAsControl) ? [
           // Variant row menu — Control (variantId === 'a') is the
           // baseline page itself, no Rename / Make-as-Control for it.

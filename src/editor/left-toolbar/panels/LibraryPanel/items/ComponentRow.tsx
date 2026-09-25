@@ -84,7 +84,7 @@ export const ComponentRow = React.memo(function ComponentRow({
       style={isMultiSelected ? MULTI_SELECT_OUTLINE : undefined}
     >
       <SidebarRow
-        icon={<DesignComponentIcon />}
+        icon={<span style={{ color: 'var(--component-accent)' }}><DesignComponentIcon /></span>}
         label={label}
         isActive={isActive}
         menuItems={isViewer ? undefined : menuItems}
@@ -123,7 +123,7 @@ export const CodeComponentRow = React.memo(function CodeComponentRow({
       style={isMultiSelected ? MULTI_SELECT_OUTLINE : undefined}
     >
       <SidebarRow
-        icon={<CodeComponentIcon />}
+        icon={<span style={{ color: 'var(--component-accent)' }}><CodeComponentIcon /></span>}
         label={label}
         isActive={isActive}
         menuItems={isViewer ? undefined : menuItems}

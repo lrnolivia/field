@@ -41,6 +41,13 @@
   --accent-secondary-hover: #667f94;
   --accent-secondary-fg: #ffffff;
 
+  /* Component identity follows the active field accent. Keep this semantic:
+   * component UI asks for component-accent; themes decide what accent means. */
+  --component-accent: var(--accent);
+  --component-accent-hover: var(--accent-hover);
+  --component-accent-fg: var(--accent-fg);
+  --component-accent-muted: color-mix(in srgb, var(--component-accent) 18%, transparent);
+
   /* Functional canvas selection stays Figma-blue. */
   --selection: #0d99ff;
 

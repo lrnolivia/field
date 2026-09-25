@@ -8,6 +8,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { projectNameAtom, setProjectName } from '@/code/stores/project-store';
 import { activeFilePathAtom, getFileDisplayName } from '@/code/project/active-file-store';
 import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
+import { exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import NameInputModal from '@/editor/ui/NameInputModal';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import { FigmaChevronDownIcon } from '@/shared/loew-figma-icons';
@@ -23,6 +24,7 @@ export default function ProjectChip() {
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
   const setSettingsSection = useSetAtom(settingsSectionAtom);
+  const setExportOpen = useSetAtom(exportDropdownOpenAtom);
   const isViewer = useIsViewer();
   const [renameOpen, setRenameOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -37,22 +39,31 @@ export default function ProjectChip() {
 
   const menuItems = useMemo<DropdownMenuEntry[]>(() => [
     {
+      id: 'website-settings',
+      label: 'Website settings…',
+      onClick: () => {
+        trace.action('project-chip:website-settings');
+        setSettingsSection('website');
+        setSettingsOpen(true);
+      },
+    },
+    {
+      id: 'export-code',
+      label: 'Export code…',
+      onClick: () => {
+        trace.action('project-chip:export-code');
+        setExportOpen(true);
+      },
+    },
+    { type: 'separator' },
+    {
       id: 'rename-project',
-      label: 'Rename',
+      label: 'Rename project',
       disabled: isViewer,
       onClick: () => {
         if (isViewer) return;
         trace.action('project-chip:open-rename');
         setRenameOpen(true);
-      },
-    },
-    {
-      id: 'website-settings',
-      label: 'Website settings',
-      onClick: () => {
-        trace.action('project-chip:website-settings');
-        setSettingsSection('website');
-        setSettingsOpen(true);
       },
     },
     { type: 'separator' },
@@ -64,7 +75,7 @@ export default function ProjectChip() {
         void leaveBuilderTo('/dashboard', 'project-chip-dashboard');
       },
     },
-  ], [isViewer, setSettingsOpen, setSettingsSection]);
+  ], [isViewer, setExportOpen, setSettingsOpen, setSettingsSection]);
 
   trace.fn('ProjectChip.render', { name: displayName, pageLabel, renameOpen, menuOpen });
 

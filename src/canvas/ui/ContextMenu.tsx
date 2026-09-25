@@ -37,11 +37,12 @@ import ReplaceWithMenu from './ReplaceWithMenu';
 
 // ─── Menu Item Components ───────────────────────────────────────────────────
 
-function MenuItem({ label, shortcut, onClick, disabled }: {
+function MenuItem({ label, shortcut, onClick, disabled, tone = 'default' }: {
   label: string;
   shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
+  tone?: 'default' | 'component';
 }) {
   // Stop propagation on the FULL pointer-down → up cycle so the canvas's
   // pointerdown / mousedown listeners (which run BEFORE React's synthetic
@@ -61,7 +62,7 @@ function MenuItem({ label, shortcut, onClick, disabled }: {
       disabled={disabled}
       className={`group flex items-center gap-3 mx-1.5 px-2 h-8 w-[calc(100%-12px)] text-left cursor-pointer cut-corners hover:bg-[var(--accent)] ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
     >
-      <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)] flex-1">
+      <span className={`text-xs font-medium group-hover:text-[var(--accent-fg)] flex-1 ${tone === 'component' ? 'text-[var(--component-accent)]' : 'text-[var(--text-primary)]'}`}>
         {label}
       </span>
       {shortcut && (
@@ -428,7 +429,7 @@ export default function ContextMenu() {
       // Component flows use the purple component-system accent; the
       // sibling "Make Vector Set" modal below keeps the
       // default blue because vectors live in the Vectors section.
-      accent="secondary"
+      accent="component"
     />
   );
 
@@ -494,8 +495,10 @@ export default function ContextMenu() {
   // (`isDesignInstance`). Using the broader `isInstance` here left the leading
   // separator orphaned at the top for CODE-component instances (Detach hidden,
   // nothing else in the section).
-  const hasTopSection = isDesignInstance || showComponentOrMap || showMakeVectorSet
-    || canGroupSvgs || canUngroupSvg;
+  const canGoToMainComponent = !!instanceComponentFile && isComponentFilePath(instanceComponentFile);
+  const showNativeGroupPlaceholder = selectedIds.length >= 2 && !canGroupSvgs;
+  const hasTopSection = isComponentInstanceForReplace || canGoToMainComponent
+    || isDesignInstance || showComponentOrMap || showMakeVectorSet;
 
   const contentEl = getContentRoot();
   // Count replicas via bridge rectCache
@@ -638,6 +641,36 @@ export default function ContextMenu() {
     // auto-flushes next frame while the imperatively-blanked frame already reads
     // as gone, instead of freezing the UI ~0.3s.
     setSelectedIds([]);
+    close();
+  };
+
+  const handleGoToMainComponent = () => {
+    if (!nodeId || !instanceComponentFile || !canGoToMainComponent) return;
+    const resolvedVariant = node?.attrs?.initialVariant || 'default';
+    enterComponentFile(
+      {
+        fromFilePath: activeFilePath,
+        componentFilePath: instanceComponentFile,
+        initialVariant: resolvedVariant,
+        focusVariantName: resolvedVariant,
+        entryMode: 'instance',
+      },
+      {
+        setActiveFile,
+        setBreadcrumb,
+        setSelectedIds,
+        setUpdatingFromCanvas,
+        setInteractingViewport: setInteractingVp,
+        getNodes: () => jotaiStore.get(nodesAtom),
+        openCodeEditor: setComponentEditorFile,
+        setSuppressSelectionOverlay: (v) => jotaiStore.set(suppressSelectionOverlayAtom, v),
+      },
+    );
+    trace.action('context-menu:go-to-main-component', {
+      nodeId,
+      componentFile: instanceComponentFile,
+      resolvedVariant,
+    });
     close();
   };
 
@@ -868,61 +901,29 @@ export default function ContextMenu() {
           aria-hidden
           className="absolute inset-0 -z-10 bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)]"
         />
-        {/* Construction shortcuts — most-used surface, kept at top */}
-        {/* Detach Instance — only for component instances; inlines the master's content as normal
-            nodes (resolving variables/variant/styles), keeping any NESTED instances as instances.
-            GREYED on a replica viewport / non-default variant artboard: detach rewrites the ONE
-            shared instance in the page source and replays the other viewports as @media rules, so
-            it is inherently a primary-artboard action. Offering it on a replica invited a detach
-            that silently baked THAT tile's variant as the base for every viewport. Greyed rather
-            than hidden (unlike Make Component) because the node IS detachable — just not from
-            here — and a vanishing item reads as "this isn't an instance". */}
-        {isDesignInstance && (
-          <MenuItem label="Detach Instance" shortcut="Ctrl+Alt+B" onClick={handleDetachInstance} disabled={!nodeId || isNonPrimaryArtboard} />
-        )}
+        {/* Component construction/navigation stays at the very top. */}
         {showComponentOrMap && (
-          <MenuItem label="Make Component" shortcut="Ctrl+Alt+K" onClick={handleMakeComponent} disabled={!nodeId} />
+          <MenuItem tone="component" label="Make Component" shortcut="Ctrl+Alt+K" onClick={handleMakeComponent} disabled={!nodeId} />
         )}
-        {/* Make Vector Set — any SVG node or all-SVG group (icons and/or
-            sketches; sketches bundle into vector sets). */}
+        {canGoToMainComponent && (
+          <MenuItem tone="component" label="Go to Main Component" onClick={handleGoToMainComponent} disabled={!nodeId} />
+        )}
+        {isComponentInstanceForReplace && nodeId && (
+          <ReplaceWithMenu
+            nodeId={nodeId}
+            currentFile={instanceComponentFile}
+            width={node?.styles.width}
+            height={node?.styles.height}
+            onDone={close}
+          />
+        )}
+        {isDesignInstance && (
+          <MenuItem tone="component" label="Detach Instance" shortcut="Ctrl+Alt+B" onClick={handleDetachInstance} disabled={!nodeId || isNonPrimaryArtboard} />
+        )}
         {showMakeVectorSet && (
           <MenuItem label="Make Vector Set" onClick={handleMakeVectorSet} disabled={menu.viewportHeader || (!nodeId && !canMakeVectorSetMulti)} />
         )}
-        {/* Group — collapse 2+ SVGs that share a parent into a single composite <svg>. */}
-        {canGroupSvgs && (
-          <MenuItem label="Group" shortcut="Ctrl+G" onClick={handleGroupSvgs} />
-        )}
-        {/* Ungroup — the right-clicked node IS a group: an <svg> whose children
-            are ALL nested <svg> wrappers. Inverse of Group. */}
-        {canUngroupSvg && (
-          <MenuItem label="Ungroup" shortcut="Ctrl+Shift+G" onClick={handleUngroupSvgs} />
-        )}
-        {/* "Make into Map" (inline .map() repeater) was retired — CMS
-            collection lists are the single authoring path for repeats now;
-            the inline-map engine is gone and the oracle rejects inline
-            \`.map()\` repeaters (INLINE_MAP_UNSUPPORTED). */}
-        {/* No "Unbind from <collection>" item — the reference has no such action; a
-            collection list is removed by deleting it, not unbound in place.
-            (Binding happens by dragging a collection from the Insert panel.) */}
-
-        {/* Leading separator — only when the construction section above it
-            actually rendered something, else it orphans at the top of the menu. */}
         {hasTopSection && <Separator />}
-
-        {/* Replace with — design/code component instances only. A trailing
-            separator divides it from the edit operations below. */}
-        {isComponentInstanceForReplace && nodeId && (
-          <>
-            <ReplaceWithMenu
-              nodeId={nodeId}
-              currentFile={instanceComponentFile}
-              width={node?.styles.width}
-              height={node?.styles.height}
-              onDone={close}
-            />
-            <Separator />
-          </>
-        )}
 
         {/* Edit operations */}
         <MenuItem label="Cut" shortcut="Ctrl+X" onClick={handleCut} disabled={!nodeId} />
@@ -945,9 +946,19 @@ export default function ContextMenu() {
 
         <Separator />
 
-        {/* Structure */}
-        <MenuItem label="Create Layout" shortcut="Shift+A" onClick={handleCreateLayout} disabled={!nodeId} />
-        <MenuItem label="Create Frame" shortcut="Shift+Alt+A" onClick={handleCreateFrame} disabled={!nodeId} />
+        {/* Structure — native field Group/Ungroup is a separate deterministic
+            primitive; the existing implementation only groups SVGs. */}
+        {canGroupSvgs && (
+          <MenuItem label="Group SVGs" shortcut="Ctrl+G" onClick={handleGroupSvgs} />
+        )}
+        {canUngroupSvg && (
+          <MenuItem label="Ungroup SVGs" shortcut="Ctrl+Shift+G" onClick={handleUngroupSvgs} />
+        )}
+        {showNativeGroupPlaceholder && (
+          <MenuItem label="Group Selection" shortcut="Ctrl+G" onClick={() => {}} disabled />
+        )}
+        <MenuItem label="Frame Selection" shortcut="Shift+Alt+A" onClick={handleCreateFrame} disabled={!nodeId} />
+        <MenuItem label="Add Auto Layout" shortcut="Shift+A" onClick={handleCreateLayout} disabled={!nodeId} />
         {!isInstance && (
           <MenuItem label="Unfold Children" shortcut="Ctrl+Bksp" onClick={handleUnfold} disabled={!hasChildren} />
         )}

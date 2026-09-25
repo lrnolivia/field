@@ -715,11 +715,11 @@ export const LayerRow = React.memo(function LayerRow({
   // expanded internals of an instance — while selection itself stays a calm,
   // theme-aware surface rather than becoming a saturated accent slab.
   const isComponentInstance = !!node.componentFile;
-  const usePurple = isComponentMode
+  const useComponentTone = isComponentMode
     || (isComponentInstance && !isSvgVector)
     || !!node.componentInstanceId;
   const selColor = 'var(--accent)';
-  const semanticColor = usePurple ? 'var(--accent-secondary)' : 'var(--text-secondary)';
+  const semanticColor = useComponentTone ? 'var(--component-accent)' : 'var(--text-secondary)';
   const selFg = 'var(--text-primary)';
 
   const bgStyle: React.CSSProperties = {};
@@ -738,7 +738,7 @@ export const LayerRow = React.memo(function LayerRow({
       data-field-layer-row=""
       data-selected={isSelected ? 'true' : 'false'}
       data-selected-descendant={isChildOfSelected ? 'true' : 'false'}
-      data-component-tone={usePurple ? 'true' : 'false'}
+      data-component-tone={useComponentTone ? 'true' : 'false'}
     >
       {/* Viewport-pinned selection / hover background. It's absolutely
           positioned and sized to the panel's VISIBLE width minus padding, then
@@ -865,12 +865,12 @@ export const LayerRow = React.memo(function LayerRow({
           height: 14,
           color: isSelected
             ? selFg
-            : usePurple
-              ? 'var(--accent-secondary)'
+            : useComponentTone
+              ? 'var(--component-accent)'
               : 'var(--text-secondary)',
           opacity: node.fromLayout ? 0.5 : 1,
         }}>
-          {isVpHeader && layer.isVariantHeader ? <span style={{ color: 'var(--accent-secondary)' }}><ComponentIcon size={14} /></span>
+          {isVpHeader && layer.isVariantHeader ? <span style={{ color: 'var(--component-accent)' }}><ComponentIcon size={14} /></span>
             : isSvgVector ? (
                 node.componentFile && isContainerSetInstance
                   ? <IconSetIcon size={14} />
@@ -885,7 +885,7 @@ export const LayerRow = React.memo(function LayerRow({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-            ) : (node.componentFile || (isComponentMode && !node.parentId && !node.isCanvasNode)) ? <span style={{ color: isSelected ? selFg : 'var(--accent-secondary)' }}>{node.isCodeComponent ? (
+            ) : (node.componentFile || (isComponentMode && !node.parentId && !node.isCanvasNode)) ? <span style={{ color: isSelected ? selFg : 'var(--component-accent)' }}>{node.isCodeComponent ? (
               <svg width="14" height="14" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
             ) : <ComponentIcon size={14} />}</span>
             : layer.isCmsContainer ? <span style={{ color: isSelected ? selFg : 'var(--accent)' }}><CmsIcon width={14} height={14} /></span>
@@ -936,8 +936,8 @@ export const LayerRow = React.memo(function LayerRow({
             style={{
               color: isSelected
                 ? 'var(--text-primary)'
-                : usePurple
-                  ? 'var(--accent-secondary)'
+                : useComponentTone
+                  ? 'var(--component-accent)'
                   : 'var(--text-secondary)',
               opacity: node.fromLayout ? 0.5 : 1,
               // Always fit the visible width (sx + vw) minus this text's indent

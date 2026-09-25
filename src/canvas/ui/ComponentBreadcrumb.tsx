@@ -292,8 +292,13 @@ export default function ComponentBreadcrumb() {
       // A template segment gets the template glyph (rect + rows, same as the
       // Library panel + FileExplorer); real components keep the cluster icon.
       icon: isTemplateFilePath(filePath) ? <TemplateIcon size={14} /> : <ComponentClusterIcon size={14} />,
-      // Templates are component-like → secondary accent, same as real components.
-      color: isComponentLikeFilePath(filePath) ? 'var(--accent-secondary)' : 'var(--accent)',
+      // Templates keep the secondary master accent; real components use the
+      // semantic component accent; vector/icon masters retain the normal accent.
+      color: isTemplateFilePath(filePath)
+        ? 'var(--accent-secondary)'
+        : isComponentLikeFilePath(filePath)
+          ? 'var(--component-accent)'
+          : 'var(--accent)',
       onClick: index < componentFiles.length - 1 ? () => handleNavigateToComponent(index) : undefined,
     })),
   ];
