@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:21:33.555Z
+Last Updated: 2026-09-25T05:25:47.288Z
 
 ## Active Assignments
 
@@ -22,7 +22,7 @@ Last Updated: 2026-09-25T05:21:33.555Z
 Status: active
 Baseline: a10af177e311dba88197164658d7e16f7233a377
 Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
-Last Sync: 2026-09-25T05:21:33.555Z
+Last Sync: 2026-09-25T05:25:47.288Z
 Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
 
 Scope: Implement first-class deterministic Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is structural hierarchy with layout-transparent semantics; grouping/ungrouping must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
@@ -236,6 +236,17 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r4 repair:** expand this assignment's owned regression-test surface to `src/editor/figma-inspector-contract.test.ts` and `src/editor/tools/SvgShapeTool.undo-remount.test.tsx`, update only those stale expectations, preserve the 23-file product postimage byte-for-byte, then rerun the full focused suite, TypeScript, and `build:all`.
 - **Prevention rule:** when an assignment intentionally changes a visible/source contract, package validation must audit the existing regression suite for expectations that describe the old contract and include those test updates in the ownership manifest before handoff.
 <!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r3-stale-regression-expectations:END -->
+
+<!-- LESSON:native-group-ungroup-phase-a-r1-escaped-newline:START -->
+### native-group-ungroup Phase A r1 packaging lesson
+
+- **r1 advanced tracker architecture only, then stopped safely in the isolated worktree before any Group product source was written to the real repository.** The landed tracker commit is `4dce6c1e293ba12c2dfa737841cca716d3fafff8`.
+- **Symptom:** all focused suites failed during transform because `src/code/parsing/parser.ts` contained literal `\n` text inside the inserted `CanvasNode.isGroup` declaration.
+- **Root cause:** the package generator double-escaped newlines in one exact replacement payload. Installer JavaScript syntax was valid, so `node --check` and the installer self-test passed even though the generated TypeScript postimage was invalid.
+- **Repository/source impact:** no Group product source was staged, committed, or pushed. The failure occurred in the detached validation worktree; unrelated Inspector work remained preserved.
+- **r2 repair:** encode actual newline characters in the parser replacement, adopt the already-updated active Group tracker state, and add a package self-test that rejects literal escaped-newline artifacts in the `isGroup` replacement payload.
+- **Prevention rule:** package validation must distinguish installer syntax from generated-source syntax. For generated exact-replacement payloads, self-tests must validate critical postimage strings themselves, and the detached TypeScript/Vitest/build gate remains mandatory before any real-tree source apply.
+<!-- LESSON:native-group-ungroup-phase-a-r1-escaped-newline:END -->
 
 ## Commit Ledger
 
