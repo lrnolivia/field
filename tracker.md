@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:15:22Z
+Last Updated: 2026-09-25T05:21:33.555Z
 
 ## Active Assignments
 
@@ -22,7 +22,8 @@ Last Updated: 2026-09-25T05:15:22Z
 Status: active
 Baseline: a10af177e311dba88197164658d7e16f7233a377
 Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
-Last Sync: 2026-09-25T04:51:50.158Z
+Last Sync: 2026-09-25T05:21:33.555Z
+Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
 
 Scope: Implement first-class deterministic Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is structural hierarchy with layout-transparent semantics; grouping/ungrouping must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
 
@@ -37,6 +38,8 @@ Owned:
   - src/editor/LayersPanel/rows.tsx
   - src/editor/command-palette/sources/commands.ts
   - src/editor/command-palette/useSearchActions.ts
+  - src/code/mutation/mutation-queue.ts
+  - src/code/generation/generator-crud.ts
 
 Approved Shared:
   - tracker.md
@@ -55,12 +58,14 @@ Protected:
   - package-lock.json
 
 Architecture:
+  - Figma parity is canonical: Group = semantic collection with child-derived bounds; Frame = explicit authored box; Auto Layout = Frame behavior; Layout is not a separate node type
   - source marker: data-field-group="true"
-  - layout-transparent wrapper target: display: contents
-  - parser exposes semantic isGroup; never infer from display: contents alone
-  - runtime layout guarantees must flatten Group when reasoning about ancestor flex/grid children
-  - generic Group/Ungroup remains separate from existing SVG Group/Ungroup
-  - Phase B canvas derived-bounds/drag ownership must be verified and expanded explicitly after source touch points are audited against then-current main
+  - source wrapper geometry is a derived cache for web/source realization, not Frame paint/layout semantics
+  - a Group inside parent Auto Layout is ONE parent-layout item; grouped descendants no longer participate individually in the outer flow
+  - parser exposes semantic isGroup; never infer Group from generic CSS alone
+  - generic Group/Ungroup owns Cmd/Ctrl+G and Shift+Cmd/Ctrl+G; SVG Group/Ungroup remains separate
+  - Phase A: structural creation/ungroup, parser, Layers glyph, menus/shortcuts/palette, source-stack preservation
+  - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-002:START -->
