@@ -6,7 +6,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
@@ -22,8 +23,6 @@ import {
   FigmaCodeIcon,
   FigmaLayersIcon,
 } from '@/shared/loew-figma-icons';
-import CollaboratorsModal from '@/editor/collab/CollaboratorsModal';
-import CollaboratorsSection from '@/editor/collab/CollaboratorsSection';
 import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { useIsClosedSource } from '@/code/stores/closed-source-store';
 
@@ -119,6 +118,8 @@ const MenuButton = React.memo(function MenuButton({
 export default function LeftMenu() {
   const [activePanel, togglePanel] = useAtom(togglePanelAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
   // Viewer mode — only Pages + Layers stay interactive (navigation /
   // inspection). VIBE, Insert, Library, Presets, Media, Locale, CMS,
@@ -149,11 +150,6 @@ export default function LeftMenu() {
   useEffect(() => {
     if (inOverlay && activePanel === 'vibe') setLeftPanel(DEFAULT_LEFT_PANEL);
   }, [inOverlay, activePanel, setLeftPanel]);
-  // Modal for "Share & collaborate" (invite/manage). Anchored to the
-  // Collaborators icon at the bottom of the LeftMenu, mirroring where
-  // the old builder put its CollaboratorsModal trigger. Replaces the
-  // bottom Help icon — we don't need a runtime help button.
-  const [collabModalOpen, setCollabModalOpen] = useState(false);
 
   // ─── Tooltip state — hover-to-show, click-to-suppress ─────────────────
   // `tooltip` is the currently visible label + its anchor coords. Null
@@ -205,13 +201,15 @@ export default function LeftMenu() {
     suppressedKey,
   };
 
+  if (!leftPaneOpen) return null;
+
   return (
     <div
       data-left-menu-rail
-      className="w-[52px] fixed z-[5000] flex flex-col justify-between items-center px-[13px] pb-3"
+      className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: 0, top: 52, height: 'calc(100vh - 52px)', willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
+      style={{ left: workspace.left.inset, top: workspaceBodyTop(workspace.left), height: workspaceBodyHeightCss(workspace.left), willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
@@ -349,25 +347,6 @@ export default function LeftMenu() {
         </button>}
 
       </div>
-
-      {/* Bottom section — collaborators stack (port of the old builder
-          design at `revyme-old/.../leftMenu.tsx#L96-209`):
-            [ + ]            opens the invite modal
-            [ remote… ]      one circle per remote user
-            [ ME 🟢 ]        current user with pulsing connection dot
-          Replaces the prior Help (?) icon — at the bottom of the
-          strip we want the share affordance, not docs. */}
-      <div className="relative z-10 flex flex-col items-center gap-3">
-        <CollaboratorsSection
-          onAddClick={() => setCollabModalOpen(true)}
-          onTooltipEnter={handleEnter}
-          onTooltipLeave={handleLeave}
-        />
-      </div>
-
-      {/* Modal — outside the icon strip so the backdrop / portal layer
-          doesn't inherit the strip's `position: fixed` / z-index. */}
-      <CollaboratorsModal isOpen={collabModalOpen} onClose={() => setCollabModalOpen(false)} />
 
       {/* Floating tooltip — portaled to body so it overlays the LeftPanel
           (which sits above z-[5000]) and respects screen-edge clamping

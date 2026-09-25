@@ -1,10 +1,10 @@
-// LeftPanel.tsx — Panel container that renders the active panel.
-// 256px for all open panels; the icon rail remains when this pane closes.
+// LeftPanel.tsx — active left content panel inside the workspace shell.
 
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import PagesLayersPanel from './panels/PagesLayersPanel';
 import InsertPanel from './panels/insert';
 import LibraryPanel from './panels/LibraryPanel';
@@ -14,7 +14,6 @@ import CmsPanel from './panels/CmsPanel';
 import BranchesPanel from './panels/BranchesPanel';
 import { trace } from '@/shared/debug-trace';
 
-// Wrapper to pass mode='presets' to LibraryPanel
 function PresetsPanel() {
   return <LibraryPanel mode="presets" />;
 }
@@ -23,49 +22,44 @@ function LibraryOnlyPanel() {
 }
 
 const PANEL_MAP: Record<string, React.ComponentType> = {
-  'insert': InsertPanel,
-  // Pages and Layers are one persistent document panel (Pages above Layers).
-  // Both ids map here for compatibility with saved state / older deep links;
-  // neither id selects a tab anymore.
+  insert: InsertPanel,
   'pages-layers': PagesLayersPanel,
-  'layers': PagesLayersPanel,
-  'library': LibraryOnlyPanel,
-  'presets': PresetsPanel,
-  'media': MediaGalleryPanel,
-  'locale': LocalePanel,
-  'cms': CmsPanel,
-  'branches': BranchesPanel,
-  // NOTE: 'vibe' has no entry on purpose — the docked AI chat is a
-  // self-positioned overlay (`VibeDockShell`, rendered by PageChat /
-  // the agent chat) that sits in this same slot. When 'vibe' is active this
-  // component renders nothing so the overlay has the space to itself.
+  layers: PagesLayersPanel,
+  library: LibraryOnlyPanel,
+  presets: PresetsPanel,
+  media: MediaGalleryPanel,
+  locale: LocalePanel,
+  cms: CmsPanel,
+  branches: BranchesPanel,
+  // Vibe owns the same slot via VibeDockShell.
 };
-
-const PANEL_WIDTH = 256;
 
 export default function LeftPanel() {
   const activePanel = useAtomValue(leftPanelAtom);
-  const open = useAtomValue(leftPaneOpenAtom);
+  const leftOpen = useAtomValue(leftPaneOpenAtom);
+  const rightOpen = useAtomValue(rightPaneOpenAtom);
   const PanelComponent = PANEL_MAP[activePanel];
-  if (!open || !PanelComponent) return null;
+  if (!leftOpen || !PanelComponent) return null;
 
-  trace.fn('LeftPanel.render', { activePanel });
+  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
+  trace.fn('LeftPanel.render', { activePanel, presentation: workspace.left.presentation });
 
   return (
     <div
-      // `data-editor-panel` is what ToolbarDragStrategy.onMove uses to
-      // recognize "cursor is still over a left panel, NOT over the canvas"
-      // — this overlay sits at z-[5000] above the canvas containerRect,
-      // so without the marker the strategy would happily commit drops on
-      // mouseup over here.
       data-editor-panel="left-primary"
       data-tutorial="left-panel"
       className="fixed z-[5000] flex flex-col overflow-hidden"
-      // willChange/isolation: own compositor layer — during a big zoom-out
-      // the sandbox's re-materialise + re-raster burst saturates the shared
-      // GPU process; without a persistent texture the panel's invalidated
-      // tiles painted as grey checkerboard until the raster caught up.
-      style={{ left: 52, top: 52, width: PANEL_WIDTH, height: 'calc(100vh - 52px)', paddingLeft: 6, paddingRight: 6, boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
+      style={{
+        left: workspace.left.inset + LEFT_RAIL_WIDTH,
+        top: workspaceBodyTop(workspace.left),
+        width: LEFT_CONTENT_WIDTH,
+        height: workspaceBodyHeightCss(workspace.left),
+        paddingLeft: 6,
+        paddingRight: 6,
+        boxSizing: 'border-box',
+        willChange: 'transform',
+        isolation: 'isolate',
+      }}
     >
       <PanelComponent />
     </div>

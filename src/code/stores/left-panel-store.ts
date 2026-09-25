@@ -4,6 +4,7 @@
 // panel remains available when the content pane is collapsed.
 
 import { atom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
 import { trace } from '@/shared/debug-trace';
 import { leftPaneOpenAtom } from './workspace-panels-store';
 
@@ -28,7 +29,7 @@ export type LeftPanelId =
 export const DEFAULT_LEFT_PANEL: LeftPanelId = 'layers';
 
 /** Which left panel is currently open. Never null. */
-export const leftPanelAtom = atom<LeftPanelId>(DEFAULT_LEFT_PANEL);
+export const leftPanelAtom = atomWithStorage<LeftPanelId>('field:prefs:leftLastPanel', DEFAULT_LEFT_PANEL, undefined, { getOnInit: true });
 
 /** Whether the floating code editor popup is open. */
 export const codeEditorOpenAtom = atom(false);

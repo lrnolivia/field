@@ -14,7 +14,8 @@
 import { useRef, useState, useMemo } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_WORKSPACE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
   autoFocusLayersAtom,
@@ -180,6 +181,17 @@ export function LogoButton() {
         onClick: () => {}, // parent items with submenus need a no-op
       })),
       { type: 'separator' as const },
+      {
+        id: 'logo-settings',
+        label: 'Settings…',
+        disabled: isViewer,
+        onClick: () => {
+          if (isViewer) return;
+          trace.action('left-header:settings');
+          setSettingsSection('website');
+          setSettingsOpen(true);
+        },
+      },
       // Builder chrome accent — a top-level entry rather than a row inside
       // View, because it's a personal appearance preference, not a document
       // command like the File/Edit/Insert/View group above.
@@ -232,16 +244,19 @@ export function LogoButton() {
 export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  trace.fn('LeftHeader:render', { previewMode });
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
 
   return (
-    <div
+    <>
+      {leftPaneOpen && <div
       className="h-[52px] border-b border-[var(--border-light)] fixed top-0 left-0 z-[9999] flex"
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: LEFT_RAIL_WIDTH + (leftPaneOpen ? LEFT_CONTENT_WIDTH : 0), left: 0, top: 0 }}
+      style={{ width: LEFT_WORKSPACE_WIDTH, left: workspace.left.inset, top: workspace.left.top }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
@@ -313,10 +328,13 @@ export default function LeftHeader() {
         </button>
       </div>}
 
+    </div>}
+
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).
-          Portal-rendered, so its placement here is just ownership. */}
+          It stays mounted while the left workspace is collapsed because
+          WorkspaceRestoreBar reuses the same field menu. */}
       <KeyboardShortcutsModal />
-    </div>
+    </>
   );
 }

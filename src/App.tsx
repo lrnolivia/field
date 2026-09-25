@@ -47,9 +47,11 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH, RIGHT_PANE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
+import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
 // page open is distracting noise. The animation runs in PREVIEW (and at
@@ -65,19 +67,28 @@ if (CLOUD_ENABLED) initCloudPlugin();
 export default function App() {
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
-  const leftInset = LEFT_RAIL_WIDTH + (leftPaneOpen ? LEFT_CONTENT_WIDTH : 0);
-  const rightInset = rightPaneOpen ? RIGHT_PANE_WIDTH : 0;
-  const previousInsets = useRef<{ left: number; right: number } | null>(null);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  const cameraInsets = workspaceLayout.cameraInsets;
+  const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   useEffect(() => {
-    setCanvasInsets({ left: leftInset, top: 52, right: rightInset, bottom: 0 });
+    setCanvasInsets(cameraInsets);
     const previous = previousInsets.current;
-    if (previous && (previous.left !== leftInset || previous.right !== rightInset)) {
-      // Preserve the current zoom and move the page with the center of the
-      // newly visible canvas strip. Fit/zoom commands then use the new insets.
-      transformManager.pan((leftInset - previous.left - rightInset + previous.right) / 2, 0);
+    if (previous && (
+      previous.left !== cameraInsets.left ||
+      previous.top !== cameraInsets.top ||
+      previous.right !== cameraInsets.right ||
+      previous.bottom !== cameraInsets.bottom
+    )) {
+      // Preserve zoom while moving the page with the center of the new camera-safe
+      // rectangle. Floating panes overlay the physical canvas; only automatic
+      // fit/center operations consume these safe insets.
+      transformManager.pan(
+        (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2,
+        (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2,
+      );
     }
-    previousInsets.current = { left: leftInset, right: rightInset };
-  }, [leftInset, rightInset]);
+    previousInsets.current = { ...cameraInsets };
+  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom]);
   // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
   // keyboard shortcut can both flip it without prop-drilling. The
   // right-header Preview button still drives the same atom via the
@@ -193,7 +204,7 @@ export default function App() {
 
   return (
     <CollaborationProvider>
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftInset}px`, '--workspace-right-width': `${rightInset}px` } as React.CSSProperties}>
+    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}>
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <ChromeIslands />
@@ -212,6 +223,7 @@ export default function App() {
 
       {/* Headers — fixed at top corners, canvas visible between them */}
       <LeftHeader />
+      <WorkspaceRestoreBar />
       <RightHeader previewMode={previewMode} onTogglePreview={async () => {
         // Entering the live preview while a text-edit session is active: commit it
         // FIRST. Text-edit style changes only land in the code when the session
@@ -247,14 +259,32 @@ export default function App() {
             Both panel modes are 260 px wide. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
-        {!previewMode && rightPaneOpen && <RightSidebar />}
+        {!previewMode && rightPaneOpen && (
+          <div
+            data-workspace-right-body
+            className="fixed z-[5000] overflow-hidden"
+            style={{
+              right: workspaceLayout.right.inset,
+              top: workspaceBodyTop(workspaceLayout.right),
+              width: workspaceLayout.right.width,
+              height: workspaceBodyHeightCss(workspaceLayout.right),
+              borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+            }}
+          >
+            <RightSidebar />
+          </div>
+        )}
         {!previewMode && <button
           type="button"
           aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           onClick={() => setRightPaneOpen(v => !v)}
-          className="fixed z-[5001] top-[61px] w-6 h-6 flex items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-          style={{ right: rightPaneOpen ? RIGHT_PANE_WIDTH + 8 : 8 }}
+          className="fixed z-[5001] w-6 h-6 flex items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+          style={{
+            top: rightPaneOpen ? workspaceLayout.right.top + 60 : 12,
+            right: rightPaneOpen ? workspaceLayout.right.inset + workspaceLayout.right.width - 28 : 8,
+          }}
         >
           <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="14" height="14">
             <rect x="1.5" y="2" width="13" height="12" rx="1" />

@@ -1,26 +1,18 @@
-// VibeDockShell.tsx — docked chrome for the AI chat.
-//
-// The chat lives here when NOT detached: a fixed panel pinned to the left
-// toolbar slot (where InsertPanel / PagesPanel would sit), opened by the
-// VIBE icon in LeftMenu. A "Detach" button in the header pops the same chat
-// into the floating `AIChatSheet`. The detached counterpart is AIChatSheet;
-// PageChat picks which shell to render.
+// VibeDockShell.tsx — Vibe content in the same left workspace slot as other panels.
 
 import { type ReactNode } from 'react';
+import { useAtomValue } from 'jotai';
+import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { trace } from '@/shared/debug-trace';
 
 interface Props {
-  /** Accessory rendered in the header, right of the title (credits indicator). */
   headerAccessory?: ReactNode;
-  /** Name of the surface the chat is editing — shown after the title. */
   contextLabel?: string;
-  /** Pop the chat out into the floating sheet. */
   onDetach: () => void;
-  /** Panel body — messages list, input row, etc. */
   children: ReactNode;
 }
 
-/** Pop-out glyph for the Detach button. */
 function DetachIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 16 16">
@@ -32,31 +24,33 @@ function DetachIcon() {
 }
 
 export default function VibeDockShell({ headerAccessory, contextLabel, onDetach, children }: Props) {
-  trace.fn('VibeDockShell.render', { contextLabel });
+  const leftOpen = useAtomValue(leftPaneOpenAtom);
+  const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
+  trace.fn('VibeDockShell.render', { contextLabel, presentation: workspace.left.presentation });
 
-  // Page routes arrive slash-prefixed ("/", "/about") — drop the slash so the
-  // header reads cleaner; "/" alone becomes "Home". Mirrors AIChatSheet.
+  if (!leftOpen) return null;
+
   const surfaceLabel = contextLabel
     ? contextLabel.replace(/^\//, '') || 'Home'
     : undefined;
 
   return (
     <div
-      // `data-editor-panel` lets ToolbarDragStrategy recognize "cursor over a
-      // left panel, not the canvas" — same marker LeftPanel carries.
       data-editor-panel="left-primary"
-      className="fixed z-[5000] flex flex-col overflow-hidden bg-[var(--bg-surface)] border-r border-[var(--border-light)]"
-      style={{ left: 52, top: 52, width: 256, height: 'calc(100vh - 52px)' }}
+      className="fixed z-[5000] flex flex-col overflow-hidden bg-[var(--bg-surface)]"
+      style={{
+        left: workspace.left.inset + LEFT_RAIL_WIDTH,
+        top: workspaceBodyTop(workspace.left),
+        width: LEFT_CONTENT_WIDTH,
+        height: workspaceBodyHeightCss(workspace.left),
+      }}
     >
-      {/* Header */}
       <div className="relative shrink-0 flex items-center justify-between px-3 h-9 select-none border-b border-[var(--border-light)]">
         <div className="flex items-center gap-1.5 leading-none min-w-0">
           <span className="text-xs font-semibold text-[var(--text-primary)] shrink-0">Vibe</span>
           {surfaceLabel && (
-            <span
-              className="text-[11px] text-[var(--text-secondary)] truncate"
-              title={surfaceLabel}
-            >
+            <span className="text-[11px] text-[var(--text-secondary)] truncate" title={surfaceLabel}>
               – {surfaceLabel}
             </span>
           )}
@@ -72,9 +66,7 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
         </button>
       </div>
 
-      {/* Body */}
       <div className="flex-1 min-h-0 flex flex-col">{children}</div>
-
     </div>
   );
 }

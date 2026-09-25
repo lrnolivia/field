@@ -279,8 +279,8 @@ export default function CommentsListPanel() {
     return (
       <aside
         data-comment-panel
-        className="w-[260px] shrink-0 flex flex-col relative z-5000"
-        style={{ marginTop: 52, marginLeft: -260, paddingLeft: '1.5px' }}
+        className="w-full h-full flex flex-col relative z-5000"
+        style={{ paddingLeft: '1.5px' }}
       >
         <div className="px-4 py-3 border-b border-[var(--border-light)]">
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">Comments (0)</h3>
@@ -298,8 +298,8 @@ export default function CommentsListPanel() {
   return (
     <aside
       data-comment-panel
-      className="w-[260px] shrink-0 flex flex-col relative z-5000"
-      style={{ marginTop: 52, marginLeft: -260, paddingLeft: '1.5px' }}
+      className="w-full h-full flex flex-col relative z-5000"
+      style={{ paddingLeft: '1.5px' }}
     >
       {/* Header — title + filter chip on the right. The chip wraps to a
           new line if needed (very narrow project names) but at 260 px

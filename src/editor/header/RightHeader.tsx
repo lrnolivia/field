@@ -16,7 +16,6 @@ import { useSetAtom, useAtomValue, useAtom } from 'jotai';
 import { exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import { PlayIcon } from '@/shared/icons';
 import { trace } from '@/shared/debug-trace';
-import Button from '@/design-system/Button';
 import ConfirmDialog from '@/design-system/ConfirmDialog';
 import { settingsOverlayOpenAtom, settingsSectionAtom, websiteMetaAtom } from '@/code/stores/website-settings-store';
 import { isComponentFileAtom } from '@/code/stores/store';
@@ -29,6 +28,9 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
+import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -38,14 +40,12 @@ interface Props {
 }
 
 export default function RightHeader({ previewMode, onTogglePreview }: Props) {
-  trace.fn('RightHeader:render', { previewMode });
-  // Viewers can preview but not Settings / Export / Publish — those
-  // either change the site or trigger a deploy.
   const isViewer = useIsViewer();
-  // Closed-source template remix — exporting would hand over the source the
-  // template's creator chose to hide, so Export is disabled with a tooltip.
   const isClosedSource = useIsClosedSource();
-  const [exportTipOpen, setExportTipOpen] = useState(false);
+  const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   // Publish failures used to go through window.alert(), which is unstyled,
@@ -65,12 +65,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
 
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
   const setWebsiteMeta = useSetAtom(websiteMetaAtom);
-  // When the settings takeover (z-10000) is open we bump our own z to
-  // 10001 so the right header keeps floating above it — gives the user
-  // Publish / Preview / Settings (close) access without leaving the
-  // settings page. LeftHeader stays at 9999 and is intentionally hidden
-  // by the overlay (the back arrow replaces its menu / logo affordance).
-  const settingsOpen = useAtomValue(settingsOverlayOpenAtom);
   const setSettingsSection = useSetAtom(settingsSectionAtom);
   // Component-master files swap the editor's accent color from blue
   // (`--accent`) to purple (`--accent-secondary`). Mirror that on the
@@ -165,11 +159,11 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     setSettingsOpenAtom(true);
   }, [exportFormat, setSettingsSectionAtom, setSettingsOpenAtom]);
 
-  const handleExportToggle = useCallback(() => {
-    if (!CLOUD_ENABLED) return;
-    setExportOpen((v) => !v);
-    trace.action('header:export-toggle');
-  }, []);
+  useEffect(() => {
+    if (!exportOpen || (!isViewer && !isClosedSource)) return;
+    trace.action('header:export-blocked', { isViewer, isClosedSource });
+    setExportOpen(false);
+  }, [exportOpen, isViewer, isClosedSource, setExportOpen]);
 
   // ─── Publish ─────────────────────────────────────────────────────────
   const handlePublish = useCallback(async () => {
@@ -243,68 +237,98 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   }, []);
 
   return (
-    <div
-      className={`h-[52px] fixed top-0 right-0 flex items-center px-2 ${
-        settingsOpen ? 'z-[10001]' : 'z-[9999]'
-      }`}
-      // Sits on the right ChromeIsland (12px margins) — the island backdrop
-      // carries surface/glass/outer border and the cut corners.
-      style={{ width: 260, top: 0, right: 0, isolation: "isolate" }}
-    >
-      {/* Settings / Export / Live each `flex-1` so the row fills the
-          260 px header width with tight 3 px gaps; Play stays compact at
-          its intrinsic icon-only width (no flex-1) per the spec. */}
-      <div className="flex flex-1 items-center gap-[3px]">
-        {/* Settings / Play are mutually-exclusive takeover modes — clicking
-            either while it's already active closes it, and clicking one
-            while the OTHER is active swaps modes (so Play from Settings
-            jumps straight into preview). */}
-        <Button
-          variant={settingsOpen ? 'primary' : 'secondary'}
-          size="sm"
-          tabIndex={-1}
-          className="flex-1 cut-corners"
-          data-tutorial="header-settings-button"
-          disabled={isViewer}
-          onClick={() => {
-            trace.action('header:settings-toggle', { wasOpen: settingsOpen, previewMode });
-            // Swap out of preview before opening settings so the two
-            // takeover modes never stack on top of each other.
-            if (!settingsOpen && previewMode) onTogglePreview();
-            setSettingsOpen(!settingsOpen);
-          }}
-          style={settingsOpen ? primaryBg : undefined}
-        >
-          Settings
-        </Button>
+    <>
+      {rightPaneOpen && (
         <div
-          className="relative flex-1"
-          // A disabled button swallows pointer events, so the closed-source
-          // tooltip hangs off this wrapper instead.
-          onMouseEnter={isClosedSource ? () => setExportTipOpen(true) : undefined}
-          onMouseLeave={isClosedSource ? () => setExportTipOpen(false) : undefined}
+          data-workspace-right-header
+          className="fixed z-[9999] flex h-[52px] items-center px-2"
+          style={{
+            width: workspace.right.width,
+            top: workspace.right.top,
+            right: workspace.right.inset,
+            isolation: 'isolate',
+          }}
         >
-          <Button
-            variant={exportOpen ? 'primary' : 'secondary'}
-            size="sm"
-            tabIndex={-1}
-            className="w-full cut-corners"
-            onClick={handleExportToggle}
-            disabled={!CLOUD_ENABLED || isViewer || isClosedSource}
-            // `data-export-trigger` lets ExportDropdown's outside-click
-            // listener ignore clicks on us so this toggle isn't fought
-            // by a "close because outside" race.
-            data-export-trigger=""
-            data-tutorial="header-export-button"
-            style={exportOpen ? primaryBg : undefined}
+          <InspectorCollaborators disabled={isViewer} />
+          <div className="flex-1" />
+
+          <button
+            type="button"
+            aria-label={previewMode ? 'Exit preview' : 'Preview'}
+            title={previewMode ? 'Exit preview' : 'Preview'}
+            data-tutorial="header-preview-button"
+            onClick={onTogglePreview}
+            className={`flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
+              previewMode
+                ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
+                : 'bg-[var(--button-secondary-bg,rgba(255,255,255,0.06))] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+            }`}
+            style={previewMode ? primaryBg : undefined}
           >
-            Export
-          </Button>
-          {isClosedSource && exportTipOpen && (
-            <div className="absolute left-1/2 top-full z-[10000] mt-2 w-56 -translate-x-1/2 cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 py-2 text-center text-[11px] leading-relaxed text-[var(--text-secondary)] shadow-xl pointer-events-none">
-              Export is unavailable — this template's creator made its code closed source.
-            </div>
-          )}
+            <PlayIcon size={14} />
+          </button>
+
+          <div className="relative ml-1">
+            <button
+              type="button"
+              onClick={handleLiveClick}
+              disabled={isViewer}
+              data-live-trigger
+              data-tutorial="header-publish-button"
+              className="relative flex h-7 min-w-[72px] items-center justify-center overflow-hidden rounded-[4px] border-none bg-[var(--accent)] px-2.5 text-[11px] font-medium text-[var(--accent-fg)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              style={primaryBg}
+            >
+              {publishing && !open && (
+                <span
+                  className="absolute inset-y-0 left-0 transition-[width] duration-150 ease-out pointer-events-none"
+                  style={{
+                    width: `${Math.round(progress * 100)}%`,
+                    backgroundColor: 'color-mix(in srgb, var(--accent-fg) 24%, transparent)',
+                  }}
+                />
+              )}
+              <span className="relative tabular-nums">
+                {publishing && !open ? `${Math.round(progress * 100)}%` : 'Publish'}
+              </span>
+            </button>
+            <LiveDropdown
+              open={open}
+              meta={meta}
+              publishing={publishing}
+              publishSuccess={publishSuccess}
+              progress={progress}
+              onPublish={handlePublish}
+              onClose={() => setOpen(false)}
+              onOpenBackups={() => {
+                trace.action('header:open-backups-from-dropdown');
+                setSettingsSection('backups');
+                setSettingsOpen(true);
+              }}
+              onAddDomain={() => {
+                trace.action('header:add-domain-from-dropdown');
+                setSettingsSection('domain');
+                setSettingsOpen(true);
+              }}
+              onOpenStaging={() => {
+                trace.action('header:open-staging-from-dropdown');
+                setSettingsSection('staging');
+                setSettingsOpen(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Project/source export remains menu-driven. This host exists even when
+          the right inspector is collapsed, so File → Export code… never points
+          at a missing header control. */}
+      <div
+        data-project-export-host
+        aria-hidden={!exportOpen && !confirmFormat}
+        className="fixed z-[10001] h-8 w-[230px]"
+        style={{ left: 8, top: 8, pointerEvents: exportOpen || confirmFormat ? 'auto' : 'none' }}
+      >
+        <div className="relative h-full w-full">
           <ExportConfirmModal
             format={confirmFormat}
             exporting={exporting}
@@ -320,87 +344,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             onExport={handleExport}
             onUpgrade={handleExportUpgrade}
             onClose={() => setExportOpen(false)}
-          />
-        </div>
-        <Button
-          variant={previewMode ? 'primary' : 'secondary'}
-          size="sm"
-          tabIndex={-1}
-          icon={<PlayIcon size={14} />}
-          className="cut-corners"
-          data-tutorial="header-preview-button"
-          onClick={() => {
-            // Closing settings first prevents the takeover from sitting
-            // under the preview iframe on the next frame.
-            if (settingsOpen) setSettingsOpen(false);
-            onTogglePreview();
-          }}
-          // Only override when actually in primary state (preview active).
-          // Secondary state has no `--accent` background, so the override
-          // would force purple onto the unpressed Play button.
-          style={previewMode ? primaryBg : undefined}
-        />
-        <div className="relative flex-1">
-          <Button
-            variant="primary"
-            size="sm"
-            tabIndex={-1}
-            // While publishing with the dropdown closed, the button itself
-            // becomes the progress bar: an accent-fg-tinted fill grows from
-            // left to right based on `progress` (0-1), and the label flips
-            // from "Publish" to "42%" so the user still sees what's happening
-            // without needing to open the dropdown. With the dropdown open
-            // the dropdown's own UI handles the feedback, so the button
-            // stays plain.
-            onClick={handleLiveClick}
-            disabled={isViewer}
-            className="w-full relative overflow-hidden cut-corners"
-            style={primaryBg}
-            // Tag for the dropdown's outside-click filter.
-            data-live-trigger
-            data-tutorial="header-publish-button"
-          >
-            {publishing && !open && (
-              <span
-                // accent-fg, not white. accent-fg is by definition the ink that
-                // contrasts with whatever `--accent` is, so the fill darkens a
-                // light accent and lightens a dark one. Flat white only read
-                // while the accent was dark — on the light accent this was
-                // beige-on-beige (2026-08-01). Mirrors LiveDropdown's bar.
-                className="absolute inset-y-0 left-0 transition-[width] duration-150 ease-out pointer-events-none"
-                style={{
-                  width: `${Math.round(progress * 100)}%`,
-                  backgroundColor: 'color-mix(in srgb, var(--accent-fg) 24%, transparent)',
-                }}
-              />
-            )}
-            <span className="relative tabular-nums">
-              {publishing && !open ? `${Math.round(progress * 100)}%` : 'Publish'}
-            </span>
-          </Button>
-          <LiveDropdown
-            open={open}
-            meta={meta}
-            publishing={publishing}
-            publishSuccess={publishSuccess}
-            progress={progress}
-            onPublish={handlePublish}
-            onClose={() => setOpen(false)}
-            onOpenBackups={() => {
-              trace.action('header:open-backups-from-dropdown');
-              setSettingsSection('backups');
-              setSettingsOpen(true);
-            }}
-            onAddDomain={() => {
-              trace.action('header:add-domain-from-dropdown');
-              setSettingsSection('domain');
-              setSettingsOpen(true);
-            }}
-            onOpenStaging={() => {
-              trace.action('header:open-staging-from-dropdown');
-              setSettingsSection('staging');
-              setSettingsOpen(true);
-            }}
           />
         </div>
       </div>
@@ -424,6 +367,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         confirmLabel={publishError?.upgradable ? 'See plans' : 'Try again'}
         cancelLabel={publishError?.upgradable ? 'Not now' : 'Close'}
       />
-    </div>
+    </>
   );
 }

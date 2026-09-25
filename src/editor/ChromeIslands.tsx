@@ -1,38 +1,72 @@
-// ChromeIslands.tsx — opaque structural surfaces behind the editor chrome.
-//
-// Figma-first skin: the sidebars are DOCKED, square-edged panes. No floating
-// glass, no cut corners, no sidebar shadow. Width follows workspace state.
+// ChromeIslands.tsx — structural surfaces behind editor chrome.
+// Docked panes remain rectilinear. A lone visible pane becomes one restrained
+// floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH, RIGHT_PANE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import {
+  deriveWorkspaceLayout,
+  WORKSPACE_FLOAT_RADIUS,
+  WORKSPACE_FLOAT_SHADOW,
+  type WorkspaceSideLayout,
+} from './workspace-layout';
 
-const PANEL_SURFACE: React.CSSProperties = {
+const SURFACE = {
   background: 'var(--bg-panel)',
   backdropFilter: 'none',
   WebkitBackdropFilter: 'none',
-  boxShadow: 'none',
+  boxSizing: 'border-box' as const,
+  pointerEvents: 'none' as const,
 };
+
+function floatingStyle(side: WorkspaceSideLayout) {
+  return side.presentation === 'floating'
+    ? {
+        border: '1px solid var(--border-light)',
+        borderRadius: WORKSPACE_FLOAT_RADIUS,
+        boxShadow: WORKSPACE_FLOAT_SHADOW,
+      }
+    : { borderRadius: 0, boxShadow: 'none' };
+}
 
 export default function ChromeIslands() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const layout = deriveWorkspaceLayout(leftOpen, rightOpen);
+
   return (
     <>
-      <div
-        aria-hidden
-        className="fixed z-[4998] border-r border-[var(--border-light)]"
-        style={{ left: 0, top: 0, width: LEFT_RAIL_WIDTH + (leftOpen ? LEFT_CONTENT_WIDTH : 0), height: '100vh', ...PANEL_SURFACE }}
-      />
-      <div
-        aria-hidden
-        className="fixed z-[4998] border-b border-l border-[var(--border-light)]"
-        style={{ right: 0, top: 0, width: 260, height: 52, ...PANEL_SURFACE }}
-      />
-      {rightOpen && <div
-        aria-hidden
-        className="fixed z-[4998] border-l border-[var(--border-light)]"
-        style={{ right: 0, top: 52, width: RIGHT_PANE_WIDTH, height: 'calc(100vh - 52px)', ...PANEL_SURFACE }}
-      />}
+      {leftOpen && (
+        <div
+          aria-hidden
+          data-workspace-island="left"
+          className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
+          style={{
+            left: layout.left.inset,
+            top: layout.left.top,
+            width: layout.left.width,
+            height: `calc(100vh - ${layout.left.top + layout.left.bottom}px)`,
+            ...SURFACE,
+            ...floatingStyle(layout.left),
+          }}
+        />
+      )}
+
+      {rightOpen && (
+        <div
+          aria-hidden
+          data-workspace-island="right"
+          className={layout.right.presentation === 'docked' ? 'fixed z-[4998] border-l border-[var(--border-light)]' : 'fixed z-[4998]'}
+          style={{
+            right: layout.right.inset,
+            top: layout.right.top,
+            width: layout.right.width,
+            height: `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            ...SURFACE,
+            ...floatingStyle(layout.right),
+          }}
+        />
+      )}
     </>
   );
 }
