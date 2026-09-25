@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:43:14Z
+Last Updated: 2026-09-25T08:45:06Z
 
 ## Active Assignments
 
@@ -101,56 +101,7 @@ Phase B progress:
 
 
 
-<!-- ASSIGNMENT:native-gallery-authoring-20260925:START -->
-### native-gallery-authoring-20260925 — Native Gallery Component + Media Authoring Foundation
 
-Status: active
-Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
-Activation HEAD: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
-Last Sync: 2026-09-25T08:09:29Z
-
-Owned:
-  - src/code/gallery/**
-  - src/editor/gallery/**
-  - src/editor/tools/GalleryTool.tsx
-  - src/canvas/gallery/**
-  - src/editor/ui/ImageSearchModal.tsx
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/controls/InspectorObjectHeader.tsx
-  - src/editor/tools/LayoutTool.tsx
-  - src/canvas/drag/toolbar-item-config.ts
-  - src/editor/left-toolbar/panels/insert/index.tsx
-  - src/**/gallery*.test.ts
-  - src/**/Gallery*.test.tsx
-
-Approved Shared:
-  - src/canvas/Canvas.tsx
-  - src/shared/types.ts
-  - src/editor/tools/ImageTool.tsx
-  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
-  - src/editor/left-toolbar/panels/media-gallery-utils.ts
-  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
-  - tracker.md
-
-Protected:
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - .env*
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/mutation/mutation-queue.ts
-  - src/canvas/commands.ts
-  - src/canvas/shortcuts.ts
-  - src/editor/LayersPanel/rows.tsx
-  - src/editor/command-palette/sources/commands.ts
-  - src/editor/command-palette/useSearchActions.ts
-  - src/code/generation/generator-crud.ts
-  - src/code/stores/project-store.ts
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:native-gallery-authoring-20260925:END -->
 
 <!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:START -->
 ### figui3-corrective-destroke-font-20260925 — FigUI3 Corrective De-stroke + Font Browser Polish
@@ -500,6 +451,15 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r5 repair:** preserve the validated r4 postimage, patch only those two TypeScript findings, rerun the focused suites, full TypeScript, `build:all`, exact ownership/staging gates, source commit, production verification, and tracker completion.
 - **Prevention rule:** generated test helpers must avoid duplicate object keys across explicit properties and spreads; finite arithmetic invariants that TypeScript cannot prove need an explicit exhaustive fallback or type-level narrowing.
 <!-- LESSON:native-gallery-authoring-r4-typecheck:END -->
+
+<!-- LESSON:native-gallery-authoring-r5-stale-closeout:START -->
+### native-gallery-authoring r5 closeout lesson
+
+- **Source was already landed at `a6c1c5c73faf7743dbf6aae47c86b34420a00dc8` and explicitly confirmed deployed, but the r5 runner never reached its final tracker-only record/complete step.**
+- **Impact:** no Gallery source was lost or reverted; only the original ownership reservation remained stale and blocked the first Gallery evolution runner.
+- **Repair:** Gallery evolution r2 verifies the v1 source commit is an ancestor of current main, verifies the complete v1 Gallery source pathset has not changed since that commit, probes the production surfaces, records the source commit, and moves the original assignment to Completed before reserving follow-up work.
+- **Prevention rule:** a deploy-verification/closeout interruption must have an idempotent coordination-only recovery path; follow-up installers may repair stale ownership only after proving the landed source state, never by stealing or deleting an active reservation blindly.
+<!-- LESSON:native-gallery-authoring-r5-stale-closeout:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
@@ -964,6 +924,37 @@ Paths:
 
 Validation / Build / Deploy:
 - Production verified: Workers Builds: field completed successfully; check-run id 108003981065; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/4f558380-27d7-41c3-a812-f365d2ae4947
+
+### 2026-09-25T08:45:06Z — native-gallery-authoring-20260925 — a6c1c5c73faf
+
+Summary: Native Gallery v1 source landed and was user-confirmed deployed; r2 repairs the stale tracker-only closeout discovered by the first evolution runner.
+Commit: a6c1c5c73faf7743dbf6aae47c86b34420a00dc8
+
+Paths:
+  - src/canvas/drag/toolbar-item-config.ts
+  - src/canvas/gallery/crop-math.test.ts
+  - src/canvas/gallery/crop-math.ts
+  - src/code/gallery/gallery-model.test.ts
+  - src/code/gallery/gallery-model.ts
+  - src/code/gallery/gallery-views.test.ts
+  - src/code/gallery/gallery-views.ts
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/gallery/GalleryContentSection.tsx
+  - src/editor/gallery/GalleryCropOverlay.tsx
+  - src/editor/gallery/GalleryImageCropTool.tsx
+  - src/editor/gallery/GalleryImageSection.tsx
+  - src/editor/gallery/GalleryViewSection.tsx
+  - src/editor/gallery/gallery-inspector-integration.test.ts
+  - src/editor/gallery/media-selection.test.ts
+  - src/editor/gallery/media-selection.ts
+  - src/editor/left-toolbar/panels/insert/index.tsx
+  - src/editor/tools/GalleryTool.tsx
+  - src/editor/tools/ImageTool.tsx
+  - src/editor/tools/LayoutTool.tsx
+  - src/editor/ui/ImageSearchModal.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -1642,4 +1633,55 @@ Deferred:
   - If QA finds residual issues, reopen them as a new narrow polish assignment rather than retaining ownership while idle.
 
 <!-- ASSIGNMENT:figui3-corrective-hierarchy-20260925:END -->
+
+<!-- ASSIGNMENT:native-gallery-authoring-20260925:START -->
+### native-gallery-authoring-20260925 — Native Gallery Component + Media Authoring Foundation
+
+Status: complete
+Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
+Activation HEAD: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
+Last Sync: 2026-09-25T08:45:06Z
+
+Owned:
+  - src/code/gallery/**
+  - src/editor/gallery/**
+  - src/editor/tools/GalleryTool.tsx
+  - src/canvas/gallery/**
+  - src/editor/ui/ImageSearchModal.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/tools/LayoutTool.tsx
+  - src/canvas/drag/toolbar-item-config.ts
+  - src/editor/left-toolbar/panels/insert/index.tsx
+  - src/**/gallery*.test.ts
+  - src/**/Gallery*.test.tsx
+
+Approved Shared:
+  - src/canvas/Canvas.tsx
+  - src/shared/types.ts
+  - src/editor/tools/ImageTool.tsx
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+  - src/editor/left-toolbar/panels/media-gallery-utils.ts
+  - src/editor/left-toolbar/panels/media-gallery-utils.test.ts
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/canvas/commands.ts
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/command-palette/sources/commands.ts
+  - src/editor/command-palette/useSearchActions.ts
+  - src/code/generation/generator-crud.ts
+  - src/code/stores/project-store.ts
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-authoring-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
