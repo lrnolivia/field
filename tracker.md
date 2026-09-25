@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:12:31Z
+Last Updated: 2026-09-25T09:13:26Z
 
 ## Active Assignments
 
@@ -107,65 +107,7 @@ Phase B progress:
 
 
 
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:START -->
-### FIELD-INSPECTOR-FIGUI3-005 — Field-native Inspector dropdowns — final whole-Inspector migration
 
-Status: active — final migration / visual QA
-Baseline: 41fd215381b8bf40bb68eb7cc7ed75c15002b2f6
-Activation HEAD: 19b787f501fcbf40b40a9082acd16008493aaddd
-Phase A implementation: 56720ae35ceb78802a40a6c1ee65208742075524
-Final integration baseline: bbe6bb37a1c99d7a0798b064ae5cbf85882f7001
-Last Sync: 2026-09-25T09:05:36Z
-
-Scope: Replace every Inspector-reachable native HTML select/option surface with field-owned UI; preserve the polished Typography browser, add a compact rich Family dropdown, and make portalled Inspector menus own wheel input instead of leaking gestures into the canvas.
-
-Owned:
-  - src/editor/controls/FieldSelect.tsx
-  - src/editor/controls/ToolSelect.tsx
-  - src/editor/controls/index.ts
-  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
-  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
-  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
-  - src/editor/ui/CompactFontFamilyDropdown.tsx
-  - src/editor/ui/FontFamilyPopup.tsx
-  - src/editor/ui/ToolPopup.tsx
-  - src/editor/ui/SearchableDropdown.tsx
-  - src/design-system/DropdownMenu.tsx
-  - src/canvas/hooks/useCanvasTransform.ts
-  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
-  - src/editor/figui3-inspector-native-select-contract.test.ts
-  - src/editor/figui3-typography-controls.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Coordination:
-  - User explicitly released the completed Typography/font polish before this final 005 round. The stale active status of figui3-corrective-destroke-font-20260925 is not treated as implementation ownership after its landed postimage; exact blob guards prevent stale replay.
-  - src/canvas/hooks/useCanvasTransform.ts and its wheel test are expanded only for the required no-canvas-input routing contract; native Group/Ungroup does not own these files.
-
-Protected:
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/controls/ToolSection.tsx
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/editor/left-toolbar/**
-  - src/editor/header/**
-  - src/editor/agent/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/canvas/drag/**
-  - src/canvas/resize/**
-  - src/canvas-sandbox/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
@@ -1002,6 +944,30 @@ Paths:
   - src/preview/preview-project-payload.test.ts
   - src/preview/preview-project-payload.ts
   - src/styles/dashboard.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:13:26Z — FIELD-INSPECTOR-FIGUI3-005 — de93f6d03d66
+
+Summary: Final 005: shared FieldSelect migration, compact/full font-family split, native font-size preset removal, zero-native-select AST contract, and portalled Inspector wheel-routing containment.
+Commit: de93f6d03d66a48b4d4ba15874dcde9dff6539e7
+
+Paths:
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/controls/ToolSelect.tsx
+  - src/editor/controls/index.ts
+  - src/editor/figui3-inspector-native-select-contract.test.ts
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
+  - src/editor/ui/CompactFontFamilyDropdown.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/editor/ui/ToolPopup.tsx
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
@@ -1931,4 +1897,64 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-20260925:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:START -->
+### FIELD-INSPECTOR-FIGUI3-005 — Field-native Inspector dropdowns — final whole-Inspector migration
+
+Status: complete
+Baseline: 41fd215381b8bf40bb68eb7cc7ed75c15002b2f6
+Activation HEAD: 19b787f501fcbf40b40a9082acd16008493aaddd
+Phase A implementation: 56720ae35ceb78802a40a6c1ee65208742075524
+Final integration baseline: bbe6bb37a1c99d7a0798b064ae5cbf85882f7001
+Last Sync: 2026-09-25T09:13:26Z
+
+Scope: Replace every Inspector-reachable native HTML select/option surface with field-owned UI; preserve the polished Typography browser, add a compact rich Family dropdown, and make portalled Inspector menus own wheel input instead of leaking gestures into the canvas.
+
+Owned:
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/controls/ToolSelect.tsx
+  - src/editor/controls/index.ts
+  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
+  - src/editor/ui/CompactFontFamilyDropdown.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
+  - src/editor/figui3-inspector-native-select-contract.test.ts
+  - src/editor/figui3-typography-controls.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Coordination:
+  - User explicitly released the completed Typography/font polish before this final 005 round. The stale active status of figui3-corrective-destroke-font-20260925 is not treated as implementation ownership after its landed postimage; exact blob guards prevent stale replay.
+  - src/canvas/hooks/useCanvasTransform.ts and its wheel test are expanded only for the required no-canvas-input routing contract; native Group/Ungroup does not own these files.
+
+Protected:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/ToolSection.tsx
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/canvas/drag/**
+  - src/canvas/resize/**
+  - src/canvas-sandbox/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
