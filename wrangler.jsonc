@@ -14,5 +14,6 @@
       "binding": "FIELD_PROJECTS",
       "bucket_name": "field-projects"
     }
-  ]
+  ],
+  "keep_vars": true
 }
