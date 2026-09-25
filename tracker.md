@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:09:16Z
+Last Updated: 2026-09-25T09:11:44Z
 
 ## Active Assignments
 
@@ -1017,6 +1017,33 @@ Paths:
   - src/editor/gallery/content-operations.test.ts
   - src/editor/gallery/content-operations.ts
   - src/editor/tools/GalleryTool.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:11:44Z — field-dashboard-thumbnail-previews-20260925 — 286068ec8054
+
+Summary: Cached first-Page dashboard thumbnails: field R2 image API, freshness/backfill, MAIN-only idle Preview capture, shared Preview payload, dashboard rendering, focused regressions, TypeScript, build:all, and Workers Builds: field passed. Manual authenticated thumbnail smoke remains required.
+Commit: 286068ec805439f968be15aa0957046ccc6789ee
+
+Paths:
+  - cloudflare/field-thumbnail.test.ts
+  - cloudflare/worker.js
+  - src/App.tsx
+  - src/backend/field-project-thumbnails.test.ts
+  - src/backend/field-projects.ts
+  - src/dashboard/ProjectCard.tsx
+  - src/editor/header/PreviewOverlay.tsx
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.test.ts
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/usePreviewThumbnail.test.ts
+  - src/editor/header/usePreviewThumbnail.ts
+  - src/preview/dashboard-thumbnail-page.test.ts
+  - src/preview/dashboard-thumbnail-page.ts
+  - src/preview/preview-project-payload.test.ts
+  - src/preview/preview-project-payload.ts
+  - src/styles/dashboard.css
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
