@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T06:29:03Z
+Last Updated: 2026-09-25T06:31:24Z
 
 ## Active Assignments
 
@@ -134,42 +134,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-004:START -->
-### FIELD-INSPECTOR-FIGUI3-004 — FigUI3 Typography Dropdowns and Numeric Steppers
 
-Status: planned
-Baseline: 6df9a5554d9933a2a195fef9300cbd113d07820f
-Activation HEAD: d6c2a691f0f95ffd7bb8c0ab38969f414db8235c
-Last Sync: 2026-09-25T06:29:03Z
-
-Owned:
-  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
-  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
-  - src/editor/controls/ToolInput.tsx
-  - src/editor/figui3-typography-controls.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/controls/InspectorObjectHeader.tsx
-  - src/editor/tools/SelectionTool.tsx
-  - src/editor/tools/StylesTool/**
-  - src/editor/LayersPanel/**
-  - src/editor/header/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-004:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -689,6 +654,20 @@ Paths:
 Validation / Build / Deploy:
 - update this event if production verification is still pending
 
+### 2026-09-25T06:31:23Z — FIELD-INSPECTOR-FIGUI3-004 — 922592cf85b6
+
+Summary: FigUI3 Typography: left-aligned family dropdown with separate rich browser, supplied font-size preset ladder, and opt-in persistent numeric steppers. Focused tests, TypeScript, build:all, and visual QA passed. Production verified: Workers Builds: field completed successfully; check-run id 107970051127.
+Commit: 922592cf85b673d7525d60f2a4b450fd64a5e698
+
+Paths:
+  - src/editor/controls/ToolInput.tsx
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
@@ -1132,4 +1111,41 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-003:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-004:START -->
+### FIELD-INSPECTOR-FIGUI3-004 — FigUI3 Typography Dropdowns and Numeric Steppers
+
+Status: complete
+Baseline: 6df9a5554d9933a2a195fef9300cbd113d07820f
+Activation HEAD: d6c2a691f0f95ffd7bb8c0ab38969f414db8235c
+Last Sync: 2026-09-25T06:31:24Z
+
+Owned:
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/tools/TextStyleTool/atoms/TextPropertyControl.tsx
+  - src/editor/controls/ToolInput.tsx
+  - src/editor/figui3-typography-controls.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/tools/SelectionTool.tsx
+  - src/editor/tools/StylesTool/**
+  - src/editor/LayersPanel/**
+  - src/editor/header/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-004:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
