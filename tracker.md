@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:29:00Z
+Last Updated: 2026-09-25T05:37:17Z
 
 ## Active Assignments
 
@@ -68,7 +68,47 @@ Architecture:
   - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
+<!-- ASSIGNMENT:field-persistent-project-storage-20260925:START -->
+### field-persistent-project-storage-20260925 — Cross-Browser Persistent Project Storage
 
+Status: planned
+Baseline: 4a9b306393407be5d05cf6a806401b74102375a4
+Activation HEAD: 2aabfa52e7f053405511f5604e8b988c9b089df1
+Last Sync: 2026-09-25T05:37:17Z
+
+Owned:
+  - src/backend/field-backend.ts
+  - src/backend/field-backend.test.ts
+  - src/backend/index.ts
+  - src/backend/types.ts
+  - src/backend/autosave.ts
+  - src/backend/save-store.ts
+  - src/backend/local-backend.ts
+  - src/backend/project-id.ts
+  - src/code/stores/project-store.ts
+  - cloudflare/worker.js
+  - cloudflare/field-persistence.test.ts
+  - wrangler.jsonc
+  - .env.example
+
+Approved Shared:
+  - tracker.md
+  - src/backend/revyme-backend.ts
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/editor/**
+  - src/preview/**
+  - src/design-system/**
+  - src/styles/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-persistent-project-storage-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
