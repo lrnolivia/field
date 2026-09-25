@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:00:28Z
+Last Updated: 2026-09-25T09:05:36Z
 
 ## Active Assignments
 
@@ -105,44 +105,7 @@ Phase B progress:
 
 
 
-<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:START -->
-### figui3-corrective-destroke-font-20260925 — FigUI3 Corrective De-stroke + Font Browser Polish
 
-Status: active
-Baseline: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
-Activation HEAD: f195fa500f68f1523d167a224180e61a540c134f
-Last Sync: 2026-09-25T08:20:35Z
-
-Owned:
-  - src/styles/loew-theme.css
-  - src/editor/ui/FontFamilyPopup.tsx
-  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
-  - src/editor/controls/ToolSegmentedControl.tsx
-  - src/editor/controls/InspectorIconButtonGroup.tsx
-  - src/editor/figui3-global-parity.test.ts
-  - src/editor/figui3-typography-controls.test.ts
-  - src/editor/figui3-corrective-polish.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:END -->
 
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:START -->
 ### FIELD-INSPECTOR-FIGUI3-005 — Field-native Inspector dropdowns — Phase A core select primitive + Animation migration
@@ -194,52 +157,7 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
-<!-- ASSIGNMENT:field-scroll-integrity-20260925:START -->
-### field-scroll-integrity-20260925 — Scroll Integrity Phase 3 — Menus, Modals, Dashboard, Settings, Comments
 
-Status: active
-Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
-Activation HEAD: e4e36f3b050464fb84cc5e29cdcb97f227157984
-Last Sync: 2026-09-25T08:54:25Z
-
-Owned:
-  - src/design-system/DropdownMenu.tsx
-  - src/design-system/Modal.tsx
-  - src/styles/dashboard.css
-  - src/cloud/NewWebsiteTemplatesModal.tsx
-  - src/editor/overlays/SettingsOverlay.tsx
-  - src/editor/CommentsListPanel.tsx
-  - src/editor/collab/CollaboratorsModal.tsx
-  - src/editor/component-editor/ComponentEditorOverlay.tsx
-  - src/editor/scroll-integrity-contract.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/ui/**
-  - src/editor/tools/TextStyleTool/**
-  - src/editor/controls/FieldSelect.tsx
-  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
-  - src/editor/PropertiesPanel.tsx
-  - src/editor/left-toolbar/**
-  - src/editor/header/**
-  - src/editor/agent/**
-  - src/editor/LayersPanel/**
-  - src/editor/command-palette/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/components/**
-  - src/code/mutation/**
-  - src/backend/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:field-scroll-integrity-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1799,4 +1717,90 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:native-gallery-evolution-20260925:END -->
+
+<!-- ASSIGNMENT:field-scroll-integrity-20260925:START -->
+### field-scroll-integrity-20260925 — Scroll Integrity Phase 3 — Menus, Modals, Dashboard, Settings, Comments
+
+Status: complete
+Baseline: 84361dc25f227363cc6a5f9c20b3e6d4bea45841
+Activation HEAD: e4e36f3b050464fb84cc5e29cdcb97f227157984
+Last Sync: 2026-09-25T09:05:36Z
+
+Owned:
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/Modal.tsx
+  - src/styles/dashboard.css
+  - src/cloud/NewWebsiteTemplatesModal.tsx
+  - src/editor/overlays/SettingsOverlay.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/collab/CollaboratorsModal.tsx
+  - src/editor/component-editor/ComponentEditorOverlay.tsx
+  - src/editor/scroll-integrity-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/ui/**
+  - src/editor/tools/TextStyleTool/**
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/tools/AnimationTool/css/KeyframeSheet.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/left-toolbar/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-scroll-integrity-20260925:END -->
+
+<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:START -->
+### figui3-corrective-destroke-font-20260925 — FigUI3 Corrective De-stroke + Font Browser Polish
+
+Status: complete
+Baseline: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
+Activation HEAD: f195fa500f68f1523d167a224180e61a540c134f
+Last Sync: 2026-09-25T09:05:36Z
+
+Owned:
+  - src/styles/loew-theme.css
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/controls/ToolSegmentedControl.tsx
+  - src/editor/controls/InspectorIconButtonGroup.tsx
+  - src/editor/figui3-global-parity.test.ts
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/figui3-corrective-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/mutation/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-destroke-font-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
