@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:21:13Z
+Last Updated: 2026-09-25T04:27:04Z
 
 ## Active Assignments
 
@@ -166,6 +166,16 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** transform the empty and populated comment shells as two bounded anchors, preserving exact activation-blob guards and resumable postimage checks. r2 also checks active tracker ownership before source work so broad protected areas are respected even when target blobs have not changed.
 - **Prevention rule:** repeated JSX/source transforms must not assume identical indentation across separate branches. Match bounded occurrences independently or use an indentation-aware structural pattern, then assert the exact intended transformed occurrences before writes.
 <!-- LESSON:workspace-chrome-floating-panes-r1-comments-indent:END -->
+
+<!-- LESSON:workspace-chrome-floating-panes-r2-protected-ownership:START -->
+### workspace-chrome-floating-panes r2 packaging lesson
+
+- **r2 stopped safely at active-assignment preflight after its no-write source compatibility check passed.** It reported broad conflicts against `src/editor/**` and `src/code/**` even though those paths were listed under other assignments as Protected/no-touch areas, not Owned work.
+- **Root cause: tracker ownership semantics were inverted.** The r2 gate combined another assignment's `Owned` and `Protected` patterns when looking for conflicts. In field, `Protected` means that assignment promises not to modify those paths; it does not reserve those paths against other independently authorized work.
+- **Repository/source impact:** no product source files were written. r2 only published the already-required r1 tracker lesson as commit `0fe4faa40ff65f80b9e1a779a50323a95dc2425c` before the false-positive gate stopped.
+- **r3 repair:** cross-assignment overlap checks consider only active `Owned` paths, with `Approved Shared` acting as an explicit exception. `Protected` remains enforced by each assignment against its own writes, but never blocks unrelated work.
+- **Prevention rule:** coordination tooling must preserve the distinction between `Owned`, `Approved Shared`, and `Protected`: Owned reserves; Shared permits deliberate overlap; Protected constrains the declaring assignment itself. Never merge Owned + Protected into one conflict set.
+<!-- LESSON:workspace-chrome-floating-panes-r2-protected-ownership:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
