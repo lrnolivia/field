@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:02:42Z
+Last Updated: 2026-09-25T04:14:52.680Z
 
 ## Active Assignments
 
@@ -43,6 +43,52 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
+<!-- ASSIGNMENT:context-components-command-surface-20260925:START -->
+### context-components-command-surface-20260925 — Context Commands + Component Interaction
+
+Status: active
+Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Activation HEAD: 27a2d58506765eae2386cb7573b5c06a47d53e64
+Last Sync: 2026-09-25T04:14:52.680Z
+
+Scope: Refine field's object/layer context menu, Pages context menu, and project/title menu; keep component controls at the top; and migrate component identity to a semantic component accent derived from the active field accent. Only already-real component/navigation behavior is surfaced. Native generic Group/Ungroup remains a separate deterministic document-model feature immediately after this UI pass.
+
+Owned:
+  - src/canvas/ui/ContextMenu.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/left-toolbar/panels/LibraryPanel/sections/ComponentsSection.tsx
+  - src/editor/left-toolbar/panels/LibraryPanel/items/ComponentRow.tsx
+  - src/canvas/ui/ComponentBreadcrumb.tsx
+  - src/editor/ui/NameInputModal.tsx
+  - src/styles/loew-theme.css
+  - src/editor/page-menu-commands.ts
+  - src/editor/page-menu-commands.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/canvas/** except src/canvas/ui/ContextMenu.tsx and src/canvas/ui/ComponentBreadcrumb.tsx
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/left-toolbar/LeftPanel.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/header/LeftHeader.tsx
+  - workspace collapse / dock / float implementation
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/**
+  - src/editor/controls/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Notes:
+  - Collapsible Workspace may land after this reservation. If it changes none of the owned paths, this installer integrates it and proceeds. If it changes an owned path, the installer stops with INTEGRATION OVERLAP DETECTED.
+  - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
+<!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
