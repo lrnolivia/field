@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:04:44Z
+Last Updated: 2026-09-25T08:09:29Z
 
 ## Active Assignments
 
@@ -141,10 +141,10 @@ Protected:
 <!-- ASSIGNMENT:native-gallery-authoring-20260925:START -->
 ### native-gallery-authoring-20260925 — Native Gallery Component + Media Authoring Foundation
 
-Status: planned
+Status: active
 Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
 Activation HEAD: 8187f5a875f708fa88f21e75cd1cc7f56bb32c36
-Last Sync: 2026-09-25T07:59:27Z
+Last Sync: 2026-09-25T08:09:29Z
 
 Owned:
   - src/code/gallery/**
@@ -153,6 +153,8 @@ Owned:
   - src/canvas/gallery/**
   - src/editor/ui/ImageSearchModal.tsx
   - src/editor/PropertiesPanel.tsx
+  - src/editor/controls/InspectorObjectHeader.tsx
+  - src/editor/tools/LayoutTool.tsx
   - src/canvas/drag/toolbar-item-config.ts
   - src/editor/left-toolbar/panels/insert/index.tsx
   - src/**/gallery*.test.ts
@@ -403,6 +405,26 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r2 repair:** preserve leading command output whitespace, parse ownership state with `git status --porcelain=v1 -z` bytes, self-test the first dirty path from a temporary repo, adopt the existing local Gallery reservation, then publish reservation + lesson together before source edits.
 - **Prevention rule:** ownership tooling must never trim Git porcelain prefixes; use NUL-delimited porcelain parsing and test the first dirty record explicitly.
 <!-- LESSON:native-gallery-authoring-r1-porcelain-trim:END -->
+
+<!-- LESSON:native-gallery-authoring-r2-ownership-manifest:START -->
+### native-gallery-authoring r2 packaging lesson
+
+- **r2 repaired the Git-porcelain parser, published the Gallery reservation, and applied the exact 21-file Gallery postimage, then stopped before focused tests, TypeScript, build, staging, or source commit.**
+- **Root cause:** the implementation intentionally routes Gallery layout authoring through `src/editor/tools/LayoutTool.tsx` and semantic Gallery naming through `src/editor/controls/InspectorObjectHeader.tsx`, but those two genuine integration surfaces were present in the installer target list without being added to the assignment ownership manifest.
+- **Repository/source impact:** reservation commit `7641fbf01971cfe8b80b474ac081469e54928e3a` is pushed; the 21 intended Gallery source files remain as an exact unstaged r2 postimage; no Gallery source commit was created and nothing was reset.
+- **r4 repair:** explicitly expand Gallery ownership to the two integration surfaces, verify the exact 21-file r2 postimage before tracker mutation, publish the scope expansion as tracker-only coordination, and resume validation from the existing source state without reapplying it.
+- **Prevention rule:** every installer mutation target must be represented in Owned or Approved Shared before source application; package self-tests must compare the transform target set against the assignment ownership set.
+<!-- LESSON:native-gallery-authoring-r2-ownership-manifest:END -->
+
+<!-- LESSON:native-gallery-authoring-r3-concurrent-main:START -->
+### native-gallery-authoring r3 packaging lesson
+
+- **r3 stopped safely before tracker mutation, validation, staging, or source commit because it required local and remote `main` to remain exactly at the Gallery reservation SHA.**
+- **Root cause:** native Group Phase B3 legitimately advanced `main` by two commits after the Gallery reservation while touching only Group/resize/paste/Layers paths plus `tracker.md`; none of the 21 Gallery implementation paths changed. The exact-HEAD resume guard treated safe concurrent progress as a conflict.
+- **Repository/source impact:** no r3 writes occurred. The 21-file Gallery postimage remained exact and unstaged, while `main` advanced independently.
+- **r4 repair:** accept a descendant of the Gallery reservation only after proving the entire intervening source pathset is disjoint from the exact Gallery postimage, then pin the resolved descendant HEAD while publishing Gallery's ownership expansion.
+- **Prevention rule:** resumable field installers should distinguish *ancestry drift* from *ownership overlap*: a newer descendant HEAD is safe only after path-level reconciliation proves no assignment integration surface changed.
+<!-- LESSON:native-gallery-authoring-r3-concurrent-main:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
