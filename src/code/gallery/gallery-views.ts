@@ -46,6 +46,16 @@ export const TERRA_STRIP_HOVER_WIDTH = '380px';
 export const TERRA_CAROUSEL_STAGE_HEIGHT = '820px';
 export const TERRA_CAROUSEL_IMAGE_WIDTH = '520px';
 export const TERRA_CAROUSEL_IMAGE_HEIGHT = '720px';
+/**
+ * Fluid runtime constraints preserve Terra Prime at desktop while preventing
+ * the real website from clipping Gallery content on narrow viewports. These
+ * are ordinary source CSS values, not a second breakpoint/document model.
+ */
+export const RESPONSIVE_GRID_COLUMNS = 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))';
+export const RESPONSIVE_NATURAL_COLUMNS = 'repeat(4, minmax(140px, 1fr))';
+export const RESPONSIVE_STRIP_HOVER_WIDTH = 'min(380px, calc(100vw - 32px))';
+export const RESPONSIVE_CAROUSEL_STAGE_HEIGHT = 'clamp(520px, calc(100vw - 48px), 820px)';
+export const RESPONSIVE_CAROUSEL_IMAGE_WIDTH = 'min(520px, calc(100% - 32px))';
 export const TERRA_CAROUSEL_CONTROL_SIZE = '38px';
 export const GALLERY_CAROUSEL_CONTROL_STYLE_PROPERTY = '--field-gallery-carousel-control';
 export type GalleryCarouselControlRole = 'previous' | 'counter' | 'next';
@@ -124,6 +134,7 @@ const IMAGE_BASE: Record<string, string> = {
   display: 'block',
   width: '100%',
   height: '100%',
+  aspectRatio: '',
   maxWidth: '',
   borderRadius: '',
   gridColumn: '',
@@ -146,15 +157,24 @@ export function getGalleryRootPatch(view: GalleryViewId): Record<string, string>
       return {
         ...base,
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+        // 1240px Terra Prime reference resolves to 3 columns; narrower real
+        // containers naturally collapse to 2/1 without hidden breakpoint state.
+        gridTemplateColumns: RESPONSIVE_GRID_COLUMNS,
         gap: '24px',
       };
     case 'natural':
       return {
         ...base,
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        // Keep Terra Prime's four-track mosaic. Below ~572px the tracks keep a
+        // usable minimum and scroll INSIDE Gallery rather than crushing or
+        // forcing page-level horizontal overflow.
+        gridTemplateColumns: RESPONSIVE_NATURAL_COLUMNS,
         gridAutoFlow: 'row',
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        scrollbarWidth: 'none',
+        overscrollBehaviorX: 'contain',
         gap: '4px',
       };
     case 'strip':
@@ -164,8 +184,13 @@ export function getGalleryRootPatch(view: GalleryViewId): Record<string, string>
         flexDirection: 'row',
         alignItems: 'stretch',
         justifyContent: 'flex-start',
-        overflowX: 'hidden',
+        // Strip is intrinsically horizontal. Let the real site pan the strip on
+        // narrow/touch surfaces instead of making later items unreachable.
+        overflowX: 'auto',
         overflowY: 'hidden',
+        scrollbarWidth: 'none',
+        overscrollBehaviorX: 'contain',
+        scrollSnapType: 'x proximity',
         gap: '4px',
       };
     case 'story':
@@ -239,6 +264,7 @@ export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<
         flex: '0 0 auto',
         width: '120px',
         height: '620px',
+        scrollSnapAlign: 'start',
         transition: 'width 180ms ease',
       };
     case 'story':
@@ -254,9 +280,11 @@ export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<
         display: 'grid',
         flex: '0 0 100%',
         width: '100%',
-        height: '874px',
-        gridTemplateRows: TERRA_CAROUSEL_STAGE_HEIGHT + ' ' + TERRA_CAROUSEL_CONTROL_SIZE,
-        gridTemplateColumns: '1fr 38px 22px auto 22px 38px 1fr',
+        // Let the grid rows determine slide height so a narrow real viewport
+        // does not carry the desktop-only 874px fixed box.
+        height: '',
+        gridTemplateRows: RESPONSIVE_CAROUSEL_STAGE_HEIGHT + ' ' + TERRA_CAROUSEL_CONTROL_SIZE,
+        gridTemplateColumns: 'minmax(16px, 1fr) 38px 22px auto 22px 38px minmax(16px, 1fr)',
         rowGap: '16px',
         scrollSnapAlign: 'center',
         scrollSnapStop: 'always',
@@ -271,8 +299,11 @@ export function getGalleryImagePatch(view: GalleryViewId): Record<string, string
   if (view === 'carousel') {
     return {
       ...IMAGE_BASE,
-      width: TERRA_CAROUSEL_IMAGE_WIDTH,
-      height: TERRA_CAROUSEL_IMAGE_HEIGHT,
+      // Exact 520×720 at Terra Prime desktop; shrink horizontally on narrow
+      // slides and derive height from the same 13:18 frame ratio.
+      width: RESPONSIVE_CAROUSEL_IMAGE_WIDTH,
+      height: 'auto',
+      aspectRatio: '13 / 18',
       maxWidth: 'none',
       borderRadius: TERRA_GALLERY_RADIUS,
       gridColumn: '1 / -1',
@@ -318,5 +349,7 @@ export function getGalleryCarouselControlPatch(role: GalleryCarouselControlRole)
 
 /** Source-backed runtime behavior for the Terra Prime Strip reference. */
 export function getGalleryStripHoverPatch(): Record<string, string> {
-  return { width: TERRA_STRIP_HOVER_WIDTH };
+  // Desktop still resolves to Terra Prime's 380px expansion. Narrow viewports
+  // cap the expanded strip to the visible page width with 16px breathing room.
+  return { width: RESPONSIVE_STRIP_HOVER_WIDTH };
 }

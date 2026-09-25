@@ -22,7 +22,7 @@ describe('Gallery view registry', () => {
 
   it('matches the current Terra Prime Grid composition defaults', () => {
     const root = getGalleryRootPatch('grid');
-    expect(root.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+    expect(root.gridTemplateColumns).toBe('repeat(auto-fit, minmax(min(100%, 360px), 1fr))');
     expect(root.gap).toBe('24px');
     expect(root.maxWidth).toBe('1240px');
     expect(getGalleryItemPatch('grid', 0)).toMatchObject({ [GALLERY_ITEM_STYLE_PROPERTY]: '1', aspectRatio: '1 / 1', borderRadius: '12px' });
@@ -30,7 +30,9 @@ describe('Gallery view registry', () => {
 
   it('maps the current Terra Prime Natural four-item mosaic deterministically', () => {
     expect(getGalleryRootPatch('natural')).toMatchObject({
-      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))',
+      overflowX: 'auto',
+      overscrollBehaviorX: 'contain',
       gap: '4px',
     });
     expect(getGalleryItemPatch('natural', 0)).toMatchObject({ gridColumn: '1 / span 2', gridRow: '1 / span 2' });
@@ -40,10 +42,29 @@ describe('Gallery view registry', () => {
     expect(getGalleryItemPatch('natural', 4)).toMatchObject({ gridColumn: '1 / span 2', gridRow: '3 / span 2' });
   });
 
-  it('captures Strip hover behavior as real source-backed CSS semantics', () => {
-    expect(getGalleryRootPatch('strip')).toMatchObject({ gap: '4px', overflowX: 'hidden' });
-    expect(getGalleryItemPatch('strip', 0)).toMatchObject({ width: '120px', height: '620px' });
-    expect(getGalleryStripHoverPatch()).toEqual({ width: '380px' });
+  it('keeps Strip source-backed while making narrow runtimes reachable', () => {
+    expect(getGalleryRootPatch('strip')).toMatchObject({
+      gap: '4px',
+      overflowX: 'auto',
+      scrollSnapType: 'x proximity',
+      overscrollBehaviorX: 'contain',
+    });
+    expect(getGalleryItemPatch('strip', 0)).toMatchObject({ width: '120px', height: '620px', scrollSnapAlign: 'start' });
+    expect(getGalleryStripHoverPatch()).toEqual({ width: 'min(380px, calc(100vw - 32px))' });
+  });
+
+  it('preserves Carousel desktop intent while making its stage and image fluid', () => {
+    expect(getGalleryItemPatch('carousel', 0)).toMatchObject({
+      height: '',
+      gridTemplateRows: 'clamp(520px, calc(100vw - 48px), 820px) 38px',
+      gridTemplateColumns: 'minmax(16px, 1fr) 38px 22px auto 22px 38px minmax(16px, 1fr)',
+    });
+    expect(getGalleryImagePatch('carousel')).toMatchObject({
+      width: 'min(520px, calc(100% - 32px))',
+      height: 'auto',
+      aspectRatio: '13 / 18',
+    });
+    expect(getGalleryImagePatch('grid').aspectRatio).toBe('');
   });
 
   it('matches Story frame rhythm while preserving per-image overrides', () => {

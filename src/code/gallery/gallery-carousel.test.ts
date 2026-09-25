@@ -26,14 +26,15 @@ describe('Gallery runtime carousel', () => {
     expect(getGalleryItemPatch('carousel', 0)).toMatchObject({
       flex: '0 0 100%',
       width: '100%',
-      height: '874px',
-      gridTemplateRows: '820px 38px',
+      height: '',
+      gridTemplateRows: 'clamp(520px, calc(100vw - 48px), 820px) 38px',
       rowGap: '16px',
       scrollSnapAlign: 'center',
     });
     expect(getGalleryImagePatch('carousel')).toMatchObject({
-      width: '520px',
-      height: '720px',
+      width: 'min(520px, calc(100% - 32px))',
+      height: 'auto',
+      aspectRatio: '13 / 18',
       borderRadius: '12px',
       gridRow: '1',
       gridColumn: '1 / -1',
