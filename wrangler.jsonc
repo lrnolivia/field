@@ -15,5 +15,9 @@
       "bucket_name": "field-projects"
     }
   ],
-  "keep_vars": true
+  "keep_vars": true,
+  "vars": {
+    "FIELD_ACCESS_TEAM_DOMAIN": "https://loewfi.cloudflareaccess.com",
+    "FIELD_ACCESS_AUD": "feb0d2d67c868891ad464d966f1a5c41670a6e80a355dc02e61c979a0e5b6b39"
+  }
 }
