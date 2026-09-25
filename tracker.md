@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:08:07Z
+Last Updated: 2026-09-25T05:15:22Z
 
 ## Active Assignments
 
@@ -95,6 +95,10 @@ Owned:
   - src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx
   - src/editor/tools/TextStyleTool/atoms/StrokeControl.tsx
   - src/editor/figui3-inspector-parity.test.ts
+
+  - src/editor/figma-inspector-contract.test.ts
+
+  - src/editor/tools/SvgShapeTool.undo-remount.test.tsx
 
 Approved Shared:
   - none
@@ -216,6 +220,17 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **r3 repair:** resolve the module path with Node's `fileURLToPath(import.meta.url)` before taking `dirname`, preserving spaces and other URL-escaped filesystem characters. r3 also adds a package self-test executed from a temporary directory whose name contains spaces.
 - **Prevention rule:** Node ESM installers must never use `new URL(import.meta.url).pathname` as a filesystem path. Always convert file URLs with `fileURLToPath`, and validate self-contained packages from a path containing spaces before delivery.
 <!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r2-fileurl-space:END -->
+
+
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r3-stale-regression-expectations:START -->
+### FIELD-INSPECTOR-FIGUI3-002 r3 validation lesson
+
+- **r3 applied the intended 23-file Inspector postimage, then stopped safely at focused regression tests before any implementation commit.** The working tree contains only the exact assignment postimage; the tracker reservation and prior installer lessons remain authoritative.
+- **Root cause: two pre-existing regression expectations encoded the superseded UI contract.** `figma-inspector-contract.test.ts` still required the old generic `<PaddingControl />` even though this assignment intentionally replaces it with the dedicated Layout-owned Auto-layout padding control. `SvgShapeTool.undo-remount.test.tsx` still required `#FF0000`, while the FigUI3 inline paint grammar intentionally displays hex without the leading `#`.
+- **Repository/source impact:** no implementation commit was created. The 23 intended Inspector files remain as an exact resumable dirty postimage; only tracker-only coordination commits were pushed.
+- **r4 repair:** expand this assignment's owned regression-test surface to `src/editor/figma-inspector-contract.test.ts` and `src/editor/tools/SvgShapeTool.undo-remount.test.tsx`, update only those stale expectations, preserve the 23-file product postimage byte-for-byte, then rerun the full focused suite, TypeScript, and `build:all`.
+- **Prevention rule:** when an assignment intentionally changes a visible/source contract, package validation must audit the existing regression suite for expectations that describe the old contract and include those test updates in the ownership manifest before handoff.
+<!-- LESSON:FIELD-INSPECTOR-FIGUI3-002-r3-stale-regression-expectations:END -->
 
 ## Commit Ledger
 
