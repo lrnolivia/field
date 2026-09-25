@@ -81,6 +81,12 @@ async function handleGoogleFontsRequest(
 
   const auth = await accessVerifier(request, env);
   if (!auth?.ok) {
+    console.warn("field Access rejected request", {
+      path: new URL(request.url).pathname,
+      reason: auth?.reason ?? "unknown",
+      hasAccessJwt: request.headers.has("Cf-Access-Jwt-Assertion"),
+    });
+
     return jsonResponse({ error: "Forbidden" }, 403);
   }
 
