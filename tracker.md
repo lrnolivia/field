@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T05:37:17Z
+Last Updated: 2026-09-25T05:41:15Z
 
 ## Active Assignments
 
@@ -588,6 +588,24 @@ Paths:
   - src/editor/tools/layout-padding.ts
   - src/editor/ui/paint-opacity.test.ts
   - src/editor/ui/paint-opacity.ts
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T05:41:15Z — field-persistent-project-storage-20260925 — 66a33356fa1e
+
+Summary: R2-backed hosted project persistence with conditional writes, migration, Access validation, and remote-safe autosave
+Commit: 66a33356fa1ee1fdc02134cc7aa866e4d1ed62ba
+
+Paths:
+  - .env.example
+  - cloudflare/field-persistence.test.ts
+  - cloudflare/worker.js
+  - src/backend/autosave.ts
+  - src/backend/field-backend.test.ts
+  - src/backend/field-backend.ts
+  - src/backend/index.ts
+  - wrangler.jsonc
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
