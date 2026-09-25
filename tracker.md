@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:54:25Z
+Last Updated: 2026-09-25T08:59:21.560935Z
 
 ## Active Assignments
 
@@ -96,7 +96,9 @@ Phase B progress:
   - Phase B4 landed at 0949d044464953f2d5f5132de8ae15cee97090df: deletion-driven Group refit plus recursive empty-Group collapse across Delete and Layers reparent
   - Phase B5 landed at 1785dbb85b9fea391ce12f8f79ac55a84de775ca: reversible flow Group/Ungroup semantics, fail-safe flow grouping, and paste remapping for Group flow metadata
   - Phase B6 landed at a92b4d663bad901e304e0a43bbf6c17d3f780457: exact proportional Group resize with transformed descendants; non-uniform transformed resize remains gated for the future affine Scale model
-  - Dedicated Scale-tool behavior remains separate future work; non-uniform transformed Group resize remains gated until field has a real affine Scale/transform model
+  - Phase B7 landed at e4e36f3b050464fb84cc5e29cdcb97f227157984: Group semantic guards are enforced at the command boundary across shortcuts, palette, menu and future callers, with command-level acceptance regressions
+  - Phase B8 landed at 183ecea9ef30e280a3306f02e973f745e3c144f2: derived Group refit supports exact 2D affine child transforms (translate/scale/rotate/skew/matrix + transform-origin) and transform edits trigger refit
+  - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 
