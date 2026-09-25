@@ -1,6 +1,9 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
+const FIELD_FONTS_API_PATH = "/api/field/fonts";
+const GOOGLE_FONTS_UPSTREAM = "https://www.googleapis.com/webfonts/v1/webfonts";
+const GOOGLE_FONTS_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
 const MAX_META_BYTES = 64 * 1024;
 const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -63,6 +66,85 @@ function jsonResponse(body, status = 200, headers = {}) {
     status,
     headers: apiHeaders({ "Content-Type": "application/json; charset=utf-8", ...headers }),
   });
+}
+
+async function handleGoogleFontsRequest(
+  request,
+  env,
+  accessVerifier = verifyAccessRequest,
+  runtime = {},
+) {
+  const incoming = new URL(request.url);
+  if (incoming.pathname !== FIELD_FONTS_API_PATH) return null;
+
+  const auth = await accessVerifier(request, env);
+  if (!auth?.ok) {
+    return jsonResponse({ error: "Forbidden" }, 403);
+  }
+
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET" });
+  }
+
+  const apiKey = env.GOOGLE_FONTS_API_KEY;
+  if (typeof apiKey !== "string" || !apiKey.trim()) {
+    return jsonResponse({ error: "Google Fonts catalog is not configured" }, 503);
+  }
+
+  const fetchImpl = runtime.fetchImpl ?? fetch;
+  const cache = runtime.cache === undefined ? globalThis.caches?.default : runtime.cache;
+  const cacheKey = new Request(new URL(FIELD_FONTS_API_PATH, incoming.origin).toString(), {
+    method: "GET",
+  });
+
+  if (cache) {
+    try {
+      const cached = await cache.match(cacheKey);
+      if (cached) return cached;
+    } catch {
+      // Cache is an optimization. A cache failure must not make typography unusable.
+    }
+  }
+
+  const upstream = new URL(GOOGLE_FONTS_UPSTREAM);
+  upstream.searchParams.set("key", apiKey);
+  upstream.searchParams.set("sort", "popularity");
+  upstream.searchParams.set("capability", "FAMILY_TAGS");
+
+  try {
+    const response = await fetchImpl(upstream.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      return jsonResponse({ error: "Google Fonts catalog unavailable" }, 502);
+    }
+
+    const data = await response.json();
+    if (!data || typeof data !== "object" || !Array.isArray(data.items)) {
+      return jsonResponse({ error: "Google Fonts catalog unavailable" }, 502);
+    }
+
+    const catalogResponse = new Response(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": `public, max-age=0, s-maxage=${GOOGLE_FONTS_CACHE_TTL_SECONDS}`,
+      },
+    });
+
+    if (cache) {
+      try {
+        await cache.put(cacheKey, catalogResponse.clone());
+      } catch {
+        // Best-effort edge caching; a cache write failure is not an API failure.
+      }
+    }
+
+    return catalogResponse;
+  } catch {
+    return jsonResponse({ error: "Google Fonts catalog unavailable" }, 502);
+  }
 }
 
 function parseProjectRoute(pathname) {
@@ -304,6 +386,7 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
 }
 
 export {
+  handleGoogleFontsRequest,
   handleFieldPersistenceRequest,
   parseProjectRoute,
   verifyAccessRequest,
@@ -313,10 +396,13 @@ export default {
   async fetch(request, env) {
     const incoming = new URL(request.url);
 
-    // Project persistence is handled before static assets so API failures can
-    // never fall through to index.html. Authentication is re-validated here
-    // even when the custom hostname is already behind Cloudflare Access; that
-    // also closes an unprotected workers.dev bypass for reads/writes.
+    // field APIs are handled before static assets so API failures can never
+    // fall through to index.html. Authentication is re-validated even when the
+    // custom hostname is already behind Cloudflare Access; this also closes an
+    // unprotected workers.dev bypass.
+    const fontsResponse = await handleGoogleFontsRequest(request, env);
+    if (fontsResponse) return fontsResponse;
+
     const apiResponse = await handleFieldPersistenceRequest(request, env);
     if (apiResponse) return apiResponse;
 

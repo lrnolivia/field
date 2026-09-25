@@ -397,7 +397,7 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
               })}
             </div>
             <div className="mt-1 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] border-t border-[var(--border-light)]">
-              All fonts
+              Google Fonts
             </div>
           </div>
         )}
