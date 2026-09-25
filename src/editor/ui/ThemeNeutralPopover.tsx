@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
+// FIGUI3_POPUP_NEUTRAL_APPEARANCE_20260925
 import {
   DEFAULT_EDITOR_NEUTRAL_LEVEL,
   EDITOR_NEUTRAL_LEVELS,
@@ -57,7 +58,7 @@ export default function ThemeNeutralPopover({ mode, level, anchorRef, onSelect, 
     <div
       ref={panelRef}
       data-theme-neutral-popover=""
-      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[172px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-2 z-[10020]"
+      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[168px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-1.5 z-[10020]"
       role="radiogroup"
       aria-label="Editor neutral appearance"
     >
@@ -87,7 +88,7 @@ export default function ThemeNeutralPopover({ mode, level, anchorRef, onSelect, 
                       moveFocus(index, event.key);
                     }
                   }}
-                  className={`relative h-7 rounded-[5px] border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)] ${checked ? 'border-[var(--selection)]' : 'border-[var(--border-default)] hover:border-[var(--text-tertiary)]'}`}
+                  className={`relative h-7 rounded-[5px] border border-transparent transition-[box-shadow] focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)] ${checked ? 'shadow-[inset_0_0_0_1px_var(--selection)]' : 'hover:shadow-[inset_0_0_0_1px_var(--text-tertiary)]'}`}
                   style={{ background: EDITOR_NEUTRAL_SWATCHES[themeMode][neutralLevel] }}
                 >
                   {checked && (
@@ -107,7 +108,7 @@ export default function ThemeNeutralPopover({ mode, level, anchorRef, onSelect, 
           </div>
         ))}
       </div>
-      <div className="pt-1.5 text-[9px] leading-none text-center text-[var(--text-tertiary)]">
+      <div className="pt-1 text-[9px] leading-none text-center text-[var(--text-tertiary)]">
         Middle tone is Default
       </div>
     </div>

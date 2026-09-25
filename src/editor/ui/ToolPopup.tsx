@@ -1,4 +1,5 @@
 // ToolPopup.tsx — Floating popup with sliding panel navigation.
+// FIGUI3_POPUP_TOOL_SHELL_20260925
 // Supports nested views: click a sub-control → slides right to new panel.
 // Back arrow ← slides left to previous panel. Like the reference's Effect popup.
 // Portal to body, close on Escape or outside click.
@@ -413,7 +414,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
         ref={popupRef}
         data-tool-popup=""
         data-field-no-canvas-input
-        className="fixed bg-[var(--bg-surface)] border border-[var(--border-light)] [--cut-border-color:var(--border-light)] cut-corners cut-lg cut-border shadow-2xl flex flex-col overflow-hidden"
+        className="fixed rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] flex flex-col overflow-hidden"
         // initial ensures the very first paint is invisible — prevents the
         // one-frame flash at left:0/top:0 before recalcPosition runs.
         // initial: first paint is invisible — prevents the one-frame flash at
@@ -422,10 +423,8 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
         // zIndex: 100001 normally; 100020 when triggered from inside a modal (the modal root is
         // 100010) so the popup — e.g. the Border / Shadow / Color editor in the variable modal's
         // default-value section — renders OVER the modal instead of buried behind it. See `inModal`.
-        // --cut-border-color pinned to border-light: the popup's rect border
-        // is border-light, not the control-border the .cut-border fallback
-        // assumes.
-        style={{ width, zIndex, '--cut-border-color': 'var(--border-light)' } as React.CSSProperties}
+        // One quiet perimeter + shared true-float shadow; geometry stays UI3-rounded.
+        style={{ width, zIndex }}
         // Entrance: fade + subtle scale + slide from the anchor side.
         // left/top always snap instantly; animateTop enables spring for top only.
         animate={positioned ? {

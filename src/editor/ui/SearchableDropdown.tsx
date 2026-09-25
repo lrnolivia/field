@@ -1,4 +1,5 @@
 // SearchableDropdown.tsx — generic type-to-filter combobox.
+// FIGUI3_POPUP_SEARCHABLE_20260925
 //
 // The shared skeleton behind PageSelector (Layers panel) and
 // CollectionSelector (CMS editor): a trigger button showing the current
@@ -234,7 +235,7 @@ export default function SearchableDropdown<T>({
         data-testid="searchable-dropdown-submenu"
         data-field-no-canvas-input
         style={{ position: 'fixed', left, top, width: SUBMENU_WIDTH }}
-        className="z-[99999] bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-[var(--shadow-lg)] py-1"
+        className="z-[99999] rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] py-1"
         onWheelCapture={(event) => event.stopPropagation()}
       >
         {menu.title && (
@@ -248,7 +249,7 @@ export default function SearchableDropdown<T>({
               type="button"
               onClick={() => { menu.onPick(o.key); setOpen(false); setQuery(''); }}
               className={`mx-1 my-0.5 flex items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs transition-colors ${
-                on ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'text-[var(--text-primary)] hover:bg-white/[0.06]'
+                on ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
               style={{ width: 'calc(100% - 0.5rem)' }}
             >
@@ -268,7 +269,7 @@ export default function SearchableDropdown<T>({
           ref={panelRef}
           data-field-no-canvas-input
           style={style ?? undefined}
-          className={`${style ? 'z-[99999]' : `absolute ${panelClassName} z-[100]`} bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-[var(--shadow-lg)] overflow-hidden`}
+          className={`${style ? 'z-[99999]' : `absolute ${panelClassName} z-[100]`} rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] overflow-hidden`}
         >
           <div className="p-1.5">
             <input
@@ -313,7 +314,7 @@ export default function SearchableDropdown<T>({
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 mx-1 my-0.5 text-xs rounded text-left transition-colors ${
                       isActive
                         ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
-                        : 'text-[var(--text-primary)] hover:bg-white/[0.06] data-[submenu-open]:bg-white/[0.06]'
+                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] data-[submenu-open]:bg-[var(--bg-hover)]'
                     }`}
                     style={{ width: 'calc(100% - 0.5rem)' }}
                   >
