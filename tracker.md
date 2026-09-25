@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:37:39Z
+Last Updated: 2026-09-25T04:41:04.661Z
 
 ## Active Assignments
 
@@ -67,6 +67,7 @@ Owned:
   - src/styles/loew-theme.css
   - src/editor/page-menu-commands.ts
   - src/editor/page-menu-commands.test.ts
+  - src/design-system/DropdownMenu.tsx
 
 Approved Shared:
   - tracker.md
@@ -90,6 +91,9 @@ Protected:
 Notes:
   - Collapsible Workspace may land after this reservation. If it changes none of the owned paths, this installer integrates it and proceeds. If it changes an owned path, the installer stops with INTEGRATION OVERLAP DETECTED.
   - `Group Selection` is intentionally disabled for non-SVG selections in this pass. Existing Revyme SVG grouping remains real and is relabeled `Group SVGs` / `Ungroup SVGs`. Native field Group/Ungroup is not faked with Frame.
+
+Notes:
+  - Title-menu final polish: project menu anchors from title end/chevron and uses opt-in compact dropdown density.
 <!-- ASSIGNMENT:context-components-command-surface-20260925:END -->
 
 
