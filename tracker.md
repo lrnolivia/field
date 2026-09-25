@@ -6,14 +6,43 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T03:47:15Z
+Last Updated: 2026-09-25T04:00:34Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
+<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:START -->
+### canvas-camera-fast-path-20260924 — Remove stop-motion canvas camera updates
 
+Status: active
+Baseline: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Activation HEAD: 42502f7db62980401bd4a2ccfdd981ba62f7f565
+Last Sync: 2026-09-25T04:00:34Z
+
+Owned:
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/bridge-host-camera.test.ts
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/canvas/transform/**
+  - src/canvas/mouse/**
+  - src/canvas/selection/**
+  - src/canvas/drag/**
+  - src/code/**
+  - src/editor/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:canvas-camera-fast-path-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
