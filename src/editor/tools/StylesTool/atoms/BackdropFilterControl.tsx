@@ -14,7 +14,7 @@ import type { AtomProps } from '../../../controls/unified/types';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
 import { trace } from '@/shared/debug-trace';
 
-function BackdropFilterAtom() {
+function BackdropFilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, onChangeMultiple, onChangeLive } = useControlContext();
   const committedNum = parseBackdropBlur(value);
   // Live drag value: while the slider is being dragged the committed code value
@@ -32,6 +32,17 @@ function BackdropFilterAtom() {
     onChangeMultiple({ backdropFilter: v, WebkitBackdropFilter: v });
   };
 
+  if (compactSection) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_68px] gap-1 items-center w-full">
+        <div className="h-[var(--control-height)] px-2 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-xs text-[var(--text-primary)]">
+          Background blur
+        </div>
+        <ToolInput value={String(displayNum)} onChange={(v) => commit(parseFloat(v) || 0)} step={0.5} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2 w-full">
       <ToolSlider value={displayNum} min={0} max={30} step={0.5}
@@ -45,12 +56,16 @@ function BackdropFilterAtom() {
   );
 }
 
-export function BackdropFilterControl({ mode = 'direct', ...modeProps }: AtomProps) {
+export function BackdropFilterControl({ mode = 'direct', compactSection = false, ...modeProps }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="backdropFilter" defaultValue="" mode={mode} {...modeProps}>
-      <ControlRow label="Backdrop">
-        <BackdropFilterAtom />
-      </ControlRow>
+      {compactSection ? (
+        <BackdropFilterAtom compactSection />
+      ) : (
+        <ControlRow label="Backdrop">
+          <BackdropFilterAtom />
+        </ControlRow>
+      )}
     </UnifiedControlProvider>
   );
 }

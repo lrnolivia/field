@@ -1211,7 +1211,7 @@ function FillPopupContent({ styles, onUpdate, onChangeMultiple, nodeId: nodeIdPr
 
 // ─── Fill Atom (inner component) ─────────────────────────────────────────────
 
-function FillAtom() {
+function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { node, onChangeMultiple, binding, mode, allProps, hasVariable } = useControlContext();
   const legacyCtl = useControlOptional();
   const fillCmsPageMeta = useAtomValue(cmsPageMetaAtom);
@@ -1495,6 +1495,10 @@ function FillAtom() {
   const hasSolidColor = !!bgColor && !isTransparentColor(bgColor);
   const hasAnyFill = livePreviewColor != null || isMulti || isPresetRef || hasGradient || hasImage || hasVideo || hasSolidColor;
 
+  // Empty Fill is represented by the section header + button, not a second
+  // nested "Fill → Add" row.
+  if (compactSection && !hasAnyFill) return null;
+
   // Click-handler for the × on the Fill row — wipes EVERY background-related
   // value (color, gradient, image, multi-layer extras, AND the bg-video
   // child) so the row collapses back to its empty / "Add" state regardless
@@ -1580,13 +1584,15 @@ function FillAtom() {
   return (
     <>
       <div className="flex items-center justify-between w-full">
-        <ControlLabel
-          label="Fill"
-          property="backgroundColor"
-          hideCreateVariable
-          extraMenuItems={fillExtraMenuItems}
-        />
-        <span ref={btnRef} className="contents">
+        {!compactSection && (
+          <ControlLabel
+            label="Fill"
+            property="backgroundColor"
+            hideCreateVariable
+            extraMenuItems={fillExtraMenuItems}
+          />
+        )}
+        <span ref={btnRef} className={compactSection ? "flex-1 min-w-0" : "contents"}>
         {isPresetRef ? (
           <button
             className="w-full h-8 flex items-center justify-between px-2 bg-[var(--accent)] cut-corners text-xs font-medium text-[var(--accent-fg)] cursor-pointer transition-colors hover:opacity-90 truncate"
@@ -1642,10 +1648,10 @@ function FillAtom() {
 
 // ─── Exported ToolAtom ──────────────────────────────────────────────────────
 
-export function FillControl({ mode = 'direct', ...mp }: AtomProps) {
+export function FillControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="backgroundColor" defaultValue="" mode={mode} {...mp}>
-      <FillAtom />
+      <FillAtom compactSection={compactSection} />
     </UnifiedControlProvider>
   );
 }

@@ -22,6 +22,7 @@ import { trace } from '@/shared/debug-trace';
 interface ShadowControlProps {
   value?: string;
   onChange?: (value: string) => void;
+  compactSection?: boolean;
 }
 
 // ─── Per-entry editor panel (X / Y / Blur / Color for one layer) ─────────────
@@ -92,10 +93,11 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
 
 // ─── Shared list (EntryList + add/edit/remove) ───────────────────────────────
 
-function TextShadowList({ value, onCommit, plain }: {
+function TextShadowList({ value, onCommit, plain, compactSection = false }: {
   value: string;
   onCommit: (value: string) => void;
   plain?: boolean;
+  compactSection?: boolean;
 }) {
   const popupCtx = useToolPopupOptional();
   const rowRef = useRef<HTMLDivElement>(null);
@@ -104,7 +106,9 @@ function TextShadowList({ value, onCommit, plain }: {
 
   const entries = parseTextShadowEntries(value);
 
-  trace.fn('TextShadowList:render', { count: entries.length, isOpen, plain });
+  trace.fn('TextShadowList:render', { count: entries.length, isOpen, plain, compactSection });
+
+  if (compactSection && entries.length === 0) return null;
 
   const openEditor = (idx: number, freshValue?: string) => {
     setActiveIdx(idx);
@@ -143,6 +147,8 @@ function TextShadowList({ value, onCommit, plain }: {
         EmptyIcon={ShadowIcon}
         nonInteractive={plain}
         plainLabel={plain}
+        suppressLabel={compactSection}
+        hideAddRow={compactSection}
       />
       {!popupCtx && (
         <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef}>
@@ -157,16 +163,16 @@ function TextShadowList({ value, onCommit, plain }: {
 
 // ─── Inner component for text editing context ────────────────────────────────
 
-function ShadowInner() {
+function ShadowInner({ compactSection = false }: { compactSection?: boolean }) {
   const { styles, updateStyle } = useControl();
   const shadow = styles.textShadow || 'none';
   const handleCommit = useCallback((v: string) => updateStyle('textShadow', v), [updateStyle]);
-  return <TextShadowList value={shadow} onCommit={handleCommit} />;
+  return <TextShadowList value={shadow} onCommit={handleCommit} compactSection={compactSection} />;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-export function ShadowControl({ value, onChange }: ShadowControlProps = {}) {
+export function ShadowControl({ value, onChange, compactSection = false }: ShadowControlProps = {}) {
   const [localShadow, setLocalShadow] = useState(value || 'none');
 
   if (value !== undefined && onChange !== undefined) {
@@ -174,7 +180,7 @@ export function ShadowControl({ value, onChange }: ShadowControlProps = {}) {
       setLocalShadow(v);
       onChange(v);
     };
-    return <TextShadowList value={localShadow} onCommit={handleCommit} plain />;
+    return <TextShadowList value={localShadow} onCommit={handleCommit} plain compactSection={compactSection} />;
   }
-  return <ShadowInner />;
+  return <ShadowInner compactSection={compactSection} />;
 }

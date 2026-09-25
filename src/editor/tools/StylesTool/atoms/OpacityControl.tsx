@@ -7,7 +7,7 @@ import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../
 import { LocalePillOr } from '@/editor/controls/LocaleBoundPill';
 import type { AtomProps } from '../../../controls/unified/types';
 
-function OpacityAtom() {
+function OpacityAtom({ compact = false }: { compact?: boolean }) {
   const { value, onChange, onChangeLive } = useControlContext();
   // `value` only updates on COMMIT (it's the parsed source value). During a
   // slider drag `onChangeLive` patches the canvas DOM but never writes code, so
@@ -19,6 +19,25 @@ function OpacityAtom() {
 
   const display = livePreview ?? value ?? '1';
   const num = parseFloat(display) || 0;
+
+  if (compact) {
+    return (
+      <div data-appearance-opacity className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-hidden">
+        <span className="w-6 shrink-0 text-center text-[10px] text-[var(--text-secondary)]">◩</span>
+        <ToolInput
+          value={String(Math.round(num * 100))}
+          onChange={(v) => {
+            setLivePreview(null);
+            const pct = Math.max(0, Math.min(100, parseFloat(v) || 0));
+            onChange(String(pct / 100));
+          }}
+          step={1}
+          className="border-0"
+        />
+        <span className="pr-1.5 text-[10px] text-[var(--text-secondary)]">%</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 w-full">
@@ -32,12 +51,16 @@ function OpacityAtom() {
   );
 }
 
-export function OpacityControl({ mode = 'direct', ...modeProps }: AtomProps) {
+export function OpacityControl({ mode = 'direct', compact = false, ...modeProps }: AtomProps & { compact?: boolean }) {
   return (
     <UnifiedControlProvider property="opacity" defaultValue="1" mode={mode} {...modeProps}>
-      <ControlRow label="Opacity">
-        <LocalePillOr property="opacity" label="Opacity"><OpacityAtom /></LocalePillOr>
-      </ControlRow>
+      {compact ? (
+        <LocalePillOr property="opacity" label="Opacity"><OpacityAtom compact /></LocalePillOr>
+      ) : (
+        <ControlRow label="Opacity">
+          <LocalePillOr property="opacity" label="Opacity"><OpacityAtom /></LocalePillOr>
+        </ControlRow>
+      )}
     </UnifiedControlProvider>
   );
 }

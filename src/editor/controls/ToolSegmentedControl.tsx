@@ -57,7 +57,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
 
 
 
-  const py = size === 'compact' ? 'py-1' : size === 'sm' ? 'py-1.5' : 'py-2';
+  const py = size === 'compact' ? 'py-0.5' : size === 'sm' ? 'py-1' : 'py-1.5';
   const px = size === 'compact' ? 'px-1' : 'px-3';
 
   return (

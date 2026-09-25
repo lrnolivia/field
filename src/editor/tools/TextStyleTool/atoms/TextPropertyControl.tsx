@@ -480,22 +480,34 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
     };
 
     if (compact) {
+      const compactFontSize = isMixed
+        ? ''
+        : isFitMode
+          ? String(fitScalePct)
+          : isClamp
+            ? 'Clamp'
+            : currentUnit === 'px'
+              ? String(numValue)
+              : `${numValue}${currentUnit}`;
       return (
-        <div className="grid grid-cols-[minmax(0,1fr)_60px] gap-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)]">
-          <ToolInput
-            value={isMixed ? '' : isFitMode ? String(fitScalePct) : isClamp ? '' : String(numValue)}
-            onChange={(v) => {
-              if (isFitMode && fitTextNode) commitFitScale(v);
-              else if (currentUnit !== 'clamp') setValue(`${parseFloat(v) || 0}${currentUnit}`);
-            }}
-            onChangeLive={isFitMode && fitTextNode ? liveFitScale : undefined}
-            onCommit={isFitMode && fitTextNode ? commitFitScale : undefined}
-            step={registryDef.step ?? 1}
-            disabled={currentUnit === 'clamp'}
-            className="border-0"
-          />
-          <ToolSelect value={currentUnit} onChange={handleUnitChange} options={FONT_SIZE_UNITS} />
-        </div>
+        <ToolInput
+          value={compactFontSize}
+          text
+          onChange={(v) => {
+            if (isFitMode && fitTextNode) {
+              commitFitScale(v);
+              return;
+            }
+            if (currentUnit === 'clamp') return;
+            const typed = v.trim();
+            if (/^-?[\d.]+$/.test(typed)) setValue(`${parseFloat(typed) || 0}${currentUnit}`);
+            else setValue(typed);
+          }}
+          onChangeLive={isFitMode && fitTextNode ? liveFitScale : undefined}
+          onCommit={isFitMode && fitTextNode ? commitFitScale : undefined}
+          step={registryDef.step ?? 1}
+          disabled={currentUnit === 'clamp'}
+        />
       );
     }
 
@@ -560,9 +572,23 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
     const numValue = parseFloat(value) || 0;
     const unit = value.replace(/^-?[\d.]+/, '') || (property === 'lineHeight' ? '' : 'px');
     if (compact) {
-      const compactValue = property === 'lineHeight' && (!value || value === 'normal')
-        ? 'Auto'
-        : (isMixed ? '' : value || String(numValue));
+      const compactValue = isMixed
+        ? ''
+        : property === 'lineHeight'
+          ? ((!value || value === 'normal')
+              ? 'Auto'
+              : /^-?[\d.]+$/.test(value)
+                ? `${Math.round((parseFloat(value) || 0) * 100)}%`
+                : /^-?[\d.]+px$/.test(value)
+                  ? value.replace(/px$/, '')
+                  : value)
+          : property === 'letterSpacing'
+            ? ((!value || value === '0' || value === '0px')
+                ? '0%'
+                : /^-?[\d.]+em$/.test(value)
+                  ? `${Math.round((parseFloat(value) || 0) * 100)}%`
+                  : value)
+            : (value || String(numValue));
       return (
         <ToolInput
           value={compactValue}
@@ -571,6 +597,14 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
             const typed = v.trim();
             if (property === 'lineHeight' && typed.toLowerCase() === 'auto') {
               setValue('normal');
+              return;
+            }
+            if (property === 'lineHeight' && /^-?[\d.]+%$/.test(typed)) {
+              setValue(typed);
+              return;
+            }
+            if (property === 'letterSpacing' && /^-?[\d.]+%$/.test(typed)) {
+              setValue(`${(parseFloat(typed) || 0) / 100}em`);
               return;
             }
             const preservedUnit = /^-?[\d.]+/.test(value)

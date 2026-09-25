@@ -66,7 +66,7 @@ export default function TextStyleTool() {
           )}
 
           <div data-typography-alignment-row className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
-            <AlignControl compact />
+            <AlignControl compact primary />
             <AdjustControl compact />
             <TypographyAdvancedPopover />
           </div>
@@ -85,7 +85,7 @@ export default function TextStyleTool() {
             />
           }
         >
-          <CreateVariableGate hidden={false}><TextColorControl /></CreateVariableGate>
+          <CreateVariableGate hidden={false}><TextColorControl compactSection /></CreateVariableGate>
         </ToolSection>
         <ToolDivider />
 
@@ -102,7 +102,7 @@ export default function TextStyleTool() {
             />
           }
         >
-          <StrokeControl />
+          <StrokeControl compactSection />
         </ToolSection>
         <ToolDivider />
 
@@ -118,7 +118,7 @@ export default function TextStyleTool() {
             />
           }
         >
-          <ShadowControl />
+          <ShadowControl compactSection />
         </ToolSection>
         <ToolDivider />
       </CreateVariableGate>

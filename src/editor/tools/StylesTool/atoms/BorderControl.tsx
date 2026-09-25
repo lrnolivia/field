@@ -487,7 +487,7 @@ function BorderEditorPanel({ styles: s, nodeId, onChangeMultiple, onChangeMultip
   );
 }
 
-function BorderAtom() {
+function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, node, onChange, onChangeMultiple, onChangeMultipleLive, binding, mode, nodeId: ctxNodeId, allProps, hasVariable } = useControlContext();
   const { openPanel, panelPopup } = useEditorPanel('Border', () => (
     /* controlMode MUST be forwarded — the panel's `isScrollMode` flag
@@ -758,14 +758,19 @@ function BorderAtom() {
       <BorderPresetPillRow
         group={activeGroup}
         onClear={() => onChangeMultiple(buildBorderClearStyles())}
+        hideLabel={compactSection}
       />
     );
   }
+
+  // Empty Stroke is header-only in the canonical property stack.
+  if (compactSection && !hasAnyBorder) return null;
 
   return (
     <>
       <SingleEntryRow
         label={ovLabel} property="border" plain={labelPlain} subLabel={ovSubLabel}
+        hideLabel={compactSection}
         hasValue={hasAnyBorder}
         onOpen={() => {
           if (!hasAnyBorder) {
@@ -830,9 +835,10 @@ function BorderAtom() {
  * updates fan out to every consumer). × → unlinks the preset from this node
  * only (caller's onClear, which clears all longhands).
  */
-function BorderPresetPillRow({ group, onClear }: {
+function BorderPresetPillRow({ group, onClear, hideLabel = false }: {
   group: ReturnType<typeof groupBorderTokens>[number];
   onClear: () => void;
+  hideLabel?: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -857,7 +863,7 @@ function BorderPresetPillRow({ group, onClear }: {
   return (
     <>
       <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Border" property="border" />
+        {!hideLabel && <ControlLabel label="Border" property="border" />}
         <button
           ref={anchorRef}
           className="w-full h-8 flex items-center gap-2 px-2 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
@@ -891,10 +897,10 @@ function BorderPresetPillRow({ group, onClear }: {
   );
 }
 
-export function BorderControl({ mode = 'direct', ...mp }: AtomProps) {
+export function BorderControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="border" defaultValue="" mode={mode} {...mp}>
-      <BorderAtom />
+      <BorderAtom compactSection={compactSection} />
     </UnifiedControlProvider>
   );
 }

@@ -148,7 +148,7 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
 
 // ─── Atom ────────────────────────────────────────────────────────────────────
 
-function FilterAtom() {
+function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, onChange, onChangeLive, node, binding, mode, allProps, hasVariable } = useControlContext();
   const { openPanel, panelPopup } = useEditorPanel('Filter', () => (
     <FilterEditorPanel initialValue={value || ''} rawFilter={allProps.filter || ''} onChangeLive={onChangeLive} onCommit={onChange} />
@@ -192,13 +192,15 @@ function FilterAtom() {
     <>
       <SingleEntryRow
         label={ovLabel} property="filter" plain={labelPlain} subLabel={ovSubLabel}
+        hideLabel={compactSection}
         hasValue={hasFilter}
         onOpen={openEditor}
         anchorRef={btnRef}
         EmptyIcon={FilterIcon}
         renderPreview={() => {
           const fns = (nonShadowFilter || '').match(/\w+\(/g) || [];
-          const label = fns.length === 1 ? fns[0].replace('(', '').replace(/^\w/, c => c.toUpperCase()) : 'Mixed';
+          const fn = fns.length === 1 ? fns[0].replace('(', '') : '';
+          const label = fn === 'blur' ? 'Layer blur' : fns.length === 1 ? fn.replace(/^\w/, c => c.toUpperCase()) : 'Mixed';
           return <span className="truncate flex-1">{label}</span>;
         }}
         onRemove={() => {
@@ -211,10 +213,10 @@ function FilterAtom() {
   );
 }
 
-export function FilterControl({ mode = 'direct', ...mp }: AtomProps) {
+export function FilterControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="filter" defaultValue="" mode={mode} {...mp}>
-      <FilterAtom />
+      <FilterAtom compactSection={compactSection} />
     </UnifiedControlProvider>
   );
 }

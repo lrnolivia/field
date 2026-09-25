@@ -61,6 +61,10 @@ interface EntryListProps<T extends { id: string }> {
    *  row always shows so an empty list can still grow. Used by MaskControl to put
    *  the Preset select on the "Mask" header row. */
   headerAccessory?: React.ReactNode;
+  /** Section-level property stacks already name the property. */
+  suppressLabel?: boolean;
+  /** The section header + button owns adding more entries. */
+  hideAddRow?: boolean;
 }
 
 export function EntryList<T extends { id: string }>({
@@ -83,6 +87,8 @@ export function EntryList<T extends { id: string }>({
   rowClassName,
   addLabel,
   headerAccessory,
+  suppressLabel = false,
+  hideAddRow = false,
 }: EntryListProps<T>) {
   trace.fn('EntryList:render', { label, entryCount: entries.length, singleOnly, nonInteractive });
 
@@ -93,7 +99,7 @@ export function EntryList<T extends { id: string }>({
   // Variable modal's Default row hides the label (ControlLabel returns null). The first-row label and
   // the additional-row / Add-row SPACER spans must vanish together, else the extra rows stay indented
   // by the spacer while the first row's control sits flush-left — visible misalignment.
-  const hideLabel = useControlContextOptional()?.hideLabel ?? false;
+  const hideLabel = suppressLabel || (useControlContextOptional()?.hideLabel ?? false);
 
   // When a header accessory is present it OWNS the header value slot, so the
   // first entry no longer shares the label row — every entry renders below.
@@ -106,7 +112,7 @@ export function EntryList<T extends { id: string }>({
     <>
       {/* First entry, Add button, or header accessory — same row as label. Ref is always attached for popup anchoring. */}
       <div ref={addButtonRef as React.RefObject<HTMLDivElement>} className="flex items-center justify-between w-full">
-        <ControlLabel label={ovLabel} property={property} plain={nonInteractive || plainLabel} subLabel={ovSubLabel} overridden={overridden} onResetOverride={onResetOverride} />
+        {!hideLabel && <ControlLabel label={ovLabel} property={property} plain={nonInteractive || plainLabel} subLabel={ovSubLabel} overridden={overridden} onResetOverride={onResetOverride} />}
         {hasAccessory ? (
           headerAccessory
         ) : entries.length > 0 ? (
@@ -159,7 +165,7 @@ export function EntryList<T extends { id: string }>({
 
       {/* Add more button — when there's already an entry, or a header accessory
           owns the header row (so an empty accessory list can still grow). */}
-      {!singleOnly && (entries.length > 0 || hasAccessory) && (
+      {!singleOnly && !hideAddRow && (entries.length > 0 || hasAccessory) && (
         <div className="flex items-center justify-between w-full">
           {!hideLabel && (
             <span className="w-3/4 text-xs font-bold select-none pl-[18px] -ml-[18px] invisible" aria-hidden>

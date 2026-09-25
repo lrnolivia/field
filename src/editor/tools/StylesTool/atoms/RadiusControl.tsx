@@ -2,10 +2,10 @@
 // Includes "Radius Editor" for fancy 8-value visual editing via canvas overlay.
 // When fancy shape active: shows single row with swatch + "Edit" + × (same style as Shadow).
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import LocaleBoundPill, { useLocaleStyleOverrides } from '@/editor/controls/LocaleBoundPill';
 import { useSetAtom, useAtomValue } from 'jotai';
-import { SpacingControl, ControlActionRow, RemoveButton, ColorSwatch } from '../../../controls';
+import { SpacingControl, ControlActionRow, RemoveButton, ColorSwatch, ToolInput } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import { parseShorthand } from '@/shared/css-utils';
 import { parseFancyRadius, formatFancyRadius, isFancyRadius } from '@/shared/border-radius-utils';
@@ -23,7 +23,7 @@ const RADIUS_KEYS_TO_CLEAR = {
   borderBottomLeftRadius: '',
 };
 
-function RadiusAtom() {
+function RadiusAtom({ compact = false }: { compact?: boolean }) {
   const { value, onChange, onChangeMultiple, onChangeLive, node, mode, allProps } = useControlContext();
   const styles = allProps;
   const setActiveFancyRadius = useSetAtom(activeFancyRadiusAtom);
@@ -44,6 +44,9 @@ function RadiusAtom() {
 
   const isFancy = isFancyRadius(value);
   const isEditorActive = !!activeFancyRadius;
+  const [expanded, setExpanded] = useState(false);
+  const sameCorner = corners.every(c => c === corners[0]);
+  const compactValue = sameCorner ? (corners[0] || '0').replace(/px$/, '') : 'Mixed';
 
   // Clear overlay when component unmounts (selection changed, node deselected)
   useEffect(() => {
@@ -151,6 +154,62 @@ function RadiusAtom() {
     );
   }
 
+  // Figma primary surface: one all-corners value. Individual corners
+  // disclose only when needed; the expensive on-canvas editor stays out of
+  // the primary inspector surface.
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-1 w-full">
+        <div data-appearance-radius className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-hidden">
+          <span className="w-6 shrink-0 text-center text-[10px] text-[var(--text-secondary)]">⌜</span>
+          <ToolInput
+            value={compactValue}
+            text
+            onChange={(v) => {
+              if (v.trim().toLowerCase() === 'mixed') return;
+              const raw = v.trim();
+              const css = /^-?[\d.]+$/.test(raw) ? `${raw}px` : raw;
+              onChangeMultiple({
+                borderRadius: css,
+                borderTopLeftRadius: '', borderTopRightRadius: '',
+                borderBottomRightRadius: '', borderBottomLeftRadius: '',
+              });
+            }}
+            className="border-0"
+          />
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            className="h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            title={expanded ? 'Hide individual corners' : 'Show individual corners'}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M2 5h3V2M10 7H7v3" />
+            </svg>
+          </button>
+        </div>
+        {expanded && (
+          <SpacingControl
+            values={corners}
+            labels={['TL', 'TR', 'BR', 'BL']}
+            onChange={(index, val) => {
+              const c = [...corners]; c[index] = val;
+              onChangeMultiple({
+                borderRadius: '', borderTopLeftRadius: c[0], borderTopRightRadius: c[1],
+                borderBottomRightRadius: c[2], borderBottomLeftRadius: c[3],
+              });
+            }}
+            onChangeAll={(val) => onChangeMultiple({
+              borderRadius: val, borderTopLeftRadius: '', borderTopRightRadius: '',
+              borderBottomRightRadius: '', borderBottomLeftRadius: '',
+            })}
+            onChangeAllLive={(val) => onChangeLive(val)}
+          />
+        )}
+      </div>
+    );
+  }
+
   // Normal mode: 4-corner inputs + Editor button
   return (
     <div className="flex flex-col gap-2 w-full">
@@ -197,10 +256,10 @@ function RadiusAtom() {
   );
 }
 
-export function RadiusControl({ mode = 'direct', ...mp }: AtomProps) {
+export function RadiusControl({ mode = 'direct', compact = false, ...mp }: AtomProps & { compact?: boolean }) {
   return (
     <UnifiedControlProvider property="borderRadius" defaultValue="" mode={mode} {...mp}>
-      <ControlRow label="Radius"><RadiusAtom /></ControlRow>
+      {compact ? <RadiusAtom compact /> : <ControlRow label="Radius"><RadiusAtom /></ControlRow>}
     </UnifiedControlProvider>
   );
 }

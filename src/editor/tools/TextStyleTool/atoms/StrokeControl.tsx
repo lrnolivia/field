@@ -11,7 +11,7 @@ import { useControl } from '../../../controls/ControlProvider';
 import ToolPopup from '../../../ui/ToolPopup';
 import { trace } from '@/shared/debug-trace';
 
-export function StrokeControl() {
+export function StrokeControl({ compactSection = false }: { compactSection?: boolean } = {}) {
   const text = useTextStyles();
   const rowRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -40,10 +40,12 @@ export function StrokeControl() {
 
   trace.fn('StrokeControl:render', { strokeVal, strokeWidth, strokeColor, isEditing: text.isEditing, isOpen });
 
+  if (compactSection && strokeWidth <= 0) return null;
+
   return (
     <>
       <div ref={rowRef} className="flex items-center justify-between w-full">
-        <ControlLabel label="Stroke" property="WebkitTextStroke" />
+        {!compactSection && <ControlLabel label="Stroke" property="WebkitTextStroke" />}
         <ControlActionRow onClick={() => setIsOpen(true)}>
           {strokeWidth > 0 ? (
             <>

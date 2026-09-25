@@ -1412,10 +1412,8 @@ export default function LayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple,
 
   return (
     <>
-      <ToolSection title="Auto layout" collapsible hasContent={hasLayout} action={toggleAction}>
-        {!hasLayout && (
-          <span className="text-[11px] text-[var(--text-disabled)]">Click + to add layout</span>
-        )}
+      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || !!sizeContent} action={toggleAction}>
+        {!hasLayout && sizeContent}
         {hasLayout && (
           <div className="flex flex-col gap-2">
             <InspectorIconButtonGroup

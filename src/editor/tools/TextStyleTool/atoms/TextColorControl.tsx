@@ -301,7 +301,7 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
   );
 }
 
-export function TextColorControl() {
+export function TextColorControl({ compactSection = false }: { compactSection?: boolean } = {}) {
   const text = useTextStyles();
   const { styles, updateStyle, updateStyleLive, updateMultipleStyles, node, getValueSource, removeVariable, cmsBinding, isReplica } = useControl();
   const isComponentVariantVp = useAtomValue(isComponentVariantViewportAtom);
@@ -641,7 +641,7 @@ export function TextColorControl() {
   return (
     <>
       <div ref={rowRef} className="flex items-center justify-between w-full">
-        <ControlLabel label="Color" property="color" />
+        {!compactSection && <ControlLabel label="Color" property="color" />}
         {activePresetToken ? (
           <button
             onClick={handleClick}

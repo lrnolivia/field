@@ -15,7 +15,7 @@ export function ColorSwatch({ style, size = 'sm', className, children }: {
   // Cut tier follows the size so the slice stays proportional: 4px of a 20px
   // chip and 6px of a 28px one are both ~20% of the edge. One tier for both
   // would read as a heavier corner on the small swatch than on the large.
-  const sizeClass = size === 'md' ? 'w-7 h-7 cut-corners' : 'w-5 h-5 cut-corners cut-sm';
+  const sizeClass = size === 'md' ? 'w-6 h-6 cut-corners' : 'w-4 h-4 cut-corners cut-sm';
   return (
     <span
       // Shell: the clip + the straight 1px rect border. The pin is a literal

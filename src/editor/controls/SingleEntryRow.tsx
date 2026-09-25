@@ -36,6 +36,8 @@ interface SingleEntryRowProps {
   EmptyIcon: React.FC<React.SVGProps<SVGSVGElement> & { bg?: string; iconColor?: string }>;
   /** Popup anchor — wraps the action row in a display-contents span. */
   anchorRef?: React.RefObject<HTMLElement | null>;
+  /** Section header already owns the property name in compact inspector stacks. */
+  hideLabel?: boolean;
 }
 
 export function SingleEntryRow({
@@ -49,6 +51,7 @@ export function SingleEntryRow({
   onRemove,
   EmptyIcon,
   anchorRef,
+  hideLabel = false,
 }: SingleEntryRowProps) {
   const row = (
     <ControlActionRow onClick={onOpen}>
@@ -65,9 +68,9 @@ export function SingleEntryRow({
   );
 
   return (
-    <div data-tool-row className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-      <ControlLabel label={label} property={property} plain={plain} subLabel={subLabel} cell />
-      <div data-tool-row-value className="flex items-center gap-2 w-full min-w-0">
+    <div data-tool-row className={`grid ${hideLabel ? 'grid-cols-1' : 'grid-cols-[var(--tool-label-col)_minmax(0,1fr)]'} items-center w-full`}>
+      {!hideLabel && <ControlLabel label={label} property={property} plain={plain} subLabel={subLabel} cell />}
+      <div data-tool-row-value className="flex items-center gap-1.5 w-full min-w-0">
         {anchorRef
           ? <span ref={anchorRef as React.RefObject<HTMLSpanElement | null>} className="contents">{row}</span>
           : row}

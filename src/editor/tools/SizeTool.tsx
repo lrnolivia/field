@@ -119,7 +119,7 @@ function DimensionSizingMenu({
         type="button"
         data-dimension-sizing-menu={axis}
         onClick={() => setOpen(v => !v)}
-        className="h-[var(--control-height)] min-w-7 px-2 flex items-center justify-center gap-1 border-l border-[var(--control-border)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+        className="h-[var(--control-height)] min-w-6 px-1 flex items-center justify-center gap-0.5 border-l border-[var(--control-border)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
         title={`${axisLabel} sizing`}
       >
         {modeLabel && <span>{modeLabel}</span>}
@@ -252,7 +252,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
   if (figmaSizingMenu && axis) {
     return (
       <div data-figma-dimension={axis} className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-visible">
-        <span className="w-7 shrink-0 text-center text-xs text-[var(--text-secondary)] uppercase">{axis === 'width' ? 'W' : 'H'}</span>
+        <span className="w-5 shrink-0 text-center text-[10px] text-[var(--text-secondary)] uppercase">{axis === 'width' ? 'W' : 'H'}</span>
         <div className="min-w-0 flex-1">
           <ToolInput
             value={displayValue}
@@ -1669,7 +1669,7 @@ if (heightIsAuto) {
 
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      <div data-layout-size-pair className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-2 items-center">
+      <div data-layout-size-pair className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px] gap-1 items-center">
         {primaryWidthControl}
         {primaryHeightControl}
         {shouldShowAspectLock ? (
@@ -1678,7 +1678,7 @@ if (heightIsAuto) {
             data-aspect-ratio-lock
             onClick={isVectorSet ? undefined : handleAspectRatioToggle}
             disabled={isVectorSet}
-            className={`h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] ${isVectorSet ? 'opacity-45 cursor-default' : 'hover:bg-[var(--bg-hover)]'} ${isAspectRatioLocked ? 'text-[var(--accent-text)]' : 'text-[var(--text-primary)]'}`}
+            className={`h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] ${isVectorSet ? 'opacity-45 cursor-default' : 'hover:bg-[var(--bg-hover)]'} ${isAspectRatioLocked ? 'text-[var(--accent-text)]' : 'text-[var(--text-primary)]'}`}
             title={isVectorSet ? 'A vector keeps its aspect ratio' : isAspectRatioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">

@@ -11,7 +11,7 @@
 // rows of unused defaults. Currently-hidden dynamics surface in the Styles
 // section's `+` dropdown for quick add.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAtomValue } from 'jotai';
 import { AppearanceHeaderActions, StyleSectionActions } from './InspectorSectionActions';
 import { parseBackgroundLayers, formatBackgroundLayers, createDefaultLayer } from '../../ui/background-layer-utils';
@@ -37,7 +37,7 @@ import { DYNAMIC_STYLES, type DynamicStyleSpec } from './dynamic-styles';
 
 type StylesToolScope = 'all' | 'appearance' | 'advanced';
 
-export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope } = {}) {
+export default function StylesTool({ scope = 'all', advancedExtras }: { scope?: StylesToolScope; advancedExtras?: ReactNode } = {}) {
   const { node, styles, hasOverride, updateStyle, updateMultipleStyles } = useControl();
   const pseudoStyles = useAtomValue(pseudoStylesAtom);
   const isText = !!node && isTextTag(node.type);
@@ -298,11 +298,26 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
     updateMultipleStyles({ borderWidth: '1px', borderStyle: 'solid', borderColor: '#000000' });
   }, [hasStroke, updateMultipleStyles]);
 
-  const addEffect = useCallback(() => {
+  const addDropShadow = useCallback(() => {
     const current = (styles.boxShadow || '').trim();
     const next = '0 4px 8px rgba(0, 0, 0, 0.25)';
     updateStyle('boxShadow', current && current !== 'none' ? `${current}, ${next}` : next);
   }, [styles.boxShadow, updateStyle]);
+  const addInnerShadow = useCallback(() => {
+    const current = (styles.boxShadow || '').trim();
+    const next = 'inset 0 4px 8px rgba(0, 0, 0, 0.25)';
+    updateStyle('boxShadow', current && current !== 'none' ? `${current}, ${next}` : next);
+  }, [styles.boxShadow, updateStyle]);
+  const addLayerBlur = useCallback(() => updateStyle('filter', 'blur(8px)'), [updateStyle]);
+  const addBackgroundBlur = useCallback(() => {
+    updateMultipleStyles({ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' });
+  }, [updateMultipleStyles]);
+  const effectAddOptions = [
+    { label: 'Inner shadow', onClick: addInnerShadow },
+    { label: 'Drop shadow', onClick: addDropShadow },
+    { label: 'Layer blur', onClick: addLayerBlur },
+    { label: 'Background blur', onClick: addBackgroundBlur },
+  ];
 
   // Inner nodes of an expanded component instance belong to the master.
   if (isInsideComponentInstance) return null;
@@ -314,7 +329,7 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
     return (
       <>
         <ToolSection title="Appearance" action={<AppearanceHeaderActions />}>
-          <OpacityControl />
+          <OpacityControl compact />
         </ToolSection>
         <ToolDivider />
         <ToolSection title="Fill">
@@ -331,27 +346,33 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
       {showAppearance && (
         <>
           <ToolSection title="Appearance" action={<AppearanceHeaderActions canHide={!isViewportFrame} />}>
-            <OpacityControl />
-            {!isText && !isWrapper && <RadiusControl />}
+            {!isText && !isWrapper ? (
+              <div data-appearance-core-row className="grid grid-cols-2 gap-1">
+                <OpacityControl compact />
+                <RadiusControl compact />
+              </div>
+            ) : (
+              <OpacityControl compact />
+            )}
           </ToolSection>
 
           {!isText && !isWrapper && (
             <>
               <ToolDivider />
               <ToolSection title="Fill" action={<StyleSectionActions property="backgroundColor" onAdd={addFill} addTitle="Add fill" />}>
-                <FillControl />
+                <FillControl compactSection />
               </ToolSection>
               <ToolDivider />
               <ToolSection title="Stroke" action={<StyleSectionActions property="border" onAdd={addStroke} addDisabled={hasStroke} addTitle="Add stroke" />}>
-                <BorderControl />
+                <BorderControl compactSection />
               </ToolSection>
               <ToolDivider />
-              <ToolSection title="Effects" action={<StyleSectionActions property="boxShadow" onAdd={addEffect} addTitle="Add effect" />}>
-                <ShadowControl />
+              <ToolSection title="Effects" action={<StyleSectionActions property="boxShadow" addOptions={effectAddOptions} addTitle="Add effect" />}>
+                <ShadowControl compactSection />
                 {visibleIds.has('mask') && <MaskControl />}
                 {visibleIds.has('clipPath') && <ClipPathControl />}
-                {visibleIds.has('filter') && <FilterControl />}
-                {visibleIds.has('backdropFilter') && <BackdropFilterControl />}
+                {visibleIds.has('filter') && <FilterControl compactSection />}
+                {visibleIds.has('backdropFilter') && <BackdropFilterControl compactSection />}
               </ToolSection>
             </>
           )}
@@ -387,6 +408,7 @@ export default function StylesTool({ scope = 'all' }: { scope?: StylesToolScope 
             {visibleIds.has('pointerEvents') && <PointerEventsControl />}
             {visibleIds.has('userSelect') && <UserSelectControl />}
             {!isWrapper && hasPseudo && <PseudoElementControl />}
+            {advancedExtras}
           </ToolSection>
         </>
       )}

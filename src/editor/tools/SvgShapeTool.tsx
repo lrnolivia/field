@@ -26,14 +26,15 @@
 // `replaceSvgInner` fired on shape-edit exit serializes the full SVG
 // (including these attrs) and writes it back to source in one batch.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { ToolSection, ToolInput, ToolSegmentedControl, ToolSelect, ToolPlusMinus, ColorInput, ToolDivider } from '../controls';
 import ControlLabel from '../controls/ControlLabel';
 import { LocalizeGate } from '../controls/localize-gate';
 import { useControl } from '../controls/ControlProvider';
 import { OpacityControl } from './StylesTool/atoms/OpacityControl';
-import { HideControl } from './StylesTool/atoms/HideControl';
+import { AppearanceHeaderActions, StyleSectionActions } from './StylesTool/InspectorSectionActions';
+import ToolPopup from '../ui/ToolPopup';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getViewportPrefix, findSvgShapeChild, getActiveFilePath } from '@/canvas/node-ops';
@@ -460,6 +461,9 @@ export default function SvgShapeTool() {
   // Source-of-truth is the `data-stroke-align` attr on the shape.
   const strokeAlign = attrs['data-stroke-align'] || 'center';
   const strokeStyle = getStrokeStyle(strokeDasharray);
+  const hasStroke = !!stroke && stroke !== 'none' && (Number.parseFloat(strokeWidth) || 0) > 0;
+  const [strokeDetailsOpen, setStrokeDetailsOpen] = useState(false);
+  const strokeDetailsRef = useRef<HTMLButtonElement>(null);
   // standard "Array" — single number that scales the dash/gap
   // pattern. Which slot we read depends on style:
   //   dashed → `<n>,<n/2>` → arrayValue = parts[0] (the dash length)
@@ -494,174 +498,199 @@ export default function SvgShapeTool() {
       {/* ─── Appearance ───────────────────────────────────────────────── */}
       {!isInShapeEdit && (
         <>
-          <ToolSection title="Appearance">
-            <OpacityControl />
-            <HideControl />
+          <ToolSection title="Appearance" action={<AppearanceHeaderActions />}>
+            <OpacityControl compact />
           </ToolSection>
           <ToolDivider />
         </>
       )}
 
       {/* ─── Fill ─────────────────────────────────────────────────────── */}
-      <ToolSection title="Fill">
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Fill', '__svg-fill', 'fill')}
-          <div className="flex items-center gap-2 w-full">
-            <ColorInput
-              value={fill}
-              onChange={v => updateAttr('fill', v)}
-              onChangeLive={v => updateAttrLive('fill', v)}
-              showAlpha
-            />
+      <ToolSection
+        title="Fill"
+        action={
+          <StyleSectionActions
+            property="fill"
+            onApplyToken={(tokenName) => updateAttr('fill', `var(--${tokenName})`)}
+            onAdd={() => updateAttr('fill', '#000000')}
+            addDisabled={!!fill && fill !== 'none'}
+            addTitle="Add fill"
+          />
+        }
+      >
+        {!!fill && fill !== 'none' && (
+          <div className="flex items-center gap-1 w-full">
+            <div className="flex-1 min-w-0">
+              <ColorInput
+                value={fill}
+                onChange={v => updateAttr('fill', v)}
+                onChangeLive={v => updateAttrLive('fill', v)}
+                showAlpha
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => updateAttr('fill', 'none')}
+              className="h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              title="Remove fill"
+            >
+              <span className="text-base leading-none">−</span>
+            </button>
           </div>
-        </div>
+        )}
       </ToolSection>
 
-      {/* Divider matches the rule the PropertiesPanel uses between
-          top-level tools (Position → Size → SvgShapeTool). Without it
-          the Stroke section bleeds into the Styles section above and
-          reads as a sub-heading instead of its own block. */}
       <ToolDivider />
 
       {/* ─── Stroke ──────────────────────────────────────────────────── */}
-      <ToolSection title="Stroke" collapsible defaultOpen>
-        {/* Stroke color */}
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Color', '__svg-stroke', 'stroke')}
-          <div className="flex items-center gap-2 w-full">
-            <ColorInput
-              value={stroke || '#000000'}
-              onChange={v => updateAttr('stroke', v)}
-              onChangeLive={v => updateAttrLive('stroke', v)}
-              showAlpha
-            />
-          </div>
-        </div>
+      <ToolSection
+        title="Stroke"
+        collapsible
+        defaultOpen
+        action={
+          <StyleSectionActions
+            property="stroke"
+            onApplyToken={(tokenName) => {
+              updateAttr('stroke', `var(--${tokenName})`);
+              if (!hasStroke) updateAttr('stroke-width', '1');
+            }}
+            onAdd={() => {
+              updateAttr('stroke', '#000000');
+              updateAttr('stroke-width', '1');
+            }}
+            addDisabled={hasStroke}
+            addTitle="Add stroke"
+          />
+        }
+      >
+        {hasStroke && (
+          <>
+            <div className="flex items-center gap-1 w-full">
+              <div className="flex-1 min-w-0">
+                <ColorInput
+                  value={stroke || '#000000'}
+                  onChange={v => updateAttr('stroke', v)}
+                  onChangeLive={v => updateAttrLive('stroke', v)}
+                  showAlpha
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { updateAttr('stroke', 'none'); updateAttr('stroke-width', '0'); }}
+                className="h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                title="Remove stroke"
+              >
+                <span className="text-base leading-none">−</span>
+              </button>
+            </div>
 
-        {/* Width — paired with a +/- toggle (same pattern as the
-            Shadow X / Y / Blur rows) so the user can nudge stroke
-            thickness without typing. SVG `stroke-width` is unitless
-            in user-space units, so we parse/format as a plain int. */}
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Width', '__svg-stroke-width', 'stroke-width')}
-          <div className="flex items-center gap-2 w-full">
-            <ToolInput
-              value={strokeWidth}
-              onChange={v => updateAttr('stroke-width', v)}
-              onChangeLive={v => updateAttrLive('stroke-width', v)}
-              onCommit={v => updateAttr('stroke-width', v)}
-              step={1}
-            />
-            <ToolPlusMinus
-              value={Number.parseFloat(strokeWidth) || 0}
-              onChange={(v) => updateAttr('stroke-width', String(Math.max(0, v)))}
-              min={0}
-              max={100}
-            />
-          </div>
-        </div>
-
-        {/* Align — Center / Inside / Outside. SVG natively strokes
-            centered on the path edge; Inside and Outside are faked at
-            render time (clip-path / paint-order, see `applyStrokeAlignment`
-            in Renderer.ts). Source carries only `data-stroke-align`. */}
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Align" property="__svg-stroke-align" plain />
-          <div className="flex items-center gap-2 w-full">
-            <ToolSelect
-              value={strokeAlign}
-              onChange={v => updateAttr('data-stroke-align', v === 'center' ? '' : v)}
-              options={[
-                { value: 'center',  label: 'Center'  },
-                { value: 'inside',  label: 'Inside'  },
-                { value: 'outside', label: 'Outside' },
-              ]}
-            />
-          </div>
-        </div>
-
-        {/* Style: Solid / Dashed / Dotted. Switching style reseeds
-            the dasharray with the current `arrayValue` so the user's
-            spacing choice carries between style changes (the reference
-            parity). */}
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Style', '__svg-stroke-style', 'stroke-dasharray')}
-          <div className="flex items-center gap-2 w-full">
-            <ToolSegmentedControl
-              value={strokeStyle}
-              onChange={v => {
-                if (v === 'solid') updateAttr('stroke-dasharray', '');
-                else updateAttr('stroke-dasharray', dasharrayFromArray(arrayValue, v as 'dashed' | 'dotted'));
-              }}
-              options={[
-                { value: 'solid',  icon: <StyleIcon style="solid" /> },
-                { value: 'dashed', icon: <StyleIcon style="dashed" /> },
-                { value: 'dotted', icon: <StyleIcon style="dotted" /> },
-              ]}
-              size="sm"
-            />
-          </div>
-        </div>
-
-        {/* Array — scales the dash/gap spacing (design-tool parity). The
-            single number is mapped to a real `stroke-dasharray` based
-            on current style: dashed → `<n>,<n/2>`, dotted → `0,<n>`
-            (with strokeLinecap=round = round dots `n` apart). Hidden
-            when Style is Solid because there's nothing to space. */}
-        {strokeStyle !== 'solid' && (
-          <div className="flex items-center justify-between w-full">
-            {shapeLabel('Array', '__svg-stroke-array', 'stroke-dasharray')}
-            <div className="flex items-center gap-2 w-full">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px] gap-1 items-center">
+              <ToolSelect
+                value={strokeAlign}
+                onChange={v => updateAttr('data-stroke-align', v === 'center' ? '' : v)}
+                options={[
+                  { value: 'center', label: 'Center' },
+                  { value: 'inside', label: 'Inside' },
+                  { value: 'outside', label: 'Outside' },
+                ]}
+              />
               <ToolInput
-                value={String(arrayValue)}
-                onChange={v => updateAttr('stroke-dasharray', dasharrayFromArray(Math.max(1, Number.parseFloat(v) || 1), strokeStyle))}
+                value={strokeWidth}
+                onChange={v => updateAttr('stroke-width', v)}
+                onChangeLive={v => updateAttrLive('stroke-width', v)}
+                onCommit={v => updateAttr('stroke-width', v)}
                 step={1}
               />
-              <ToolPlusMinus
-                value={arrayValue}
-                onChange={v => updateAttr('stroke-dasharray', dasharrayFromArray(Math.max(1, v), strokeStyle))}
-                min={1}
-                max={500}
-              />
+              <button
+                ref={strokeDetailsRef}
+                type="button"
+                onClick={() => setStrokeDetailsOpen(v => !v)}
+                className="h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]"
+                title="Stroke details"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                  <path d="M4 2v12M12 2v12M2 5h4M10 11h4" />
+                  <circle cx="4" cy="5" r="1.5" fill="var(--dropdown-bg)" />
+                  <circle cx="12" cy="11" r="1.5" fill="var(--dropdown-bg)" />
+                </svg>
+              </button>
             </div>
-          </div>
+
+            <ToolPopup
+              isOpen={strokeDetailsOpen}
+              onClose={() => setStrokeDetailsOpen(false)}
+              title="Stroke"
+              anchorRef={strokeDetailsRef}
+              width={260}
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between w-full">
+                  {shapeLabel('Style', '__svg-stroke-style', 'stroke-dasharray')}
+                  <ToolSegmentedControl
+                    value={strokeStyle}
+                    onChange={v => {
+                      if (v === 'solid') updateAttr('stroke-dasharray', '');
+                      else updateAttr('stroke-dasharray', dasharrayFromArray(arrayValue, v as 'dashed' | 'dotted'));
+                    }}
+                    options={[
+                      { value: 'solid', icon: <StyleIcon style="solid" /> },
+                      { value: 'dashed', icon: <StyleIcon style="dashed" /> },
+                      { value: 'dotted', icon: <StyleIcon style="dotted" /> },
+                    ]}
+                    size="sm"
+                  />
+                </div>
+
+                {strokeStyle !== 'solid' && (
+                  <div className="flex items-center justify-between w-full">
+                    {shapeLabel('Array', '__svg-stroke-array', 'stroke-dasharray')}
+                    <div className="flex items-center gap-1 w-full">
+                      <ToolInput
+                        value={String(arrayValue)}
+                        onChange={v => updateAttr('stroke-dasharray', dasharrayFromArray(Math.max(1, Number.parseFloat(v) || 1), strokeStyle))}
+                        step={1}
+                      />
+                      <ToolPlusMinus
+                        value={arrayValue}
+                        onChange={v => updateAttr('stroke-dasharray', dasharrayFromArray(Math.max(1, v), strokeStyle))}
+                        min={1}
+                        max={500}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between w-full">
+                  {shapeLabel('Cap', '__svg-linecap', 'stroke-linecap')}
+                  <ToolSegmentedControl
+                    value={strokeLinecap}
+                    onChange={v => updateAttr('stroke-linecap', v)}
+                    options={[
+                      { value: 'butt', icon: <CapIcon cap="butt" /> },
+                      { value: 'round', icon: <CapIcon cap="round" /> },
+                      { value: 'square', icon: <CapIcon cap="square" /> },
+                    ]}
+                    size="sm"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between w-full">
+                  {shapeLabel('Join', '__svg-linejoin', 'stroke-linejoin')}
+                  <ToolSegmentedControl
+                    value={strokeLinejoin}
+                    onChange={v => updateAttr('stroke-linejoin', v)}
+                    options={[
+                      { value: 'miter', icon: <JoinIcon join="miter" /> },
+                      { value: 'round', icon: <JoinIcon join="round" /> },
+                      { value: 'bevel', icon: <JoinIcon join="bevel" /> },
+                    ]}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            </ToolPopup>
+          </>
         )}
-
-        {/* Cap — icons render the property they represent (a tiny
-            horizontal stroke with the cap style applied). */}
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Cap', '__svg-linecap', 'stroke-linecap')}
-          <div className="flex items-center gap-2 w-full">
-            <ToolSegmentedControl
-              value={strokeLinecap}
-              onChange={v => updateAttr('stroke-linecap', v)}
-              options={[
-                { value: 'butt',   icon: <CapIcon cap="butt" /> },
-                { value: 'round',  icon: <CapIcon cap="round" /> },
-                { value: 'square', icon: <CapIcon cap="square" /> },
-              ]}
-              size="sm"
-            />
-          </div>
-        </div>
-
-        {/* Join — same self-illustrating trick (L-shape with the
-            join style applied). */}
-        <div className="flex items-center justify-between w-full">
-          {shapeLabel('Join', '__svg-linejoin', 'stroke-linejoin')}
-          <div className="flex items-center gap-2 w-full">
-            <ToolSegmentedControl
-              value={strokeLinejoin}
-              onChange={v => updateAttr('stroke-linejoin', v)}
-              options={[
-                { value: 'miter', icon: <JoinIcon join="miter" /> },
-                { value: 'round', icon: <JoinIcon join="round" /> },
-                { value: 'bevel', icon: <JoinIcon join="bevel" /> },
-              ]}
-              size="sm"
-            />
-          </div>
-        </div>
       </ToolSection>
     </LocalizeGate>
   );

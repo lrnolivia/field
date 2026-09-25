@@ -4,6 +4,7 @@ import { useControl } from '../../controls/ControlProvider';
 import PresetPicker from '../../ui/PresetPicker';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { MIX_BLEND_MODE_OPTIONS } from './atoms/MixBlendModeControl';
+import { queueMutation } from '@/code/mutation/mutation-queue';
 
 function DotsIcon() {
   return (
@@ -15,11 +16,47 @@ function DotsIcon() {
 }
 
 export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean }) {
-  const { styles, updateStyle } = useControl();
+  const { node, nodeId, styles, updateStyle } = useControl();
   const [blendOpen, setBlendOpen] = useState(false);
   const blendRef = useRef<HTMLDivElement>(null);
   const hidden = styles.display === 'none';
   const blend = styles.mixBlendMode || 'normal';
+  const displayMemoryAttr = 'data-field-display-before-hide';
+  const rememberedDisplay = node?.attrs?.[displayMemoryAttr] ?? '';
+
+  // Layer visibility is modelled as display:none, but the eye must never
+  // destroy an explicitly authored display value. Persist the prior value
+  // in an internal data attribute so hide/show survives panel remounts and
+  // source reloads. If layout was changed while hidden, clearing display lets
+  // node-ops restore the now-current flex/grid semantics deterministically.
+  const toggleVisibility = () => {
+    if (!hidden) {
+      if (nodeId) {
+        queueMutation({
+          type: 'updateHtmlAttrs',
+          nodeId,
+          attrs: { [displayMemoryAttr]: styles.display || '__unset__' },
+        });
+      }
+      updateStyle('display', 'none');
+      return;
+    }
+
+    const hasLayoutSemantics = !!(
+      styles.flexDirection || styles.flexWrap || styles.flexGrow ||
+      styles.gridTemplateColumns || styles.gridTemplateRows ||
+      styles.gridAutoFlow || styles.justifyItems
+    );
+    const restore = hasLayoutSemantics
+      ? ''
+      : rememberedDisplay && rememberedDisplay !== '__unset__'
+        ? rememberedDisplay
+        : '';
+    updateStyle('display', restore);
+    if (nodeId) {
+      queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { [displayMemoryAttr]: '' } });
+    }
+  };
 
   return (
     <div className="flex items-center gap-0.5">
@@ -27,7 +64,7 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
         <button
           type="button"
           data-appearance-visibility
-          onClick={() => updateStyle('display', hidden ? '' : 'none')}
+          onClick={toggleVisibility}
           className={`h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${hidden ? 'text-[var(--text-disabled)]' : 'text-[var(--text-primary)]'}`}
           title={hidden ? 'Show' : 'Hide'}
           aria-pressed={hidden}
@@ -79,12 +116,16 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
 export function StyleSectionActions({
   property,
   onAdd,
+  addOptions,
+  onApplyToken,
   addDisabled = false,
   showStyle = true,
   addTitle = 'Add',
 }: {
   property: string;
   onAdd?: () => void;
+  addOptions?: Array<{ label: string; onClick: () => void }>;
+  onApplyToken?: (tokenName: string) => void;
   addDisabled?: boolean;
   showStyle?: boolean;
   addTitle?: string;
@@ -92,6 +133,7 @@ export function StyleSectionActions({
   const { updateStyle } = useControl();
   const tokens = useAtomValue(presetTokensAtom);
   const [styleOpen, setStyleOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const styleRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -103,7 +145,7 @@ export function StyleSectionActions({
             type="button"
             data-inspector-style-action={property}
             onClick={() => setStyleOpen(true)}
-            className="h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             title="Apply styles and variables"
           >
             <DotsIcon />
@@ -114,24 +156,46 @@ export function StyleSectionActions({
             isOpen={styleOpen}
             onClose={() => setStyleOpen(false)}
             anchorRef={styleRef}
-            onSelect={(tokenName) => updateStyle(property, `var(--${tokenName})`)}
+            onSelect={(tokenName) => onApplyToken ? onApplyToken(tokenName) : updateStyle(property, `var(--${tokenName})`)}
           />
         </>
       )}
 
-      {onAdd && (
-        <button
-          type="button"
-          data-inspector-add-action={property}
-          disabled={addDisabled}
-          onClick={onAdd}
-          className="h-7 w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-30 disabled:cursor-default"
-          title={addTitle}
-        >
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M8 2v12M2 8h12" />
-          </svg>
-        </button>
+      {(onAdd || addOptions?.length) && (
+        <div className="relative">
+          <button
+            type="button"
+            data-inspector-add-action={property}
+            disabled={addDisabled}
+            onClick={() => {
+              if (addOptions?.length) setAddOpen(v => !v);
+              else onAdd?.();
+            }}
+            className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-30 disabled:cursor-default"
+            title={addTitle}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <path d="M8 2v12M2 8h12" />
+            </svg>
+          </button>
+          {addOpen && addOptions?.length ? (
+            <>
+              <div className="fixed inset-0 z-[10012]" onClick={() => setAddOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-[10013] min-w-[168px] py-1 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]">
+                {addOptions.map(option => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => { option.onClick(); setAddOpen(false); }}
+                    className="w-full px-3 py-1.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
       )}
     </div>
   );

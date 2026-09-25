@@ -173,7 +173,7 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
 
 // ─── Inner atom ───────────────────────────────────────────────────────────────
 
-function ShadowAtom() {
+function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, node, onChange, onChangeMultiple, onChangeMultipleLive, binding, mode, allProps, hasVariable } = useControlContext();
   // When an injected chevron menu (Hoist Variable / Set Variable / Apply Preset) is present — i.e. this
   // Shadow atom is mounted on a component-INSTANCE prop row in variableDefault mode — the header label must
@@ -313,6 +313,8 @@ function ShadowAtom() {
     );
   }
 
+  if (compactSection && entries.length === 0) return null;
+
   return (
     <>
       <EntryList
@@ -323,8 +325,10 @@ function ShadowAtom() {
         onRemove={handleRemove}
         onAdd={handleAdd}
         renderSwatch={(e) => ({ backgroundColor: resolvePresetColor(e.color, allTokens) })}
-        renderLabel={(e) => e.type === 'drop' ? 'Drop' : shadowSummary(e)}
+        renderLabel={(e) => e.type === 'drop' ? 'Drop shadow' : e.inset ? 'Inner shadow' : 'Drop shadow'}
         addButtonRef={btnRef}
+        suppressLabel={compactSection}
+        hideAddRow={compactSection}
         EmptyIcon={ShadowIcon}
         nonInteractive={mode === 'preset'}
         plainLabel={mode !== 'direct' && !ovHoist}
@@ -417,10 +421,10 @@ function ShadowPresetPillRow({ tokenName, tokenLabel, currentValue, previewColor
 
 // ─── Exported wrapper ─────────────────────────────────────────────────────────
 
-export function ShadowControl({ mode = 'direct', ...mp }: AtomProps) {
+export function ShadowControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="boxShadow" defaultValue="" mode={mode} {...mp}>
-      <ShadowAtom />
+      <ShadowAtom compactSection={compactSection} />
     </UnifiedControlProvider>
   );
 }

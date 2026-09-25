@@ -409,11 +409,10 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     && !isInputElement
     && (!isMultiSelect || multiSelectLayoutType !== null);
   const selectedHasLayout = detectLayoutFlags(s).hasLayout;
-  // When a FRAME already has flex/grid layout, Figma presents sizing and
-  // Auto-layout behavior as one section. Leaf/text objects keep the normal
-  // standalone Layout (size) section, and an unconfigured frame keeps the
-  // Auto layout + add-state separate until layout is actually enabled.
-  const composeSizeIntoAutoLayout = isFrame && selectedHasLayout && canShowContainerLayout && !isMultiSelect;
+  // A frame has ONE canonical container-layout section. Inactive it is
+  // "Layout"; enabling flex/grid transforms that same section into "Auto layout".
+  // Leaf/text objects still use standalone Layout sizing.
+  const composeSizeIntoAutoLayout = isFrame && canShowContainerLayout && !isMultiSelect;
 
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
@@ -438,7 +437,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       data-properties-panel
       data-tutorial="right-toolbar"
       className="w-[260px] shrink-0 flex flex-col relative z-5000"
-      style={{ marginTop: 52, marginLeft: -260, paddingLeft: 10, paddingRight: 10, boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
+      style={{ marginTop: 52, marginLeft: -260, boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
       onMouseDown={(e) => {
         if (activeEditor && !(e.target instanceof HTMLSelectElement)) {
           e.preventDefault();
@@ -457,7 +456,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
       <div
         data-properties-context
         data-inspector-object-header
-        className="shrink-0 min-h-10 px-2 py-2 border-b border-[var(--border-light)] flex items-center"
+        className="shrink-0 min-h-8 px-3 py-1 border-b border-[var(--border-light)] flex items-center"
         title={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
       >
         <div className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-primary)] truncate">
@@ -490,7 +489,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             (rather than `pt-2` on the scroll container) keeps the spacing
             outside the scrollable area — it stays put even when the panel
             scrolls. */}
-        <div className="mb-1.5" />
+        <div className="mb-0.5" />
 
       {/* ─── Template picker — viewport selection on page files ────────────
           Shows when the user has the page's viewport-frame selected. The
@@ -520,7 +519,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           control isn't flush with the panel's bottom edge — scroll-to-end
           previously left the Export Frame button kissing the viewport
           bottom which felt cramped. */}
-      <div className="flex-1 pt-1 pb-8 flex flex-col">
+      <div className="flex-1 pt-0 pb-6 flex flex-col">
         {inspectorMode === 'design' ? <>
 
         {/* Shape edit mode: PathTool (Position + Curve for the selected
@@ -695,7 +694,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             sizeContent={composeSizeIntoAutoLayout ? (
               <SizeTool
                 bare
-                deferClipContent
+                deferClipContent={selectedHasLayout}
                 styles={s}
                 nodeId={node.id}
                 vpId={vpId}
@@ -795,57 +794,22 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         </div>
 
         <div data-inspector-group="advanced" className="contents">
-        {/* Web-only/advanced style controls stay available without polluting the
-            Figma core property stack. */}
+        {/* field-specific web capabilities live INSIDE one Advanced disclosure,
+            rather than competing with Fill / Stroke / Effects as peer sections. */}
         {!isTemplatedViewport && (
           <>
-            <StylesTool scope="advanced" />
+            <StylesTool
+              scope="advanced"
+              advancedExtras={!isViewportFrame ? (
+                <div data-advanced-subtools className="flex flex-col gap-0">
+                  {!isInputElement && <CursorTool />}
+                  {!isComponentFilePath(filePath) && !isContainerSetInstance && !isInputElement && <ScrollSectionTool />}
+                  {!isContainerSetInstance && !isComponentInstance && <AccessibilityTool />}
+                  {!isContainerSetInstance && <CodeOverridesTool />}
+                </div>
+              ) : undefined}
+            />
             <ToolDivider />
-          </>
-        )}
-        {/* Cursor + Accessibility — hidden on the viewport frame. Cursor
-            is a per-element CSS property; accessibility tags/labels apply
-            to content elements, not the layout container. Accessibility
-            is ALSO hidden on container-set instances AND on regular
-            component instances — both render as a wrapper that's
-            replaced / collapsed at runtime (cloneElement for sets,
-            `display: contents` for components), so any aria-* / role
-            attached here is dropped from or detached from the live tree.
-            The master file is where a11y belongs for both. */}
-        {!isViewportFrame && (
-          <>
-            {/* Cursor is hidden on form controls too — inputs/selects have
-                native cursor semantics (text caret, pointer on the control). */}
-            {!isInputElement && (
-              <>
-                <CursorTool />
-                <ToolDivider />
-              </>
-            )}
-            {/* Scroll Section ("Anchor" target) — above Accessibility. A page
-                concept (links scroll to `#name`), so hidden on component
-                masters and on the layout container. Also hidden on vector/icon
-                sets: their wrapper is cloneElement-replaced at runtime, so an
-                anchor id attached here is dropped. Form controls don't take
-                anchors either — nobody scroll-targets an input. */}
-            {!isComponentFilePath(filePath) && !isContainerSetInstance && !isInputElement && (
-              <>
-                <ScrollSectionTool />
-                <ToolDivider />
-              </>
-            )}
-            {!isContainerSetInstance && !isComponentInstance && (
-              <>
-                <AccessibilityTool />
-                <ToolDivider />
-              </>
-            )}
-            {!isContainerSetInstance && (
-              <>
-                <CodeOverridesTool />
-                <ToolDivider />
-              </>
-            )}
           </>
         )}
         </div>

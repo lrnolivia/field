@@ -21,10 +21,10 @@
   --cut: 0px;
   --cut-round: var(--radius-md);
 
-  --control-height: 26px;
-  --control-height-sm: 22px;
-  --control-pad-x: 5px;
-  --control-gap: 5px;
+  --control-height: 22px;
+  --control-height-sm: 20px;
+  --control-pad-x: 4px;
+  --control-gap: 3px;
 
   /* Graphite is intentionally GREY, not white, in both themes. */
   --accent: #6b6b6b;
@@ -65,8 +65,8 @@ textarea {
 }
 
 body {
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 10px;
+  line-height: 1.25;
   letter-spacing: -0.004em;
   font-synthesis: none;
 }
@@ -75,7 +75,7 @@ button,
 input,
 select,
 textarea {
-  font-size: 10.5px;
+  font-size: 9.75px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -258,32 +258,32 @@ select {
 /* Sidebars: smaller type, but preserve enough hierarchy to scan quickly. */
 [data-editor-panel],
 [data-properties-panel] {
-  font-size: 10.5px;
-  line-height: 1.3;
+  font-size: 9.75px;
+  line-height: 1.25;
 }
 
 [data-editor-panel] .text-sm,
 [data-properties-panel] .text-sm {
-  font-size: 11px;
-  line-height: 15px;
+  font-size: 10px;
+  line-height: 13px;
 }
 
 [data-editor-panel] .text-xs,
 [data-properties-panel] .text-xs {
-  font-size: 10.5px;
-  line-height: 14px;
+  font-size: 9.75px;
+  line-height: 12px;
 }
 
 [data-editor-panel] [class*="text-[13px]"],
 [data-properties-panel] [class*="text-[13px]"] {
-  font-size: 11px;
-  line-height: 15px;
+  font-size: 10px;
+  line-height: 13px;
 }
 
 [data-editor-panel] [class*="text-[12px]"],
 [data-properties-panel] [class*="text-[12px]"] {
-  font-size: 10.5px;
-  line-height: 14px;
+  font-size: 9.75px;
+  line-height: 12px;
 }
 
 /* Left rail: keep structural width, reduce visual mass. */
@@ -293,8 +293,8 @@ select {
 }
 
 [data-left-menu-rail] button {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-md);
 }
 
@@ -304,8 +304,8 @@ select {
 }
 
 [data-left-menu-rail] .vibe-ring {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
 }
 
 [data-left-menu-rail] .vibe-face {
@@ -324,10 +324,10 @@ select {
 }
 
 #bottom-toolbar-container button {
-  min-height: 26px;
-  height: 26px;
+  min-height: 24px;
+  height: 24px;
   border-radius: var(--radius-md);
-  font-size: 10.5px;
+  font-size: 9.75px;
 }
 
 #bottom-toolbar-container svg {
@@ -348,6 +348,14 @@ select {
 [role="menu"],
 [role="listbox"] {
   border-radius: var(--radius-lg);
+}
+
+/* Nested web-only tools live inside Advanced. Their own ToolSection
+ * chrome becomes a subsection, so do not double-indent the inner headers. */
+[data-advanced-subtools] > [data-inspector-section] > [data-inspector-section-header],
+[data-advanced-subtools] > [data-inspector-section] > [data-inspector-section-content] {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* -------------------------------------------------------------------------- */

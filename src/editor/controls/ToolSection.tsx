@@ -62,13 +62,13 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
       data-inspector-section={sectionId}
       data-inspector-section-title={title}
       data-inspector-section-empty={validChildren.length === 0 ? 'true' : undefined}
-      className="px-2"
+      className="w-full"
     >
       {/* Canonical inspector section header. ToolSection remains the compatibility
           surface for existing tools while exposing one Figma-shaped DOM grammar. */}
       <div
         data-inspector-section-header
-        className={`${showContent ? 'mb-1.5' : 'mb-0'} flex items-center justify-between pt-2.5 pb-1`}
+        className={`${showContent ? 'mb-0.5' : 'mb-0'} min-h-8 px-3 flex items-center justify-between pt-1.5 pb-1.5`}
         onContextMenu={onHeaderContextMenu}
       >
         <button
@@ -100,7 +100,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
       {isOpen && showContent && (
         <div
           data-inspector-section-content
-          className="flex flex-col py-0.5 gap-[var(--control-gap)] pl-3"
+          className="flex flex-col px-3 pb-2 gap-[var(--control-gap)]"
         >
           {children}
         </div>

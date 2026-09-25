@@ -8,7 +8,7 @@ export default function InspectorModeTabs() {
   return (
     <div
       data-inspector-mode-tabs
-      className="shrink-0 h-10 px-2 border-b border-[var(--border-light)] flex items-center gap-1"
+      className="shrink-0 h-8 px-3 border-b border-[var(--border-light)] flex items-center gap-1"
       role="tablist"
       aria-label="Inspector mode"
     >

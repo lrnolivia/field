@@ -3,7 +3,7 @@ import { ToolSegmentedControl } from '../../../controls';
 import { useTextStyles } from '../../../hooks/useTextStyles';
 import { trace } from '@/shared/debug-trace';
 
-export function AlignControl({ compact = false }: { compact?: boolean } = {}) {
+export function AlignControl({ compact = false, primary = false }: { compact?: boolean; primary?: boolean } = {}) {
   const text = useTextStyles();
   const { value, isMixed } = text.get('textAlign');
   const control = (
@@ -14,7 +14,7 @@ export function AlignControl({ compact = false }: { compact?: boolean } = {}) {
         { value: 'left', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg> },
         { value: 'center', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg> },
         { value: 'right', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg> },
-        { value: 'justify', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg> },
+        ...(!primary ? [{ value: 'justify', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg> }] : []),
       ]}
       size="compact"
     />
