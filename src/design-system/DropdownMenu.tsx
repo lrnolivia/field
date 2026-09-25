@@ -102,6 +102,9 @@ interface DropdownMenuProps {
    *  from the whole submenu tree; hovering a real item swaps the flyout
    *  for that item's normal submenu. Submenus never get the search row. */
   searchable?: boolean;
+  /** Compact command-menu density. Opt-in so existing dropdowns retain
+   *  their current touch targets; used by the project/title menu. */
+  density?: 'default' | 'compact';
 }
 
 /** Recursively collect ENABLED leaf items (no submenu) whose label matches
@@ -180,6 +183,8 @@ interface MenuPanelProps {
   rootRef?: React.RefObject<HTMLDivElement | null>;
   /** Root menu only — renders the "Type to search…" row. */
   searchable?: boolean;
+  /** Root menu density; cascading submenus keep default density. */
+  density?: 'default' | 'compact';
 }
 
 /** Sentinel `openSubId` value for the search-results flyout. It shares the
@@ -188,7 +193,8 @@ interface MenuPanelProps {
  *  flyout with that item's normal submenu. */
 const SEARCH_SUB_ID = '__search__';
 
-function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable }: MenuPanelProps) {
+function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable, density = 'default' }: MenuPanelProps) {
+  const compact = density === 'compact';
   // Track which item's submenu is currently shown (one at a time). Set
   // on hover-enter, cleared when hovering a sibling item that has no
   // submenu. Submenu portal manages its own outside-click via this same
@@ -230,9 +236,9 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
         zIndex: 99998,
         display: 'flex',
         flexDirection: 'column',
-        rowGap: 2,
-        paddingTop: 8,
-        paddingBottom: 8,
+        rowGap: compact ? 0 : 2,
+        paddingTop: compact ? 5 : 8,
+        paddingBottom: compact ? 5 : 8,
       }}
     >
       {searchable && (
@@ -276,7 +282,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
 
       {normalizeSeparators(items).map((entry, i) => {
         if (isSeparator(entry)) {
-          return <div key={`sep-${i}`} className="h-px bg-white/10 mx-2 my-1" />;
+          return <div key={`sep-${i}`} className={`h-px bg-white/10 mx-2 ${compact ? 'my-0.5' : 'my-1'}`} />;
         }
 
         const hasSubmenu = (entry.submenuItems && entry.submenuItems.length > 0) || entry.hasSubmenu;
@@ -330,7 +336,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
               }}
               disabled={entry.disabled}
               className={`
-                group flex items-center gap-3 mx-1.5 px-2 h-8
+                group flex items-center gap-3 mx-1.5 px-2 ${compact ? 'h-7' : 'h-8'}
                 w-[calc(100%-12px)] cut-corners
                 text-xs
                 ${entry.disabled
@@ -455,7 +461,7 @@ function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePa
 export default function DropdownMenu({
   isOpen, onClose, items, anchorRef, anchorPoint,
   position = 'bottom-right', minWidth, matchAnchorWidth,
-  hoverStyle = 'accent', searchable,
+  hoverStyle = 'accent', searchable, density = 'default',
 }: DropdownMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -597,6 +603,7 @@ export default function DropdownMenu({
         style={style}
         rootRef={measureRef}
         searchable={searchable}
+        density={density}
       />
     </div>,
     document.body,

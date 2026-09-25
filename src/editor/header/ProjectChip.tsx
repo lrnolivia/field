@@ -28,6 +28,7 @@ export default function ProjectChip() {
   const isViewer = useIsViewer();
   const [renameOpen, setRenameOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const displayName = name || 'Untitled';
@@ -89,7 +90,15 @@ export default function ProjectChip() {
             aria-label={`Project menu for ${displayName}`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(v => !v)}
+            onClick={() => {
+              const rect = triggerRef.current?.getBoundingClientRect();
+              if (rect) {
+                // UI3-style: anchor the menu at the END of the title control
+                // so it opens into the canvas instead of covering the left pane.
+                setMenuAnchor({ x: rect.right - 12, y: rect.bottom });
+              }
+              setMenuOpen(v => !v);
+            }}
             className="group flex min-w-0 max-w-full items-center gap-1 rounded-[4px] border-none bg-transparent px-0 py-[2px] text-left text-xs font-semibold leading-none text-[var(--text-primary)] outline-none transition-colors"
             data-field-project-title
           >
@@ -110,11 +119,17 @@ export default function ProjectChip() {
 
       <DropdownMenu
         isOpen={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() => {
+          setMenuOpen(false);
+          setMenuAnchor(null);
+        }}
         items={menuItems}
         anchorRef={triggerRef}
+        anchorPoint={menuAnchor}
         position="bottom-left"
-        minWidth={190}
+        minWidth={176}
+        hoverStyle="subtle"
+        density="compact"
       />
 
       <NameInputModal
