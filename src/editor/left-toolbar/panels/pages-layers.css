@@ -1,0 +1,95 @@
+[data-field-document-panel] {
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 24%, var(--bg-active));
+  --field-layer-selected-subtree-bg: color-mix(in srgb, var(--accent) 15%, var(--bg-active));
+}
+
+[data-field-pages-splitter] {
+  position: relative;
+  flex: 0 0 7px;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+
+[data-field-pages-splitter]::before {
+  content: "";
+  position: absolute;
+  inset: 3px 0 auto;
+  height: 1px;
+  background: var(--border-light);
+}
+
+[data-field-pages-splitter]::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+[data-field-pages-splitter]:hover::after,
+[data-field-pages-splitter]:focus-visible::after {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.field-pages-section-header,
+.field-layers-section-header {
+  min-height: 32px;
+  padding: 9px 12px 5px;
+}
+
+[data-field-pages-tree] {
+  padding: 1px 8px 6px;
+}
+
+.field-page-row {
+  height: 24px !important;
+  min-height: 24px !important;
+  gap: 6px !important;
+  padding-right: 6px !important;
+  border-radius: 4px !important;
+  clip-path: none !important;
+  font-weight: 400;
+}
+
+.field-page-row[data-active="true"] {
+  background: var(--bg-active) !important;
+  color: var(--text-primary) !important;
+}
+
+.field-page-row[data-active="false"]:hover {
+  background: var(--bg-hover) !important;
+}
+
+.field-layer-tree-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-disabled);
+  cursor: pointer;
+}
+
+.field-layer-tree-action:hover,
+.field-layer-tree-action:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  outline: none;
+}
+
+[data-field-layer-row] {
+  min-height: 24px;
+}
+
+[data-field-layer-row] > [aria-hidden="true"] {
+  clip-path: none !important;
+}

@@ -725,6 +725,14 @@ export default function LayersPanel() {
     });
   }, []);
 
+  const collapseAllLayers = useCallback(() => {
+    setExpanded(prev => {
+      if (prev.size === 0) return prev;
+      trace.action('layers:collapse-all', { previousExpandedCount: prev.size });
+      return new Set();
+    });
+  }, []);
+
   const handleSelect = useCallback((layerId: string, nodeId: string, additive = false) => {
     // Mark that this selection came from a layer click — skip canvas→layers sync
     selectionFromLayerRef.current = true;
@@ -1077,41 +1085,26 @@ export default function LayersPanel() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ minHeight: 0 }}>
-      {/* Pages now lives persistently above this panel. Layers keeps the full
-          remaining height, with search exposed as a compact action instead of
-          permanent chrome. */}
       <SectionLabel
         size="md"
+        className="field-layers-section-header"
         right={
-          <PanelSearchButton
-            active={layerSearchOpen}
-            aria-expanded={layerSearchOpen}
-            aria-label={layerSearchOpen ? 'Close layer search' : 'Search layers'}
-            title={layerSearchOpen ? 'Close layer search' : 'Search layers'}
-            onClick={() => {
-              if (layerSearchOpen) {
-                setLayerSearchQuery('');
-                setLayerSearchOpen(false);
-              } else {
-                setLayerSearchOpen(true);
-              }
-            }}
-          />
+          <button
+            type="button"
+            className="field-layer-tree-action"
+            aria-label="Collapse all layers"
+            title="Collapse all layers"
+            onClick={collapseAllLayers}
+          >
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M2.5 4h7M2.5 8h7M2.5 12h7" />
+              <path d="m11 5 1.75-1.75L14.5 5M14.5 11l-1.75 1.75L11 11" />
+            </svg>
+          </button>
         }
       >
         Layers
       </SectionLabel>
-
-      {layerSearchOpen && (
-        <div className="px-3 pb-1.5 shrink-0">
-          <SearchBar
-            value={layerSearchQuery}
-            onChange={setLayerSearchQuery}
-            placeholder="Search layers…"
-            autoFocus
-          />
-        </div>
-      )}
 
       {layers.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">

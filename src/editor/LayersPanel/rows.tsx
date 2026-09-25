@@ -690,10 +690,9 @@ export const LayerRow = React.memo(function LayerRow({
   // container publishes, so every row's truncation updates on scroll with no
   // JS. `textIndent` is the text's left offset within the scroll CONTENT.
   const [textIndent, setTextIndent] = useState<number | null>(null);
-  // A derived preview can still 404 — a src may be project-relative and resolve
-  // against the EDITOR's origin rather than the canvas iframe's. Falling back to
-  // the type glyph keeps a broken asset from leaving a blank hole in the row.
-  const [previewFailed, setPreviewFailed] = useState(false);
+  // Layer rows stay semantic rather than becoming miniature artwork. SVG
+  // vectors may still use their path preview, but ordinary fills/images do not
+  // replace the layer-type glyph.
   useEffect(() => {
     const el = textRef.current;
     if (!el) return;
@@ -703,27 +702,14 @@ export const LayerRow = React.memo(function LayerRow({
     setTextIndent(indent);
   }, [depth, hasChildren, isExpanded, node.name, node.type, layer.viewportWidth, layer.isVariantHeader]);
 
-  // Row classes
-  // 'group' + the hover/selection background now live on the row WRAPPER and
-  // the separate background layer respectively (see JSX). The content row sits
-  // ABOVE that layer via z-[1].
-  // py-2 (was py-1.5): the leading swatch is 18px vs the old 14px glyph, so
-  // the row needs a little more height or the preview crowds the text.
-  let rowClass = 'flex items-center gap-2 py-2 transition-all duration-150 select-none relative z-[1]';
+  // Figma UI3 density: one 24px row, compact 16px hierarchy steps, and
+  // no vertical padding inflation from previews or action chrome.
+  let rowClass = 'flex items-center gap-1.5 h-6 transition-colors duration-100 select-none relative z-[1]';
   if (isDragging) rowClass += ' opacity-40';
 
-  // Background style. 20 px indent step matches the Pages panel — each
-  // nested child's CHEVRON column lands directly under its parent's
-  // ICON column (standard). Parent row at depth 0 begins at
-  // `pl-3 (12 px)`; chevron (~14) + gap (~6) put the parent's icon
-  // at ~32 px, which is exactly `20 + 12` — depth-1's `paddingLeft`.
-  //
-  // Previous values: 24 px crept barely past parent's icon; 40 px
-  // shoved children way past parent's text. 20 px sits the alignment
-  // the user confirmed against the reference.
   const s: React.CSSProperties = {
-    paddingLeft: `${12 + depth * 20}px`,
-    paddingRight: '8px',
+    paddingLeft: `${8 + depth * 16}px`,
+    paddingRight: '6px',
     cursor: isDragging ? 'grabbing' : 'default',
     width: '100%',
   };
@@ -740,58 +726,47 @@ export const LayerRow = React.memo(function LayerRow({
   // Recomputed per render rather than memoised: it's a couple of string checks
   // over props already in memory, and memoising would need the styles object's
   // identity to be stable across edits, which it isn't.
-  const preview = previewFailed ? null : deriveLayerPreview(node, nodes, 18, presetTokens);
-  // Component mode/instances use purple, regular nodes use blue
+  const preview = deriveLayerPreview(node, nodes, 14, presetTokens);
+  // Component identity remains semantic purple like Figma — including the
+  // expanded internals of an instance — while selection itself stays a calm,
+  // theme-aware surface rather than becoming a saturated accent slab.
   const isComponentInstance = !!node.componentFile;
-  const usePurple = isComponentMode || (isComponentInstance && !isSvgVector);
-  const selColor = usePurple ? 'var(--accent-secondary)' : 'var(--accent)';
-  // Foreground for anything sitting ON the selected row's accent fill —
-  // label, icons, chevron. Mirrors selColor's branching.
-  const selFg = usePurple ? 'var(--accent-secondary-fg)' : 'var(--accent-fg)';
-  const selColorFaded = usePurple
-    ? 'color-mix(in srgb, var(--accent-secondary) 20%, transparent)'
-    : 'color-mix(in srgb, var(--accent) 20%, transparent)';
+  const usePurple = isComponentMode
+    || (isComponentInstance && !isSvgVector)
+    || !!node.componentInstanceId;
+  const selColor = 'var(--accent)';
+  const semanticColor = usePurple ? 'var(--accent-secondary)' : 'var(--text-secondary)';
+  const selFg = usePurple ? 'var(--accent-secondary)' : 'var(--text-primary)';
 
-  // The selection/child background lives on a SEPARATE, viewport-pinned layer
-  // (rendered in the JSX below) so it can stay inset from both edges while the
-  // row content scrolls horizontally. Here we only set the row's TEXT color;
-  // the color + corner radii go onto `bgStyle`.
   const bgStyle: React.CSSProperties = {};
   if (isSelected) {
-    // White was 1.9:1 on the gold row — effectively unreadable. Every accent
-    // surface in the app now declares its own foreground, because the winner
-    // flips per tone (near-black on gold and purple, white only on the deep
-    // light-mode gold). Never hard-code #fff on an accent fill.
     s.color = selFg;
-    bgStyle.backgroundColor = selColor;
+    bgStyle.backgroundColor = 'var(--field-layer-selected-bg, var(--bg-active))';
   } else if (isChildOfSelected) {
-    // Faded (low-opacity) highlight → use the theme's primary text so it's
-    // readable in BOTH modes (white-on-light-blue was unreadable in light
-    // mode). The fully-selected row above keeps #fff — its bg is the
-    // saturated accent, dark enough for white in either theme.
-    s.color = 'var(--text-primary)';
-    bgStyle.backgroundColor = selColorFaded;
+    s.color = usePurple ? 'var(--accent-secondary)' : 'var(--text-primary)';
+    bgStyle.backgroundColor = 'var(--field-layer-selected-subtree-bg, var(--bg-hover))';
   }
 
-  // Cut-corner language (replaces the old per-corner radii): the selection
-  // BLOCK cuts only its outer corners — top-left on the block's first row,
-  // bottom-right on its last — middle rows stay square so the selected row
-  // plus its tinted descendants read as ONE shape. Standalone rows (and the
-  // hover chip) take the full two-corner cut.
-  const bgCut = isSelected
+  const bgShape = isSelected
     ? hasHighlightedChildren
-      ? 'cut-tl'
-      : 'cut-corners'
+      ? 'rounded-t-[4px]'
+      : 'rounded-[4px]'
     : isChildOfSelected
       ? isLastHighlightedChild
-        ? 'cut-br'
+        ? 'rounded-b-[4px]'
         : ''
-      : 'cut-corners';
+      : 'rounded-[4px]';
 
   const isVpHeader = !layer.nodeId;
 
   return (
-    <div className="group relative">
+    <div
+      className="group relative"
+      data-field-layer-row=""
+      data-selected={isSelected ? 'true' : 'false'}
+      data-selected-descendant={isChildOfSelected ? 'true' : 'false'}
+      data-component-tone={usePurple ? 'true' : 'false'}
+    >
       {/* Viewport-pinned selection / hover background. It's absolutely
           positioned and sized to the panel's VISIBLE width minus padding, then
           counter-translated by the horizontal scroll offset (CSS vars set on
@@ -799,7 +774,7 @@ export const LayerRow = React.memo(function LayerRow({
           never bleeds to the edges, no matter how far the tree is scrolled. */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute top-0 bottom-0 z-0 ${bgCut} ${!isSelected && !isChildOfSelected ? 'group-hover:bg-[var(--bg-hover)]' : ''}`}
+        className={`pointer-events-none absolute top-0 bottom-0 z-0 ${bgShape} ${!isSelected && !isChildOfSelected ? 'group-hover:bg-[var(--bg-hover)]' : ''}`}
         style={{
           left: 0,
           width: 'calc(var(--layers-vw, 100%) - 16px)',
@@ -891,35 +866,30 @@ export const LayerRow = React.memo(function LayerRow({
             = px-2(16) + lock/eye reserve(56) + cluster width(~42) + this row's
             indent(12 + depth*20). */}
         <div
-          className="flex items-center gap-2 shrink-0 relative z-10"
-          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${72 + depth * 20}px)))` }}
+          className="flex items-center gap-1 shrink-0 relative z-10"
+          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${58 + depth * 16}px)))` }}
         >
         {hasChildren ? (
           <button
             draggable={false}
             onClick={(e) => { e.stopPropagation(); onToggleExpand(id); }}
-            className="w-4 h-4 flex items-center justify-center rounded shrink-0 transition-colors hover:bg-[var(--bg-active)]"
-            style={{ color: isSelected ? `color-mix(in srgb, ${selFg} 72%, transparent)` : 'var(--text-secondary)' }}
+            className="w-3 h-3 flex items-center justify-center rounded-[3px] shrink-0 transition-colors hover:bg-[var(--bg-active)]"
+            style={{ color: isSelected ? selFg : 'var(--text-secondary)' }}
           >
             {isExpanded ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m4.75 6.25 3.25 3.25 3.25-3.25" /></svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m6.25 4.75 3.25 3.25-3.25 3.25" /></svg>
             )}
           </button>
         ) : (
-          <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span className="w-3 h-3 shrink-0" aria-hidden="true" />
         )}
 
-        {/* Icon / preview — FIXED 18x18 box.
-            Every row must reserve the same width here or the name column steps
-            in and out as you scroll: previews are 18px while the type glyphs
-            are 14px, so without a fixed box the rows with a fill sat wider than
-            the rows without one. The glyph is centred inside the box; a preview
-            fills it. */}
+        {/* Semantic layer glyph — fixed 14×14, matching Figma UI3 density. */}
         <div className="shrink-0 flex items-center justify-center" style={{
-          width: 18,
-          height: 18,
+          width: 14,
+          height: 14,
           color: isVpHeader
             ? (isSelected ? selFg : 'var(--accent)')
             : isSelected ? selFg : (node.isCanvasNode || isSvgVector)
@@ -929,24 +899,24 @@ export const LayerRow = React.memo(function LayerRow({
               : 'var(--text-secondary)',
           opacity: node.fromLayout ? 0.5 : 1,
         }}>
-          {isVpHeader && layer.isVariantHeader ? <span style={{ color: isSelected ? selFg : 'var(--accent-secondary)' }}><ComponentIcon size={18} /></span>
+          {isVpHeader && layer.isVariantHeader ? <span style={{ color: 'var(--accent-secondary)' }}><ComponentIcon size={14} /></span>
             : isSvgVector ? (preview?.kind === 'svg'
-                ? <LayerPreview spec={preview} size={18} />
-                : <IconSetIcon size={18} />)
-            : isVpHeader ? <ViewportIcon width={layer.viewportWidth} size={18} />
+                ? <LayerPreview spec={preview} size={14} />
+                : <IconSetIcon size={14} />)
+            : isVpHeader ? <ViewportIcon width={layer.viewportWidth} size={14} />
             : node.isChildrenSlot ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="1" width="22" height="22" rx="4" /><path d="M1 8.5h22M1 15.5h22" />
               </svg>
             ) : node.fromLayout ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             ) : (node.componentFile || (isComponentMode && !node.parentId && !node.isCanvasNode)) ? <span style={{ color: isSelected ? selFg : 'var(--accent-secondary)' }}>{node.isCodeComponent ? (
-              <svg width="18" height="18" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
-            ) : <ComponentIcon size={18} />}</span>
-            : layer.isCmsContainer ? <span style={{ color: isSelected ? selFg : 'var(--accent)' }}><CmsIcon width={18} height={18} /></span>
-            : layer.isCmsItem ? <span style={{ color: isSelected ? selFg : 'var(--accent)' }}><CmsItemIcon size={18} /></span>
+              <svg width="14" height="14" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
+            ) : <ComponentIcon size={14} />}</span>
+            : layer.isCmsContainer ? <span style={{ color: isSelected ? selFg : 'var(--accent)' }}><CmsIcon width={14} height={14} /></span>
+            : layer.isCmsItem ? <span style={{ color: isSelected ? selFg : 'var(--accent)' }}><CmsItemIcon size={14} /></span>
             // OVERLAY outranks the preview swatch. An overlay is usually a
             // full-bleed panel WITH a background colour, so the swatch always
             // won and the row became an anonymous coloured square — the one
@@ -955,23 +925,15 @@ export const LayerRow = React.memo(function LayerRow({
             // the fill is visible on the canvas. Same reasoning that already
             // puts components and the CMS container/item glyphs above `preview`.
             : node.attrs?.['data-overlay'] ? (
-              <span style={{ color: isSelected ? selFg : '#bababa' }}><OverlayIcon size={18} /></span>
+              <span style={{ color: isSelected ? selFg : semanticColor }}><OverlayIcon size={14} /></span>
             )
-            : preview ? (
-              // Derived from parsed props — see LayerPreview.tsx. Only reached
-              // for plain element nodes: viewport headers, components, CMS
-              // containers and vectors above all carry semantic glyphs that say
-              // more than a swatch would.
-              <LayerPreview spec={preview} size={18} onError={() => setPreviewFailed(true)} />
-            ) : (
-              // currentColor: dark on the gold/violet selection fill, neutral
-              // grey otherwise. A fixed #bababa washed out on the accent row.
-              <span style={{ color: isSelected ? selFg : '#bababa' }}>
-                {isTextTag(node.type) ? <TextIcon size={18} />
+            : (
+              <span style={{ color: isSelected ? selFg : semanticColor }}>
+                {isTextTag(node.type) ? <TextIcon size={14} />
                     : <FrameGlyph
                         display={layerDisplay ?? node.styles?.display}
                         flexDirection={layerFlexDirection ?? node.styles?.flexDirection}
-                        size={18}
+                        size={14}
                       />}
               </span>
             )}
@@ -997,9 +959,13 @@ export const LayerRow = React.memo(function LayerRow({
         ) : (
           <span
             ref={textRef}
-            className="text-xs font-medium select-none transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+            className="text-[11px] font-normal select-none transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
             style={{
-              color: isSelected ? selFg : isChildOfSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+              color: usePurple
+                ? 'var(--accent-secondary)'
+                : isSelected || isChildOfSelected
+                  ? 'var(--text-primary)'
+                  : 'var(--text-secondary)',
               opacity: node.fromLayout ? 0.5 : 1,
               // Always fit the visible width (sx + vw) minus this text's indent
               // and a reserve for the sticky lock/eye icons + edge padding.
@@ -1080,7 +1046,7 @@ export const LayerRow = React.memo(function LayerRow({
 
         {/* Viewport width badge */}
         {layer.viewportWidth && (
-          <span className="text-xs shrink-0 sticky right-2 z-10" style={{ color: isSelected ? selFg : 'var(--accent)', fontWeight: 500 }}>
+          <span className="text-[10px] shrink-0 sticky right-1.5 z-10" style={{ color: isSelected ? selFg : 'var(--accent)', fontWeight: 500 }}>
             {layer.viewportWidth}
           </span>
         )}

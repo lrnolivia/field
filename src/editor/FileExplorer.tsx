@@ -1183,7 +1183,7 @@ export default function Page() {
       {/* Pages header: persistent title + compact actions. Search expands only
           while it is being used so the page list keeps the vertical space. */}
       {/* Header */}
-      <SectionLabel size="md" right={
+      <SectionLabel size="md" className="field-pages-section-header" right={
         <div className="flex items-center gap-0.5">
           <PanelSearchButton
             active={pageSearchOpen}
@@ -1309,7 +1309,7 @@ export default function Page() {
       )}
 
       {/* Tree */}
-      <div className="px-2 pb-1">
+      <div data-field-pages-tree>
         {pageSearchActive && displayTree.length === 0 ? (
           <div className="px-2 py-3 text-xs text-[var(--text-disabled)] text-center">
             No pages match “{pageSearchQuery}”
@@ -1596,17 +1596,15 @@ export default function Page() {
          *  the user re-creates it). */}
         {notFoundExists() && (
           <SidebarRow
-            // Icon size + paddingLeft must MATCH TreeRow's depth-0 row
-            // (`size={12}` and `depth * 24 + 12 = 12` px) so the 404
-            // row's icon column lines up with Home / every other
-            // top-level page. Drift either value and the icon nudges
-            // left or right vs the rest of the list.
-            icon={<NotFoundIcon size={12} style={{ color: 'currentColor' }} />}
+            data-field-page-row=""
+            data-active={activeFile === NOT_FOUND_PATH ? 'true' : 'false'}
+            className="field-page-row"
+            icon={null}
             label="Not Found"
             iconColor="var(--text-secondary)"
             isActive={activeFile === NOT_FOUND_PATH}
             onClick={() => switchFile(NOT_FOUND_PATH)}
-            style={{ paddingLeft: 12, cursor: 'pointer' }}
+            style={{ paddingLeft: 8, cursor: 'pointer', height: 24 }}
             right={
               <span
                 className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-[var(--text-secondary)] tabular-nums"
@@ -1941,7 +1939,7 @@ const TreeRow = React.memo(function TreeRow({
   // (chevrons landed past the parent's text, which the user reported
   // as "one slot too far"). 20 px hits the sweet spot the user
   // confirmed against the reference.
-  const paddingLeft = entry.customPaddingLeft ?? entry.depth * 20 + 12;
+  const paddingLeft = entry.customPaddingLeft ?? entry.depth * 16 + 8;
 
   // Drop indicator styles
   const dropIndicatorStyle: React.CSSProperties = {};
@@ -1994,8 +1992,10 @@ const TreeRow = React.memo(function TreeRow({
       );
     }
     if (entry.type === 'layout') return <LayoutIcon />;
-    if (entry.isHome) return <PageHomeIcon size={12} style={{ color: 'currentColor' }} />;
-    return <PageDocumentIcon size={12} style={{ color: 'currentColor' }} />;
+    // Figma UI3's Pages list is typographic navigation, not a file-browser
+    // icon grid. Leaf pages intentionally reserve only SidebarRow's compact
+    // alignment slot; hierarchy is communicated by disclosure chevrons.
+    return null;
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -2091,6 +2091,9 @@ const TreeRow = React.memo(function TreeRow({
         onMouseDown={isDraggable ? (e) => onStartDrag(e, entry) : undefined}
       >
       <SidebarRow
+        data-field-page-row=""
+        data-active={isActive && entry.type !== 'group' ? 'true' : 'false'}
+        className="field-page-row"
         onClick={handleClick}
         prefixSlot={
           // Chevron sits in its own slot — same row gap as the icon, so
@@ -2110,7 +2113,7 @@ const TreeRow = React.memo(function TreeRow({
               </span>
             : (entry.type === 'page' && hasNestedChildren)
               ? chevronPrefix
-              : <span className="shrink-0" style={{ width: 14 }} aria-hidden="true" />
+              : undefined
         }
         icon={renderIcon()}
         label={entry.label}
@@ -2194,6 +2197,7 @@ const TreeRow = React.memo(function TreeRow({
           paddingLeft,
           opacity: isDragged ? 0.4 : 1,
           cursor: 'pointer',
+          height: 24,
           ...dropIndicatorStyle,
         }}
       />
