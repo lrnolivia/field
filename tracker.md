@@ -6,42 +6,14 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T03:36:05Z
+Last Updated: 2026-09-25T03:47:15Z
 
 ## Active Assignments
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_START -->
 <!-- Active assignment blocks are maintained between these markers. -->
 
-<!-- ASSIGNMENT:trackpad-pan-feel-20260924:START -->
-### trackpad-pan-feel-20260924 — Tune trackpad canvas pan responsiveness
 
-Status: active
-Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
-Activation HEAD: 2333f0c65c351d38a32f1cc59cc78f6ddf5795d2
-Last Sync: 2026-09-25T03:36:05Z
-
-Owned:
-  - src/canvas/transform/InputHandler.ts
-  - src/canvas/transform/constants.ts
-  - src/canvas/transform/InputHandler.pan.test.ts
-
-Approved Shared:
-  - none
-
-Protected:
-  - src/canvas/mouse/**
-  - src/canvas/selection/**
-  - src/canvas/drag/**
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/editor/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:trackpad-pan-feel-20260924:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -87,6 +59,26 @@ These notes are coordination-infrastructure guidance. They are not product behav
 <!-- LESSON:pages-layers-ui3-refinement-ii-r1-global-clean:END -->
 
 ## Commit Ledger
+
+
+<!-- LESSON:trackpad-pan-feel-20260924-r1-negative-zero:START -->
+### trackpad-pan-feel-20260924 r1 packaging lesson
+
+- **r1 stopped safely at focused tests after the pan implementation itself behaved as intended.** Nineteen of twenty focused tests passed; the only failure was the zero-vector assertion because Vitest `toBe` uses `Object.is`, which distinguishes JavaScript `-0` from `+0`.
+- **This was a regression-test defect, not a product behavior defect.** `-0 === 0` is true and the camera receives a numerical no-op either way. No implementation commit was created by r1; the pushed reservation remained authoritative.
+- **r3 resumes the exact r1 postimage and changes only the test assertion.** The two production files must match the r1 postimage byte-for-byte; the test may be either the exact r1 broken postimage or the exact repaired postimage for idempotent resume. r2 made no writes because its preflight failed first.
+- **Prevention rule:** regression tests for a zero vector must not over-specify the IEEE-754 sign bit unless signed zero is part of the contract. Use a sign-agnostic zero assertion when direction at magnitude zero is semantically irrelevant.
+<!-- LESSON:trackpad-pan-feel-20260924-r1-negative-zero:END -->
+
+
+<!-- LESSON:trackpad-pan-feel-20260924-r2-locale-order:START -->
+### trackpad-pan-feel-20260924 r2 packaging lesson
+
+- **r2 stopped safely before any validation or source write even though the dirty path set was correct.** It rendered the same three intended paths in the stop message.
+- **Root cause: locale-sensitive ordered-string comparison.** The expected list was sorted by the host shell's `sort` command while the actual list was sorted by Python. macOS locale collation may order uppercase `InputHandler...` and lowercase `constants...` differently, so two equal path sets produced unequal multiline strings.
+- **Repository/source impact: none.** The r2 runner stopped before its installer `--check`, test repair, staging, commit, or push. The r1 partial postimage and existing tracker reservation remained authoritative.
+- **r3 prevention rule: exact ownership/path gates compare sets, never locale-dependent sorted strings.** Diagnostic output may be sorted for readability, but ordering must not determine equality. The staged-path gate uses the same set semantics.
+<!-- LESSON:trackpad-pan-feel-20260924-r2-locale-order:END -->
 
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
@@ -222,6 +214,27 @@ Validation / Build / Deploy:
 - Cloudflare Build ID: 05e8b7f2-3a40-4084-a46e-f97fed2c6e0a
 - Cloudflare Version ID: ed439218-c57d-42c9-ba0b-a95e7e7757a3
 - production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/05e8b7f2-3a40-4084-a46e-f97fed2c6e0a
+
+### 2026-09-25T03:47:15Z — trackpad-pan-feel-20260924 — c78cbbfe090b
+
+Summary: Trackpad-aware wheel pan normalization with high-resolution gain curve and line/page delta normalization
+Commit: c78cbbfe090be9cbdb0b0fd407a2ef709a362980
+
+Paths:
+  - src/canvas/transform/InputHandler.pan.test.ts
+  - src/canvas/transform/InputHandler.ts
+  - src/canvas/transform/constants.ts
+
+Validation / Build / Deploy:
+- focused pan + zoom tests: passed (20/20)
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed (main field + sandbox + Preview sandbox)
+- ownership allowlist: passed for exactly 3 assignment-owned paths
+- implementation push: `origin main`
+- r3 resume: repaired the r1 signed-zero regression assertion; r2 made no source writes because its locale-sensitive path-order preflight stopped before validation/application
+- `Workers Builds: field`: completed / success
+- Cloudflare/GitHub check-run ID: 107935502945
+- production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/2f0352f7-6925-46b0-b307-582d7eab3601
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -386,4 +399,33 @@ Validation / Deploy:
   - version ID: ed439218-c57d-42c9-ba0b-a95e7e7757a3
 <!-- ASSIGNMENT:pages-layers-ui3-refinement-ii-20260924:END -->
 
+<!-- ASSIGNMENT:trackpad-pan-feel-20260924:START -->
+### trackpad-pan-feel-20260924 — Tune trackpad canvas pan responsiveness
+
+Status: complete
+Baseline: 9a74cb25344466ef4ba9adc9046a3365b245a661
+Activation HEAD: 2333f0c65c351d38a32f1cc59cc78f6ddf5795d2
+Last Sync: 2026-09-25T03:47:15Z
+
+Owned:
+  - src/canvas/transform/InputHandler.ts
+  - src/canvas/transform/constants.ts
+  - src/canvas/transform/InputHandler.pan.test.ts
+
+Approved Shared:
+  - none
+
+Protected:
+  - src/canvas/mouse/**
+  - src/canvas/selection/**
+  - src/canvas/drag/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/editor/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:trackpad-pan-feel-20260924:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
