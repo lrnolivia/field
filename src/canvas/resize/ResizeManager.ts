@@ -47,7 +47,7 @@ import { resizeLiveOps } from '@/canvas/resize/resize-live-store';
 import { getInsetState, mergeVariantPinStyles } from '@/shared/pin-utils';
 import { trace } from '@/shared/debug-trace';
 import { getNodeFromCache, injectNodeIntoCache, getCachedNodesMap } from '@/code/stores/store';
-import { planNativeGroupResize, type NativeGroupResizeSnapshot } from '@/code/groups/group-refit';
+import { nativeGroupResizeHasTransformedGeometry, planNativeGroupResize, type NativeGroupResizeSnapshot } from '@/code/groups/group-refit';
 import { findChildRects, getContentRootRect } from '@/canvas/node-ops';
 import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/canvas-math';
 import type { SnapGuide, Transform } from '@/shared/types';
@@ -105,28 +105,38 @@ function captureNativeGroupResizeSnapshot(groupId: string, vpId: string): Native
       const cs = findNodeComputedStyles(childId, vpId, [
         'position', 'left', 'top', 'width', 'height', 'transform', 'rotate', 'scale',
       ]);
-      // Native Group child-space is absolute. Refuse transformed geometry in
-      // this pass rather than scale an AABB and introduce a mouse-up jump.
+      // Native Group child-space is absolute. Visual transforms are allowed in
+      // the snapshot now, but they force proportional Group resize below.
       if (cs.position !== 'absolute') return false;
       const transform = (cs.transform || '').trim();
       const rotate = (cs.rotate || '').trim();
       const scale = (cs.scale || '').trim();
-      if ((transform && transform !== 'none')
-          || (rotate && rotate !== 'none' && rotate !== '0' && rotate !== '0deg')
-          || (scale && scale !== 'none' && scale !== '1')) return false;
+      const transformed = (transform && transform !== 'none')
+        || (rotate && rotate !== 'none' && rotate !== '0' && rotate !== '0deg')
+        || (scale && scale !== 'none' && scale !== '1');
 
       const left = Number.parseFloat(cs.left);
       const top = Number.parseFloat(cs.top);
       const width = Number.parseFloat(cs.width);
       const height = Number.parseFloat(cs.height);
       if (![left, top, width, height].every(Number.isFinite) || width < 0 || height < 0) return false;
-      snapshot.set(childId, { left, top, width, height });
+      snapshot.set(childId, { left, top, width, height, transformed: !!transformed });
       if (child.isGroup && !visit(child.id)) return false;
     }
     return true;
   };
 
   return visit(groupId) ? snapshot : null;
+}
+
+export type NativeGroupResizeInteractionPolicy = 'free' | 'force-proportional' | 'blocked';
+
+export function nativeGroupResizeInteractionPolicy(
+  snapshot: NativeGroupResizeSnapshot,
+  isCorner: boolean,
+): NativeGroupResizeInteractionPolicy {
+  if (!nativeGroupResizeHasTransformedGeometry(snapshot)) return 'free';
+  return isCorner ? 'force-proportional' : 'blocked';
 }
 
 function collectResizeSiblings(
@@ -1625,8 +1635,7 @@ export function startResize(
 
   // Native field Group resize snapshots descendant geometry ONCE at gesture
   // start. Every pointer tick derives from this immutable baseline, so scaling
-  // never compounds and mouse-up can commit the exact same geometry that was
-  // previewed. Transformed descendants are gated for now rather than guessed.
+  // never compounds and mouse-up can commit the exact same geometry previewed.
   const nativeGroupResizeSnapshot = nodeData?.isGroup
     ? captureNativeGroupResizeSnapshot(nodeId, vpId)
     : null;
@@ -1634,6 +1643,14 @@ export function startResize(
     trace.action('resize:native-group-unsupported-geometry', { nodeId, vpId });
     return;
   }
+  const nativeGroupResizePolicy = nativeGroupResizeSnapshot
+    ? nativeGroupResizeInteractionPolicy(nativeGroupResizeSnapshot, isCorner)
+    : 'free';
+  if (nativeGroupResizePolicy === 'blocked') {
+    trace.action('resize:native-group-transformed-edge-blocked', { nodeId, vpId, direction });
+    return;
+  }
+  const forceNativeGroupProportional = nativeGroupResizePolicy === 'force-proportional';
   let lastNativeGroupResizePlan: ReturnType<typeof planNativeGroupResize> = null;
 
   // ─── SVG shape → dedicated geometry-baking resize path ───────────────
@@ -2293,7 +2310,7 @@ export function startResize(
       newHeight = locked.height;
       newLeft = locked.left;
       newTop = locked.top;
-    } else if (e.shiftKey && isCorner) {
+    } else if ((e.shiftKey || forceNativeGroupProportional) && isCorner) {
       const locked = applyAspectRatioLock(newWidth, newHeight, curHeight, curTop, aspectRatio, yHandle, isInLayout);
       newHeight = locked.height;
       newTop = locked.top;

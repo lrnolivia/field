@@ -211,10 +211,22 @@ export interface NativeGroupResizeBox {
   top: number;
   width: number;
   height: number;
+  /** The node carries a visual transform (rotate/scale/transform).
+   *  Uniform Group resize is exact; non-uniform resize is not. */
+  transformed?: boolean;
 }
 
 /** Start-of-gesture, parent-local geometry for every descendant of a Group. */
 export type NativeGroupResizeSnapshot = Map<string, NativeGroupResizeBox>;
+
+export function nativeGroupResizeHasTransformedGeometry(
+  snapshot: NativeGroupResizeSnapshot,
+): boolean {
+  for (const box of snapshot.values()) {
+    if (box.transformed) return true;
+  }
+  return false;
+}
 
 /**
  * Normal Figma-style Group resize.
@@ -247,6 +259,16 @@ export function planNativeGroupResize(
   const sx = nextWidth / startWidth;
   const sy = nextHeight / startHeight;
   if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
+
+  // A uniform parent-space scale commutes with rotation/visual transforms:
+  // scaling the descendant's local left/top/width/height while leaving its
+  // transform untouched produces the exact same rotated/scaled visual result.
+  //
+  // Non-uniform X/Y resize does NOT commute with rotation — reproducing that
+  // would require a real affine/Scale model (potential skew/angle change).
+  // Refuse it here rather than approximate and introduce mouse-up drift.
+  if (nativeGroupResizeHasTransformedGeometry(snapshot)
+      && Math.abs(sx - sy) > 1e-6) return null;
 
   const patches = new Map<string, Record<string, string>>();
   const groupIds: string[] = [groupId];

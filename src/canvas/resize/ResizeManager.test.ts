@@ -11,6 +11,7 @@ import {
   quantizeResizeDimension,
   lockedShiftHeight,
   parseAspectRatioValue,
+  nativeGroupResizeInteractionPolicy,
 } from './ResizeManager';
 
 // ─── persistent aspect-ratio lock ───────────────────────────────────────────
@@ -27,6 +28,30 @@ describe('parseAspectRatioValue', () => {
     expect(parseAspectRatioValue('auto')).toBeNull();
     expect(parseAspectRatioValue('unset')).toBeNull();
     expect(parseAspectRatioValue('0 / 1')).toBeNull();
+  });
+});
+
+describe('native Group transformed resize interaction policy', () => {
+  test('ordinary Group geometry remains freely resizable', () => {
+    const snapshot = new Map([
+      ['a', { left: 0, top: 0, width: 20, height: 20 }],
+    ]);
+    expect(nativeGroupResizeInteractionPolicy(snapshot, false)).toBe('free');
+    expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('free');
+  });
+
+  test('transformed descendants force proportional corner resize', () => {
+    const snapshot = new Map([
+      ['a', { left: 0, top: 0, width: 20, height: 20, transformed: true }],
+    ]);
+    expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('force-proportional');
+  });
+
+  test('transformed descendants block edge-only non-uniform resize', () => {
+    const snapshot = new Map([
+      ['a', { left: 0, top: 0, width: 20, height: 20, transformed: true }],
+    ]);
+    expect(nativeGroupResizeInteractionPolicy(snapshot, false)).toBe('blocked');
   });
 });
 

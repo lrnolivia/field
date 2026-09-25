@@ -232,6 +232,64 @@ describe('native Group resize planning', () => {
     const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '10px', height: '10px' });
     expect(planNativeGroupResize({ groupId: 'g', nodes: new Map([[g.id, g], [a.id, a]]), snapshot: new Map(), startWidth: 100, startHeight: 100, nextWidth: 200, nextHeight: 200 })).toBeNull();
   });
+
+  it('supports exact proportional resize with transformed descendants', () => {
+    const g = node('g', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      width: '30px',
+      height: '40px',
+      transform: 'rotate(30deg)',
+      boxShadow: '0 0 4px #000',
+    });
+    const snapshot = new Map([
+      ['a', { left: 10, top: 20, width: 30, height: 40, transformed: true }],
+    ]);
+    const plan = planNativeGroupResize({
+      groupId: 'g',
+      nodes: new Map([[g.id, g], [a.id, a]]),
+      snapshot,
+      startWidth: 100,
+      startHeight: 100,
+      nextWidth: 150,
+      nextHeight: 150,
+    });
+    const patch = plan?.patches.find((p) => p.nodeId === 'a')?.styles;
+    expect(patch).toEqual({
+      left: '15px',
+      top: '30px',
+      width: '45px',
+      height: '60px',
+    });
+    expect(patch?.transform).toBeUndefined();
+    expect(patch?.boxShadow).toBeUndefined();
+  });
+
+  it('refuses non-uniform resize when transformed descendants are present', () => {
+    const g = node('g', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      width: '30px',
+      height: '40px',
+      transform: 'rotate(30deg)',
+    });
+    const snapshot = new Map([
+      ['a', { left: 10, top: 20, width: 30, height: 40, transformed: true }],
+    ]);
+    expect(planNativeGroupResize({
+      groupId: 'g',
+      nodes: new Map([[g.id, g], [a.id, a]]),
+      snapshot,
+      startWidth: 100,
+      startHeight: 100,
+      nextWidth: 150,
+      nextHeight: 125,
+    })).toBeNull();
+  });
 });
 
 describe('native Group deletion cleanup planning', () => {
