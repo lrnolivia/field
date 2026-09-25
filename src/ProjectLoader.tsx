@@ -178,6 +178,11 @@ export default function ProjectLoader() {
 
       if (cancelled) return;
 
+      // Authentication has already resolved. Store the user before project
+      // hydration so an R2/project-load failure cannot leave the editor using
+      // the generic "You" fallback avatar.
+      setUser(user);
+
       // 2b. Template remix entry-point.
       //
       // Landing pages link to `/builder/<uuid>?remix=<templateId>` for
@@ -342,9 +347,6 @@ export default function ProjectLoader() {
         if (!cancelled) setRemixPrompt({ websiteId: id });
         trace.action('project-loader:assign-workspace-armed', { websiteId: id });
       }
-
-      // 5. Store user in atom
-      setUser(user);
 
       // 6. Restore active page from ?page= URL param. Compares against
       // both halves of the home pair so a slug param that resolves to
