@@ -184,3 +184,145 @@ export function planNativeGroupRefitChain(
 export function touchesNativeGroupGeometry(styles: Record<string, string>): boolean {
   return Object.keys(styles).some((key) => BOX_KEYS.has(key));
 }
+
+export interface NativeGroupLayersReparentPlan {
+  moveStyles: Record<string, string>;
+  patches: NativeGroupRefitPatch[];
+  groupIds: string[];
+  removeGroupIds: string[];
+}
+
+export interface NativeGroupWorldBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function applyRefitStepToWorking(
+  groupId: string,
+  working: Map<string, CanvasNode>,
+  patches: Map<string, Record<string, string>>,
+  groupIds: string[],
+): string | null {
+  const step = planNativeGroupRefit(groupId, working);
+  if (!step) return null;
+  groupIds.push(groupId);
+  for (const patch of step.patches) {
+    mergePatch(patches, patch.nodeId, patch.styles);
+    const node = working.get(patch.nodeId);
+    if (node) working.set(patch.nodeId, cloneWithStyles(node, patch.styles));
+  }
+  const group = working.get(groupId);
+  const parentId = group?.parentId ?? null;
+  return parentId && working.get(parentId)?.isGroup ? parentId : null;
+}
+
+function refitGroupChainFrom(
+  startGroupId: string | null,
+  working: Map<string, CanvasNode>,
+  patches: Map<string, Record<string, string>>,
+  groupIds: string[],
+): void {
+  let groupId = startGroupId;
+  const visited = new Set<string>();
+  while (groupId && !visited.has(groupId)) {
+    visited.add(groupId);
+    const next = applyRefitStepToWorking(groupId, working, patches, groupIds);
+    if (!next) break;
+    groupId = next;
+  }
+}
+
+/**
+ * Plan the native-Group-specific part of a Layers reparent gesture.
+ *
+ * The structural move itself remains owned by the existing Layers mutation
+ * pipeline. This planner builds the POST-MOVE tree in memory, converts the
+ * dragged box to destination-local absolute coordinates when world geometry
+ * must be preserved, then shrink-wraps source/destination Group chains.
+ *
+ * It intentionally returns null when neither side is a native Group.
+ */
+export function planNativeGroupLayersReparent(
+  args: {
+    draggedId: string;
+    newParentId: string;
+    nodes: Map<string, CanvasNode>;
+    draggedWorld: NativeGroupWorldBox;
+    newParentWorld: NativeGroupWorldBox;
+    preserveDraggedGeometry: boolean;
+  },
+): NativeGroupLayersReparentPlan | null {
+  const { draggedId, newParentId, nodes, draggedWorld, newParentWorld, preserveDraggedGeometry } = args;
+  const dragged = nodes.get(draggedId);
+  const destination = nodes.get(newParentId);
+  if (!dragged || !destination || !dragged.parentId || dragged.parentId === newParentId) return null;
+
+  const source = nodes.get(dragged.parentId);
+  const sourceIsGroup = !!source?.isGroup;
+  const destinationIsGroup = !!destination.isGroup;
+  if (!sourceIsGroup && !destinationIsGroup) return null;
+
+  // B2 remains conservative wherever Group shrink-wrap cannot be computed
+  // exactly by the B1 planner. A destination Group must be canonical before we
+  // author Group-local coordinates into it.
+  if (destinationIsGroup && ((destination.styles?.position ?? '') !== 'absolute' || hasUnsupportedTransform(destination))) return null;
+  if (sourceIsGroup && source && ((source.styles?.position ?? '') !== 'absolute' || hasUnsupportedTransform(source))) return null;
+
+  const working = new Map(nodes);
+  const patches = new Map<string, Record<string, string>>();
+  const groupIds: string[] = [];
+  const removeGroupIds: string[] = [];
+  const oldParentId = dragged.parentId;
+
+  const oldParent = working.get(oldParentId);
+  if (oldParent) working.set(oldParentId, { ...oldParent, children: oldParent.children.filter((id) => id !== draggedId) });
+  const newParent = working.get(newParentId)!;
+  working.set(newParentId, { ...newParent, children: [...newParent.children.filter((id) => id !== draggedId), draggedId] });
+
+  const moveStyles: Record<string, string> = {};
+  if (preserveDraggedGeometry) {
+    moveStyles.position = 'absolute';
+    moveStyles.left = fmtPx(draggedWorld.left - newParentWorld.left);
+    moveStyles.top = fmtPx(draggedWorld.top - newParentWorld.top);
+    moveStyles.right = '';
+    moveStyles.bottom = '';
+  }
+  working.set(draggedId, {
+    ...dragged,
+    parentId: newParentId,
+    styles: { ...dragged.styles, ...moveStyles },
+  });
+
+  if (sourceIsGroup && source) {
+    const postSource = working.get(source.id)!;
+    if (postSource.children.length > 0 && !planNativeGroupRefit(source.id, working)) return null;
+    if (postSource.children.length === 0) {
+      removeGroupIds.push(source.id);
+      const sourceParentId = source.parentId;
+      working.delete(source.id);
+      if (sourceParentId) {
+        const sourceParent = working.get(sourceParentId);
+        if (sourceParent) {
+          working.set(sourceParentId, { ...sourceParent, children: sourceParent.children.filter((id) => id !== source.id) });
+          if (sourceParent.isGroup) refitGroupChainFrom(sourceParent.id, working, patches, groupIds);
+        }
+      }
+    } else {
+      refitGroupChainFrom(source.id, working, patches, groupIds);
+    }
+  }
+
+  if (destinationIsGroup && working.has(newParentId)) {
+    if (!planNativeGroupRefit(newParentId, working)) return null;
+    refitGroupChainFrom(newParentId, working, patches, groupIds);
+  }
+
+  return {
+    moveStyles,
+    patches: [...patches].map(([nodeId, styles]) => ({ nodeId, styles })),
+    groupIds,
+    removeGroupIds,
+  };
+}

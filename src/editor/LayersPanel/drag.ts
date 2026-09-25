@@ -6,7 +6,8 @@
 import type { MouseEvent as ReactMouseEvent, MutableRefObject } from 'react';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { flushNow, queueMutation } from '@/code/mutation/mutation-queue';
-import { getContentRoot, isPrimaryViewport, findChildRects, findNodeComputedStyle, findNodeComputedStyles, forceRenderAfterExternalEdit, redirectToFitTextWrapper } from '@/canvas/node-ops';
+import { getContentRoot, isPrimaryViewport, findChildRects, findNodeComputedStyle, findNodeComputedStyles, findNodeRect, forceRenderAfterExternalEdit, redirectToFitTextWrapper } from '@/canvas/node-ops';
+import { planNativeGroupLayersReparent } from '@/code/groups/group-refit';
 import { computeReorderAssignments, computeReplicaOrderMirrorUpdates, flexForFlowChildEnteringFlex } from '@/canvas/drag/reparent-utils';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { getDefaultStore } from 'jotai';
@@ -89,8 +90,9 @@ export function computeEdgeAutoScrollDelta(
  */
 export function layerAcceptsInsideDrop(
   nodeType: string,
-  opts?: { isCmsRowTemplate?: boolean },
+  opts?: { isCmsRowTemplate?: boolean; isGroup?: boolean },
 ): boolean {
+  if (opts?.isGroup) return true;
   if (isFrameTag(nodeType)) return true;
   return !!opts?.isCmsRowTemplate;
 }
@@ -407,6 +409,17 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
         ? indicator.layerId.replace('__vp_', '')               // viewport-header drop
         : (indicator.layerId.split(':')[0] || 'desktop');      // node-row drop
 
+      // Native Group reparent gestures preserve the dragged node's world box.
+      // Capture geometry BEFORE the structural mutation; the pure Group planner
+      // converts it to destination-local coordinates and computes post-move
+      // source/destination shrink-wrap patches in one deterministic batch.
+      const sourceParentBeforeDrop = draggedNode.parentId ? nodes.get(draggedNode.parentId) : null;
+      const destinationBeforeDrop = nodes.get(finalParentId);
+      const touchesNativeGroup = draggedNode.parentId !== finalParentId
+        && (!!sourceParentBeforeDrop?.isGroup || !!destinationBeforeDrop?.isGroup);
+      const draggedWorldRect = touchesNativeGroup ? findNodeRect(draggedId, dropVpId) : null;
+      const destinationWorldRect = touchesNativeGroup ? findNodeRect(finalParentId, dropVpId) : null;
+
       // If the target parent is a flex container OR an auto-placed grid,
       // CSS `order` decides paint order. Plain JSX `reorder`/`move` is
       // invisible whenever ANY sibling already carries an explicit `order`
@@ -570,6 +583,28 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
       // variants), exactly like dropping into a primary page viewport.
       const enteringVariant = sourceIsCanvas && !isPrimaryViewport(dropVpId) && isCompMode && !destIsCanvas;
 
+      const groupReparentPlan = touchesNativeGroup && draggedWorldRect && destinationWorldRect
+        ? planNativeGroupLayersReparent({
+            draggedId,
+            newParentId: finalParentId,
+            nodes,
+            draggedWorld: { left: draggedWorldRect.left, top: draggedWorldRect.top, width: draggedWorldRect.width, height: draggedWorldRect.height },
+            newParentWorld: { left: destinationWorldRect.left, top: destinationWorldRect.top, width: destinationWorldRect.width, height: destinationWorldRect.height },
+            // A native Group is an absolute child-space. When LEAVING a Group
+            // for an ordinary flex/grid parent, keep the existing layout-entry
+            // behavior; otherwise preserve world geometry exactly.
+            preserveDraggedGeometry: !!destinationBeforeDrop?.isGroup || !destHasLayout,
+          })
+        : null;
+      if (groupReparentPlan && Object.keys(groupReparentPlan.moveStyles).length > 0) {
+        Object.assign(moveStyles, groupReparentPlan.moveStyles);
+        trace.action('layers:native-group-reparent-plan', {
+          draggedId, finalParentId, dropVpId,
+          groupIds: groupReparentPlan.groupIds,
+          removeGroupIds: groupReparentPlan.removeGroupIds,
+        });
+      }
+
       const moveExtras = {
         ...(Object.keys(moveStyles).length > 0 ? { styles: moveStyles } : {}),
         ...(canvasNodeFlag !== undefined ? { canvasNode: canvasNodeFlag } : {}),
@@ -591,6 +626,18 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
         queueMutation({ type: 'reorder', nodeId: draggedId, parentId: finalParentId, index: structuralInsertIndex });
       } else {
         queueMutation({ type: 'move', nodeId: draggedId, newParentId: finalParentId, index: structuralInsertIndex, ...moveExtras });
+      }
+
+      // Apply derived Group geometry AFTER the structural move so child-local
+      // rebases win in the same mutation transaction. Remove an emptied source
+      // Group only after its final child has moved out.
+      if (groupReparentPlan) {
+        for (const patch of groupReparentPlan.patches) {
+          queueMutation({ type: 'updateStyles', nodeId: patch.nodeId, styles: patch.styles });
+        }
+        for (const groupId of groupReparentPlan.removeGroupIds) {
+          queueMutation({ type: 'removeNode', nodeId: groupId });
+        }
       }
 
       // Replica visibility — a canvas node entering a non-primary viewport

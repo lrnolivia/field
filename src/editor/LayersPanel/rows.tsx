@@ -765,7 +765,7 @@ export const LayerRow = React.memo(function LayerRow({
         data-layer-id={id}
         data-layer-node-id={layer.nodeId || ''}
         data-layer-depth={depth}
-        data-layer-is-frame={layerAcceptsInsideDrop(node.type, { isCmsRowTemplate: layer.isCmsItem }) ? 'true' : ''}
+        data-layer-is-frame={layerAcceptsInsideDrop(node.type, { isCmsRowTemplate: layer.isCmsItem, isGroup: !!node.isGroup }) ? 'true' : ''}
         onMouseDown={(e) => { if (!isViewer && !isVpHeader && layer.nodeId && e.button === 0) onDragStart(e, layer.id, layer.nodeId); }}
         onContextMenu={(e) => { e.preventDefault(); if (!isViewer && layer.nodeId) onContextMenu(e, layer.nodeId); }}
         onClick={(e) => {

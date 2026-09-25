@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '@/code/parsing/parser';
 import {
+  planNativeGroupLayersReparent,
   planNativeGroupRefit,
   planNativeGroupRefitChain,
   touchesNativeGroupGeometry,
@@ -173,4 +174,51 @@ describe('native Group refit geometry', () => {
     expect(touchesNativeGroupGeometry({ width: '20px', opacity: '0.5' })).toBe(true);
     expect(touchesNativeGroupGeometry({ opacity: '0.5' })).toBe(false);
   });
+
+describe('native Group Layers reparent planning', () => {
+  const box = (left: number, top: number, width = 20, height = 20) => ({ left, top, width, height });
+
+  it('enters a Group in destination-local coordinates then refits without changing world position', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '40px', height: '40px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const b = node('b', 'root', { position: 'absolute', left: '160px', top: '90px', width: '20px', height: '20px' });
+    const root = node('root', null, {}, { children: ['g', 'b'] });
+    const plan = planNativeGroupLayersReparent({ draggedId: 'b', newParentId: 'g', nodes: new Map([[root.id, root], [group.id, group], [a.id, a], [b.id, b]]), draggedWorld: box(160, 90), newParentWorld: box(100, 50, 40, 40), preserveDraggedGeometry: true });
+    expect(plan?.moveStyles).toMatchObject({ position: 'absolute', left: '60px', top: '40px' });
+    const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+    expect(out.get('g')).toMatchObject({ left: '100px', top: '50px', width: '80px', height: '60px' });
+  });
+
+  it('refits the source Group when a child exits', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '80px', height: '40px' }, { isGroup: true, children: ['a', 'b'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const b = node('b', 'g', { position: 'absolute', left: '60px', top: '0px', width: '20px', height: '20px' });
+    const root = node('root', null, {}, { children: ['g'] });
+    const plan = planNativeGroupLayersReparent({ draggedId: 'b', newParentId: 'root', nodes: new Map([[root.id, root], [group.id, group], [a.id, a], [b.id, b]]), draggedWorld: box(160, 50), newParentWorld: box(0, 0, 500, 500), preserveDraggedGeometry: true });
+    expect(plan?.moveStyles).toMatchObject({ left: '160px', top: '50px' });
+    expect(new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []).get('g')).toMatchObject({ width: '20px', height: '20px' });
+  });
+
+  it('removes an empty source Group after its final child leaves', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '20px', height: '20px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const root = node('root', null, {}, { children: ['g'] });
+    const plan = planNativeGroupLayersReparent({ draggedId: 'a', newParentId: 'root', nodes: new Map([[root.id, root], [group.id, group], [a.id, a]]), draggedWorld: box(100, 50), newParentWorld: box(0, 0, 500, 500), preserveDraggedGeometry: true });
+    expect(plan?.removeGroupIds).toEqual(['g']);
+  });
+
+  it('refits both Group chains on Group-to-Group moves', () => {
+    const g1 = node('g1', 'root', { position: 'absolute', left: '0px', top: '0px', width: '80px', height: '20px' }, { isGroup: true, children: ['a', 'b'] });
+    const g2 = node('g2', 'root', { position: 'absolute', left: '200px', top: '0px', width: '20px', height: '20px' }, { isGroup: true, children: ['c'] });
+    const a = node('a', 'g1', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const b = node('b', 'g1', { position: 'absolute', left: '60px', top: '0px', width: '20px', height: '20px' });
+    const c = node('c', 'g2', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const root = node('root', null, {}, { children: ['g1', 'g2'] });
+    const plan = planNativeGroupLayersReparent({ draggedId: 'b', newParentId: 'g2', nodes: new Map([[root.id, root], [g1.id, g1], [g2.id, g2], [a.id, a], [b.id, b], [c.id, c]]), draggedWorld: box(60, 0), newParentWorld: box(200, 0), preserveDraggedGeometry: true });
+    expect(plan?.groupIds).toContain('g1');
+    expect(plan?.groupIds).toContain('g2');
+    expect(plan?.moveStyles.left).toBe('-140px');
+  });
+});
+
 });

@@ -125,6 +125,16 @@ describe('layerAcceptsInsideDrop', () => {
     expect(layerAcceptsInsideDrop('a', { isCmsRowTemplate: false })).toBe(false);
     expect(layerAcceptsInsideDrop('a', {})).toBe(false);
   });
+
+  it('native Group accepts inside even when its tag is text-like', () => {
+    expect(layerAcceptsInsideDrop('a', { isGroup: true })).toBe(true);
+    expect(layerAcceptsInsideDrop('span', { isGroup: true })).toBe(true);
+  });
+
+  it('the Group exemption does not widen ordinary text-like nodes', () => {
+    expect(layerAcceptsInsideDrop('a', { isGroup: false })).toBe(false);
+    expect(layerAcceptsInsideDrop('span', { isGroup: false })).toBe(false);
+  });
 });
 
 // FIT TEXT is a PAIR: `<svg data-id="<id>-svg" data-name="FIT"><foreignObject>
