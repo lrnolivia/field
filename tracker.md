@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:45:06Z
+Last Updated: 2026-09-25T08:45:09Z
 
 ## Active Assignments
 
@@ -192,7 +192,39 @@ Protected:
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-005:END -->
 
+<!-- ASSIGNMENT:native-gallery-evolution-20260925:START -->
+### native-gallery-evolution-20260925 — Native Gallery Evolution — Cumulative Phase 1 Runtime Carousel
 
+Status: active
+Baseline: a6c1c5c73faf7743dbf6aae47c86b34420a00dc8
+Activation HEAD: 5b4fffa00908884c742ae31bb7ed7fd0249ae363
+Last Sync: 2026-09-25T08:45:09Z
+
+Owned:
+  - src/code/gallery/**
+  - src/editor/gallery/**
+  - src/editor/tools/GalleryTool.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/mutation-queue.ts
+  - src/code/stores/project-store.ts
+  - src/canvas/commands.ts
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:native-gallery-evolution-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
