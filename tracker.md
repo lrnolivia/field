@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T09:39:38Z
+Last Updated: 2026-09-25T09:39:42Z
 
 ## Active Assignments
 
@@ -101,52 +101,7 @@ Phase B progress:
   - Dedicated Scale-tool behavior remains separate future work; transformed Group WRAPPERS and perspective/3D child transforms remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
-<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:START -->
-### figui3-corrective-sidebar-system-20260925 — FigUI3 Corrective Phase 5 — Sidebar System + Document Panel
 
-Status: active
-Baseline: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
-Activation HEAD: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
-Last Sync: 2026-09-25T09:39:38Z
-
-Owned:
-  - src/design-system/SectionLabel.tsx
-  - src/design-system/SearchBar.tsx
-  - src/design-system/PanelSearchButton.tsx
-  - src/design-system/AddButton.tsx
-  - src/design-system/SidebarRow.tsx
-  - src/design-system/DropdownMenu.tsx
-  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
-  - src/editor/left-toolbar/panels/pages-layers.css
-  - src/editor/FileExplorer.tsx
-  - src/editor/LayersPanel.tsx
-  - src/editor/figui3-sidebar-system-polish.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/LayersPanel/rows.tsx
-  - src/editor/LayersPanel/drag.ts
-  - src/editor/LayersPanel/resolve-drop-structure.test.ts
-  - src/editor/LayersPanel/position-fixup.test.ts
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/mutation/**
-  - src/code/features/paste-engine/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/editor/command-palette/**
-  - src/editor/header/**
-  - src/editor/agent/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1068,6 +1023,27 @@ Paths:
   - src/editor/gallery/gallery-media-drag.test.ts
   - src/editor/gallery/gallery-media-drag.ts
   - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-25T09:39:42Z — figui3-corrective-sidebar-system-20260925 — 67c891a949ed
+
+Summary: FigUI3 Phase 5: rebuilt shared sidebar primitives and Pages/Layers document chrome around neutral rounded geometry, lighter hierarchy, larger action hit targets, token-driven search, de-Revyme SidebarRow/DropdownMenu styling, and tighter document-panel density. Existing menu/FileExplorer/Layers tests plus TypeScript passed before ownership registration.
+Commit: 67c891a949ed245c6784279c9f6baa16c1441a10
+
+Paths:
+  - src/design-system/AddButton.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/PanelSearchButton.tsx
+  - src/design-system/SearchBar.tsx
+  - src/design-system/SectionLabel.tsx
+  - src/design-system/SidebarRow.tsx
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/figui3-sidebar-system-polish.test.ts
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
@@ -2210,4 +2186,51 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:native-gallery-media-insert-20260925:END -->
+
+<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:START -->
+### figui3-corrective-sidebar-system-20260925 — FigUI3 Corrective Phase 5 — Sidebar System + Document Panel
+
+Status: complete
+Baseline: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
+Activation HEAD: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
+Last Sync: 2026-09-25T09:39:42Z
+
+Owned:
+  - src/design-system/SectionLabel.tsx
+  - src/design-system/SearchBar.tsx
+  - src/design-system/PanelSearchButton.tsx
+  - src/design-system/AddButton.tsx
+  - src/design-system/SidebarRow.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/left-toolbar/panels/PagesLayersPanel.tsx
+  - src/editor/left-toolbar/panels/pages-layers.css
+  - src/editor/FileExplorer.tsx
+  - src/editor/LayersPanel.tsx
+  - src/editor/figui3-sidebar-system-polish.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/LayersPanel/resolve-drop-structure.test.ts
+  - src/editor/LayersPanel/position-fixup.test.ts
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/features/paste-engine/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/editor/command-palette/**
+  - src/editor/header/**
+  - src/editor/agent/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
