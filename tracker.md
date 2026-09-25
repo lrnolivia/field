@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:20:35Z
+Last Updated: 2026-09-25T08:23:02Z
 
 ## Active Assignments
 
@@ -879,6 +879,24 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-25T08:23:02Z — figui3-corrective-destroke-font-20260925 — 3bc7fe18b801
+
+Summary: Corrective FigUI3 de-stroke pass plus field-native font family trigger and rebuilt Fonts browser; focused visual-contract tests, TypeScript, build:all, ownership, and isolated validation passed.
+Commit: 3bc7fe18b80145f7cde8672274e460955c71bda5
+
+Paths:
+  - src/editor/controls/InspectorIconButtonGroup.tsx
+  - src/editor/controls/ToolSegmentedControl.tsx
+  - src/editor/figui3-corrective-polish.test.ts
+  - src/editor/figui3-global-parity.test.ts
+  - src/editor/figui3-typography-controls.test.ts
+  - src/editor/tools/TextStyleTool/atoms/FontFamilyControl.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/styles/loew-theme.css
+
+Validation / Build / Deploy:
+- Production verified: Workers Builds: field completed successfully; check-run id 107999247734; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/c3a1219b-1afb-421b-a7d7-47402d97253b
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
