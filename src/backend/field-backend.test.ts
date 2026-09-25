@@ -35,6 +35,42 @@ describe('backend selection', () => {
   });
 });
 
+describe('FieldBackend Access identity', () => {
+  it('uses the authenticated Cloudflare Access identity instead of Local User', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-1',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+    }, 200));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-1',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/cdn-cgi/access/get-identity');
+    const init = fetchImpl.mock.calls[0][1] as RequestInit;
+    expect(init.credentials).toBe('include');
+    expect(init.cache).toBe('no-store');
+  });
+
+  it('falls back to the verified email identity when Access has no display name', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-2',
+      email: 'lauren@example.com',
+    }, 200));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-2',
+      name: 'lauren',
+      email: 'lauren@example.com',
+    });
+  });
+});
+
 describe('FieldBackend project persistence', () => {
   it('loads remote ProjectData, captures its ETag, and uses it on the next save', async () => {
     const fetchImpl = vi.fn()

@@ -8,6 +8,7 @@ import { LocalBackend } from './local-backend';
 import { trace } from '@/shared/debug-trace';
 
 const API_PREFIX = '/api/field/projects';
+const ACCESS_IDENTITY_PATH = '/cdn-cgi/access/get-identity';
 const LEGACY_PROJECT_NAME_PREFIX = 'revyme:project-name:';
 
 export class PersistenceConflictError extends Error {
@@ -93,9 +94,51 @@ export class FieldBackend implements ProjectBackend {
   }
 
   async getUser(): Promise<RevymeUser | null> {
-    // Cloudflare Access authenticates the Worker boundary. field does not yet
-    // have its own account model, so preserve standalone editor behavior.
-    return this.localFallback.getUser();
+    // Hosted field uses Cloudflare Access as its identity boundary. Ask
+    // Cloudflare for the authenticated identity instead of exposing the
+    // standalone LocalBackend's synthetic "Local User" in production chrome.
+    let response: Response;
+    try {
+      response = await this.fetchImpl(ACCESS_IDENTITY_PATH, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+    } catch (error) {
+      trace.error('field-backend:user-network-error', { error: String(error) });
+      throw error;
+    }
+
+    if (response.status === 401 || response.status === 403) return null;
+    if (!response.ok) {
+      throw await responseError(response, 'Access identity load');
+    }
+
+    const body = await response.json().catch(() => null) as {
+      id?: unknown;
+      user_uuid?: unknown;
+      name?: unknown;
+      email?: unknown;
+    } | null;
+
+    const email = typeof body?.email === 'string' ? body.email.trim() : '';
+    const id =
+      typeof body?.user_uuid === 'string' && body.user_uuid.trim()
+        ? body.user_uuid.trim()
+        : typeof body?.id === 'string' && body.id.trim()
+          ? body.id.trim()
+          : email;
+    const name =
+      typeof body?.name === 'string' && body.name.trim()
+        ? body.name.trim()
+        : email.split('@')[0] || 'You';
+
+    if (!id || !email) {
+      throw new Error('Cloudflare Access identity response is incomplete');
+    }
+
+    return { id, name, email };
   }
 
   private async fetchRemoteProject(id: string): Promise<{ found: boolean; data: ProjectData | null }> {
