@@ -1,10 +1,11 @@
+/* FIGUI3_DOCUMENT_PANEL_DENSITY_20260925 */
 [data-field-document-panel] {
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 16%, var(--bg-active));
+  --field-layer-selected-bg: color-mix(in srgb, var(--selection) 12%, var(--bg-active));
 }
 
 [data-field-pages-splitter] {
   position: relative;
-  flex: 0 0 7px;
+  flex: 0 0 5px;
   cursor: ns-resize;
   touch-action: none;
   outline: none;
@@ -13,7 +14,7 @@
 [data-field-pages-splitter]::before {
   content: "";
   position: absolute;
-  inset: 3px 0 auto;
+  inset: 2px 0 auto;
   height: 1px;
   background: var(--border-light);
 }
@@ -21,9 +22,9 @@
 [data-field-pages-splitter]::after {
   content: "";
   position: absolute;
-  left: 18px;
-  right: 18px;
-  top: 2px;
+  left: 24px;
+  right: 24px;
+  top: 1px;
   height: 3px;
   border-radius: 2px;
   background: transparent;
@@ -37,19 +38,20 @@
 
 .field-pages-section-header,
 .field-layers-section-header {
-  min-height: 32px;
-  padding: 9px 12px 5px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
 }
 
 [data-field-pages-tree] {
-  padding: 1px 8px 6px;
+  padding: 0 4px 4px;
 }
 
 .field-page-row {
   height: 24px !important;
   min-height: 24px !important;
   gap: 6px !important;
-  padding-right: 6px !important;
+  padding-right: 4px !important;
   border-radius: 4px !important;
   clip-path: none !important;
   font-weight: 400;
@@ -65,8 +67,8 @@
 }
 
 .field-layer-tree-action {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -87,6 +89,7 @@
 
 [data-field-layer-row] {
   min-height: 24px;
+  border-radius: 4px;
 }
 
 [data-field-layer-row] > [aria-hidden="true"] {

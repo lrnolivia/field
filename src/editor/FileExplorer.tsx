@@ -1,3 +1,4 @@
+// FIGUI3_PAGES_PANEL_DENSITY_20260925
 // FileExplorer.tsx — Project file tree in the left sidebar.
 // Shows app/ pages organized in a tree: route groups, layouts, pages.
 // Supports drag-and-drop to move pages between groups and nest as subdirectories.
@@ -1180,7 +1181,7 @@ export default function Page() {
   // ─── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col shrink-0">
+    <div className="flex flex-col shrink-0 min-h-0">
       {/* Pages header: persistent title + compact actions. Search expands only
           while it is being used so the page list keeps the vertical space. */}
       {/* Header */}
@@ -1299,7 +1300,7 @@ export default function Page() {
       }>Pages</SectionLabel>
 
       {pageSearchOpen && (
-        <div className="px-3 pb-1.5 shrink-0">
+        <div className="px-2 pb-1 shrink-0">
           <SearchBar
             value={pageSearchQuery}
             onChange={setPageSearchQuery}
@@ -1310,7 +1311,7 @@ export default function Page() {
       )}
 
       {/* Tree */}
-      <div data-field-pages-tree>
+      <div data-field-pages-tree className="min-h-0">
         {pageSearchActive && displayTree.length === 0 ? (
           <div className="px-2 py-3 text-xs text-[var(--text-disabled)] text-center">
             No pages match “{pageSearchQuery}”

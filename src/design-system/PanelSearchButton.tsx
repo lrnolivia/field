@@ -1,4 +1,5 @@
 // PanelSearchButton.tsx — compact on-demand search action for sidebar sections.
+// FIGUI3_SIDEBAR_SEARCH_ACTION_20260925
 // Search should be an action by default; the full input appears only while the
 // user is actively filtering a section.
 
@@ -14,7 +15,7 @@ const PanelSearchButton = forwardRef<HTMLButtonElement, PanelSearchButtonProps>(
       ref={ref}
       type="button"
       aria-pressed={active}
-      className={`w-5 h-5 flex items-center justify-center cut-corners transition-colors cursor-pointer ${
+      className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer ${
         active
           ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
           : 'text-[var(--text-disabled)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'

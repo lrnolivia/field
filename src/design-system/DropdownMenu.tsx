@@ -1,4 +1,5 @@
 // DropdownMenu.tsx — Centralized dropdown menu matching context menu design.
+// FIGUI3_SIDEBAR_DROPDOWN_20260925
 // FIELD_SCROLL_INTEGRITY_DROPDOWN_20260925
 // Used for: Components +, Pages +, toolbar dropdowns, any popup menu.
 // Configurable hover accent: blue (context menu) or subtle gray (panel menus).
@@ -230,7 +231,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
       data-field-no-canvas-input
       data-scroll-surface="dropdown-menu"
       onWheel={(event) => event.stopPropagation()}
-      className="fixed bg-[var(--dropdown-bg,var(--bg-surface))] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)]"
+      className="fixed rounded-[8px] bg-[var(--dropdown-bg,var(--bg-surface))] border border-[var(--border-light)]"
       style={{
         ...style,
         // A fixed width wins outright: `minWidth` would let the panel grow past
@@ -345,7 +346,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
               disabled={entry.disabled}
               className={`
                 group flex items-center gap-3 mx-1.5 px-2 ${compact ? 'h-7' : 'h-8'}
-                w-[calc(100%-12px)] cut-corners
+                w-[calc(100%-12px)] rounded-[5px]
                 text-xs
                 ${entry.disabled
                   // Disabled items: no hover, no pointer, no

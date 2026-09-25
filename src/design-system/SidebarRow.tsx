@@ -1,4 +1,5 @@
 // SidebarRow.tsx — Reusable row for sidebar lists (components, pages, layers, presets).
+// FIGUI3_SIDEBAR_ROW_20260925
 // Same visual design everywhere. Flexible: all behavior via props, only design is shared.
 // Built-in ellipsis menu support via menuItems prop.
 // Sizes: sm (compact), md (default), lg (insert panel categories).
@@ -37,12 +38,12 @@ const SIZE_CLASSES: Record<
   md: {
     row: "gap-1.5 px-2 h-7",
     icon: "w-4 h-4",
-    label: "text-[11px] font-medium",
+    label: "text-[11px] font-normal",
   },
   lg: {
     row: "gap-2 px-2 h-8",
     icon: "w-[18px] h-[18px]",
-    label: "text-[12px] font-semibold",
+    label: "text-[12px] font-medium",
   },
 };
 
@@ -90,7 +91,7 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
       menuItems,
       right,
       indent = 0,
-      iconColor = "var(--accent-secondary, #a78bfa)",
+      iconColor = "var(--text-secondary)",
       size = "sm",
       className = "",
       onContextMenu: userContextMenu,
@@ -135,10 +136,10 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
       <div
         ref={ref}
         className={`
-        group flex items-center ${s.row} cut-corners transition-colors select-none
+        group flex items-center ${s.row} rounded-[4px] transition-colors select-none
         ${
           isActive
-            ? "bg-[var(--btn-secondary-bg)] text-[var(--text-primary)]"
+            ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
             : menuOpen
               // Right-clicked row keeps the hover highlight while ITS context
               // menu is open (the cursor has left the row for the menu, so
@@ -273,7 +274,7 @@ function SidebarRowRenameInput({
         if (e.key === "Escape") finish(initialValue);
       }}
       onBlur={() => { if (active) finish(value); }}
-      className={`bg-white text-black border-0 outline-none px-1 py-0.5 rounded ${className ?? ""}`}
+      className={`bg-[var(--control-bg)] text-[var(--text-primary)] border border-transparent outline-none px-1 py-0.5 rounded-[3px] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)] ${className ?? ""}`}
       style={{ minWidth: 40 }}
     />
   );

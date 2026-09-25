@@ -1,4 +1,5 @@
 // PagesLayersPanel.tsx — persistent document navigation: Pages above Layers.
+// FIGUI3_DOCUMENT_PANEL_SHELL_20260925
 // The split is a real resizable workspace boundary, matching Figma UI3's
 // Pages/Layers document panel instead of stacking two unrelated cards.
 
@@ -94,7 +95,7 @@ export default function PagesLayersPanel() {
     >
       <div
         data-document-pages
-        className="shrink-0 overflow-y-auto scrollbar-hide"
+        className="shrink-0 min-h-0 overflow-y-auto overscroll-contain scrollbar-hide"
         style={{ flexBasis: `${pagesRatio * 100}%`, minHeight: 72, maxHeight: '62%' }}
       >
         <FileExplorer />

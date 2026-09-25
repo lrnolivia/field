@@ -1,4 +1,5 @@
 // SearchBar.tsx — Reusable search input with a leading magnifier icon.
+// FIGUI3_SIDEBAR_SEARCH_BAR_20260925
 //
 // Ported from the inline `SearchBar` previously living in IconPanel.tsx
 // so left-panel sections that want a search row (Pages, Layers, Library,
@@ -28,7 +29,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
   return (
     <div className={`relative ${className}`}>
       <svg
-        className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-secondary)] pointer-events-none"
+        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-tertiary)] pointer-events-none"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -39,17 +40,15 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
         <circle cx="11" cy="11" r="7" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
-      {/* Tinted fill so the bar reads as a clearly tappable affordance.
-          Theme-mirrored: a black tint on the light panel, a white tint on
-          the dark one — the prior white-only tier was invisible in light
-          mode (white on a white panel). Brightens on hover/focus. */}
+      {/* FigUI3 sidebar control: quiet neutral fill at rest, no decorative
+          perimeter, functional selection ring only while focused. */}
       <input
         ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-6 pl-6 pr-2 py-0 text-[11px] bg-black/[0.06] hover:bg-black/[0.09] focus:bg-black/[0.12] dark:bg-white/[0.08] dark:hover:bg-white/[0.12] dark:focus:bg-white/[0.15] cut-corners text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors"
+        className="w-full h-7 pl-7 pr-2 py-0 text-[11px] rounded-[5px] border border-transparent bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] focus:bg-[var(--control-bg-hover)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]"
       />
     </div>
   );

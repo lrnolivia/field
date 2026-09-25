@@ -1,3 +1,4 @@
+// FIGUI3_LAYERS_PANEL_DENSITY_20260925
 // LayersPanel.tsx — Tree view of all nodes on the canvas.
 // Exact styling from old builder's optimized-layers.tsx.
 // Click to select (syncs with canvas), expand/collapse, drag to reorder/reparent.
@@ -1123,7 +1124,7 @@ export default function LayersPanel() {
       </SectionLabel>
 
       {layerSearchOpen && (
-        <div className="px-3 pb-1.5 shrink-0">
+        <div className="px-2 pb-1 shrink-0">
           <SearchBar
             value={layerSearchQuery}
             onChange={setLayerSearchQuery}
@@ -1147,7 +1148,7 @@ export default function LayersPanel() {
       /* Tree */
       <div
         ref={listRef}
-        className="flex-1 px-2 overflow-y-auto overflow-x-auto scrollbar-hide"
+        className="flex-1 px-1 overflow-y-auto overflow-x-auto overscroll-contain scrollbar-hide"
         // Hard-cut the scrolling content at the 8px left inset (matching the
         // selection pill's inset) so names never bleed into the left margin /
         // over the toolbar as the tree scrolls. The mask is fixed to the

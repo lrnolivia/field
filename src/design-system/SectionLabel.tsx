@@ -1,4 +1,5 @@
 // SectionLabel.tsx — Reusable section header label for sidebar panels.
+// FIGUI3_SIDEBAR_SECTION_LABEL_20260925
 // Used for: "Components", "Typography", "Color", "Pages", etc.
 // Sizes: xl (panel title), md (section header), sm (sub-section), xs (category).
 
@@ -16,14 +17,14 @@ interface SectionLabelProps {
 
 const SIZE_CLASSES: Record<SectionLabelSize, string> = {
   xl: 'text-sm font-medium text-[var(--text-primary)]',
-  md: 'text-xs font-semibold text-[var(--text-secondary)]',
-  sm: 'text-[11px] font-semibold text-[var(--text-secondary)]',
-  xs: 'text-[10px] font-extrabold text-[var(--text-secondary)] tracking-wider uppercase',
+  md: 'text-[11px] font-medium text-[var(--text-secondary)]',
+  sm: 'text-[11px] font-medium text-[var(--text-secondary)]',
+  xs: 'text-[10px] font-semibold text-[var(--text-secondary)] tracking-[0.04em] uppercase',
 };
 
 export default function SectionLabel({ children, size = 'md', right, className = '' }: SectionLabelProps) {
   return (
-    <div className={`px-3 h-7 flex items-center justify-between ${className}`}>
+    <div className={`px-2 h-7 flex items-center justify-between ${className}`}>
       <span className={SIZE_CLASSES[size]}>{children}</span>
       {right}
     </div>
