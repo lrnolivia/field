@@ -1,5 +1,6 @@
-// BottomToolbar.tsx — Floating bottom toolbar pill with tool modes, zoom, search, theme, comments.
-// Matches old builder styling exactly: same padding, gaps, button sizes, icons, dropdowns.
+// BottomToolbar.tsx — Floating bottom toolbar with tool modes, zoom, search, theme, comments.
+// FIGUI3_BOTTOM_TOOLBAR_POLISH_20260925
+// FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useClickOutside } from './hooks/useClickOutside';
@@ -50,7 +51,7 @@ const CheckSvg = () => <FigmaCheckIcon size={14} />;
 // ─── Shared sub-components ──────────────────────────────────────────────────
 
 function Separator() {
-  return <div className="w-px h-[26px] bg-[var(--border-light)] mx-1 shrink-0" />;
+  return <div className="w-px h-[20px] bg-[var(--border-light)] mx-0.5 shrink-0" />;
 }
 
 function ShortcutHint({ text }: { text: string }) {
@@ -64,7 +65,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   return (
     <button
       onClick={disabled ? undefined : onClick}
-      className={`flex items-center w-full px-3 py-1.5 text-xs cut-corners transition-colors gap-2 bg-transparent ${
+      className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 bg-transparent ${
         disabled
           ? 'text-[var(--text-disabled)] cursor-not-allowed opacity-50'
           : 'text-[var(--text-primary)] hover:bg-[var(--btn-secondary-bg)] cursor-pointer'
@@ -82,7 +83,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
 
 function DropdownContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[180px] bg-[var(--bg-surface)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-lg p-2 z-[100]">
+    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[180px] rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
       {children}
     </div>
   );
@@ -103,7 +104,7 @@ function SplitButton({ active, icon, onClick, onChevronClick, title }: {
       <button
         onClick={onClick}
         title={title}
-        className={`flex items-center justify-center px-1.5 h-[32px] cut-corners transition-colors ${
+        className={`flex items-center justify-center px-1.5 h-[36px] rounded-[6px] transition-colors ${
           active
             ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -118,14 +119,13 @@ function SplitButton({ active, icon, onClick, onChevronClick, title }: {
           is light: accent-fg is dark-on-dark there). */}
       <button
         onClick={onChevronClick}
-        className={`flex items-center justify-center w-[12px] h-[32px] transition-colors ${
+        className={`flex items-center justify-center w-[12px] h-[36px] transition-colors ${
           active
             ? 'text-[var(--accent)] opacity-80 hover:opacity-100'
-            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cut-corners'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-[5px]'
         }`}
-        // 12px-wide sliver — the default 9px cut would eat most of the
-        // shape, so this one runs a smaller slice.
-        style={{ border: 'none', cursor: 'pointer', backgroundColor: 'transparent', '--cut': '3px' } as React.CSSProperties}
+        // Keep the narrow chevron hit target optically subordinate to the main tool.
+        style={{ border: 'none', cursor: 'pointer', backgroundColor: 'transparent' }}
       >
         <ChevronDownSvg />
       </button>
@@ -144,7 +144,7 @@ function ToolButton({ active, onClick, title, children, dataTutorial }: {
       onClick={onClick}
       title={title}
       data-tutorial={dataTutorial}
-      className={`flex items-center justify-center px-1.5 h-[32px] cut-corners transition-colors ${
+      className={`flex items-center justify-center px-1.5 h-[36px] rounded-[6px] transition-colors ${
         active
           ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -353,10 +353,10 @@ function ZoomDropdown({ selectedId }: { selectedId: string | null }) {
       {/* Zoom % button */}
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center justify-center h-[32px] min-w-[50px] px-2.5 cut-corners cut-border text-xs font-medium transition-all ${
+        className={`flex items-center justify-center h-[36px] min-w-[48px] px-2.5 rounded-[6px] border border-transparent text-xs font-medium transition-colors ${
           open
-            ? 'bg-[var(--accent)] text-[var(--accent-fg)] border border-[var(--accent)] [--cut-border-color:var(--accent)]'
-            : 'bg-[var(--grid-line)] border border-[var(--control-border)] hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] text-[var(--text-secondary)]'
+            ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+            : 'bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
         }`}
         style={{ cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
       >
@@ -364,7 +364,7 @@ function ZoomDropdown({ selectedId }: { selectedId: string | null }) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] bg-[var(--bg-surface)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-lg p-2 z-[100]">
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
           <MenuItem label="Fit" shortcut="Shift+1" onClick={() => { const el = getContentEl(); if (el) zoomToFit(el); setOpen(false); }} />
           <MenuItem label="Fit Selection" shortcut="Shift+2" onClick={() => { const el = getContentEl(); if (el) zoomToFitSelection(el, selectedId ? [selectedId] : []); setOpen(false); }} />
           <MenuItem label="Zoom 100%" shortcut="Shift+3" onClick={() => { zoomTo100(); setOpen(false); }} />
@@ -403,12 +403,12 @@ function LocaleDropdown() {
       <button
         onClick={() => setOpen(!open)}
         title="Language"
-        className={`flex items-center gap-1.5 px-2.5 h-[32px] cut-corners cut-border transition-all ${
+        className={`flex items-center gap-1.5 px-2.5 h-[36px] rounded-[6px] border border-transparent transition-colors ${
           !isDefault
-            ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 [--cut-border-color:rgba(249,115,22,0.4)]'
+            ? 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/20'
             : open
-              ? 'bg-[var(--accent)] text-[var(--accent-fg)] border border-[var(--accent)] [--cut-border-color:var(--accent)]'
-              : 'bg-[var(--grid-line)] border border-[var(--control-border)] hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] text-[var(--text-secondary)]'
+              ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+              : 'bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
         }`}
         style={{ cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
       >
@@ -580,25 +580,19 @@ export default function BottomToolbar() {
     >
       <div
         id="bottom-toolbar-container"
-        className="relative flex items-center px-2 p-1.5 gap-0.5"
+        className="relative flex items-center px-2 py-2 gap-0.5"
         // isolation: the cut backdrop below sits at z -1; isolating keeps it
         // inside this container instead of sliding under the page.
         style={{ isolation: 'isolate' }}
       >
-        {/* Cut backdrop — bg, border and clip live on THIS layer, not the
-            container: clip-path clips ALL descendant painting, and every
-            dropdown here opens ABOVE the bar (absolute bottom-full), i.e.
-            entirely outside the hexagon — with the container clipped they
-            rendered invisible. Both signature corners stay cut even though
-            the bar is docked (user call, 2026-08-19); 12px slice to match
-            the 44px height; diagonal stroke matches border-light. */}
+        {/* True floating island: keep the shell on a separate backing layer so
+            dropdowns can escape above the toolbar without being clipped. */}
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 cut-corners cut-lg cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)]"
+          className="absolute inset-0 -z-10 rounded-[11px] border border-[var(--border-light)]"
           // Same flat surface as ChromeIslands — the bar floats 18px off the
           // bottom edge as its own island.
           style={{
-            '--cut-border-color': 'var(--border-light)',
             // Minimal UI: flat opaque surface instead of glass.
             background: 'var(--bg-toolbar)',
             backdropFilter: 'none',
@@ -731,7 +725,7 @@ export default function BottomToolbar() {
           onClick={togglePalette}
           data-palette-toggle
           data-tutorial="search-tool"
-          className="flex items-center gap-1.5 px-2.5 h-[32px] bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] cut-corners cut-border transition-all"
+          className="flex items-center gap-1.5 px-2.5 h-[36px] rounded-[6px] bg-[var(--control-bg)] border border-transparent hover:bg-[var(--control-bg-hover)] transition-colors"
           style={{ cursor: 'pointer' }}
         >
           <SearchIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
@@ -773,7 +767,7 @@ export default function BottomToolbar() {
                 setSettingsSection('plans');
                 setSettingsOpen(true);
               }}
-              className="flex items-center justify-center h-[32px] px-2.5 cut-corners transition-all text-xs font-medium text-[var(--accent)] hover:brightness-125"
+              className="flex items-center justify-center h-[36px] px-2.5 rounded-[6px] transition-colors text-xs font-medium text-[var(--accent)] hover:bg-[var(--bg-hover)]"
               style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)', cursor: 'pointer', border: 'none' }}
             >
               Upgrade
