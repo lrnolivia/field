@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T08:59:21.560935Z
+Last Updated: 2026-09-25T09:00:28Z
 
 ## Active Assignments
 
@@ -1017,6 +1017,25 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-25T09:00:28Z — field-scroll-integrity-20260925 — b177b410ad79
+
+Summary: Scroll integrity outside Inspector: bounded/scrollable shared dropdown menus, deterministic shared modal scrolling, overscroll containment across Dashboard, Settings, Templates, Comments, Collaborators, and Component controls. Inspector font paths intentionally untouched.
+Commit: b177b410ad79e392a3d5fecaca370cae2324ee18
+
+Paths:
+  - src/cloud/NewWebsiteTemplatesModal.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/Modal.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/collab/CollaboratorsModal.tsx
+  - src/editor/component-editor/ComponentEditorOverlay.tsx
+  - src/editor/overlays/SettingsOverlay.tsx
+  - src/editor/scroll-integrity-contract.test.ts
+  - src/styles/dashboard.css
+
+Validation / Build / Deploy:
+- Production verified: Workers Builds: field completed successfully; check-run id 108010150811; https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/f0e2f6a7-81fd-4ce3-9bf8-e02d9a1c7ba3
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
