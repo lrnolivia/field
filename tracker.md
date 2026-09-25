@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-25T04:27:06Z
+Last Updated: 2026-09-25T04:27:29Z
 
 ## Active Assignments
 
@@ -406,6 +406,37 @@ Validation / Build / Deploy:
 - Cloudflare/GitHub check-run ID: 107938598530
 - production check: https://dash.cloudflare.com/8df30cd302a4d4a4c01db9863c712166/workers/services/view/field/production/builds/a882e386-caf4-4953-86ca-43255644aa46
 - live visual cadence verification: PENDING USER CHECK — assignment intentionally remains active
+
+### 2026-09-25T04:27:29Z — workspace-chrome-floating-panes — 5427d5446a22
+
+Summary: Deterministic docked/floating workspace housing, full left collapse, right utility header redistribution, camera-safe geometry, and persisted left-panel context.
+Commit: 5427d5446a2215b22e0b8ee1a6a0e79bd0422479
+
+Paths:
+  - src/App.tsx
+  - src/code/stores/left-panel-store.ts
+  - src/code/stores/workspace-panels-store.ts
+  - src/editor/ChromeIslands.tsx
+  - src/editor/CommentsListPanel.tsx
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/VibeDockShell.tsx
+  - src/editor/WorkspaceRestoreBar.tsx
+  - src/editor/collab/InspectorCollaborators.tsx
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/header/RightHeader.tsx
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/left-toolbar/LeftPanel.tsx
+  - src/editor/workspace-layout.test.ts
+  - src/editor/workspace-layout.ts
+
+Validation / Build / Deploy:
+- `git diff --check`: passed
+- focused workspace layout tests: passed
+- `npx tsc --noEmit --pretty false`: passed
+- `npm run build:all`: passed
+- validation executed in an isolated detached worktree before live apply
+- source staging restricted to the workspace assignment allowlist
+- production verification: pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
