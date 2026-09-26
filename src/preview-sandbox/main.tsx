@@ -49,6 +49,8 @@ import Lenis from 'lenis';
 
 const projectFiles: Map<string, string> = new Map();
 const compiledModuleCache: Map<string, any> = new Map();
+const THUMBNAIL_PRELOAD_TIMEOUT_MS = 5000;
+let thumbnailSessionRequestId: string | null = null;
 
 // ─── Preview: neutralize form submissions ──────────────────────────────────
 // In the inline preview the real page runs, so a form's onSubmit fires
@@ -318,6 +320,28 @@ async function preloadCdnImports(): Promise<void> {
       cdnModuleCache.set(url, { __esModule: true, default: () => null });
     }
   }));
+}
+
+async function preloadCdnImportsForRender(requestId: string | null): Promise<void> {
+  if (!requestId) {
+    await preloadCdnImports();
+    return;
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let timedOut = false;
+  const timeout = new Promise<void>((resolve) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      resolve();
+    }, THUMBNAIL_PRELOAD_TIMEOUT_MS);
+  });
+
+  await Promise.race([preloadCdnImports(), timeout]);
+  if (timeoutId !== null) clearTimeout(timeoutId);
+  if (timedOut) {
+    console.warn('[preview] thumbnail CDN preload timed out; rendering with available modules');
+  }
 }
 
 function compileFile(filePath: string): any {
@@ -727,12 +751,13 @@ function rebuildRoutes(): void {
   routes = buildRouteTable(projectFiles);
 }
 
-function announcePreviewRendered(): void {
+function announcePreviewRendered(requestId: string | null): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       parent.postMessage({
         type: 'preview:rendered',
         url: window.location.pathname + window.location.search,
+        requestId,
       }, '*');
     });
   });
@@ -750,15 +775,16 @@ function rerender(): void {
   // synchronous `requireFn` would return `undefined` for URL imports on
   // the first render → React errors with "Element type is invalid".
   // Renders an empty page while loading, then re-renders with content.
-  preloadCdnImports().then(() => {
+  const requestId = thumbnailSessionRequestId;
+  preloadCdnImportsForRender(requestId).then(() => {
     root.render(<PreviewApp />);
-    announcePreviewRendered();
+    announcePreviewRendered(requestId);
   }).catch((err) => {
     // Even if preload fails, render so the user sees an error rather
     // than a blank screen. requireFn falls back to a stub component.
     console.error('[preview] preload failed, rendering anyway', err);
     root.render(<PreviewApp />);
-    announcePreviewRendered();
+    announcePreviewRendered(requestId);
   });
 }
 
@@ -766,7 +792,11 @@ window.addEventListener('message', (e) => {
   const msg = e.data;
   if (!msg || typeof msg !== 'object') return;
 
-  if (msg.type === 'preview:probe-ready') {
+  if (msg.type === 'preview:thumbnail-session') {
+    thumbnailSessionRequestId = typeof msg.requestId === 'string' && msg.requestId
+      ? msg.requestId
+      : null;
+  } else if (msg.type === 'preview:probe-ready') {
     parent.postMessage({ type: 'preview:ready' }, '*');
   } else if (msg.type === 'preview:project-files') {
     projectFiles.clear();
@@ -780,6 +810,12 @@ window.addEventListener('message', (e) => {
       projectFiles.set(file, content);
     }
     rebuildRoutes();
+    if (thumbnailSessionRequestId) {
+      parent.postMessage({
+        type: 'preview:project-received',
+        requestId: thumbnailSessionRequestId,
+      }, '*');
+    }
     rerender();
   } else if (msg.type === 'preview:file-update') {
     projectFiles.set(msg.path, msg.content);

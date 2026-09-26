@@ -186,6 +186,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
 
     let stopped = false;
     let readySeen = false;
+    let projectReceived = false;
     let captureRequested = false;
     let expectedPath: string | null = null;
 
@@ -201,7 +202,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         lastFailedGenerationRef.current = session.generation;
       }
       setCaptureSession(null);
-      trace.error('dashboard-thumbnail:capture-failed', {
+      trace.warn('dashboard-thumbnail:capture-failed', {
         projectId,
         generation: session.generation,
         requestId: session.requestId,
@@ -247,6 +248,10 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
           return;
         }
 
+        contentWindow.postMessage({
+          type: 'preview:thumbnail-session',
+          requestId: session.requestId,
+        }, '*');
         const payload = collectPreviewProjectPayload(activeLocale);
         expectedPath = dashboardThumbnailPageUrl(page);
         postPreviewProjectPayload(contentWindow, payload, '*');
@@ -268,7 +273,18 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         return;
       }
 
+      if (message.type === 'preview:project-received') {
+        if (message.requestId !== session.requestId) return;
+        projectReceived = true;
+        trace.action('dashboard-thumbnail:project-received', {
+          projectId,
+          requestId: session.requestId,
+        });
+        return;
+      }
+
       if (message.type === 'preview:rendered' && expectedPath && !captureRequested) {
+        if (message.requestId !== session.requestId || !projectReceived) return;
         const renderedPath = normalizePreviewPath(message.url);
         if (renderedPath !== expectedPath) return;
         captureRequested = true;
