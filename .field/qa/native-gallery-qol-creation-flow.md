@@ -186,3 +186,27 @@ Do not use this packet as evidence that Gallery regressed.
 - classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Source Ratio product failure
 - basis: this same Workers Builds lane was already failing the Gallery no-file bootstrap, prior Gallery successor commits, and unrelated current-main coordination commits before Source Ratio
 - exact dependency-tree Vitest / TypeScript / build:all remain unverified and are not replaced by this classification
+
+
+## 2026-09-26 branch validation — selection continuity 4f05002053e3
+
+- exact implementation SHA: 4f05002053e3cf7af0bf9209968a332c1ec8e8c9
+- parent SHA: f8852136f80329a873fe6862c9031a98876dc01d
+- commit path audit: 3 Gallery-owned files; 92 additions / 8 deletions
+- exact GalleryTool diff against the parent was audited before publication: +31 / -8, selection continuity wiring only
+- two pure helper/regression files added under src/editor/gallery
+- structural invariants passed for:
+  - editor-only per-Gallery selection memory
+  - current identity priority
+  - remembered identity restore after remount/reorder
+  - deterministic next-then-previous selection after removal
+  - view and Natural Shuffle not resetting media selection
+  - replace retaining media identity
+  - transient parser/replica empty states not erasing remembered identity
+- authored focused regressions cover remount restore, reorder/current-identity retention, stale remembered fallback, and adjacent removal behavior
+- authored tests are present in source but were NOT executed in this Contract Worker environment
+- exact repo dependency-tree Vitest / TypeScript / build:all remain unverified for the same toolchain limitation recorded above
+- Draft PR #3 and implementation branch were verified at this SHA after publication
+- Cloudflare Workers Builds check 108445502039 completed with failure and no annotations
+- classification: pre-existing Workers build-lane infrastructure failure, not evidence of a selection-continuity product failure; the same lane was already failing bootstrap, prior Gallery commits, and unrelated main coordination commits
+- runtime/Preview QA remains pending

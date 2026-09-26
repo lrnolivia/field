@@ -181,3 +181,21 @@ Moving-main reconciliation immediately before publication:
 - current main was 66a6f90ef9658e5a66409c0ebe48727715b3452b
 - latest main commit changed tracker.md only
 - no Gallery-owned source overlap
+
+
+## 2026-09-26 implementation block — selection continuity
+
+Implementation commit: 4f05002053e3cf7af0bf9209968a332c1ec8e8c9
+Draft PR: #3
+
+Gallery media selection now follows real item identity rather than list position:
+- editor-only selection memory is keyed by Gallery root ID; no source/runtime property was added
+- current selected item wins whenever that ID still exists
+- inspector remounts, breakpoint/replica changes, view changes, Natural Shuffle, and reorder restore/retain the same item identity
+- replace keeps the same item ID and remembered selection
+- removing the selected item deterministically selects the next adjacent item, or the previous item when removing the end
+- transient empty item arrays from parser/replica churn clear local selection but intentionally keep remembered identity so the same item can recover
+- removing the only selected item clears selection memory through the explicit remove path
+- no generic editor store, parser, Preview, or runtime architecture was modified
+
+The GalleryTool delta was audited directly against exact Source Ratio SHA f8852136... before publication: +31 / -8 and selection wiring only. Two pure Gallery-owned helper/test files were added.
