@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T06:23:51Z
+Last Updated: 2026-09-26T06:26:16Z
 
 ## Active Assignments
 
@@ -1343,6 +1343,31 @@ Paths:
   - src/dashboard/dashboard-realtime.test.ts
   - src/dashboard/dashboard-realtime.ts
   - src/styles/dashboard.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T06:26:16Z — field-dashboard-canvas-shell-20260926 — dcbc9f1d9084
+
+Summary: Added a same-document Dashboard layer over live Canvas, safe soft project switching with mounted project identity, ProjectLoader paint-ready reveal fencing, ProjectChip soft Dashboard navigation, and a compact durable New Project wizard for name/canvas/page color/style set/optional responsive canvases. Focused tests, TypeScript, build:all, and Workers Builds: field passed.
+Commit: dcbc9f1d908427b436a1213c135766dd3344e0cb
+
+Paths:
+  - src/Dashboard.tsx
+  - src/FieldShell.tsx
+  - src/ProjectLoader.tsx
+  - src/backend/field-navigation.test.ts
+  - src/backend/field-navigation.ts
+  - src/backend/project-id.test.ts
+  - src/backend/project-id.ts
+  - src/dashboard/NewProjectWizard.tsx
+  - src/dashboard/new-project-model.test.ts
+  - src/dashboard/new-project-model.ts
+  - src/editor/header/ProjectChip.tsx
+  - src/field-shell-route.test.ts
+  - src/field-shell-route.ts
+  - src/main.tsx
+  - src/styles/field-shell.css
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
