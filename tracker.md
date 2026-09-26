@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T06:28:35Z
+Last Updated: 2026-09-26T06:37:21Z
 
 ## Active Assignments
 
@@ -108,7 +108,38 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
+<!-- ASSIGNMENT:field-dashboard-canvas-slide-20260926:START -->
+### field-dashboard-canvas-slide-20260926 — Fast Dashboard Split-Slide Canvas Reveal
 
+Status: active
+Baseline: 5dd7f09b0a5f9d5da18a63a500be4cb5575c3c9b
+Activation HEAD: 0dad00b45a9f7577a3137c356134dedd8e4c2465
+Last Sync: 2026-09-26T06:37:21Z
+
+Owned:
+  - src/FieldShell.tsx
+  - src/styles/field-shell.css
+  - src/field-shell-motion.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/Dashboard.tsx
+  - src/ProjectLoader.tsx
+  - src/main.tsx
+  - src/backend/**
+  - src/dashboard/**
+  - src/editor/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - src/styles/dashboard.css
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-dashboard-canvas-slide-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
