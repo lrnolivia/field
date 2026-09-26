@@ -95,3 +95,13 @@ Cloudflare preview/build checks on this coordination-only PR may fail because br
 Merge PR #2 only after the final branch head is re-read, the handoff-kit self-test remains valid for the final kit content, ownership remains conflict-free, and current `main` has not introduced a coordination-path conflict.
 
 After merge, verify `main:.field/handoff-kit/VERSION` is `2026-09-26.2`, then mark this control record complete.
+
+## Final refresh
+
+Final pre-merge coordination validation was repeated against PR head
+`06e984d84f3ebf68ca478ec1407ddb78f809ad63`
+with current main
+`7e585a2fe66e062bae8a46041a6e08901027f9a8`.
+
+The PR changed-path audit contains only `.field/handoff-kit/**`.
+Stale v1 process contradictions were cleaned before merge, including the local helper's obsolete tracker-manifest dependency and Firecrawl's previous production-only target assumption.

@@ -28,3 +28,10 @@ type: completion-note
 ## The thing most likely to waste time
 
 Do not use the built-in GitHub connector "just for reads." The Night Shift contract is Composio-exclusive for reads and writes.
+
+## Final cleanup refresh
+
+- PR #2 current tested head: `06e984d84f3ebf68ca478ec1407ddb78f809ad63`
+- current tested main: `7e585a2fe66e062bae8a46041a6e08901027f9a8`
+- stale v1 handoff/installer/QA instructions were reconciled before merge
+- PR changed paths are restricted to `.field/handoff-kit/**`
