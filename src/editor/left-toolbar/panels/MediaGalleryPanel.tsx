@@ -19,6 +19,7 @@ import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
+import SearchBar from '@/design-system/SearchBar';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
@@ -256,6 +257,7 @@ interface StorageInfo {
 
 export default function MediaGalleryPanel() {
   const [tab, setTab] = useState('images');
+  const [searchQuery, setSearchQuery] = useState('');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   // True while a list fetch is in flight — drives the skeleton grid so the
@@ -274,13 +276,27 @@ export default function MediaGalleryPanel() {
   const projectId = getProjectId();
   const isCloud = !!CLOUD_ENABLED;
   const noun: 'image' | 'video' = tab === 'images' ? 'image' : 'video';
+  const filteredUploads = React.useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return uploads;
+    return uploads.filter((item) => {
+      const key = item.key ?? deriveUploadKey(item) ?? '';
+      return key.toLowerCase().includes(query) || item.url.toLowerCase().includes(query);
+    });
+  }, [uploads, searchQuery]);
   const selectedImageUrls = React.useMemo(
-    () => tab === 'images' ? selectedGalleryMediaUrls(uploads, selectedKeys) : [],
-    [tab, uploads, selectedKeys],
+    () => tab === 'images' ? selectedGalleryMediaUrls(filteredUploads, selectedKeys) : [],
+    [tab, filteredUploads, selectedKeys],
   );
   const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
-  trace.fn('MediaGalleryPanel:render', { tab, count: uploads.length, selected: selectedKeys.size });
+  trace.fn('MediaGalleryPanel:render', {
+    tab,
+    count: uploads.length,
+    visibleCount: filteredUploads.length,
+    selected: selectedKeys.size,
+    searchActive: searchQuery.trim().length > 0,
+  });
 
   // Fetch existing uploads + storage info
   const fetchUploads = useCallback(async () => {
@@ -527,6 +543,15 @@ export default function MediaGalleryPanel() {
         <ToolSegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
       </div>
 
+      {/* Dynamic inventory: canonical minimal search row. */}
+      <div className="px-3 mt-2">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={tab === 'images' ? 'Search images…' : 'Search videos…'}
+        />
+      </div>
+
       {/* Error banner (e.g. 402 storage cap reached) */}
       {uploadError && (
         <div className="px-3 mt-3">
@@ -560,7 +585,7 @@ export default function MediaGalleryPanel() {
       </div>
 
       {/* Gallery grid */}
-      {uploads.length > 0 ? (
+      {filteredUploads.length > 0 ? (
         <div ref={scrollRef} onPointerDown={onGridPointerDown} className="flex-1 overflow-y-auto scrollbar-hide p-3">
           {tab === 'images' && selectedImageUrls.length >= 2 && (
             <div
@@ -587,7 +612,7 @@ export default function MediaGalleryPanel() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-2">
-            {uploads.map((item, i) => (
+            {filteredUploads.map((item, i) => (
               <MediaTile
                 key={item.url + i}
                 url={item.url}
@@ -601,6 +626,11 @@ export default function MediaGalleryPanel() {
               />
             ))}
           </div>
+        </div>
+      ) : !loadingList && uploads.length > 0 && searchQuery.trim().length > 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">No matching {noun}s</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">Try a different search.</span>
         </div>
       ) : loadingList ? (
         // Pulsating skeleton tiles (same grid + aspect as the real tiles) while

@@ -1,20 +1,19 @@
 // BottomToolbar.tsx — Floating bottom toolbar with tool modes, zoom, search, theme, comments.
 // FIGUI3_BOTTOM_TOOLBAR_POLISH_20260925
 // FIGUI3_BOTTOM_TOOLBAR_FIGMA_PARITY_20260926
+// FIGUI3_TOOLBAR_RESOURCE_VIEW_CONTROLS_20260926
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
-import { motion } from 'framer-motion';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toolModeAtom, panHighlightAtom, isShapeMode, isLayoutMode, type ToolMode } from '@/code/stores/tool-store';
-import { transformManager, zoomIn, zoomOut, zoomTo100, zoomToFit, zoomToFitSelection } from '@/canvas/transform';
-import { getContentRoot, refreshCanvasTokens } from '@/canvas/node-ops';
+import { zoomToFit, zoomToFitSelection } from '@/canvas/transform';
+import { getContentRoot } from '@/canvas/node-ops';
 import { selectedNodeAtom } from '@/code/stores/store';
 import { activeFilePathAtom, isIconSetFilePath } from '@/code/project/active-file-store';
-import { i18nConfigAtom, activeLocaleAtom, isDefaultLocaleAtom } from '@/code/stores/locale-store';
 import { creatorToolsLockedAtom } from '@/code/stores/tool-store';
 import { commentModeActiveAtom } from '@/code/stores/comment-store';
 import {
@@ -29,8 +28,7 @@ import {
   FigmaRowsIcon as LayoutRowsIcon,
   FigmaColumnsIcon as LayoutColumnsIcon,
   FigmaGridIcon as LayoutGridIcon,
-  FigmaSunIcon as ThemeSunIcon,
-  FigmaMoonIcon as ThemeMoonIcon,
+  FigmaLibraryIcon as ResourcesIcon,
   FigmaSearchIcon as SearchIcon,
   FigmaCommentIcon as CommentBubbleIcon,
   FigmaPencilIcon as SketchPencilIcon,
@@ -40,9 +38,9 @@ import {
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
-import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
-import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
-import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
+import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { ChatImageIcon } from '@/shared/icons';
 
 // ─── Chevron & Check icons ─────────────────────────────────────────────────
 
@@ -138,9 +136,9 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
 
 // ─── Tool Button (simple) ───────────────────────────────────────────────────
 
-function ToolButton({ active, onClick, title, children, dataTutorial, dataTool }: {
+function ToolButton({ active, onClick, title, children, dataTutorial, dataTool, compact = false }: {
   active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
-  dataTutorial?: string; dataTool?: string;
+  dataTutorial?: string; dataTool?: string; compact?: boolean;
 }) {
   return (
     <button
@@ -149,7 +147,7 @@ function ToolButton({ active, onClick, title, children, dataTutorial, dataTool }
       data-tutorial={dataTutorial}
       data-toolbar-tool={dataTool}
       aria-pressed={active || undefined}
-      className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
+      className={`flex items-center justify-center ${compact ? 'w-[32px] h-[32px]' : 'w-[36px] h-[36px]'} rounded-[6px] transition-colors ${
         active
           ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -311,175 +309,80 @@ function LayoutDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: 
   );
 }
 
-// ─── Zoom Dropdown ──────────────────────────────────────────────────────────
+// ─── Smart Zoom ─────────────────────────────────────────────────────────────
 
-function ZoomDropdown({ selectedId }: { selectedId: string | null }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  // Zoom % lives HERE (not on the toolbar root) and is THROTTLED: the old
-  // per-tick setState on the parent re-rendered the ENTIRE toolbar on every
-  // camera frame — that invalidated the toolbar's whole compositor layer
-  // per tick, and during a big zoom-out (GPU busy re-rastering the canvas)
-  // its re-raster starved and the toolbar visibly glitched (live find
-  // 2026-07-19; the panels, which don't re-render during zoom, stayed
-  // stable with layer isolation alone). Scoped here + throttled at 150ms
-  // (leading + trailing), only this small chip repaints a few times per
-  // second and the toolbar body never invalidates mid-gesture.
-  const [zoomPercent, setZoomPercent] = useState(() => Math.round(transformManager.getTransform().scale * 100));
-  useEffect(() => {
-    // TRAILING-ONLY debounce — the chip does NOT update during a camera
-    // gesture at all. Even the earlier 150ms throttle invalidated the chip's
-    // layer a few times per second mid-gesture, and rasterisation for ALL
-    // processes shares ONE GPU process — under a violent zoom's raster
-    // flood each of those repaints starved and the chip showed as a grey
-    // box with no number (renderer-process isolation can't fix GPU-process
-    // contention). Zero invalidations while ticks stream; one update lands
-    // ~180ms after the LAST tick with the exact final value.
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const apply = () => setZoomPercent(Math.round(transformManager.getTransform().scale * 100));
-    const update = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { timer = null; apply(); }, 180);
-    };
-    const unsub = transformManager.subscribe(update);
-    return () => { unsub(); if (timer) clearTimeout(timer); };
-  }, []);
+function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
+  const fit = useCallback(() => {
+    const root = getContentRoot();
+    if (!root) return;
+    if (selectedId) {
+      zoomToFitSelection(root, [selectedId]);
+      trace.action('toolbar:smart-zoom', { target: 'selection', selectedId });
+    } else {
+      zoomToFit(root);
+      trace.action('toolbar:smart-zoom', { target: 'canvas' });
+    }
+  }, [selectedId]);
 
-  useClickOutside(ref, open, () => setOpen(false));
-
-  const getContentEl = () => getContentRoot();
-
+  const title = selectedId ? 'Fit selection (Shift+2)' : 'Fit canvas (Shift+1)';
   return (
-    <div className="relative flex items-center" ref={ref} style={{ willChange: 'transform', isolation: 'isolate' }}>
-      {/* Zoom % button */}
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center justify-center h-[36px] min-w-[48px] px-2.5 rounded-[6px] border border-transparent text-xs font-medium transition-colors ${
-          open
-            ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
-            : 'bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-        }`}
-        style={{ cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
-      >
-        {zoomPercent}%
-      </button>
-
-      {open && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
-          <MenuItem label="Fit" shortcut="Shift+1" onClick={() => { const el = getContentEl(); if (el) zoomToFit(el); setOpen(false); }} />
-          <MenuItem label="Fit Selection" shortcut="Shift+2" onClick={() => { const el = getContentEl(); if (el) zoomToFitSelection(el, selectedId ? [selectedId] : []); setOpen(false); }} />
-          <MenuItem label="Zoom 100%" shortcut="Shift+3" onClick={() => { zoomTo100(); setOpen(false); }} />
-          <DropdownDivider />
-          <MenuItem label="Zoom In" shortcut="Ctrl+Plus" onClick={() => { zoomIn(); setOpen(false); }} />
-          <MenuItem label="Zoom Out" shortcut="Ctrl+Minus" onClick={() => { zoomOut(); setOpen(false); }} />
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      data-toolbar-tool="smart-zoom"
+      aria-label={title}
+      title={title}
+      onClick={fit}
+      className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] border border-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]"
+      style={{ cursor: 'pointer' }}
+    >
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" aria-hidden="true">
+        <path d="M5.25 2.5H2.5v2.75M10.75 2.5h2.75v2.75M13.5 10.75v2.75h-2.75M5.25 13.5H2.5v-2.75" />
+        <circle cx="8" cy="8" r="1.4" />
+      </svg>
+    </button>
   );
 }
 
-// ─── Locale Dropdown ────────────────────────────────────────────────────────
+// ─── Resources ──────────────────────────────────────────────────────────────
 
-function LocaleDropdown() {
+function ResourcesMenu() {
   const [open, setOpen] = useState(false);
-  const config = useAtomValue(i18nConfigAtom);
-  const [activeLocale, setActiveLocale] = useAtom(activeLocaleAtom);
-  const isDefault = useAtomValue(isDefaultLocaleAtom);
   const ref = useRef<HTMLDivElement>(null);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
 
   useClickOutside(ref, open, () => setOpen(false));
 
-  // Map locale configs to display items with flag emojis
-  const FLAG_MAP: Record<string, string> = { en: '🇺🇸', fr: '🇫🇷', es: '🇪🇸', de: '🇩🇪', it: '🇮🇹', pt: '🇧🇷', ja: '🇯🇵', ko: '🇰🇷', zh: '🇨🇳', ar: '🇸🇦', ru: '🇷🇺', nl: '🇳🇱', sv: '🇸🇪', pl: '🇵🇱', tr: '🇹🇷', hi: '🇮🇳' };
-  const languages = config.locales.map(l => ({
-    code: l.code,
-    label: l.label,
-    flag: FLAG_MAP[l.code] || '🌐',
-  }));
-
-  const current = languages.find(l => l.code === activeLocale) ?? languages[0];
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        title="Language"
-        className={`flex items-center gap-1.5 px-2.5 h-[36px] rounded-[6px] border border-transparent transition-colors ${
-          !isDefault
-            ? 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/20'
-            : open
-              ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
-              : 'bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-        }`}
-        style={{ cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif' }}
-      >
-        <span className="text-sm leading-none">{current.flag}</span>
-        <span className="text-xs font-medium uppercase">{current.code}</span>
-      </button>
-      {open && (
-        <DropdownContainer>
-          {languages.map(lang => (
-            <MenuItem
-              key={lang.code}
-              label={lang.label}
-              icon={<span className="text-sm">{lang.flag}</span>}
-              active={activeLocale === lang.code}
-              onClick={() => { setActiveLocale(lang.code); setOpen(false); trace.action('toolbar:locale', { lang: lang.code }); }}
-            />
-          ))}
-        </DropdownContainer>
-      )}
-    </div>
-  );
-}
-
-// ─── Theme Switcher ─────────────────────────────────────────────────────────
-
-function ThemeSwitcher() {
-  const [mode, setMode] = useAtom(editorThemeModeAtom);
-  const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
-
-  const applyChoice = useCallback((nextMode: EditorThemeMode, nextLevel: EditorNeutralLevel) => {
-    const root = document.documentElement;
-    root.classList.add('theme-transition');
-    setMode(nextMode);
-    setNeutralLevel(nextLevel);
-    window.setTimeout(() => root.classList.remove('theme-transition'), 200);
-    requestAnimationFrame(() => refreshCanvasTokens());
+  const openCanonicalPanel = useCallback((panel: 'library' | 'media') => {
+    setLeftPanel(panel);
+    setLeftPaneOpen(true);
     setOpen(false);
-    trace.action('toolbar:theme-neutral', { mode: nextMode, level: nextLevel });
-  }, [setMode, setNeutralLevel]);
+    trace.action('toolbar:resources-open', { panel });
+  }, [setLeftPanel, setLeftPaneOpen]);
 
   return (
-    <div className="relative" ref={anchorRef}>
+    <div className="relative" ref={ref} data-toolbar-resources>
       <ToolButton
+        active={open}
         onClick={() => setOpen((value) => !value)}
-        title={'Theme: ' + (mode === 'dark' ? 'Dark' : 'Light') + ' · Neutral ' + neutralLevel}
-        dataTutorial="theme-tool"
+        title="Resources"
+        dataTool="resources"
       >
-        <motion.span
-          key={mode}
-          initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
-          animate={{ opacity: 1, rotate: 0, scale: 1 }}
-          transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
-          className="flex items-center justify-center w-4 h-4"
-        >
-          {mode === 'dark'
-            ? <ThemeMoonIcon className="w-4 h-4" />
-            : <ThemeSunIcon className="w-4 h-4" />
-          }
-        </motion.span>
+        <ResourcesIcon className="w-4 h-4" size={16} />
       </ToolButton>
       {open && (
-        <ThemeNeutralPopover
-          mode={mode}
-          level={neutralLevel}
-          anchorRef={anchorRef}
-          onSelect={applyChoice}
-          onClose={() => setOpen(false)}
-        />
+        <DropdownContainer>
+          <MenuItem
+            label="Components"
+            icon={<ResourcesIcon className="w-4 h-4" size={16} />}
+            onClick={() => openCanonicalPanel('library')}
+          />
+          <MenuItem
+            label="Media gallery"
+            icon={<ChatImageIcon className="w-4 h-4" />}
+            onClick={() => openCanonicalPanel('media')}
+          />
+        </DropdownContainer>
       )}
     </div>
   );
@@ -494,9 +397,9 @@ export default function BottomToolbar() {
   // tool-reset lands in a later (deferred) commit than the selection.
   trace.action('bottom-toolbar:render', { toolMode });
   const [commentModeActive, setCommentModeActive] = useAtom(commentModeActiveAtom);
-  // Viewers get a stripped toolbar: zoom · locale · theme · comment.
-  // Every creator tool and the ⌘K search are hidden — none of them do
-  // anything useful for a read-only seat.
+  // Viewers get a stripped toolbar: smart zoom · comment.
+  // Creator tools, Resources, and ⌘K search stay hidden for read-only seats.
+  // Locale has its canonical left-rail home; Theme + full zoom live in the Inspector.
   //
   // The Upgrade pill lives at the right end of this bar (it briefly moved
   // to the logo menu's "Your Account" during the ui redesign — buried
@@ -684,6 +587,12 @@ export default function BottomToolbar() {
 
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
+                <ResourcesMenu />
+              </CreatorGate>
+            )}
+
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
                 <LayoutDropdown toolMode={toolMode} onSelect={(layout) => {
                   const layoutToMode: Record<string, ToolMode> = {
                     rows: 'layout-rows',
@@ -703,13 +612,13 @@ export default function BottomToolbar() {
 
         <Separator />
 
-        {/* Figma-style secondary cluster: field state/utilities remain available
-            but read as modes and utilities, not creation tools. */}
+        {/* Secondary utility cluster stays intentionally tiny: routine fit,
+            command search, comments, and account upgrade only. */}
         <div
           data-toolbar-cluster="utility"
           className="flex items-center gap-0.5 p-0.5 rounded-[8px] bg-[var(--control-bg)]"
         >
-          <ZoomDropdown selectedId={selectedId} />
+          <SmartZoomButton selectedId={selectedId} />
 
           {!isViewer && (
             <button
@@ -719,15 +628,12 @@ export default function BottomToolbar() {
               data-palette-toggle
               data-tutorial="search-tool"
               data-toolbar-tool="search"
-              className="flex items-center justify-center w-[36px] h-[36px] rounded-[6px] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)] transition-colors"
+              className="flex items-center justify-center w-[32px] h-[32px] rounded-[6px] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)] transition-colors"
               style={{ cursor: 'pointer' }}
             >
               <SearchIcon className="w-4 h-4" />
             </button>
           )}
-
-          <LocaleDropdown />
-          <ThemeSwitcher />
 
           {!isOffline && (
             <ToolButton
@@ -736,6 +642,7 @@ export default function BottomToolbar() {
               title="Add Comment (Ctrl+Alt+C)"
               dataTutorial="comment-tool"
               dataTool="comment"
+              compact
             >
               <CommentBubbleIcon className="w-4 h-4" />
             </ToolButton>
@@ -749,7 +656,7 @@ export default function BottomToolbar() {
                 setSettingsSection('plans');
                 setSettingsOpen(true);
               }}
-              className="flex items-center justify-center h-[36px] px-2.5 rounded-[6px] transition-colors text-xs font-medium text-[var(--accent)] hover:bg-[var(--bg-hover)]"
+              className="flex items-center justify-center h-[32px] px-2.5 rounded-[6px] transition-colors text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--bg-hover)]"
               style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)', cursor: 'pointer', border: 'none' }}
             >
               Upgrade

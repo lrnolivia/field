@@ -14,24 +14,24 @@ describe('FigUI3 bottom toolbar optical parity', () => {
     expect(toolbar).not.toContain('--cut-border-color');
   });
 
-  it('restores vertical optical presence without bloating separators', () => {
+  it('keeps full-size authoring controls while utilities are denser', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain('h-[36px]');
+    expect(toolbar).toContain("'w-[32px] h-[32px]' : 'w-[36px] h-[36px]'");
     expect(toolbar).toContain('px-2 py-2 gap-0.5');
     expect(toolbar).toContain('h-[20px]');
     expect(toolbar).toContain('mx-0.5');
-    expect(toolbar).not.toContain('h-[32px]');
   });
 
-  it('keeps utility chips neutral while preserving active tool accent', () => {
+  it('preserves sparse functional accent and neutral utility chrome', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain("bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)]");
-    expect(toolbar).toContain("bg-[var(--bg-active)] text-[var(--text-primary)]");
     expect(toolbar).toContain("bg-[var(--accent)] text-[var(--accent-fg)]");
-    expect(toolbar).not.toContain("hover:[--cut-border-color:var(--border-focus)]");
+    expect(toolbar).toContain('data-toolbar-tool="smart-zoom"');
+    expect(toolbar).toContain('hover:bg-[var(--control-bg-hover)]');
+    expect(toolbar).not.toContain('LocaleDropdown');
+    expect(toolbar).not.toContain('ThemeSwitcher');
   });
 
-  it('keeps compact rounded local dropdowns', () => {
+  it('keeps compact rounded local command menus', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(toolbar).toContain('rounded-[8px]');
     expect(toolbar).toContain('shadow-[var(--shadow-lg)] p-1');

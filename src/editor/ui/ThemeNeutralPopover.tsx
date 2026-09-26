@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 // FIGUI3_POPUP_NEUTRAL_APPEARANCE_20260925
+// FIGUI3_INSPECTOR_VIEW_CONTROLS_20260926
 import {
   DEFAULT_EDITOR_NEUTRAL_LEVEL,
   EDITOR_NEUTRAL_LEVELS,
@@ -8,6 +9,7 @@ import {
   type EditorNeutralLevel,
   type EditorThemeMode,
 } from '@/shared/editor-neutral-theme';
+import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 interface ThemeNeutralPopoverProps {
   mode: EditorThemeMode;
@@ -15,9 +17,17 @@ interface ThemeNeutralPopoverProps {
   anchorRef: RefObject<HTMLElement | null>;
   onSelect: (mode: EditorThemeMode, level: EditorNeutralLevel) => void;
   onClose: () => void;
+  placement?: 'above' | 'below';
 }
 
-export default function ThemeNeutralPopover({ mode, level, anchorRef, onSelect, onClose }: ThemeNeutralPopoverProps) {
+export default function ThemeNeutralPopover({
+  mode,
+  level,
+  anchorRef,
+  onSelect,
+  onClose,
+  placement = 'above',
+}: ThemeNeutralPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -54,11 +64,18 @@ export default function ThemeNeutralPopover({ mode, level, anchorRef, onSelect, 
     if (next !== index) optionRefs.current[next]?.focus();
   };
 
+  const placementClass = placement === 'below'
+    ? 'absolute right-0 top-full mt-1'
+    : 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2';
+
   return (
     <div
       ref={panelRef}
       data-theme-neutral-popover=""
-      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[168px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-1.5 z-[10020]"
+      data-field-floating-surface
+      data-field-no-canvas-input
+      className={`${placementClass} w-[168px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-1.5`}
+      style={{ zIndex: fieldSurfaceZ('menu', anchorRef.current) }}
       role="radiogroup"
       aria-label="Editor neutral appearance"
     >
