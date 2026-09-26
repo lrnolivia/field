@@ -5,7 +5,7 @@ field_assignment: 1
 id: dashboard-sidebar-navigation-semantics
 status: active
 branch: field/dashboard-sidebar-navigation-semantics
-pr: null
+pr: 11
 base: d9f178361333a2a3bb17be90c0277e4b98708ae4
 kit: 2026-09-26.3
 type: follow-up
@@ -47,6 +47,11 @@ The Dashboard Worker continues independent work while earlier tranches wait on m
 - active Contract Worker + legacy ownership audit found no owner for either intended path
 - search already has an explicit accessible label
 - nav uses real buttons but does not expose semantic current-view state
+- canonical implementation head: `d3447ee73a0037c30ccdb81960568914c3cffe76`
+- Draft PR #11 targets `main`
+- focused Vitest: 4/4 PASS
+- focused strict TypeScript: PASS
+- exact diff contains only the two owned paths
 
 ## Decisions already made
 
@@ -58,15 +63,15 @@ The Dashboard Worker continues independent work while earlier tranches wait on m
 
 ## Acceptance criteria
 
-- [ ] active nav row exposes `aria-current="page"`
-- [ ] inactive nav rows do not expose `aria-current`
-- [ ] nav click preserves existing `onViewChange` behavior
-- [ ] Escape clears a non-empty search
-- [ ] search retains focus after Escape clear
-- [ ] Escape on empty search does not emit a redundant query change
-- [ ] focused tests pass
-- [ ] focused strict TypeScript passes
-- [ ] exact changed paths remain within ownership
+- [x] active nav row exposes `aria-current="page"`
+- [x] inactive nav rows do not expose `aria-current`
+- [x] nav click preserves existing `onViewChange` behavior
+- [x] Escape clears a non-empty search
+- [x] search retains focus after Escape clear
+- [x] Escape on empty search does not emit a redundant query change
+- [x] focused tests pass
+- [x] focused strict TypeScript passes
+- [x] exact changed paths remain within ownership
 
 ## Validation
 
