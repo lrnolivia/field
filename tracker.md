@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:51:27Z
+Last Updated: 2026-09-26T01:52:29Z
 
 ## Active Assignments
 
@@ -22,7 +22,7 @@ Last Updated: 2026-09-26T01:51:27Z
 Status: active
 Baseline: a10af177e311dba88197164658d7e16f7233a377
 Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
-Last Sync: 2026-09-25T09:44:31Z
+Last Sync: 2026-09-26T01:52:29Z
 Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
 Phase B baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
 
@@ -99,7 +99,8 @@ Phase B progress:
   - Phase B7 landed at e4e36f3b050464fb84cc5e29cdcb97f227157984: Group semantic guards are enforced at the command boundary across shortcuts, palette, menu and future callers, with command-level acceptance regressions
   - Phase B8 landed at 183ecea9ef30e280a3306f02e973f745e3c144f2: derived Group refit supports exact 2D affine child transforms (translate/scale/rotate/skew/matrix + transform-origin) and transform edits trigger refit
   - Phase B9 landed at 5e40d6c3d058c46480bde4329184674ceede2e74: exact 2D affine transformed absolute Group wrapper refit, transform-origin/percentage-translation compensation, and transformed nested-Group ancestor propagation
-  - Dedicated Scale-tool behavior remains separate future work; transformed flow Group wrappers and perspective/3D child or Group transforms remain conservatively gated
+  - Phase B10 landed at 9b158a30646f2073bcf08cfcf773f6bb23659582: Layers reparent into/out of transformed absolute Groups now converts cached painted world corners through the destination local affine basis, preserving exact 2D world geometry instead of subtracting transformed AABBs
+  - Dedicated Scale-tool behavior remains separate future work; transformed flow Group wrappers, perspective/3D transforms, and transform-bearing variant/conditional Layers rebases remain conservatively gated
 <!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
