@@ -5,7 +5,7 @@ field_assignment: 1
 id: dashboard-rename-dialog-hardening
 status: active
 branch: field/dashboard-rename-dialog-hardening
-pr: null
+pr: 8
 base: d9f178361333a2a3bb17be90c0277e4b98708ae4
 kit: 2026-09-26.3
 type: follow-up
@@ -43,20 +43,15 @@ Bring Rename Project interaction behavior up to the same professional standard a
 
 While PR #5 is code-green but blocked on Preview/build infrastructure, the user explicitly directed the Dashboard Worker to keep building instead of waiting at blockers.
 
-Current `RenameProjectDialog` has three bounded interaction defects:
-- Escape does not dismiss it.
-- backdrop/Cancel can dismiss it while a save is in flight.
-- Cancel remains enabled while saving.
-
 ## Current verified state
 
 - activation base: `d9f178361333a2a3bb17be90c0277e4b98708ae4`
-- no active Contract Worker or legacy assignment owns either intended path
-- current dialog selects the existing project name when opened
-- current save path trims the name and rejects an empty value
-- current backdrop closes unconditionally
-- current Cancel closes unconditionally and remains enabled while saving
-- current dialog has no Escape handler
+- canonical implementation head: `bc89cdcceb0958890d40ef1756738bf298d714fd`
+- Draft PR #8 targets `main`
+- focused Vitest: 6/6 passed
+- focused strict TypeScript: passed
+- exact branch diff contains only the two owned paths
+- validation caught one real defect during implementation: selection did not guarantee focus; the component now explicitly focuses before selecting
 
 ## Decisions already made
 
@@ -65,22 +60,23 @@ Current `RenameProjectDialog` has three bounded interaction defects:
 - Escape closes only while idle
 - backdrop closes only while idle
 - Cancel is disabled while saving
+- name input is disabled while saving
 - existing select-on-open and trimmed-save behavior remain intact
 - the project-name input receives an explicit accessible label
 
 ## Acceptance criteria
 
-- [ ] existing project name remains selected/focused on open
-- [ ] Escape closes while idle
-- [ ] Escape does not close while saving
-- [ ] backdrop closes while idle
-- [ ] backdrop does not close while saving
-- [ ] Cancel is disabled while saving
-- [ ] save submits a trimmed non-empty name only
-- [ ] project-name input has an explicit accessible name
-- [ ] focused tests pass
-- [ ] focused strict TypeScript validation passes
-- [ ] exact changed paths remain within assignment ownership
+- [x] existing project name remains selected/focused on open
+- [x] Escape closes while idle
+- [x] Escape does not close while saving
+- [x] backdrop closes while idle
+- [x] backdrop does not close while saving
+- [x] Cancel is disabled while saving
+- [x] save submits a trimmed non-empty name only
+- [x] project-name input has an explicit accessible name
+- [x] focused tests pass
+- [x] focused strict TypeScript validation passes
+- [x] exact changed paths remain within assignment ownership
 
 ## Intended ownership
 
@@ -103,10 +99,10 @@ Approved Shared:
 
 ## Validation
 
-- focused Vitest suite
-- focused strict TypeScript validation
-- exact changed-path audit
-- re-read committed source from Git
+- focused Vitest suite: PASS, 6/6
+- focused strict TypeScript validation: PASS
+- exact changed-path audit: PASS
+- committed source re-read from Git before validation
 
 ## Runtime QA
 
@@ -119,7 +115,7 @@ Current field Dashboard Worker chat. User direction: keep building when another 
 ## Completion contract
 
 - implementation remains on `field/dashboard-rename-dialog-hardening`
-- open one Draft PR targeting `main`
-- update this assignment's mailbox and QA record
+- Draft PR #8 targets `main`
 - do not modify PR #5-owned paths
-- do not merge until exact-head validation passes
+- exact-head validation is complete
+- merge remains subject to normal current merge authority/gate
