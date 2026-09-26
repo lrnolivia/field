@@ -8,6 +8,8 @@ const item: GalleryContentOperationItem = {
   alt: 'Portrait at dusk',
   objectFit: 'contain',
   objectPosition: '23% 71%',
+  zoom: '1.4',
+  rotation: '12deg',
 };
 
 describe('Gallery content operations', () => {
@@ -22,6 +24,10 @@ describe('Gallery content operations', () => {
     expect(image?.styles).toMatchObject({
       objectFit: 'contain',
       objectPosition: '23% 71%',
+      transformOrigin: '23% 71%',
+      '--field-gallery-zoom': '1.4',
+      '--field-gallery-rotation': '12deg',
+      transform: 'scale(var(--field-gallery-zoom, 1)) rotate(var(--field-gallery-rotation, 0deg))',
     });
   });
 

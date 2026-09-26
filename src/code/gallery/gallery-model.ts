@@ -14,6 +14,7 @@ import {
   parseGalleryAriaLabel,
   type GalleryViewId,
 } from './gallery-views';
+import { galleryMediaTreatmentPatch } from './gallery-media-treatment';
 
 export interface GalleryItemRef {
   item: CanvasNode;
@@ -179,7 +180,7 @@ export function buildGalleryItemNode(
         styles: {
           ...getGalleryImagePatch(view),
           objectFit: getGalleryDefaultImageFit(view),
-          objectPosition: '50% 50%',
+          ...galleryMediaTreatmentPatch('50% 50%', 1, 0),
         },
         attrs: { src: url, alt },
       },

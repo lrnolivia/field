@@ -1,4 +1,9 @@
 import { buildGalleryItemNode, type GallerySourceNode } from '@/code/gallery/gallery-model';
+import {
+  galleryMediaTreatmentPatch,
+  parseGalleryRotation,
+  parseGalleryZoom,
+} from '@/code/gallery/gallery-media-treatment';
 import type { GalleryViewId } from '@/code/gallery/gallery-views';
 
 export interface GalleryContentOperationItem {
@@ -8,6 +13,8 @@ export interface GalleryContentOperationItem {
   alt: string;
   objectFit: string;
   objectPosition: string;
+  zoom: string;
+  rotation: string;
 }
 
 /** Return the adjacent real Gallery item for a precise one-step reorder. */
@@ -41,7 +48,11 @@ export function buildGalleryDuplicateItemNode(
     image.styles = {
       ...image.styles,
       objectFit: item.objectFit || 'cover',
-      objectPosition: item.objectPosition || '50% 50%',
+      ...galleryMediaTreatmentPatch(
+        item.objectPosition || '50% 50%',
+        parseGalleryZoom(item.zoom),
+        parseGalleryRotation(item.rotation),
+      ),
     };
   }
   return duplicate;

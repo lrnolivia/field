@@ -36,7 +36,13 @@ describe('Gallery semantic model', () => {
       type: 'img',
       name: 'Gallery Image',
       attrs: { src: '/photo.jpg', alt: 'A portrait' },
-      styles: { objectFit: 'cover', objectPosition: '50% 50%' },
+      styles: {
+        objectFit: 'cover',
+        objectPosition: '50% 50%',
+        transformOrigin: '50% 50%',
+        '--field-gallery-zoom': '1',
+        '--field-gallery-rotation': '0deg',
+      },
     });
   });
 

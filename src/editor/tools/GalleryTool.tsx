@@ -22,6 +22,14 @@ import {
   isGalleryNode,
 } from '@/code/gallery/gallery-model';
 import {
+  GALLERY_IMAGE_ROTATION_STYLE_PROPERTY,
+  GALLERY_IMAGE_ZOOM_STYLE_PROPERTY,
+  galleryMediaTreatmentPatch,
+  parseGalleryRotation,
+  parseGalleryZoom,
+  type GalleryMediaTreatment,
+} from '@/code/gallery/gallery-media-treatment';
+import {
   GALLERY_VIEWS,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
@@ -167,6 +175,8 @@ function GalleryToolInner() {
         alt: image.attrs?.alt ?? '',
         objectFit: image.styles?.objectFit ?? 'cover',
         objectPosition: image.styles?.objectPosition ?? '50% 50%',
+        zoom: image.styles?.[GALLERY_IMAGE_ZOOM_STYLE_PROPERTY] ?? '1',
+        rotation: image.styles?.[GALLERY_IMAGE_ROTATION_STYLE_PROPERTY] ?? '0deg',
         controlIds: [controls.previous?.id, controls.counter?.id, controls.next?.id].filter((id): id is string => !!id),
         domId: item.attrs?.id,
         ariaLabel: item.attrs?.['aria-label'],
@@ -413,6 +423,17 @@ function GalleryToolInner() {
     updateImageStyle('objectPosition', '50% 50%');
   }, [selectedItem, updateImageStyle]);
 
+  const commitMediaTreatment = useCallback((treatment: GalleryMediaTreatment) => {
+    if (!selectedItem) return;
+    patchAndQueue(
+      selectedItem.imageId,
+      galleryMediaTreatmentPatch(treatment.objectPosition, treatment.zoom, treatment.rotation),
+      true,
+    );
+    // One explicit source flush = one coherent media-edit history operation.
+    flushNow();
+  }, [patchAndQueue, selectedItem]);
+
   const updateAllItemStyles = useCallback((patch: Record<string, string>) => {
     const mutations = items.map((item) => styleMutation(item.itemId, patch, isReplica, vpWidth));
     items.forEach((item) => bridge.patchStyles(item.itemId, prefix, patch));
@@ -442,6 +463,20 @@ function GalleryToolInner() {
       || selectedItem.objectFit
       || 'cover'
     : 'cover';
+  const effectiveZoom = selectedItem
+    ? parseGalleryZoom(
+        selectedImageOverrides?.get(GALLERY_IMAGE_ZOOM_STYLE_PROPERTY)
+        || bridge.getComputedValue(selectedItem.imageId, prefix, GALLERY_IMAGE_ZOOM_STYLE_PROPERTY)
+        || selectedItem.zoom,
+      )
+    : 1;
+  const effectiveRotation = selectedItem
+    ? parseGalleryRotation(
+        selectedImageOverrides?.get(GALLERY_IMAGE_ROTATION_STYLE_PROPERTY)
+        || bridge.getComputedValue(selectedItem.imageId, prefix, GALLERY_IMAGE_ROTATION_STYLE_PROPERTY)
+        || selectedItem.rotation,
+      )
+    : 0;
   const stripHeight = selectedItem
     ? selectedItemOverrides?.get('height')
       || bridge.getComputedValue(selectedItem.itemId, prefix, 'height')
@@ -505,7 +540,9 @@ function GalleryToolInner() {
           src={selectedItem.src}
           vpId={vpId}
           objectPosition={effectiveCropPosition}
-          onCommit={(value) => updateImageStyle('objectPosition', value)}
+          zoom={effectiveZoom}
+          rotation={effectiveRotation}
+          onCommit={commitMediaTreatment}
           onClose={() => setCropImageId(null)}
         />
       )}
