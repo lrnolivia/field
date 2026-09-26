@@ -1,6 +1,7 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
+const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
 const FIELD_FONTS_API_PATH = "/api/field/fonts";
 const GOOGLE_FONTS_UPSTREAM = "https://www.googleapis.com/webfonts/v1/webfonts";
@@ -426,6 +427,159 @@ async function verifyWorkerAccess(request, env, ctx) {
     },
     source: "access-authenticated-email",
   };
+}
+
+const FIELD_PROJECT_EVENT_KINDS = new Set([
+  "document",
+  "metadata",
+  "thumbnail",
+  "created",
+  "deleted",
+]);
+
+function fieldProjectEventSubject(auth) {
+  const subject = auth?.payload?.sub;
+  return typeof subject === "string" && subject.trim() ? subject.trim() : null;
+}
+
+function fieldProjectSessionId(request) {
+  const value = request.headers.get("X-Field-Session-Id")?.trim();
+  return value && value.length <= 200 ? value : null;
+}
+
+function isFieldProjectEventPayload(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value.type !== "project-change") return false;
+  if (typeof value.projectId !== "string" || !value.projectId) return false;
+  if (typeof value.kind !== "string" || !FIELD_PROJECT_EVENT_KINDS.has(value.kind)) return false;
+  if (typeof value.changedAt !== "string" || !Number.isFinite(Date.parse(value.changedAt))) return false;
+  if (value.revision !== undefined && typeof value.revision !== "string") return false;
+  if (value.sourceSessionId !== undefined && value.sourceSessionId !== null && typeof value.sourceSessionId !== "string") return false;
+  return true;
+}
+
+class FieldProjectEventRoom {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+
+  async fetch(request) {
+    const incoming = new URL(request.url);
+    if (incoming.pathname === FIELD_REALTIME_PATH) {
+      if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("WebSocket upgrade required", {
+          status: 426,
+          headers: { Upgrade: "websocket" },
+        });
+      }
+      const pair = new WebSocketPair();
+      const client = pair[0];
+      const server = pair[1];
+      this.state.acceptWebSocket(server);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
+    if (incoming.pathname === "/broadcast" && request.method === "POST") {
+      const event = await request.json().catch(() => null);
+      if (!isFieldProjectEventPayload(event)) return new Response(null, { status: 400 });
+      const message = JSON.stringify(event);
+      for (const socket of this.state.getWebSockets()) {
+        try {
+          socket.send(message);
+        } catch {
+          try { socket.close(1011, "broadcast failed"); } catch { /* already closed */ }
+        }
+      }
+      return new Response(null, { status: 204 });
+    }
+
+    return new Response(null, { status: 404 });
+  }
+
+  webSocketMessage(socket, message) {
+    if (message === "ping") {
+      try { socket.send("pong"); } catch { /* connection is already gone */ }
+    }
+  }
+
+  webSocketClose() {}
+  webSocketError() {}
+}
+
+async function handleFieldRealtimeRequest(
+  request,
+  env,
+  accessVerifier = verifyAccessRequest,
+) {
+  const incoming = new URL(request.url);
+  if (incoming.pathname !== FIELD_REALTIME_PATH) return null;
+
+  const auth = await accessVerifier(request, env);
+  if (!auth?.ok) return jsonResponse({ error: "Forbidden" }, 403);
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET" });
+  }
+  if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("WebSocket upgrade required", {
+      status: 426,
+      headers: apiHeaders({ Upgrade: "websocket" }),
+    });
+  }
+
+  const subject = fieldProjectEventSubject(auth);
+  if (!subject) return jsonResponse({ error: "Forbidden" }, 403);
+  if (!env.FIELD_PROJECT_EVENTS) {
+    return jsonResponse({ error: "Realtime project events are not configured" }, 503);
+  }
+
+  const room = env.FIELD_PROJECT_EVENTS.get(
+    env.FIELD_PROJECT_EVENTS.idFromName(subject),
+  );
+  return room.fetch(request);
+}
+
+async function emitFieldProjectEvent(env, auth, request, detail) {
+  const subject = fieldProjectEventSubject(auth);
+  if (!subject || !env.FIELD_PROJECT_EVENTS) return;
+  const event = {
+    type: "project-change",
+    projectId: detail.projectId,
+    kind: detail.kind,
+    changedAt: detail.changedAt ?? new Date().toISOString(),
+    ...(detail.revision ? { revision: detail.revision } : {}),
+    sourceSessionId: fieldProjectSessionId(request),
+  };
+  if (!isFieldProjectEventPayload(event)) {
+    console.warn("field realtime refused malformed internal event", {
+      projectId: detail.projectId,
+      kind: detail.kind,
+    });
+    return;
+  }
+  try {
+    const room = env.FIELD_PROJECT_EVENTS.get(
+      env.FIELD_PROJECT_EVENTS.idFromName(subject),
+    );
+    const response = await room.fetch("https://field-realtime/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+    });
+    if (!response.ok) {
+      console.warn("field realtime broadcast failed", {
+        projectId: event.projectId,
+        kind: event.kind,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    console.warn("field realtime broadcast failed", {
+      projectId: event.projectId,
+      kind: event.kind,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 async function readJsonBody(request, maxBytes) {
@@ -1044,6 +1198,11 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         // Best-effort cleanup of the assignment-era reserved legacy key.
         await env.FIELD_PROJECTS.delete(fieldProjectLegacyThumbnailKey(route.id));
         const version = r2UploadedTimestamp(stored) ?? new Date().toISOString();
+        await emitFieldProjectEvent(env, auth, request, {
+          projectId: route.id,
+          kind: "thumbnail",
+          changedAt: version,
+        });
         return jsonResponse({ url: fieldProjectThumbnailUrl(route.id, version) }, 200);
       }
 
@@ -1083,6 +1242,11 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         };
         await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(project), {
           httpMetadata: { contentType: "application/json; charset=utf-8" },
+        });
+        await emitFieldProjectEvent(env, auth, request, {
+          projectId: id,
+          kind: "created",
+          changedAt: now,
         });
         return jsonResponse({ project }, 201);
       }
@@ -1133,6 +1297,11 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
       await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(storedMeta), {
         httpMetadata: { contentType: "application/json; charset=utf-8" },
       });
+      await emitFieldProjectEvent(env, auth, request, {
+        projectId: id,
+        kind: "created",
+        changedAt: now,
+      });
       return jsonResponse({ project }, 201);
     }
 
@@ -1156,6 +1325,11 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
       fieldProjectThumbnailKey(route.id),
       fieldProjectLegacyThumbnailKey(route.id),
     ]);
+    await emitFieldProjectEvent(env, auth, request, {
+      projectId: route.id,
+      kind: "deleted",
+      changedAt: new Date().toISOString(),
+    });
     return new Response(null, { status: 204, headers: apiHeaders() });
   } catch (error) {
     console.error("field dashboard project error", error);
@@ -1199,18 +1373,32 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
       const response = await putR2Object(env.FIELD_PROJECTS, key, JSON.stringify(parsed.value), request);
       if (response.ok) {
         await touchFieldProjectMeta(env.FIELD_PROJECTS, route.id);
+        await emitFieldProjectEvent(env, auth, request, {
+          projectId: route.id,
+          kind: "document",
+          changedAt: new Date().toISOString(),
+          revision: response.headers.get("ETag") ?? undefined,
+        });
       }
       return response;
     }
 
     const parsed = await readJsonBody(request, MAX_META_BYTES);
     if (parsed.error) return parsed.error;
-    return await putFieldProjectMetaPatch(
+    const response = await putFieldProjectMetaPatch(
       env.FIELD_PROJECTS,
       route.id,
       parsed.value,
       request,
     );
+    if (response.ok) {
+      await emitFieldProjectEvent(env, auth, request, {
+        projectId: route.id,
+        kind: "metadata",
+        changedAt: new Date().toISOString(),
+      });
+    }
+    return response;
   } catch (error) {
     console.error("field persistence error", error);
     return jsonResponse({ error: "Project storage failure" }, 503);
@@ -1222,6 +1410,8 @@ export {
   handleFieldProfileRequest,
   handleFieldDashboardRequest,
   handleFieldPersistenceRequest,
+  handleFieldRealtimeRequest,
+  FieldProjectEventRoom,
   parseProjectRoute,
   verifyAccessRequest,
   verifyWorkerAccess,
@@ -1252,6 +1442,13 @@ export default {
       accessVerifier,
     );
     if (profileResponse) return profileResponse;
+
+    const realtimeResponse = await handleFieldRealtimeRequest(
+      request,
+      env,
+      accessVerifier,
+    );
+    if (realtimeResponse) return realtimeResponse;
 
     const dashboardResponse = await handleFieldDashboardRequest(
       request,

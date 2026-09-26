@@ -17,6 +17,7 @@ import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
 import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
+import { bindDashboardProjectEvents, createDashboardProjectRefreshController } from '@/dashboard/dashboard-realtime';
 
 function navigateToProject(project: FieldProjectMeta) {
   window.location.href = `/builder/${encodeURIComponent(project.id)}`;
@@ -42,16 +43,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    void listFieldProjects()
-      .then((next) => {
+    let initialSettled = false;
+    const refreshController = createDashboardProjectRefreshController<FieldProjectMeta[]>({
+      load: listFieldProjects,
+      apply: (next) => {
         if (active) setProjects(next);
-      })
-      .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : String(cause));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      },
+      onError: (cause) => {
+        if (!active) return;
+        if (!initialSettled) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        } else {
+          console.warn('[field-dashboard] background project refresh failed', cause);
+        }
+      },
+    });
+    const unsubscribeRealtime = bindDashboardProjectEvents(refreshController);
+
+    void refreshController.refreshNow().finally(() => {
+      initialSettled = true;
+      if (active) setLoading(false);
+    });
 
     void backend.getUser().then((next) => {
       if (active) setUser(next);
@@ -61,6 +73,8 @@ export default function Dashboard() {
 
     return () => {
       active = false;
+      unsubscribeRealtime();
+      refreshController.dispose();
     };
   }, []);
 
