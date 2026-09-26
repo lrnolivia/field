@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:57:11Z
+Last Updated: 2026-09-26T10:04:46Z
 
 ## Active Assignments
 
@@ -19,50 +19,7 @@ Last Updated: 2026-09-26T08:57:11Z
 
 
 
-<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:START -->
-### native-gallery-completion-hardening-20260925 — Native Gallery Completion + Hardening Tranche
 
-Status: active
-Baseline: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
-Activation HEAD: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
-Last Sync: 2026-09-26T02:15:57Z
-
-Owned:
-  - src/code/gallery/gallery-model.ts
-  - src/code/gallery/gallery-carousel.test.ts
-  - src/code/gallery/gallery-views.ts
-  - src/code/gallery/gallery-views.test.ts
-  - src/canvas/gallery/crop-math.ts
-  - src/canvas/gallery/crop-math.test.ts
-  - src/editor/gallery/GalleryCropOverlay.tsx
-  - src/editor/gallery/GalleryContentSection.tsx
-  - src/editor/gallery/GalleryViewSection.tsx
-  - src/editor/gallery/gallery-media-drag.ts
-  - src/editor/gallery/gallery-media-drag.test.ts
-  - src/editor/gallery/gallery-inspector-integration.test.ts
-  - src/editor/tools/GalleryTool.tsx
-  - src/editor/ui/ImageSearchModal.tsx
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/code/mutation/**
-  - src/code/stores/**
-  - src/canvas/drag/**
-  - src/canvas-sandbox/**
-  - src/preview-sandbox/**
-  - src/backend/**
-  - src/dashboard/**
-  - src/design-system/**
-  - cloudflare/**
-  - package.json
-  - package-lock.json
-  - wrangler.jsonc
-<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:END -->
 
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
 ### field-dashboard-thumbnail-previews-r2-20260925 — Thumbnail Fast Refresh + Generation Integrity
@@ -1258,7 +1215,7 @@ Validation / Build / Deploy:
 - focused Gallery regression suites passed
 - TypeScript passed
 - build:all passed
-- production verification pending for source commit 1a84843ad3b24cd8572545cba05409fb48b3715a
+- production verification verified via immediate descendant a873a3f9eeef696a25b6e330a58a41503411747f; Workers Builds: field check-run 108318214279 completed/success and the descendant changes only tracker.md
 
 ### 2026-09-26T02:48:40Z — field-dashboard-thumbnail-previews-r2-20260925 — 506c77a29c41
 
@@ -1549,6 +1506,63 @@ Validation / Build / Deploy:
 ## Completed Assignments
 
 <!-- FIELD_COMPLETED_ASSIGNMENTS_START -->
+<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:START -->
+### native-gallery-completion-hardening-20260925 — Native Gallery Completion + Hardening Tranche
+
+Status: complete
+Baseline: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
+Activation HEAD: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
+Implementation: 1a84843ad3b24cd8572545cba05409fb48b3715a
+Last Sync: 2026-09-26T10:04:46Z
+
+Owned:
+  - src/code/gallery/gallery-model.ts
+  - src/code/gallery/gallery-carousel.test.ts
+  - src/code/gallery/gallery-views.ts
+  - src/code/gallery/gallery-views.test.ts
+  - src/canvas/gallery/crop-math.ts
+  - src/canvas/gallery/crop-math.test.ts
+  - src/editor/gallery/GalleryCropOverlay.tsx
+  - src/editor/gallery/GalleryContentSection.tsx
+  - src/editor/gallery/GalleryViewSection.tsx
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/gallery/gallery-inspector-integration.test.ts
+  - src/editor/tools/GalleryTool.tsx
+  - src/editor/ui/ImageSearchModal.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/stores/**
+  - src/canvas/drag/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - src/backend/**
+  - src/dashboard/**
+  - src/design-system/**
+  - cloudflare/**
+  - package.json
+  - package-lock.json
+  - wrangler.jsonc
+<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:END -->
+
+Closeout:
+  - Source implementation landed at 1a84843ad3b24cd8572545cba05409fb48b3715a.
+  - Focused Gallery regression suites passed.
+  - TypeScript passed.
+  - build:all passed.
+  - Production deployment is verified through immediate descendant a873a3f9eeef696a25b6e330a58a41503411747f, which changes only tracker.md and contains the source commit.
+  - Cloudflare Workers Builds: field check-run 108318214279 completed successfully for a873a3f9eeef696a25b6e330a58a41503411747f.
+  - Human live smoke on field.loew.fi/builder/noauth confirmed Gallery is fast and all five views work.
+  - Remaining Gallery QoL / creation-flow work is intentionally transferred to successor assignment native-gallery-qol-creation-flow rather than keeping this hardening tranche open.
+
+
 <!-- ASSIGNMENT:native-group-ungroup-20260925:START -->
 ### native-group-ungroup-20260925 — Native Group / Ungroup document primitive
 
