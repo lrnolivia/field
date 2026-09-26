@@ -1,17 +1,14 @@
-// capture-thumbnail.ts — On a `preview:capture-thumbnail` request from the
-// parent editor, snapshot the rendered preview page to a small JPEG and post
-// the data URL back as `preview:thumbnail`. Runs entirely inside the Preview
-// iframe. Dashboard thumbnails intentionally capture only the first viewport:
-// that is the useful card preview, and it bounds DOM cloning/raster work.
+// capture-thumbnail.ts — bounded first-viewport dashboard raster.
+// Runs inside Preview. Thumbnail work is intentionally cheap and disposable:
+// the host owns generation integrity and will never publish a stale session.
 
 let capturing = false;
 
-const SETTLE_MS = 2200;
-const FONT_READY_TIMEOUT_MS = 1200;
-const IDLE_TIMEOUT_MS = 700;
-const RASTER_TIMEOUT_MS = 10000;
-const CAPTURE_MARGIN = 48;
-const THUMB_WIDTH = 900;
+const SETTLE_MS = 400;
+const FONT_READY_TIMEOUT_MS = 250;
+const RASTER_TIMEOUT_MS = 4000;
+const CAPTURE_MARGIN = 32;
+const THUMB_WIDTH = 720;
 
 function opaqueBackground(): string {
   const bg = getComputedStyle(document.body).backgroundColor;
@@ -33,16 +30,6 @@ async function settleFonts(): Promise<void> {
   ]);
 }
 
-function whenIdle(): Promise<void> {
-  return new Promise((resolve) => {
-    const ric = (window as unknown as {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
-    }).requestIdleCallback;
-    if (ric) ric(() => resolve(), { timeout: IDLE_TIMEOUT_MS });
-    else setTimeout(resolve, Math.min(300, IDLE_TIMEOUT_MS));
-  });
-}
-
 export function captureScale(width: number): number {
   if (!width || width <= 0) return 1;
   return Math.min(1, THUMB_WIDTH / width);
@@ -62,8 +49,6 @@ function captureFilter(viewportWidth: number, viewportHeight: number): (node: HT
     if (node.tagName === 'SCRIPT' || node.tagName === 'NOSCRIPT') return false;
 
     const rect = node.getBoundingClientRect();
-    // Keep zero-size wrappers: they can contain absolutely/fixed-positioned
-    // children that are visible inside the first viewport.
     if (rect.width === 0 && rect.height === 0) return true;
     return (
       rect.bottom >= -CAPTURE_MARGIN &&
@@ -90,27 +75,18 @@ export async function captureThumbnail(requestId?: string): Promise<void> {
   if (capturing) return;
   capturing = true;
   try {
-    // Neither fonts nor idle scheduling may hold a background thumbnail session
-    // indefinitely. The iframe session itself is disposable; bounded waits keep
-    // the full capture comfortably inside the parent host's 24s watchdog.
     await settleFonts();
     await delay(SETTLE_MS);
-    await whenIdle();
 
     const { toJpeg } = await import('html-to-image');
-    const body = document.body;
+    const target = document.getElementById('root') ?? document.body;
     const viewport = captureViewportSize(
       document.documentElement.clientWidth || window.innerWidth,
       document.documentElement.clientHeight || window.innerHeight,
     );
 
-    // Capture the FIRST VIEWPORT, not the full scroll height. Dashboard cards
-    // show the top of the first Page; cloning an entire long document was both
-    // unnecessary and the production hang proven by the r4 trace. skipFonts
-    // avoids html-to-image's second font-embedding pass after fonts have already
-    // had a bounded settle window.
-    const dataUrl = await rasterWithTimeout(toJpeg(body, {
-      quality: 0.82,
+    const dataUrl = await rasterWithTimeout(toJpeg(target, {
+      quality: 0.8,
       pixelRatio: captureScale(viewport.width),
       width: viewport.width,
       height: viewport.height,

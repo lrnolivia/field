@@ -27,11 +27,11 @@ import {
 import { trace } from '@/shared/debug-trace';
 import { shouldScheduleThumbnailCapture } from './project-thumbnail-capture-state';
 
-const CAPTURE_DELAY_MS = 1500;
-const CAPTURE_TIMEOUT_MS = 24000;
+const CAPTURE_DELAY_MS = 350;
+const CAPTURE_TIMEOUT_MS = 8000;
 const CHANGE_PULSE_MS = 250;
 const READY_PROBE_MS = 250;
-const MAX_SESSION_RETRIES = 2;
+const MAX_SESSION_RETRIES = 1;
 
 function previewOrigin(): string {
   if (typeof window === 'undefined') return 'http://localhost:5175';
@@ -77,11 +77,18 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
   const uploadInFlightRef = useRef(false);
   const sessionSerialRef = useRef(0);
   const retryCountRef = useRef(0);
+  const captureRequestedForRef = useRef<string | null>(null);
+  const saveStatusRef = useRef(saveStatus);
   const [generation, setGeneration] = useState(0);
   const [retryTick, setRetryTick] = useState(0);
   const [mainBranchActive, setMainBranchActive] = useState(() => projectFS.isMainActive());
   const [needsInitialCapture, setNeedsInitialCapture] = useState<boolean | null>(null);
   const [captureSession, setCaptureSession] = useState<CaptureSession | null>(null);
+  const [renderReadySession, setRenderReadySession] = useState<CaptureSession | null>(null);
+
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
 
   useEffect(() => {
     let pulse: ReturnType<typeof setTimeout> | null = null;
@@ -131,6 +138,8 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
   useEffect(() => {
     if (suspended && captureSession) {
       uploadInFlightRef.current = false;
+      captureRequestedForRef.current = null;
+      setRenderReadySession(null);
       setCaptureSession(null);
     }
   }, [captureSession, suspended]);
@@ -157,6 +166,8 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         generation: generationRef.current,
         requestId: requestId(),
       };
+      captureRequestedForRef.current = null;
+      setRenderReadySession(null);
       setCaptureSession(next);
       trace.action('dashboard-thumbnail:scheduled', {
         projectId,
@@ -177,6 +188,54 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     suspended,
   ]);
 
+  useEffect(() => {
+    if (!captureSession) return;
+    if (generationRef.current === captureSession.generation) return;
+    captureRequestedForRef.current = null;
+    setRenderReadySession(null);
+    setCaptureSession(null);
+    trace.action('dashboard-thumbnail:discarded-stale', {
+      projectId,
+      requestId: captureSession.requestId,
+      sessionGeneration: captureSession.generation,
+      currentGeneration: generationRef.current,
+      stage: 'generation-change',
+    });
+    setRetryTick((value) => value + 1);
+  }, [captureSession, generation, projectId]);
+
+  useEffect(() => {
+    if (!captureSession || !renderReadySession || saveStatus !== 'saved') return;
+    if (renderReadySession.requestId !== captureSession.requestId) return;
+    if (captureRequestedForRef.current === captureSession.requestId) return;
+    if (generationRef.current !== captureSession.generation) {
+      captureRequestedForRef.current = null;
+      setRenderReadySession(null);
+      setCaptureSession(null);
+      trace.action('dashboard-thumbnail:discarded-stale', {
+        projectId,
+        requestId: captureSession.requestId,
+        sessionGeneration: captureSession.generation,
+        currentGeneration: generationRef.current,
+        stage: 'before-capture',
+      });
+      setRetryTick((value) => value + 1);
+      return;
+    }
+    const contentWindow = iframeRef.current?.contentWindow;
+    if (!contentWindow) return;
+    captureRequestedForRef.current = captureSession.requestId;
+    contentWindow.postMessage({
+      type: 'preview:capture-thumbnail',
+      requestId: captureSession.requestId,
+    }, '*');
+    trace.action('dashboard-thumbnail:capture-requested', {
+      projectId,
+      requestId: captureSession.requestId,
+      generation: captureSession.generation,
+    });
+  }, [captureSession, projectId, renderReadySession, saveStatus]);
+
   useLayoutEffect(() => {
     if (!captureSession) return;
     const session = captureSession;
@@ -187,13 +246,14 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     let stopped = false;
     let readySeen = false;
     let projectReceived = false;
-    let captureRequested = false;
     let expectedPath: string | null = null;
 
     const retryOrFail = (reason: string, error?: unknown) => {
       if (stopped) return;
       stopped = true;
       uploadInFlightRef.current = false;
+      captureRequestedForRef.current = null;
+      setRenderReadySession(null);
       const retry = retryCountRef.current < MAX_SESSION_RETRIES;
       if (retry) {
         retryCountRef.current += 1;
@@ -283,35 +343,81 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         return;
       }
 
-      if (message.type === 'preview:rendered' && expectedPath && !captureRequested) {
+      if (message.type === 'preview:rendered' && expectedPath) {
         if (message.requestId !== session.requestId || !projectReceived) return;
+        if (captureRequestedForRef.current === session.requestId) return;
         const renderedPath = normalizePreviewPath(message.url);
         if (renderedPath !== expectedPath) return;
-        captureRequested = true;
+        if (generationRef.current !== session.generation) {
+          stopped = true;
+          captureRequestedForRef.current = null;
+          setRenderReadySession(null);
+          setCaptureSession(null);
+          trace.action('dashboard-thumbnail:discarded-stale', {
+            projectId,
+            requestId: session.requestId,
+            sessionGeneration: session.generation,
+            currentGeneration: generationRef.current,
+            stage: 'rendered',
+          });
+          setRetryTick((value) => value + 1);
+          return;
+        }
+        setRenderReadySession(session);
         trace.action('dashboard-thumbnail:first-page-rendered', {
           projectId,
           route: expectedPath,
           requestId: session.requestId,
+          generation: session.generation,
         });
-        contentWindow.postMessage({
-          type: 'preview:capture-thumbnail',
-          requestId: session.requestId,
-        }, '*');
-        trace.action('dashboard-thumbnail:capture-requested', {
-          projectId,
-          requestId: session.requestId,
-        });
+        if (saveStatusRef.current !== 'saved') {
+          trace.action('dashboard-thumbnail:waiting-for-save', {
+            projectId,
+            requestId: session.requestId,
+            generation: session.generation,
+            saveStatus: saveStatusRef.current,
+          });
+        }
         return;
       }
 
       if (message.type === 'preview:thumbnail-error') {
         if (message.requestId !== session.requestId) return;
+        if (generationRef.current !== session.generation) {
+          captureRequestedForRef.current = null;
+          setRenderReadySession(null);
+          setCaptureSession(null);
+          trace.action('dashboard-thumbnail:discarded-stale', {
+            projectId,
+            requestId: session.requestId,
+            sessionGeneration: session.generation,
+            currentGeneration: generationRef.current,
+            stage: 'raster-error',
+          });
+          setRetryTick((value) => value + 1);
+          return;
+        }
         retryOrFail('raster', message.error);
         return;
       }
 
       if (message.type !== 'preview:thumbnail' || uploadInFlightRef.current) return;
       if (message.requestId !== session.requestId) return;
+      if (generationRef.current !== session.generation || saveStatusRef.current !== 'saved') {
+        captureRequestedForRef.current = null;
+        setRenderReadySession(null);
+        setCaptureSession(null);
+        trace.action('dashboard-thumbnail:discarded-stale', {
+          projectId,
+          requestId: session.requestId,
+          sessionGeneration: session.generation,
+          currentGeneration: generationRef.current,
+          stage: 'before-upload',
+          saveStatus: saveStatusRef.current,
+        });
+        setRetryTick((value) => value + 1);
+        return;
+      }
       const dataUrl = message.dataUrl;
       if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
         retryOrFail('bad-payload');
@@ -331,6 +437,21 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
           clearTimeout(timeout);
           clearInterval(probeTimer);
           uploadInFlightRef.current = false;
+          captureRequestedForRef.current = null;
+          setRenderReadySession(null);
+          const changedDuringCapture = generationRef.current !== session.generation;
+          if (changedDuringCapture) {
+            setCaptureSession(null);
+            trace.warn('dashboard-thumbnail:upload-stale-race', {
+              projectId,
+              generation: session.generation,
+              currentGeneration: generationRef.current,
+              requestId: session.requestId,
+              url,
+            });
+            setRetryTick((value) => value + 1);
+            return;
+          }
           retryCountRef.current = 0;
           lastSuccessfulGenerationRef.current = session.generation;
           lastFailedGenerationRef.current = -1;
@@ -341,7 +462,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
             generation: session.generation,
             requestId: session.requestId,
             url,
-            changedDuringCapture: generationRef.current !== session.generation,
+            changedDuringCapture: false,
           });
         })
         .catch((error) => retryOrFail('upload', error));
@@ -352,6 +473,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       stopped = true;
       clearTimeout(timeout);
       clearInterval(probeTimer);
+      if (captureRequestedForRef.current === session.requestId) captureRequestedForRef.current = null;
       window.removeEventListener('message', handler);
     };
   }, [activeLocale, captureSession, projectId]);

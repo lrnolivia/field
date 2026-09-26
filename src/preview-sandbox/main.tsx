@@ -49,7 +49,7 @@ import Lenis from 'lenis';
 
 const projectFiles: Map<string, string> = new Map();
 const compiledModuleCache: Map<string, any> = new Map();
-const THUMBNAIL_PRELOAD_TIMEOUT_MS = 5000;
+const THUMBNAIL_PRELOAD_TIMEOUT_MS = 1200;
 let thumbnailSessionRequestId: string | null = null;
 
 // ─── Preview: neutralize form submissions ──────────────────────────────────

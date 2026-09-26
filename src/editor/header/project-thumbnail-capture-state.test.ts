@@ -18,6 +18,12 @@ describe('dashboard thumbnail capture scheduling', () => {
     expect(shouldScheduleThumbnailCapture(base)).toBe(true);
   });
 
+  it('prewarms during unsaved and saving states, but never during persistence errors', () => {
+    expect(shouldScheduleThumbnailCapture({ ...base, saveStatus: 'unsaved' })).toBe(true);
+    expect(shouldScheduleThumbnailCapture({ ...base, saveStatus: 'saving' })).toBe(true);
+    expect(shouldScheduleThumbnailCapture({ ...base, saveStatus: 'error' })).toBe(false);
+  });
+
   it('recaptures after a later project mutation even when the old thumbnail was fresh', () => {
     expect(shouldScheduleThumbnailCapture({
       ...base,
@@ -27,8 +33,7 @@ describe('dashboard thumbnail capture scheduling', () => {
     })).toBe(true);
   });
 
-  it('waits during unsaved work, visible Preview, and non-main branches', () => {
-    expect(shouldScheduleThumbnailCapture({ ...base, saveStatus: 'unsaved' })).toBe(false);
+  it('waits during visible Preview and non-main branches', () => {
     expect(shouldScheduleThumbnailCapture({ ...base, suspended: true })).toBe(false);
     expect(shouldScheduleThumbnailCapture({ ...base, mainBranchActive: false })).toBe(false);
   });
