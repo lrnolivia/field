@@ -157,7 +157,8 @@ Protected:
 Status: active
 Baseline: 41189092172516e09540749de26b75b3497691eb
 Activation HEAD: 41189092172516e09540749de26b75b3497691eb
-Last Sync: 2026-09-26T08:57:48Z
+Implementation: ec3b443b6ff61073afe0a4cf2f1f3bc28c9aa96a
+Last Sync: 2026-09-26T09:00:19Z
 
 Scope: First-class Figma-style proportional Scale in Design. Resize remains separate; Scale authors real source geometry/visual metrics and fails closed on unsupported semantics.
 
@@ -1510,6 +1511,39 @@ Validation / Build / Deploy:
   - Workers Builds: field: successful for exact source commit
   - live visual QA: passed
 
+### 2026-09-26T09:00:19Z — native-scale-tool-20260926 — ec3b443b6ff6
+
+Summary: Dedicated proportional Scale source implementation landed; automated focused tests, TypeScript, lint, build:all, diff/allowlist gates, and production build verification passed. Live Design ↔ Preview Scale QA remains pending before assignment completion.
+
+Commit: ec3b443b6ff61073afe0a4cf2f1f3bc28c9aa96a
+
+Paths:
+  - src/code/stores/tool-store.ts
+  - src/code/stores/tool-store.creator-lock.test.ts
+  - src/code/stores/tool-store.scale.test.ts
+  - src/canvas/shortcuts.ts
+  - src/canvas/scale/scale-math.ts
+  - src/canvas/scale/scale-policy.ts
+  - src/canvas/scale/scale-operation.ts
+  - src/canvas/scale/__tests__/scale-math.test.ts
+  - src/canvas/scale/__tests__/scale-policy.test.ts
+  - src/canvas/selection/ScaleHandles.tsx
+  - src/canvas/selection/SelectionOverlay.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
+  - src/editor/PropertiesPanel.tsx
+  - src/editor/tools/ScaleTool.tsx
+  - src/editor/scale-tool.integration.test.ts
+
+Validation / Build / Deploy:
+  - transform/package rehearsal: passed
+  - focused Scale + regression tests: passed
+  - TypeScript: passed
+  - modified-path ESLint: passed
+  - npm run build:all: passed
+  - git diff --check / exact path allowlist: passed
+  - Workers Builds: field: completed / success for the source commit
+  - Firecrawl small-packet Design ↔ Preview QA: pending
 <!-- FIELD_COMMIT_LEDGER_END -->
 
 ## Completed Assignments
