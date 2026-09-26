@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T02:48:40Z
+Last Updated: 2026-09-26T03:05:00Z
 
 ## Active Assignments
 
@@ -1164,6 +1164,18 @@ Commit: 506c77a29c418ee5ca843b3f61d8152e25b9e316
 
 Paths:
   - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T03:05:00Z — field-dashboard-thumbnail-previews-r2-20260925 — 4ef4fb143473
+
+Summary: r4 thumbnail repair: hidden thumbnail sessions no longer depend on requestAnimationFrame for preview:rendered; visible Preview keeps the double-rAF paint fence. Focused tests, TypeScript, build:all, and Workers Builds: field passed. Manual production smoke remains required.
+Commit: 4ef4fb143473b58fe046a75f3aab547a758cb67b
+
+Paths:
   - src/editor/header/project-thumbnail-r2-contract.test.ts
   - src/preview-sandbox/main.tsx
 
