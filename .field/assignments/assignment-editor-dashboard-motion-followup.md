@@ -193,6 +193,166 @@ The implementation does not need another motion repair based on this QA result.
 
 The only remaining closeout dependency is coordination: `field-dashboard-handoff-overlap-20260926` is still marked active in the legacy tracker and still owns the relevant motion integration paths. Do not create a competing source assignment merely to close this record.
 
+## Full continuation plan and future goals
+
+This section is the complete continuation map for this source chat's editor ↔ Dashboard motion lane. It is intentionally broader than the immediate QA follow-up, but it is **not** permission to start speculative implementation. Future work should be activated only by a concrete product need, regression, or a new shell/mode transition.
+
+### Immediate work still left
+
+1. **Legacy ownership release.**
+   - `field-dashboard-handoff-overlap-20260926` must stop being active in `tracker.md` or explicitly reconcile/release the relevant paths.
+   - Until then, this record owns no source and must not create a competing implementation branch.
+
+2. **Close this migrated follow-up after ownership releases.**
+   - Keep the recorded four-path human visual QA PASS.
+   - Close with no implementation branch or PR if current behavior remains unchanged.
+
+3. **Reduced-motion verification remains separately unproven by the user's four-path normal-motion pass.**
+   - The four required normal-motion paths passed.
+   - Do not pretend that automatically proves a `prefers-reduced-motion` visual pass.
+   - The next time motion code is touched, explicitly verify reduced-motion resolves immediately, without a stranded offscreen panel, dead interaction state, or delayed Dashboard/Editor reveal.
+   - This is a verification/watch item, not justification for reopening source by itself.
+
+### Preserve this as field's motion baseline
+
+The current result should be treated as a **baseline interaction language**, not a one-off effect.
+
+The governing rules are:
+
+- **Canvas is spatial truth.** It stays visually anchored while surrounding application chrome changes ownership.
+- **Structural chrome is restrained.** Large side panels and Dashboard slabs should feel weighted, decisive, and critically damped rather than cartoonishly springy.
+- **Floating UI may carry delight.** The bottom toolbar is the canonical playful spring/rebound example.
+- **Motion should explain continuity.** It should communicate that the user is moving between persistent field surfaces, not navigating to unrelated web pages.
+- **Movement, not fading, carries the relationship.** Opacity may support an entrance but should not become the primary transition language.
+- **Physical surfaces move as physical surfaces.** Never slide panel content independently while its housing stays behind.
+- **No intermediate broken state.** Avoid white gutters, blank slabs, bare-Canvas pauses, fully assembled ghost frames, and other transient states that expose implementation seams.
+- **Reduced motion is first-class.** The same state change must resolve immediately and cleanly when animation is disabled.
+- **Trace the first divergence.** If a transition looks wrong, find where shell state, navigation, physical surface ownership, or animation state first diverges instead of masking the symptom.
+
+### Future shell / mode transitions
+
+When field later adds or refines transitions involving Design, Content, Code, Preview, Dashboard, project switching, or other persistent application surfaces:
+
+- reuse the same spatial logic where it genuinely applies
+- keep the website/Canvas as the stable artifact whenever the transition is chrome around the artifact
+- prefer same-document/persistent-shell navigation for internal field surfaces when architecture permits
+- avoid full page reloads as a substitute for state transitions
+- do not add animation merely for decoration
+- do not force every surface into identical timing if its physical role differs
+
+The goal is a coherent field motion grammar, not universal animation.
+
+### When to centralize motion further
+
+Do **not** refactor the current working system into a large generic animation framework just because it now works.
+
+A shared `motion.FUNCTION`-style system or broader token layer becomes worthwhile only when a second/third independent field surface needs the same concepts and duplication becomes architectural rather than cosmetic.
+
+If that point arrives, preserve semantic concepts such as:
+
+- structural spring
+- floating spring
+- structural exit
+- handoff lead
+- physical surface target
+- reduced-motion resolution
+- pointer/inert ownership during motion
+- final compositor ownership / settle behavior
+
+Do not reduce this to a pile of arbitrary duration/easing constants detached from interaction meaning.
+
+### Regression guards to preserve
+
+Any future shell/navigation/motion change should continue guarding these specific seams:
+
+- field-logo **Go to Dashboard** uses `showFieldDashboard()` / FieldShell, never the old ordinary hard-navigation path
+- browser back / popstate returns through the same shell semantics rather than bypassing motion/state coordination
+- fresh builder load and hard refresh do not run the entrance invisibly under `ProjectLoader`
+- Dashboard → editor prepares editor chrome before it becomes exposed
+- editor → Dashboard gives editor motion a readable lead, then overlaps Dashboard reclaim instead of showing a bare Canvas gap
+- final Dashboard transforms are not released in a way that flashes the fully assembled rest state for one frame
+- pointer interaction remains blocked while material chrome is in a non-interactive transition state
+- Canvas itself is never added to the editor/Dashboard chrome animation target set
+
+### Visual QA contract for future changes
+
+After any future change that touches shell navigation, physical panel targets, editor entrance/exit, Dashboard slab motion, or reveal timing, rerun the canonical visual matrix:
+
+1. fresh editor load
+2. refresh in editor
+3. Dashboard → editor
+4. editor → Dashboard
+5. reduced-motion variant when motion behavior changed
+
+Judge more than "animation ran." Look for:
+
+- edge/gutter flashes
+- content moving separately from panel housing
+- one-frame rest-state ghosts
+- bare Canvas dead beats
+- page-load blink
+- delayed URL/state mismatch
+- pointer availability at the wrong time
+- toolbar bounce becoming too weak or structural slabs becoming too playful
+
+Human optical QA remains appropriate here because these are perceptual defects even when DOM/unit contracts pass.
+
+### Accepted implementation details: watch, do not churn
+
+The following are known implementation details and should **not** be proactively changed while the accepted visual result remains clean:
+
+- editor structural side spring values currently in `editor-entrance.ts`
+- under-damped bottom-toolbar spring and its slight delayed start
+- the current two-animation-frame editor → Dashboard handoff lead
+- entrance opacity beginning at `0.96`
+- Dashboard transform hold after WAAPI completion
+- current physical-target selection in the editor entrance coordinator
+
+If a future regression appears after DOM/chrome restructuring, inspect these as possible divergence points. Do not "clean them up" merely because a different abstraction looks prettier.
+
+### Known historical traps
+
+Do not repeat these solved failure modes:
+
+- starting editor entrance on mount while Dashboard/loading shell still hides it
+- animating only child content while the actual pane surface stays fixed
+- using under-damped bounce on major structural slabs and exposing white viewport gaps
+- waiting for editor exit to finish completely before Dashboard enters, producing a bare-Canvas beat
+- handing transform ownership back to CSS at the wrong frame and flashing a fully assembled Dashboard
+- routing one Dashboard command through hard navigation while another uses the persistent shell
+- assuming a nice motion unit test proves optical grace in production
+
+### Future repair discipline
+
+If a real regression appears later:
+
+1. establish current `main` and current ownership
+2. reproduce the first visual/state divergence
+3. create a new narrowly scoped assignment only after ownership is available
+4. preserve the accepted motion invariants above
+5. prefer the smallest repair over a motion-system rewrite
+6. validate focused contracts + TypeScript/build as required by the current repo-hosted handoff kit
+7. perform the visual matrix again
+8. record exact evidence in `field/control`
+
+If a terminal installer is appropriate, use the **current repo-hosted handoff kit** and the standardized field installer UX. Do not resurrect bespoke runner conventions from old chat history.
+
+### What is explicitly *not* pending from this chat
+
+There is no currently justified source task to:
+
+- redesign the transition again
+- alter the Canvas
+- add more bounce
+- refactor the motion code generically
+- change realtime/persistence/autosave
+- redesign Dashboard
+- change editor panel architecture
+- create a branch simply because this chat is being handed off
+
+Normal-motion visual acceptance is already PASS. The default future action is preservation, not churn.
+
+
 ## Exact next actions
 
 1. Re-read current `main`, `field/control`, and legacy `tracker.md`.

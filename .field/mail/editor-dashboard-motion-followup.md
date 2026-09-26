@@ -39,15 +39,50 @@ Refresh both before acting.
 - `45d0976d331f3753c8d50bb541608a6427a2bc48` removed the bare Canvas gap.
 - `cba42ea5c2a762dec7882da763d4842354f76140` removed the fully assembled Dashboard ghost frame.
 
-## First useful action
+## Current completion state
 
-After the legacy Dashboard handoff assignment finishes, visually test:
+The four normal-motion visual paths have now been explicitly reported PASS by the user.
 
-fresh editor load → refresh → Dashboard to editor → editor to Dashboard.
+The source chat has no justified motion repair left to implement.
 
-If those are clean, close this follow-up without touching source.
+The remaining closeout is:
 
-If one is not clean, create a NEW narrowly owned repair assignment after reconciling ownership.
+1. wait for `field-dashboard-handoff-overlap-20260926` to release/reconcile its legacy tracker ownership
+2. then close `editor-dashboard-motion-followup` with no implementation branch
+3. keep reduced-motion as an explicit future verification item when motion is next touched
+
+## Future goals to preserve
+
+Treat the landed motion as field's baseline interaction language:
+
+- Canvas stays spatially fixed while application chrome transfers ownership around it
+- structural slabs stay restrained / critically damped
+- delight belongs to floating controls such as the bottom toolbar
+- internal Dashboard/editor movement remains same-document and visually continuous
+- physical housing and content move together
+- no white gaps, ghost frames, bare-Canvas dead beats, or page-load blink
+- reduced-motion must resolve the same state immediately
+- future Design / Content / Code / Preview shell transitions should reuse these principles when they are actually applicable
+- do not build a generic motion framework until multiple real surfaces need the same semantic primitives
+- after any future shell/motion change, repeat the canonical visual matrix and trace regressions to the first divergence
+
+## Known things not to churn
+
+The currently accepted two-frame editor→Dashboard lead, side spring, toolbar spring, 0.96 entrance opacity, Dashboard WAAPI transform hold, and current physical-target selection are all **accepted postimages**.
+
+They are watchpoints if future DOM/shell changes cause a regression, not cleanup tasks.
+
+## If you are the successor
+
+Your first job is not to code.
+
+Refresh `main`, `field/control`, and `tracker.md`.
+
+If legacy Dashboard ownership is released, close this record.
+
+If it is still active, wait; do not compete for its paths.
+
+Only create a new implementation assignment when there is a concrete later regression or a genuinely new field surface that needs motion integration.
 
 ## Full continuity carried forward
 
