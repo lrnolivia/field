@@ -43,7 +43,7 @@ describe('FigUI3 bottom toolbar Figma parity', () => {
 
   it('keeps Sketch independent from Shapes', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain('title="Sketch (K)"');
+    expect(toolbar).toContain('title="Sketch (Shift+P)"');
     expect(toolbar).toContain('dataTool="sketch"');
     expect(toolbar).not.toContain('MenuItem label="Sketch"');
   });

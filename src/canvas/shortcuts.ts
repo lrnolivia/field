@@ -94,6 +94,9 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     setToolMode(toolModeRef.current === 'text' ? 'select' : 'text');
   }}));
   cleanups.push(keyboard.register({ key: 'h', label: 'Hand tool', category: 'tools', viewerAllowed: true, handler: () => setToolMode(toolModeRef.current === 'hand' ? 'select' : 'hand') }));
+  // Dedicated proportional Scale (K). Scale is an edit tool, not a creator
+  // tool, and pressing K while active stays predictably in Scale.
+  cleanups.push(keyboard.register({ key: 'k', label: 'Scale tool', category: 'tools', handler: () => setToolMode('scale') }));
   cleanups.push(keyboard.register({ key: 'r', shift: true, label: 'Rows layout tool', category: 'tools', handler: () => {
     if (isOnContainerSetMaster()) return;
     setToolMode(toolModeRef.current === 'layout-rows' ? 'select' : 'layout-rows');
@@ -126,9 +129,9 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   cleanups.push(keyboard.register({ key: 'p', label: 'Path tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'shape-path' ? 'select' : 'shape-path');
   }}));
-  // Sketch (Pencil) — enabled everywhere now: regular pages AND vector-set
-  // (icon-set) masters, since sketches bundle into vector sets.
-  cleanups.push(keyboard.register({ key: 'k', label: 'Sketch tool', category: 'tools', handler: () => {
+  // Sketch (Pencil) — Shift+P, while P remains the Path/Pen tool.
+  // Enabled on regular pages AND vector-set (icon-set) masters.
+  cleanups.push(keyboard.register({ key: 'p', shift: true, label: 'Sketch tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'sketch' ? 'select' : 'sketch');
   }}));
 

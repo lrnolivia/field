@@ -14,7 +14,7 @@ import { SELECTION_COLOR, COMPONENT_COLOR, isTextTag, isFitSize } from '@/shared
 import { interactingViewportIdAtom, viewportWidthsAtom, syncViewportWidths, viewportsConfigAtom, viewportPositionsAtom } from '@/code/stores/viewport-store';
 import { isDefaultLocaleAtom } from '@/code/stores/locale-store';
 import { applyViewportWidthChange } from '@/code/generation/viewport-width-rewrite';
-import { findNodeRect, findGhostsForTemplate, getContentRoot, updateNodeStyles, findNodeComputedStyles, patchNodeStyles, getViewportPrefix, forceCanvasRender } from '@/canvas/node-ops';
+import { findGhostsForTemplate, getContentRoot, updateNodeStyles, findNodeComputedStyles, patchNodeStyles, getViewportPrefix, forceCanvasRender } from '@/canvas/node-ops';
 import { mirrorPrimaryViewportHeightToRoot } from '@/canvas/viewport-size-ops';
 import { makeGhostId } from '@/shared/ghost-id';
 import { updateVariantPosition } from '@/code/variants/variant-ops';
@@ -31,6 +31,7 @@ import { trace } from '@/shared/debug-trace';
 import HoverHighlight from './HoverHighlight';
 import SelectionBorder from './SelectionBorder';
 import ResizeHandles from './ResizeHandles';
+import ScaleHandles from './ScaleHandles';
 import SelectionFade from './SelectionFade';
 import RotateHandle from './RotateHandle';
 import BorderRadiusHandle from './BorderRadiusHandle';
@@ -53,7 +54,9 @@ import FancyRadiusOverlay from './FancyRadiusOverlay';
 import { shapeEditingIdAtom, shapeEditCommitPendingAtom, groupEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { sketchEditingIdAtom } from '@/code/stores/sketch-edit-store';
 import { isPickingAnimTargetAtom } from '@/code/stores/animation-store';
-import { panHighlightAtom } from '@/code/stores/tool-store';
+import { panHighlightAtom, toolModeAtom } from '@/code/stores/tool-store';
+import { startScaleGesture } from '@/canvas/scale/scale-operation';
+import type { ScaleCornerDirection } from '@/canvas/scale/scale-math';
 import { cameraMoveOps } from '@/canvas/camera-move-store';
 import { dragStateOps } from '@/canvas/drag/drag-state-store';
 
@@ -102,6 +105,7 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
   const vpId = useAtomValue(interactingViewportIdAtom);
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
   const isInteracting = useAtomValue(canvasInteractingAtom);
+  const toolMode = useAtomValue(toolModeAtom);
   const setInteracting = useSetAtom(canvasInteractingAtom);
   const setRotating = useSetAtom(isRotatingAtom);
   // DELIBERATELY whole-map (category B-adjacent): this overlay is keyed to
@@ -477,6 +481,18 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
     return () => cancelAnimationFrame(rafId);
   }, [selectedId, vpId, mapItemIndex, nodes, allViewportConfigs]);
 
+  // ─── Dedicated Scale start handler (corner-only, proportional) ─────────
+  const handleScaleStart = useCallback((direction: ScaleCornerDirection, e: React.PointerEvent) => {
+    if (!selectedId) return;
+    const contentEl = getContentRoot();
+    if (!contentEl) return;
+    const result = startScaleGesture([{ id: selectedId, vpId }], direction, e.nativeEvent, {
+      contentEl,
+      onInteracting: setInteracting,
+    });
+    if (!result.ok) trace.action('selection-overlay:scale-blocked', { selectedId, reason: result.reason });
+  }, [selectedId, vpId, setInteracting]);
+
   // ─── Resize start handler (corners + edges) ────────────────────────────
   const handleResizeStart = useCallback((direction: Direction, e: React.PointerEvent) => {
     if (!selectedId) return;
@@ -794,6 +810,14 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
               TRANSLATION MODE (non-default locale: selection border only,
               geometry is not editable — localization overhaul Phase 2). */}
           {!shapeEditingId && !activeFancyRadius && !isViewer && isDefaultLocale && !colorPickerOpen && (
+            toolMode === 'scale' ? (
+              <ScaleHandles
+                corners={corners}
+                rotation={rotation}
+                onScaleStart={handleScaleStart}
+                color={selectionColor}
+              />
+            ) : (
             <>
               <ResizeHandles
                 corners={corners}
@@ -918,6 +942,7 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
                 );
               })()}
             </>
+            )
           )}
           </SelectionFade>
           {/* Gradient editing overlay — shows when gradient editor is active */}
@@ -986,7 +1011,7 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
             <SecondarySelectionBorder key={`${p.vpId}:${p.id}`} nodeId={p.id} vpId={p.vpId} color={selectionColor} />
           ))}
           {!isViewer && (
-            <GroupBoundingBox pairs={multiSelectPairs} color={selectionColor} />
+            <GroupBoundingBox pairs={multiSelectPairs} color={selectionColor} scaleMode={toolMode === 'scale'} />
           )}
         </>
       )}
@@ -1105,10 +1130,17 @@ function MapGhostOverlay({ nodeId, vpId, color }: { nodeId: string; vpId: string
  *  enclose the replicas too (design-tool parity); resize/rotate then live-patch
  *  and COMMIT each pair against its own viewport (primary write vs
  *  @container override — `viewportPrefix` on updateNodeStyles). */
-function GroupBoundingBox({ pairs, color }: { pairs: Array<{ id: string; vpId: string }>; color: string }) {
+function GroupBoundingBox({ pairs, color, scaleMode }: { pairs: Array<{ id: string; vpId: string }>; color: string; scaleMode: boolean }) {
   const [groupCorners, setGroupCorners] = useState<ScreenCorners | null>(null);
   const setInteracting = useSetAtom(canvasInteractingAtom);
   const setRotating = useSetAtom(isRotatingAtom);
+
+  const handleGroupScaleStart = useCallback((direction: ScaleCornerDirection, e: React.PointerEvent) => {
+    const contentEl = getContentRoot();
+    if (!contentEl) return;
+    const result = startScaleGesture(pairs, direction, e.nativeEvent, { contentEl, onInteracting: setInteracting });
+    if (!result.ok) trace.action('group-scale:blocked', { reason: result.reason, count: pairs.length });
+  }, [pairs, setInteracting]);
 
   // Group resize: proportional scaling per node, ported from old builder
   // `create-resize-handler.tsx`. Each node gets a delta scaled by its size
@@ -1496,8 +1528,14 @@ function GroupBoundingBox({ pairs, color }: { pairs: Array<{ id: string; vpId: s
   return (
     <>
       <SelectionBorder corners={groupCorners} rotation={0} color={color} />
-      <ResizeHandles corners={groupCorners} rotation={0} onResizeStart={handleGroupResizeStart} color={color} />
-      <RotateHandle corners={groupCorners} rotation={0} onRotateStart={(e) => handleGroupRotateStart(e)} />
+      {scaleMode ? (
+        <ScaleHandles corners={groupCorners} rotation={0} onScaleStart={handleGroupScaleStart} color={color} />
+      ) : (
+        <>
+          <ResizeHandles corners={groupCorners} rotation={0} onResizeStart={handleGroupResizeStart} color={color} />
+          <RotateHandle corners={groupCorners} rotation={0} onRotateStart={(e) => handleGroupRotateStart(e)} />
+        </>
+      )}
     </>
   );
 }

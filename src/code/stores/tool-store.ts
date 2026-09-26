@@ -5,7 +5,7 @@
 import { atom } from 'jotai';
 import { trace } from '@/shared/debug-trace';
 
-export type ToolMode = 'select' | 'frame' | 'text' | 'hand'
+export type ToolMode = 'select' | 'scale' | 'frame' | 'text' | 'hand'
   | 'shape-rect' | 'shape-ellipse' | 'shape-triangle' | 'shape-path'
   | 'layout-rows' | 'layout-columns' | 'layout-grids'
   | 'sketch';

@@ -52,6 +52,8 @@ import type { CanvasNode } from '@/code/parsing/parser';
 import TemplatePicker from './TemplatePicker';
 import { VariableModalHost } from './ui/VariableModalHost';
 import PageAppearanceTool from './tools/PageAppearanceTool';
+import ScaleTool from './tools/ScaleTool';
+import { toolModeAtom } from '@/code/stores/tool-store';
 
 // React.memo: Canvas re-renders at every drag transition (drag-state,
 // interacting-viewport, highlight state) and each one cascaded through this
@@ -129,6 +131,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
   const activeEditor = useAtomValue(activeEditorAtom);
   const inspectorMode = useAtomValue(inspectorModeAtom);
+  const toolMode = useAtomValue(toolModeAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const filePath = useAtomValue(activeFilePathAtom);
   const allOverlayCalls = useAtomValue(overlayCallsAtom);
@@ -478,6 +481,13 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             outside the scrollable area — it stays put even when the panel
             scrolls. */}
         <div className="mb-0.5" />
+
+      {inspectorMode === 'design' && toolMode === 'scale' && (
+        <>
+          <ScaleTool vpId={vpId} />
+          <ToolDivider />
+        </>
+      )}
 
       {/* ─── Template picker — viewport selection on page files ────────────
           Shows when the user has the page's viewport-frame selected. The

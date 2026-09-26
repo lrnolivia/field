@@ -46,6 +46,13 @@ import { ChatImageIcon } from '@/shared/icons';
 
 const ChevronDownSvg = () => <FigmaChevronDownIcon size={12} />;
 const CheckSvg = () => <FigmaCheckIcon size={14} />;
+const ScaleToolbarIcon = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" className={className} width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M3.25 6.1V3.25H6.1" />
+    <path d="M9.9 12.75h2.85V9.9" />
+    <path d="M3.55 3.55l3.1 3.1M12.45 12.45l-3.1-3.1" />
+  </svg>
+);
 
 // ─── Shared sub-components ──────────────────────────────────────────────────
 
@@ -177,15 +184,15 @@ function CreatorGate({ locked, children }: { locked: boolean; children: React.Re
 
 // ─── Cursor Dropdown ────────────────────────────────────────────────────────
 
-function CursorDropdown({ toolMode, commentModeActive, onSelect }: {
-  toolMode: ToolMode; commentModeActive: boolean; onSelect: (m: ToolMode) => void;
+function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
+  toolMode: ToolMode; commentModeActive: boolean; onSelect: (m: ToolMode) => void; allowScale: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // Comment mode forces toolMode to 'select' under the hood, but it's a
   // separate tool from the user's POV — so the cursor button must read
   // as inactive while comment mode owns the canvas.
-  const isActive = (toolMode === 'select' || toolMode === 'hand') && !commentModeActive;
+  const isActive = (toolMode === 'select' || toolMode === 'hand' || toolMode === 'scale') && !commentModeActive;
   // Spacebar hand: while space is held (panHighlightAtom — set on keydown,
   // cleared on keyup, same signal the canvas cursor uses) the canvas IS the
   // hand tool, so the toolbar shows the hand icon for the hold, like the
@@ -196,22 +203,25 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect }: {
 
   const currentIcon = toolMode === 'hand' || spaceHand
     ? <HandToolbarIcon className="w-4 h-4" />
-    : <CursorIcon className="w-4 h-4 translate-y-0.5" />;
+    : toolMode === 'scale'
+      ? <ScaleToolbarIcon className="w-4 h-4" />
+      : <CursorIcon className="w-4 h-4 translate-y-0.5" />;
 
   return (
     <div className="relative" ref={ref}>
       <SplitButton
         active={isActive || open}
         icon={currentIcon}
-        onClick={() => onSelect(toolMode === 'hand' ? 'hand' : 'select')}
+        onClick={() => onSelect(toolMode === 'hand' ? 'hand' : toolMode === 'scale' ? 'scale' : 'select')}
         onChevronClick={() => setOpen(!open)}
-        title="Select (V) / Hand (H)"
+        title="Move (V) / Hand (H) / Scale (K)"
         dataTool="select"
       />
       {open && (
         <DropdownContainer>
           <MenuItem label="Move" shortcut="V" active={toolMode === 'select'} onClick={() => { onSelect('select'); setOpen(false); }} />
           <MenuItem label="Hand tool" shortcut="H" active={toolMode === 'hand'} icon={<div className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+          {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
         </DropdownContainer>
       )}
     </div>
@@ -507,7 +517,7 @@ export default function BottomToolbar() {
         {/* Figma-like authoring cluster. field-only creation tools stay here
             when the toolbar remains their clearest home. */}
         <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
-          <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} />
+          <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} />
 
           {!isViewer && <>
             {!isContainerSetMaster && (
@@ -564,7 +574,7 @@ export default function BottomToolbar() {
               <ToolButton
                 active={toolMode === 'sketch'}
                 onClick={() => handleToolClick('sketch')}
-                title="Sketch (K)"
+                title="Sketch (Shift+P)"
                 dataTool="sketch"
               >
                 <SketchPencilIcon className="w-4 h-4" size={16} />

@@ -15,6 +15,8 @@ describe('creator tool lock', () => {
     }
     store.set(toolModeAtom, 'hand' as any);
     expect(store.get(toolModeAtom)).toBe('hand');
+    store.set(toolModeAtom, 'scale' as any);
+    expect(store.get(toolModeAtom)).toBe('scale');
   });
   it('lets creator modes through when unlocked', () => {
     const store = createStore();
