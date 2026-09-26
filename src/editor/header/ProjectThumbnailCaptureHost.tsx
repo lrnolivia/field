@@ -304,6 +304,12 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
         return;
       }
 
+      if (message.type === 'preview:thumbnail-error') {
+        if (message.requestId !== session.requestId) return;
+        retryOrFail('raster', message.error);
+        return;
+      }
+
       if (message.type !== 'preview:thumbnail' || uploadInFlightRef.current) return;
       if (message.requestId !== session.requestId) return;
       const dataUrl = message.dataUrl;
