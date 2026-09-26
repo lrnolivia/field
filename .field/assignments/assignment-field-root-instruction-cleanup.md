@@ -3,11 +3,11 @@
 ---
 field_assignment: 1
 id: field-root-instruction-cleanup
-status: active
+status: completed
 branch: field/field-root-instruction-cleanup
-pr: null
+pr: 7
 base: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
-kit: 2026-09-26.2
+kit: 2026-09-26.3
 target_kit: 2026-09-26.3
 type: repair
 execution_class: contract-worker
@@ -100,3 +100,19 @@ Rewrite only the owned instruction/process files so they are field-native, route
 - [ ] regression/self-tests assert the blocker rule and version
 - [ ] no product source/config changes
 - [ ] docs/process-only diff is reviewed and merged
+
+## Completion
+
+Merged via PR #7.
+
+Validated implementation head:
+f90c6483b4d7c2e05cd7871ada43ac1ff2397145
+
+Merge commit on main:
+d9f178361333a2a3bb17be90c0277e4b98708ae4
+
+Final PR diff was exactly CLAUDE.md and CONTRIBUTING.md.
+
+The stale branch inherited superseded handoff-kit variants. That artificial blocker was repaired by reconciling current main and restoring canonical 2026-09-26.3 kit files before merge.
+
+Runtime QA was not applicable because this was root documentation/process cleanup only.
