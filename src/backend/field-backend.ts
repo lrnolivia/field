@@ -50,11 +50,31 @@ function projectPath(id: string, suffix = ''): string {
   return `${API_PREFIX}/${encodeURIComponent(id)}${suffix}`;
 }
 
+function normalizeR2Revision(value: string): string {
+  const revision = value.trim();
+
+  // R2 gives the Worker a strong quoted httpEtag, but Cloudflare may weaken
+  // an HTTP ETag in transit when response encoding changes:
+  //
+  //   "abc" -> W/"abc"
+  //
+  // That weak validator cannot be reused as an If-Match precondition for the
+  // underlying R2 object. In this API the opaque tag originated directly from
+  // R2, so restore the strong R2 spelling before caching the revision.
+  return revision.startsWith('W/') ? revision.slice(2) : revision;
+}
+
 function requireRevision(response: Response, context: string): string {
-  const revision = response.headers.get('ETag');
-  if (!revision) {
+  const rawRevision = response.headers.get('ETag');
+  if (!rawRevision) {
     throw new Error(`${context} succeeded without an ETag revision`);
   }
+
+  const revision = normalizeR2Revision(rawRevision);
+  if (!revision) {
+    throw new Error(`${context} returned an empty ETag revision`);
+  }
+
   return revision;
 }
 

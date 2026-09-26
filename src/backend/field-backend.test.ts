@@ -111,6 +111,19 @@ describe('FieldBackend project persistence', () => {
     expect(new Headers(saveInit.headers).get('If-None-Match')).toBeNull();
   });
 
+  it('normalizes a Cloudflare-weakened R2 ETag before the next conditional save', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, 'W/"rev-a"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, 'W/"rev-b"'));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    expect(await backend.loadProject('local')).toEqual(project);
+    await backend.saveProject('local', project);
+
+    const saveInit = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-a"');
+  });
+
   it('uses conditional-create semantics for a first remote save', async () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(response({ error: 'not found' }, 404))
