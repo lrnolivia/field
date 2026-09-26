@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T10:04:46Z
+Last Updated: 2026-09-26T16:23:04Z
 
 ## Active Assignments
 
@@ -133,6 +133,7 @@ Architecture:
 - 2026-09-25T02:17:03Z — Existing-chat adoption: this tracker was initialized after `81a7dbd633db` had already landed because the generic handoff kit was introduced midstream. No pre-implementation tracker reservation existed. Git history is authoritative.
 - 2026-09-25T02:17:03Z — Pages/Layers source work is landed and deployed. Screenshot-level post-deploy visual parity remains unverified and should be registered as a new assignment before further implementation.
 - Workspace chrome housing integration: user explicitly authorized `workspace-chrome-floating-panes` against the Pages/Layers source postimage landed at `9a74cb253444`. `LeftHeader.tsx` and `LeftMenu.tsx` are shared integration surfaces only; the installer is exact-postimage guarded and must stop on later drift rather than replay stale changes.
+- 2026-09-26T16:23:04Z — Dashboard PR #5 (field/dashboard-interaction-polish, head 932af6d67c84fc0b9eccab46d6f78ad5aade49cf) is code-green but integration-blocked: ProjectCardMenu 4/4 PASS, DeleteProjectDialog 4/4 PASS, and focused strict TypeScript PASS. Cloudflare Preview build 45a092f4-8331-451f-a8e1-692624abf981 failed before producing a Preview URL, while a duplicate Workers Builds: field check for the same build remains stuck in_progress. Remaining gate = BLOCKED/UNVERIFIED — HARNESS / Preview-deployment infrastructure, not Dashboard product code. Preview infrastructure is separately owned by field-branch-preview-live-qa; PR #5 remains Draft pending usable runtime evidence.
 <!-- FIELD_BLOCKED_NOTES_END -->
 
 ## Installer / Handoff Kit Lessons
