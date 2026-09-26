@@ -3,6 +3,7 @@ import { FieldBackend, PersistenceConflictError } from './field-backend';
 import { resolveBackendKind } from './index';
 import type { ProjectData } from './types';
 import { isRetryableSaveError } from './autosave';
+import { getFieldSessionId } from './project-events';
 
 const project: ProjectData = {
   format: 'revyme-v1',
@@ -109,6 +110,7 @@ describe('FieldBackend project persistence', () => {
     const saveInit = fetchImpl.mock.calls[1][1] as RequestInit;
     expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-a"');
     expect(new Headers(saveInit.headers).get('If-None-Match')).toBeNull();
+    expect(new Headers(saveInit.headers).get('X-Field-Session-Id')).toBe(getFieldSessionId());
   });
 
   it('normalizes a Cloudflare-weakened R2 ETag before the next conditional save', async () => {
@@ -147,6 +149,38 @@ describe('FieldBackend project persistence', () => {
 
     await backend.loadProject('local');
     await expect(backend.saveProject('local', project)).rejects.toBeInstanceOf(PersistenceConflictError);
+  });
+
+  it('blocks a known realtime-stale revision before issuing another PUT', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response(project, 200, '"rev-a"'));
+    const fieldBackend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await fieldBackend.loadProject('local');
+    fieldBackend.markProjectRevisionStale('local');
+    fetchImpl.mockClear();
+
+    await expect(fieldBackend.saveProject('local', project)).rejects.toBeInstanceOf(PersistenceConflictError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('peeks a remote revision without adopting it until the editor accepts that snapshot', async () => {
+    const remote = { ...project, files: { 'app/page.client.tsx': 'remote' } };
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, '"rev-a"'))
+      .mockResolvedValueOnce(response(remote, 200, '"rev-b"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"rev-c"'));
+    const fieldBackend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await fieldBackend.loadProject('local');
+    const peeked = await fieldBackend.peekRemoteProject('local');
+    expect(peeked).toEqual({ data: remote, revision: '"rev-b"' });
+    expect(fieldBackend.getProjectRevision('local')).toBe('"rev-a"');
+
+    fieldBackend.adoptProjectRevision('local', peeked!.revision);
+    await fieldBackend.saveProject('local', remote);
+
+    const saveInit = fetchImpl.mock.calls[2][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-b"');
   });
 
   it('migrates a valid legacy local snapshot exactly when remote state is absent', async () => {

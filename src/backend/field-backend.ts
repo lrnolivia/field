@@ -6,6 +6,7 @@ import type { ProjectBackend, ProjectData, RevymeUser, WorkspaceFont } from './t
 import { isKnownProjectFormat } from './types';
 import { LocalBackend } from './local-backend';
 import { trace } from '@/shared/debug-trace';
+import { getFieldSessionId } from './project-events';
 
 const API_PREFIX = '/api/field/projects';
 const ACCESS_IDENTITY_PATH = '/cdn-cgi/access/get-identity';
@@ -34,6 +35,11 @@ interface FieldBackendOptions {
   fetchImpl?: typeof fetch;
   legacyLoader?: (id: string) => Promise<ProjectData | null>;
   legacyNameReader?: (id: string) => string | null;
+}
+
+export interface RemoteProjectSnapshot {
+  data: ProjectData;
+  revision: string;
 }
 
 function defaultLegacyNameReader(id: string): string | null {
@@ -106,6 +112,7 @@ export class FieldBackend implements ProjectBackend {
   private readonly legacyNameReader: (id: string) => string | null;
   private readonly projectRevisions = new Map<string, string | null>();
   private readonly metaRevisions = new Map<string, string | null>();
+  private readonly staleProjectRevisions = new Set<string>();
 
   constructor(options: FieldBackendOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
@@ -214,6 +221,53 @@ export class FieldBackend implements ProjectBackend {
     return user;
   }
 
+  getProjectRevision(id: string): string | null | undefined {
+    return this.projectRevisions.get(id);
+  }
+
+  markProjectRevisionStale(id: string): void {
+    this.staleProjectRevisions.add(id);
+  }
+
+  adoptProjectRevision(id: string, revision: string): void {
+    this.projectRevisions.set(id, normalizeR2Revision(revision));
+    this.staleProjectRevisions.delete(id);
+  }
+
+  /** Read the authoritative remote snapshot WITHOUT adopting its revision.
+   * Realtime reconciliation uses this to compare first, then either adopt the
+   * clean remote state or preserve dirty local work and enter conflict. */
+  async peekRemoteProject(id: string): Promise<RemoteProjectSnapshot | null> {
+    const response = await this.fetchImpl(projectPath(id), {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) throw await responseError(response, 'Project load');
+
+    const revision = requireRevision(response, 'Project load');
+    let parsed: unknown;
+    try {
+      parsed = await response.json();
+    } catch (error) {
+      throw new Error(`Project load returned invalid JSON: ${String(error)}`);
+    }
+
+    if (!hasProjectFiles(parsed)) {
+      trace.error('field-backend:remote-project-invalid', { id, revision });
+      throw new Error('Remote project exists but does not contain a valid project snapshot');
+    }
+
+    const data = parsed as ProjectData;
+    if (!isKnownProjectFormat(data.format)) {
+      trace.error('field-backend:unknown-format', { id, format: data.format });
+    }
+    return { data, revision };
+  }
+
   private async fetchRemoteProject(id: string): Promise<{ found: boolean; data: ProjectData | null }> {
     let response: Response;
     try {
@@ -230,6 +284,7 @@ export class FieldBackend implements ProjectBackend {
 
     if (response.status === 404) {
       this.projectRevisions.set(id, null);
+      this.staleProjectRevisions.delete(id);
       return { found: false, data: null };
     }
     if (!response.ok) {
@@ -237,7 +292,7 @@ export class FieldBackend implements ProjectBackend {
     }
 
     const revision = requireRevision(response, 'Project load');
-    this.projectRevisions.set(id, revision);
+    this.adoptProjectRevision(id, revision);
 
     let parsed: unknown;
     try {
@@ -304,8 +359,16 @@ export class FieldBackend implements ProjectBackend {
   }
 
   async saveProject(id: string, data: ProjectData): Promise<void> {
+    if (this.staleProjectRevisions.has(id)) {
+      trace.error('field-backend:save-blocked-stale-realtime-revision', { id });
+      throw new PersistenceConflictError();
+    }
+
     const expected = this.projectRevisions.get(id);
-    const headers = new Headers({ 'Content-Type': 'application/json' });
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'X-Field-Session-Id': getFieldSessionId(),
+    });
     if (expected) headers.set('If-Match', expected);
     else headers.set('If-None-Match', '*');
 
@@ -331,7 +394,7 @@ export class FieldBackend implements ProjectBackend {
     }
 
     const revision = requireRevision(response, 'Project save');
-    this.projectRevisions.set(id, revision);
+    this.adoptProjectRevision(id, revision);
     trace.action('backend:save-project', {
       id,
       source: 'field-r2',
@@ -407,7 +470,10 @@ export class FieldBackend implements ProjectBackend {
 
   async renameWebsite(id: string, name: string): Promise<void> {
     const expected = this.metaRevisions.get(id);
-    const headers = new Headers({ 'Content-Type': 'application/json' });
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'X-Field-Session-Id': getFieldSessionId(),
+    });
     if (expected) headers.set('If-Match', expected);
     else headers.set('If-None-Match', '*');
 
