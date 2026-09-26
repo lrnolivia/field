@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:04:51Z
+Last Updated: 2026-09-26T08:07:02Z
 
 ## Active Assignments
 
@@ -1463,6 +1463,22 @@ Paths:
   - src/FieldShell.tsx
   - src/field-shell-motion.test.ts
   - src/field-shell-motion.ts
+  - src/styles/field-shell.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T08:07:02Z — field-dashboard-seamless-motion-20260926 — c23d7e932876
+
+Summary: Finished the unified Dashboard pass without retuning its approved motion: kept the live builder painted through editor exit, hardened WAAPI/CSS transform ownership and hidden-layer compositing, preserved project cards during slow realtime refreshes, simplified the no-thumbnail art to a compact stacked field mark, and compacted the New Project wizard into visual device/style choices. Editor/Canvas motion source, persistence, realtime transport, thumbnail generation, routing, and project creation semantics were not changed.
+Commit: c23d7e93287623cc45e05189de66cadc54aa1046
+
+Paths:
+  - src/FieldShell.tsx
+  - src/dashboard/ProjectCard.tsx
+  - src/dashboard/dashboard-final-polish.test.ts
+  - src/field-shell-motion.test.ts
+  - src/styles/dashboard.css
   - src/styles/field-shell.css
 
 Validation / Build / Deploy:
