@@ -246,11 +246,13 @@ Do not allocate the same path to two independent Contract Workers by accident.
 
 ### GitHub registration
 
-Use Composio as the bounded GitHub write broker.
+Use Composio as the **exclusive GitHub transport** for all Night Shift repository access, including reads and writes.
+
+The built-in ChatGPT GitHub connector is prohibited, including read-only inspection. Do not substitute another GitHub plugin/app, web search, or remembered repository state.
 
 The Night Shift Manager owns the reasoning and exact transaction.
 
-The Composio Executor performs GitHub writes and returns evidence.
+The Composio Executor performs the exact GitHub operations and returns evidence.
 
 For a new assignment, the desired remote identity is:
 
@@ -315,7 +317,13 @@ When the user asks "what's going on with the Night Shift?", report live state fr
 
 ## Composio policy
 
-For every GitHub mutation through Composio:
+Composio is the only permitted GitHub transport for the Night Shift Manager and Contract Workers.
+
+This applies to **all GitHub reads and writes**, not only mutations.
+
+Do not call the built-in ChatGPT GitHub connector even for read-only repository inspection. Do not substitute another GitHub plugin/app, web search, or remembered repository state.
+
+For every GitHub repository workflow:
 
 1. start with `COMPOSIO_SEARCH_TOOLS`
 2. verify the GitHub connection is ACTIVE
@@ -331,7 +339,7 @@ If Composio is unavailable:
 NIGHT SHIFT GITHUB UNAVAILABLE
 ```
 
-Do not fake the write.
+Stop. Do not fall back to the built-in GitHub connector and do not fake repository state.
 
 ## QA policy
 
