@@ -21,7 +21,7 @@ type: completion-note
 
 ## What remains
 
-- merge PR #2
+- merge PR #2 at validated head `06e984d84f3ebf68ca478ec1407ddb78f809ad63`
 - verify kit 2026-09-26.2 on `main`
 - activate the separate branch Preview/live QA successor when appropriate
 
@@ -29,9 +29,6 @@ type: completion-note
 
 Do not use the built-in GitHub connector "just for reads." The Night Shift contract is Composio-exclusive for reads and writes.
 
-## Final cleanup refresh
+## Final validation note
 
-- PR #2 current tested head: `06e984d84f3ebf68ca478ec1407ddb78f809ad63`
-- current tested main: `7e585a2fe66e062bae8a46041a6e08901027f9a8`
-- stale v1 handoff/installer/QA instructions were reconciled before merge
-- PR changed paths are restricted to `.field/handoff-kit/**`
+The stale-v1 cleanup is included in the validated PR head `06e984d84f3ebf68ca478ec1407ddb78f809ad63`. The handoff-kit regression/self-tests and Bash/Node syntax checks all pass on that exact head.

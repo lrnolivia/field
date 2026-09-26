@@ -6,7 +6,7 @@ branch: field/field-worker-coordination-v2
 pr: 2
 tested_head_sha: 06e984d84f3ebf68ca478ec1407ddb78f809ad63
 tested_main_sha: 7e585a2fe66e062bae8a46041a6e08901027f9a8
-environment: Composio-fetched exact PR branch content validated in Composio sandbox
+environment: Composio-fetched reconciled PR head materialized in Composio sandbox
 build: not-required
 tests: pass
 runtime_qa: not-required
@@ -21,7 +21,7 @@ The intervening main commit changed only `tracker.md`, while PR #2 changes only 
 
 PR #2 was then updated with current main, producing exact reconciled head:
 
-`7bb294725211c8468b1c416e4c1fe156d95fd94c`
+`06e984d84f3ebf68ca478ec1407ddb78f809ad63`
 
 ## Evidence after reconciliation
 
@@ -40,20 +40,15 @@ Not required for this assignment because it changes coordination/process infrast
 
 Cloudflare branch Preview/build behavior is not acceptance evidence for this coordination-only assignment. That infrastructure is explicitly owned by successor assignment `field-branch-preview-live-qa`.
 
-## Final cleanup validation
+## Final cleanup pass
 
-Exact tested PR head:
-`06e984d84f3ebf68ca478ec1407ddb78f809ad63`
-
-Exact tested main:
-`7e585a2fe66e062bae8a46041a6e08901027f9a8`
-
-Evidence:
-
+- PR head `06e984d84f3ebf68ca478ec1407ddb78f809ad63` includes the stale-v1 coordination cleanup.
 - `python3 tests/contract_worker_v2_test.py` → PASS
 - `python3 tests/kit_self_test.py` → PASS
 - `bash -n installer/install-template.sh` → PASS
 - `node --check templates/apply.mjs` → PASS
-- PR changed-path allowlist → PASS; only `.field/handoff-kit/**`
-- v1 contradiction cleanup → PASS
-- product runtime QA → NOT REQUIRED; coordination/process-only change
+- old tracker-centric helper behavior was removed from `bin/field-handoff`
+- old direct-main/default-Contract-Worker installer language was removed
+- Firecrawl QA now forbids using production to claim an unmerged branch was tested
+
+The Cloudflare Workers build check on this coordination-only branch is failing, but branch Preview/build behavior is explicitly outside this assignment's acceptance surface and is owned by successor assignment `field-branch-preview-live-qa`.
