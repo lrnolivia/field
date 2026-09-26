@@ -1,27 +1,19 @@
 import { useLayoutEffect } from 'react';
 import {
   collectEditorEntranceTargets,
-  consumeEditorEntranceNotBeforeDelay,
   editorEntranceDelay,
-  editorEntranceKeyframes,
-  EDITOR_ENTRANCE_DASHBOARD_HANDOFF_MS,
-  EDITOR_ENTRANCE_DURATION_MS,
+  editorEntranceDistances,
+  editorSpringKeyframes,
+  editorSpringProfile,
   FIELD_SHELL_SELECTOR,
   readFieldDashboardLayerState,
   type EditorEntranceRole,
+  type EditorEntranceTarget,
   type FieldDashboardLayerState,
 } from './editor-entrance';
 import { trace } from '@/shared/debug-trace';
 
-type ActiveViewTransitionDocument = Document & {
-  activeViewTransition?: {
-    finished?: Promise<unknown>;
-  } | null;
-};
-
-type PreparedTarget = {
-  element: HTMLElement;
-  role: EditorEntranceRole;
+type PreparedTarget = EditorEntranceTarget & {
   previous: {
     translate: string;
     opacity: string;
@@ -30,23 +22,28 @@ type PreparedTarget = {
   };
 };
 
-function prepareTarget(element: HTMLElement, role: EditorEntranceRole): PreparedTarget {
+function prepareTarget(
+  target: EditorEntranceTarget,
+  startDistancePx: number,
+): PreparedTarget {
+  const { element, role } = target;
   const previous = {
     translate: element.style.translate,
     opacity: element.style.opacity,
     pointerEvents: element.style.pointerEvents,
     willChange: element.style.willChange,
   };
-  const first = editorEntranceKeyframes(role)[0];
 
-  element.style.translate = String(first.translate ?? '0 0');
-  element.style.opacity = String(first.opacity ?? 1);
+  element.style.translate = role === 'bottom'
+    ? `0 ${startDistancePx}px`
+    : `${startDistancePx}px 0`;
+  element.style.opacity = '0.96';
   element.style.pointerEvents = 'none';
   element.style.willChange = previous.willChange
     ? `${previous.willChange}, translate, opacity`
     : 'translate, opacity';
 
-  return { element, role, previous };
+  return { ...target, previous };
 }
 
 function restoreTarget(target: PreparedTarget): void {
@@ -56,101 +53,11 @@ function restoreTarget(target: PreparedTarget): void {
   target.element.style.willChange = target.previous.willChange;
 }
 
-function wait(ms: number, signal: AbortSignal): Promise<void> {
-  if (ms <= 0 || signal.aborted) return Promise.resolve();
-  return new Promise((resolve) => {
-    const timer = window.setTimeout(finish, ms);
-    function finish() {
-      signal.removeEventListener('abort', abort);
-      resolve();
-    }
-    function abort() {
-      window.clearTimeout(timer);
-      finish();
-    }
-    signal.addEventListener('abort', abort, { once: true });
-  });
-}
-
-/**
- * The live FieldShell mounts ProjectLoader/App BEHIND Dashboard before it
- * reveals the editor. The first version of this choreography started on App
- * mount, so the entire entrance completed invisibly underneath Dashboard.
- *
- * This waits on FieldShell's deterministic `data-dashboard-state` contract.
- * It is an attribute observation of an explicit state machine — not visual
- * polling or timing inference from CSS.
- */
-async function waitForFieldShellReveal(signal: AbortSignal): Promise<void> {
-  const shell = document.querySelector<HTMLElement>(FIELD_SHELL_SELECTOR);
-  if (!shell || signal.aborted) return;
-
-  let state = readFieldDashboardLayerState(document);
-  if (state === 'hidden' || state === null) return;
-
-  if (state !== 'hiding') {
-    state = await new Promise<FieldDashboardLayerState | null>((resolve) => {
-      let settled = false;
-      const finish = (value: FieldDashboardLayerState | null) => {
-        if (settled) return;
-        settled = true;
-        observer.disconnect();
-        signal.removeEventListener('abort', onAbort);
-        resolve(value);
-      };
-      const observer = new MutationObserver(() => {
-        const next = readFieldDashboardLayerState(document);
-        if (next === 'hiding' || next === 'hidden' || next === null) finish(next);
-      });
-      const onAbort = () => finish(null);
-
-      observer.observe(shell, {
-        attributes: true,
-        attributeFilter: ['data-dashboard-state'],
-      });
-      signal.addEventListener('abort', onAbort, { once: true });
-
-      // Close the tiny race between the read above and observer registration.
-      const immediate = readFieldDashboardLayerState(document);
-      if (immediate === 'hiding' || immediate === 'hidden' || immediate === null) {
-        finish(immediate);
-      }
-    });
-  }
-
-  if (signal.aborted) return;
-  if (state === 'hiding') {
-    await wait(EDITOR_ENTRANCE_DASHBOARD_HANDOFF_MS, signal);
-  }
-}
-
-async function waitForRevealBoundary(signal: AbortSignal): Promise<void> {
-  await waitForFieldShellReveal(signal);
-  if (signal.aborted) return;
-
-  const transition = (document as ActiveViewTransitionDocument).activeViewTransition;
-  if (transition?.finished) {
-    try {
-      await transition.finished;
-    } catch {
-      // A cancelled navigation transition should not suppress editor chrome.
-    }
-  }
-
-  const handoffDelay = consumeEditorEntranceNotBeforeDelay(
-    typeof sessionStorage === 'undefined' ? null : sessionStorage,
-  );
-
-  if (handoffDelay > 0) await wait(handoffDelay, signal);
-  if (signal.aborted) return;
-
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-}
-
 export default function EditorEntranceCoordinator() {
   useLayoutEffect(() => {
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const root = document.documentElement;
+    const shell = document.querySelector<HTMLElement>(FIELD_SHELL_SELECTOR);
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
     if (reducedMotion) {
       root.dataset.editorEntranceState = 'settled';
@@ -158,85 +65,186 @@ export default function EditorEntranceCoordinator() {
       return;
     }
 
-    const discovered = collectEditorEntranceTargets(document);
-    if (discovered.length === 0) {
-      root.dataset.editorEntranceState = 'settled';
-      return;
-    }
+    let prepared: PreparedTarget[] = [];
+    let animations: Animation[] = [];
+    let timers: number[] = [];
+    let cycle = 0;
+    let running = false;
+    let lastDashboardState: FieldDashboardLayerState | null = readFieldDashboardLayerState(document);
 
-    // IMPORTANT: prepare immediately while Dashboard still covers the builder.
-    // That leaves only Canvas/content underneath the outgoing Dashboard; chrome
-    // cannot flash in its final position before the reveal handoff.
-    const prepared = discovered.map(({ element, role }) => prepareTarget(element, role));
-    const animations: Animation[] = [];
-    const timers: number[] = [];
-    const abortController = new AbortController();
-    let cancelled = false;
-    let settledCount = 0;
-
-    root.dataset.editorEntranceState = 'prepared';
-    trace.action('editor-entrance:prepared', {
-      targets: prepared.map(({ role }) => role),
-      dashboardState: readFieldDashboardLayerState(document),
-    });
-
-    const settle = (target: PreparedTarget) => {
-      restoreTarget(target);
-      settledCount += 1;
-      if (!cancelled && settledCount >= prepared.length) {
-        root.dataset.editorEntranceState = 'settled';
-        trace.action('editor-entrance:settled', {});
-      }
-    };
-
-    void waitForRevealBoundary(abortController.signal).then(() => {
-      if (cancelled || abortController.signal.aborted) return;
-      root.dataset.editorEntranceState = 'entering';
-      trace.action('editor-entrance:entering', {
-        dashboardState: readFieldDashboardLayerState(document),
-      });
-
-      for (const target of prepared) {
-        const timer = window.setTimeout(() => {
-          if (cancelled) return;
-
-          if (typeof target.element.animate !== 'function') {
-            settle(target);
-            return;
-          }
-
-          const animation = target.element.animate(
-            editorEntranceKeyframes(target.role),
-            {
-              duration: EDITOR_ENTRANCE_DURATION_MS,
-              easing: 'linear',
-              fill: 'both',
-            },
-          );
-          animations.push(animation);
-
-          animation.onfinish = () => {
-            animation.cancel();
-            settle(target);
-          };
-          animation.oncancel = () => {
-            if (!cancelled) settle(target);
-          };
-        }, editorEntranceDelay(target.role));
-        timers.push(timer);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      abortController.abort();
+    const cancelMotion = (restore = true) => {
       for (const timer of timers) window.clearTimeout(timer);
+      timers = [];
       for (const animation of animations) {
         animation.onfinish = null;
         animation.oncancel = null;
         animation.cancel();
       }
-      for (const target of prepared) restoreTarget(target);
+      animations = [];
+      if (restore) {
+        for (const target of prepared) restoreTarget(target);
+      }
+      prepared = [];
+      running = false;
+    };
+
+    const prepare = () => {
+      if (prepared.length > 0 || running) return true;
+
+      const targets = collectEditorEntranceTargets(document);
+      if (targets.length === 0) {
+        root.dataset.editorEntranceState = 'settled';
+        return false;
+      }
+
+      const distances = editorEntranceDistances(
+        targets,
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+      prepared = targets.map((target) => prepareTarget(target, distances[target.role]));
+      root.dataset.editorEntranceState = 'prepared';
+      trace.action('editor-entrance:prepared', {
+        cycle,
+        dashboardState: readFieldDashboardLayerState(document),
+        targets: prepared.map(({ role, element }) => ({
+          role,
+          surface: element.dataset.workspaceIsland ?? element.id ?? element.dataset.editorPanel ?? 'chrome',
+        })),
+      });
+      return true;
+    };
+
+    const run = () => {
+      if (running) return;
+      if (!prepare()) return;
+
+      running = true;
+      root.dataset.editorEntranceState = 'entering';
+      const currentCycle = cycle;
+      const distances = editorEntranceDistances(
+        prepared,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      let settled = 0;
+
+      trace.action('editor-entrance:entering', {
+        cycle: currentCycle,
+        dashboardState: readFieldDashboardLayerState(document),
+      });
+
+      const settleOne = (target: PreparedTarget) => {
+        restoreTarget(target);
+        settled += 1;
+        if (settled >= prepared.length && currentCycle === cycle) {
+          prepared = [];
+          animations = [];
+          timers = [];
+          running = false;
+          root.dataset.editorEntranceState = 'settled';
+          trace.action('editor-entrance:settled', { cycle: currentCycle });
+        }
+      };
+
+      for (const target of prepared) {
+        const timer = window.setTimeout(() => {
+          if (currentCycle !== cycle) return;
+
+          if (typeof target.element.animate !== 'function') {
+            settleOne(target);
+            return;
+          }
+
+          const profile = editorSpringProfile(target.role);
+          const animation = target.element.animate(
+            editorSpringKeyframes(target.role, distances[target.role]),
+            {
+              duration: profile.durationMs,
+              easing: 'linear',
+              fill: 'both',
+            },
+          );
+
+          animations.push(animation);
+          animation.onfinish = () => {
+            animation.cancel();
+            settleOne(target);
+          };
+          animation.oncancel = () => {
+            if (currentCycle === cycle) settleOne(target);
+          };
+        }, editorEntranceDelay(target.role));
+
+        timers.push(timer);
+      }
+    };
+
+    const beginNewRevealCycle = () => {
+      cycle += 1;
+      cancelMotion(true);
+      prepare();
+    };
+
+    const handleDashboardState = (state: FieldDashboardLayerState | null) => {
+      const previous = lastDashboardState;
+      lastDashboardState = state;
+
+      // Direct /builder load: there is no Dashboard exit to wait for.
+      if (state === 'hidden' && previous === 'hidden' && cycle === 0) {
+        cycle = 1;
+        prepare();
+        requestAnimationFrame(run);
+        return;
+      }
+
+      // Dashboard has just begun leaving. Prepare all physical chrome offscreen
+      // while the Dashboard still fully covers the builder.
+      if (state === 'hiding' && previous !== 'hiding') {
+        beginNewRevealCycle();
+        return;
+      }
+
+      // IMPORTANT: start only after FieldShell's authoritative state reaches
+      // hidden. Dashboard may tune its animation duration freely; there is no
+      // hardcoded 150/360/420/480ms dependency here.
+      if (state === 'hidden' && previous !== 'hidden') {
+        if (cycle === 0) cycle = 1;
+        if (!prepared.length) prepare();
+        requestAnimationFrame(run);
+      }
+    };
+
+    if (!shell) {
+      cycle = 1;
+      prepare();
+      requestAnimationFrame(run);
+      return () => cancelMotion(true);
+    }
+
+    // Initial direct builder load starts hidden. Dashboard-first navigation
+    // starts visible and will be prepared on the later `hiding` transition.
+    if (lastDashboardState === 'hidden') {
+      cycle = 1;
+      prepare();
+      requestAnimationFrame(run);
+    } else {
+      root.dataset.editorEntranceState = 'waiting';
+    }
+
+    const observer = new MutationObserver(() => {
+      handleDashboardState(readFieldDashboardLayerState(document));
+    });
+    observer.observe(shell, {
+      attributes: true,
+      attributeFilter: ['data-dashboard-state'],
+    });
+
+    return () => {
+      observer.disconnect();
+      cycle += 1;
+      cancelMotion(true);
       delete root.dataset.editorEntranceState;
     };
   }, []);
