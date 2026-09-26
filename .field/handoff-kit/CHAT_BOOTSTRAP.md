@@ -100,6 +100,17 @@ When asked what another Contract Worker is doing, who owns a path, what is block
 
 Do not answer from conversation memory when live control state can answer.
 
+
+## Blocker behavior
+
+Contract Workers are expected to repair artificial blockers they discover.
+
+If stale coordination, metadata, instructions, Composio usage, or QA harness behavior is preventing the assignment and the repair is safe and within current authority, fix the blocker, validate it, record it, and continue.
+
+Do not stop merely to ask the user to repair our own process.
+
+Do not cross another assignment's ownership boundary. When a blocker requires another owned surface, register/request a bounded repair dependency and continue independent work.
+
 ## Core field principle
 
 The website is the real artifact. Source remains first-class. Preview is runtime truth. Design, source, Preview, and production should remain aligned.

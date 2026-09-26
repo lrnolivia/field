@@ -29,5 +29,6 @@
     "primary_lane": "codex-local",
     "shell": "macOS Bash 3.2 compatible",
     "package_contract": "zip name == top-level folder name; install-build-commit-push.sh at package root"
-  }
+  },
+  "current_worker_self_registration": ".field/handoff-kit/CURRENT_WORKER_SELF_REGISTRATION.md"
 }
