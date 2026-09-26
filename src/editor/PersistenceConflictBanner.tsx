@@ -22,23 +22,37 @@ export default function PersistenceConflictBanner({
 }: PersistenceConflictBannerProps) {
   const conflict = useAtomValue(persistenceConflictAtom);
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
 
   if (!conflict) return null;
+
+  const handleOpenLatest = () => {
+    setCompact(true);
+    onOpenLatest();
+  };
+
+  const handleReloadCancel = () => {
+    setReloadConfirmOpen(false);
+    setCompact(true);
+  };
 
   return (
     <>
       <div
         data-persistence-conflict
+        data-persistence-conflict-state={compact ? 'compact' : 'full'}
         role="alert"
         aria-live="assertive"
         aria-atomic="true"
-        className="fixed flex flex-wrap items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] text-[var(--text-primary)] shadow-md"
+        className={`fixed flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[11px] text-[var(--text-primary)] shadow-md ${compact ? 'px-2.5 py-1.5' : 'flex-wrap px-3 py-2'}`}
         style={{
           zIndex: 100005,
           top: 60,
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'min(560px, calc(100vw - 32px))',
+          width: compact
+            ? 'min(500px, calc(100vw - 32px))'
+            : 'min(560px, calc(100vw - 32px))',
         }}
       >
         <span
@@ -53,15 +67,21 @@ export default function PersistenceConflictBanner({
           </svg>
         </span>
 
-        <div className="min-w-[220px] flex-1">
-          <div className="font-medium leading-4">Project changed elsewhere</div>
-          <div className="text-[10px] leading-4 text-[var(--text-secondary)]">{conflict.message}</div>
-        </div>
+        {compact ? (
+          <div className="min-w-0 flex-1 truncate font-medium leading-4">
+            Saving paused — project changed elsewhere
+          </div>
+        ) : (
+          <div className="min-w-[220px] flex-1">
+            <div className="font-medium leading-4">Project changed elsewhere</div>
+            <div className="text-[10px] leading-4 text-[var(--text-secondary)]">{conflict.message}</div>
+          </div>
+        )}
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={onOpenLatest}
+            onClick={handleOpenLatest}
             className="h-7 rounded-[4px] border border-transparent bg-[var(--accent)] px-2.5 text-[10px] font-medium text-[var(--accent-fg)] hover:brightness-110"
           >
             Open latest
@@ -78,7 +98,7 @@ export default function PersistenceConflictBanner({
 
       <ConfirmDialog
         isOpen={reloadConfirmOpen}
-        onClose={() => setReloadConfirmOpen(false)}
+        onClose={handleReloadCancel}
         onConfirm={onReloadLatest}
         title="Reload latest version?"
         message={"This tab contains edits that could not be saved because the project changed elsewhere. Reloading will discard those local edits and open the latest saved version."}

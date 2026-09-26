@@ -26,8 +26,14 @@ function renderConflict(overrides: { onOpenLatest?: () => void; onReloadLatest?:
   return store;
 }
 
+function conflictBanner(): HTMLElement {
+  const banner = document.querySelector('[data-persistence-conflict]');
+  expect(banner).toBeTruthy();
+  return banner as HTMLElement;
+}
+
 describe('PersistenceConflictBanner', () => {
-  it('renders only while a first-class conflict state exists', () => {
+  it('renders only while a first-class conflict state exists and starts with the full explanation', () => {
     const empty = createStore();
     const view = render(
       <Provider store={empty}>
@@ -40,6 +46,7 @@ describe('PersistenceConflictBanner', () => {
     renderConflict();
     expect(screen.getByText('Project changed elsewhere')).toBeTruthy();
     expect(screen.getByText('Your edits are still in this tab, but saving is paused.')).toBeTruthy();
+    expect(conflictBanner().getAttribute('data-persistence-conflict-state')).toBe('full');
   });
 
   it('opens the current project URL with safe new-tab semantics', () => {
@@ -48,7 +55,7 @@ describe('PersistenceConflictBanner', () => {
     expect(open).toHaveBeenCalledWith(window.location.href, '_blank', 'noopener,noreferrer');
   });
 
-  it('Open latest leaves the stale tab conflict state untouched', () => {
+  it('Open latest acknowledges the notice, compacts it, and leaves the conflict state untouched', () => {
     const onOpenLatest = vi.fn();
     const store = renderConflict({ onOpenLatest });
 
@@ -56,9 +63,13 @@ describe('PersistenceConflictBanner', () => {
 
     expect(onOpenLatest).toHaveBeenCalledTimes(1);
     expect(store.get(persistenceConflictAtom)).toEqual(conflict);
+    expect(conflictBanner().getAttribute('data-persistence-conflict-state')).toBe('compact');
+    expect(screen.getByText('Saving paused — project changed elsewhere')).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: 'Open latest' })).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: 'Reload latest' })).toBeTruthy();
   });
 
-  it('Reload latest requires destructive confirmation and cancel preserves local state', () => {
+  it('canceling Reload latest preserves local state and compacts the still-active notice', () => {
     const onReloadLatest = vi.fn();
     const store = renderConflict({ onReloadLatest });
 
@@ -68,8 +79,13 @@ describe('PersistenceConflictBanner', () => {
     expect(screen.getByText(/Reloading will discard those local edits/)).toBeTruthy();
 
     fireEvent.click(within(root as HTMLElement).getByRole('button', { name: 'Cancel' }));
+
     expect(onReloadLatest).not.toHaveBeenCalled();
     expect(store.get(persistenceConflictAtom)).toEqual(conflict);
+    expect(conflictBanner().getAttribute('data-persistence-conflict-state')).toBe('compact');
+    expect(screen.getByText('Saving paused — project changed elsewhere')).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: 'Open latest' })).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: 'Reload latest' })).toBeTruthy();
   });
 
   it('confirmed Reload latest performs the supplied full-reload action', () => {
