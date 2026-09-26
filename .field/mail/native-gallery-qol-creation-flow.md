@@ -95,3 +95,24 @@ All seven required pre-edit seams were investigated against the Gallery implemen
 7. Direct media/file drop: current Media tiles already use the canonical toolbar-drag pipeline. Creating a new pre-populated Gallery is native today; adding/replacing inside an existing Gallery needs Gallery-aware target handling in generic toolbar/canvas drag strategy code. Defer that edit until explicit ownership expansion; do not build a Gallery-only uploader.
 
 First implementation capability group: extend Reposition into a bounded media-edit transaction (input ownership + source-backed focal/zoom/rotation + cancel/reset/commit), because it is fully achievable inside current Gallery ownership.
+
+
+## 2026-09-26 implementation block — transactional media edit
+
+Implementation commit: aec681c0c09090cd4aee6bb73bc8ff2d8e031f3d
+Draft PR: #3
+
+Changed only assignment-owned Gallery paths. Added a source-backed media-treatment model and upgraded Reposition from focal-only crop to a bounded transaction with:
+- Gallery-exclusive canvas input ownership via the existing data-field-no-canvas-input seam
+- drag/arrow focal positioning
+- wheel and two-pointer pinch zoom
+- two-pointer twist rotation plus bracket-key and +/- deterministic fallbacks
+- Reset to focal center / 1x / 0deg
+- Escape live-DOM restore with no source mutation
+- Done/Enter one combined source flush for focal + zoom + rotation
+- new Gallery images initialize neutral treatment
+- duplicate preserves fit, focal point, zoom, and rotation with fresh IDs
+- zoom-aware focal overflow math
+- focused unit coverage for treatment serialization/clamping and duplicate preservation
+
+No generic canvas, drag, mutation/history, parser/generator, backend, dashboard, design-system, Cloudflare, package, or lockfile path was changed.

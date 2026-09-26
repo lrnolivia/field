@@ -103,3 +103,15 @@ Use human desktop QA for native trackpad pinch/rotation feel when browser automa
 - consequence: baseline Gallery runtime behavior remains human-smoke-backed from the prior closeout, but this successor packet is runtime-unverified until the no-auth harness renders normally again
 
 Do not use this packet as evidence that Gallery regressed.
+
+
+## 2026-09-26 branch validation — aec681c0c090
+
+- exact implementation SHA: aec681c0c09090cd4aee6bb73bc8ff2d8e031f3d
+- commit path audit: 11 changed files, all inside assignment-owned Gallery paths; 399 additions / 62 deletions; no conflict markers observed in committed patches
+- Draft PR #3 remains open/draft and points at this SHA
+- Cloudflare Workers Builds check 108389578024: completed/failure
+- classification: **pre-existing infrastructure/build-lane failure, not evidence of Gallery product failure**
+- comparison evidence: the no-file bootstrap SHA 30b5d4d1b3f17e314e0cc550dc1105b610f09c9e also fails the same Workers Builds check; current main coordination SHA fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e also fails it. GitHub reports no Actions workflows and the Cloudflare check exposes no annotations.
+- exact repo dependency-tree tests / TypeScript / build:all remain **unverified in this Contract Worker environment**; do not claim them passed.
+- runtime QA for this unmerged branch remains pending; production no-auth baseline itself is currently harness-failing as recorded above.
