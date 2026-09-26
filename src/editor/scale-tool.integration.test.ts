@@ -49,6 +49,10 @@ describe('dedicated Scale product integration', () => {
     expect(op).toContain('isUniformSvgViewportLeaf');
     expect(op).toContain('svg-group-scale-needs-geometry-bake');
     expect(op).toContain('svg-scale-requires-viewbox');
+    expect(op).toContain('planScaledSvgShapeAttrs');
+    expect(op).toContain('scaleSvgViewBox');
+    expect(op).toContain("type: 'updateHtmlAttrs'");
+    expect(op).toContain("type: 'updateSvgAttrs'");
     expect(op).not.toContain('ResizeManager');
     expect(op).toContain("trace.action('scale:no-op'");
     expect(op).toContain("trace.action('scale:cancel'");
