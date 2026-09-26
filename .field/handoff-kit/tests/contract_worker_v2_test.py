@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,39 +19,31 @@ def validate_identity(filename: str, assignment_id: str, branch):
     if branch not in (None, "null", ""):
         assert branch == f"field/{assignment_id}"
 
-# unique naming + branch identity
 validate_identity("assignment-demo-work.md", "demo-work", "field/demo-work")
 validate_identity("assignment-standing-role.md", "standing-role", None)
 
-try:
-    validate_identity("assignment.md", "demo-work", "field/demo-work")
-except AssertionError:
-    pass
-else:
-    raise AssertionError("plain assignment.md must be rejected")
+for bad in [
+    ("assignment.md", "demo-work", "field/demo-work"),
+    ("assignment-demo-work.md", "demo-work", "field/wrong"),
+]:
+    try:
+        validate_identity(*bad)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError(f"invalid assignment identity accepted: {bad}")
 
-try:
-    validate_identity("assignment-demo-work.md", "demo-work", "field/wrong")
-except AssertionError:
-    pass
-else:
-    raise AssertionError("branch/id mismatch must fail")
-
-# legacy + v2 ownership union
 legacy_owned = ["src/dashboard/**"]
-v2_owned = ["src/editor/tools/Foo.tsx"]
+contract_owned = ["src/editor/tools/Foo.tsx"]
 candidate = ["src/dashboard/Dashboard.tsx"]
-assert any(path_overlap(c, o) for c in candidate for o in legacy_owned + v2_owned)
+assert any(path_overlap(c, o) for c in candidate for o in legacy_owned + contract_owned)
 
-# explicit approved shared can authorize a collision
 approved_shared = ["src/dashboard/Dashboard.tsx"]
 assert any(path_overlap(candidate[0], p) for p in approved_shared)
 
-# protected is a promise by one assignment, not a global reservation
 protected = ["cloudflare/**"]
-candidate = ["cloudflare/worker.ts"]
-assert path_overlap(candidate[0], protected[0])
-assert protected[0] not in legacy_owned + v2_owned
+assert path_overlap("cloudflare/worker.ts", protected[0])
+assert protected[0] not in legacy_owned + contract_owned
 
 template = (ROOT / "templates/assignment-unique-name.md").read_text()
 for phrase in [
@@ -63,5 +54,12 @@ for phrase in [
     "Use Composio exclusively",
 ]:
     assert phrase in template, phrase
+
+legacy = (ROOT / "templates/assignment.md").read_text()
+assert "DEPRECATED" in legacy
+
+firecrawl = (ROOT / "qa/FIRECRAWL_QA_PROTOCOL.md").read_text()
+assert "Do not use production" in firecrawl
+assert "BLOCKED/UNVERIFIED — HARNESS" in firecrawl
 
 print("Contract Worker v2 regression tests: PASS")

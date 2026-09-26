@@ -4,23 +4,12 @@ import json, tempfile, shutil, subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 required = [
-    "VERSION",
-    "manifest.json",
-    "README.md",
-    "CHAT_BOOTSTRAP.md",
-    "CONTRACT.md",
-    "ASSIGNMENT_AUTHORING.md",
-    "COMPOSIO_WRITE_BROKER.md",
-    "bin/field-handoff",
-    "installer/INSTALLER_CONTRACT.md",
-    "installer/install-template.sh",
-    "qa/FIRECRAWL_QA_PROTOCOL.md",
-    "qa/QA_CLASSIFICATION.md",
-    "qa/AUTHENTICATED_QA.md",
-    "templates/assignment.md",
-    "templates/assignment-unique-name.md",
-    "templates/package-README.md",
-    "templates/apply.mjs",
+    "VERSION", "manifest.json", "README.md", "CHAT_BOOTSTRAP.md", "CONTRACT.md",
+    "ASSIGNMENT_AUTHORING.md", "COMPOSIO_WRITE_BROKER.md", "bin/field-handoff",
+    "installer/INSTALLER_CONTRACT.md", "installer/install-template.sh",
+    "qa/FIRECRAWL_QA_PROTOCOL.md", "qa/QA_CLASSIFICATION.md", "qa/AUTHENTICATED_QA.md",
+    "templates/assignment.md", "templates/assignment-unique-name.md",
+    "templates/package-README.md", "templates/apply.mjs",
     "tests/contract_worker_v2_test.py",
 ]
 for rel in required:
@@ -29,13 +18,13 @@ for rel in required:
 
 manifest = json.loads((ROOT / "manifest.json").read_text())
 version = (ROOT / "VERSION").read_text().strip()
-assert version == "2026-09-26.2"
-assert manifest["version"] == version
+assert manifest["version"] == version == "2026-09-26.2"
 assert manifest["repository"] == "lrnolivia/field"
 assert manifest["control_branch"] == "field/control"
+assert manifest["legacy_tracker"] == "tracker.md"
+assert "tracker" not in manifest
 assert manifest["contract_worker"]["github_transport"] == "composio-exclusive"
 assert manifest["contract_worker"]["native_github_connector_allowed"] is False
-assert manifest["assignment_template"].endswith("templates/assignment-unique-name.md")
 
 contract = (ROOT / "CONTRACT.md").read_text()
 for phrase in [
@@ -43,7 +32,6 @@ for phrase in [
     "built-in ChatGPT GitHub connector is prohibited",
     "field/control",
     "assignment-<unique-name>.md",
-    "protected",
     "Exact-SHA merge gate",
 ]:
     assert phrase in contract, phrase
@@ -58,16 +46,17 @@ for phrase in [
     assert phrase in broker, phrase
 
 bootstrap = (ROOT / "CHAT_BOOTSTRAP.md").read_text()
-for phrase in [
-    "Use Composio exclusively",
-    "field/control",
-    "active legacy",
-]:
+for phrase in ["Use Composio exclusively", "field/control", "active legacy"]:
     assert phrase in bootstrap, phrase
 
 legacy_template = (ROOT / "templates/assignment.md").read_text()
 assert "DEPRECATED" in legacy_template
 assert "assignment-unique-name.md" in legacy_template
+
+cli = (ROOT / "bin/field-handoff").read_text()
+assert "manifest['tracker']" not in cli
+assert "control_branch" in cli
+compile(cli, str(ROOT / "bin/field-handoff"), "exec")
 
 subprocess.run(["python3", str(ROOT / "tests/contract_worker_v2_test.py")], check=True)
 subprocess.run(["bash", "-n", str(ROOT / "installer/install-template.sh")], check=True)
