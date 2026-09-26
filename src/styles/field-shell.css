@@ -23,46 +23,53 @@
 .field-dashboard-layer {
   z-index: 150000;
   overflow: hidden;
-  background: var(--bg-surface);
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity 180ms cubic-bezier(.2, .75, .25, 1),
-    transform 200ms cubic-bezier(.2, .75, .25, 1),
-    visibility 0s linear 0s;
-  will-change: opacity, transform;
-}
-
-.field-dashboard-layer[data-state='showing'] {
   visibility: visible;
-  opacity: 0;
-  transform: translateY(8px);
   pointer-events: auto;
+  background: transparent;
 }
 
-.field-dashboard-layer[data-state='visible'] {
-  visibility: visible;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+/* Dashboard is a pair of real workspace slabs over the already-live Canvas.
+ * Move the slabs themselves — never crossfade the whole surface. */
+.field-dashboard-layer .field-dashboard-page {
+  background: transparent;
 }
 
-.field-dashboard-layer[data-state='hiding'] {
-  visibility: visible;
-  opacity: 0;
-  transform: translateY(-8px);
+.field-dashboard-layer .field-dashboard-sidebar,
+.field-dashboard-layer .field-dashboard-main {
+  transform: translate3d(0, 0, 0);
+  transition: transform 150ms cubic-bezier(.22, .85, .3, 1);
+  will-change: transform;
+}
+
+.field-dashboard-layer[data-state='showing'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar {
+  transform: translate3d(calc(-100% - 12px), 0, 0);
+}
+
+.field-dashboard-layer[data-state='showing'] .field-dashboard-main,
+.field-dashboard-layer[data-state='hiding'] .field-dashboard-main,
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-main {
+  transform: translate3d(calc(100% + 12px), 0, 0);
+}
+
+.field-dashboard-layer[data-state='visible'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='visible'] .field-dashboard-main {
+  transform: translate3d(0, 0, 0);
+}
+
+.field-dashboard-layer[data-state='hiding'],
+.field-dashboard-layer[data-state='hidden'] {
   pointer-events: none;
 }
 
 .field-dashboard-layer[data-state='hidden'] {
   visibility: hidden;
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-  transition:
-    opacity 180ms cubic-bezier(.2, .75, .25, 1),
-    transform 200ms cubic-bezier(.2, .75, .25, 1),
-    visibility 0s linear 200ms;
+}
+
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-main {
+  transition: none;
 }
 
 .field-new-project-backdrop {
@@ -472,7 +479,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field-dashboard-layer {
+  .field-dashboard-layer .field-dashboard-sidebar,
+  .field-dashboard-layer .field-dashboard-main {
     transition-duration: 0ms;
   }
 }
