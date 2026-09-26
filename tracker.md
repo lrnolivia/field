@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:34:35Z
+Last Updated: 2026-09-26T08:36:45Z
 
 ## Active Assignments
 
@@ -1477,6 +1477,20 @@ Paths:
   - src/field-shell-motion.test.ts
   - src/styles/dashboard.css
   - src/styles/field-shell.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T08:36:45Z — field-dashboard-handoff-overlap-20260926 — 45d0976d331f
+
+Summary: Removed the naked shifted Canvas intermediate state by overlapping ownership: editor exit now gets a two-paint lead before Dashboard entrance begins, and editor entrance begins behind Dashboard while Dashboard is still leaving. Motion profiles, Canvas camera, final Dashboard polish, realtime, persistence, routing, thumbnails, and project semantics are unchanged.
+Commit: 45d0976d331f3753c8d50bb541608a6427a2bc48
+
+Paths:
+  - src/FieldShell.tsx
+  - src/editor/EditorEntranceCoordinator.tsx
+  - src/field-shell-motion.test.ts
+  - src/field-shell-motion.ts
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
