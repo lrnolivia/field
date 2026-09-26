@@ -68,46 +68,7 @@ Protected:
 
 
 
-<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:START -->
-### field-dashboard-handoff-overlap-20260926 — Overlapped Dashboard / Editor Ownership Handoff
 
-Status: active
-Baseline: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
-Activation HEAD: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
-Last Sync: 2026-09-26T08:34:35Z
-
-Owned:
-  - src/FieldShell.tsx
-  - src/field-shell-motion.ts
-  - src/field-shell-motion.test.ts
-  - src/editor/EditorEntranceCoordinator.tsx
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/Dashboard.tsx
-  - src/ProjectLoader.tsx
-  - src/main.tsx
-  - src/styles/field-shell.css
-  - src/styles/dashboard.css
-  - src/dashboard/**
-  - src/backend/**
-  - src/editor/editor-entrance.ts
-  - src/editor/editor-entrance.test.ts
-  - src/editor/header/**
-  - src/editor/BottomToolbar.tsx
-  - src/editor/ui/**
-  - src/editor/tools/**
-  - src/design-system/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/preview-sandbox/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:END -->
 <!-- ASSIGNMENT:native-scale-tool-20260926:START -->
 ### native-scale-tool-20260926 — Dedicated proportional Scale operation
 
@@ -1506,6 +1467,56 @@ Validation / Build / Deploy:
 ## Completed Assignments
 
 <!-- FIELD_COMPLETED_ASSIGNMENTS_START -->
+<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:START -->
+### field-dashboard-handoff-overlap-20260926 — Overlapped Dashboard / Editor Ownership Handoff
+
+Status: complete
+Baseline: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
+Activation HEAD: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
+Implementation: cba42ea5c2a762dec7882da763d4842354f76140
+Last Sync: 2026-09-26T10:27:26Z
+
+Owned:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.ts
+  - src/field-shell-motion.test.ts
+  - src/editor/EditorEntranceCoordinator.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/Dashboard.tsx
+  - src/ProjectLoader.tsx
+  - src/main.tsx
+  - src/styles/field-shell.css
+  - src/styles/dashboard.css
+  - src/dashboard/**
+  - src/backend/**
+  - src/editor/editor-entrance.ts
+  - src/editor/editor-entrance.test.ts
+  - src/editor/header/**
+  - src/editor/BottomToolbar.tsx
+  - src/editor/ui/**
+  - src/editor/tools/**
+  - src/design-system/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+
+Closeout:
+  - Overlap handoff implementation landed at 45d0976d331f3753c8d50bb541608a6427a2bc48.
+  - Final ghost-frame repair landed at cba42ea5c2a762dec7882da763d4842354f76140.
+  - Authenticated human visual QA passed all four canonical normal-motion paths and is preserved by editor-dashboard-motion-followup.
+  - Repository comparison from 7451b55f29c94e2d56e014590067e7111cd3915a through fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e found no src/** changes after that QA baseline.
+  - Legacy Owned: reservations are released. Any future motion repair requires a fresh bounded assignment.
+<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:END -->
+
 <!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:START -->
 ### native-gallery-completion-hardening-20260925 — Native Gallery Completion + Hardening Tranche
 
