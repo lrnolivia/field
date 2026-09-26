@@ -1,3 +1,9 @@
+import {
+  galleryCarouselSourceImageWidth,
+  gallerySourceAspectRatio,
+  type GalleryFrameSizing,
+} from './gallery-frame-sizing';
+
 export type GalleryViewId = 'grid' | 'natural' | 'strip' | 'story' | 'carousel';
 
 export interface GalleryViewDescriptor {
@@ -253,26 +259,29 @@ export function getGalleryRootPatch(view: GalleryViewId): Record<string, string>
  * The Figma reference is 1240×616 with 4px gaps. Four equal CSS tracks make
  * the same geometry responsively without baking pixel coordinates into source.
  */
-function naturalPatch(index: number, seed: number): Record<string, string> {
+function naturalPatch(
+  index: number,
+  seed: number,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
+): Record<string, string> {
   const group = Math.floor(index / 4);
   const sourceSlot = index % 4;
   const row = group * 2 + 1;
   const permutation = NATURAL_SLOT_PERMUTATIONS[normalizeGalleryNaturalSeed(seed)];
   const visualSlot = permutation[sourceSlot];
+  const sourceAspect = gallerySourceAspectRatio(sourceRatio);
 
-  // Shuffle changes which source item owns each visual role, never source order.
-  // The four roles still occupy the same reachable four-track mosaic.
   switch (visualSlot) {
     case 0:
-      return { gridColumn: '1 / span 2', gridRow: String(row) + ' / span 2', aspectRatio: '1 / 1' };
+      return { gridColumn: '1 / span 2', gridRow: String(row) + ' / span 2', aspectRatio: frameSizing === 'source' ? sourceAspect : '1 / 1' };
     case 1:
-      return { gridColumn: '3', gridRow: String(row), aspectRatio: '1 / 1' };
+      return { gridColumn: '3', gridRow: String(row), aspectRatio: frameSizing === 'source' ? sourceAspect : '1 / 1' };
     case 2:
-      return { gridColumn: '3', gridRow: String(row + 1), aspectRatio: '1 / 1' };
+      return { gridColumn: '3', gridRow: String(row + 1), aspectRatio: frameSizing === 'source' ? sourceAspect : '1 / 1' };
     case 3:
-      return { gridColumn: '4', gridRow: String(row) + ' / span 2', aspectRatio: '1 / 2' };
+      return { gridColumn: '4', gridRow: String(row) + ' / span 2', aspectRatio: frameSizing === 'source' ? sourceAspect : '1 / 2' };
   }
-
   return {};
 }
 
@@ -280,43 +289,61 @@ export function getGalleryIndexGeometryPatch(
   view: GalleryViewId,
   index: number,
   naturalSeed = 0,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
 ): Record<string, string> {
-  if (view === 'natural') return naturalPatch(index, naturalSeed);
-  if (view === 'story') return { aspectRatio: index % 2 === 0 ? '2 / 1' : '31 / 18' };
+  if (view === 'natural') return naturalPatch(index, naturalSeed, frameSizing, sourceRatio);
+  if (view === 'story') {
+    return { aspectRatio: frameSizing === 'source' ? gallerySourceAspectRatio(sourceRatio) : index % 2 === 0 ? '2 / 1' : '31 / 18' };
+  }
   return {};
 }
 
-export function getGalleryItemPatch(view: GalleryViewId, index: number, naturalSeed = 0): Record<string, string> {
-  const base = { ...ITEM_RESET };
+export function getGalleryFrameSizingItemPatch(
+  view: GalleryViewId,
+  index: number,
+  naturalSeed = 0,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
+): Record<string, string> {
   switch (view) {
     case 'grid':
-      return { ...base, aspectRatio: '1 / 1' };
+      return { aspectRatio: frameSizing === 'source' ? gallerySourceAspectRatio(sourceRatio) : '1 / 1', alignSelf: frameSizing === 'source' ? 'start' : '' };
     case 'natural':
-      return { ...base, ...getGalleryIndexGeometryPatch(view, index, naturalSeed) };
+      return { aspectRatio: naturalPatch(index, naturalSeed, frameSizing, sourceRatio).aspectRatio || '' };
     case 'strip':
-      return {
-        ...base,
-        flex: '0 0 auto',
-        width: '120px',
-        height: '620px',
-        scrollSnapAlign: 'start',
-        transition: 'width 180ms ease',
-      };
+      return { width: frameSizing === 'source' ? 'auto' : '120px', aspectRatio: frameSizing === 'source' ? gallerySourceAspectRatio(sourceRatio) : '' };
     case 'story':
-      return {
-        ...base,
-        width: '100%',
-        // Figma alternates 1240×620 and 1240×720 frames.
-        ...getGalleryIndexGeometryPatch(view, index),
-      };
+      return getGalleryIndexGeometryPatch(view, index, naturalSeed, frameSizing, sourceRatio);
+    case 'carousel':
+      return {};
+  }
+}
+
+export function getGalleryItemPatch(
+  view: GalleryViewId,
+  index: number,
+  naturalSeed = 0,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
+): Record<string, string> {
+  const base = { ...ITEM_RESET };
+  const framePatch = getGalleryFrameSizingItemPatch(view, index, naturalSeed, frameSizing, sourceRatio);
+  switch (view) {
+    case 'grid':
+      return { ...base, ...framePatch };
+    case 'natural':
+      return { ...base, ...getGalleryIndexGeometryPatch(view, index, naturalSeed, frameSizing, sourceRatio) };
+    case 'strip':
+      return { ...base, flex: '0 0 auto', height: '620px', scrollSnapAlign: 'start', transition: 'width 180ms ease, min-width 180ms ease', ...framePatch };
+    case 'story':
+      return { ...base, width: '100%', ...framePatch };
     case 'carousel':
       return {
         ...base,
         display: 'grid',
         flex: '0 0 100%',
         width: '100%',
-        // Let the grid rows determine slide height so a narrow real viewport
-        // does not carry the desktop-only 874px fixed box.
         height: '',
         gridTemplateRows: RESPONSIVE_CAROUSEL_STAGE_HEIGHT + ' ' + TERRA_CAROUSEL_CONTROL_SIZE,
         gridTemplateColumns: 'minmax(16px, 1fr) 38px 22px auto 22px 38px minmax(16px, 1fr)',
@@ -327,18 +354,27 @@ export function getGalleryItemPatch(view: GalleryViewId, index: number, naturalS
   }
 }
 
+export function getGalleryFrameSizingImagePatch(
+  view: GalleryViewId,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
+): Record<string, string> {
+  if (view !== 'carousel') return {};
+  return frameSizing === 'source'
+    ? { width: galleryCarouselSourceImageWidth(sourceRatio), height: 'auto', aspectRatio: gallerySourceAspectRatio(sourceRatio) }
+    : { width: RESPONSIVE_CAROUSEL_IMAGE_WIDTH, height: 'auto', aspectRatio: '13 / 18' };
+}
+
 /** Per-item image box styles applied when a Gallery view changes. */
-export function getGalleryImagePatch(view: GalleryViewId): Record<string, string> {
-  // Deliberately excludes objectFit + objectPosition. Those are per-item
-  // presentation overrides and must survive view switches.
+export function getGalleryImagePatch(
+  view: GalleryViewId,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio = 1,
+): Record<string, string> {
   if (view === 'carousel') {
     return {
       ...IMAGE_BASE,
-      // Exact 520×720 at Terra Prime desktop; shrink horizontally on narrow
-      // slides and derive height from the same 13:18 frame ratio.
-      width: RESPONSIVE_CAROUSEL_IMAGE_WIDTH,
-      height: 'auto',
-      aspectRatio: '13 / 18',
+      ...getGalleryFrameSizingImagePatch(view, frameSizing, sourceRatio),
       maxWidth: 'none',
       borderRadius: TERRA_GALLERY_RADIUS,
       gridColumn: '1 / -1',
@@ -383,8 +419,8 @@ export function getGalleryCarouselControlPatch(role: GalleryCarouselControlRole)
 }
 
 /** Source-backed runtime behavior for the Terra Prime Strip reference. */
-export function getGalleryStripHoverPatch(): Record<string, string> {
-  // Desktop still resolves to Terra Prime's 380px expansion. Narrow viewports
-  // cap the expanded strip to the visible page width with 16px breathing room.
-  return { width: RESPONSIVE_STRIP_HOVER_WIDTH };
+export function getGalleryStripHoverPatch(frameSizing: GalleryFrameSizing = 'composed'): Record<string, string> {
+  return frameSizing === 'source'
+    ? { width: '', minWidth: RESPONSIVE_STRIP_HOVER_WIDTH }
+    : { width: RESPONSIVE_STRIP_HOVER_WIDTH, minWidth: '' };
 }

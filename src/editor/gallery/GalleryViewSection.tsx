@@ -1,11 +1,15 @@
 import { ToolButton, ToolInput, ToolRow, ToolSection, ToolSelect } from '@/editor/controls';
 import { GALLERY_VIEWS, type GalleryViewId } from '@/code/gallery/gallery-views';
+import type { GalleryFrameSizing } from '@/code/gallery/gallery-frame-sizing';
 
 interface GalleryViewSectionProps {
   currentView: GalleryViewId;
   styles: Record<string, string>;
   stripHeight: string;
+  frameSizing: GalleryFrameSizing;
+  frameSizingBusy: boolean;
   onViewChange: (view: GalleryViewId) => void;
+  onFrameSizingChange: (value: GalleryFrameSizing) => void;
   onRootStyleChange: (property: string, value: string) => void;
   onAllItemStyleChange: (styles: Record<string, string>) => void;
   onShuffleNatural: () => void;
@@ -26,7 +30,10 @@ export default function GalleryViewSection({
   currentView,
   styles,
   stripHeight,
+  frameSizing,
+  frameSizingBusy,
   onViewChange,
+  onFrameSizingChange,
   onRootStyleChange,
   onAllItemStyleChange,
   onShuffleNatural,
@@ -38,12 +45,26 @@ export default function GalleryViewSection({
         <ToolSelect
           ariaLabel="Gallery view"
           value={currentView}
+          disabled={frameSizingBusy}
           onChange={(value) => onViewChange(value as GalleryViewId)}
           options={GALLERY_VIEWS.map((view) => ({
             value: view.id,
             label: view.status === 'deferred' ? `${view.label} — runtime later` : view.label,
             disabled: view.status === 'deferred',
           }))}
+        />
+      </ToolRow>
+
+      <ToolRow label="Frame">
+        <ToolSelect
+          ariaLabel="Gallery frame sizing"
+          value={frameSizing}
+          disabled={frameSizingBusy}
+          onChange={(value) => onFrameSizingChange(value as GalleryFrameSizing)}
+          options={[
+            { value: 'composed', label: 'Composed' },
+            { value: 'source', label: 'Source ratio' },
+          ]}
         />
       </ToolRow>
 
@@ -141,7 +162,7 @@ export default function GalleryViewSection({
       )}
 
       <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-        Layout settings use field's responsive overrides. View identity stays shared across breakpoints.
+        Frame sizing changes the media frame, not image fit. Layout settings use field's responsive overrides; view and frame identity stay shared across breakpoints.
       </div>
     </ToolSection>
   );

@@ -10,6 +10,7 @@ const item: GalleryContentOperationItem = {
   objectPosition: '23% 71%',
   zoom: '1.4',
   rotation: '12deg',
+  sourceRatio: '0.75',
 };
 
 describe('Gallery content operations', () => {
@@ -28,6 +29,21 @@ describe('Gallery content operations', () => {
       '--field-gallery-zoom': '1.4',
       '--field-gallery-rotation': '12deg',
       transform: 'scale(var(--field-gallery-zoom, 1)) rotate(var(--field-gallery-rotation, 0deg))',
+    });
+  });
+
+  it('duplicates persisted Source ratio semantics while preserving media treatment', () => {
+    const duplicate = buildGalleryDuplicateItemNode(item, 1, 'story', 0, 'source');
+    const image = duplicate.children?.[0];
+    expect(duplicate.styles).toMatchObject({
+      '--field-gallery-source-ratio': '0.75',
+      aspectRatio: '0.75 / 1',
+    });
+    expect(image?.styles).toMatchObject({
+      objectFit: 'contain',
+      objectPosition: '23% 71%',
+      '--field-gallery-zoom': '1.4',
+      '--field-gallery-rotation': '12deg',
     });
   });
 

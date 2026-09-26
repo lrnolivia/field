@@ -6,6 +6,8 @@ import {
   GALLERY_VIEW_STYLE_PROPERTY,
   NATURAL_COMPOSITION_COUNT,
   getGalleryDefaultImageFit,
+  getGalleryFrameSizingImagePatch,
+  getGalleryFrameSizingItemPatch,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
@@ -72,7 +74,44 @@ describe('Gallery view registry', () => {
       overscrollBehaviorX: 'contain',
     });
     expect(getGalleryItemPatch('strip', 0)).toMatchObject({ width: '120px', height: '620px', scrollSnapAlign: 'start' });
-    expect(getGalleryStripHoverPatch()).toEqual({ width: 'min(380px, calc(100vw - 32px))' });
+    expect(getGalleryStripHoverPatch()).toEqual({ width: 'min(380px, calc(100vw - 32px))', minWidth: '' });
+  });
+
+  it('derives mode-appropriate frames from intrinsic media without changing fit', () => {
+    expect(getGalleryItemPatch('grid', 0, 0, 'source', 1.5)).toMatchObject({
+      aspectRatio: '1.5 / 1',
+      alignSelf: 'start',
+    });
+
+    expect(getGalleryIndexGeometryPatch('natural', 3, 0, 'source', 0.75)).toEqual({
+      gridColumn: '4',
+      gridRow: '1 / span 2',
+      aspectRatio: '0.75 / 1',
+    });
+
+    expect(getGalleryItemPatch('strip', 0, 0, 'source', 1.8)).toMatchObject({
+      width: 'auto',
+      height: '620px',
+      aspectRatio: '1.8 / 1',
+    });
+    expect(getGalleryStripHoverPatch('source')).toEqual({
+      width: '',
+      minWidth: 'min(380px, calc(100vw - 32px))',
+    });
+
+    expect(getGalleryItemPatch('story', 0, 0, 'source', 0.8)).toMatchObject({
+      width: '100%',
+      aspectRatio: '0.8 / 1',
+    });
+
+    expect(getGalleryFrameSizingItemPatch('carousel', 0, 0, 'source', 0.5)).toEqual({});
+    expect(getGalleryFrameSizingImagePatch('carousel', 'source', 0.5)).toEqual({
+      width: 'min(360px, calc(100% - 32px))',
+      height: 'auto',
+      aspectRatio: '0.5 / 1',
+    });
+    expect(getGalleryImagePatch('carousel', 'source', 0.5)).not.toHaveProperty('objectFit');
+    expect(getGalleryImagePatch('carousel', 'source', 0.5)).not.toHaveProperty('objectPosition');
   });
 
   it('preserves Carousel desktop intent while making its stage and image fluid', () => {
