@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T05:53:48Z
+Last Updated: 2026-09-26T05:56:59Z
 
 ## Active Assignments
 
@@ -1310,6 +1310,26 @@ Paths:
   - src/dashboard/dashboard-realtime.test.ts
   - src/dashboard/dashboard-realtime.ts
   - wrangler.jsonc
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T05:56:59Z — field-dashboard-loading-feedback-20260926 — 7d523a4dc96c
+
+Summary: Added truthful Figma-style Dashboard loading feedback: initial card skeletons, delayed affected-card skeletons for genuinely slow realtime authoritative refreshes, delayed thumbnail-only shimmer for slow replacement images, reduced-motion support, and preserved 40ms coalescing/stale-response protection. Focused tests, TypeScript, build:all, and Workers Builds: field passed.
+Commit: 7d523a4dc96ce440739ccd2d6123d3b7ccb3051c
+
+Paths:
+  - src/Dashboard.tsx
+  - src/dashboard/DashboardLoadingGrid.tsx
+  - src/dashboard/ProjectCard.tsx
+  - src/dashboard/ProjectGrid.tsx
+  - src/dashboard/SkeletonSurface.tsx
+  - src/dashboard/dashboard-loading.test.ts
+  - src/dashboard/dashboard-loading.ts
+  - src/dashboard/dashboard-realtime.test.ts
+  - src/dashboard/dashboard-realtime.ts
+  - src/styles/dashboard.css
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
