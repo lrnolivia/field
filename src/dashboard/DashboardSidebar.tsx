@@ -48,6 +48,12 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape' || !query) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onQueryChange('');
+          }}
           placeholder="Search"
           aria-label="Search projects"
         />
@@ -59,6 +65,7 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
             key={item.id}
             type="button"
             className="field-dashboard-nav-row"
+            aria-current={view === item.id ? 'page' : undefined}
             data-active={view === item.id ? 'true' : undefined}
             onClick={() => onViewChange(item.id)}
           >
