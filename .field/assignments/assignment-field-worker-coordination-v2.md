@@ -1,16 +1,20 @@
-# field assignment
+# field — Contract Worker Coordination v2
 
 ---
 field_assignment: 1
 id: field-worker-coordination-v2
 status: active
 branch: field/field-worker-coordination-v2
-base: <baseline-main-sha>
+base: 7451b55f29c94e2d56e014590067e7111cd3915a
 kit: 2026-09-26.1
+target_kit: 2026-09-26.2
 type: plan-to-action
+execution_class: contract-worker
 owned:
   - .field/handoff-kit/**
   - .field/assignments/**
+  - .field/mail/**
+  - .field/qa/**
 approved_shared:
   - tracker.md
 protected:
@@ -26,197 +30,327 @@ qa:
 ---
 
 Assignment File: `assignment-field-worker-coordination-v2.md`
-Target Handoff Kit Version: `2026-09-26.2`
-
-Canonical repository:
-`https://github.com/lrnolivia/field`
-
-Canonical handoff kit:
-`https://github.com/lrnolivia/field/tree/main/.field/handoff-kit`
 
 ## Mandatory rehydration
 
-Before planning or implementation:
+Before doing work:
 
 1. Read the current repo-hosted handoff kit from `main`.
-2. Read the live `tracker.md`.
-3. Inspect current `origin/main`.
-4. Inspect active unmerged `field/*` assignment branches / PRs where available.
-5. Treat remembered/copied installer, ownership, deployment, and QA process as stale where this assignment replaces it.
+2. Read the current assignment.
+3. Read legacy active reservations in `tracker.md`.
+4. Inspect current `main`, this implementation branch, and Draft PR #2.
+5. Treat remembered/copied coordination, ownership, deployment, installer, and QA process as stale where this assignment explicitly supersedes it.
 
-Keep valid product decisions and verified implementation findings. This assignment changes coordination infrastructure only.
+Keep valid product decisions and verified implementation findings.
+
+This assignment changes coordination infrastructure only.
+
+## Terminology
+
+### Contract Worker
+
+A **Contract Worker** is an ordinary ChatGPT execution chat operating under one bounded repository assignment.
+
+A Contract Worker may use:
+
+- Composio for GitHub writes
+- repository reads
+- CI/check results
+- Firecrawl for appropriate web runtime QA
+- future project-specific native QA transports
+
+A Contract Worker is temporary outside execution labor. It receives a contract, executes the contract, proves the result, and exits.
+
+It does not manage the product hierarchy.
+
+### Night Shift
+
+**Night Shift** is the informal collective term for one or more Contract Workers performing independent assignments asynchronously.
+
+"Put it on the Night Shift" means:
+
+> package appropriate work into independent Contract Worker assignments.
+
+Night Shift is not an architectural agent class.
+
+### Codex Worker
+
+A **Codex Worker** belongs to the existing PJM / Master / Worker hierarchy.
+
+This assignment does not modify PJM/Master/Codex Worker contracts.
+
+### Composio Executor
+
+Composio may internally launch an execution worker.
+
+That process is a **Composio Executor**.
+
+It is transport infrastructure only.
+
+It is not:
+
+- a Contract Worker
+- a Codex Worker
+- a Master
+- a PJM
+- an authority on product direction
+
+The Contract Worker chat owns reasoning and prepares the exact bounded GitHub transaction.
 
 ## Goal
 
-Migrate field worker coordination from shared-main tracker reservations toward **branch-per-assignment coordination**, with Composio acting only as a bounded GitHub write broker.
+Establish a durable Contract Worker coordination system for field that allows ordinary ChatGPT chats to execute independent repository assignments through Composio without becoming part of the Codex hierarchy.
 
-Every new executable unit of work should have:
+The system must support:
+
+- independent assignments
+- deterministic ownership
+- one implementation branch per Contract Worker
+- Draft PR identity
+- durable Contract Worker communication
+- durable QA evidence
+- safe eventual merge
+- coexistence with existing Codex work
+
+## Two execution lanes
+
+field has two distinct execution systems.
+
+### Codex lane
 
 ```text
-assignment file:
-.field/assignments/assignment-<unique-name>.md
-
-branch:
-field/<unique-name>
-
-draft PR:
-[field] <unique-name>
+PJM
+→ Master
+→ Codex Worker
 ```
 
-The assignment branch is the machine reservation. The draft PR is the human-visible coordination surface. Workers must not push implementation directly to `main`.
+Existing PJM/Master contracts remain authoritative.
 
-## Why this exists
+Local-repository and installer workflows may remain appropriate here.
 
-ChatGPT worker chats have not been able to rely on the built-in GitHub connector for writes. Composio is the write path, although it may launch its own execution worker.
+### Contract Worker lane
 
-That Composio worker is infrastructure, not part of field's PJM / Master / Worker hierarchy.
+```text
+Contract Worker chat
+→ bounded Composio GitHub transaction
+→ assignment branch / Draft PR
+→ project-appropriate QA
+→ deterministic merge gate
+```
 
-The reasoning chat owns product decisions, scope, architecture, and the exact requested GitHub mutation. Composio receives a bounded transaction and returns evidence.
+Do not silently mix the two systems.
 
-## Current verified state
+## Three coordination planes
 
-At authoring time, the repo-hosted handoff kit on `main` is `2026-09-26.1`.
+### Control plane
 
-The current kit still treats `tracker.md` active `Owned:` blocks as the primary reservation model.
+Permanent branch:
 
-Existing active assignments already recorded in `tracker.md` must remain respected during migration. Do not invalidate or silently migrate them.
+```text
+field/control
+```
 
-## Decisions already made
+Contains coordination state only:
 
-### Assignment naming
+```text
+.field/assignments/assignment-<assignment-id>.md
+.field/mail/<assignment-id>.md
+.field/qa/<assignment-id>.md
+```
 
-Plain `assignment.md` is no longer allowed for new work.
+`field/control` must never merge into `main`.
 
-Canonical filename:
+### Implementation plane
+
+Every Contract Worker assignment receives:
+
+```text
+field/<assignment-id>
+```
+
+and one Draft PR targeting `main`.
+
+Implementation source belongs here.
+
+### Runtime QA plane
+
+The environment where the actual implementation is exercised.
+
+For web field work this will eventually be the assignment branch Preview.
+
+The QA plane must remain separate from both control and implementation state.
+
+## Bootstrap note
+
+The current file:
+
+```text
+.field/assignments/assignment-field-worker-coordination-v2.md
+```
+
+currently lives on:
+
+```text
+field/field-worker-coordination-v2
+```
+
+because it bootstrapped this migration before `field/control` existed.
+
+That is a migration exception.
+
+Future canonical assignment/control files belong on `field/control`.
+
+## Assignment naming
+
+Every new Contract Worker assignment must be named:
 
 ```text
 assignment-<unique-name>.md
 ```
 
-Rules:
-
-- lowercase
-- kebab-case
-- descriptive
-- unique within field
-- do not use generic names such as `assignment.md`, `handoff.md`, or `task.md`
-
-Examples:
+Never plain:
 
 ```text
+assignment.md
+```
+
+Unique names use lowercase kebab-case.
+
+## Assignment identity
+
+Every Contract Worker assignment has a 1:1 relationship between:
+
+```text
+assignment ID
+assignment file
+implementation branch
+Draft PR
+Contract Worker chat
+```
+
+Example:
+
+```text
+assignment:
+dashboard-canvas-shell
+
+file:
 assignment-dashboard-canvas-shell.md
-assignment-native-scale-tool.md
-assignment-preview-component-parity.md
+
+branch:
+field/dashboard-canvas-shell
+
+PR:
+[field] dashboard-canvas-shell
 ```
 
-### Branch naming
+## Ownership
 
-Every new assignment receives:
+During migration, ownership checks must consider both systems.
+
+### Legacy
+
+Existing active `tracker.md` `Owned:` reservations remain authoritative until those assignments complete.
+
+### Contract Worker v2
+
+Active assignment files on `field/control` become the Contract Worker ownership database.
+
+Semantics remain:
 
 ```text
-field/<unique-name>
+owned
+= primary modification authority
+
+approved_shared
+= explicit deliberate overlap
+
+protected
+= this assignment promises not to modify the path
 ```
 
-The branch is created from verified current `main` before implementation.
+`protected` does not reserve a path globally.
 
-### Pull request naming
+Parent/child path overlap counts as overlap.
 
-Open a draft PR immediately after assignment registration:
+A Contract Worker may not silently acquire another assignment's owned path.
+
+## Contract Worker communication
+
+Each Contract Worker owns exactly one mailbox:
 
 ```text
-[field] <unique-name>
+.field/mail/<assignment-id>.md
 ```
 
-The draft PR is the visible assignment card and contains structured ownership metadata.
+Only that Contract Worker writes its mailbox.
 
-### Composio role
+Every Contract Worker may read every mailbox.
 
-Composio is a GitHub transport / write broker only.
+Use mail for:
 
-It may:
+- dependency notes
+- integration contract changes
+- changed assumptions
+- ownership reconciliation requests
+- completion notes
 
-- inspect repo refs when instructed
-- create assignment branches
-- create/update assignment files
-- open/update draft PRs
-- push exact user/worker-approved files to the assignment branch when explicitly requested
-- mark PR ready
-- merge only when explicitly instructed after required validation/QA
+Workers never edit another Contract Worker's mailbox.
 
-It must not:
+## QA records
 
-- invent product architecture
-- expand assignment scope
-- acquire additional ownership on its own
-- create subordinate field agents
-- push directly to `main`
-- force-push
-- merge without explicit instruction
-- modify files outside the bounded transaction
+Each Contract Worker assignment receives:
 
-### No direct implementation pushes to main
+```text
+.field/qa/<assignment-id>.md
+```
 
-Assignment implementation lands on its `field/<unique-name>` branch.
+A QA record must identify the exact code that was tested.
 
-`main` changes only through the assignment PR merge.
-
-## Tracker transition
-
-Do **not** delete `tracker.md`.
-
-During transition:
-
-1. Existing legacy active assignments in `tracker.md` remain authoritative until they complete.
-2. New v2 assignments use branch + uniquely named assignment file + draft PR as their primary reservation.
-3. Ownership checks must consider both legacy tracker `Owned:` paths and active unmerged `field/*` assignment branches.
-4. A new assignment may not reserve a path already owned by either system.
-5. `Protected:` retains its current meaning: it constrains the declaring assignment and does not globally reserve paths.
-6. `tracker.md` may later become a generated/read-only overview, but that is not required to complete this migration.
-
-## Machine-readable assignment contract
-
-Every v2 assignment file begins with YAML frontmatter:
+Minimum fields:
 
 ```yaml
----
-field_assignment: 1
-id: <unique-name>
-status: active
-branch: field/<unique-name>
-base: <baseline-main-sha>
-kit: <kit-version>
-type: handoff | plan-to-action | repair | follow-up
-owned:
-  - <path-or-pattern>
-approved_shared:
-  - <path-or-pattern>
-protected:
-  - <path-or-pattern>
-qa:
-  firecrawl: true | false
-  authenticated: true | false
----
+assignment:
+branch:
+pr:
+tested_head_sha:
+tested_main_sha:
+environment:
+build:
+tests:
+runtime_qa:
+tested_at:
+evidence:
 ```
 
-The prose body remains authoritative for goal, decisions, acceptance criteria, validation, and handoff context.
+Never claim a test or QA step passed unless it actually ran.
 
-If frontmatter and prose ownership disagree, fail closed and require repair.
+## Composio write broker
 
-## Active-branch ownership rule
+Composio is the canonical GitHub write broker for Contract Workers.
 
-The handoff kit must define deterministic local ownership inspection without requiring ChatGPT GitHub write access.
+The Contract Worker:
 
-Preferred rule:
+- reasons
+- scopes
+- decides architecture
+- prepares exact mutations
+- evaluates results
 
-1. Fetch `origin/main` and remote `field/*` branches.
-2. A `field/*` branch whose tip is already an ancestor of `origin/main` is not active.
-3. An unmerged `field/*` branch with a valid `.field/assignments/assignment-<unique-name>.md` is an active v2 reservation.
-4. Parse its machine-readable frontmatter.
-5. Check its `owned` paths against the new assignment's intended writes.
-6. Also check legacy tracker active `Owned:` reservations.
-7. Stop on real ownership overlap.
+The Composio Executor:
 
-Do not use branch-name existence alone as proof of active ownership when the branch has already merged.
+- performs exact GitHub operations
+- returns evidence
+- stops on missing capability
+
+It must never:
+
+- expand scope
+- invent product architecture
+- acquire ownership independently
+- push implementation directly to main
+- force-push
+- silently substitute another GitHub integration
 
 ## Assignment authoring
 
@@ -226,162 +360,98 @@ Add:
 .field/handoff-kit/ASSIGNMENT_AUTHORING.md
 ```
 
-It must teach both new and existing chats how to create executable handoffs.
+It must teach Contract Workers how to convert:
 
-A worker may create a new assignment when:
-
-- the user explicitly asks for a handoff
-- implementation belongs in a separate worker/chat
-- research/planning has converged into executable work
-- current work discovers a genuinely separable follow-up tranche
-- ownership boundaries require splitting work
-
-Do not create assignments for vague ideas.
-
-An assignment is ready only when:
-
-- the next worker can understand it without the source chat
-- product direction is sufficiently decided
-- success can be recognized
-- ownership is bounded enough to coordinate
-- it does not duplicate existing active work
+```text
+research → executable Contract Worker assignment
+plan → executable Contract Worker assignment
+current work → successor Contract Worker handoff
+repair → bounded Contract Worker assignment
+```
 
 Core rule:
 
 > An assignment is not a transcript. It is the smallest complete executable representation of the next unit of work.
 
-The guide must distinguish `HANDOFF`, `PLAN → ACTION`, `REPAIR`, and `FOLLOW-UP`, plus decisions already made, investigation permitted, out of scope, verified state, proposed work, and remaining human/authenticated QA.
+Every new assignment file must be uniquely named.
 
-## Composio write broker documentation
+## Handoff kit
 
-Add:
+Update the repo-hosted kit to `2026-09-26.2`.
 
-```text
-.field/handoff-kit/COMPOSIO_WRITE_BROKER.md
-```
+It must clearly distinguish:
 
-Document:
+- Codex lane
+- Contract Worker lane
+- Night Shift terminology
+- Composio Executor
+- ownership model
+- control plane
+- implementation plane
+- QA plane
+- assignment authoring
+- QA evidence
+- merge discipline
 
-1. The current field chat owns reasoning.
-2. Composio receives an exact bounded GitHub transaction.
-3. The broker discovers GitHub tools rather than inventing tool slugs.
-4. It verifies the connected account/repository before writes.
-5. It returns evidence: branch, baseline, commit SHA, PR number/URL, paths changed, exact tool names/slugs invoked.
-6. It stops rather than improvises if a requested capability is unavailable.
-7. It never substitutes its own architecture or scope.
-8. It never pushes implementation directly to `main`.
+## Compatibility
 
-Include reusable prompt templates for reserve/register assignment, update assignment metadata, open/update draft PR, mark PR ready, merge after explicit approval, and abort/close without merge.
+Do not delete `tracker.md`.
 
-## New assignment template
+Do not rewrite active legacy assignment blocks.
 
-Add:
+Do not alter product source.
 
-```text
-.field/handoff-kit/templates/assignment-unique-name.md
-```
-
-The old `templates/assignment.md` may remain temporarily only as a deprecated compatibility pointer.
-
-The new template must include frontmatter, Mandatory rehydration, Goal, Why this exists, Current verified state, Decisions already made, Implementation intent, Acceptance criteria, Intended ownership, Investigation permitted, Out of scope, Known traps, Validation, Firecrawl QA packets, Authenticated/human QA, Handoff source, and Completion contract.
-
-## Installer changes
-
-Update the installer contract/templates so a v2 installer:
-
-1. never pushes implementation directly to `main`
-2. verifies the expected assignment branch exists
-3. verifies assignment ID/file/branch agree
-4. validates ownership against legacy tracker `Owned:` plus active unmerged v2 assignment branches
-5. builds/tests in an isolated worktree using current `main` plus assignment branch state
-6. reconciles moving `main` safely
-7. commits/pushes only to `field/<unique-name>`
-8. leaves merge as a separate explicit operation
-9. records branch HEAD as the implementation candidate
-10. after merge, verifies merge/deployed production commit before live QA
-
-Preserve existing durable installer lessons.
-
-## Acceptance criteria
-
-- [ ] Handoff kit version bumped from `2026-09-26.1` to `2026-09-26.2`.
-- [ ] `ASSIGNMENT_AUTHORING.md` exists and is linked from `CHAT_BOOTSTRAP.md`.
-- [ ] `COMPOSIO_WRITE_BROKER.md` exists and defines bounded transport-only behavior.
-- [ ] New assignments are named `assignment-<unique-name>.md`.
-- [ ] New assignment template includes machine-readable frontmatter.
-- [ ] Branch naming is standardized as `field/<unique-name>`.
-- [ ] Draft PR naming is standardized as `[field] <unique-name>`.
-- [ ] New worker lifecycle forbids implementation pushes directly to `main`.
-- [ ] Legacy tracker assignments remain respected during migration.
-- [ ] New ownership checks cover legacy tracker ownership and active unmerged assignment branches.
-- [ ] `Protected:` semantics remain unchanged.
-- [ ] Installer contract is branch-aware and merge is a separate explicit action.
-- [ ] Firecrawl QA remains a post-deploy completion gate for applicable changes.
-- [ ] Handoff-kit self-tests cover assignment filename/frontmatter/branch consistency.
-- [ ] Handoff-kit self-tests cover legacy + v2 ownership coexistence.
-- [ ] Handoff-kit self-tests reject plain `assignment.md` as a new assignment deliverable.
-- [ ] Existing durable installer lessons are preserved.
-
-## Intended ownership
-
-Owned:
-
-```text
-.field/handoff-kit/**
-.field/assignments/**
-```
-
-Approved Shared:
-
-```text
-tracker.md
-```
-
-`tracker.md` may receive only minimal migration documentation if genuinely necessary. Do not rewrite existing active assignment blocks.
-
-Protected:
-
-```text
-src/**
-cloudflare/**
-wrangler.jsonc
-package.json
-package-lock.json
-.env*
-```
-
-This is coordination infrastructure only. Do not modify field product behavior.
+Do not modify PJM / Master / Codex Worker contracts.
 
 ## Validation
 
-At minimum:
+Required:
 
 - handoff-kit self-test
-- assignment frontmatter parser tests
-- assignment filename/branch consistency tests
-- legacy tracker + v2 branch ownership tests
-- Bash syntax checks
-- Node/Python syntax checks for modified kit helpers
+- assignment filename/frontmatter validation
+- ownership parser tests
+- legacy tracker + Contract Worker ownership coexistence tests
+- mailbox one-writer contract tests where practical
+- QA record schema tests
+- control-plane path tests
+- Bash/Node/Python syntax where relevant
 - `git diff --check`
-- exact changed-path allowlist
+- exact path allowlist
 
-Run product TypeScript/build only if kit changes actually touch or execute product build tooling.
+## Firecrawl
 
-## Firecrawl QA
+Not required for this coordination-only assignment.
 
-Not required for this coordination-only assignment unless implementation changes a user-visible field runtime surface.
+No user-visible field runtime behavior is being changed.
 
-## Authenticated / human QA
+## Successor assignment
 
-Confirm in GitHub after merge that a test `field/<unique-name>` branch can be created, a uniquely named assignment file can live on it, and a draft PR can represent the assignment without a direct-to-main implementation push.
+This assignment must create a separate successor Contract Worker assignment for:
+
+> automatic branch Preview + Contract Worker live QA infrastructure
+
+That successor should cover:
+
+- branch Preview deployment
+- Preview URL discovery through the Draft PR
+- `/builder/noauth` on the Preview
+- Firecrawl small-packet QA
+- exact-SHA QA recording
+- merge gating
+
+Do not silently absorb that implementation into this PR.
 
 ## Completion contract
 
 When complete:
 
-1. record exact kit files changed
-2. record validation
-3. distinguish implemented behavior from future tracker-generation ideas
-4. preserve all still-valid installer lessons
-5. merge through the assignment PR
-6. do not leave a second competing coordination contract
+1. the handoff kit is `2026-09-26.2`
+2. Contract Worker terminology is canonical
+3. Codex terminology remains intact
+4. `field/control` protocol is defined
+5. assignment/mail/QA schemas are defined
+6. Composio write-broker behavior is documented
+7. legacy tracker ownership remains compatible
+8. no product source was changed
+9. a successor Preview/QA assignment exists
+10. changes land through Draft PR #2
