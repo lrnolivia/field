@@ -40,6 +40,29 @@ export const GALLERY_ARIA_PREFIX = 'Gallery — ';
  * semantic identity without taking ownership of generic parser architecture. */
 export const GALLERY_VIEW_STYLE_PROPERTY = '--field-gallery-view';
 export const GALLERY_ITEM_STYLE_PROPERTY = '--field-gallery-item';
+export const GALLERY_NATURAL_SEED_STYLE_PROPERTY = '--field-gallery-natural-seed';
+
+const NATURAL_SLOT_PERMUTATIONS = [
+  [0, 1, 2, 3],
+  [3, 0, 1, 2],
+  [1, 3, 0, 2],
+  [2, 0, 3, 1],
+  [1, 2, 3, 0],
+  [3, 2, 1, 0],
+] as const;
+
+export const NATURAL_COMPOSITION_COUNT = NATURAL_SLOT_PERMUTATIONS.length;
+
+export function normalizeGalleryNaturalSeed(value: string | number | null | undefined): number {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value ?? '');
+  if (!Number.isFinite(parsed)) return 0;
+  const integer = Math.trunc(parsed);
+  return ((integer % NATURAL_COMPOSITION_COUNT) + NATURAL_COMPOSITION_COUNT) % NATURAL_COMPOSITION_COUNT;
+}
+
+export function nextGalleryNaturalSeed(value: string | number | null | undefined): number {
+  return (normalizeGalleryNaturalSeed(value) + 1) % NATURAL_COMPOSITION_COUNT;
+}
 export const TERRA_GALLERY_MAX_WIDTH = '1240px';
 export const TERRA_GALLERY_RADIUS = '12px';
 export const TERRA_STRIP_HOVER_WIDTH = '380px';
@@ -230,40 +253,46 @@ export function getGalleryRootPatch(view: GalleryViewId): Record<string, string>
  * The Figma reference is 1240×616 with 4px gaps. Four equal CSS tracks make
  * the same geometry responsively without baking pixel coordinates into source.
  */
-function naturalPatch(index: number): Record<string, string> {
+function naturalPatch(index: number, seed: number): Record<string, string> {
   const group = Math.floor(index / 4);
-  const slot = index % 4;
+  const sourceSlot = index % 4;
   const row = group * 2 + 1;
+  const permutation = NATURAL_SLOT_PERMUTATIONS[normalizeGalleryNaturalSeed(seed)];
+  const visualSlot = permutation[sourceSlot];
 
-  switch (slot) {
+  // Shuffle changes which source item owns each visual role, never source order.
+  // The four roles still occupy the same reachable four-track mosaic.
+  switch (visualSlot) {
     case 0:
-      return { gridColumn: '1 / span 2', gridRow: `${row} / span 2`, aspectRatio: '1 / 1' };
+      return { gridColumn: '1 / span 2', gridRow: String(row) + ' / span 2', aspectRatio: '1 / 1' };
     case 1:
       return { gridColumn: '3', gridRow: String(row), aspectRatio: '1 / 1' };
     case 2:
       return { gridColumn: '3', gridRow: String(row + 1), aspectRatio: '1 / 1' };
     case 3:
-      return { gridColumn: '4', gridRow: `${row} / span 2`, aspectRatio: '1 / 2' };
+      return { gridColumn: '4', gridRow: String(row) + ' / span 2', aspectRatio: '1 / 2' };
   }
 
-  // `index % 4` is always 0..3 at runtime; this fallback exists only because
-  // TypeScript does not narrow arithmetic modulo results to that finite set.
   return {};
 }
 
-export function getGalleryIndexGeometryPatch(view: GalleryViewId, index: number): Record<string, string> {
-  if (view === 'natural') return naturalPatch(index);
+export function getGalleryIndexGeometryPatch(
+  view: GalleryViewId,
+  index: number,
+  naturalSeed = 0,
+): Record<string, string> {
+  if (view === 'natural') return naturalPatch(index, naturalSeed);
   if (view === 'story') return { aspectRatio: index % 2 === 0 ? '2 / 1' : '31 / 18' };
   return {};
 }
 
-export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<string, string> {
+export function getGalleryItemPatch(view: GalleryViewId, index: number, naturalSeed = 0): Record<string, string> {
   const base = { ...ITEM_RESET };
   switch (view) {
     case 'grid':
       return { ...base, aspectRatio: '1 / 1' };
     case 'natural':
-      return { ...base, ...getGalleryIndexGeometryPatch(view, index) };
+      return { ...base, ...getGalleryIndexGeometryPatch(view, index, naturalSeed) };
     case 'strip':
       return {
         ...base,

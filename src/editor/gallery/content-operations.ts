@@ -41,8 +41,9 @@ export function buildGalleryDuplicateItemNode(
   item: GalleryContentOperationItem,
   insertIndex: number,
   view: GalleryViewId,
+  naturalSeed = 0,
 ): GallerySourceNode {
-  const duplicate = buildGalleryItemNode(item.src, insertIndex, view, item.alt);
+  const duplicate = buildGalleryItemNode(item.src, insertIndex, view, item.alt, naturalSeed);
   const image = duplicate.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
   if (image) {
     image.styles = {

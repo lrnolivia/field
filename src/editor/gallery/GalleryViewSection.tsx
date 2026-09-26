@@ -1,4 +1,4 @@
-import { ToolInput, ToolRow, ToolSection, ToolSelect } from '@/editor/controls';
+import { ToolButton, ToolInput, ToolRow, ToolSection, ToolSelect } from '@/editor/controls';
 import { GALLERY_VIEWS, type GalleryViewId } from '@/code/gallery/gallery-views';
 
 interface GalleryViewSectionProps {
@@ -8,6 +8,8 @@ interface GalleryViewSectionProps {
   onViewChange: (view: GalleryViewId) => void;
   onRootStyleChange: (property: string, value: string) => void;
   onAllItemStyleChange: (styles: Record<string, string>) => void;
+  onShuffleNatural: () => void;
+  canShuffleNatural: boolean;
 }
 
 function px(value: string, fallback: number): string {
@@ -27,6 +29,8 @@ export default function GalleryViewSection({
   onViewChange,
   onRootStyleChange,
   onAllItemStyleChange,
+  onShuffleNatural,
+  canShuffleNatural,
 }: GalleryViewSectionProps) {
   return (
     <ToolSection title="View" collapsible>
@@ -53,6 +57,17 @@ export default function GalleryViewSection({
             ariaLabel="Gallery gap"
           />
         </ToolRow>
+      )}
+
+      {currentView === 'natural' && (
+        <>
+          <ToolRow label="Composition">
+            <ToolButton onClick={onShuffleNatural} disabled={!canShuffleNatural}>Shuffle</ToolButton>
+          </ToolRow>
+          <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
+            Shuffle changes the Natural composition without changing media or reading order.
+          </div>
+        </>
       )}
 
       {currentView === 'grid' && (

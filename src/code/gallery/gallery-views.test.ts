@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   galleryAriaLabel,
   GALLERY_ITEM_STYLE_PROPERTY,
+  GALLERY_NATURAL_SEED_STYLE_PROPERTY,
   GALLERY_VIEW_STYLE_PROPERTY,
+  NATURAL_COMPOSITION_COUNT,
   getGalleryDefaultImageFit,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
+  nextGalleryNaturalSeed,
+  normalizeGalleryNaturalSeed,
   parseGalleryAriaLabel,
 } from './gallery-views';
 
@@ -42,6 +46,22 @@ describe('Gallery view registry', () => {
     expect(getGalleryItemPatch('natural', 3)).toMatchObject({ gridColumn: '4', gridRow: '1 / span 2' });
     expect(getGalleryItemPatch('natural', 4)).toMatchObject({ gridColumn: '1 / span 2', gridRow: '3 / span 2' });
     expect(getGalleryIndexGeometryPatch('natural', 2)).toEqual({ gridColumn: '3', gridRow: '2', aspectRatio: '1 / 1' });
+  });
+
+  it('shuffles Natural deterministically without changing semantic content order', () => {
+    const mediaOrder = ['a', 'b', 'c', 'd'];
+    const defaultGeometry = mediaOrder.map((_, index) => getGalleryIndexGeometryPatch('natural', index, 0));
+    const nextSeed = nextGalleryNaturalSeed(0);
+    const shuffledGeometry = mediaOrder.map((_, index) => getGalleryIndexGeometryPatch('natural', index, nextSeed));
+
+    expect(nextSeed).toBe(1);
+    expect(shuffledGeometry).not.toEqual(defaultGeometry);
+    expect(mediaOrder).toEqual(['a', 'b', 'c', 'd']);
+    expect(getGalleryIndexGeometryPatch('natural', 0, nextSeed)).toEqual(shuffledGeometry[0]);
+    expect(new Set(shuffledGeometry.map((geometry) => geometry.gridColumn + '|' + geometry.gridRow)).size).toBe(4);
+    expect(normalizeGalleryNaturalSeed(-1)).toBe(NATURAL_COMPOSITION_COUNT - 1);
+    expect(nextGalleryNaturalSeed(NATURAL_COMPOSITION_COUNT - 1)).toBe(0);
+    expect(GALLERY_NATURAL_SEED_STYLE_PROPERTY).toBe('--field-gallery-natural-seed');
   });
 
   it('keeps Strip source-backed while making narrow runtimes reachable', () => {

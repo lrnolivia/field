@@ -166,12 +166,13 @@ export function buildGalleryItemNode(
   index: number,
   view: GalleryViewId,
   alt = '',
+  naturalSeed = 0,
 ): GallerySourceNode {
   return {
     type: 'figure',
     id: generateNodeId('gallery-item'),
     name: 'Gallery Item',
-    styles: getGalleryItemPatch(view, index),
+    styles: getGalleryItemPatch(view, index, naturalSeed),
     children: [
       {
         type: 'img',

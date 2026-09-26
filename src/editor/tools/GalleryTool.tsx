@@ -30,12 +30,15 @@ import {
   type GalleryMediaTreatment,
 } from '@/code/gallery/gallery-media-treatment';
 import {
+  GALLERY_NATURAL_SEED_STYLE_PROPERTY,
   GALLERY_VIEWS,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
+  nextGalleryNaturalSeed,
+  normalizeGalleryNaturalSeed,
   type GalleryViewId,
 } from '@/code/gallery/gallery-views';
 import { queueMutation, queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
@@ -203,6 +206,7 @@ function GalleryToolInner() {
   const gallery = node!;
   const galleryId = nodeId!;
   const currentView = getGalleryView(gallery);
+  const naturalSeed = normalizeGalleryNaturalSeed(gallery.styles?.[GALLERY_NATURAL_SEED_STYLE_PROPERTY]);
   const selectedItem = items.find((item) => item.itemId === selectedItemId) ?? null;
   const prefix = getViewportPrefix(vpId);
   const bridge = getCanvasBridge();
@@ -236,7 +240,7 @@ function GalleryToolInner() {
     mutations.push({ type: 'updateHtmlAttrs', nodeId: galleryId, attrs: rootAttrs });
 
     items.forEach((item, index) => {
-      const itemPatch = getGalleryItemPatch(view, index);
+      const itemPatch = getGalleryItemPatch(view, index, naturalSeed);
       const imagePatch = getGalleryImagePatch(view);
       bridge.patchStyles(item.itemId, prefix, itemPatch);
       bridge.patchStyles(item.imageId, prefix, imagePatch);
@@ -263,7 +267,7 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:view-change', { nodeId: galleryId, view, items: items.length });
-  }, [bridge, galleryId, items, prefix, responsiveOverrides]);
+  }, [bridge, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const addMedia = useCallback((urls: string[]) => {
     // De-dupe only this picker result. Reusing the same canonical project asset
@@ -272,7 +276,7 @@ function GalleryToolInner() {
     if (unique.length === 0) return;
 
     const mutations: Mutation[] = [];
-    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(url, items.length + offset, currentView));
+    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(url, items.length + offset, currentView, '', naturalSeed));
     addedNodes.forEach((sourceNode) => {
       mutations.push({ type: 'addNode', parentId: galleryId, node: sourceNode });
       if (currentView === 'strip') {
@@ -289,7 +293,7 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length });
-  }, [currentView, galleryId, items]);
+  }, [currentView, galleryId, items, naturalSeed]);
 
   const replaceMedia = useCallback((itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
@@ -306,20 +310,34 @@ function GalleryToolInner() {
     if (sourceIndex < 0) return;
     const source = items[sourceIndex];
     const insertIndex = sourceIndex + 1;
-    const duplicate = buildGalleryDuplicateItemNode(source, insertIndex, currentView);
+    const duplicate = buildGalleryDuplicateItemNode(source, insertIndex, currentView, naturalSeed);
     const duplicateImage = duplicate.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
     if (!duplicateImage) return;
 
+    const nextItemIds = items.map((item) => item.itemId);
+    nextItemIds.splice(insertIndex, 0, duplicate.id);
     const mutations: Mutation[] = [
       { type: 'addNode', parentId: galleryId, node: duplicate, index: insertIndex },
       ...cloneResponsiveOverrideMutations(
         source.itemId,
         duplicate.id,
         responsiveOverrides,
-        Object.keys(getGalleryIndexGeometryPatch(currentView, insertIndex)),
+        Object.keys(getGalleryIndexGeometryPatch(currentView, insertIndex, naturalSeed)),
       ),
       ...cloneResponsiveOverrideMutations(source.imageId, duplicateImage.id, responsiveOverrides),
     ];
+
+    // Inserting in the middle shifts later Natural/Story index geometry. Recompute
+    // the real source geometry in this same operation so Shuffle remains valid
+    // after Duplicate and no stale responsive index-owned placement survives.
+    nextItemIds.forEach((nextItemId, index) => {
+      const geometry = getGalleryIndexGeometryPatch(currentView, index, naturalSeed);
+      if (Object.keys(geometry).length === 0) return;
+      if (nextItemId !== duplicate.id) bridge.patchStyles(nextItemId, prefix, geometry);
+      mutations.push({ type: 'updateStyles', nodeId: nextItemId, styles: geometry });
+      mutations.push(...clearResponsivePatchMutations(nextItemId, geometry, responsiveOverrides));
+    });
+
     if (currentView === 'strip') {
       mutations.push({ type: 'updateCssHover', nodeId: duplicate.id, styles: getGalleryStripHoverPatch() });
     }
@@ -331,7 +349,7 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:duplicate-media', { nodeId: galleryId, itemId, duplicateId: duplicate.id });
-  }, [currentView, galleryId, items, responsiveOverrides]);
+  }, [bridge, currentView, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const removeItem = useCallback((itemId: string) => {
     const remaining = items.filter((item) => item.itemId !== itemId);
@@ -339,7 +357,7 @@ function GalleryToolInner() {
     // immediately; source mutation below makes that visual result permanent.
     bridge.removeElement?.(itemId);
     remaining.forEach((item, index) => {
-      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index));
+      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index, naturalSeed));
     });
     const mutations: Mutation[] = [
       // Remove Gallery-owned pseudo state while the source element still exists.
@@ -348,11 +366,11 @@ function GalleryToolInner() {
       ...remaining.map((item, index) => ({
         type: 'updateStyles' as const,
         nodeId: item.itemId,
-        styles: getGalleryItemPatch(currentView, index),
+        styles: getGalleryItemPatch(currentView, index, naturalSeed),
       })),
       ...remaining.flatMap((item, index) => clearResponsivePatchMutations(
         item.itemId,
-        getGalleryIndexGeometryPatch(currentView, index),
+        getGalleryIndexGeometryPatch(currentView, index, naturalSeed),
         responsiveOverrides,
       )),
     ];
@@ -361,7 +379,7 @@ function GalleryToolInner() {
     flushNow();
     if (selectedItemId === itemId) setSelectedItemId(null);
     trace.action('gallery:remove-media', { nodeId: galleryId, itemId });
-  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides, selectedItemId]);
+  }, [bridge, currentView, galleryId, items, naturalSeed, prefix, responsiveOverrides, selectedItemId]);
 
   const reorderItem = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
@@ -378,7 +396,7 @@ function GalleryToolInner() {
     // view geometry against the NEW order so Natural/Story patterns follow it.
     bridge.reparentLive?.(fromId, prefix, galleryId, to, {});
     ordered.forEach((item, index) => {
-      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index));
+      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index, naturalSeed));
     });
 
     const mutations: Mutation[] = [
@@ -386,11 +404,11 @@ function GalleryToolInner() {
       ...ordered.map((item, index) => ({
         type: 'updateStyles' as const,
         nodeId: item.itemId,
-        styles: getGalleryItemPatch(currentView, index),
+        styles: getGalleryItemPatch(currentView, index, naturalSeed),
       })),
       ...ordered.flatMap((item, index) => clearResponsivePatchMutations(
         item.itemId,
-        getGalleryIndexGeometryPatch(currentView, index),
+        getGalleryIndexGeometryPatch(currentView, index, naturalSeed),
         responsiveOverrides,
       )),
     ];
@@ -399,13 +417,41 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:reorder', { nodeId: galleryId, from, to });
-  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides]);
+  }, [bridge, currentView, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const moveItem = useCallback((itemId: string, direction: -1 | 1) => {
     const targetId = galleryAdjacentItemId(items, itemId, direction);
     if (!targetId) return;
     reorderItem(itemId, targetId);
   }, [items, reorderItem]);
+
+  const shuffleNatural = useCallback(() => {
+    if (currentView !== 'natural' || items.length < 2) return;
+    const nextSeed = nextGalleryNaturalSeed(naturalSeed);
+    const seedPatch = { [GALLERY_NATURAL_SEED_STYLE_PROPERTY]: String(nextSeed) };
+    bridge.patchStyles(galleryId, prefix, seedPatch);
+
+    const mutations: Mutation[] = [
+      { type: 'updateStyles', nodeId: galleryId, styles: seedPatch },
+    ];
+    items.forEach((item, index) => {
+      const geometry = getGalleryIndexGeometryPatch('natural', index, nextSeed);
+      bridge.patchStyles(item.itemId, prefix, geometry);
+      mutations.push({ type: 'updateStyles', nodeId: item.itemId, styles: geometry });
+      mutations.push(...clearResponsivePatchMutations(item.itemId, geometry, responsiveOverrides));
+    });
+
+    // One queued batch + one explicit flush gives Shuffle one coherent history
+    // action while source/media order and selected media identity stay untouched.
+    queueMutations(mutations);
+    flushNow();
+    trace.action('gallery:natural-shuffle', {
+      nodeId: galleryId,
+      fromSeed: naturalSeed,
+      toSeed: nextSeed,
+      items: items.length,
+    });
+  }, [bridge, currentView, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const updateAlt = useCallback((value: string) => {
     if (!selectedItem) return;
@@ -506,6 +552,8 @@ function GalleryToolInner() {
         onViewChange={applyView}
         onRootStyleChange={updateStyle}
         onAllItemStyleChange={updateAllItemStyles}
+        onShuffleNatural={shuffleNatural}
+        canShuffleNatural={items.length > 1}
       />
 
       {selectedItem && (

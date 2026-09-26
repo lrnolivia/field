@@ -31,6 +31,15 @@ describe('Gallery content operations', () => {
     });
   });
 
+  it('duplicates into the active Natural composition rather than stale default geometry', () => {
+    const duplicate = buildGalleryDuplicateItemNode(item, 1, 'natural', 2);
+    expect(duplicate.styles).toMatchObject({
+      gridColumn: '4',
+      gridRow: '1 / span 2',
+      aspectRatio: '1 / 2',
+    });
+  });
+
   it('resolves one-step reorder targets and hard-stops at list boundaries', () => {
     const items = [{ itemId: 'a' }, { itemId: 'b' }, { itemId: 'c' }];
     expect(galleryAdjacentItemId(items, 'b', -1)).toBe('a');

@@ -46,6 +46,15 @@ describe('Gallery semantic model', () => {
     });
   });
 
+  it('builds new Natural items against the persisted composition seed', () => {
+    const item = buildGalleryItemNode('/photo.jpg', 0, 'natural', '', 1);
+    expect(item.styles).toMatchObject({
+      gridColumn: '4',
+      gridRow: '1 / span 2',
+      aspectRatio: '1 / 2',
+    });
+  });
+
   it('derives media identity from the real image children rather than a shadow list', () => {
     const gallery = node({ id: 'g', name: 'Gallery', attrs: { role: 'region', 'aria-label': 'Gallery — Grid' }, children: ['a', 'b'] });
     const a = node({ id: 'a', type: 'figure', name: 'Gallery Item', parentId: 'g', children: ['ai'] });
