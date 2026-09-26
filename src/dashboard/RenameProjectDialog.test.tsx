@@ -80,8 +80,8 @@ describe('RenameProjectDialog', () => {
     fireEvent.mouseDown(screen.getByRole('presentation'));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: 'Project name' })).toBeDisabled();
+    expect((screen.getByRole('button', { name: 'Cancel' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('textbox', { name: 'Project name' }) as HTMLInputElement).disabled).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -119,6 +119,6 @@ describe('RenameProjectDialog', () => {
     fireEvent.submit(input.closest('form')!);
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
