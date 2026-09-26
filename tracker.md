@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T02:38:23Z
+Last Updated: 2026-09-26T02:48:40Z
 
 ## Active Assignments
 
@@ -1156,6 +1156,19 @@ Validation / Build / Deploy:
 - TypeScript passed
 - build:all passed
 - production verification pending for source commit 1a84843ad3b24cd8572545cba05409fb48b3715a
+
+### 2026-09-26T02:48:40Z — field-dashboard-thumbnail-previews-r2-20260925 — 506c77a29c41
+
+Summary: r3 thumbnail repair: correlated hidden-Preview session/project/render acknowledgements, 5-second thumbnail-only CDN preload bound, and structured capture-failure trace. Focused tests, TypeScript, build:all, and Workers Builds: field passed. Manual production smoke remains required.
+Commit: 506c77a29c418ee5ca843b3f61d8152e25b9e316
+
+Paths:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
