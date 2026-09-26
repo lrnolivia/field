@@ -298,7 +298,6 @@ export function planScaledSvgShapeAttrs(
   if (dasharray != null && dasharray !== '' && dasharray !== 'none') {
     const result = scaleDasharray(dasharray, factor);
     if (result.blocked) blocked.push(result.blocked);
-    if (result.preserved) preserved.push(result.preserved);
     if (!result.blocked && result.value !== dasharray) out['stroke-dasharray'] = result.value;
   }
 
