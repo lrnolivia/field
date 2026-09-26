@@ -7,7 +7,7 @@ import {
   EDITOR_SIDE_SPRING,
 } from '@/editor/editor-entrance';
 import {
-  DASHBOARD_CANVAS_BEAT_FRAMES,
+  DASHBOARD_EDITOR_HANDOFF_FRAMES,
   DASHBOARD_EXIT_DURATION_MS,
   DASHBOARD_EXIT_EASING,
   DASHBOARD_PANEL_STAGGER_MS,
@@ -23,6 +23,10 @@ import {
 describe('field shell seamless Dashboard/Canvas motion contract', () => {
   const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/field-shell.css'), 'utf8');
   const shell = fs.readFileSync(path.join(process.cwd(), 'src/FieldShell.tsx'), 'utf8');
+  const editorCoordinator = fs.readFileSync(
+    path.join(process.cwd(), 'src/editor/EditorEntranceCoordinator.tsx'),
+    'utf8',
+  );
 
   it('inherits the editor structural motion language instead of inventing another one', () => {
     expect(DASHBOARD_STRUCTURAL_SPRING).toBe(EDITOR_SIDE_SPRING);
@@ -57,8 +61,8 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     expect(dashboardPanelDelay('sidebar', 'show')).toBe(18);
   });
 
-  it('keeps the website exposed for two painted frames between ownership changes', async () => {
-    expect(DASHBOARD_CANVAS_BEAT_FRAMES).toBe(2);
+  it('gives outgoing editor chrome a two-frame lead without exposing a bare Canvas beat', async () => {
+    expect(DASHBOARD_EDITOR_HANDOFF_FRAMES).toBe(2);
     const callbacks: FrameRequestCallback[] = [];
     const raf = vi.fn((callback: FrameRequestCallback) => {
       callbacks.push(callback);
@@ -92,13 +96,32 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     expect(shell).not.toContain('}, 480);');
   });
 
-  it('preserves the Canvas exit -> clean Canvas beat -> Dashboard return ordering', () => {
-    const exitIndex = shell.indexOf('await requestEditorChromeExit(document);');
-    const beatIndex = shell.indexOf('await waitForAnimationFrames(DASHBOARD_CANVAS_BEAT_FRAMES);', exitIndex);
-    const showIndex = shell.indexOf('const revealPromise = showDashboardLayer();', beatIndex);
+  it('overlaps editor exit with Dashboard return instead of showing a shifted bare Canvas state', () => {
+    const exitIndex = shell.indexOf('editorExitPromise = requestEditorChromeExit(document);');
+    const leadIndex = shell.indexOf('await waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES);', exitIndex);
+    const showIndex = shell.indexOf('const revealPromise = showDashboardLayer();', leadIndex);
+    const joinIndex = shell.indexOf('await Promise.all([editorExitPromise, revealPromise]);', showIndex);
+
     expect(exitIndex).toBeGreaterThan(-1);
-    expect(beatIndex).toBeGreaterThan(exitIndex);
-    expect(showIndex).toBeGreaterThan(beatIndex);
+    expect(leadIndex).toBeGreaterThan(exitIndex);
+    expect(showIndex).toBeGreaterThan(leadIndex);
+    expect(joinIndex).toBeGreaterThan(showIndex);
+    expect(shell).not.toContain('canvas-ownership-beat');
+    expect(shell).not.toContain('await requestEditorChromeExit(document);');
+  });
+
+  it('starts editor entrance while Dashboard is still leaving, with hidden as fallback only', () => {
+    const hidingIndex = editorCoordinator.indexOf("if (state === 'hiding' && previous !== 'hiding')");
+    const hiddenIndex = editorCoordinator.indexOf("if (state === 'hidden' && previous !== 'hidden')", hidingIndex);
+    const hidingBlock = editorCoordinator.slice(hidingIndex, hiddenIndex);
+    const hiddenBlock = editorCoordinator.slice(hiddenIndex, hiddenIndex + 420);
+
+    expect(hidingIndex).toBeGreaterThan(-1);
+    expect(hidingBlock).toContain('beginNewRevealCycle();');
+    expect(hidingBlock).toContain('runEntranceAfterPaint();');
+    expect(hiddenBlock).toContain('if (!running) runEntrance();');
+    expect(editorCoordinator).toContain('const currentCycle = cycle;');
+    expect(editorCoordinator).toContain('if (currentCycle !== cycle) return;');
   });
 
   it('keeps the builder visually live until Dashboard actually starts reclaiming the screen', () => {
@@ -106,7 +129,7 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     const end = shell.indexOf('const releaseProjectReveal = useCallback', start);
     const showDashboardSource = shell.slice(start, end);
     expect(start).toBeGreaterThan(-1);
-    expect(showDashboardSource).toContain('await requestEditorChromeExit(document);');
+    expect(showDashboardSource).toContain('requestEditorChromeExit(document)');
     expect(showDashboardSource).not.toContain("builderLayerRef.current?.setAttribute('inert', '');");
   });
 

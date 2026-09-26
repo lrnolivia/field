@@ -25,7 +25,7 @@ export const DASHBOARD_EXIT_EASING = EDITOR_EXIT_EASING;
 
 export const DASHBOARD_PANEL_GAP_PX = 16;
 export const DASHBOARD_PANEL_STAGGER_MS = 18;
-export const DASHBOARD_CANVAS_BEAT_FRAMES = 2;
+export const DASHBOARD_EDITOR_HANDOFF_FRAMES = 2;
 
 /**
  * Dashboard -> Canvas: compact navigation slab leads out, main follows.
@@ -114,8 +114,9 @@ export function readTransformTranslateX(transform: string): number {
 }
 
 /**
- * A frame-counted beat reads as exposure of the stationary website rather than
- * network latency. Two paints are ~33ms at 60Hz and ~17ms at 120Hz.
+ * Let outgoing editor chrome establish direction for two paints, then start
+ * Dashboard's incoming slabs while the editor is still moving. Two paints are
+ * ~33ms at 60Hz and ~17ms at 120Hz: enough to read as a handoff, not a gap.
  */
 export function waitForAnimationFrames(
   count: number,

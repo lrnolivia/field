@@ -15,7 +15,7 @@ import { fieldBuilderProjectId, fieldPathIsDashboard } from './field-shell-route
 import { trace } from '@/shared/debug-trace';
 import { requestEditorChromeExit } from '@/editor/editor-entrance';
 import {
-  DASHBOARD_CANVAS_BEAT_FRAMES,
+  DASHBOARD_EDITOR_HANDOFF_FRAMES,
   DASHBOARD_EXIT_DURATION_MS,
   DASHBOARD_EXIT_EASING,
   DASHBOARD_STRUCTURAL_SPRING,
@@ -250,21 +250,23 @@ export default function FieldShell() {
     revealHeldRef.current = false;
     revealRequestedRef.current = false;
 
-    let editorCleared = false;
+    let editorExitPromise: Promise<void> | null = null;
     if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
-      // Keep the live builder painted through editor exit and the tiny Canvas
-      // ownership beat. The normal dashboardState effect applies inert only
-      // once Dashboard actually begins reclaiming the screen.
+      // The outgoing editor chrome now hands the edges directly to Dashboard.
+      // Start that exit first, give it a tiny painted lead, then overlap the
+      // incoming Dashboard slabs. This removes the bare, camera-composed Canvas
+      // state that read as a shifted/broken duplicate during the handoff.
       trace.action('field-shell:editor-exit-start', { projectId: builderIdRef.current });
-      await requestEditorChromeExit(document);
-      editorCleared = true;
-      trace.action('field-shell:editor-exit-complete', { projectId: builderIdRef.current });
+      editorExitPromise = requestEditorChromeExit(document);
+      void editorExitPromise.then(() => {
+        trace.action('field-shell:editor-exit-complete', { projectId: builderIdRef.current });
+      });
     }
 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (editorCleared && !reducedMotion) {
-      trace.action('field-shell:canvas-ownership-beat', { projectId: builderIdRef.current });
-      await waitForAnimationFrames(DASHBOARD_CANVAS_BEAT_FRAMES);
+    if (editorExitPromise && !reducedMotion) {
+      trace.action('field-shell:editor-dashboard-overlap', { projectId: builderIdRef.current });
+      await waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES);
     }
 
     const revealPromise = showDashboardLayer();
@@ -273,7 +275,8 @@ export default function FieldShell() {
     } else if (!fieldPathIsDashboard(window.location.pathname)) {
       window.history.pushState({ fieldSurface: 'dashboard' }, '', '/');
     }
-    await revealPromise;
+    if (editorExitPromise) await Promise.all([editorExitPromise, revealPromise]);
+    else await revealPromise;
     trace.action('field-shell:dashboard-visible', { projectId: builderIdRef.current });
   }, [showDashboardLayer]);
 

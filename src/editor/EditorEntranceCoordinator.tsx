@@ -247,7 +247,11 @@ export default function EditorEntranceCoordinator() {
     };
 
     const runEntranceAfterPaint = () => {
-      const frame = nextPaint(runEntrance);
+      const currentCycle = cycle;
+      const frame = nextPaint(() => {
+        if (currentCycle !== cycle) return;
+        runEntrance();
+      });
       frames.push(frame);
     };
 
@@ -379,10 +383,14 @@ export default function EditorEntranceCoordinator() {
       const previous = lastDashboardState;
       lastDashboardState = state;
 
-      // Dashboard is leaving and editor is about to reappear. Restore any held
-      // exit state, then park the full physical chrome offscreen for entrance.
+      // Dashboard and editor now overlap their ownership handoff instead of
+      // exposing a bare intermediate Canvas. As Dashboard starts leaving,
+      // prepare editor chrome offscreen and begin its entrance after two paints
+      // while the Dashboard slabs are still moving above it. The hidden state
+      // remains a fallback boundary, not the normal start signal.
       if (state === 'hiding' && previous !== 'hiding') {
         beginNewRevealCycle();
+        runEntranceAfterPaint();
         return;
       }
 
@@ -390,8 +398,8 @@ export default function EditorEntranceCoordinator() {
         directLoadArmed = false;
         directLoadStarted = false;
         if (cycle === 0) cycle = 1;
-        if (!prepared.length) prepareEntrance();
-        runEntranceAfterPaint();
+        if (!prepared.length && !running) prepareEntrance();
+        if (!running) runEntrance();
       }
     };
 
