@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:59:23Z
+Last Updated: 2026-09-26T02:15:57Z
 
 ## Active Assignments
 
@@ -145,7 +145,50 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
+<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:START -->
+### native-gallery-completion-hardening-20260925 — Native Gallery Completion + Hardening Tranche
 
+Status: active
+Baseline: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
+Activation HEAD: a91bbf85e48c1608fd60d66d3fc069cbd4964cf8
+Last Sync: 2026-09-26T02:15:57Z
+
+Owned:
+  - src/code/gallery/gallery-model.ts
+  - src/code/gallery/gallery-carousel.test.ts
+  - src/code/gallery/gallery-views.ts
+  - src/code/gallery/gallery-views.test.ts
+  - src/canvas/gallery/crop-math.ts
+  - src/canvas/gallery/crop-math.test.ts
+  - src/editor/gallery/GalleryCropOverlay.tsx
+  - src/editor/gallery/GalleryContentSection.tsx
+  - src/editor/gallery/GalleryViewSection.tsx
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/gallery/gallery-inspector-integration.test.ts
+  - src/editor/tools/GalleryTool.tsx
+  - src/editor/ui/ImageSearchModal.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/stores/**
+  - src/canvas/drag/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - src/backend/**
+  - src/dashboard/**
+  - src/design-system/**
+  - cloudflare/**
+  - package.json
+  - package-lock.json
+  - wrangler.jsonc
+<!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
