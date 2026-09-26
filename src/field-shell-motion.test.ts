@@ -6,21 +6,25 @@ describe('field shell Dashboard/Canvas motion contract', () => {
   const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/field-shell.css'), 'utf8');
   const shell = fs.readFileSync(path.join(process.cwd(), 'src/FieldShell.tsx'), 'utf8');
 
-  it('uses a fast split-slide instead of fading the Dashboard layer', () => {
-    expect(css).toContain('transform 150ms cubic-bezier(.22, .85, .3, 1)');
+  it('uses a readable staggered split-slide with a playful settle and no fade', () => {
+    expect(css).toContain('transform 360ms cubic-bezier(.2, 1.12, .3, 1)');
+    expect(css).toContain('transform 420ms cubic-bezier(.18, 1.1, .24, 1)');
     expect(css).toContain(".field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar");
     expect(css).toContain(".field-dashboard-layer[data-state='hiding'] .field-dashboard-main");
+    expect(css).toContain('transition-delay: 42ms');
     expect(css).toContain('translate3d(calc(-100% - 12px), 0, 0)');
     expect(css).toContain('translate3d(calc(100% + 12px), 0, 0)');
     expect(css).not.toContain('opacity 180ms cubic-bezier');
+    expect(css).not.toContain('transition: transform 150ms');
   });
 
-  it('keeps the reveal fence just beyond the transform duration', () => {
-    expect(shell).toContain('}, 170);');
+  it('keeps the reveal fence beyond the longest delayed transform', () => {
+    expect(shell).toContain('}, 480);');
   });
 
   it('retains reduced-motion handling', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
     expect(css).toContain('transition-duration: 0ms');
+    expect(css).toContain('transition-delay: 0ms');
   });
 });

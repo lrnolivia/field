@@ -117,7 +117,7 @@ export default function FieldShell() {
     transitionTimerRef.current = window.setTimeout(() => {
       transitionTimerRef.current = null;
       setDashboardLayerState('hidden');
-    }, 170);
+    }, 480);
   }, [clearTransitionTimer, setDashboardLayerState]);
 
   const maybeRevealProject = useCallback((id: string) => {
