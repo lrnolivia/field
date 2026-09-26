@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:56:28Z
+Last Updated: 2026-09-26T08:57:11Z
 
 ## Active Assignments
 
@@ -109,91 +109,7 @@ Protected:
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
 
-<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:START -->
-### figui3-polish-addendum-rich-inspector-popovers-20260925 — Rich Inspector Popovers + Figma-like Toolbar Parity Closeout
 
-Status: active
-Baseline: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
-Activation HEAD: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
-Last Sync: 2026-09-26T08:50:13Z
-
-Scope:
-  - canonical ToolPopup rich-editor contract
-  - Typography Advanced shell migration
-  - PresetPicker shell migration
-  - deterministic floating-surface elevation contract
-  - user-authorized narrow stacking integration in existing menu/select/modal families
-  - final owned-surface Inspector visual QA
-  - Figma-like bottom-toolbar authoring hierarchy
-  - preservation of field-only toolbar utilities in a distinct secondary cluster
-  - Inspector view-control consolidation: Theme + full Zoom
-  - compact deterministic Smart Zoom on BottomToolbar
-  - Resources toolbar entry routed to canonical Library/Media panels
-  - canonical minimal search-surface rule
-  - Media Gallery deterministic local search
-
-Owned:
-  - src/shared/field-surface-elevation.ts
-  - src/shared/field-surface-elevation.test.ts
-  - src/editor/ui/ToolPopup.tsx
-  - src/editor/ui/ToolPopup.rich-surface.test.tsx
-  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
-  - src/editor/ui/PresetPicker.tsx
-  - src/editor/figui3-inspector-rich-popover-contract.test.ts
-  - src/design-system/DropdownMenu.tsx
-  - src/editor/controls/FieldSelect.tsx
-  - src/editor/ui/SearchableDropdown.tsx
-  - src/design-system/Modal.tsx
-  - src/editor/ui/FontFamilyPopup.tsx
-  - src/editor/BottomToolbar.tsx
-  - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
-  - src/editor/controls/InspectorZoomControl.tsx
-  - src/editor/ui/ThemeNeutralPopover.tsx
-  - src/design-system/SearchBar.tsx
-  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
-  - src/editor/figui3-bottom-toolbar-polish.test.ts
-  - src/editor/figui3-toolbar-resources-view-controls.test.ts
-  - src/editor/figui3-search-surface-contract.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Coordination:
-  - begins from the completed FIELD-INSPECTOR-FIGUI3-006 command-menu postimage
-  - DropdownMenu / FieldSelect / SearchableDropdown / Modal are touched ONLY for semantic surface elevation
-  - no command-menu behavior redesign, no searchable-selector redesign, no modal redesign
-  - BottomToolbar is independently owned here; no Dashboard/Canvas panel animation files are touched
-  - toolbar reference rule: preserve existing field tools, move only their presentation/order when a Figma-like toolbar home is appropriate
-  - current user instruction explicitly requires Inspector-created menus/popups to never render underneath their parent/Inspector
-  - user explicitly authorized overriding unrelated Protected-only design-system blankets for this narrow elevation work
-  - Protected-path references in unrelated active assignments are not ownership claims
-  - explicit current user decision removes Locale and Theme from BottomToolbar
-  - Locale remains in its canonical Localization left-rail panel
-  - Theme + full Zoom move into the existing InspectorZoomControl slot
-  - Resources does not duplicate component/media storage or insertion semantics
-  - Resources opens the canonical Library or Media Gallery panel
-  - growing inventories should use design-system/SearchBar; short fixed command menus remain search-free
-  - no Dashboard/Canvas panel animation files are touched
-
-Protected:
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-
-Architecture:
-  - command/discrete menu = DropdownMenu
-  - searchable selector = SearchableDropdown / FieldSelect family
-  - rich Inspector editor = ToolPopup
-  - blocking workflow = Modal
-  - elevation is semantic and context-aware; modal scope propagates through portalled ToolPopup roots
-  - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture changes
-<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:END -->
 
 <!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:START -->
 ### field-dashboard-handoff-overlap-20260926 — Overlapped Dashboard / Editor Ownership Handoff
@@ -1525,6 +1441,19 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-26T08:57:11Z — figui3-polish-addendum-rich-inspector-popovers-20260925 — dca7cd406f66
+
+Summary: Closed the FigUI3 rich-Inspector program with semantic popup elevation, a Figma-like toolbar, canonical Resources routing, Inspector-owned Theme/full Zoom controls, compact Smart Zoom, and the field searchable-surface rule.
+
+Commit: dca7cd406f66fbfc391cec1c6ce3bb7e1c06b4ec
+
+Validation / Build / Deploy:
+  - focused regressions: passed
+  - TypeScript: passed
+  - build:all: passed
+  - Workers Builds: field: successful for exact source commit
+  - live visual QA: passed
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -3194,4 +3123,118 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:END -->
+<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:START -->
+### figui3-polish-addendum-rich-inspector-popovers-20260925 — Rich Inspector Popovers + Figma-like Toolbar Parity Closeout
+
+Status: complete
+Baseline: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
+Activation HEAD: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
+Implementation: dca7cd406f66fbfc391cec1c6ce3bb7e1c06b4ec
+Last Sync: 2026-09-26T08:57:11Z
+
+Scope:
+  - canonical ToolPopup rich-editor contract
+  - Typography Advanced shell migration
+  - PresetPicker shell migration
+  - deterministic floating-surface elevation contract
+  - user-authorized narrow stacking integration in existing menu/select/modal families
+  - final owned-surface Inspector visual QA
+  - Figma-like bottom-toolbar authoring hierarchy
+  - preservation of field-only toolbar utilities in a distinct secondary cluster
+  - Inspector view-control consolidation: Theme + full Zoom
+  - compact deterministic Smart Zoom on BottomToolbar
+  - Resources toolbar entry routed to canonical Library/Media panels
+  - canonical minimal search-surface rule
+  - Media Gallery deterministic local search
+
+Owned:
+  - src/shared/field-surface-elevation.ts
+  - src/shared/field-surface-elevation.test.ts
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/ui/ToolPopup.rich-surface.test.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/ui/PresetPicker.tsx
+  - src/editor/figui3-inspector-rich-popover-contract.test.ts
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/design-system/Modal.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
+  - src/editor/controls/InspectorZoomControl.tsx
+  - src/editor/ui/ThemeNeutralPopover.tsx
+  - src/design-system/SearchBar.tsx
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+  - src/editor/figui3-bottom-toolbar-polish.test.ts
+  - src/editor/figui3-toolbar-resources-view-controls.test.ts
+  - src/editor/figui3-search-surface-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Coordination:
+  - begins from the completed FIELD-INSPECTOR-FIGUI3-006 command-menu postimage
+  - DropdownMenu / FieldSelect / SearchableDropdown / Modal are touched ONLY for semantic surface elevation
+  - no command-menu behavior redesign, no searchable-selector redesign, no modal redesign
+  - BottomToolbar is independently owned here; no Dashboard/Canvas panel animation files are touched
+  - toolbar reference rule: preserve existing field tools, move only their presentation/order when a Figma-like toolbar home is appropriate
+  - current user instruction explicitly requires Inspector-created menus/popups to never render underneath their parent/Inspector
+  - user explicitly authorized overriding unrelated Protected-only design-system blankets for this narrow elevation work
+  - Protected-path references in unrelated active assignments are not ownership claims
+  - explicit current user decision removes Locale and Theme from BottomToolbar
+  - Locale remains in its canonical Localization left-rail panel
+  - Theme + full Zoom move into the existing InspectorZoomControl slot
+  - Resources does not duplicate component/media storage or insertion semantics
+  - Resources opens the canonical Library or Media Gallery panel
+  - growing inventories should use design-system/SearchBar; short fixed command menus remain search-free
+  - no Dashboard/Canvas panel animation files are touched
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Architecture:
+  - command/discrete menu = DropdownMenu
+  - searchable selector = SearchableDropdown / FieldSelect family
+  - rich Inspector editor = ToolPopup
+  - blocking workflow = Modal
+  - elevation is semantic and context-aware; modal scope propagates through portalled ToolPopup roots
+  - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture changes
+<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:END -->
+
+Validation:
+  - cumulative rich-popup + toolbar + view/search focused suite: passed
+  - git diff --check: passed
+  - npx tsc --noEmit --pretty false: passed
+  - npm run build:all: passed
+  - Workers Builds: field: verified successful for exact implementation commit dca7cd406f66fbfc391cec1c6ce3bb7e1c06b4ec
+  - live Design-mode visual QA: verified
+
+Result:
+  - ToolPopup remains canonical for rich Inspector editing
+  - Typography Advanced and PresetPicker remain on ToolPopup
+  - semantic workspace/modal surface elevation remains intact
+  - BottomToolbar authoring order is Select/Hand → Frame → Shape → Sketch → Text → Resources → Layout
+  - Resources routes to canonical Library/Components and Media Gallery surfaces
+  - Locale is removed from BottomToolbar and remains in Localization
+  - Inspector owns compact Theme + full Zoom controls
+  - BottomToolbar keeps a compact deterministic Smart Zoom action
+  - growing dynamic inventories converge on the canonical minimal SearchBar where appropriate
+  - Media Gallery now has deterministic local search
+  - short fixed command menus remain intentionally search-free
+  - no Dashboard/Canvas panel animation files changed
+  - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture drift
+
+Architecture drift:
+  - none
+
+
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
