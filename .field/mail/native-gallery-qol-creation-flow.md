@@ -140,3 +140,8 @@ Moving-main reconciliation before publication:
 - main-only drift was coordination/handoff-kit plus tracker.md
 - there was zero overlap with Gallery-owned source
 - no active legacy or field/control assignment owned Gallery paths
+
+
+### Natural seed algorithm refinement
+
+The pre-edit investigation sketched seed + group variation. The landed implementation deliberately refines that to one persisted seed permutation applied consistently to each four-item group. Reason: seed 0 must preserve the existing Natural composition for every group, including item 5 onward, rather than silently changing the legacy layout after migration. Shuffle still produces six deterministic useful compositions by changing which source slot owns each visual role; same seed + same source order reproduces the same result.
