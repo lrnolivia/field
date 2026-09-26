@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T07:32:23Z
+Last Updated: 2026-09-26T07:43:14Z
 
 ## Active Assignments
 
@@ -141,6 +141,74 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:END -->
+
+<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:START -->
+### figui3-polish-addendum-rich-inspector-popovers-20260925 — Rich Inspector Popovers + Figma-like Toolbar Parity Closeout
+
+Status: active
+Baseline: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
+Activation HEAD: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
+Last Sync: 2026-09-26T07:43:14Z
+
+Scope:
+  - canonical ToolPopup rich-editor contract
+  - Typography Advanced shell migration
+  - PresetPicker shell migration
+  - deterministic floating-surface elevation contract
+  - user-authorized narrow stacking integration in existing menu/select/modal families
+  - final owned-surface Inspector visual QA
+  - Figma-like bottom-toolbar authoring hierarchy
+  - preservation of field-only toolbar utilities in a distinct secondary cluster
+
+Owned:
+  - src/shared/field-surface-elevation.ts
+  - src/shared/field-surface-elevation.test.ts
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/ui/ToolPopup.rich-surface.test.tsx
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/ui/PresetPicker.tsx
+  - src/editor/figui3-inspector-rich-popover-contract.test.ts
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/design-system/Modal.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Coordination:
+  - begins from the completed FIELD-INSPECTOR-FIGUI3-006 command-menu postimage
+  - DropdownMenu / FieldSelect / SearchableDropdown / Modal are touched ONLY for semantic surface elevation
+  - no command-menu behavior redesign, no searchable-selector redesign, no modal redesign
+  - BottomToolbar is independently owned here; no Dashboard/Canvas panel animation files are touched
+  - toolbar reference rule: preserve existing field tools, move only their presentation/order when a Figma-like toolbar home is appropriate
+  - current user instruction explicitly requires Inspector-created menus/popups to never render underneath their parent/Inspector
+  - user explicitly authorized overriding unrelated Protected-only design-system blankets for this narrow elevation work
+  - Protected-path references in unrelated active assignments are not ownership claims
+
+Protected:
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Architecture:
+  - command/discrete menu = DropdownMenu
+  - searchable selector = SearchableDropdown / FieldSelect family
+  - rich Inspector editor = ToolPopup
+  - blocking workflow = Modal
+  - elevation is semantic and context-aware; modal scope propagates through portalled ToolPopup roots
+  - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture changes
+<!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:END -->
+
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
