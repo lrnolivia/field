@@ -40,18 +40,23 @@ describe('native Group transformed resize interaction policy', () => {
     expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('free');
   });
 
-  test('transformed descendants force proportional corner resize', () => {
+  test('affine-backed transformed descendants remain freely resizable from edges and corners', () => {
     const snapshot = new Map([
-      ['a', { left: 0, top: 0, width: 20, height: 20, transformed: true }],
+      ['a', {
+        left: 0, top: 0, width: 20, height: 20, transformed: true,
+        affine: { a: 0, b: 1, c: -1, d: 0, e: 20, f: 0 },
+      }],
     ]);
-    expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('force-proportional');
+    expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('free');
+    expect(nativeGroupResizeInteractionPolicy(snapshot, false)).toBe('free');
   });
 
-  test('transformed descendants block edge-only non-uniform resize', () => {
+  test('transformed descendants without exact affine capture remain blocked', () => {
     const snapshot = new Map([
       ['a', { left: 0, top: 0, width: 20, height: 20, transformed: true }],
     ]);
     expect(nativeGroupResizeInteractionPolicy(snapshot, false)).toBe('blocked');
+    expect(nativeGroupResizeInteractionPolicy(snapshot, true)).toBe('blocked');
   });
 });
 

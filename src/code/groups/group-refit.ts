@@ -614,14 +614,32 @@ export function touchesNativeGroupGeometry(styles: Record<string, string>): bool
   return Object.keys(styles).some((key) => GROUP_BOUNDS_KEYS.has(key));
 }
 
+export interface NativeGroupResizeAffine {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+}
+
+export interface NativeGroupResizeCorners {
+  TL: { x: number; y: number };
+  TR: { x: number; y: number };
+  BR: { x: number; y: number };
+  BL: { x: number; y: number };
+}
+
 export interface NativeGroupResizeBox {
   left: number;
   top: number;
   width: number;
   height: number;
-  /** The node carries a visual transform (rotate/scale/transform).
-   *  Uniform Group resize is exact; non-uniform resize is not. */
+  /** The node carries a supported visual 2D affine transform. */
   transformed?: boolean;
+  /** Effective transform rewritten around local border-box origin (0,0).
+   *  parentPoint = [left, top] + affine(localPoint). */
+  affine?: NativeGroupResizeAffine;
 }
 
 /** Start-of-gesture, parent-local geometry for every descendant of a Group. */
@@ -634,6 +652,119 @@ export function nativeGroupResizeHasTransformedGeometry(
     if (box.transformed) return true;
   }
   return false;
+}
+
+export function nativeGroupResizeHasCompleteAffineGeometry(
+  snapshot: NativeGroupResizeSnapshot,
+): boolean {
+  for (const box of snapshot.values()) {
+    if (!box.transformed) continue;
+    const affine = box.affine;
+    if (!affine) return false;
+    const values = [affine.a, affine.b, affine.c, affine.d, affine.e, affine.f];
+    if (!values.every(Number.isFinite)) return false;
+    if (Math.abs(affine.a * affine.d - affine.c * affine.b) < 1e-10) return false;
+  }
+  return true;
+}
+
+/**
+ * Source-side guard for a transformed descendant that ordinary Group Resize
+ * may canonicalize to a 2D matrix. Variant/conditional transform channels are
+ * intentionally refused: one viewport resize must not bake another viewport's
+ * transform into shared base styles. Perspective/3D and non-border transform
+ * boxes remain outside the ordinary Group Resize model.
+ */
+export function nativeGroupResizeNodeSupportsAffine(
+  node: CanvasNode,
+  width: number,
+  height: number,
+): boolean {
+  if (!(width > 0) || !(height > 0)) return false;
+  if (hasVariantOrConditionalTransformChannel(node)) return false;
+  const transformBox = node.styles?.transformBox?.trim();
+  if (transformBox && transformBox !== 'border-box') return false;
+  const transform = effectiveNodeTransform(node);
+  if (!transform || transform === 'none') return false;
+  return parseAffineTransform(transform, width, height) !== null
+    && parseTransformOrigin(node.styles?.transformOrigin, width, height) !== null;
+}
+
+function finiteResizeCorners(corners: NativeGroupResizeCorners): boolean {
+  return [corners.TL, corners.TR, corners.BR, corners.BL]
+    .every((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+}
+
+function resizeCornersAreParallelogram(corners: NativeGroupResizeCorners): boolean {
+  if (!finiteResizeCorners(corners)) return false;
+  const expectedX = corners.TR.x + corners.BL.x - corners.TL.x;
+  const expectedY = corners.TR.y + corners.BL.y - corners.TL.y;
+  const span = Math.max(
+    1,
+    Math.abs(corners.TR.x - corners.TL.x),
+    Math.abs(corners.TR.y - corners.TL.y),
+    Math.abs(corners.BL.x - corners.TL.x),
+    Math.abs(corners.BL.y - corners.TL.y),
+  );
+  const tolerance = Math.max(0.05, span * 1e-5);
+  return Math.abs(corners.BR.x - expectedX) <= tolerance
+    && Math.abs(corners.BR.y - expectedY) <= tolerance;
+}
+
+/**
+ * Recover one child's complete painted 2D affine in its immediate Group's
+ * LOCAL coordinate system. Both quads are sampled from the same canvas cache,
+ * so camera pan/zoom cancels when the parent basis is inverted.
+ */
+export function resolveNativeGroupResizeAffineFromCorners(args: {
+  childWorldCorners: NativeGroupResizeCorners;
+  parentWorldCorners: NativeGroupResizeCorners;
+  parentLocalWidth: number;
+  parentLocalHeight: number;
+  childBox: Pick<NativeGroupResizeBox, 'left' | 'top' | 'width' | 'height'>;
+}): NativeGroupResizeAffine | null {
+  const { childWorldCorners, parentWorldCorners, parentLocalWidth, parentLocalHeight, childBox } = args;
+  if (!resizeCornersAreParallelogram(childWorldCorners)
+      || !resizeCornersAreParallelogram(parentWorldCorners)) return null;
+  if (!(parentLocalWidth > 0) || !(parentLocalHeight > 0)
+      || !(childBox.width > 0) || !(childBox.height > 0)) return null;
+
+  const ux = (parentWorldCorners.TR.x - parentWorldCorners.TL.x) / parentLocalWidth;
+  const uy = (parentWorldCorners.TR.y - parentWorldCorners.TL.y) / parentLocalWidth;
+  const vx = (parentWorldCorners.BL.x - parentWorldCorners.TL.x) / parentLocalHeight;
+  const vy = (parentWorldCorners.BL.y - parentWorldCorners.TL.y) / parentLocalHeight;
+  const determinant = ux * vy - vx * uy;
+  if (![ux, uy, vx, vy, determinant].every(Number.isFinite) || Math.abs(determinant) < 1e-10) return null;
+
+  const toLocal = (point: { x: number; y: number }) => {
+    const dx = point.x - parentWorldCorners.TL.x;
+    const dy = point.y - parentWorldCorners.TL.y;
+    return {
+      x: (dx * vy - vx * dy) / determinant,
+      y: (ux * dy - dx * uy) / determinant,
+    };
+  };
+
+  const local: NativeGroupResizeCorners = {
+    TL: toLocal(childWorldCorners.TL),
+    TR: toLocal(childWorldCorners.TR),
+    BR: toLocal(childWorldCorners.BR),
+    BL: toLocal(childWorldCorners.BL),
+  };
+  if (!resizeCornersAreParallelogram(local)) return null;
+
+  const affine: NativeGroupResizeAffine = {
+    a: (local.TR.x - local.TL.x) / childBox.width,
+    b: (local.TR.y - local.TL.y) / childBox.width,
+    c: (local.BL.x - local.TL.x) / childBox.height,
+    d: (local.BL.y - local.TL.y) / childBox.height,
+    e: local.TL.x - childBox.left,
+    f: local.TL.y - childBox.top,
+  };
+  const values = [affine.a, affine.b, affine.c, affine.d, affine.e, affine.f];
+  if (!values.every(Number.isFinite)) return null;
+  if (Math.abs(affine.a * affine.d - affine.c * affine.b) < 1e-10) return null;
+  return affine;
 }
 
 /**
@@ -668,15 +799,15 @@ export function planNativeGroupResize(
   const sy = nextHeight / startHeight;
   if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
 
-  // A uniform parent-space scale commutes with rotation/visual transforms:
-  // scaling the descendant's local left/top/width/height while leaving its
-  // transform untouched produces the exact same rotated/scaled visual result.
-  //
-  // Non-uniform X/Y resize does NOT commute with rotation — reproducing that
-  // would require a real affine/Scale model (potential skew/angle change).
-  // Refuse it here rather than approximate and introduce mouse-up drift.
-  if (nativeGroupResizeHasTransformedGeometry(snapshot)
-      && Math.abs(sx - sy) > 1e-6) return null;
+  // Uniform Group resize keeps the B6 behavior: box geometry scales and the
+  // authored transform stays intact. For a NON-uniform resize, a rotated or
+  // skewed descendant needs an affine conjugation S * A * S^-1; otherwise its
+  // painted geometry drifts because non-uniform scale and rotation do not
+  // commute. This is still ordinary Resize: typography, strokes and effects
+  // remain untouched. Dedicated Scale may later scale those visual properties.
+  const nonUniform = Math.abs(sx - sy) > 1e-6;
+  if (nonUniform && nativeGroupResizeHasTransformedGeometry(snapshot)
+      && !nativeGroupResizeHasCompleteAffineGeometry(snapshot)) return null;
 
   const patches = new Map<string, Record<string, string>>();
   const groupIds: string[] = [groupId];
@@ -696,12 +827,45 @@ export function planNativeGroupResize(
       if (box.width < 0 || box.height < 0) return false;
 
       // Geometry only. Do not touch fontSize/lineHeight/stroke/filter/etc.
-      mergePatch(patches, childId, {
+      const styles: Record<string, string> = {
         left: fmtPx(box.left * sx),
         top: fmtPx(box.top * sy),
         width: fmtPx(box.width * sx),
         height: fmtPx(box.height * sy),
-      });
+      };
+
+      if (nonUniform && box.transformed) {
+        const affine = box.affine;
+        if (!affine || !nativeGroupResizeNodeSupportsAffine(child, box.width, box.height)) return false;
+
+        // CSS matrix(a,b,c,d,e,f) maps local point p to A*p+t. The Group
+        // resize maps parent coordinates through S=diag(sx,sy), while the
+        // child's own box coordinates are ALSO resized by S. Therefore the
+        // exact post-resize child affine is S*A*S^-1 with translation S*t.
+        const nextAffine: NativeGroupResizeAffine = {
+          a: affine.a,
+          b: affine.b * sy / sx,
+          c: affine.c * sx / sy,
+          d: affine.d,
+          e: affine.e * sx,
+          f: affine.f * sy,
+        };
+        const determinant = nextAffine.a * nextAffine.d - nextAffine.c * nextAffine.b;
+        if (![nextAffine.a, nextAffine.b, nextAffine.c, nextAffine.d, nextAffine.e, nextAffine.f]
+          .every(Number.isFinite) || Math.abs(determinant) < 1e-10) return false;
+
+        styles.transform = 'matrix(' + [
+          nextAffine.a, nextAffine.b, nextAffine.c,
+          nextAffine.d, nextAffine.e, nextAffine.f,
+        ].map(fmtAffineScalar).join(', ') + ')';
+        styles.transformOrigin = '0px 0px';
+        styles.transformBox = 'border-box';
+        for (const key of REBASE_TRANSFORM_STYLE_KEYS) {
+          if (child.styles?.[key] != null && child.styles[key] !== '') styles[key] = '';
+        }
+      }
+
+      mergePatch(patches, childId, styles);
 
       if (child.isGroup) {
         groupIds.push(child.id);

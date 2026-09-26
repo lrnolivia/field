@@ -6,7 +6,9 @@ import {
   planNativeGroupResize,
   planNativeGroupRefit,
   planNativeGroupRefitChain,
+  resolveNativeGroupResizeAffineFromCorners,
   touchesNativeGroupGeometry,
+  type NativeGroupResizeSnapshot,
 } from './group-refit';
 
 function node(
@@ -538,28 +540,109 @@ describe('native Group resize planning', () => {
     expect(patch?.boxShadow).toBeUndefined();
   });
 
-  it('refuses non-uniform resize when transformed descendants are present', () => {
+  it('supports exact non-uniform resize with transformed descendants', () => {
     const g = node('g', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['a'] });
     const a = node('a', 'g', {
       position: 'absolute',
       left: '10px',
       top: '20px',
-      width: '30px',
-      height: '40px',
-      transform: 'rotate(30deg)',
+      width: '20px',
+      height: '10px',
+      transform: 'rotate(90deg)',
+      boxShadow: '0 0 4px #000',
     });
-    const snapshot = new Map([
-      ['a', { left: 10, top: 20, width: 30, height: 40, transformed: true }],
+    const snapshot: NativeGroupResizeSnapshot = new Map([
+      ['a', {
+        left: 10, top: 20, width: 20, height: 10, transformed: true,
+        affine: { a: 0, b: 1, c: -1, d: 0, e: 15, f: -5 },
+      }],
     ]);
-    expect(planNativeGroupResize({
+    const plan = planNativeGroupResize({
       groupId: 'g',
       nodes: new Map([[g.id, g], [a.id, a]]),
       snapshot,
       startWidth: 100,
       startHeight: 100,
-      nextWidth: 150,
-      nextHeight: 125,
+      nextWidth: 200,
+      nextHeight: 100,
+    });
+    const patch = plan?.patches.find((p) => p.nodeId === 'a')?.styles;
+    expect(patch).toMatchObject({
+      left: '20px', top: '20px', width: '40px', height: '10px',
+      transform: 'matrix(0, 0.5, -2, 0, 30, -5)',
+      transformOrigin: '0px 0px', transformBox: 'border-box',
+    });
+    expect(patch?.boxShadow).toBeUndefined();
+  });
+
+  it('affine-conjugates transformed nested Groups while scaling nested child boxes once', () => {
+    const outer = node('outer', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['inner'] });
+    const inner = node('inner', 'outer', {
+      position: 'absolute', left: '10px', top: '20px', width: '40px', height: '40px', transform: 'rotate(90deg)',
+    }, { isGroup: true, children: ['leaf'] });
+    const leaf = node('leaf', 'inner', { position: 'absolute', left: '5px', top: '6px', width: '10px', height: '12px' });
+    const snapshot: NativeGroupResizeSnapshot = new Map([
+      ['inner', {
+        left: 10, top: 20, width: 40, height: 40, transformed: true,
+        affine: { a: 0, b: 1, c: -1, d: 0, e: 40, f: 0 },
+      }],
+      ['leaf', { left: 5, top: 6, width: 10, height: 12 }],
+    ]);
+    const plan = planNativeGroupResize({
+      groupId: 'outer', nodes: new Map([[outer.id, outer], [inner.id, inner], [leaf.id, leaf]]), snapshot,
+      startWidth: 100, startHeight: 100, nextWidth: 200, nextHeight: 50,
+    });
+    const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+    expect(out.get('inner')).toMatchObject({
+      left: '20px', top: '10px', width: '80px', height: '20px',
+      transform: 'matrix(0, 0.25, -4, 0, 80, 0)',
+    });
+    expect(out.get('leaf')).toEqual({ left: '10px', top: '3px', width: '20px', height: '6px' });
+  });
+
+  it('canonicalizes base motion transform channels but refuses transform-bearing variants', () => {
+    const g = node('g', 'root', { position: 'absolute', width: '100px', height: '100px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', {
+      position: 'absolute', left: '10px', top: '20px', width: '20px', height: '10px', rotate: '90',
+    });
+    const snapshot: NativeGroupResizeSnapshot = new Map([
+      ['a', {
+        left: 10, top: 20, width: 20, height: 10, transformed: true,
+        affine: { a: 0, b: 1, c: -1, d: 0, e: 15, f: -5 },
+      }],
+    ]);
+    const plan = planNativeGroupResize({
+      groupId: 'g', nodes: new Map([[g.id, g], [a.id, a]]), snapshot,
+      startWidth: 100, startHeight: 100, nextWidth: 200, nextHeight: 100,
+    });
+    expect(plan?.patches.find((p) => p.nodeId === 'a')?.styles).toMatchObject({
+      transform: 'matrix(0, 0.5, -2, 0, 30, -5)', rotate: '',
+    });
+
+    const variant = node('a', 'g', {
+      position: 'absolute', left: '10px', top: '20px', width: '20px', height: '10px', transform: 'rotate(90deg)',
+    }, { motionVariants: { hover: { rotate: '45' } } as any });
+    expect(planNativeGroupResize({
+      groupId: 'g', nodes: new Map([[g.id, g], [variant.id, variant]]), snapshot,
+      startWidth: 100, startHeight: 100, nextWidth: 200, nextHeight: 100,
     })).toBeNull();
+  });
+
+  it('recovers child affine in a rotated parent basis instead of using world AABBs', () => {
+    const affine = resolveNativeGroupResizeAffineFromCorners({
+      childWorldCorners: {
+        TL: { x: 160, y: 90 }, TR: { x: 200, y: 90 },
+        BR: { x: 200, y: 110 }, BL: { x: 160, y: 110 },
+      },
+      parentWorldCorners: {
+        TL: { x: 190, y: 40 }, TR: { x: 190, y: 140 },
+        BR: { x: 110, y: 140 }, BL: { x: 110, y: 40 },
+      },
+      parentLocalWidth: 100,
+      parentLocalHeight: 80,
+      childBox: { left: 50, top: 30, width: 40, height: 20 },
+    });
+    expect(affine).toEqual({ a: 0, b: -1, c: 1, d: 0, e: 0, f: 0 });
   });
 });
 
