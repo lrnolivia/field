@@ -8,6 +8,7 @@ branch: field/field-root-instruction-cleanup
 pr: null
 base: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
 kit: 2026-09-26.2
+target_kit: 2026-09-26.3
 type: repair
 execution_class: contract-worker
 owned:
@@ -17,6 +18,10 @@ owned:
   - .field/handoff-kit/ASSIGNMENT_AUTHORING.md
   - .field/handoff-kit/CHAT_BOOTSTRAP.md
   - .field/handoff-kit/tests/contract_worker_v2_test.py
+`  - .field/handoff-kit/VERSION
+  - .field/handoff-kit/manifest.json
+  - .field/handoff-kit/README.md
+  - .field/handoff-kit/tests/kit_self_test.py
 approved_shared: []
 protected:
   - src/**
@@ -91,6 +96,7 @@ Rewrite only the owned instruction/process files so they are field-native, route
 - [ ] useful architecture invariants remain
 - [ ] setup/test/build/e2e commands match current `package.json`
 - [ ] contract/bootstrap/authoring docs explicitly require fixing artificial blockers
-- [ ] regression test asserts the blocker rule exists
+- [ ] handoff kit is bumped to `2026-09-26.3`
+- [ ] regression/self-tests assert the blocker rule and version
 - [ ] no product source/config changes
 - [ ] docs/process-only diff is reviewed and merged
