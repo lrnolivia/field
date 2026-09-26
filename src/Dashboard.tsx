@@ -11,19 +11,21 @@ import {
   trashFieldProject,
   type FieldProjectMeta,
 } from '@/backend/field-projects';
+import {
+  openFieldProject,
+  releaseFieldProjectReveal,
+} from '@/backend/field-navigation';
 import DashboardHeader from '@/dashboard/DashboardHeader';
 import DashboardSidebar from '@/dashboard/DashboardSidebar';
 import DashboardLoadingGrid from '@/dashboard/DashboardLoadingGrid';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
+import NewProjectWizard from '@/dashboard/NewProjectWizard';
+import { createNewProjectData, type NewProjectSettings } from '@/dashboard/new-project-model';
 import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
 import { createDashboardLoadingController } from '@/dashboard/dashboard-loading';
 import { bindDashboardProjectEvents, createDashboardProjectRefreshController } from '@/dashboard/dashboard-realtime';
-
-function navigateToProject(project: FieldProjectMeta) {
-  window.location.href = `/builder/${encodeURIComponent(project.id)}`;
-}
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<FieldProjectMeta[]>([]);
@@ -32,6 +34,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshingProjectIds, setRefreshingProjectIds] = useState<Set<string>>(() => new Set());
   const [creating, setCreating] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<FieldProjectMeta | null>(null);
@@ -107,6 +110,14 @@ export default function Dashboard() {
     });
   };
 
+  const openProject = (project: FieldProjectMeta) => {
+    setError(null);
+    setOpenMenuId(null);
+    void openFieldProject(project.id).catch((cause) => {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    });
+  };
+
   const runProjectAction = async (
     project: FieldProjectMeta,
     action: () => Promise<FieldProjectMeta>,
@@ -123,14 +134,27 @@ export default function Dashboard() {
     }
   };
 
-  const createProject = async () => {
+  const createConfiguredProject = async (settings: NewProjectSettings): Promise<FieldProjectMeta> => {
     setCreating(true);
     setError(null);
     try {
-      const project = await createFieldProject();
-      navigateToProject(project);
+      let project = await createFieldProject();
+      const name = settings.name.trim() || 'Untitled';
+      if (name !== project.name) {
+        project = await renameFieldProject(project.id, name);
+      }
+      await backend.saveProject(project.id, createNewProjectData(settings));
+      replaceProject(project);
+      // Start the real Canvas behind the Dashboard while the wizard shows its
+      // short Done state. The shell only reveals once both this hold is
+      // released AND ProjectLoader reports a painted canvas.
+      await openFieldProject(project.id, { holdReveal: true });
+      return project;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setError(message);
+      throw cause instanceof Error ? cause : new Error(message);
+    } finally {
       setCreating(false);
     }
   };
@@ -164,7 +188,15 @@ export default function Dashboard() {
       />
 
       <main className="field-dashboard-main">
-        <DashboardHeader view={view} count={visibleProjects.length} creating={creating} onCreate={createProject} />
+        <DashboardHeader
+          view={view}
+          count={visibleProjects.length}
+          creating={creating}
+          onCreate={() => {
+            setError(null);
+            setNewProjectOpen(true);
+          }}
+        />
 
         <section className="field-dashboard-content" aria-live="polite">
           {error && (
@@ -182,7 +214,7 @@ export default function Dashboard() {
               refreshingProjectIds={refreshingProjectIds}
               openMenuId={openMenuId}
               onOpenMenuId={setOpenMenuId}
-              onOpen={navigateToProject}
+              onOpen={openProject}
               onRename={(project) => {
                 setOpenMenuId(null);
                 setRenameTarget(project);
@@ -209,6 +241,18 @@ export default function Dashboard() {
           void runProjectAction(target, () => renameFieldProject(target.id, name)).then(() => {
             setRenameTarget(null);
           });
+        }}
+      />
+
+      <NewProjectWizard
+        open={newProjectOpen}
+        onClose={() => {
+          if (!creating) setNewProjectOpen(false);
+        }}
+        onCreate={createConfiguredProject}
+        onDone={(project) => {
+          setNewProjectOpen(false);
+          releaseFieldProjectReveal(project.id);
         }}
       />
     </div>

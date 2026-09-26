@@ -16,7 +16,7 @@ import { trace } from '@/shared/debug-trace';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
-import { leaveBuilderTo } from '@/backend/leave-builder';
+import { showFieldDashboard } from '@/backend/field-navigation';
 import { getHeaderPageLabel } from './project-chip-label';
 
 export default function ProjectChip() {
@@ -73,7 +73,7 @@ export default function ProjectChip() {
       label: 'Go to Dashboard',
       onClick: () => {
         trace.action('project-chip:dashboard');
-        void leaveBuilderTo('/', 'project-chip-dashboard');
+        void showFieldDashboard();
       },
     },
   ], [isViewer, setExportOpen, setSettingsOpen, setSettingsSection]);

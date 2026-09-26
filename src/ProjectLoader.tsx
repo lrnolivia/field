@@ -41,7 +41,11 @@ import { migrateFormSubmitDisplayTransitions } from '@/code/generation/form-subm
 import { getI18nConfig } from '@/code/project/locale-ops';
 import { openPluginIdAtom } from '@/plugins/registry';
 
-export default function ProjectLoader() {
+interface ProjectLoaderProps {
+  onCanvasReady?: () => void;
+}
+
+export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}) {
   const [ready, setReady] = useState(false);
   // When set, a `?remix=` load is paused on the workspace picker — the
   // remix only runs once the user chooses a workspace (see below).
@@ -555,7 +559,7 @@ export default function ProjectLoader() {
   return (
     <>
       <App />
-      <CanvasReadyShellOverlay />
+      <CanvasReadyShellOverlay onReady={onCanvasReady} />
       {/* The remix picker rides ON TOP of the mounted builder so the choice is
           made over the template the user is looking at. Blocking — see the
           component: no ×, no Escape, no backdrop. */}
@@ -564,7 +568,7 @@ export default function ProjectLoader() {
   );
 }
 
-function CanvasReadyShellOverlay() {
+function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
   const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
   useEffect(() => {
     let cancelled = false;
@@ -587,9 +591,12 @@ function CanvasReadyShellOverlay() {
   useEffect(() => {
     if (phase !== 'fading') return;
     trace.action('project-loader:shell-overlay-fade', {});
-    const t = setTimeout(() => setPhase('done'), 280);
+    const t = setTimeout(() => {
+      setPhase('done');
+      onReady?.();
+    }, 280);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [onReady, phase]);
   if (phase === 'done') return null;
   return (
     <div style={{
