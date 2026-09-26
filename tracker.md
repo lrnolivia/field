@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:50:13Z
+Last Updated: 2026-09-26T08:56:28Z
 
 ## Active Assignments
 
@@ -1510,6 +1510,18 @@ Paths:
   - src/editor/EditorEntranceCoordinator.tsx
   - src/field-shell-motion.test.ts
   - src/field-shell-motion.ts
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T08:56:28Z — field-dashboard-handoff-overlap-20260926 — cba42ea5c2a7
+
+Summary: Slow-motion capture isolated a fully assembled Dashboard ghost frame. The repair keeps Dashboard slab transforms in persistent inline ownership after WAAPI completion and visibility-hides only the completed hidden Dashboard layer, eliminating the CSS rest-state exposure without retuning motion.
+Commit: cba42ea5c2a762dec7882da763d4842354f76140
+
+Paths:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.test.ts
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
