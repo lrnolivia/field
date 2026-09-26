@@ -45,6 +45,23 @@ export function galleryCarouselSlideDomId(itemId: string): string {
   return 'field-gallery-slide-' + itemId.replace(/[^A-Za-z0-9_-]+/g, '-');
 }
 
+export function galleryCarouselSlideAttrs(itemId: string, index: number, total: number): Record<string, string> {
+  return {
+    id: galleryCarouselSlideDomId(itemId),
+    role: 'group',
+    'aria-roledescription': 'slide',
+    'aria-label': String(index + 1) + ' of ' + total,
+  };
+}
+
+export function galleryCarouselSlideResetAttrs(): Record<string, string> {
+  return {
+    role: '',
+    'aria-roledescription': '',
+    'aria-label': '',
+  };
+}
+
 export function isGalleryNode(node: CanvasNode | null | undefined): boolean {
   if (!node) return false;
   // Current source identity: a harmless, parsed CSS custom property. This
@@ -91,10 +108,12 @@ export function getGalleryItems(gallery: CanvasNode, nodes: Map<string, CanvasNo
 }
 
 export function galleryRootAttrs(view: GalleryViewId): Record<string, string> {
-  return {
+  const attrs: Record<string, string> = {
     role: 'region',
     'aria-label': galleryAriaLabel(view),
   };
+  if (view === 'carousel') attrs['aria-roledescription'] = 'carousel';
+  return attrs;
 }
 
 export interface GallerySourceNode {

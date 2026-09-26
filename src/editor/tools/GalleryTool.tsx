@@ -12,7 +12,9 @@ import { useNodesComputed } from '@/code/stores/node-family';
 import {
   buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
-  galleryCarouselSlideDomId,
+  galleryCarouselSlideAttrs,
+  galleryCarouselSlideResetAttrs,
+  galleryRootAttrs,
   getGalleryCarouselControls,
   getGalleryItems,
   getGalleryView,
@@ -20,7 +22,6 @@ import {
 } from '@/code/gallery/gallery-model';
 import {
   GALLERY_VIEWS,
-  galleryAriaLabel,
   getGalleryImagePatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
@@ -56,14 +57,22 @@ function removeGalleryCarouselControlMutations(items: readonly GalleryCarouselSy
   return items.flatMap((item) => item.controlIds.map((controlId) => ({ type: 'removeNode' as const, nodeId: controlId })));
 }
 
+function clearGalleryCarouselSlideMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
+  return items.map((item) => ({
+    type: 'updateHtmlAttrs' as const,
+    nodeId: item.itemId,
+    attrs: galleryCarouselSlideResetAttrs(),
+  }));
+}
+
 function buildGalleryCarouselSyncMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
   const itemIds = items.map((item) => item.itemId);
   return [
     ...removeGalleryCarouselControlMutations(items),
-    ...items.map((item) => ({
+    ...items.map((item, index) => ({
       type: 'updateHtmlAttrs' as const,
       nodeId: item.itemId,
-      attrs: { id: galleryCarouselSlideDomId(item.itemId) },
+      attrs: galleryCarouselSlideAttrs(item.itemId, index, itemIds.length),
     })),
     ...items.flatMap((item, index) => buildGalleryCarouselControlNodes(itemIds, index).map((node) => ({
       type: 'addNode' as const,
@@ -197,11 +206,15 @@ function GalleryToolInner() {
     // per-breakpoint Gallery document.
     mutations.push({ type: 'updateStyles', nodeId: galleryId, styles: rootPatch });
     mutations.push(...clearResponsivePatchMutations(galleryId, rootPatch, responsiveOverrides));
-    const accessibleLabel = galleryAriaLabel(view);
-    bridge.setAttribute(galleryId, prefix, 'aria-label', accessibleLabel);
+    const rootAttrs: Record<string, string> = {
+      ...galleryRootAttrs(view),
+      'aria-roledescription': view === 'carousel' ? 'carousel' : '',
+    };
+    bridge.setAttribute(galleryId, prefix, 'aria-label', rootAttrs['aria-label']);
+    bridge.setAttribute(galleryId, prefix, 'aria-roledescription', rootAttrs['aria-roledescription']);
     // Also migrates first-draft `Gallery — View` source back to a normal
-    // accessible name now that view identity lives in the custom property.
-    mutations.push({ type: 'updateHtmlAttrs', nodeId: galleryId, attrs: { 'aria-label': accessibleLabel } });
+    // accessible name and removes Carousel-only semantics when another view is active.
+    mutations.push({ type: 'updateHtmlAttrs', nodeId: galleryId, attrs: rootAttrs });
 
     items.forEach((item, index) => {
       const itemPatch = getGalleryItemPatch(view, index);
@@ -223,7 +236,10 @@ function GalleryToolInner() {
 
     mutations.push(...(view === 'carousel'
       ? buildGalleryCarouselSyncMutations(items)
-      : removeGalleryCarouselControlMutations(items)));
+      : [
+          ...removeGalleryCarouselControlMutations(items),
+          ...clearGalleryCarouselSlideMutations(items),
+        ]));
 
     queueMutations(mutations);
     flushNow();

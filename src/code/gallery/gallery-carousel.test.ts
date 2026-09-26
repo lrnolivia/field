@@ -7,7 +7,13 @@ import {
   getGalleryItemPatch,
   getGalleryRootPatch,
 } from './gallery-views';
-import { buildGalleryCarouselControlNodes, galleryCarouselSlideDomId } from './gallery-model';
+import {
+  buildGalleryCarouselControlNodes,
+  galleryCarouselSlideAttrs,
+  galleryCarouselSlideDomId,
+  galleryCarouselSlideResetAttrs,
+  galleryRootAttrs,
+} from './gallery-model';
 
 describe('Gallery runtime carousel', () => {
   it('promotes Carousel to an available native runtime view', () => {
@@ -64,6 +70,29 @@ describe('Gallery runtime carousel', () => {
       textContent: '›',
       attrs: { href: `#${galleryCarouselSlideDomId('item b')}`, 'aria-label': 'Next image' },
       styles: { [GALLERY_CAROUSEL_CONTROL_STYLE_PROPERTY]: 'next' },
+    });
+  });
+
+  it('emits source-backed accessible carousel and slide semantics', () => {
+    expect(galleryRootAttrs('carousel')).toEqual({
+      role: 'region',
+      'aria-label': 'Gallery',
+      'aria-roledescription': 'carousel',
+    });
+    expect(galleryRootAttrs('grid')).toEqual({
+      role: 'region',
+      'aria-label': 'Gallery',
+    });
+    expect(galleryCarouselSlideAttrs('gallery:item/42', 1, 3)).toEqual({
+      id: 'field-gallery-slide-gallery-item-42',
+      role: 'group',
+      'aria-roledescription': 'slide',
+      'aria-label': '2 of 3',
+    });
+    expect(galleryCarouselSlideResetAttrs()).toEqual({
+      role: '',
+      'aria-roledescription': '',
+      'aria-label': '',
     });
   });
 
