@@ -1,6 +1,7 @@
 // DropdownMenu.tsx — Centralized dropdown menu matching context menu design.
 // FIGUI3_SIDEBAR_DROPDOWN_20260925
 // FIELD_SCROLL_INTEGRITY_DROPDOWN_20260925
+// FIELD_INSPECTOR_COMMAND_MENU_006
 // Used for: Components +, Pages +, toolbar dropdowns, any popup menu.
 // Configurable hover accent: blue (context menu) or subtle gray (panel menus).
 //
@@ -12,12 +13,14 @@
 //   cursor moves between parent item and submenu so the user can navigate
 //   without closing accidentally.
 
-import { useRef, useEffect, useLayoutEffect, useState, useMemo, type ReactNode } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useMemo, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface DropdownMenuItem {
   id: string;
   label: string;
+  /** Optional native tooltip for disabled or explanatory commands. */
+  title?: string;
   icon?: ReactNode;
   /** Right-side icon — rendered between the label and the shortcut.
    *  Used by the Preferences submenu's check glyph so it sits at the
@@ -107,6 +110,9 @@ interface DropdownMenuProps {
   /** Compact command-menu density. Opt-in so existing dropdowns retain
    *  their current touch targets; used by the project/title menu. */
   density?: 'default' | 'compact';
+  /** Optional enabled item id to receive initial keyboard focus when an
+   *  ordinary trigger-anchored menu opens. Falls back to the first enabled row. */
+  preferredFocusItemId?: string;
 }
 
 /** Recursively collect ENABLED leaf items (no submenu) whose label matches
@@ -187,6 +193,12 @@ interface MenuPanelProps {
   searchable?: boolean;
   /** Root menu density; cascading submenus keep default density. */
   density?: 'default' | 'compact';
+  /** Move keyboard focus into the menu when it mounts. */
+  autoFocusFirst?: boolean;
+  /** Preferred initial item; disabled/missing ids fall back to first enabled. */
+  preferredFocusItemId?: string;
+  /** Submenus use Left Arrow to close themselves and restore parent focus. */
+  onArrowLeft?: () => void;
 }
 
 /** Sentinel `openSubId` value for the search-results flyout. It shares the
@@ -195,28 +207,127 @@ interface MenuPanelProps {
  *  flyout with that item's normal submenu. */
 const SEARCH_SUB_ID = '__search__';
 
-function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable, density = 'default' }: MenuPanelProps) {
+function MenuPanel({
+  items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable,
+  density = 'default', autoFocusFirst = false, preferredFocusItemId, onArrowLeft,
+}: MenuPanelProps) {
   const compact = density === 'compact';
-  // Track which item's submenu is currently shown (one at a time). Set
-  // on hover-enter, cleared when hovering a sibling item that has no
-  // submenu. Submenu portal manages its own outside-click via this same
-  // root onClose, so closing the root cascades down.
   const [openSubId, setOpenSubId] = useState<string | null>(null);
+  const [keyboardSubId, setKeyboardSubId] = useState<string | null>(null);
   const itemRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  // ── Search (root menu only) ──
-  // The flyout opens ONLY on a query CHANGE (type or delete a letter) —
-  // re-focusing the input alone never reopens it; the user has to alter
-  // the text. State resets naturally on menu close (panel unmounts).
+  // Search remains the primary focus target for searchable root menus.
   const [query, setQuery] = useState('');
-  // Anchor the results flyout to the PANEL (not the search row): the row
-  // sits below the panel's top padding, so row-anchoring rendered the
-  // flyout slightly lower than the menu. Panel-anchoring top-aligns both.
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchResults = useMemo(
     () => (searchable && query.trim() ? collectMatchingLeaves(items, query) : []),
     [searchable, items, query],
   );
+  const normalizedItems = useMemo(() => normalizeSeparators(items), [items]);
+  const navigableItems = useMemo(
+    () => normalizedItems.filter((entry): entry is DropdownMenuItem => !isSeparator(entry) && !entry.disabled),
+    [normalizedItems],
+  );
+  const didInitialFocus = useRef(false);
+
+  const focusItem = (id: string | undefined) => {
+    if (!id) return;
+    itemRefs.current.get(id)?.focus();
+  };
+
+  const focusByOffset = (currentId: string | undefined, offset: number) => {
+    if (navigableItems.length === 0) return;
+    const currentIndex = currentId ? navigableItems.findIndex(item => item.id === currentId) : -1;
+    const baseIndex = currentIndex >= 0 ? currentIndex : (offset > 0 ? -1 : 0);
+    const nextIndex = (baseIndex + offset + navigableItems.length) % navigableItems.length;
+    focusItem(navigableItems[nextIndex]?.id);
+  };
+
+  useLayoutEffect(() => {
+    if (didInitialFocus.current) return;
+    if (searchable) {
+      searchInputRef.current?.focus();
+      didInitialFocus.current = true;
+      return;
+    }
+    if (!autoFocusFirst || navigableItems.length === 0) return;
+    const preferred = preferredFocusItemId
+      ? navigableItems.find(item => item.id === preferredFocusItemId)
+      : undefined;
+    focusItem((preferred ?? navigableItems[0])?.id);
+    didInitialFocus.current = true;
+  }, [autoFocusFirst, navigableItems, preferredFocusItemId, searchable]);
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      // Do not trap Tab. Closing lets normal browser focus traversal continue.
+      onClose();
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target === searchInputRef.current) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpenSubId(null);
+        setKeyboardSubId(null);
+        focusItem(event.key === 'ArrowDown'
+          ? navigableItems[0]?.id
+          : navigableItems[navigableItems.length - 1]?.id);
+      }
+      return;
+    }
+
+    const button = target.closest<HTMLButtonElement>('[data-dropdown-menu-item-id]');
+    if (!button || !panelRef.current?.contains(button)) return;
+    const currentId = button.dataset.dropdownMenuItemId;
+    const currentEntry = normalizedItems.find(entry => !isSeparator(entry) && entry.id === currentId);
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+      focusByOffset(currentId, 1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      focusByOffset(currentId, -1);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      event.stopPropagation();
+      focusItem(navigableItems[0]?.id);
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      focusItem(navigableItems[navigableItems.length - 1]?.id);
+      return;
+    }
+    if (event.key === 'ArrowRight' && currentEntry && !isSeparator(currentEntry) && currentEntry.submenuItems?.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpenSubId(currentEntry.id);
+      setKeyboardSubId(currentEntry.id);
+      return;
+    }
+    if (event.key === 'ArrowLeft' && onArrowLeft) {
+      event.preventDefault();
+      event.stopPropagation();
+      onArrowLeft();
+      return;
+    }
+    if ((event.key === 'Enter' || event.key === ' ') && !button.disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      button.click();
+    }
+  };
 
   const itemHoverClass = hoverStyle === 'accent'
     ? 'hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]'
@@ -230,12 +341,13 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
       }}
       data-field-no-canvas-input
       data-scroll-surface="dropdown-menu"
+      role="menu"
+      aria-orientation="vertical"
+      onKeyDown={handleKeyDown}
       onWheel={(event) => event.stopPropagation()}
       className="fixed rounded-[8px] bg-[var(--dropdown-bg,var(--bg-surface))] border border-[var(--border-light)]"
       style={{
         ...style,
-        // A fixed width wins outright: `minWidth` would let the panel grow past
-        // the anchor again, which is the overflow this exists to stop.
         ...(width ? { width, minWidth: 0 } : { minWidth }),
         whiteSpace: 'nowrap',
         zIndex: 99998,
@@ -257,27 +369,23 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
+              ref={searchInputRef}
               value={query}
               onChange={(e) => {
                 const v = e.target.value;
                 setQuery(v);
-                // Open/refresh the flyout on every text CHANGE; clearing
-                // the field closes it. Focus alone never opens it.
                 setOpenSubId(v.trim() ? SEARCH_SUB_ID : null);
+                setKeyboardSubId(null);
               }}
               placeholder="Type to search..."
               spellCheck={false}
               className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
             />
           </div>
-          <div className="h-px bg-white/10 mx-2 my-1" />
+          <div role="separator" className="h-px bg-white/10 mx-2 my-1" />
         </>
       )}
 
-      {/* Search-results flyout — combined matching leaves from the whole
-          tree, anchored beside the search row like a regular submenu.
-          Leaving its panel is a no-op (it closes only via a real item
-          hover, clearing the query, or closing the menu). */}
       {searchable && openSubId === SEARCH_SUB_ID && searchResults.length > 0 && createPortal(
         <CascadingSubmenu
           parentEl={panelRef.current}
@@ -289,37 +397,32 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
         document.body,
       )}
 
-      {normalizeSeparators(items).map((entry, i) => {
+      {normalizedItems.map((entry, i) => {
         if (isSeparator(entry)) {
-          return <div key={`sep-${i}`} className={`h-px bg-white/10 mx-2 ${compact ? 'my-0.5' : 'my-1'}`} />;
+          return <div key={`sep-${i}`} role="separator" className={`h-px bg-white/10 mx-2 ${compact ? 'my-0.5' : 'my-1'}`} />;
         }
 
         const hasSubmenu = (entry.submenuItems && entry.submenuItems.length > 0) || entry.hasSubmenu;
         const isOpen = openSubId === entry.id;
-        // Row is FILLED with --accent because its submenu is open. The resting
-        // text colour must then be omitted rather than overridden: both are
-        // plain single-class utilities, so which one wins depends on their
-        // order in the generated stylesheet, not on the order here. While the
-        // cursor sat on the row the `hover:` variant out-specified the resting
-        // colour and it looked right — the moment the cursor moved into the
-        // submenu the hover dropped and the label flipped back to
-        // --text-primary (white) on the gold fill, unreadable.
         const accentFilled = isOpen && !entry.danger && !entry.disabled && hoverStyle === 'accent';
 
         return (
           <div key={entry.id} className="relative">
             <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              data-dropdown-menu-item-id={entry.id}
+              aria-disabled={entry.disabled || undefined}
+              aria-haspopup={hasSubmenu ? 'menu' : undefined}
+              aria-expanded={hasSubmenu ? isOpen : undefined}
+              title={entry.title}
               ref={(el) => {
                 if (el) itemRefs.current.set(entry.id, el);
                 else itemRefs.current.delete(entry.id);
               }}
               onMouseEnter={() => {
-                // Hovering an item with a submenu opens it; hovering a
-                // leaf item closes any sibling's submenu so only one is
-                // ever visible at a time. Disabled items neither open
-                // their submenu nor close the currently-open sibling
-                // submenu — same drop-through behaviour the native
-                // disabled HTML attribute gives for clicks.
+                setKeyboardSubId(null);
                 if (entry.disabled) return;
                 if (entry.submenuItems && entry.submenuItems.length > 0) {
                   setOpenSubId(entry.id);
@@ -328,17 +431,7 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
                 }
               }}
               onClick={(e) => {
-                // React synthetic events bubble through the React tree
-                // (not the DOM tree) — so a click in this portaled menu
-                // would otherwise fire the host row's `onClick={onEdit}`
-                // and open the component editor on top of running the
-                // menu action. Stop the propagation explicitly so menu
-                // clicks stay scoped to the item.
                 e.stopPropagation();
-                // Parent items (those with a submenu) don't fire onClick
-                // — the submenu opens on hover and the user clicks a leaf
-                // inside it. Skipping the click here also prevents an
-                // accidental tap from collapsing the cascade.
                 if (entry.submenuItems && entry.submenuItems.length > 0) return;
                 entry.onClick();
                 if (!entry.keepOpen) onClose();
@@ -349,18 +442,10 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
                 w-[calc(100%-12px)] rounded-[5px]
                 text-xs
                 ${entry.disabled
-                  // Disabled items: no hover, no pointer, no
-                  // open-state highlight — just greyed-out text.
-                  // (Tailwind's `hover:` selector still fires on
-                  // disabled buttons, so we have to OMIT the hover
-                  // classes entirely rather than rely on `disabled:`.)
                   ? 'opacity-40 cursor-default text-[var(--text-primary)]'
                   : entry.danger
                     ? 'text-red-400 hover:bg-red-500/15 hover:text-red-300 cursor-pointer'
                     : entry.accent
-                      // While the submenu is open the row is filled with
-                      // --accent, so its resting text colour is OMITTED — see
-                      // the note on `accentFilled` below.
                       ? `${accentFilled ? '' : 'text-[var(--accent-text)]'} font-semibold ${itemHoverClass} cursor-pointer`
                       : `${accentFilled ? '' : 'text-[var(--text-primary)]'} ${itemHoverClass} cursor-pointer`
                 }
@@ -368,14 +453,11 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
                   ? (hoverStyle === 'accent' ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'bg-[var(--bg-hover)]')
                   : ''
                 }
+                ${entry.disabled ? '' : 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection,var(--accent))]'}
               `}
             >
               {entry.icon && <span className="shrink-0 w-4 flex items-center justify-center opacity-80 group-hover:opacity-100">{entry.icon}</span>}
               <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? entry.label : undefined}>{entry.label}</span>
-              {/* `min-w-4` rather than `w-4`: a single glyph still lands on the same
-                  column as every other menu's checkmark, but a richer trailing
-                  slot (the theme rows pair an accent swatch with the check) can
-                  grow instead of being squeezed into 16px. */}
               {entry.trailingIcon && <span className="shrink-0 min-w-4 flex items-center justify-center opacity-90 group-hover:opacity-100">{entry.trailingIcon}</span>}
               {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)]/70">{entry.shortcut}</span>}
               {hasSubmenu && (
@@ -385,15 +467,19 @@ function MenuPanel({ items, hoverStyle, minWidth, width, onClose, style, rootRef
               )}
             </button>
 
-            {/* Cascading submenu — portal'd separately so it can escape
-                any parent panel's clipping or scroll behaviour. */}
             {entry.submenuItems && entry.submenuItems.length > 0 && isOpen && createPortal(
               <CascadingSubmenu
                 parentEl={itemRefs.current.get(entry.id) ?? null}
                 items={entry.submenuItems}
                 hoverStyle={hoverStyle}
                 onClose={onClose}
-                onMouseLeavePanel={() => setOpenSubId(null)}
+                onMouseLeavePanel={() => { setOpenSubId(null); setKeyboardSubId(null); }}
+                keyboardOpen={keyboardSubId === entry.id}
+                onKeyboardClose={() => {
+                  setOpenSubId(null);
+                  setKeyboardSubId(null);
+                  itemRefs.current.get(entry.id)?.focus();
+                }}
               />,
               document.body,
             )}
@@ -411,26 +497,20 @@ interface CascadingSubmenuProps {
   items: DropdownMenuEntry[];
   hoverStyle: 'accent' | 'subtle';
   onClose: () => void;
-  /** Callback when the cursor leaves the submenu without entering another
-   *  item — lets the parent close this submenu so a different sibling's
-   *  submenu can open. */
   onMouseLeavePanel: () => void;
+  keyboardOpen?: boolean;
+  onKeyboardClose?: () => void;
 }
 
-function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePanel }: CascadingSubmenuProps) {
+function CascadingSubmenu({
+  parentEl, items, hoverStyle, onClose, onMouseLeavePanel,
+  keyboardOpen = false, onKeyboardClose,
+}: CascadingSubmenuProps) {
   const parentRect = parentEl?.getBoundingClientRect();
   if (!parentRect) return null;
   const SUB_WIDTH = 200;
   const { left, top } = chooseSubmenuPosition(parentRect, SUB_WIDTH, items.filter(i => !isSeparator(i)).length);
 
-  // Hover bridge — when the user moves the cursor from the parent item to
-  // the submenu, the SUBMENU_GAP (~10 px) of empty space between the two
-  // panels triggers `onMouseLeave` on the parent or fails to land on the
-  // submenu, closing the cascade before the user can reach an item in it.
-  // We render an invisible div spanning that gap *as a child of the
-  // submenu wrapper* so the cursor stays inside the submenu's hit zone
-  // while traversing the gap. Same trick most native menus (macOS,
-  // Photoshop, Figma) use.
   return (
     <div
       data-cascading-menu
@@ -442,16 +522,9 @@ function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePa
         aria-hidden="true"
         style={{
           position: 'absolute',
-          // Push the bridge to span from just past the parent's right edge
-          // up to the submenu's left edge. SUBMENU_GAP + a small overlap so
-          // sub-pixel rounding doesn't leave a 1 px crack.
           left: -(SUBMENU_GAP + 2),
           top: 0,
           width: SUBMENU_GAP + 4,
-          // Match the submenu's full vertical extent. Estimate via item
-          // count + padding (matches `chooseSubmenuPosition`'s heuristic);
-          // exact pixel-perfect height isn't needed — slight overshoot is
-          // fine, the bridge just has to cover the typical cursor path.
           height: Math.min(items.filter(i => !isSeparator(i)).length * ESTIMATED_ITEM_HEIGHT + 16, 360),
         }}
       />
@@ -461,6 +534,8 @@ function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePa
         minWidth={SUB_WIDTH}
         onClose={onClose}
         style={{ position: 'static' }}
+        autoFocusFirst={keyboardOpen}
+        onArrowLeft={onKeyboardClose}
       />
     </div>
   );
@@ -471,7 +546,7 @@ function CascadingSubmenu({ parentEl, items, hoverStyle, onClose, onMouseLeavePa
 export default function DropdownMenu({
   isOpen, onClose, items, anchorRef, anchorPoint,
   position = 'bottom-right', minWidth, matchAnchorWidth,
-  hoverStyle = 'accent', searchable, density = 'default',
+  hoverStyle = 'accent', searchable, density = 'default', preferredFocusItemId,
 }: DropdownMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -495,11 +570,16 @@ export default function DropdownMenu({
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        queueMicrotask(() => anchorRef?.current?.focus());
+      }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, anchorRef]);
 
   // Two-phase positioning so the menu never flashes off-screen on
   // anchors near the viewport edge.
@@ -614,6 +694,8 @@ export default function DropdownMenu({
         rootRef={measureRef}
         searchable={searchable}
         density={density}
+        autoFocusFirst={!searchable && !!anchorRef}
+        preferredFocusItemId={preferredFocusItemId}
       />
     </div>,
     document.body,

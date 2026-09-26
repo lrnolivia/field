@@ -1,3 +1,4 @@
+// FIELD_INSPECTOR_COMMAND_MENU_006
 import { useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { useControl } from '../../controls/ControlProvider';
@@ -5,6 +6,7 @@ import PresetPicker from '../../ui/PresetPicker';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { MIX_BLEND_MODE_OPTIONS } from './atoms/MixBlendModeControl';
 import { queueMutation } from '@/code/mutation/mutation-queue';
+import DropdownMenu from '@/design-system/DropdownMenu';
 
 function DotsIcon() {
   return (
@@ -22,10 +24,18 @@ function EffectMenuIcon({ label }: { label: string }) {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="4" r=".8" /><circle cx="8" cy="4" r=".8" /><circle cx="12" cy="4" r=".8" /><circle cx="4" cy="8" r=".8" /><circle cx="8" cy="8" r=".8" /><circle cx="12" cy="8" r=".8" /><circle cx="4" cy="12" r=".8" /><circle cx="8" cy="12" r=".8" /><circle cx="12" cy="12" r=".8" /></svg>;
 }
 
+function MenuCheckIcon() {
+  return (
+    <svg aria-hidden width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.35">
+      <path d="m2.2 6.1 2.2 2.2 5.4-5.1" />
+    </svg>
+  );
+}
+
 export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean }) {
   const { node, nodeId, styles, updateStyle } = useControl();
   const [blendOpen, setBlendOpen] = useState(false);
-  const blendRef = useRef<HTMLDivElement>(null);
+  const blendRef = useRef<HTMLButtonElement>(null);
   const hidden = styles.display === 'none';
   const blend = styles.mixBlendMode || 'normal';
   const displayMemoryAttr = 'data-field-display-before-hide';
@@ -83,38 +93,37 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
         </button>
       )}
 
-      <div ref={blendRef} className="relative">
+      <div className="relative">
         <button
+          ref={blendRef}
           type="button"
           data-appearance-blend-mode
           onClick={() => setBlendOpen(v => !v)}
           className={`h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${blend !== 'normal' || blendOpen ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}
           title="Apply blend mode"
+          aria-haspopup="menu"
           aria-expanded={blendOpen}
         >
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <path d="M8 1.5C6.4 4 3.8 6.4 3.8 9.5A4.2 4.2 0 0 0 8 13.7a4.2 4.2 0 0 0 4.2-4.2C12.2 6.4 9.6 4 8 1.5Z" />
           </svg>
         </button>
-
-        {blendOpen && (
-          <>
-            <div className="fixed inset-0 z-[10010]" onClick={() => setBlendOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 z-[10011] w-[180px] max-h-[340px] overflow-y-auto py-1.5 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-lg shadow-[var(--shadow-lg)]">
-              {MIX_BLEND_MODE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => { updateStyle('mixBlendMode', opt.value === 'normal' ? '' : opt.value); setBlendOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-[var(--bg-hover)]"
-                >
-                  <span className="w-3 text-center">{blend === opt.value || (!styles.mixBlendMode && opt.value === 'normal') ? '✓' : ''}</span>
-                  <span>{opt.label}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <DropdownMenu
+          isOpen={blendOpen}
+          onClose={() => setBlendOpen(false)}
+          items={MIX_BLEND_MODE_OPTIONS.map(opt => ({
+            id: `blend-${opt.value}`,
+            label: opt.label,
+            trailingIcon: blend === opt.value ? <MenuCheckIcon /> : undefined,
+            onClick: () => updateStyle('mixBlendMode', opt.value === 'normal' ? '' : opt.value),
+          }))}
+          anchorRef={blendRef}
+          position="bottom-right"
+          minWidth={180}
+          hoverStyle="subtle"
+          density="compact"
+          preferredFocusItemId={`blend-${blend}`}
+        />
       </div>
     </div>
   );
@@ -142,6 +151,7 @@ export function StyleSectionActions({
   const [styleOpen, setStyleOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const styleRef = useRef<HTMLButtonElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex items-center gap-0.5">
@@ -171,6 +181,7 @@ export function StyleSectionActions({
       {(onAdd || addOptions?.length) && (
         <div className="relative">
           <button
+            ref={addRef}
             type="button"
             data-inspector-add-action={property}
             disabled={addDisabled}
@@ -180,28 +191,29 @@ export function StyleSectionActions({
             }}
             className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-30 disabled:cursor-default"
             title={addTitle}
+            aria-haspopup={addOptions?.length ? 'menu' : undefined}
+            aria-expanded={addOptions?.length ? addOpen : undefined}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
               <path d="M8 2v12M2 8h12" />
             </svg>
           </button>
-          {addOpen && addOptions?.length ? (
-            <>
-              <div className="fixed inset-0 z-[10012]" onClick={() => setAddOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-[10013] min-w-[168px] py-1 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]">
-                {addOptions.map(option => (
-                  <button
-                    key={option.label}
-                    type="button"
-                    onClick={() => { option.onClick(); setAddOpen(false); }}
-                    className="w-full h-8 flex items-center gap-2 px-2.5 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                  >
-                    <EffectMenuIcon label={option.label} />
-                    <span>{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            </>
+          {addOptions?.length ? (
+            <DropdownMenu
+              isOpen={addOpen}
+              onClose={() => setAddOpen(false)}
+              items={addOptions.map((option, index) => ({
+                id: `${property}-add-${index}`,
+                label: option.label,
+                icon: <EffectMenuIcon label={option.label} />,
+                onClick: option.onClick,
+              }))}
+              anchorRef={addRef}
+              position="bottom-right"
+              minWidth={168}
+              hoverStyle="subtle"
+              density="compact"
+            />
           ) : null}
         </div>
       )}

@@ -1,3 +1,4 @@
+// FIELD_INSPECTOR_COMMAND_MENU_006
 // SizeTool.tsx — Width/Height controls matching old builder design.
 // Each dimension: label (W/H) + value input + unit selector (px/%/auto/fill).
 // Inset mode awareness: when L+R pinned, W updates right inset.
@@ -31,6 +32,7 @@ import { resizeLiveOps } from '@/canvas/resize/resize-live-store';
 import { captureVisualRect } from '@/canvas/visual-rect';
 import { needsSizeCompensation, sizeInputWrite } from '@/canvas/resize/size-input-compensation';
 import { trace } from '@/shared/debug-trace';
+import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 
 // ─── Unit parsing ───────────────────────────────────────────────────────────
 
@@ -74,6 +76,14 @@ const UNIT_OPTIONS: { value: string; label: string }[] = [
 
 // ─── Dimension Row ──────────────────────────────────────────────────────────
 
+function SizingMenuCheckIcon() {
+  return (
+    <svg aria-hidden width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.35">
+      <path d="m2.2 6.1 2.2 2.2 5.4-5.1" />
+    </svg>
+  );
+}
+
 function DimensionSizingMenu({
   axis,
   activeUnit,
@@ -92,65 +102,83 @@ function DimensionSizingMenu({
   onAddMax?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const can = (unit: string) => !!unitOptions.find(o => o.value === unit && !o.disabled);
   const axisLabel = axis === 'width' ? 'width' : 'height';
   const modeLabel = activeUnit === 'auto' ? 'Hug' : activeUnit === 'fill' ? 'Fill' : activeUnit === 'px' ? '' : activeUnit;
 
   const choose = (unit: DimUnit) => {
     if (unit !== activeUnit) onUnitChange(activeUnit, unit);
-    setOpen(false);
   };
+  const checked = (unit: DimUnit) => activeUnit === unit ? <SizingMenuCheckIcon /> : undefined;
+  const items: DropdownMenuEntry[] = [
+    {
+      id: `${axis}-px`,
+      label: `Fixed ${axisLabel} (${Math.round(computedSize)})`,
+      disabled: !can('px'),
+      trailingIcon: checked('px'),
+      onClick: () => choose('px'),
+    },
+    {
+      id: `${axis}-auto`,
+      label: 'Hug contents',
+      disabled: !can('auto'),
+      trailingIcon: checked('auto'),
+      onClick: () => choose('auto'),
+    },
+    {
+      id: `${axis}-fill`,
+      label: 'Fill container',
+      disabled: !can('fill'),
+      trailingIcon: checked('fill'),
+      onClick: () => choose('fill'),
+    },
+    { type: 'separator' },
+  ];
 
-  const row = (label: string, unit: DimUnit, disabled = false) => (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => choose(unit)}
-      className="w-full px-3 py-1.5 flex items-center gap-2 text-xs text-left hover:bg-[var(--bg-hover)] disabled:opacity-35 disabled:cursor-default"
-    >
-      <span className="w-3">{activeUnit === unit ? '✓' : ''}</span>
-      <span>{label}</span>
-    </button>
+  if (onAddMin) items.push({ id: `${axis}-add-min`, label: `Add min ${axisLabel}…`, onClick: onAddMin });
+  if (onAddMax) items.push({ id: `${axis}-add-max`, label: `Add max ${axisLabel}…`, onClick: onAddMax });
+  if (can('%') || can('vw') || can('vh')) items.push({ type: 'separator' });
+  if (can('%')) items.push({ id: `${axis}-percent`, label: 'Relative (%)', trailingIcon: checked('%'), onClick: () => choose('%') });
+  if (axis === 'width' && can('vw')) items.push({ id: `${axis}-vw`, label: 'Viewport width (vw)', trailingIcon: checked('vw'), onClick: () => choose('vw') });
+  if (axis === 'height' && can('vh')) items.push({ id: `${axis}-vh`, label: 'Viewport height (vh)', trailingIcon: checked('vh'), onClick: () => choose('vh') });
+  items.push(
+    { type: 'separator' },
+    {
+      id: `${axis}-apply-variable`,
+      label: '◇ Apply variable…',
+      disabled: true,
+      title: 'Length variables need a unit-aware length variable type before this can be source-safe.',
+      onClick: () => {},
+    },
   );
 
   return (
     <div className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         data-dimension-sizing-menu={axis}
         onClick={() => setOpen(v => !v)}
         className="h-[var(--control-height)] min-w-6 px-1 flex items-center justify-center gap-0.5 border-l border-[var(--control-border)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
         title={`${axisLabel} sizing`}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {modeLabel && <span>{modeLabel}</span>}
         <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m4 6 4 4 4-4" /></svg>
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[10030]" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-[10031] w-[220px] py-1.5 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-lg shadow-[var(--shadow-lg)]">
-            {row(`Fixed ${axisLabel} (${Math.round(computedSize)})`, 'px', !can('px'))}
-            {row('Hug contents', 'auto', !can('auto'))}
-            {row('Fill container', 'fill', !can('fill'))}
-            <div className="h-px bg-[var(--border-light)] my-1" />
-            {onAddMin && <button type="button" onClick={() => { onAddMin(); setOpen(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--bg-hover)]">Add min {axisLabel}…</button>}
-            {onAddMax && <button type="button" onClick={() => { onAddMax(); setOpen(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--bg-hover)]">Add max {axisLabel}…</button>}
-            {(can('%') || can('vw') || can('vh')) && <div className="h-px bg-[var(--border-light)] my-1" />}
-            {can('%') && row('Relative (%)', '%')}
-            {axis === 'width' && can('vw') && row('Viewport width (vw)', 'vw')}
-            {axis === 'height' && can('vh') && row('Viewport height (vh)', 'vh')}
-            <div className="h-px bg-[var(--border-light)] my-1" />
-            <button
-              type="button"
-              disabled
-              title="Length variables need a unit-aware length variable type before this can be source-safe."
-              className="w-full px-3 py-1.5 text-xs text-left text-[var(--text-disabled)]"
-            >
-              ◇ Apply variable…
-            </button>
-          </div>
-        </>
-      )}
+      <DropdownMenu
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        items={items}
+        anchorRef={triggerRef}
+        position="bottom-left"
+        minWidth={220}
+        hoverStyle="subtle"
+        density="compact"
+        preferredFocusItemId={`${axis}-${activeUnit === '%' ? 'percent' : activeUnit}`}
+      />
     </div>
   );
 }
@@ -1500,6 +1528,7 @@ if (heightIsAuto) {
   //  Fill/Fixed/Hug mode already drives the flex shorthand's basis.)
   const [addedProps, setAddedProps] = useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const addPropertyRef = useRef<HTMLButtonElement>(null);
 
   // A min/max/basis row is visible when the user explicitly added it OR
   // the node already carries that style. `addedProps` alone goes stale —
@@ -1545,30 +1574,32 @@ if (heightIsAuto) {
   const addAction = !isViewportFrame && advancedOptions.length > 0 ? (
     <div className="relative">
       <button
+        ref={addPropertyRef}
+        type="button"
         onClick={() => setDropdownOpen(v => !v)}
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
         title="Add size property"
+        aria-haspopup="menu"
+        aria-expanded={dropdownOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
           <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
-      {dropdownOpen && (
-        <>
-          <div className="fixed inset-0 z-[998]" onClick={() => setDropdownOpen(false)} />
-          <div className="absolute right-[10px] top-full mt-1 z-[999] w-max bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-[var(--shadow-lg)] py-1">
-            {advancedOptions.map(opt => (
-              <div
-                key={opt.key}
-                onClick={() => addProp(opt.key)}
-                className="px-3 py-1.5 text-xs text-[var(--text-primary)] cursor-pointer hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] cut-corners mx-1 whitespace-nowrap"
-              >
-                {opt.label}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <DropdownMenu
+        isOpen={dropdownOpen}
+        onClose={() => setDropdownOpen(false)}
+        items={advancedOptions.map(opt => ({
+          id: `size-add-${opt.key}`,
+          label: opt.label,
+          onClick: () => addProp(opt.key),
+        }))}
+        anchorRef={addPropertyRef}
+        position="bottom-right"
+        minWidth={132}
+        hoverStyle="subtle"
+        density="compact"
+      />
     </div>
   ) : null;
 
