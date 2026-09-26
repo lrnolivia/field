@@ -133,12 +133,21 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     expect(showDashboardSource).not.toContain("builderLayerRef.current?.setAttribute('inert', '');");
   });
 
-  it('hardens the WAAPI-to-CSS handoff without a visibility/compositor flip', () => {
+  it('keeps WAAPI transform ownership persistent and masks only the completed hidden layer', () => {
     expect(shell).toContain('finalX: toX');
-    expect(shell).toContain('Freeze the exact final transform in inline style BEFORE cancelling WAAPI');
+    expect(shell).toContain('Keep the exact final transform in inline style after WAAPI completes.');
     expect(shell).toContain('element.style.transform = `translate3d(${finalX}px, 0, 0)`');
-    expect(css).not.toContain(".field-dashboard-layer[data-state='hidden'] {\n  visibility: hidden;\n}");
-    expect(css).toContain('continuously composited while hidden');
+    expect(shell).toContain("style={{ visibility: dashboardState === 'hidden' ? 'hidden' : 'visible' }}");
+
+    const finishStart = shell.indexOf('Keep the exact final transform in inline style after WAAPI completes.');
+    const finishEnd = shell.indexOf('}, [cancelDashboardMotion', finishStart);
+    expect(finishStart).toBeGreaterThan(-1);
+    expect(finishEnd).toBeGreaterThan(finishStart);
+    expect(shell.slice(finishStart, finishEnd)).not.toContain('clearDashboardInlineTransforms(layer);');
+
+    // The CSS hidden/offscreen rules remain fallback geometry only. FieldShell
+    // owns the visibility safety mask so there is no fade or CSS transition.
+    expect(css).not.toContain('transition: opacity');
   });
 
   it('keeps reduced motion and interruption-safe transform reads', () => {

@@ -182,9 +182,10 @@ export default function FieldShell() {
     await Promise.all(handles.map(({ animation }) => animation.finished.catch(() => undefined)));
     if (dashboardMotionEpochRef.current !== epoch) return;
 
-    // Freeze the exact final transform in inline style BEFORE cancelling WAAPI
-    // or flipping the shell state. This closes the one-frame ownership gap that
-    // can otherwise flash the resting/offscreen CSS state through the compositor.
+    // Keep the exact final transform in inline style after WAAPI completes.
+    // Do not hand transform ownership back to CSS at the transition boundary:
+    // slow-motion capture proved that even a single ownership gap can expose
+    // the CSS rest state as a fully assembled Dashboard ghost frame.
     for (const { element, animation, finalX } of handles) {
       element.style.transform = `translate3d(${finalX}px, 0, 0)`;
       animation.cancel();
@@ -192,9 +193,6 @@ export default function FieldShell() {
     dashboardAnimationsRef.current = [];
 
     setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
-    await waitForAnimationFrames(1);
-    if (dashboardMotionEpochRef.current !== epoch) return;
-    clearDashboardInlineTransforms(layer);
   }, [cancelDashboardMotion, clearDashboardInlineTransforms, setDashboardLayerState]);
 
   const showDashboardLayer = useCallback(() => animateDashboardLayer('show'), [animateDashboardLayer]);
@@ -351,6 +349,7 @@ export default function FieldShell() {
         className="field-dashboard-layer"
         data-state={dashboardState}
         aria-hidden={dashboardState === 'hidden' ? 'true' : undefined}
+        style={{ visibility: dashboardState === 'hidden' ? 'hidden' : 'visible' }}
       >
         <Dashboard />
       </div>
