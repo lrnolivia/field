@@ -45,20 +45,46 @@ export function galleryCarouselSlideDomId(itemId: string): string {
   return 'field-gallery-slide-' + itemId.replace(/[^A-Za-z0-9_-]+/g, '-');
 }
 
-export function galleryCarouselSlideAttrs(itemId: string, index: number, total: number): Record<string, string> {
+export function galleryCarouselCounterDomId(itemId: string): string {
+  return 'field-gallery-counter-' + itemId.replace(/[^A-Za-z0-9_-]+/g, '-');
+}
+
+export function isGeneratedGallerySlideLabel(value: string | undefined | null): boolean {
+  return /^\d+ of \d+$/.test(value?.trim() ?? '');
+}
+
+function preservedGallerySlideLabel(value: string | undefined | null): string {
+  return value && !isGeneratedGallerySlideLabel(value) ? value : '';
+}
+
+export function galleryCarouselSlideAttrs(
+  itemId: string,
+  _index: number,
+  total: number,
+  domId?: string,
+  currentAriaLabel?: string,
+): Record<string, string> {
   return {
-    id: galleryCarouselSlideDomId(itemId),
+    // Respect a hand-authored DOM id. Fragment navigation needs a target, but
+    // Gallery must not destroy source identity merely to make Carousel work.
+    id: domId?.trim() || galleryCarouselSlideDomId(itemId),
     role: 'group',
     'aria-roledescription': 'slide',
-    'aria-label': String(index + 1) + ' of ' + total,
+    // Position is described by the visible, source-backed counter instead of
+    // overwriting a hand-authored aria-label on the figure.
+    'aria-describedby': total > 1 ? galleryCarouselCounterDomId(itemId) : '',
+    'aria-label': preservedGallerySlideLabel(currentAriaLabel),
   };
 }
 
-export function galleryCarouselSlideResetAttrs(): Record<string, string> {
+export function galleryCarouselSlideResetAttrs(currentAriaLabel?: string): Record<string, string> {
   return {
     role: '',
     'aria-roledescription': '',
-    'aria-label': '',
+    'aria-describedby': '',
+    // Migrates Phase 5's generated "N of M" labels away while preserving any
+    // real authored label that existed on the Gallery item.
+    'aria-label': preservedGallerySlideLabel(currentAriaLabel),
   };
 }
 
@@ -107,10 +133,18 @@ export function getGalleryItems(gallery: CanvasNode, nodes: Map<string, CanvasNo
   return result;
 }
 
-export function galleryRootAttrs(view: GalleryViewId): Record<string, string> {
+export function galleryRootAccessibleLabel(currentAriaLabel?: string | null): string {
+  const current = currentAriaLabel?.trim();
+  // The first Gallery draft encoded view identity in aria-label. Migrate only
+  // that historical shape; a real authored accessible name belongs to source.
+  if (!current || parseGalleryAriaLabel(current) !== null) return galleryAriaLabel();
+  return current;
+}
+
+export function galleryRootAttrs(view: GalleryViewId, currentAriaLabel?: string | null): Record<string, string> {
   const attrs: Record<string, string> = {
     role: 'region',
-    'aria-label': galleryAriaLabel(view),
+    'aria-label': galleryRootAccessibleLabel(currentAriaLabel),
   };
   if (view === 'carousel') attrs['aria-roledescription'] = 'carousel';
   return attrs;
@@ -153,17 +187,25 @@ export function buildGalleryItemNode(
   };
 }
 
-export function buildGalleryCarouselControlNodes(itemIds: readonly string[], index: number): GallerySourceNode[] {
-  if (itemIds.length === 0 || index < 0 || index >= itemIds.length) return [];
-  const previousId = itemIds[(index - 1 + itemIds.length) % itemIds.length];
-  const nextId = itemIds[(index + 1) % itemIds.length];
+export function buildGalleryCarouselControlNodes(
+  itemIds: readonly string[],
+  index: number,
+  slideDomIds?: readonly string[],
+): GallerySourceNode[] {
+  // A one-image Gallery is still a valid Carousel view, but Previous/Next links
+  // that point back to the same image are dead interaction chrome.
+  if (itemIds.length <= 1 || index < 0 || index >= itemIds.length) return [];
+  const previousIndex = (index - 1 + itemIds.length) % itemIds.length;
+  const nextIndex = (index + 1) % itemIds.length;
+  const previousId = slideDomIds?.[previousIndex] || galleryCarouselSlideDomId(itemIds[previousIndex]);
+  const nextId = slideDomIds?.[nextIndex] || galleryCarouselSlideDomId(itemIds[nextIndex]);
   return [
     {
       type: 'a',
       id: generateNodeId('gallery-previous'),
       name: 'Gallery Previous',
       styles: getGalleryCarouselControlPatch('previous'),
-      attrs: { href: '#' + galleryCarouselSlideDomId(previousId), 'aria-label': 'Previous image' },
+      attrs: { href: '#' + previousId, 'aria-label': 'Previous image' },
       textContent: '‹',
     },
     {
@@ -171,7 +213,10 @@ export function buildGalleryCarouselControlNodes(itemIds: readonly string[], ind
       id: generateNodeId('gallery-counter'),
       name: 'Gallery Counter',
       styles: getGalleryCarouselControlPatch('counter'),
-      attrs: { 'aria-label': 'Image ' + (index + 1) + ' of ' + itemIds.length },
+      attrs: {
+        id: galleryCarouselCounterDomId(itemIds[index]),
+        'aria-label': 'Image ' + (index + 1) + ' of ' + itemIds.length,
+      },
       textContent: String(index + 1) + ' / ' + itemIds.length,
     },
     {
@@ -179,7 +224,7 @@ export function buildGalleryCarouselControlNodes(itemIds: readonly string[], ind
       id: generateNodeId('gallery-next'),
       name: 'Gallery Next',
       styles: getGalleryCarouselControlPatch('next'),
-      attrs: { href: '#' + galleryCarouselSlideDomId(nextId), 'aria-label': 'Next image' },
+      attrs: { href: '#' + nextId, 'aria-label': 'Next image' },
       textContent: '›',
     },
   ];

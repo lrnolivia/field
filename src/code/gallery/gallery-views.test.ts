@@ -5,6 +5,7 @@ import {
   GALLERY_VIEW_STYLE_PROPERTY,
   getGalleryDefaultImageFit,
   getGalleryImagePatch,
+  getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
@@ -40,6 +41,7 @@ describe('Gallery view registry', () => {
     expect(getGalleryItemPatch('natural', 2)).toMatchObject({ gridColumn: '3', gridRow: '2' });
     expect(getGalleryItemPatch('natural', 3)).toMatchObject({ gridColumn: '4', gridRow: '1 / span 2' });
     expect(getGalleryItemPatch('natural', 4)).toMatchObject({ gridColumn: '1 / span 2', gridRow: '3 / span 2' });
+    expect(getGalleryIndexGeometryPatch('natural', 2)).toEqual({ gridColumn: '3', gridRow: '2', aspectRatio: '1 / 1' });
   });
 
   it('keeps Strip source-backed while making narrow runtimes reachable', () => {
@@ -71,6 +73,8 @@ describe('Gallery view registry', () => {
     expect(getGalleryRootPatch('story')).toMatchObject({ gap: '54px', maxWidth: '1240px' });
     expect(getGalleryItemPatch('story', 0).aspectRatio).toBe('2 / 1');
     expect(getGalleryItemPatch('story', 1).aspectRatio).toBe('31 / 18');
+    expect(getGalleryIndexGeometryPatch('story', 0)).toEqual({ aspectRatio: '2 / 1' });
+    expect(getGalleryIndexGeometryPatch('grid', 0)).toEqual({});
     expect(getGalleryDefaultImageFit('story')).toBe('cover');
     expect(getGalleryImagePatch('story')).not.toHaveProperty('objectFit');
     expect(getGalleryImagePatch('story')).not.toHaveProperty('objectPosition');

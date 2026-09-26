@@ -340,6 +340,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
               <button
                 key={img.id}
                 onClick={() => handleSelect(img.urls.regular)}
+                aria-label={img.alt_description ? `Select ${img.alt_description}` : 'Select Unsplash image'}
                 aria-pressed={selectionMode === 'multiple' ? isSelected(img.urls.regular) : undefined}
                 className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(img.urls.regular) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
               >
@@ -408,6 +409,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 <button
                   key={item.url + i}
                   onClick={() => handleSelect(item.url)}
+                  aria-label={`Select uploaded image ${i + 1}`}
                   aria-pressed={selectionMode === 'multiple' ? isSelected(item.url) : undefined}
                   className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(item.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
                 >
@@ -458,6 +460,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 key={a.id}
                 onClick={() => handleSelect(a.url)}
                 title={`${a.shape} · ${a.material}${a.color ? ` · ${a.color}` : ''}`}
+                aria-label={`Select ${a.shape}`}
                 // Light tile so dark + light renders are both visible (the WebPs
                 // are trimmed/transparent), matching the revyme-cloud asset cards.
                 aria-pressed={selectionMode === 'multiple' ? isSelected(a.url) : undefined}
@@ -477,7 +480,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
 
         {selectionMode === 'multiple' && (
           <div data-image-multi-select-footer className="pt-3 border-t border-[var(--border-light)] flex items-center justify-between gap-3">
-            <span className="text-[11px] tabular-nums text-[var(--text-secondary)]">
+            <span aria-live="polite" className="text-[11px] tabular-nums text-[var(--text-secondary)]">
               {selectedUrls.length} {selectedUrls.length === 1 ? 'image' : 'images'} selected
             </span>
             <div className="flex items-center gap-2">

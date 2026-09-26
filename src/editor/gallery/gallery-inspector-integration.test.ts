@@ -36,4 +36,22 @@ describe('Gallery inspector integration', () => {
     expect(panel).not.toContain('<GalleryTool />');
     expect(panel).not.toContain('<GalleryImageCropTool />');
   });
+
+  it('keeps Gallery hardening inside native source-backed editor seams', () => {
+    const tool = source('src/editor/tools/GalleryTool.tsx');
+    const content = source('src/editor/gallery/GalleryContentSection.tsx');
+    const view = source('src/editor/gallery/GalleryViewSection.tsx');
+    const crop = source('src/editor/gallery/GalleryCropOverlay.tsx');
+    const media = source('src/editor/ui/ImageSearchModal.tsx');
+
+    expect(tool).toContain('}, [currentView, galleryId, items]);');
+    expect(tool).not.toContain('}, [currentView, galleryId, items.length]);');
+    expect(tool).toContain('getGalleryIndexGeometryPatch(currentView, index)');
+    expect(content).toContain('role="list" aria-label="Gallery media"');
+    expect(view).not.toContain('Terra Prime strip items');
+    expect(crop).toContain('role="dialog"');
+    expect(crop).toContain('Shift for 5%');
+    expect(media).toContain('aria-live="polite"');
+    expect(media).toContain('Select Unsplash image');
+  });
 });

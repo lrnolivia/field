@@ -69,12 +69,14 @@ export default function GalleryContentSection({
           Add images from project media or upload new media.
         </div>
       ) : (
-        <div className="flex flex-col gap-1" data-gallery-item-list>
+        <div className="flex flex-col gap-1" data-gallery-item-list role="list" aria-label="Gallery media">
           {items.map((item, index) => {
             const active = selectedItemId === item.itemId;
             return (
               <div
                 key={item.itemId}
+                role="listitem"
+                aria-label={`Gallery image ${index + 1}: ${item.alt || 'Image'}`}
                 draggable
                 onDragStart={() => setDraggedItemId(item.itemId)}
                 onDragEnd={() => setDraggedItemId(null)}

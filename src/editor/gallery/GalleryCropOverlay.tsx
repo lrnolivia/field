@@ -5,6 +5,7 @@ import { getViewportPrefix } from '@/canvas/node-ops';
 import {
   coverOverflow,
   focalPositionAfterDrag,
+  focalPositionAfterNudge,
   formatObjectPosition,
   parseObjectPosition,
   type FocalPosition,
@@ -43,6 +44,8 @@ export default function GalleryCropOverlay({
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const hasFocusedRef = useRef(false);
   const dragRef = useRef<{
     pointerId: number;
     x: number;
@@ -78,6 +81,12 @@ export default function GalleryCropOverlay({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [syncRect]);
+
+  useEffect(() => {
+    if (!rect || hasFocusedRef.current) return;
+    overlayRef.current?.focus({ preventScroll: true });
+    hasFocusedRef.current = true;
+  }, [rect]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,9 +138,11 @@ export default function GalleryCropOverlay({
 
   return createPortal(
     <div
+      ref={overlayRef}
       data-gallery-crop-overlay
-      role="application"
+      role="dialog"
       aria-label="Reposition gallery image"
+      tabIndex={0}
       style={{
         position: 'fixed',
         left: rect.left,
@@ -144,6 +155,18 @@ export default function GalleryCropOverlay({
         outline: '1px solid color-mix(in srgb, var(--selection) 28%, transparent)',
         cursor: !naturalSize ? 'wait' : dragging ? 'grabbing' : 'grab',
         touchAction: 'none',
+      }}
+      onKeyDown={(event) => {
+        if (!naturalSize || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const step = event.shiftKey ? 5 : 1;
+        const imageDeltaX = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+        const imageDeltaY = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+        const next = focalPositionAfterNudge(positionRef.current, imageDeltaX, imageDeltaY, overflow.x, overflow.y);
+        positionRef.current = next;
+        setPosition(next);
+        bridge.patchStyles(imageId, prefix, { objectPosition: formatObjectPosition(next) });
       }}
       onPointerDown={(event) => {
         event.preventDefault();
@@ -230,7 +253,7 @@ export default function GalleryCropOverlay({
         }}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <span>Drag to reposition</span>
+        <span>Drag or use arrow keys · Shift for 5%</span>
         <span style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{currentValue}</span>
         <button
           type="button"

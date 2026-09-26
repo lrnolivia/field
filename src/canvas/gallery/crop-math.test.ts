@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverOverflow, focalPositionAfterDrag, formatObjectPosition, parseObjectPosition } from './crop-math';
+import { coverOverflow, focalPositionAfterDrag, focalPositionAfterNudge, formatObjectPosition, parseObjectPosition } from './crop-math';
 
 describe('gallery crop math', () => {
   it('parses and formats percentage object positions', () => {
@@ -28,5 +28,11 @@ describe('gallery crop math', () => {
     expect(focalPositionAfterDrag({ x: 50, y: 50 }, 100, 50, 200, 0)).toEqual({ x: 0, y: 50 });
     expect(focalPositionAfterDrag({ x: 50, y: 50 }, 0, -250, 0, 500)).toEqual({ x: 50, y: 100 });
     expect(focalPositionAfterDrag({ x: 5, y: 95 }, 500, -500, 200, 500)).toEqual({ x: 0, y: 100 });
+  });
+
+  it('supports keyboard nudging only on axes that can visibly reposition', () => {
+    expect(focalPositionAfterNudge({ x: 50, y: 50 }, -1, 0, 200, 0)).toEqual({ x: 51, y: 50 });
+    expect(focalPositionAfterNudge({ x: 50, y: 50 }, 0, 5, 0, 500)).toEqual({ x: 50, y: 45 });
+    expect(focalPositionAfterNudge({ x: 99, y: 1 }, -5, 5, 200, 500)).toEqual({ x: 100, y: 0 });
   });
 });

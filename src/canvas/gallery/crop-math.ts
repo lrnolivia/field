@@ -125,3 +125,17 @@ export function focalPositionAfterDrag(
     y: overflowY > 0 ? clampPercent(start.y - (deltaY / overflowY) * 100) : start.y,
   };
 }
+
+/** Keyboard equivalent of dragging the bitmap itself. */
+export function focalPositionAfterNudge(
+  start: FocalPosition,
+  imageDeltaX: number,
+  imageDeltaY: number,
+  overflowX: number,
+  overflowY: number,
+): FocalPosition {
+  return {
+    x: overflowX > 0 ? clampPercent(start.x - imageDeltaX) : start.x,
+    y: overflowY > 0 ? clampPercent(start.y - imageDeltaY) : start.y,
+  };
+}

@@ -19,10 +19,13 @@ export function selectedGalleryMediaUrls(
   selectedKeys: ReadonlySet<string>,
 ): string[] {
   const urls: string[] = [];
+  const seen = new Set<string>();
   for (const asset of assets) {
     const key = deriveUploadKey(asset);
-    if (!key || !selectedKeys.has(key) || !asset.url.trim()) continue;
-    urls.push(asset.url);
+    const url = asset.url.trim();
+    if (!key || !selectedKeys.has(key) || !url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
   }
   return urls;
 }

@@ -251,13 +251,19 @@ function naturalPatch(index: number): Record<string, string> {
   return {};
 }
 
+export function getGalleryIndexGeometryPatch(view: GalleryViewId, index: number): Record<string, string> {
+  if (view === 'natural') return naturalPatch(index);
+  if (view === 'story') return { aspectRatio: index % 2 === 0 ? '2 / 1' : '31 / 18' };
+  return {};
+}
+
 export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<string, string> {
   const base = { ...ITEM_RESET };
   switch (view) {
     case 'grid':
       return { ...base, aspectRatio: '1 / 1' };
     case 'natural':
-      return { ...base, ...naturalPatch(index) };
+      return { ...base, ...getGalleryIndexGeometryPatch(view, index) };
     case 'strip':
       return {
         ...base,
@@ -272,7 +278,7 @@ export function getGalleryItemPatch(view: GalleryViewId, index: number): Record<
         ...base,
         width: '100%',
         // Figma alternates 1240×620 and 1240×720 frames.
-        aspectRatio: index % 2 === 0 ? '2 / 1' : '31 / 18',
+        ...getGalleryIndexGeometryPatch(view, index),
       };
     case 'carousel':
       return {

@@ -22,6 +22,15 @@ describe('Gallery Media-panel insertion', () => {
       .toEqual(['https://cdn.example.com/site/images/fresh.webp']);
   });
 
+  it('deduplicates one canonical asset URL even when duplicate media rows are selected', () => {
+    const assets = [
+      { url: 'https://cdn.example.com/site/images/same.webp', key: 'one' },
+      { url: 'https://cdn.example.com/site/images/same.webp', key: 'two' },
+    ];
+    expect(selectedGalleryMediaUrls(assets, new Set(['one', 'two'])))
+      .toEqual(['https://cdn.example.com/site/images/same.webp']);
+  });
+
   it('builds a native Grid Gallery through canonical source descriptors', () => {
     const item = buildGalleryMediaToolbarItem(['/a.jpg', '/b.jpg']);
     expect(item).toMatchObject({

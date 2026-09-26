@@ -13,6 +13,7 @@ import {
   buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
   galleryCarouselSlideAttrs,
+  galleryCarouselSlideDomId,
   galleryCarouselSlideResetAttrs,
   galleryRootAttrs,
   getGalleryCarouselControls,
@@ -23,6 +24,7 @@ import {
 import {
   GALLERY_VIEWS,
   getGalleryImagePatch,
+  getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
@@ -51,6 +53,8 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
 interface GalleryCarouselSyncItem {
   itemId: string;
   controlIds: readonly string[];
+  domId?: string;
+  ariaLabel?: string;
 }
 
 function removeGalleryCarouselControlMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
@@ -61,20 +65,21 @@ function clearGalleryCarouselSlideMutations(items: readonly GalleryCarouselSyncI
   return items.map((item) => ({
     type: 'updateHtmlAttrs' as const,
     nodeId: item.itemId,
-    attrs: galleryCarouselSlideResetAttrs(),
+    attrs: galleryCarouselSlideResetAttrs(item.ariaLabel),
   }));
 }
 
 function buildGalleryCarouselSyncMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
   const itemIds = items.map((item) => item.itemId);
+  const slideDomIds = items.map((item) => item.domId?.trim() || galleryCarouselSlideDomId(item.itemId));
   return [
     ...removeGalleryCarouselControlMutations(items),
     ...items.map((item, index) => ({
       type: 'updateHtmlAttrs' as const,
       nodeId: item.itemId,
-      attrs: galleryCarouselSlideAttrs(item.itemId, index, itemIds.length),
+      attrs: galleryCarouselSlideAttrs(item.itemId, index, itemIds.length, slideDomIds[index], item.ariaLabel),
     })),
-    ...items.flatMap((item, index) => buildGalleryCarouselControlNodes(itemIds, index).map((node) => ({
+    ...items.flatMap((item, index) => buildGalleryCarouselControlNodes(itemIds, index, slideDomIds).map((node) => ({
       type: 'addNode' as const,
       parentId: item.itemId,
       node,
@@ -86,12 +91,14 @@ function cloneResponsiveOverrideMutations(
   sourceId: string,
   targetId: string,
   overrides: ContainerOverrideMap,
+  excludedProperties: readonly string[] = [],
 ): Mutation[] {
   const byWidth = overrides.get(sourceId);
   if (!byWidth) return [];
   const mutations: Mutation[] = [];
+  const excluded = new Set(excludedProperties);
   for (const [maxWidth, properties] of byWidth) {
-    const styles = Object.fromEntries(properties);
+    const styles = Object.fromEntries([...properties].filter(([key]) => !excluded.has(key)));
     if (Object.keys(styles).length > 0) {
       mutations.push({ type: 'updateContainerStyle', nodeId: targetId, maxWidth, styles });
     }
@@ -161,6 +168,8 @@ function GalleryToolInner() {
         objectFit: image.styles?.objectFit ?? 'cover',
         objectPosition: image.styles?.objectPosition ?? '50% 50%',
         controlIds: [controls.previous?.id, controls.counter?.id, controls.next?.id].filter((id): id is string => !!id),
+        domId: item.attrs?.id,
+        ariaLabel: item.attrs?.['aria-label'],
       };
     });
   }, [nodeId]);
@@ -207,7 +216,7 @@ function GalleryToolInner() {
     mutations.push({ type: 'updateStyles', nodeId: galleryId, styles: rootPatch });
     mutations.push(...clearResponsivePatchMutations(galleryId, rootPatch, responsiveOverrides));
     const rootAttrs: Record<string, string> = {
-      ...galleryRootAttrs(view),
+      ...galleryRootAttrs(view, gallery.attrs?.['aria-label']),
       'aria-roledescription': view === 'carousel' ? 'carousel' : '',
     };
     bridge.setAttribute(galleryId, prefix, 'aria-label', rootAttrs['aria-label']);
@@ -270,7 +279,7 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length });
-  }, [currentView, galleryId, items.length]);
+  }, [currentView, galleryId, items]);
 
   const replaceMedia = useCallback((itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
@@ -293,7 +302,12 @@ function GalleryToolInner() {
 
     const mutations: Mutation[] = [
       { type: 'addNode', parentId: galleryId, node: duplicate, index: insertIndex },
-      ...cloneResponsiveOverrideMutations(source.itemId, duplicate.id, responsiveOverrides),
+      ...cloneResponsiveOverrideMutations(
+        source.itemId,
+        duplicate.id,
+        responsiveOverrides,
+        Object.keys(getGalleryIndexGeometryPatch(currentView, insertIndex)),
+      ),
       ...cloneResponsiveOverrideMutations(source.imageId, duplicateImage.id, responsiveOverrides),
     ];
     if (currentView === 'strip') {
@@ -326,13 +340,18 @@ function GalleryToolInner() {
         nodeId: item.itemId,
         styles: getGalleryItemPatch(currentView, index),
       })),
+      ...remaining.flatMap((item, index) => clearResponsivePatchMutations(
+        item.itemId,
+        getGalleryIndexGeometryPatch(currentView, index),
+        responsiveOverrides,
+      )),
     ];
     if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(remaining));
     queueMutations(mutations);
     flushNow();
     if (selectedItemId === itemId) setSelectedItemId(null);
     trace.action('gallery:remove-media', { nodeId: galleryId, itemId });
-  }, [bridge, currentView, galleryId, items, prefix, selectedItemId]);
+  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides, selectedItemId]);
 
   const reorderItem = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
@@ -359,13 +378,18 @@ function GalleryToolInner() {
         nodeId: item.itemId,
         styles: getGalleryItemPatch(currentView, index),
       })),
+      ...ordered.flatMap((item, index) => clearResponsivePatchMutations(
+        item.itemId,
+        getGalleryIndexGeometryPatch(currentView, index),
+        responsiveOverrides,
+      )),
     ];
     if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(ordered));
 
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:reorder', { nodeId: galleryId, from, to });
-  }, [bridge, currentView, galleryId, items, prefix]);
+  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides]);
 
   const moveItem = useCallback((itemId: string, direction: -1 | 1) => {
     const targetId = galleryAdjacentItemId(items, itemId, direction);

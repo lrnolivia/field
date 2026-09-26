@@ -91,7 +91,7 @@ export default function GalleryViewSection({
             />
           </ToolRow>
           <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-            Terra Prime strip items rest at 120px wide and expand to 380px on hover.
+            Horizontal image strips expand on hover. Height can vary by breakpoint.
           </div>
         </>
       )}
@@ -121,12 +121,12 @@ export default function GalleryViewSection({
 
       {currentView === 'carousel' && (
         <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-          Native scroll-snap runtime · 1240×820 stage · 520×720 image · 38px previous/next controls. Order and counters follow real Gallery source children.
+          Native scroll-snap carousel with source-backed previous/next controls. Order and counters follow Gallery content.
         </div>
       )}
 
       <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-        Layout settings follow field's current responsive override routing. View identity remains one Gallery semantic across breakpoints.
+        Layout settings use field's responsive overrides. View identity stays shared across breakpoints.
       </div>
     </ToolSection>
   );

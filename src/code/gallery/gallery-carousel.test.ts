@@ -9,6 +9,7 @@ import {
 } from './gallery-views';
 import {
   buildGalleryCarouselControlNodes,
+  galleryCarouselCounterDomId,
   galleryCarouselSlideAttrs,
   galleryCarouselSlideDomId,
   galleryCarouselSlideResetAttrs,
@@ -63,6 +64,7 @@ describe('Gallery runtime carousel', () => {
     expect(controls[1]).toMatchObject({
       type: 'span',
       textContent: '1 / 3',
+      attrs: { id: galleryCarouselCounterDomId('item:a'), 'aria-label': 'Image 1 of 3' },
       styles: { [GALLERY_CAROUSEL_CONTROL_STYLE_PROPERTY]: 'counter' },
     });
     expect(controls[2]).toMatchObject({
@@ -87,13 +89,39 @@ describe('Gallery runtime carousel', () => {
       id: 'field-gallery-slide-gallery-item-42',
       role: 'group',
       'aria-roledescription': 'slide',
-      'aria-label': '2 of 3',
+      'aria-describedby': 'field-gallery-counter-gallery-item-42',
+      'aria-label': '',
     });
     expect(galleryCarouselSlideResetAttrs()).toEqual({
       role: '',
       'aria-roledescription': '',
+      'aria-describedby': '',
       'aria-label': '',
     });
+  });
+
+  it('preserves authored labels and DOM ids while Carousel adds its own semantics', () => {
+    expect(galleryRootAttrs('carousel', 'Photography')).toEqual({
+      role: 'region',
+      'aria-label': 'Photography',
+      'aria-roledescription': 'carousel',
+    });
+    expect(galleryRootAttrs('grid', 'Gallery — Story')).toEqual({ role: 'region', 'aria-label': 'Gallery' });
+    expect(galleryCarouselSlideAttrs('gallery:item/42', 1, 3, 'portfolio-shot', 'Portrait at dusk')).toMatchObject({
+      id: 'portfolio-shot',
+      'aria-label': 'Portrait at dusk',
+      'aria-describedby': 'field-gallery-counter-gallery-item-42',
+    });
+    expect(galleryCarouselSlideResetAttrs('2 of 3')['aria-label']).toBe('');
+    expect(galleryCarouselSlideResetAttrs('Portrait at dusk')['aria-label']).toBe('Portrait at dusk');
+  });
+
+  it('removes dead controls from one-image carousels and supports authored fragment targets', () => {
+    expect(buildGalleryCarouselControlNodes(['only'], 0)).toEqual([]);
+    expect(galleryCarouselSlideAttrs('only', 0, 1)['aria-describedby']).toBe('');
+    const controls = buildGalleryCarouselControlNodes(['a', 'b'], 0, ['authored-a', 'authored-b']);
+    expect(controls[0].attrs?.href).toBe('#authored-b');
+    expect(controls[2].attrs?.href).toBe('#authored-b');
   });
 
   it('sanitizes source node IDs into stable fragment-safe slide IDs', () => {
