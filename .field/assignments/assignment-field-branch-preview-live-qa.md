@@ -3,10 +3,10 @@
 ---
 field_assignment: 1
 id: field-branch-preview-live-qa
-status: planned-awaiting-coordination-v2-merge
+status: ready-for-activation
 branch: null
 pr: null
-base: 7451b55f29c94e2d56e014590067e7111cd3915a
+base: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
 kit: 2026-09-26.2
 type: follow-up
 execution_class: contract-worker
@@ -23,61 +23,30 @@ qa:
 
 Give Contract Workers a real assignment-branch Preview environment that can be discovered from the Draft PR and exercised with Firecrawl before merge.
 
-## Why this exists
-
-PR #2 establishes the Contract Worker coordination model, but branch Preview currently cannot be assumed to work. Cloudflare attempted builds for the coordination branch and reported failures. Runtime QA needs a deterministic branch-specific environment rather than testing `main` or relying on screenshots/claims.
-
 ## Activation dependency
 
-Do not activate implementation ownership until:
+Coordination v2 is merged and verified. Before activation:
 
-1. PR #2 has merged.
-2. `main` exposes handoff kit `2026-09-26.2`.
-3. current legacy and Contract Worker ownership has been refreshed.
-4. exact implementation paths have been resolved without collision.
-
-At activation, set:
-
-```text
-branch: field/field-branch-preview-live-qa
-pr: <draft-pr-number>
-base: <then-current-main-sha>
-status: active
-```
+1. refresh current `main`
+2. refresh active legacy `tracker.md` ownership
+3. refresh active Contract Worker ownership on `field/control`
+4. resolve exact implementation paths without collision
+5. then create `field/field-branch-preview-live-qa` and its Draft PR from then-current `main`
 
 ## Implementation intent
 
-Build the smallest deterministic Preview/QA infrastructure that supports:
-
-- automatic branch Preview deployment for Contract Worker PRs
-- reliable Preview URL discovery from GitHub/PR deployment state
-- `/builder/noauth` on the branch Preview
-- isolated/non-production QA state
-- Firecrawl small-packet QA against the assignment Preview
-- exact tested branch/main SHA recording
-- merge gating based on the QA record
-- clear classification of Preview/deployment harness failures versus field product failures
+Build the smallest deterministic Preview/QA infrastructure supporting automatic assignment-branch Preview deployment, reliable Preview URL discovery, `/builder/noauth`, isolated non-production QA state, Firecrawl small-packet QA, exact tested branch/main SHA recording, stale-QA detection, and clear harness-vs-product failure classification.
 
 ## Acceptance criteria
 
-- [ ] a Contract Worker branch can deploy without touching production state
-- [ ] its Draft PR exposes or deterministically leads to the Preview URL
-- [ ] `/builder/noauth` works on that Preview
+- [ ] Contract Worker branch deploys without touching production state
+- [ ] Draft PR exposes or deterministically leads to the Preview URL
+- [ ] `/builder/noauth` works on the Preview
 - [ ] Firecrawl can execute a small independent QA packet against the branch Preview
-- [ ] QA evidence records exact `tested_head_sha` and `tested_main_sha`
-- [ ] a stale QA record is detected when branch head or relevant main changes
-- [ ] a Preview/deployment failure is classified as harness/environment rather than silently as a field product bug
+- [ ] QA records exact `tested_head_sha` and `tested_main_sha`
+- [ ] stale QA is detected when branch head or relevant `main` changes
+- [ ] Preview/deployment failures are classified as harness/environment rather than silently as product bugs
 - [ ] production deploy remains a separate post-merge truth check where required
-
-## Intended ownership at activation
-
-Resolve against live ownership before activation. Likely infrastructure surfaces may include:
-
-- Cloudflare/deployment configuration
-- branch-preview workflow/configuration
-- handoff-kit QA documentation/tests needed to encode the Preview contract
-
-Do not pre-reserve these paths while this assignment is only planned.
 
 ## Out of scope
 
@@ -85,17 +54,7 @@ Do not pre-reserve these paths while this assignment is only planned.
 - weakening Cloudflare Access globally
 - widening `/builder/noauth` into authenticated APIs
 - replacing production QA with Preview QA
-- changing active legacy Worker product paths merely to make Preview work
 
-## QA strategy
+## Current status
 
-Primary:
-- real branch Preview
-- Firecrawl small-packet QA
-
-Secondary:
-- deployment/check evidence
-- exact URL/route/status evidence
-- browser DOM/geometry evidence where relevant
-
-Authenticated persistence behavior remains separate when `/builder/noauth` cannot prove it.
+Ready for activation. No implementation ownership is reserved yet.

@@ -13,4 +13,4 @@ runtime_qa: not-run
 tested_at: null
 ```
 
-No QA has run. This is a planned successor assignment awaiting coordination-v2 merge and activation.
+No QA has run. Coordination v2 is merged; this successor is ready for activation after a fresh ownership/path preflight.
