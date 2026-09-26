@@ -107,3 +107,12 @@ The legacy Dashboard handoff reservation is still formally active on both tracke
 A compare from the visual-QA registration baseline to current main contains only tracker.md and .field/handoff-kit/** changes, with no src/** product changes. No new motion regression is indicated by repository state.
 
 Do not create implementation work. Continue to wait for formal legacy release/reconciliation; then close this follow-up with no implementation branch if current behavior remains unchanged.
+
+
+## Completion note
+
+The stale legacy blocker has been reconciled and released on main at 5ca48d5e99fbc90e07a1bc8707486defa05430ae.
+
+editor-dashboard-motion-followup is now complete with no implementation branch and no PR. No motion/source changes were made during successor closeout.
+
+Preserve the recorded motion baseline and open a fresh bounded assignment only for a real regression or a genuinely new shell/mode integration.

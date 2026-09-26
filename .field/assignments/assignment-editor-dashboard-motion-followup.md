@@ -3,11 +3,11 @@
 ---
 field_assignment: 1
 id: editor-dashboard-motion-followup
-status: qa-passed-awaiting-legacy-release
+status: complete
 branch: null
 pr: null
 base: 7451b55f29c94e2d56e014590067e7111cd3915a
-kit: transition-2026-09-26.1-to-2026-09-26.2
+kit: 2026-09-26.2
 type: migrated-followup
 execution_class: contract-worker
 source_chat: field editor/dashboard motion planning and installer chat
@@ -548,3 +548,22 @@ Therefore:
 - the prior four-path authenticated human visual QA PASS remains the accepted motion evidence
 - reduced-motion remains an explicit future verification/watch item, not a reason to reopen source
 - closeout becomes eligible only after the legacy reservation is formally completed/released or explicitly reconciled
+
+
+## Completion — legacy ownership released
+
+Legacy reservation field-dashboard-handoff-overlap-20260926 was formally closed and released on main by tracker-only commit 5ca48d5e99fbc90e07a1bc8707486defa05430ae.
+
+Closeout conditions are satisfied:
+
+- the implementation was already landed on main
+- all four canonical normal-motion paths have authenticated human visual QA PASS
+- current repository comparison found no subsequent src/** product changes requiring renewed motion repair
+- ordinary Dashboard return remains same-document by the accepted architecture
+- this follow-up created no implementation branch and no PR
+- no source ownership was claimed
+- reduced-motion remains a future verification/watch item for the next actual motion change, not an open blocker
+
+Status is therefore complete.
+
+Any later motion regression or new Design / Content / Code / Preview integration must start as a fresh bounded assignment against then-current repository truth.
