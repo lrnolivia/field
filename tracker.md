@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T02:15:57Z
+Last Updated: 2026-09-26T02:16:20Z
 
 ## Active Assignments
 
@@ -1214,6 +1214,33 @@ Validation / Build / Deploy:
 - TypeScript passed
 - build:all passed
 - Cloudflare Workers Builds: field verified success for source commit 3bc7d0ef90880689d349af5e79c5b4d4357c90e2
+
+### 2026-09-26T02:16:20Z — native-gallery-completion-hardening-20260925 — 1a84843ad3b2
+
+Summary: Gallery completion/hardening preserves authored source identity, fixes source-order/responsive synchronization, adds keyboard crop access, and hardens media/inspector semantics as one tranche.
+Commit: 1a84843ad3b24cd8572545cba05409fb48b3715a
+
+Paths:
+  - src/canvas/gallery/crop-math.test.ts
+  - src/canvas/gallery/crop-math.ts
+  - src/code/gallery/gallery-carousel.test.ts
+  - src/code/gallery/gallery-model.ts
+  - src/code/gallery/gallery-views.test.ts
+  - src/code/gallery/gallery-views.ts
+  - src/editor/gallery/GalleryContentSection.tsx
+  - src/editor/gallery/GalleryCropOverlay.tsx
+  - src/editor/gallery/GalleryViewSection.tsx
+  - src/editor/gallery/gallery-inspector-integration.test.ts
+  - src/editor/gallery/gallery-media-drag.test.ts
+  - src/editor/gallery/gallery-media-drag.ts
+  - src/editor/tools/GalleryTool.tsx
+  - src/editor/ui/ImageSearchModal.tsx
+
+Validation / Build / Deploy:
+- focused Gallery regression suites passed
+- TypeScript passed
+- build:all passed
+- production verification pending for source commit 1a84843ad3b24cd8572545cba05409fb48b3715a
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
