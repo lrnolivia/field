@@ -16,6 +16,7 @@ function sandboxStubsPlugin(): Plugin {
     'project-fs': path.resolve(stubs, 'project-fs.ts'),
     'cms-ops': path.resolve(stubs, 'cms-ops.ts'),
     'store': path.resolve(stubs, 'store.ts'),
+    'autosave': path.resolve(stubs, 'autosave.ts'),
   };
 
   return {
