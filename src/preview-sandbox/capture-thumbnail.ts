@@ -1,14 +1,16 @@
-// capture-thumbnail.ts — bounded first-viewport dashboard raster.
-// Runs inside Preview. Thumbnail work is intentionally cheap and disposable:
-// the host owns generation integrity and will never publish a stale session.
+// capture-thumbnail.ts — bounded first-viewport snapshot for dashboard cards.
+//
+// The warm thumbnail runtime keeps Preview compiled between edits, so capture can
+// stay tiny: no idle wait, no full-page raster, no font re-embedding. The existing
+// cached dashboard card remains visible until this replacement uploads.
 
 let capturing = false;
 
-const SETTLE_MS = 400;
-const FONT_READY_TIMEOUT_MS = 250;
-const RASTER_TIMEOUT_MS = 4000;
+const SETTLE_MS = 120;
+const FONT_READY_TIMEOUT_MS = 100;
+const RASTER_TIMEOUT_MS = 2500;
 const CAPTURE_MARGIN = 32;
-const THUMB_WIDTH = 720;
+const THUMB_WIDTH = 640;
 
 function opaqueBackground(): string {
   const bg = getComputedStyle(document.body).backgroundColor;
@@ -79,14 +81,14 @@ export async function captureThumbnail(requestId?: string): Promise<void> {
     await delay(SETTLE_MS);
 
     const { toJpeg } = await import('html-to-image');
-    const target = document.getElementById('root') ?? document.body;
     const viewport = captureViewportSize(
       document.documentElement.clientWidth || window.innerWidth,
       document.documentElement.clientHeight || window.innerHeight,
     );
+    const root = document.getElementById('root') ?? document.body;
 
-    const dataUrl = await rasterWithTimeout(toJpeg(target, {
-      quality: 0.8,
+    const dataUrl = await rasterWithTimeout(toJpeg(root, {
+      quality: 0.78,
       pixelRatio: captureScale(viewport.width),
       width: viewport.width,
       height: viewport.height,

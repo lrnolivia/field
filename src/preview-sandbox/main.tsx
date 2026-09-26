@@ -51,6 +51,7 @@ const projectFiles: Map<string, string> = new Map();
 const compiledModuleCache: Map<string, any> = new Map();
 const THUMBNAIL_PRELOAD_TIMEOUT_MS = 1200;
 let thumbnailSessionRequestId: string | null = null;
+let thumbnailRenderGeneration = -1;
 
 // ─── Preview: neutralize form submissions ──────────────────────────────────
 // In the inline preview the real page runs, so a form's onSubmit fires
@@ -751,12 +752,13 @@ function rebuildRoutes(): void {
   routes = buildRouteTable(projectFiles);
 }
 
-function announcePreviewRendered(requestId: string | null): void {
+function announcePreviewRendered(requestId: string | null, renderGeneration = thumbnailRenderGeneration): void {
   const announce = () => {
     parent.postMessage({
       type: 'preview:rendered',
       url: window.location.pathname + window.location.search,
       requestId,
+      generation: renderGeneration,
     }, '*');
   };
 
@@ -786,15 +788,16 @@ function rerender(): void {
   // the first render → React errors with "Element type is invalid".
   // Renders an empty page while loading, then re-renders with content.
   const requestId = thumbnailSessionRequestId;
+  const renderGeneration = thumbnailRenderGeneration;
   preloadCdnImportsForRender(requestId).then(() => {
     root.render(<PreviewApp />);
-    announcePreviewRendered(requestId);
+    announcePreviewRendered(requestId, renderGeneration);
   }).catch((err) => {
     // Even if preload fails, render so the user sees an error rather
     // than a blank screen. requireFn falls back to a stub component.
     console.error('[preview] preload failed, rendering anyway', err);
     root.render(<PreviewApp />);
-    announcePreviewRendered(requestId);
+    announcePreviewRendered(requestId, renderGeneration);
   });
 }
 
@@ -806,6 +809,10 @@ window.addEventListener('message', (e) => {
     thumbnailSessionRequestId = typeof msg.requestId === 'string' && msg.requestId
       ? msg.requestId
       : null;
+  } else if (msg.type === 'preview:thumbnail-generation') {
+    thumbnailRenderGeneration = typeof msg.generation === 'number' && Number.isFinite(msg.generation)
+      ? msg.generation
+      : -1;
   } else if (msg.type === 'preview:probe-ready') {
     parent.postMessage({ type: 'preview:ready' }, '*');
   } else if (msg.type === 'preview:project-files') {
@@ -832,6 +839,20 @@ window.addEventListener('message', (e) => {
     if (msg.path.startsWith('app/') && (msg.path.endsWith('/page.tsx') || msg.path.endsWith('/layout.tsx'))) {
       rebuildRoutes();
     }
+    rerender();
+  } else if (msg.type === 'preview:file-batch') {
+    let routesChanged = false;
+    const files = Array.isArray(msg.files) ? msg.files : [];
+    for (const entry of files as unknown[]) {
+      if (!Array.isArray(entry) || entry.length < 2) continue;
+      const [filePath, content] = entry;
+      if (typeof filePath !== 'string' || typeof content !== 'string') continue;
+      projectFiles.set(filePath, content);
+      if (filePath.startsWith('app/') && (filePath.endsWith('/page.tsx') || filePath.endsWith('/layout.tsx'))) {
+        routesChanged = true;
+      }
+    }
+    if (routesChanged) rebuildRoutes();
     rerender();
   } else if (msg.type === 'preview:navigate') {
     history.pushState(null, '', msg.url);

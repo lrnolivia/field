@@ -2,13 +2,13 @@ import { describe, test, expect } from 'vitest';
 import { captureScale, captureViewportSize } from './capture-thumbnail';
 
 describe('dashboard thumbnail capture sizing', () => {
-  test('targets a compact retina-safe dashboard raster', () => {
-    expect(captureScale(1440)).toBeCloseTo(0.5);
-    expect(captureScale(1800)).toBeCloseTo(0.4);
+  test('downscales wide viewports to the compact card raster width', () => {
+    expect(captureScale(1440)).toBeCloseTo(640 / 1440);
+    expect(captureScale(1280)).toBeCloseTo(0.5);
   });
 
   test('never upscales narrow viewports', () => {
-    expect(captureScale(720)).toBe(1);
+    expect(captureScale(640)).toBe(1);
     expect(captureScale(375)).toBe(1);
   });
 
