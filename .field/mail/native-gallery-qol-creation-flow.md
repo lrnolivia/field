@@ -145,3 +145,39 @@ Moving-main reconciliation before publication:
 ### Natural seed algorithm refinement
 
 The pre-edit investigation sketched seed + group variation. The landed implementation deliberately refines that to one persisted seed permutation applied consistently to each four-item group. Reason: seed 0 must preserve the existing Natural composition for every group, including item 5 onward, rather than silently changing the legacy layout after migration. Shuffle still produces six deterministic useful compositions by changing which source slot owns each visual role; same seed + same source order reproduces the same result.
+
+
+## 2026-09-26 implementation block — Source ratio frame sizing
+
+Implementation commit: f8852136f80329a873fe6862c9031a98876dc01d
+Draft PR: #3
+
+Frame sizing is now first-class and independent from media fit/treatment:
+- Gallery root policy: --field-gallery-frame-sizing = composed | source
+- real Gallery item intrinsic metadata: --field-gallery-source-ratio
+- absent policy remains backward-compatible Composed
+- enabling Source ratio measures missing intrinsic dimensions before source mutation and persists deterministic numeric ratios
+- slow measurement is guarded by a view/frame/seed/item signature; stale async results abort instead of overwriting concurrent edits
+- responsive ratio metadata is cleared from breakpoint overrides so intrinsic identity remains global source state
+- image objectFit, objectPosition, focal point, zoom, rotation, and transform treatment are not changed by frame-policy switching
+
+Mode behavior:
+- Grid: intrinsic aspect ratio sizes each media frame; regular responsive columns remain
+- Natural: Shuffle/slot geometry remains semantic composition while intrinsic aspect ratio becomes a real row-sizing input
+- Strip: common authored height remains; width derives from source ratio; hover expansion uses a minimum target so already-wide source frames are not shrunk
+- Story: editorial width/rhythm remains; frame height derives from intrinsic ratio
+- Carousel: slide/control/snap semantics remain unchanged; media frame follows source proportion inside the existing 720px composed media-height envelope
+
+Content/edit continuity:
+- Add measures source ratio when Source ratio is active
+- Replace refreshes intrinsic metadata and current frame geometry in the same source flush while preserving media treatment
+- Duplicate carries source ratio with fresh IDs and excludes frame-owned responsive geometry from identity cloning
+- Remove/Reorder recompute view/index geometry using each surviving item's ratio
+- Natural Shuffle remains deterministic under Source ratio
+- view switches reproduce the root frame policy from persisted item ratios
+- switching Composed <-> Source ratio is one queued mutation batch + one flush
+
+Moving-main reconciliation immediately before publication:
+- current main was 66a6f90ef9658e5a66409c0ebe48727715b3452b
+- latest main commit changed tracker.md only
+- no Gallery-owned source overlap

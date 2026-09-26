@@ -146,3 +146,34 @@ Do not use this packet as evidence that Gallery regressed.
 - classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Natural Shuffle product failure
 - basis: the Gallery no-file bootstrap and unrelated current-main coordination commits were already observed failing this same Workers Builds lane before this Shuffle commit
 - this does not substitute for exact dependency-tree Vitest / TypeScript / build:all, which remain unverified here
+
+
+## 2026-09-26 branch validation — Source Ratio f8852136f803
+
+- exact implementation SHA: f8852136f80329a873fe6862c9031a98876dc01d
+- parent SHA: 55f3901660e4892c95adea8507a42294543f7398
+- commit path audit: 10 changed files, all inside assignment-owned Gallery paths; 474 additions / 92 deletions
+- new focused regression source covers:
+  - frame-policy/source-ratio normalization
+  - deterministic intrinsic ratio serialization
+  - Grid/Natural/Strip/Story/Carousel source-ratio geometry
+  - media-fit independence
+  - source-backed item ratio metadata
+  - treatment-preserving Source-ratio duplicate semantics
+- pre-publication structural/invariant checks passed for:
+  - explicit root frame policy and item ratio properties
+  - backward-compatible Composed defaults
+  - all five Source-ratio mode mappings
+  - Add/Replace measurement flow
+  - view/duplicate/remove/reorder/Shuffle ratio continuity
+  - global-vs-responsive ratio cleanup
+  - stale async measurement abort guards
+  - no conflict markers in the ten postimage files
+- all modified .ts files passed a lightweight delimiter-structure audit
+- high-risk TSX mutation/control regions were manually inspected; heuristic TSX delimiter scanning was not treated as a compiler because JSX self-closing syntax produces false positives
+- Draft PR #3 and implementation branch were verified at this SHA after publication
+- current main at publication: 66a6f90ef9658e5a66409c0ebe48727715b3452b; latest commit changed tracker.md only and had no Gallery overlap
+- exact repo dependency-tree Vitest / TypeScript / build:all remain UNVERIFIED in this Contract Worker environment: Node is present, but TypeScript, esbuild, SWC, Sucrase, Babel parser, Prettier, and the repository dependency tree are not available
+- authored regression files are present in source but MUST NOT be reported as executed
+- Cloudflare Workers Builds check 108443927173 was in progress on the first post-publication read; record final classification only after completion
+- Preview/runtime QA for this unmerged Source-ratio implementation remains pending
