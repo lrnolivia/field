@@ -13,6 +13,7 @@ import {
 import { setFieldProjectIdOverride } from '@/backend/project-id';
 import { fieldBuilderProjectId, fieldPathIsDashboard } from './field-shell-route';
 import { trace } from '@/shared/debug-trace';
+import { requestEditorChromeExit } from '@/editor/editor-entrance';
 
 type DashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
@@ -169,6 +170,16 @@ export default function FieldShell() {
   ): Promise<void> => {
     revealHeldRef.current = false;
     revealRequestedRef.current = false;
+
+    // The editor is a physical layer beneath Dashboard. Let its chrome leave
+    // first, then bring Dashboard's existing reverse split-slide on top.
+    if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
+      builderLayerRef.current?.setAttribute('inert', '');
+      trace.action('field-shell:editor-exit-start', { projectId: builderIdRef.current });
+      await requestEditorChromeExit(document);
+      trace.action('field-shell:editor-exit-complete', { projectId: builderIdRef.current });
+    }
+
     showDashboardLayer();
     if (options.replace) {
       window.history.replaceState({ fieldSurface: 'dashboard' }, '', '/');

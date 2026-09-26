@@ -4,12 +4,18 @@ import {
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
   DIRECT_LOAD_SHELL_CLEAR_MS,
+  EDITOR_CHROME_EXIT_REQUEST_EVENT,
+  EDITOR_EXIT_EASING,
   editorEntranceDelay,
   editorEntranceDistances,
+  editorExitDelay,
+  editorExitDuration,
+  editorExitKeyframes,
   editorSpringKeyframes,
   editorSpringProfile,
   FIELD_SHELL_SELECTOR,
   readFieldDashboardLayerState,
+  type EditorChromeExitRequestDetail,
   type EditorEntranceRole,
   type EditorEntranceTarget,
   type FieldDashboardLayerState,
@@ -25,34 +31,61 @@ type PreparedTarget = EditorEntranceTarget & {
   };
 };
 
-function prepareTarget(
+function captureTarget(target: EditorEntranceTarget): PreparedTarget {
+  const { element } = target;
+  return {
+    ...target,
+    previous: {
+      translate: element.style.translate,
+      opacity: element.style.opacity,
+      pointerEvents: element.style.pointerEvents,
+      willChange: element.style.willChange,
+    },
+  };
+}
+
+function prepareEntranceTarget(
   target: EditorEntranceTarget,
   startDistancePx: number,
 ): PreparedTarget {
-  const { element, role } = target;
-  const previous = {
-    translate: element.style.translate,
-    opacity: element.style.opacity,
-    pointerEvents: element.style.pointerEvents,
-    willChange: element.style.willChange,
-  };
+  const prepared = captureTarget(target);
+  const { element, role } = prepared;
 
   element.style.translate = role === 'bottom'
     ? `0 ${startDistancePx}px`
     : `${startDistancePx}px 0`;
   element.style.opacity = '0.96';
   element.style.pointerEvents = 'none';
-  element.style.willChange = previous.willChange
-    ? `${previous.willChange}, translate, opacity`
+  element.style.willChange = prepared.previous.willChange
+    ? `${prepared.previous.willChange}, translate, opacity`
     : 'translate, opacity';
 
-  return { ...target, previous };
+  return prepared;
+}
+
+function prepareExitTarget(target: EditorEntranceTarget): PreparedTarget {
+  const prepared = captureTarget(target);
+  const { element } = prepared;
+  element.style.pointerEvents = 'none';
+  element.style.willChange = prepared.previous.willChange
+    ? `${prepared.previous.willChange}, translate`
+    : 'translate';
+  return prepared;
 }
 
 function restoreTarget(target: PreparedTarget): void {
   target.element.style.translate = target.previous.translate;
   target.element.style.opacity = target.previous.opacity;
   target.element.style.pointerEvents = target.previous.pointerEvents;
+  target.element.style.willChange = target.previous.willChange;
+}
+
+function holdTargetOffscreen(target: PreparedTarget, distancePx: number): void {
+  target.element.style.translate = target.role === 'bottom'
+    ? `0 ${distancePx}px`
+    : `${distancePx}px 0`;
+  target.element.style.opacity = target.previous.opacity || '1';
+  target.element.style.pointerEvents = 'none';
   target.element.style.willChange = target.previous.willChange;
 }
 
@@ -81,6 +114,8 @@ export default function EditorEntranceCoordinator() {
     let directLoadArmed = false;
     let directLoadStarted = false;
     let renderCompleteSeen = false;
+    let exitPromise: Promise<void> | null = null;
+    let resolveExit: (() => void) | null = null;
     let lastDashboardState: FieldDashboardLayerState | null = readFieldDashboardLayerState(document);
 
     const clearScheduled = () => {
@@ -88,6 +123,14 @@ export default function EditorEntranceCoordinator() {
       timers = [];
       for (const frame of frames) cancelAnimationFrame(frame);
       frames = [];
+    };
+
+    const finishPendingExit = () => {
+      if (!resolveExit) return;
+      const resolve = resolveExit;
+      resolveExit = null;
+      exitPromise = null;
+      resolve();
     };
 
     const cancelMotion = (restore = true) => {
@@ -103,9 +146,10 @@ export default function EditorEntranceCoordinator() {
       }
       prepared = [];
       running = false;
+      finishPendingExit();
     };
 
-    const prepare = () => {
+    const prepareEntrance = () => {
       if (prepared.length > 0 || running) return true;
 
       const targets = collectEditorEntranceTargets(document);
@@ -120,7 +164,7 @@ export default function EditorEntranceCoordinator() {
         window.innerHeight,
       );
 
-      prepared = targets.map((target) => prepareTarget(target, distances[target.role]));
+      prepared = targets.map((target) => prepareEntranceTarget(target, distances[target.role]));
       root.dataset.editorEntranceState = 'prepared';
       trace.action('editor-entrance:prepared', {
         cycle,
@@ -134,9 +178,9 @@ export default function EditorEntranceCoordinator() {
       return true;
     };
 
-    const run = () => {
+    const runEntrance = () => {
       if (running) return;
-      if (!prepare()) return;
+      if (!prepareEntrance()) return;
 
       running = true;
       root.dataset.editorEntranceState = 'entering';
@@ -146,7 +190,7 @@ export default function EditorEntranceCoordinator() {
         window.innerWidth,
         window.innerHeight,
       );
-      let settled = 0;
+      const settled = new Set<HTMLElement>();
 
       trace.action('editor-entrance:entering', {
         cycle: currentCycle,
@@ -155,9 +199,10 @@ export default function EditorEntranceCoordinator() {
       });
 
       const settleOne = (target: PreparedTarget) => {
+        if (settled.has(target.element)) return;
+        settled.add(target.element);
         restoreTarget(target);
-        settled += 1;
-        if (settled >= prepared.length && currentCycle === cycle) {
+        if (settled.size >= prepared.length && currentCycle === cycle) {
           prepared = [];
           animations = [];
           timers = [];
@@ -189,20 +234,20 @@ export default function EditorEntranceCoordinator() {
 
           animations.push(animation);
           animation.onfinish = () => {
+            animation.onfinish = null;
+            animation.oncancel = null;
             animation.cancel();
             settleOne(target);
           };
-          animation.oncancel = () => {
-            if (currentCycle === cycle) settleOne(target);
-          };
+          animation.oncancel = () => settleOne(target);
         }, editorEntranceDelay(target.role));
 
         timers.push(timer);
       }
     };
 
-    const runAfterPaint = () => {
-      const frame = nextPaint(run);
+    const runEntranceAfterPaint = () => {
+      const frame = nextPaint(runEntrance);
       frames.push(frame);
     };
 
@@ -211,7 +256,97 @@ export default function EditorEntranceCoordinator() {
       cancelMotion(true);
       directLoadArmed = false;
       directLoadStarted = false;
-      prepare();
+      prepareEntrance();
+    };
+
+    const runExit = (): Promise<void> => {
+      if (exitPromise) return exitPromise;
+
+      cycle += 1;
+      directLoadArmed = false;
+      directLoadStarted = false;
+      cancelMotion(true);
+
+      const targets = collectEditorEntranceTargets(document);
+      if (targets.length === 0) {
+        root.dataset.editorEntranceState = 'exited';
+        return Promise.resolve();
+      }
+
+      const distances = editorEntranceDistances(
+        targets,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      prepared = targets.map(prepareExitTarget);
+      running = true;
+      root.dataset.editorEntranceState = 'exiting';
+
+      trace.action('editor-entrance:exiting', {
+        cycle,
+        targets: prepared.map(({ role, element }) => ({
+          role,
+          surface: element.dataset.workspaceIsland ?? element.id ?? element.dataset.editorPanel ?? 'chrome',
+        })),
+      });
+
+      const currentCycle = cycle;
+      const finished = new Set<HTMLElement>();
+
+      exitPromise = new Promise<void>((resolve) => {
+        resolveExit = resolve;
+
+        const finishOne = (target: PreparedTarget) => {
+          if (finished.has(target.element)) return;
+          finished.add(target.element);
+          holdTargetOffscreen(target, distances[target.role]);
+
+          if (finished.size >= prepared.length && currentCycle === cycle) {
+            animations = [];
+            timers = [];
+            running = false;
+            root.dataset.editorEntranceState = 'exited';
+            trace.action('editor-entrance:exited', { cycle: currentCycle });
+            finishPendingExit();
+          }
+        };
+
+        for (const target of prepared) {
+          const timer = window.setTimeout(() => {
+            if (currentCycle !== cycle) {
+              finishOne(target);
+              return;
+            }
+
+            if (typeof target.element.animate !== 'function') {
+              finishOne(target);
+              return;
+            }
+
+            const animation = target.element.animate(
+              editorExitKeyframes(target.role, distances[target.role]),
+              {
+                duration: editorExitDuration(target.role),
+                easing: EDITOR_EXIT_EASING,
+                fill: 'both',
+              },
+            );
+
+            animations.push(animation);
+            animation.onfinish = () => {
+              animation.onfinish = null;
+              animation.oncancel = null;
+              animation.cancel();
+              finishOne(target);
+            };
+            animation.oncancel = () => finishOne(target);
+          }, editorExitDelay(target.role));
+
+          timers.push(timer);
+        }
+      });
+
+      return exitPromise;
     };
 
     const startDirectLoadAfterShellClears = () => {
@@ -222,7 +357,7 @@ export default function EditorEntranceCoordinator() {
         trace.action('editor-entrance:direct-load-shell-cleared', {
           renderCompleteSeen,
         });
-        runAfterPaint();
+        runEntranceAfterPaint();
       }, DIRECT_LOAD_SHELL_CLEAR_MS);
       timers.push(timer);
     };
@@ -234,10 +369,18 @@ export default function EditorEntranceCoordinator() {
       startDirectLoadAfterShellClears();
     };
 
+    const onExitRequest = (event: Event) => {
+      const detail = (event as CustomEvent<EditorChromeExitRequestDetail>).detail;
+      if (!detail?.waitUntil) return;
+      detail.waitUntil(runExit());
+    };
+
     const handleDashboardState = (state: FieldDashboardLayerState | null) => {
       const previous = lastDashboardState;
       lastDashboardState = state;
 
+      // Dashboard is leaving and editor is about to reappear. Restore any held
+      // exit state, then park the full physical chrome offscreen for entrance.
       if (state === 'hiding' && previous !== 'hiding') {
         beginNewRevealCycle();
         return;
@@ -247,26 +390,23 @@ export default function EditorEntranceCoordinator() {
         directLoadArmed = false;
         directLoadStarted = false;
         if (cycle === 0) cycle = 1;
-        if (!prepared.length) prepare();
-        runAfterPaint();
+        if (!prepared.length) prepareEntrance();
+        runEntranceAfterPaint();
       }
     };
 
     window.addEventListener(DIRECT_LOAD_RENDER_EVENT, onRenderComplete);
+    document.addEventListener(EDITOR_CHROME_EXIT_REQUEST_EVENT, onExitRequest);
 
     if (!shell) {
       cycle = 1;
       directLoadArmed = true;
-      prepare();
+      prepareEntrance();
     } else if (lastDashboardState === 'hidden') {
-      // A fresh /builder URL and a browser refresh both start with the shell
-      // already hidden. ProjectLoader still places BuilderLoadingShell above
-      // App until Canvas paints, so we prepare chrome offscreen NOW but wait
-      // for that real render boundary before beginning the spring.
       cycle = 1;
       directLoadArmed = true;
       root.dataset.editorEntranceState = 'waiting-canvas';
-      prepare();
+      prepareEntrance();
 
       const fallback = window.setTimeout(() => {
         if (!directLoadArmed || directLoadStarted) return;
@@ -290,6 +430,7 @@ export default function EditorEntranceCoordinator() {
     return () => {
       observer?.disconnect();
       window.removeEventListener(DIRECT_LOAD_RENDER_EVENT, onRenderComplete);
+      document.removeEventListener(EDITOR_CHROME_EXIT_REQUEST_EVENT, onExitRequest);
       cycle += 1;
       directLoadArmed = false;
       cancelMotion(true);

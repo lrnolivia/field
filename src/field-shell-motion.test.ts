@@ -27,4 +27,13 @@ describe('field shell Dashboard/Canvas motion contract', () => {
     expect(css).toContain('transition-duration: 0ms');
     expect(css).toContain('transition-delay: 0ms');
   });
+
+  it('waits for editor chrome to leave before Dashboard begins its return slide', () => {
+    const exitIndex = shell.indexOf('await requestEditorChromeExit(document);');
+    const showIndex = shell.indexOf('showDashboardLayer();', exitIndex);
+    expect(exitIndex).toBeGreaterThan(-1);
+    expect(showIndex).toBeGreaterThan(exitIndex);
+    expect(shell).toContain("trace.action('field-shell:editor-exit-start'");
+    expect(shell).toContain("trace.action('field-shell:editor-exit-complete'");
+  });
 });

@@ -1,21 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   collectEditorEntranceTargets,
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
   DIRECT_LOAD_SHELL_CLEAR_MS,
-  editorEntranceDelay,
-  editorEntranceDistances,
-  editorSpringKeyframes,
   EDITOR_BOTTOM_DELAY_MS,
   EDITOR_BOTTOM_SPRING,
+  EDITOR_CHROME_EXIT_REQUEST_EVENT,
+  EDITOR_EXIT_BOTTOM_DURATION_MS,
+  EDITOR_EXIT_SIDE_DURATION_MS,
   EDITOR_SIDE_SPRING,
+  editorEntranceDelay,
+  editorEntranceDistances,
+  editorExitDelay,
+  editorExitKeyframes,
+  editorSpringKeyframes,
   readFieldDashboardLayerState,
+  requestEditorChromeExit,
   springDisplacement,
   springOvershootRatio,
 } from './editor-entrance';
 
-describe('editor entrance choreography', () => {
+describe('editor chrome choreography', () => {
   it('targets physical panel shells together with their content and excludes Canvas', () => {
     document.body.innerHTML = `
       <div data-workspace-island="left"></div>
@@ -60,23 +66,21 @@ describe('editor entrance choreography', () => {
     expect(distances.bottom).toBe(90);
   });
 
-  it('uses actual under-damped spring physics with restrained sides', () => {
+  it('uses a critically damped structural entrance with no side overshoot', () => {
     expect(EDITOR_SIDE_SPRING).toMatchObject({
-      stiffness: 470,
-      damping: 32,
-      mass: 0.82,
+      stiffness: 520,
+      damping: 42.3,
+      mass: 0.86,
     });
-    const overshoot = springOvershootRatio(EDITOR_SIDE_SPRING);
-    expect(overshoot).toBeGreaterThan(0.008);
-    expect(overshoot).toBeLessThan(0.02);
+    expect(springOvershootRatio(EDITOR_SIDE_SPRING)).toBe(0);
 
     const frames = editorSpringKeyframes('left', -320);
     const translations = frames.map((frame) => Number(String(frame.translate).split('px')[0]));
-    expect(translations.some((value) => value > 2)).toBe(true);
+    expect(translations.every((value) => value <= 0)).toBe(true);
     expect(frames[frames.length - 1].translate).toBe('0px 0');
   });
 
-  it('gives the bottom toolbar a materially bouncier spring', () => {
+  it('keeps the bottom toolbar as the playful under-damped beat', () => {
     expect(EDITOR_BOTTOM_SPRING).toMatchObject({
       stiffness: 390,
       damping: 20,
@@ -86,9 +90,7 @@ describe('editor entrance choreography', () => {
     expect(EDITOR_BOTTOM_DELAY_MS).toBe(42);
 
     const bottomOvershoot = springOvershootRatio(EDITOR_BOTTOM_SPRING);
-    const sideOvershoot = springOvershootRatio(EDITOR_SIDE_SPRING);
     expect(bottomOvershoot).toBeGreaterThan(0.1);
-    expect(bottomOvershoot).toBeGreaterThan(sideOvershoot * 5);
 
     const frames = editorSpringKeyframes('bottom', 90);
     const translations = frames.map((frame) => {
@@ -99,7 +101,41 @@ describe('editor entrance choreography', () => {
     expect(frames[frames.length - 1].translate).toBe('0 0px');
   });
 
-  it('defines an explicit direct-load boundary after the ProjectLoader shell clears', () => {
+  it('exits structural chrome cleanly with no reverse bounce', () => {
+    const left = editorExitKeyframes('left', -328);
+    const right = editorExitKeyframes('right', 276);
+    const bottom = editorExitKeyframes('bottom', 90);
+
+    expect(left).toEqual([
+      { offset: 0, translate: '0px 0', opacity: 1 },
+      { offset: 1, translate: '-328px 0', opacity: 1 },
+    ]);
+    expect(right[1].translate).toBe('276px 0');
+    expect(bottom[1].translate).toBe('0 90px');
+    expect(EDITOR_EXIT_SIDE_DURATION_MS).toBe(220);
+    expect(EDITOR_EXIT_BOTTOM_DURATION_MS).toBe(190);
+    expect(editorExitDelay('bottom')).toBe(0);
+    expect(editorExitDelay('left')).toBeGreaterThan(0);
+  });
+
+  it('lets FieldShell await every mounted editor exit participant', async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const onRequest = (event: Event) => {
+      const detail = (event as CustomEvent<{ waitUntil(promise: Promise<unknown>): void }>).detail;
+      detail.waitUntil(Promise.resolve().then(first));
+      detail.waitUntil(Promise.resolve().then(second));
+    };
+
+    document.addEventListener(EDITOR_CHROME_EXIT_REQUEST_EVENT, onRequest, { once: true });
+    await requestEditorChromeExit(document);
+
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the direct-load boundary after ProjectLoader shell clears', () => {
     expect(DIRECT_LOAD_RENDER_EVENT).toBe('revyme:render-complete');
     expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeGreaterThan(280);
     expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeLessThan(400);
@@ -115,9 +151,9 @@ describe('editor entrance choreography', () => {
     expect(readFieldDashboardLayerState(document)).toBe('hidden');
   });
 
-  it('spring displacement crosses rest and decays toward zero', () => {
+  it('bottom spring crosses rest while the structural spring stays monotonic', () => {
     expect(springDisplacement(0, EDITOR_BOTTOM_SPRING)).toBeCloseTo(1, 6);
     expect(springDisplacement(0.18, EDITOR_BOTTOM_SPRING)).toBeLessThan(0);
-    expect(Math.abs(springDisplacement(0.5, EDITOR_BOTTOM_SPRING))).toBeLessThan(0.01);
+    expect(springDisplacement(0.18, EDITOR_SIDE_SPRING)).toBeGreaterThanOrEqual(0);
   });
 });
