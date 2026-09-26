@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T06:37:21Z
+Last Updated: 2026-09-26T06:39:47Z
 
 ## Active Assignments
 
@@ -1344,6 +1344,19 @@ Paths:
   - src/field-shell-route.test.ts
   - src/field-shell-route.ts
   - src/main.tsx
+  - src/styles/field-shell.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T06:39:47Z — field-dashboard-canvas-slide-20260926 — 7acefc601faa
+
+Summary: Replaced the Dashboard surface crossfade with a 150ms split-slide: sidebar exits left, main surface exits right, revealing the already-live Canvas underneath. Reverse motion restores Dashboard. Canvas readiness, project switching, realtime, wizard, and persistence contracts are unchanged.
+Commit: 7acefc601faa83d90021f2bf3ad13f9797cc489a
+
+Paths:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.test.ts
   - src/styles/field-shell.css
 
 Validation / Build / Deploy:
