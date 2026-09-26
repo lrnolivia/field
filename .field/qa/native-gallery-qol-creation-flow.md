@@ -137,3 +137,12 @@ Do not use this packet as evidence that Gallery regressed.
 - the authored focused regressions are present in source but must not be reported as executed
 - Cloudflare Workers Builds was in progress at the first post-publication check; final classification is recorded only after a completed check is observed
 - runtime / Preview QA for this unmerged Shuffle remains pending
+
+
+### Cloudflare follow-up for 55f3901660e4
+
+- Workers Builds: field check-run 108432708475 completed with failure at 2026-09-26T15:34:02Z
+- no annotations were reported
+- classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Natural Shuffle product failure
+- basis: the Gallery no-file bootstrap and unrelated current-main coordination commits were already observed failing this same Workers Builds lane before this Shuffle commit
+- this does not substitute for exact dependency-tree Vitest / TypeScript / build:all, which remain unverified here
