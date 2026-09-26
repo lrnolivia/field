@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:36:45Z
+Last Updated: 2026-09-26T08:50:13Z
 
 ## Active Assignments
 
@@ -115,7 +115,7 @@ Protected:
 Status: active
 Baseline: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
 Activation HEAD: 53aa577edb4bf887fac05e77cf5e3550b5f79e88
-Last Sync: 2026-09-26T07:43:14Z
+Last Sync: 2026-09-26T08:50:13Z
 
 Scope:
   - canonical ToolPopup rich-editor contract
@@ -126,6 +126,11 @@ Scope:
   - final owned-surface Inspector visual QA
   - Figma-like bottom-toolbar authoring hierarchy
   - preservation of field-only toolbar utilities in a distinct secondary cluster
+  - Inspector view-control consolidation: Theme + full Zoom
+  - compact deterministic Smart Zoom on BottomToolbar
+  - Resources toolbar entry routed to canonical Library/Media panels
+  - canonical minimal search-surface rule
+  - Media Gallery deterministic local search
 
 Owned:
   - src/shared/field-surface-elevation.ts
@@ -142,6 +147,13 @@ Owned:
   - src/editor/ui/FontFamilyPopup.tsx
   - src/editor/BottomToolbar.tsx
   - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
+  - src/editor/controls/InspectorZoomControl.tsx
+  - src/editor/ui/ThemeNeutralPopover.tsx
+  - src/design-system/SearchBar.tsx
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+  - src/editor/figui3-bottom-toolbar-polish.test.ts
+  - src/editor/figui3-toolbar-resources-view-controls.test.ts
+  - src/editor/figui3-search-surface-contract.test.ts
 
 Approved Shared:
   - tracker.md
@@ -155,6 +167,13 @@ Coordination:
   - current user instruction explicitly requires Inspector-created menus/popups to never render underneath their parent/Inspector
   - user explicitly authorized overriding unrelated Protected-only design-system blankets for this narrow elevation work
   - Protected-path references in unrelated active assignments are not ownership claims
+  - explicit current user decision removes Locale and Theme from BottomToolbar
+  - Locale remains in its canonical Localization left-rail panel
+  - Theme + full Zoom move into the existing InspectorZoomControl slot
+  - Resources does not duplicate component/media storage or insertion semantics
+  - Resources opens the canonical Library or Media Gallery panel
+  - growing inventories should use design-system/SearchBar; short fixed command menus remain search-free
+  - no Dashboard/Canvas panel animation files are touched
 
 Protected:
   - src/canvas/**
