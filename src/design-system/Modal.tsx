@@ -7,6 +7,7 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
+import { FIELD_SURFACE_Z } from '@/shared/field-surface-elevation';
 
 interface ModalProps {
   isOpen: boolean;
@@ -57,8 +58,10 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
         // `canvas/KeyboardManager.ts`.
         <div
           data-modal-root
+          data-field-floating-surface
+          data-field-surface-scope="modal"
           className="fixed inset-0 flex items-center justify-center"
-          style={{ zIndex: 100010 }}
+          style={{ zIndex: FIELD_SURFACE_Z.modal }}
           // React dispatches synthetic events along the REACT tree, not the DOM tree — so even though
           // this modal is portaled to <body>, a mousedown/pointerdown inside it bubbles (via React) to
           // the Canvas's onMouseDown and would deselect / hit-test the canvas BEHIND the modal. Stop

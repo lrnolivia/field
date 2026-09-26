@@ -15,6 +15,7 @@
 
 import { useRef, useEffect, useLayoutEffect, useState, useMemo, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { FIELD_SURFACE_Z, fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 export interface DropdownMenuItem {
   id: string;
@@ -199,6 +200,8 @@ interface MenuPanelProps {
   preferredFocusItemId?: string;
   /** Submenus use Left Arrow to close themselves and restore parent focus. */
   onArrowLeft?: () => void;
+  /** Explicit floating-surface z-index resolved by the root/submenu owner. */
+  zIndex?: number;
 }
 
 /** Sentinel `openSubId` value for the search-results flyout. It shares the
@@ -210,6 +213,7 @@ const SEARCH_SUB_ID = '__search__';
 function MenuPanel({
   items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable,
   density = 'default', autoFocusFirst = false, preferredFocusItemId, onArrowLeft,
+  zIndex = FIELD_SURFACE_Z.menu,
 }: MenuPanelProps) {
   const compact = density === 'compact';
   const [openSubId, setOpenSubId] = useState<string | null>(null);
@@ -350,7 +354,7 @@ function MenuPanel({
         ...style,
         ...(width ? { width, minWidth: 0 } : { minWidth }),
         whiteSpace: 'nowrap',
-        zIndex: 99998,
+        zIndex,
         display: 'flex',
         flexDirection: 'column',
         rowGap: compact ? 0 : 2,
@@ -508,6 +512,8 @@ function CascadingSubmenu({
 }: CascadingSubmenuProps) {
   const parentRect = parentEl?.getBoundingClientRect();
   if (!parentRect) return null;
+  const surfaceScope = fieldSurfaceScopeFor(parentEl);
+  const zIndex = fieldSurfaceZ('submenu', parentEl);
   const SUB_WIDTH = 200;
   const { left, top } = chooseSubmenuPosition(parentRect, SUB_WIDTH, items.filter(i => !isSeparator(i)).length);
 
@@ -515,8 +521,10 @@ function CascadingSubmenu({
     <div
       data-cascading-menu
       data-field-no-canvas-input
+      data-field-floating-surface
+      data-field-surface-scope={surfaceScope}
       onMouseLeave={onMouseLeavePanel}
-      style={{ position: 'fixed', left, top, zIndex: 99999 }}
+      style={{ position: 'fixed', left, top, zIndex }}
     >
       <div
         aria-hidden="true"
@@ -536,6 +544,7 @@ function CascadingSubmenu({
         style={{ position: 'static' }}
         autoFocusFirst={keyboardOpen}
         onArrowLeft={onKeyboardClose}
+        zIndex={zIndex}
       />
     </div>
   );
@@ -549,6 +558,9 @@ export default function DropdownMenu({
   hoverStyle = 'accent', searchable, density = 'default', preferredFocusItemId,
 }: DropdownMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const surfaceScope = fieldSurfaceScopeFor(anchorRef?.current ?? null);
+  const backdropZIndex = fieldSurfaceZ('menu-backdrop', anchorRef?.current ?? null);
+  const menuZIndex = fieldSurfaceZ('menu', anchorRef?.current ?? null);
 
   // Close on outside click — covers BOTH the root menu and any open
   // submenus. The submenu portals are siblings (under document.body) so
@@ -667,7 +679,13 @@ export default function DropdownMenu({
     : { left: -9999, top: -9999 };
 
   return createPortal(
-    <div ref={rootRef} data-cascading-menu data-field-no-canvas-input>
+    <div
+      ref={rootRef}
+      data-cascading-menu
+      data-field-no-canvas-input
+      data-field-floating-surface
+      data-field-surface-scope={surfaceScope}
+    >
       {/* Invisible full-screen click-catcher → context-menu behavior: a click
           anywhere outside the panel ONLY closes the menu, it does NOT also
           select a canvas node / another row / clear selection.
@@ -678,7 +696,7 @@ export default function DropdownMenu({
           on the COMPLETED click / contextmenu — the entire down→up→click
           sequence lands on the backdrop, so nothing below ever receives it. */}
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 99997 }}
+        style={{ position: 'fixed', inset: 0, zIndex: backdropZIndex }}
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         onMouseUp={(e) => { e.stopPropagation(); }}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
@@ -696,6 +714,7 @@ export default function DropdownMenu({
         density={density}
         autoFocusFirst={!searchable && !!anchorRef}
         preferredFocusItemId={preferredFocusItemId}
+        zIndex={menuZIndex}
       />
     </div>,
     document.body,

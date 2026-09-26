@@ -10,6 +10,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback, useLayoutEffect, type ReactNode, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 export interface RowSubmenu {
   title?: string;
@@ -114,6 +115,9 @@ export default function SearchableDropdown<T>({
   const wrapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  const surfaceScope = fieldSurfaceScopeFor(wrapRef.current);
+  const portalZIndex = fieldSurfaceZ('menu', wrapRef.current);
+  const flyoutZIndex = fieldSurfaceZ('submenu', wrapRef.current);
   // The row whose flyout is open, and where that row sits. One at a time:
   // hovering another row swaps it (or closes it, for a row with none).
   const [sub, setSub] = useState<{ key: string; rect: DOMRect } | null>(null);
@@ -234,8 +238,10 @@ export default function SearchableDropdown<T>({
         ref={subRef}
         data-testid="searchable-dropdown-submenu"
         data-field-no-canvas-input
-        style={{ position: 'fixed', left, top, width: SUBMENU_WIDTH }}
-        className="z-[99999] rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] py-1"
+        data-field-floating-surface
+        data-field-surface-scope={surfaceScope}
+        style={{ position: 'fixed', left, top, width: SUBMENU_WIDTH, zIndex: flyoutZIndex }}
+        className="rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] py-1"
         onWheelCapture={(event) => event.stopPropagation()}
       >
         {menu.title && (
@@ -268,8 +274,10 @@ export default function SearchableDropdown<T>({
         <div
           ref={panelRef}
           data-field-no-canvas-input
-          style={style ?? undefined}
-          className={`${style ? 'z-[99999]' : `absolute ${panelClassName} z-[100]`} rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] overflow-hidden`}
+          data-field-floating-surface={style ? '' : undefined}
+          data-field-surface-scope={style ? surfaceScope : undefined}
+          style={style ? { ...style, zIndex: portalZIndex } : undefined}
+          className={`${style ? '' : `absolute ${panelClassName} z-[100]`} rounded-[8px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] overflow-hidden`}
         >
           <div className="p-1.5">
             <input

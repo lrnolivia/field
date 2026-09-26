@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 export interface FieldSelectOption {
   value: string;
@@ -245,12 +246,15 @@ export default function FieldSelect({
     ? 'min-h-6 px-2 py-1 text-[10px]'
     : 'min-h-7 px-2 py-1.5 text-[11px]';
 
+  const menuSurfaceScope = fieldSurfaceScopeFor(triggerRef.current);
+  const menuZIndex = fieldSurfaceZ('select', triggerRef.current);
+
   const menuStyle: CSSProperties | undefined = position ? {
     left: position.left,
     top: position.top,
     width: position.width,
     maxHeight: position.maxHeight,
-    zIndex: 100000,
+    zIndex: menuZIndex,
     boxShadow: 'var(--menu-shadow, 0 12px 32px rgba(0, 0, 0, 0.28))',
   } : undefined;
 
@@ -314,6 +318,8 @@ export default function FieldSelect({
           aria-label={ariaLabel}
           data-field-menu-surface
           data-field-no-canvas-input
+          data-field-floating-surface
+          data-field-surface-scope={menuSurfaceScope}
           data-field-select-direction={position.openAbove ? 'up' : 'down'}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}

@@ -14,6 +14,7 @@ import type { WorkspaceFont } from '@/backend/types';
 import ToolPopup from './ToolPopup';
 import { suppressSelectionOverlayAtom } from '@/code/stores/editor-store';
 import { trace } from '@/shared/debug-trace';
+import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 interface FontFamilyPopupProps {
   value: string;
@@ -521,10 +522,12 @@ export default function FontFamilyPopup({ value, onChange, isOpen, onClose, anch
         <div
           data-font-filter-menu
           data-field-no-canvas-input
+          data-field-floating-surface
+          data-field-surface-scope={fieldSurfaceScopeFor(filterButtonRef.current)}
           role="menu"
           aria-label="Font filter"
           className="fixed w-[184px] max-h-[320px] overflow-y-auto py-1 rounded-[5px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] scrollbar-hide"
-          style={{ left: filterMenuPos.left, top: filterMenuPos.top, zIndex: 100020 }}
+          style={{ left: filterMenuPos.left, top: filterMenuPos.top, zIndex: fieldSurfaceZ('submenu', filterButtonRef.current) }}
           onMouseDown={(event) => event.stopPropagation()}
           onWheelCapture={(event) => event.stopPropagation()}
         >

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useCallback, createContext, useContext, ty
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { trace } from '@/shared/debug-trace';
+import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 // ─── Context for child components to push/pop panels ────────────────────────
 
@@ -118,11 +119,35 @@ interface ToolPopupProps {
   resetKey?: string | number;
   /** Which side to position the popup relative to the anchor. Default 'left' (opens to the left of anchor). */
   side?: 'left' | 'right';
+  /** Accessible non-modal dialog label. Defaults to title. */
+  ariaLabel?: string;
+  /** Optional focus target for rich surfaces with a clear first field. */
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
+  /** Outside-pointer behavior. 'shield' prevents click-through. */
+  outsidePointerMode?: 'none' | 'close' | 'shield';
+  /** Suppress the stock ToolPopup header when the rich editor owns its header composition. */
+  hideHeader?: boolean;
+  /** Root-panel wrapper class. Use for full-bleed rich editors. */
+  contentClassName?: string;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function ToolPopup({ isOpen, onClose, title, children, anchorRef, width = 260, resetKey, side = 'left' }: ToolPopupProps) {
+export default function ToolPopup({
+  isOpen,
+  onClose,
+  title,
+  children,
+  anchorRef,
+  width = 260,
+  resetKey,
+  side = 'left',
+  ariaLabel,
+  initialFocusRef,
+  outsidePointerMode = 'none',
+  hideHeader = false,
+  contentClassName,
+}: ToolPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const activePanelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -276,6 +301,13 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  const closeAndRestoreFocus = useCallback(() => {
+    onCloseRef.current();
+    requestAnimationFrame(() => {
+      anchorRefStable.current?.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
   useEffect(() => {
     if (!isOpen) { setPositioned(false); return; }
     // Close any other open popup (global singleton)
@@ -295,6 +327,28 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
     };
   }, [isOpen, recalcPosition, title]); // onClose removed from deps — uses ref
 
+  useEffect(() => {
+    if (!isOpen || !positioned || !initialFocusRef?.current) return;
+    const frame = requestAnimationFrame(() => {
+      initialFocusRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, positioned, initialFocusRef]);
+
+  useEffect(() => {
+    if (!isOpen || outsidePointerMode !== 'close') return;
+    const handleOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (popupRef.current?.contains(target)) return;
+      if (anchorRefStable.current?.current?.contains(target)) return;
+      if (target.closest('[data-field-floating-surface]')) return;
+      closeAndRestoreFocus();
+    };
+    window.addEventListener('pointerdown', handleOutsidePointer, true);
+    return () => window.removeEventListener('pointerdown', handleOutsidePointer, true);
+  }, [isOpen, outsidePointerMode, closeAndRestoreFocus]);
+
   // ─── Reposition whenever content height changes (tabs, panels, any resize) ──
   // Guard: only runs AFTER initial positioning — prevents jump caused by the
   // effect firing at top=0 before recalcPosition has set the correct position.
@@ -305,8 +359,8 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
     const popupEl = popupRef.current;
     if (!popupEl) return;
     const gap = 16;
-    const headerEl = popupEl.querySelector<HTMLElement>(':scope > div:first-child');
-    const headerHeight = headerEl?.offsetHeight ?? 44;
+    const headerEl = hideHeader ? null : popupEl.querySelector<HTMLElement>(':scope > div:first-child');
+    const headerHeight = hideHeader ? 0 : (headerEl?.offsetHeight ?? 44);
     const totalHeight = headerHeight + contentHeight;
     const currentTop = popupEl.getBoundingClientRect().top;
 
@@ -337,7 +391,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
     }
   // pos intentionally excluded — we read live DOM position instead
    
-  }, [contentHeight, isOpen, positioned]);
+  }, [contentHeight, isOpen, positioned, hideHeader]);
 
   // ─── Escape key ───────────────────────────────────────────
   useEffect(() => {
@@ -346,12 +400,12 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
       if (e.key === 'Escape') {
         e.stopPropagation();
         if (canGoBack) popPanel();
-        else onClose();
+        else closeAndRestoreFocus();
       }
     };
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [isOpen, onClose, canGoBack, popPanel]);
+  }, [isOpen, canGoBack, popPanel, closeAndRestoreFocus]);
 
   // ─── Draggable header ────────────────────────────────────
   const dragRef = useRef({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
@@ -401,28 +455,52 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
 
   if (!isOpen) return null;
 
-  // z-index: normally 100001 (above the canvas / tools). But when this popup is triggered from
-  // INSIDE a modal (anchor is within `[data-modal-root]`, e.g. the variable modal's default-value
-  // editor), it must sit ABOVE the modal (100010) or it opens BEHIND it and can't be used. Bump to
-  // 100020 in that case.
-  const inModal = !!anchorRef?.current?.closest?.('[data-modal-root]');
-  const zIndex = inModal ? 100020 : 100001;
+  // Rich editors live above the Inspector but below any menu/select they spawn.
+  // Modal scope is inherited through a data marker because ToolPopup itself is portalled.
+  const surfaceScope = fieldSurfaceScopeFor(anchorRef?.current ?? null);
+  const zIndex = fieldSurfaceZ('rich-popup', anchorRef?.current ?? null);
+  const backdropZIndex = zIndex - 1;
 
   return createPortal(
-    <ToolPopupContext.Provider value={{ pushPanel, popPanel }}>
+    <>
+      {outsidePointerMode === 'shield' && (
+        <div
+          data-tool-popup-backdrop
+          data-field-floating-surface
+          data-field-surface-scope={surfaceScope}
+          className="fixed inset-0"
+          style={{ zIndex: backdropZIndex }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAndRestoreFocus();
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAndRestoreFocus();
+          }}
+        />
+      )}
+      <ToolPopupContext.Provider value={{ pushPanel, popPanel }}>
       <motion.div
         ref={popupRef}
         data-tool-popup=""
         data-field-no-canvas-input
+        data-field-floating-surface
+        data-field-surface-scope={surfaceScope}
+        role="dialog"
+        aria-modal="false"
+        aria-label={ariaLabel ?? title}
         className="fixed rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] flex flex-col overflow-hidden"
         // initial ensures the very first paint is invisible — prevents the
         // one-frame flash at left:0/top:0 before recalcPosition runs.
         // initial: first paint is invisible — prevents the one-frame flash at
         // left:0/top:0 before recalcPosition runs on the rAF.
         initial={{ opacity: 0, scale: 0.97, x: side === 'left' ? 6 : -6 }}
-        // zIndex: 100001 normally; 100020 when triggered from inside a modal (the modal root is
-        // 100010) so the popup — e.g. the Border / Shadow / Color editor in the variable modal's
-        // default-value section — renders OVER the modal instead of buried behind it. See `inModal`.
+        // Elevation is resolved from the anchor's semantic surface scope.
         // One quiet perimeter + shared true-float shadow; geometry stays UI3-rounded.
         style={{ width, zIndex }}
         // Entrance: fade + subtle scale + slide from the anchor side.
@@ -449,30 +527,33 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
         onWheelCapture={(e) => e.stopPropagation()}
       >
         {/* Header — draggable, back arrow when navigated, title, close × */}
-        <div className="h-8 flex items-center justify-between px-2.5 py-0 cursor-grab active:cursor-grabbing select-none"
-          onPointerDown={handleDragStart}>
-          <div className="flex items-center gap-1.5">
-            {canGoBack && (
-              <button
-                onClick={popPanel}
-                className="p-0.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-            )}
-            <span className="text-[11px] font-semibold text-[var(--text-primary)]">{currentTitle}</span>
+        {!hideHeader && (
+          <div className="h-8 flex items-center justify-between px-2.5 py-0 cursor-grab active:cursor-grabbing select-none"
+            onPointerDown={handleDragStart}>
+            <div className="flex items-center gap-1.5">
+              {canGoBack && (
+                <button
+                  onClick={popPanel}
+                  className="p-0.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+              <span className="text-[11px] font-semibold text-[var(--text-primary)]">{currentTitle}</span>
+            </div>
+            <button
+              onClick={closeAndRestoreFocus}
+              aria-label={`Close ${ariaLabel ?? title}`}
+              className="p-0.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-0.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
+        )}
 
         {/* Sliding content — all panels laid out horizontally, spring animation */}
         {/* Height animates to fit the active panel */}
@@ -491,7 +572,7 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
                 than growing the popup past the viewport. */}
             <div
               ref={panelStack.length === 0 ? activePanelRef : undefined}
-              className="w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+              className={contentClassName ?? "w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"}
               style={{ maxHeight: maxContentHeight }}
             >
               {/* Keyed by resetKey so the content REMOUNTS when the selected node/tile
@@ -520,7 +601,8 @@ export default function ToolPopup({ isOpen, onClose, title, children, anchorRef,
           </motion.div>
         </motion.div>
       </motion.div>
-    </ToolPopupContext.Provider>,
+      </ToolPopupContext.Provider>
+    </>,
     document.body,
   );
 }

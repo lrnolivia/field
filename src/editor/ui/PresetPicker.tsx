@@ -2,10 +2,10 @@
 // Shows filtered tokens by property type. Click to apply var(--token-name).
 // Uses portal positioning near the anchor element.
 
-import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import ToolPopup from './ToolPopup';
 
 // ─── Category → property matching ────────────────────────────────────────────
 
@@ -65,8 +65,7 @@ interface PresetPickerProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function PresetPicker({ property, tokens, onSelect, isOpen, onClose, anchorRef }: PresetPickerProps) {
-  const popupRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
 
   const matchingCategories = useMemo(() => getMatchingCategories(property), [property]);
@@ -85,64 +84,43 @@ export default function PresetPicker({ property, tokens, onSelect, isOpen, onClo
     );
   }, [filteredTokens, query]);
 
-  const recalcPosition = useCallback(() => {
-    if (!anchorRef.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    const menuWidth = 280;
-    const padding = 16;
-
-    let x: number;
-    if (rect.left - menuWidth - 8 > padding) x = rect.left - menuWidth - 8;
-    else x = rect.right + 8;
-
-    const menuHeight = Math.min(visibleTokens.length * 34 + 108, 420);
-    let y = rect.top;
-    if (y + menuHeight > window.innerHeight - padding) {
-      y = Math.max(padding, window.innerHeight - menuHeight - padding);
-    }
-
-    setPos({ x, y });
-  }, [anchorRef, visibleTokens.length]);
-
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
       return;
     }
-    recalcPosition();
     trace.action('preset-picker:open', { property, tokenCount: filteredTokens.length });
-  }, [isOpen, recalcPosition, property, filteredTokens.length]);
+  }, [isOpen, property, filteredTokens.length]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-    };
-    window.addEventListener('keydown', handleKey, true);
-    return () => window.removeEventListener('keydown', handleKey, true);
-  }, [isOpen, onClose]);
+  const closeWithFocus = () => {
+    onClose();
+    requestAnimationFrame(() => anchorRef.current?.focus({ preventScroll: true }));
+  };
 
   if (!isOpen) return null;
 
   const handleSelect = (tokenName: string) => {
     onSelect(tokenName);
-    onClose();
+    closeWithFocus();
     trace.action('preset-picker:select', { property, tokenName });
   };
 
-  return createPortal(
-    <>
+  return (
+    <ToolPopup
+      isOpen={isOpen}
+      onClose={closeWithFocus}
+      title="Styles"
+      ariaLabel="Style presets"
+      anchorRef={anchorRef}
+      width={280}
+      initialFocusRef={searchInputRef}
+      outsidePointerMode="shield"
+      hideHeader
+      contentClassName="w-full flex-shrink-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
+    >
       <div
-        className="fixed inset-0 z-50"
-        onClick={onClose}
-        onContextMenu={(e) => { e.preventDefault(); onClose(); }}
-      />
-
-      <div
-        ref={popupRef}
         data-preset-picker-figui3
-        className="fixed z-51 w-[280px] max-h-[420px] overflow-hidden bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-[12px] shadow-[var(--shadow-lg)]"
-        style={{ left: pos.x, top: pos.y }}
+        className="w-full"
       >
         <div className="h-10 px-3 flex items-center gap-1 border-b border-[var(--border-light)]">
           <button type="button" className="h-7 px-2 rounded-[7px] bg-[var(--bg-selected)] text-xs font-medium text-[var(--text-primary)]">Custom</button>
@@ -154,7 +132,7 @@ export default function PresetPicker({ property, tokens, onSelect, isOpen, onClo
           >
             Libraries
           </button>
-          <button type="button" onClick={onClose} className="ml-auto h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" aria-label="Close styles">
+          <button type="button" onClick={closeWithFocus} className="ml-auto h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" aria-label="Close styles">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="m3 3 10 10M13 3 3 13" /></svg>
           </button>
         </div>
@@ -175,7 +153,7 @@ export default function PresetPicker({ property, tokens, onSelect, isOpen, onClo
           <label className="h-8 px-2 flex items-center gap-2 rounded-[7px] bg-[var(--grid-line)] border border-[var(--control-border)] focus-within:border-[var(--border-focus)]">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" className="text-[var(--text-secondary)]" aria-hidden><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3 3" /></svg>
             <input
-              autoFocus
+              ref={searchInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search styles"
@@ -203,7 +181,6 @@ export default function PresetPicker({ property, tokens, onSelect, isOpen, onClo
           )}
         </div>
       </div>
-    </>,
-    document.body,
+    </ToolPopup>
   );
 }

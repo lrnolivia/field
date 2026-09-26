@@ -1,5 +1,6 @@
 // BottomToolbar.tsx — Floating bottom toolbar with tool modes, zoom, search, theme, comments.
 // FIGUI3_BOTTOM_TOOLBAR_POLISH_20260925
+// FIGUI3_BOTTOM_TOOLBAR_FIGMA_PARITY_20260926
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -95,16 +96,18 @@ function DropdownDivider() {
 
 // ─── Split Button (icon + chevron) ──────────────────────────────────────────
 
-function SplitButton({ active, icon, onClick, onChevronClick, title }: {
+function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }: {
   active: boolean; icon: React.ReactNode; onClick: () => void;
-  onChevronClick: () => void; title: string;
+  onChevronClick: () => void; title: string; dataTool?: string;
 }) {
   return (
     <div className="flex items-center">
       <button
         onClick={onClick}
         title={title}
-        className={`flex items-center justify-center px-1.5 h-[36px] rounded-[6px] transition-colors ${
+        data-toolbar-tool={dataTool}
+        aria-pressed={active || undefined}
+        className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
           active
             ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -135,16 +138,18 @@ function SplitButton({ active, icon, onClick, onChevronClick, title }: {
 
 // ─── Tool Button (simple) ───────────────────────────────────────────────────
 
-function ToolButton({ active, onClick, title, children, dataTutorial }: {
+function ToolButton({ active, onClick, title, children, dataTutorial, dataTool }: {
   active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
-  dataTutorial?: string;
+  dataTutorial?: string; dataTool?: string;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
       data-tutorial={dataTutorial}
-      className={`flex items-center justify-center px-1.5 h-[36px] rounded-[6px] transition-colors ${
+      data-toolbar-tool={dataTool}
+      aria-pressed={active || undefined}
+      className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
         active
           ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -203,6 +208,7 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect }: {
         onClick={() => onSelect(toolMode === 'hand' ? 'hand' : 'select')}
         onChevronClick={() => setOpen(!open)}
         title="Select (V) / Hand (H)"
+        dataTool="select"
       />
       {open && (
         <DropdownContainer>
@@ -216,10 +222,9 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect }: {
 
 // ─── Shape Dropdown ─────────────────────────────────────────────────────────
 
-// `onSketch` activates the freehand sketch tool — sketches live alongside
-// the vector shapes (they bundle into a Vector Set).
-function ShapeDropdown({ active, sketchActive, onSelect, onSketch }: {
-  active: boolean; sketchActive: boolean; onSelect: (shape: string) => void; onSketch: () => void;
+// Vector-shape split button. Sketch has its own Figma-like toolbar slot.
+function ShapeDropdown({ active, onSelect }: {
+  active: boolean; onSelect: (shape: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [currentShape, setCurrentShape] = useState('triangle');
@@ -232,21 +237,17 @@ function ShapeDropdown({ active, sketchActive, onSelect, onSketch }: {
     circle: <ShapeCircleIcon className="w-4 h-4" size={16} />,
     triangle: <ShapeTriangleIcon className="w-4 h-4" size={16} />,
     path: <ShapePathIcon className="w-4 h-4" size={16} />,
-    sketch: <SketchPencilIcon className="w-4 h-4" size={16} />,
   };
-
-  // The trigger re-activates the last-picked tool — `sketch` routes to the
-  // freehand tool, every other value to the matching vector shape.
-  const activate = (pick: string) => { if (pick === 'sketch') onSketch(); else onSelect(pick); };
 
   return (
     <div className="relative" ref={ref} data-tutorial="shape-tool">
       <SplitButton
-        active={active || sketchActive || open}
+        active={active || open}
         icon={shapeIcons[currentShape]}
-        onClick={() => { activate(currentShape); }}
+        onClick={() => { onSelect(currentShape); }}
         onChevronClick={() => setOpen(!open)}
         title="Shapes"
+        dataTool="shape"
       />
       {open && (
         <DropdownContainer>
@@ -254,7 +255,6 @@ function ShapeDropdown({ active, sketchActive, onSelect, onSketch }: {
           <MenuItem label="Circle" shortcut="O" active={active && currentShape === 'circle'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('circle'); onSelect('circle'); setOpen(false); }} />
           <MenuItem label="Triangle" shortcut="Shift+T" active={active && currentShape === 'triangle'} icon={<ShapeTriangleIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('triangle'); onSelect('triangle'); setOpen(false); }} />
           <MenuItem label="Path" shortcut="P" active={active && currentShape === 'path'} icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('path'); onSelect('path'); setOpen(false); }} />
-          <MenuItem label="Sketch" shortcut="K" active={sketchActive} icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('sketch'); onSketch(); setOpen(false); }} />
         </DropdownContainer>
       )}
     </div>
@@ -298,6 +298,7 @@ function LayoutDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: 
         onClick={() => { onSelect(currentLayout); }}
         onChevronClick={() => setOpen(!open)}
         title="Layout"
+        dataTool="layout"
       />
       {open && (
         <DropdownContainer>
@@ -600,166 +601,147 @@ export default function BottomToolbar() {
             boxShadow: 'var(--shadow-md)',
           } as React.CSSProperties}
         />
-        {/* ── Cursor / Hand ── Always shown, viewers included: a
-            read-only seat can't draw, but it CAN still select nodes for
-            inspection and pan the canvas, so the cursor/hand tool stays
-            available (and its V / H shortcuts stay live). */}
-        <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} />
-        {/* Viewers have no other creator tools, so the cursor needs its
-            own trailing separator before zoom. Non-viewers get one from
-            the creator cluster below instead. */}
-        {isViewer && <Separator />}
+        {/* Figma-like authoring cluster. field-only creation tools stay here
+            when the toolbar remains their clearest home. */}
+        <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
+          <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} />
 
-        {/* Creator tools — hidden in viewer mode. A read-only seat
-            can't draw frames / text / shapes / sketches, so the
-            authoring cluster (frame → sketch + its separator) collapses,
-            leaving cursor · zoom · locale · theme · comment. */}
-        {!isViewer && <>
-        {/* Frame / Text / Layout are hidden on container-set master
-            files (icon-set). The surface is a focused
-            authoring context — icons hold vector shapes; it doesn't
-            benefit from layout chrome. */}
-        {!isContainerSetMaster && (
-          <CreatorGate locked={creatorLocked}>
-            <ToolButton active={toolMode === 'frame'} onClick={() => handleToolClick('frame')} title="Draw Frame (F)" dataTutorial="frame-tool">
-              <FrameToolbarIcon className="w-4 h-4" />
-            </ToolButton>
-          </CreatorGate>
-        )}
+          {!isViewer && <>
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
+                <ToolButton
+                  active={toolMode === 'frame'}
+                  onClick={() => handleToolClick('frame')}
+                  title="Draw Frame (F)"
+                  dataTutorial="frame-tool"
+                  dataTool="frame"
+                >
+                  <FrameToolbarIcon className="w-4 h-4" />
+                </ToolButton>
+              </CreatorGate>
+            )}
 
-        {!isContainerSetMaster && (
-          <CreatorGate locked={creatorLocked}>
-            <ToolButton active={toolMode === 'text'} onClick={() => handleToolClick('text')} title="Draw Text (T)" dataTutorial="text-tool">
-              <TextToolbarIcon className="w-4 h-4" />
-            </ToolButton>
-          </CreatorGate>
-        )}
+            {isIconSetMaster ? (
+              <>
+                <ToolButton active={toolMode === 'shape-rect'} onClick={() => handleToolClick('shape-rect')} title="Square (R)" dataTool="shape-rect">
+                  <ShapeSquareIcon className="w-4 h-4" size={16} />
+                </ToolButton>
+                <ToolButton active={toolMode === 'shape-ellipse'} onClick={() => handleToolClick('shape-ellipse')} title="Circle (O)" dataTool="shape-ellipse">
+                  <ShapeCircleIcon className="w-4 h-4" size={16} />
+                </ToolButton>
+                <ToolButton active={toolMode === 'shape-triangle'} onClick={() => handleToolClick('shape-triangle')} title="Triangle (Shift+T)" dataTool="shape-triangle">
+                  <ShapeTriangleIcon className="w-4 h-4" size={16} />
+                </ToolButton>
+                <ToolButton active={toolMode === 'shape-path'} onClick={() => handleToolClick('shape-path')} title="Path (P)" dataTool="shape-path">
+                  <ShapePathIcon className="w-4 h-4" size={16} />
+                </ToolButton>
+              </>
+            ) : (
+              <CreatorGate locked={creatorLocked}>
+                <ShapeDropdown
+                  active={isShapeMode(toolMode)}
+                  onSelect={(shape) => {
+                    const shapeToMode: Record<string, ToolMode> = {
+                      square: 'shape-rect',
+                      circle: 'shape-ellipse',
+                      triangle: 'shape-triangle',
+                      path: 'shape-path',
+                    };
+                    const mode = shapeToMode[shape];
+                    if (mode) {
+                      trace.action('toolbar:shape', { shape, mode });
+                      setToolMode(mode);
+                    }
+                  }}
+                />
+              </CreatorGate>
+            )}
 
-        {/* ── Shapes ── */}
-        {/* Layout — page / component-master only. Icon masters
-            are leaf authoring surfaces with no layout primitives.
-            Placed BEFORE shapes so the toolbar reads
-            cursor → frame → text → layout → shape → sketch, mirroring
-            the user's mental order (structure before primitives). */}
-        {!isContainerSetMaster && (
-          <CreatorGate locked={creatorLocked}><LayoutDropdown toolMode={toolMode} onSelect={(layout) => {
-            const layoutToMode: Record<string, ToolMode> = {
-              rows: 'layout-rows',
-              columns: 'layout-columns',
-              grids: 'layout-grids',
-            };
-            const mode = layoutToMode[layout];
-            if (mode) {
-              trace.action('toolbar:layout', { layout, mode });
-              setToolMode(toolMode === mode ? 'select' : mode);
-            }
-          }} /></CreatorGate>
-        )}
+            <CreatorGate locked={creatorLocked}>
+              <ToolButton
+                active={toolMode === 'sketch'}
+                onClick={() => handleToolClick('sketch')}
+                title="Sketch (K)"
+                dataTool="sketch"
+              >
+                <SketchPencilIcon className="w-4 h-4" size={16} />
+              </ToolButton>
+            </CreatorGate>
 
-        {/* Drawing shapes is the primary action on a vector master, so the
-            individual shape tools are surfaced inline as their own buttons
-            (no chevron, no dropdown) — matches Figma's vector edit toolbar.
-            On regular pages the shapes stay collapsed in the split-button
-            dropdown to keep the toolbar compact. */}
-        {isIconSetMaster ? (
-          <>
-            <ToolButton active={toolMode === 'shape-rect'} onClick={() => handleToolClick('shape-rect')} title="Square (R)">
-              <ShapeSquareIcon className="w-4 h-4" size={16} />
-            </ToolButton>
-            <ToolButton active={toolMode === 'shape-ellipse'} onClick={() => handleToolClick('shape-ellipse')} title="Circle (O)">
-              <ShapeCircleIcon className="w-4 h-4" size={16} />
-            </ToolButton>
-            <ToolButton active={toolMode === 'shape-triangle'} onClick={() => handleToolClick('shape-triangle')} title="Triangle (Shift+T)">
-              <ShapeTriangleIcon className="w-4 h-4" size={16} />
-            </ToolButton>
-            <ToolButton active={toolMode === 'shape-path'} onClick={() => handleToolClick('shape-path')} title="Path (P)">
-              <ShapePathIcon className="w-4 h-4" size={16} />
-            </ToolButton>
-            {/* Sketch is part of vector sets now — freehand strokes bundle in
-                alongside the vector shapes. */}
-            <ToolButton active={toolMode === 'sketch'} onClick={() => handleToolClick('sketch')} title="Sketch (K)">
-              <SketchPencilIcon className="w-4 h-4" size={16} />
-            </ToolButton>
-          </>
-        ) : (
-          <CreatorGate locked={creatorLocked}><ShapeDropdown
-            active={isShapeMode(toolMode)}
-            sketchActive={toolMode === 'sketch'}
-            onSketch={() => handleToolClick('sketch')}
-            onSelect={(shape) => {
-              const shapeToMode: Record<string, ToolMode> = {
-                square: 'shape-rect',
-                circle: 'shape-ellipse',
-                triangle: 'shape-triangle',
-                path: 'shape-path',
-              };
-              const mode = shapeToMode[shape];
-              if (mode) {
-                trace.action('toolbar:shape', { shape, mode });
-                setToolMode(mode);
-              }
-            }}
-          /></CreatorGate>
-        )}
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
+                <ToolButton
+                  active={toolMode === 'text'}
+                  onClick={() => handleToolClick('text')}
+                  title="Draw Text (T)"
+                  dataTutorial="text-tool"
+                  dataTool="text"
+                >
+                  <TextToolbarIcon className="w-4 h-4" />
+                </ToolButton>
+              </CreatorGate>
+            )}
 
-        {/* Sketch — on normal pages it lives INSIDE the shape dropdown
-            (sketches bundle into a Vector Set). */}
-
-        <Separator />
-        </>}
-
-        {/* Standalone Hand (pan) button removed — the cursor button at
-            the start of the toolbar already exposes Move (V) / Hand (H)
-            via its dropdown, so a second hand button was redundant. */}
-
-        {/* ── Zoom ── (always shown — viewers can pan/zoom) */}
-        <ZoomDropdown selectedId={selectedId} />
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
+                <LayoutDropdown toolMode={toolMode} onSelect={(layout) => {
+                  const layoutToMode: Record<string, ToolMode> = {
+                    rows: 'layout-rows',
+                    columns: 'layout-columns',
+                    grids: 'layout-grids',
+                  };
+                  const mode = layoutToMode[layout];
+                  if (mode) {
+                    trace.action('toolbar:layout', { layout, mode });
+                    setToolMode(toolMode === mode ? 'select' : mode);
+                  }
+                }} />
+              </CreatorGate>
+            )}
+          </>}
+        </div>
 
         <Separator />
 
-        {/* ── Search ── hidden for viewers (the command palette only
-            exposes write actions). */}
-        {!isViewer && <>
-        <button
-          title="Search (⌘K)"
-          onClick={togglePalette}
-          data-palette-toggle
-          data-tutorial="search-tool"
-          className="flex items-center gap-1.5 px-2.5 h-[36px] rounded-[6px] bg-[var(--control-bg)] border border-transparent hover:bg-[var(--control-bg-hover)] transition-colors"
-          style={{ cursor: 'pointer' }}
+        {/* Figma-style secondary cluster: field state/utilities remain available
+            but read as modes and utilities, not creation tools. */}
+        <div
+          data-toolbar-cluster="utility"
+          className="flex items-center gap-0.5 p-0.5 rounded-[8px] bg-[var(--control-bg)]"
         >
-          <SearchIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
-          <span className="text-[11px] text-[var(--text-tertiary)]">⌘K</span>
-        </button>
+          <ZoomDropdown selectedId={selectedId} />
 
-        <Separator />
-        </>}
+          {!isViewer && (
+            <button
+              title="Search (⌘K)"
+              aria-label="Search (⌘K)"
+              onClick={togglePalette}
+              data-palette-toggle
+              data-tutorial="search-tool"
+              data-toolbar-tool="search"
+              className="flex items-center justify-center w-[36px] h-[36px] rounded-[6px] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)] transition-colors"
+              style={{ cursor: 'pointer' }}
+            >
+              <SearchIcon className="w-4 h-4" />
+            </button>
+          )}
 
-        {/* ── Locale ── */}
-        <LocaleDropdown />
+          <LocaleDropdown />
+          <ThemeSwitcher />
 
-        <Separator />
+          {!isOffline && (
+            <ToolButton
+              active={commentModeActive}
+              onClick={handleCommentClick}
+              title="Add Comment (Ctrl+Alt+C)"
+              dataTutorial="comment-tool"
+              dataTool="comment"
+            >
+              <CommentBubbleIcon className="w-4 h-4" />
+            </ToolButton>
+          )}
 
-        {/* ── Theme Switcher ── */}
-        <ThemeSwitcher />
-
-        {/* ── Comments ── Hidden when offline: comments can't be
-            persisted/synced without a connection. Role-viewers (online)
-            still get it — they're allowed to comment. */}
-        {!isOffline && (
-          <ToolButton active={commentModeActive} onClick={handleCommentClick} title="Add Comment (Ctrl+Alt+C)" dataTutorial="comment-tool">
-            <CommentBubbleIcon className="w-4 h-4" />
-          </ToolButton>
-        )}
-
-        {/* ── Upgrade ── hidden for viewers (upgrading is a billing
-            action they can't take; it routes to Settings → Plans which
-            is also disabled for them) AND hidden when the site already
-            has an active paid subscription (nothing left to upgrade to
-            from the toolbar's POV — the separator goes with it). */}
-        {CLOUD_ENABLED && !isViewer && !hasActiveSubscription && (
-          <>
-            <Separator />
+          {CLOUD_ENABLED && !isViewer && !hasActiveSubscription && (
             <button
               title="Upgrade plan"
               onClick={() => {
@@ -772,8 +754,8 @@ export default function BottomToolbar() {
             >
               Upgrade
             </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
