@@ -12,43 +12,55 @@ def repo_root(raw):
         raise SystemExit(f"field repo not found: {p}")
     return p
 
-def active_tracker_section(text):
-    start = text.find("## Active Assignments")
-    if start < 0: return "Active Assignments section not found"
-    end = text.find("## Blocked / Integration Notes", start)
-    if end < 0: end = len(text)
-    return text[start:end].rstrip()
-
 ap = argparse.ArgumentParser(prog="field-handoff")
 ap.add_argument("--repo")
 sub = ap.add_subparsers(dest="cmd", required=True)
 sub.add_parser("doctor")
 sub.add_parser("context")
 sub.add_parser("manifest")
+paths = sub.add_parser("control-paths")
+paths.add_argument("assignment_id")
 args = ap.parse_args()
 
 repo = repo_root(args.repo)
 kit = repo / ".field/handoff-kit"
 manifest = json.loads((kit / "manifest.json").read_text())
+version = (kit / "VERSION").read_text().strip()
 
 if args.cmd == "manifest":
     print(json.dumps(manifest, indent=2))
     raise SystemExit(0)
 
+if args.cmd == "control-paths":
+    aid = args.assignment_id
+    print(f"assignment=.field/assignments/assignment-{aid}.md")
+    print(f"mail=.field/mail/{aid}.md")
+    print(f"qa=.field/qa/{aid}.md")
+    print(f"implementation_branch=field/{aid}")
+    raise SystemExit(0)
+
 head = run(repo, "rev-parse", "HEAD")
-origin = run(repo, "rev-parse", "origin/main")
-version = (kit / "VERSION").read_text().strip()
+try:
+    origin = run(repo, "rev-parse", "origin/main")
+except subprocess.CalledProcessError:
+    origin = "unavailable"
 
 if args.cmd == "doctor":
     print(f"repo={repo}")
     print(f"kit_version={version}")
     print(f"head={head}")
     print(f"origin_main={origin}")
-    print(f"head_matches_origin_main={str(head == origin).lower()}")
-else:
-    tracker = (repo / manifest["tracker"]).read_text()
-    print(f"kit_version={version}")
-    print(f"head={head}")
-    print(f"origin_main={origin}")
-    print()
-    print(active_tracker_section(tracker))
+    print(f"control_branch={manifest['control_branch']}")
+    print(f"contract_worker_github_transport={manifest['contract_worker']['github_transport']}")
+    print("contract_worker_live_state=read field/control via Composio; local checkout is not authoritative cross-chat state")
+    print(f"legacy_tracker={manifest['legacy_tracker']}")
+    raise SystemExit(0)
+
+print(f"kit_version={version}")
+print(f"head={head}")
+print(f"origin_main={origin}")
+print(f"control_branch={manifest['control_branch']}")
+print()
+print("Contract Worker / Night Shift live coordination must be read from field/control through Composio.")
+print("The built-in ChatGPT GitHub connector is prohibited for that lane.")
+print("Legacy tracker.md remains relevant only for still-active pre-v2 Owned reservations during migration.")
