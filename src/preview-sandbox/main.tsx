@@ -752,14 +752,24 @@ function rebuildRoutes(): void {
 }
 
 function announcePreviewRendered(requestId: string | null): void {
+  const announce = () => {
+    parent.postMessage({
+      type: 'preview:rendered',
+      url: window.location.pathname + window.location.search,
+      requestId,
+    }, '*');
+  };
+
+  // Chrome can suspend requestAnimationFrame in a cross-origin iframe that is
+  // intentionally kept offscreen. Dashboard thumbnail sessions are background
+  // work, so their completion acknowledgement must not depend on visibility.
+  // A normal visible Preview keeps the double-rAF paint fence it already had.
+  if (requestId) {
+    setTimeout(announce, 0);
+    return;
+  }
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      parent.postMessage({
-        type: 'preview:rendered',
-        url: window.location.pathname + window.location.search,
-        requestId,
-      }, '*');
-    });
+    requestAnimationFrame(announce);
   });
 }
 

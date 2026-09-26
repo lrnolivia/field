@@ -6,7 +6,7 @@ function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-describe('dashboard thumbnail r2/r3 integration contract', () => {
+describe('dashboard thumbnail r2/r3/r4 integration contract', () => {
   it('correlates project receipt, rendered route, and raster to one thumbnail session', () => {
     const host = source('src/editor/header/ProjectThumbnailCaptureHost.tsx');
     expect(host).toContain("type: 'preview:probe-ready'");
@@ -30,6 +30,9 @@ describe('dashboard thumbnail r2/r3 integration contract', () => {
     expect(sandbox).toContain('THUMBNAIL_PRELOAD_TIMEOUT_MS = 5000');
     expect(sandbox).toContain('Promise.race([preloadCdnImports(), timeout])');
     expect(sandbox).toContain('announcePreviewRendered(requestId)');
+    expect(sandbox).toContain('if (requestId) {');
+    expect(sandbox).toContain('setTimeout(announce, 0)');
+    expect(sandbox).toContain('requestAnimationFrame(announce)');
     expect(sandbox).toContain("type: 'preview:rendered'");
     expect(sandbox).toContain('requestId,');
     expect(sandbox).toContain("msg.type === 'preview:probe-ready'");
