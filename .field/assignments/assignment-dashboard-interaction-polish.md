@@ -7,7 +7,7 @@ status: active
 branch: field/dashboard-interaction-polish
 pr: 5
 base: 5ca48d5e99fbc90e07a1bc8707486defa05430ae
-kit: 2026-09-26.2
+kit: 2026-09-26.3
 type: repair
 execution_class: contract-worker
 owned:
@@ -61,10 +61,12 @@ Contract Worker coordination v2 landed on `main` after the initial implementatio
 - Contract Worker kit is `2026-09-26.2`.
 - Active legacy `Owned:` paths were refreshed before activation; none overlap the six intended owned paths in this assignment.
 - Active Contract Worker `owned` paths were refreshed before activation; none overlap the six intended owned paths in this assignment.
-- Pre-contract branch `dashboard-worker/menu-dismiss-20260926` contains the candidate repair at head `b24c5abb8388f25f8d85a8efe98ba235ee283268`.
-- Pre-contract Draft PR #4 targets `main`; it is migration input only and is not the canonical PR for this assignment.
+- The obsolete pre-contract Draft PR #4 is closed and branch `dashboard-worker/menu-dismiss-20260926` has been deleted after canonical identity verification.
 - Canonical branch `field/dashboard-interaction-polish` exists at `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`, created from the activation base without carrying the obsolete branch ancestry.
 - Canonical Draft PR #5 targets `main`.
+- Current `main` advanced to `0f329ba94475288100bb4aa48338d876a8a2f5f1` with handoff kit `2026-09-26.3`; moving-main reconciliation remains required before merge.
+- PR #5 Cloudflare Workers branch build `45a092f4-8331-451f-a8e1-692624abf981` failed before producing a Preview URL. Preview infrastructure is owned by active assignment `field-branch-preview-live-qa`, so this worker will not modify those owned paths.
+- Exact-head sandbox clean install is currently blocked by repository harness state: package engine requires Node >=22 while the sandbox default is Node 20.20.2, and current `package-lock.json` is missing `@swc/helpers@0.5.23`, causing `npm ci` to fail. Validation continues through a disposable Node 22 sandbox path without changing protected package files.
 - No focused tests, TypeScript validation, build, or runtime QA have yet been recorded as passing for the canonical assignment.
 
 ## Decisions already made
