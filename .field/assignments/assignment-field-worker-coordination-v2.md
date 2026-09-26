@@ -53,8 +53,7 @@ A **Contract Worker** is an ordinary ChatGPT execution chat operating under one 
 
 A Contract Worker may use:
 
-- Composio for GitHub writes
-- repository reads
+- Composio for all GitHub repository reads and writes
 - CI/check results
 - Firecrawl for appropriate web runtime QA
 - future project-specific native QA transports
@@ -325,9 +324,23 @@ evidence:
 
 Never claim a test or QA step passed unless it actually ran.
 
-## Composio write broker
+## Composio GitHub transport
 
-Composio is the canonical GitHub write broker for Contract Workers.
+Composio is the exclusive GitHub transport for Contract Workers and the Night Shift Manager.
+
+All GitHub repository reads and writes must use Composio.
+
+The built-in ChatGPT GitHub connector is prohibited, including read-only repository inspection. Do not substitute another GitHub plugin/app, web search, or remembered repository state.
+
+Every GitHub workflow must begin with `COMPOSIO_SEARCH_TOOLS`, verify an ACTIVE connection to the exact repository, and use discovered tool slugs.
+
+If Composio GitHub is unavailable, stop with:
+
+```text
+CONTRACT WORKER GITHUB UNAVAILABLE
+```
+
+Do not fall back to the built-in GitHub connector.
 
 The Contract Worker:
 
