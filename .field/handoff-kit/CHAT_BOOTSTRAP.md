@@ -2,31 +2,62 @@
 
 This is the canonical operational reset point for any chat doing field work.
 
-## New chat
+## First choose the execution lane
 
-Before planning or implementation:
+### Codex lane
 
-1. Read this file.
-2. Read `.field/handoff-kit/manifest.json`.
-3. Read `.field/handoff-kit/CONTRACT.md`.
-4. Read the live `tracker.md`.
-5. Read the assignment file.
-6. Read any product/architecture sources named by the assignment.
+Use the existing PJM / Master / Codex Worker contracts.
 
-Do not ask the user to upload the handoff kit. The repository copy is canonical.
+Do not apply Contract Worker rules to Codex work unless the Codex contract explicitly adopts them.
+
+### Contract Worker / Night Shift lane
+
+A Contract Worker is an ordinary ChatGPT execution chat operating under one bounded assignment.
+
+Night Shift is the informal collective term for one or more Contract Workers.
+
+The Night Shift Manager coordinates Contract Workers but is not a PJM.
+
+The Composio Executor is transport infrastructure only.
+
+## Mandatory Contract Worker rehydration
+
+Before planning or implementing:
+
+1. Use Composio exclusively for GitHub access.
+2. Start with `COMPOSIO_SEARCH_TOOLS`.
+3. Verify the GitHub connection is ACTIVE for `lrnolivia/field`.
+4. Read current `main` and the current handoff kit from `main`.
+5. Read `field/control`.
+6. Read your canonical assignment:
+   `.field/assignments/assignment-<assignment-id>.md`
+7. Read your mailbox:
+   `.field/mail/<assignment-id>.md`
+8. Read your QA record:
+   `.field/qa/<assignment-id>.md`
+9. Read any dependency mailboxes named by the assignment.
+10. During migration, read active legacy `tracker.md` `Owned:` reservations.
+11. Inspect your implementation branch / Draft PR if the assignment has one.
+
+The built-in ChatGPT GitHub connector is prohibited for this lane, including read-only inspection.
+
+If Composio GitHub is unavailable, stop with:
+
+```text
+CONTRACT WORKER GITHUB UNAVAILABLE
+```
+
+Do not substitute another GitHub plugin, web search, or remembered repository state.
 
 ## Existing chat / process reset
 
-When an assignment tells an existing chat to rehydrate from the current handoff kit:
+When the current repo-hosted kit conflicts with remembered or copied process rules:
 
-- Treat prior **handoff, installer, tracker, ownership, validation, deployment, and QA process assumptions** from the conversation as superseded by the current repo-hosted kit.
-- Keep valid product decisions and assignment-specific findings unless current repo truth or an explicit current user decision supersedes them.
-- Re-read the current kit and live tracker before doing more work.
-- Do not keep using an attached, remembered, quoted, or previously downloaded copy of the kit when the repository version is available.
-- Do not silently merge old process rules with the current kit. Current kit wins for process.
-- If the current assignment conflicts with the kit, an explicit current user decision wins. Record the exception rather than weakening the kit globally.
+- current repo-hosted kit wins for process
+- explicit current user decisions still win for product direction
+- current repository/deployed infrastructure wins for implementation state
 
-This is an operational rehydration rule, not a request to erase chat history or product context.
+Keep valid product decisions and verified assignment-specific findings. Discard stale process mechanics.
 
 ## Truth precedence
 
@@ -48,14 +79,23 @@ This is an operational rehydration rule, not a request to erase chat history or 
 
 Do not confuse product intent with implementation state.
 
-## First repo checks
+## Contract Worker live coordination truth
 
-At minimum establish current `origin/main`, assignment ancestry, active `Owned:` paths, current target-file blobs/preimages, local target dirt/staged state when relevant, and the current kit version.
+Git-backed control state is the live cross-chat communication bus.
 
-Moving `main` is normal. Reconcile path-level drift; do not treat every newer commit as a conflict.
+When asked what another Contract Worker is doing, who owns a path, what is blocked, or what is ready:
+
+- refresh `field/control`
+- read active assignments
+- read relevant mailboxes
+- read relevant QA records
+- inspect live PR/check state
+- compare active legacy tracker ownership while migration remains
+
+Do not answer from conversation memory when live control state can answer.
 
 ## Core field principle
 
-The website is the real artifact. Source stays first-class. Preview is runtime truth. Design, source, Preview, and production should remain aligned.
+The website is the real artifact. Source remains first-class. Preview is runtime truth. Design, source, Preview, and production should remain aligned.
 
-For visible/runtime changes, production QA is part of completion. Use the Firecrawl protocol where it can prove the acceptance criteria.
+For visible/runtime changes, production or assignment-preview QA is part of completion when required by the assignment.

@@ -1,18 +1,31 @@
 {
   "name": "field-handoff-kit",
-  "version": "2026-09-26.1",
+  "version": "2026-09-26.2",
   "repository": "lrnolivia/field",
   "default_branch": "main",
-  "tracker": "tracker.md",
+  "control_branch": "field/control",
+  "legacy_tracker": "tracker.md",
   "chat_bootstrap": ".field/handoff-kit/CHAT_BOOTSTRAP.md",
   "contract": ".field/handoff-kit/CONTRACT.md",
-  "assignment_template": ".field/handoff-kit/templates/assignment.md",
+  "assignment_authoring": ".field/handoff-kit/ASSIGNMENT_AUTHORING.md",
+  "github_transport": ".field/handoff-kit/COMPOSIO_WRITE_BROKER.md",
+  "assignment_template": ".field/handoff-kit/templates/assignment-unique-name.md",
+  "legacy_assignment_template": ".field/handoff-kit/templates/assignment.md",
+  "contract_worker": {
+    "github_transport": "composio-exclusive",
+    "native_github_connector_allowed": false,
+    "implementation_branch_prefix": "field/",
+    "assignment_glob": ".field/assignments/assignment-*.md",
+    "mail_dir": ".field/mail",
+    "qa_dir": ".field/qa"
+  },
   "production_qa": {
     "noauth_builder": "https://field.loew.fi/builder/noauth",
     "canvas_host": "https://canvas.field.loew.fi",
     "preview_host": "https://preview.field.loew.fi"
   },
   "installer": {
+    "primary_lane": "codex-local",
     "shell": "macOS Bash 3.2 compatible",
     "package_contract": "zip name == top-level folder name; install-build-commit-push.sh at package root"
   }

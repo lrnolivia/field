@@ -1,170 +1,324 @@
 # field handoff kit contract
 
-This contract governs field assignment packaging, installer behavior, validation, deployment verification, live QA, resume behavior, and closeout.
+This contract governs field assignment packaging, coordination, validation, QA evidence, and closeout.
 
-## Assignment versus infrastructure
+## 1. Assignment versus infrastructure
 
-`assignment.md` owns the job: goal, scope, acceptance criteria, intended ownership, special constraints, QA packets, and human verification.
+The assignment owns the job:
 
-The repo-hosted handoff kit owns the process: rehydration, tracker semantics, compatibility checks, installer safety, isolated validation, moving-main reconciliation, staging, commit/push, deployment verification, Firecrawl QA, and closeout/resume.
+- goal
+- verified current state
+- settled decisions
+- implementation intent
+- acceptance criteria
+- ownership
+- bounded investigation
+- non-goals
+- validation
+- runtime QA
+- completion contract
+
+The repo-hosted handoff kit owns the reusable process.
 
 Assignments must not embed a stale copy of the handoff kit.
 
-## Contract Worker GitHub transport
+## 2. Execution lanes
 
-For the **Contract Worker / Night Shift lane**, Composio is the exclusive GitHub transport for **all repository access**, including both reads and writes.
+### Codex lane
 
-- All GitHub repository reads and writes must go through Composio.
-- The built-in ChatGPT GitHub connector is prohibited for Contract Worker and Night Shift operations, including read-only inspection.
-- Do not substitute another GitHub plugin/app, web search, or remembered repository state.
-- Start every GitHub workflow with `COMPOSIO_SEARCH_TOOLS`, verify an ACTIVE GitHub connection for the exact repository, and discover exact tool slugs rather than inventing them.
-- The Contract Worker or Night Shift Manager owns reasoning, scope, architecture, ownership decisions, and the exact requested mutation.
-- The Composio Executor is transport infrastructure only and must not reinterpret or expand the work.
-- If Composio GitHub is unavailable, stop with:
+```text
+PJM → Master → Codex Worker
+```
+
+Existing PJM/Master/Codex Worker contracts remain authoritative.
+
+### Contract Worker lane
+
+```text
+Night Shift Manager
+→ Contract Worker
+→ Composio-exclusive GitHub transport
+→ assignment branch / Draft PR
+→ project-appropriate QA
+→ merge gate
+```
+
+Do not silently mix the lanes.
+
+## 3. Terminology
+
+**Contract Worker**: ordinary ChatGPT execution chat operating under one bounded repository assignment.
+
+**Night Shift**: informal collective term for one or more Contract Workers working asynchronously.
+
+**Night Shift Manager**: standing coordination chat for the Contract Worker lane. It is not a PJM.
+
+**Codex Worker**: Worker inside the PJM / Master / Worker hierarchy.
+
+**Composio Executor**: Composio's internal execution worker. It is transport infrastructure only, not a field organizational agent.
+
+## 4. Contract Worker GitHub transport
+
+For the Contract Worker / Night Shift lane, **Composio is the exclusive GitHub transport for all repository access, including reads and writes**.
+
+- The built-in ChatGPT GitHub connector is prohibited, including read-only inspection.
+- Do not substitute another GitHub plugin/app.
+- Do not use web search as a repository-state substitute.
+- Do not use remembered repository state when live Git state is available.
+- Start every GitHub workflow with `COMPOSIO_SEARCH_TOOLS`.
+- Verify an ACTIVE GitHub connection to the exact repository.
+- Discover exact tool slugs. Never invent them.
+- The Contract Worker or Night Shift Manager owns reasoning, scope, architecture, ownership decisions, and the exact requested transaction.
+- The Composio Executor performs bounded transport only.
+- Never force-push.
+- Never push Contract Worker implementation directly to `main`.
+
+If Composio GitHub is unavailable:
 
 ```text
 CONTRACT WORKER GITHUB UNAVAILABLE
 ```
 
-Do not fall back to the built-in GitHub connector.
+Stop. Do not fall back to the built-in GitHub connector.
 
-This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate PJM / Master / Codex Worker lane unless that lane's own contract explicitly adopts it.
+This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate Codex lane.
 
-## Standard package UX
+## 5. Three coordination planes
 
-Every delivered installer ZIP must unpack to one matching top-level directory:
+### Control plane
 
-```text
-field-<assignment>-YYYYMMDD.zip
-└── field-<assignment>-YYYYMMDD/
-    ├── install-build-commit-push.sh
-    ├── apply.mjs
-    ├── README.md
-    └── assignment-specific payload
-```
-
-The user-facing execution contract is:
-
-```bash
-cd ~/Downloads || exit 1
-unzip -o field-<assignment>-YYYYMMDD.zip
-cd field-<assignment>-YYYYMMDD || exit 1
-
-chmod +x install-build-commit-push.sh
-./install-build-commit-push.sh
-```
-
-The installer resolves its own absolute package directory before changing working directories.
-
-## Preferred lifecycle
+Permanent branch:
 
 ```text
-current repo truth
-→ target/ownership preflight
-→ construct proposed postimage in isolated detached worktree
-→ compatibility / transform rehearsal
-→ focused tests
-→ TypeScript
-→ build:all
-→ git diff --check
-→ exact path/allowlist audit
-→ re-fetch main
-→ reconcile path-level drift
-→ final ownership check / reservation
-→ commit validated implementation
-→ push
-→ verify actual deployed HEAD
-→ Firecrawl small-packet QA
-→ authenticated/manual QA where needed
-→ record evidence
-→ release ownership
+field/control
 ```
 
-Prefer a disposable worktree for source application, validation, commit, and push. The user's real checkout may provide repository configuration and the exact dependency tree.
+Canonical files:
 
-## Tracker semantics
+```text
+.field/assignments/assignment-<assignment-id>.md
+.field/mail/<assignment-id>.md
+.field/qa/<assignment-id>.md
+```
 
-- `Owned:` reserves paths against other active assignments.
-- `Approved Shared:` permits deliberate overlap.
-- `Protected:` constrains the assignment that declares it; it does **not** reserve paths globally.
-- Cross-assignment conflict checks use active `Owned:` paths, with explicit shared exceptions.
-- Every mutation target must be represented in `Owned:` or `Approved Shared:` before source publication.
-- Resume an existing reservation rather than creating a duplicate.
+`field/control` must never merge into `main`.
 
-## Git dirt and staging
+### Implementation plane
 
-- Do not require a globally clean checkout.
-- Unrelated unstaged/untracked work may coexist if preserved and non-overlapping.
-- Unrelated staged changes are fatal for any workflow that could commit from that checkout.
-- Never stage outside the assignment allowlist.
-- Never stash, `reset --hard`, force-push, or clean unrelated user/worker work.
-- Parse Git porcelain without destroying leading status bytes. Prefer `git status --porcelain=v1 -z`.
+Every activated implementation Contract Worker assignment gets:
 
-## Compatibility and transforms
+```text
+field/<assignment-id>
+```
 
-- Fail closed when source is not a known compatible preimage.
-- Do not weaken a failed guard merely to make an installer pass.
-- Exact preimages come from verified current/activation blobs.
-- Required semantic anchors and optional cosmetic/comment cleanup are different classes.
-- Repeated JSX/source occurrences must not assume identical indentation.
-- Generated-code installers validate the generated postimage, not only installer syntax.
-- Nested template strings/interpolations require real transform rehearsal.
-- Node ESM package paths use `fileURLToPath(import.meta.url)`, never raw URL `.pathname`.
-- Self-tests include a package path containing spaces.
+and one Draft PR targeting `main`.
 
-## Validation
+Implementation source belongs on that branch.
 
-Before source publication:
+Standing coordination roles and pre-activation/planned assignments may have `branch: null` and `pr: null`; do not manufacture empty implementation branches.
 
-1. transform/package self-test
-2. focused relevant tests
-3. TypeScript
-4. `npm run build:all`
-5. `git diff --check`
-6. exact changed-path/staging allowlist audit
+### Runtime QA plane
 
-Isolated validation uses the repo's exact installed dependency tree and repo-local binaries. Do not allow `npx` to silently download a substitute toolchain.
+The actual environment where the implementation is exercised.
 
-When a product contract intentionally changes, audit existing regression tests for stale expectations.
+For web work this may be an assignment Preview. For native/system work use the assignment's environment-specific QA harness.
 
-## Moving main
+The QA plane is evidence, not source/control state.
 
-Moving `main` is expected.
+## 6. Assignment identity and naming
 
-If `main` moves during validation:
+Every new Contract Worker assignment file must be uniquely named:
 
-- verify ancestry
-- inspect whether assignment target/integration surfaces changed
-- reconcile safe unrelated descendant progress
-- stop on target-path overlap
-- rerun relevant validation after reconciliation
+```text
+assignment-<unique-name>.md
+```
 
-Compare path sets semantically, not locale-dependent sorted strings.
+Never create a new deliverable named plain `assignment.md`.
 
-## Resume and closeout
+For an activated implementation assignment, keep a 1:1 identity:
 
-Installers recognize an existing reservation, exact known partial postimage, exact complete postimage, and landed implementation with incomplete tracker/deployment closeout.
+```text
+assignment ID
+↔ assignment file
+↔ field/<assignment-id>
+↔ Draft PR
+↔ Contract Worker chat
+```
 
-Resume proven state instead of destructive reset/reapply.
+The canonical assignment file lives on `field/control`.
 
-A deployment/closeout interruption must have an idempotent coordination-only recovery path.
+## 7. Assignment frontmatter
 
-## Commit and deployment
+Minimum Contract Worker frontmatter:
 
-- Commit only exact allowlisted implementation paths.
-- Verify the implementation commit is contained in deployed production HEAD.
-- Deployment verification follows the actual build-triggering HEAD.
-- A later tracker-only commit must not leave the installer polling a superseded SHA.
-- Coordination-state detection matches semantic records such as `Commit: <sha>`, not broad substrings.
+```yaml
+---
+field_assignment: 1
+id: <unique-name>
+status: active
+branch: field/<unique-name> | null
+pr: <number-or-null>
+base: <main-sha>
+kit: <kit-version>
+type: handoff | plan-to-action | repair | follow-up | qa-closeout
+execution_class: contract-worker
+owned:
+  - <path-or-pattern>
+approved_shared:
+  - <path-or-pattern>
+protected:
+  - <path-or-pattern>
+qa:
+  firecrawl: true | false
+  authenticated: true | false
+---
+```
 
-## Live QA
+If frontmatter and prose ownership disagree, fail closed.
 
-For visible/runtime changes, read `qa/FIRECRAWL_QA_PROTOCOL.md`.
+If `branch` is non-null, it must be exactly `field/<id>`.
 
-`/builder/noauth` is an in-memory QA harness. It can prove many editor/runtime acceptance criteria but does not prove authenticated persistence, R2 durability, account identity, or cross-session persistence semantics.
+## 8. Ownership
 
-## Failure taxonomy
+### Legacy migration compatibility
 
-Classify failures as repo drift/ownership conflict, installer/harness defect, product/regression failure, deployment failure, or QA harness limitation.
+Existing active `tracker.md` `Owned:` reservations remain authoritative until those assignments finish.
 
-Any installer defect that forces r2/r3/r4 records symptom, root cause, repo/source impact, repair, and reusable prevention rule. Durable lessons get promoted into the kit.
+### Contract Worker v2
+
+Active control-plane assignment `owned` paths are the Contract Worker ownership database.
+
+Semantics:
+
+```text
+owned
+= primary modification authority
+
+approved_shared
+= explicit deliberate overlap
+
+protected
+= this assignment promises not to modify the path
+```
+
+`protected` is not global ownership.
+
+Parent/child path overlap counts as overlap.
+
+Before activation and before merge, check the union of:
+
+1. active legacy tracker `Owned:` paths
+2. active Contract Worker control-plane `owned` paths
+
+Do not silently acquire another assignment's owned path.
+
+## 9. Mailboxes
+
+Each Contract Worker owns exactly one mailbox:
+
+```text
+.field/mail/<assignment-id>.md
+```
+
+Only that worker writes its mailbox. Every Contract Worker and the Night Shift Manager may read every mailbox.
+
+Use mail for dependency notes, changed assumptions, integration contracts, ownership reconciliation requests, blockers, and completion notes.
+
+Do not create one shared mutable notes file.
+
+## 10. QA records
+
+Each assignment receives:
+
+```text
+.field/qa/<assignment-id>.md
+```
+
+Minimum metadata:
+
+```yaml
+assignment:
+branch:
+pr:
+tested_head_sha:
+tested_main_sha:
+environment:
+build:
+tests:
+runtime_qa:
+tested_at:
+evidence:
+```
+
+Never claim a test or QA step passed unless it actually ran.
+
+Use classifications such as:
+
+```text
+PASS
+FAIL — PRODUCT
+BLOCKED/UNVERIFIED — HARNESS
+BLOCKED — ENVIRONMENT
+NOT RUN
+```
+
+A successful CI/build check is not automatically runtime QA.
+
+## 11. Exact-SHA merge gate
+
+Immediately before merge, refresh:
+
+- current PR head SHA
+- current `main` SHA
+- current ownership state
+- checks/statuses
+- QA record
+
+A Contract Worker implementation may merge only when the current contract's required checks and QA are satisfied and the tested SHAs still describe the code being merged.
+
+If `main` moved after QA, reconcile and rerun the required validation/QA where the assignment could be affected.
+
+## 12. Assignment authoring
+
+Read `ASSIGNMENT_AUTHORING.md`.
+
+Core rule:
+
+> An assignment is not a transcript. It is the smallest complete executable representation of the next unit of work.
+
+Separate follow-up work gets a new unique assignment rather than silently expanding current scope.
+
+## 13. Installer boundary
+
+Read `installer/INSTALLER_CONTRACT.md`.
+
+The local installer system belongs primarily to the Codex/local-repository lane.
+
+Do not use a legacy direct-main installer as a substitute for the Contract Worker branch/PR model.
+
+## 14. Validation
+
+Before publishing coordination-kit changes:
+
+- run the handoff-kit self-test
+- run Contract Worker v2 regression tests
+- validate JSON
+- validate Bash/Node/Python syntax where relevant
+- run `git diff --check` when a checkout is available
+- verify exact changed paths
+- re-read the committed files from Git
+
+For product/runtime work, add assignment-specific tests/build/QA.
+
+## 15. Closeout and continuity
+
+A completion report distinguishes:
+
+- what changed
+- what was proposed
+- what was tested
+- what remains unverified
+- architecture/process drift
+- follow-up work
+
+Durable coordination belongs in Git-backed assignment/mail/QA records so a replacement chat can rehydrate without depending on private conversation memory.
