@@ -8,6 +8,11 @@ import GalleryContentSection, { type GalleryContentItem } from '../gallery/Galle
 import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
 import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
+import {
+  gallerySelectionAfterRemove,
+  rememberGalleryItemSelection,
+  resolveGalleryItemSelection,
+} from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
 import {
   buildGalleryCarouselControlNodes,
@@ -227,18 +232,24 @@ function GalleryToolInner() {
 
   useEffect(() => {
     if (items.length === 0) {
+      // Keep remembered identity across transient parser/replica gaps. A real
+      // selected-item removal clears or advances memory through removeItem.
       setSelectedItemId(null);
       setReplaceItemId(null);
       setCropImageId(null);
       return;
     }
-    if (!selectedItemId || !items.some((item) => item.itemId === selectedItemId)) {
-      setSelectedItemId(items[0].itemId);
-    }
+    const nextSelectedItemId = resolveGalleryItemSelection(
+      nodeId!,
+      items.map((item) => item.itemId),
+      selectedItemId,
+    );
+    if (nextSelectedItemId !== selectedItemId) setSelectedItemId(nextSelectedItemId);
+    rememberGalleryItemSelection(nodeId!, nextSelectedItemId);
     if (replaceItemId && !items.some((item) => item.itemId === replaceItemId)) {
       setReplaceItemId(null);
     }
-  }, [items, replaceItemId, selectedItemId]);
+  }, [items, nodeId, replaceItemId, selectedItemId]);
 
   // The outer gate guarantees these for the lifetime of this inner component.
   const gallery = node!;
@@ -257,6 +268,11 @@ function GalleryToolInner() {
   const selectedItem = items.find((item) => item.itemId === selectedItemId) ?? null;
   const prefix = getViewportPrefix(vpId);
   const bridge = getCanvasBridge();
+
+  const selectItem = useCallback((itemId: string | null) => {
+    setSelectedItemId(itemId);
+    rememberGalleryItemSelection(galleryId, itemId);
+  }, [galleryId]);
 
   const patchAndQueue = useCallback((targetId: string, patch: Record<string, string>, responsive = true) => {
     bridge.patchStyles(targetId, prefix, patch);
@@ -527,9 +543,16 @@ function GalleryToolInner() {
     if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(remaining));
     queueMutations(mutations);
     flushNow();
-    if (selectedItemId === itemId) setSelectedItemId(null);
+    if (selectedItemId === itemId) {
+      const nextSelection = gallerySelectionAfterRemove(
+        items.map((item) => item.itemId),
+        itemId,
+        selectedItemId,
+      );
+      selectItem(nextSelection);
+    }
     trace.action('gallery:remove-media', { nodeId: galleryId, itemId, frameSizing });
-  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides, selectedItemId]);
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides, selectItem, selectedItemId]);
 
   const reorderItem = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
@@ -687,9 +710,9 @@ function GalleryToolInner() {
       <GalleryContentSection
         items={items}
         selectedItemId={selectedItemId}
-        onSelectItem={setSelectedItemId}
+        onSelectItem={(itemId) => selectItem(itemId)}
         onAddMedia={() => { setReplaceItemId(null); setPickerOpen(true); }}
-        onReplaceItem={(itemId) => { setSelectedItemId(itemId); setReplaceItemId(itemId); setPickerOpen(true); }}
+        onReplaceItem={(itemId) => { selectItem(itemId); setReplaceItemId(itemId); setPickerOpen(true); }}
         onDuplicateItem={duplicateItem}
         onMoveItem={moveItem}
         onRemoveItem={removeItem}
