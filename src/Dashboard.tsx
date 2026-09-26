@@ -13,10 +13,12 @@ import {
 } from '@/backend/field-projects';
 import DashboardHeader from '@/dashboard/DashboardHeader';
 import DashboardSidebar from '@/dashboard/DashboardSidebar';
+import DashboardLoadingGrid from '@/dashboard/DashboardLoadingGrid';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
 import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
+import { createDashboardLoadingController } from '@/dashboard/dashboard-loading';
 import { bindDashboardProjectEvents, createDashboardProjectRefreshController } from '@/dashboard/dashboard-realtime';
 
 function navigateToProject(project: FieldProjectMeta) {
@@ -28,6 +30,7 @@ export default function Dashboard() {
   const [view, setView] = useState<DashboardView>('recents');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshingProjectIds, setRefreshingProjectIds] = useState<Set<string>>(() => new Set());
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -44,6 +47,14 @@ export default function Dashboard() {
   useEffect(() => {
     let active = true;
     let initialSettled = false;
+    const loadingController = createDashboardLoadingController({
+      show: (projectIds) => {
+        if (active) setRefreshingProjectIds(new Set(projectIds));
+      },
+      hide: () => {
+        if (active) setRefreshingProjectIds(new Set<string>());
+      },
+    });
     const refreshController = createDashboardProjectRefreshController<FieldProjectMeta[]>({
       load: listFieldProjects,
       apply: (next) => {
@@ -57,6 +68,8 @@ export default function Dashboard() {
           console.warn('[field-dashboard] background project refresh failed', cause);
         }
       },
+      onBackgroundRefreshStart: loadingController.begin,
+      onBackgroundRefreshEnd: loadingController.end,
     });
     const unsubscribeRealtime = bindDashboardProjectEvents(refreshController);
 
@@ -75,6 +88,7 @@ export default function Dashboard() {
       active = false;
       unsubscribeRealtime();
       refreshController.dispose();
+      loadingController.dispose();
     };
   }, []);
 
@@ -161,12 +175,11 @@ export default function Dashboard() {
           )}
 
           {loading ? (
-            <div className="field-dashboard-loading" aria-label="Loading projects">
-              <span /><span /><span />
-            </div>
+            <DashboardLoadingGrid />
           ) : visibleProjects.length > 0 ? (
             <ProjectGrid
               projects={visibleProjects}
+              refreshingProjectIds={refreshingProjectIds}
               openMenuId={openMenuId}
               onOpenMenuId={setOpenMenuId}
               onOpen={navigateToProject}

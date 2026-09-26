@@ -6,9 +6,14 @@ import {
 
 export const DASHBOARD_REALTIME_COALESCE_MS = 40;
 
+export interface DashboardProjectRefreshRun {
+  id: number;
+  events: FieldProjectEvent[];
+}
+
 export interface DashboardProjectRefreshController<T> {
   refreshNow(): Promise<void>;
-  schedule(): void;
+  schedule(event?: FieldProjectEvent): void;
   dispose(): void;
 }
 
@@ -16,6 +21,8 @@ interface DashboardProjectRefreshOptions<T> {
   load: () => Promise<T>;
   apply: (value: T) => void;
   onError?: (error: unknown) => void;
+  onBackgroundRefreshStart?: (run: DashboardProjectRefreshRun) => void;
+  onBackgroundRefreshEnd?: (run: DashboardProjectRefreshRun) => void;
   delayMs?: number;
   setTimeoutFn?: (callback: () => void, ms: number) => ReturnType<typeof setTimeout>;
   clearTimeoutFn?: (handle: ReturnType<typeof setTimeout>) => void;
@@ -30,6 +37,7 @@ export function createDashboardProjectRefreshController<T>(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let epoch = 0;
   let disposed = false;
+  const pendingEvents = new Map<string, FieldProjectEvent>();
 
   const clearTimer = () => {
     if (timer === null) return;
@@ -37,12 +45,22 @@ export function createDashboardProjectRefreshController<T>(
     timer = null;
   };
 
-  const run = async (runEpoch: number) => {
+  const takePendingEvents = (): FieldProjectEvent[] => {
+    const events = [...pendingEvents.values()];
+    pendingEvents.clear();
+    return events;
+  };
+
+  const run = async (runEpoch: number, events: FieldProjectEvent[]) => {
+    const runInfo: DashboardProjectRefreshRun = { id: runEpoch, events };
+    if (events.length > 0) options.onBackgroundRefreshStart?.(runInfo);
     try {
       const value = await options.load();
       if (!disposed && runEpoch === epoch) options.apply(value);
     } catch (error) {
       if (!disposed && runEpoch === epoch) options.onError?.(error);
+    } finally {
+      if (events.length > 0) options.onBackgroundRefreshEnd?.(runInfo);
     }
   };
 
@@ -50,21 +68,24 @@ export function createDashboardProjectRefreshController<T>(
     refreshNow() {
       if (disposed) return Promise.resolve();
       clearTimer();
+      pendingEvents.clear();
       const runEpoch = ++epoch;
-      return run(runEpoch);
+      return run(runEpoch, []);
     },
-    schedule() {
+    schedule(event) {
       if (disposed) return;
+      if (event) pendingEvents.set(`${event.projectId}:${event.kind}`, event);
       clearTimer();
       const runEpoch = ++epoch;
       timer = setTimeoutFn(() => {
         timer = null;
-        void run(runEpoch);
+        void run(runEpoch, takePendingEvents());
       }, delayMs);
     },
     dispose() {
       disposed = true;
       epoch += 1;
+      pendingEvents.clear();
       clearTimer();
     },
   };
@@ -74,5 +95,5 @@ export function bindDashboardProjectEvents(
   controller: Pick<DashboardProjectRefreshController<unknown>, 'schedule'>,
   subscribe: (listener: FieldProjectEventListener) => () => void = subscribeToFieldProjectEvents,
 ): () => void {
-  return subscribe((_event: FieldProjectEvent) => controller.schedule());
+  return subscribe((event: FieldProjectEvent) => controller.schedule(event));
 }

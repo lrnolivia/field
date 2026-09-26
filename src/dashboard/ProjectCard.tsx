@@ -1,10 +1,14 @@
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { FigmaMoreIcon } from '@/shared/loew-figma-icons';
 import type { FieldProjectMeta } from '@/backend/field-projects';
+import { DASHBOARD_LOADING_MIN_VISIBLE_MS, DASHBOARD_LOADING_REVEAL_MS } from './dashboard-loading';
 import { formatRelativeEditedTime } from './project-meta';
 import ProjectCardMenu from './ProjectCardMenu';
+import SkeletonSurface from './SkeletonSurface';
 
 type Props = {
   project: FieldProjectMeta;
+  refreshing?: boolean;
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
   onOpen: () => void;
@@ -33,9 +37,118 @@ function Placeholder() {
   );
 }
 
+export function ProjectCardSkeleton({ label }: { label?: string }) {
+  return (
+    <article
+      className="field-project-card field-project-card-skeleton"
+      aria-busy="true"
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
+      <SkeletonSurface className="field-project-skeleton-preview" />
+      <div className="field-project-skeleton-meta-row">
+        <SkeletonSurface className="field-project-skeleton-name" />
+        <SkeletonSurface className="field-project-skeleton-menu" />
+      </div>
+      <SkeletonSurface className="field-project-skeleton-edited" />
+    </article>
+  );
+}
+
+function ProjectThumbnail({ src }: { src: string }) {
+  const mountedRef = useRef(false);
+  const previousSrcRef = useRef(src);
+  const settledSrcRef = useRef<string | null>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shownAtRef = useRef<number | null>(null);
+  const [loadingSlow, setLoadingSlow] = useState(false);
+
+  const clearTimers = () => {
+    if (revealTimerRef.current !== null) clearTimeout(revealTimerRef.current);
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    revealTimerRef.current = null;
+    hideTimerRef.current = null;
+  };
+
+  const settleLoading = () => {
+    settledSrcRef.current = src;
+    if (revealTimerRef.current !== null) {
+      clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+    const shownAt = shownAtRef.current;
+    if (shownAt === null) {
+      setLoadingSlow(false);
+      return;
+    }
+    const remaining = DASHBOARD_LOADING_MIN_VISIBLE_MS - (Date.now() - shownAt);
+    if (remaining <= 0) {
+      shownAtRef.current = null;
+      setLoadingSlow(false);
+      return;
+    }
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      shownAtRef.current = null;
+      setLoadingSlow(false);
+    }, remaining);
+  };
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      previousSrcRef.current = src;
+      return;
+    }
+    if (src === previousSrcRef.current) return;
+    previousSrcRef.current = src;
+    clearTimers();
+    if (settledSrcRef.current === src) return;
+    shownAtRef.current = null;
+    setLoadingSlow(false);
+    revealTimerRef.current = setTimeout(() => {
+      revealTimerRef.current = null;
+      shownAtRef.current = Date.now();
+      setLoadingSlow(true);
+    }, DASHBOARD_LOADING_REVEAL_MS);
+    return clearTimers;
+  }, [src]);
+
+  useEffect(() => clearTimers, []);
+
+  const handleError = (event: SyntheticEvent<HTMLImageElement>) => {
+    settleLoading();
+    event.currentTarget.remove();
+  };
+
+  return (
+    <>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onLoad={settleLoading}
+        onError={handleError}
+      />
+      {loadingSlow && (
+        <div className="field-project-thumbnail-loading" aria-hidden="true">
+          <SkeletonSurface className="field-project-thumbnail-loading-surface" />
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function ProjectCard(props: Props) {
   const { project } = props;
   const trashed = Boolean(project.trashedAt);
+
+  if (props.refreshing) {
+    return <ProjectCardSkeleton label={`Updating ${project.name || 'Untitled'}`} />;
+  }
 
   return (
     <article className="field-project-card">
@@ -47,15 +160,7 @@ export default function ProjectCard(props: Props) {
         aria-label={trashed ? `${project.name} is in Trash` : `Open ${project.name}`}
       >
         <Placeholder />
-        {project.thumbnail && (
-          <img
-            src={project.thumbnail}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            onError={(event) => event.currentTarget.remove()}
-          />
-        )}
+        {project.thumbnail && <ProjectThumbnail src={project.thumbnail} />}
         {project.starred && !trashed && <StarBadge />}
       </button>
 
