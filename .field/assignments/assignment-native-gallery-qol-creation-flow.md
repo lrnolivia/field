@@ -19,7 +19,8 @@ owned:
   - src/editor/gallery/**
   - src/editor/tools/GalleryTool.tsx
   - src/editor/ui/ImageSearchModal.tsx
-approved_shared: []
+approved_shared:
+  - src/canvas/insertion-bridge.ts
 protected:
   - src/code/parsing/**
   - src/code/generation/**

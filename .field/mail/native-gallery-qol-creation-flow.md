@@ -199,3 +199,21 @@ Gallery media selection now follows real item identity rather than list position
 - no generic editor store, parser, Preview, or runtime architecture was modified
 
 The GalleryTool delta was audited directly against exact Source Ratio SHA f8852136... before publication: +31 / -8 and selection wiring only. Two pure Gallery-owned helper/test files were added.
+
+
+## 2026-09-26 ownership expansion — wizard fresh-insert signal
+
+The creation wizard needs to distinguish a freshly inserted empty Gallery from an older Gallery that happens to be empty. Opening the wizard for every empty Gallery would make Cancel capable of deleting an intentional existing Gallery.
+
+Investigated options:
+- src/canvas/drag/toolbar-item-config.ts is NOT available: active legacy native-scale-tool-20260926 owns src/canvas/drag/**.
+- src/canvas/insertion-bridge.ts has no active control or legacy ownership collision and already owns the canonical post-insert created-ID seam.
+
+Approved shared path added:
+- src/canvas/insertion-bridge.ts
+
+Scope is strictly bounded:
+- insertion bridge may emit an editor-only fresh-Gallery creation signal using the inserted payload plus created root ID
+- no Gallery source marker, runtime attribute, CSS property, or Preview state is introduced
+- no generic insertion behavior may otherwise change
+- no src/canvas/drag/** file is authorized by this expansion
