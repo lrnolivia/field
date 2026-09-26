@@ -775,7 +775,7 @@ body:has(.field-dashboard-page),
   gap: 6px;
 }
 
-.field-dashboard-modal-actions > button:not(.field-dashboard-modal-primary) {
+.field-dashboard-modal-actions > button:not(.field-dashboard-modal-primary):not(.field-dashboard-modal-danger) {
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--border-default);
