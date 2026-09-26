@@ -177,3 +177,12 @@ Do not use this packet as evidence that Gallery regressed.
 - authored regression files are present in source but MUST NOT be reported as executed
 - Cloudflare Workers Builds check 108443927173 was in progress on the first post-publication read; record final classification only after completion
 - Preview/runtime QA for this unmerged Source-ratio implementation remains pending
+
+
+### Cloudflare follow-up for Source Ratio f8852136f803
+
+- Workers Builds: field check-run 108444034071 completed with failure at 2026-09-26T16:43:07Z
+- no annotations were reported
+- classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Source Ratio product failure
+- basis: this same Workers Builds lane was already failing the Gallery no-file bootstrap, prior Gallery successor commits, and unrelated current-main coordination commits before Source Ratio
+- exact dependency-tree Vitest / TypeScript / build:all remain unverified and are not replaced by this classification
