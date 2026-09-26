@@ -457,6 +457,17 @@ These notes are coordination-infrastructure guidance. They are not product behav
 - **Prevention rule:** any installer that emits code containing nested template literals must execute its transform in package self-test and verify the resulting bytes; syntax/marker scans alone do not prove nested interpolation safety.
 <!-- LESSON:native-gallery-media-insert-r5-transform-interpolation:END -->
 
+<!-- LESSON:native-gallery-carousel-accessibility-r1-rootattrs-type:START -->
+### native-gallery-carousel-accessibility r1 TypeScript lesson
+
+- **r1 applied the exact three-file Phase 5 postimage and all focused Gallery regressions passed: 8 files / 33 tests.** It then stopped safely at TypeScript before build, staging, source commit, or deployment verification.
+- **Root cause:** `GalleryTool.tsx` constructed `rootAttrs` with an object spread plus an explicit `aria-roledescription` key. TypeScript inferred the local object too narrowly as `{ 'aria-roledescription': string }`, so indexing `rootAttrs['aria-label']` raised TS7053 even though `galleryRootAttrs(view)` is declared `Record<string, string>` and runtime behavior was correct.
+- **Repository/source impact:** reservation commit `2ef88ff` is pushed and authoritative; the three intended Phase 5 source files remain as the exact unstaged r1 postimage. No Phase 5 implementation commit was created by r1.
+- **r2 repair:** recognize the exact r1 postimage as a resumable predecessor state and add only an explicit `Record<string, string>` annotation to the local `rootAttrs` object before rerunning focused tests, TypeScript, `build:all`, scoped staging, commit/push, deployment verification, and tracker closeout.
+- **Prevention rule:** when a spread object is consumed through dynamic string keys, do not rely on spread inference to preserve an index signature; annotate the local record explicitly when the contract is `Record<string, string>`.
+<!-- LESSON:native-gallery-carousel-accessibility-r1-rootattrs-type:END -->
+
+
 <!-- FIELD_COMMIT_LEDGER_START -->
 ### 2026-09-25T02:12:32Z — pages-layers-ui3-20260924 — 81a7dbd633db
 
