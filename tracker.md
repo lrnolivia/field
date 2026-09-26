@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T02:16:20Z
+Last Updated: 2026-09-26T02:38:23Z
 
 ## Active Assignments
 
@@ -16,92 +16,7 @@ Last Updated: 2026-09-26T02:16:20Z
 
 
 
-<!-- ASSIGNMENT:native-group-ungroup-20260925:START -->
-### native-group-ungroup-20260925 — Native Group / Ungroup document primitive
 
-Status: active
-Baseline: a10af177e311dba88197164658d7e16f7233a377
-Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
-Last Sync: 2026-09-26T01:52:29Z
-Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
-Phase B baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
-
-Scope: Implement first-class deterministic Figma-style Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is a semantic collection with child-derived bounds and collective manipulation; grouping/ungrouping and subsequent child edits must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
-
-Owned:
-  - src/code/parsing/parser.ts
-  - src/code/generation/runtime-guarantees.ts
-  - src/code/groups/group-semantics.ts
-  - src/code/groups/group-semantics.test.ts
-  - src/canvas/commands.ts
-  - src/canvas/ui/ContextMenu.tsx
-  - src/canvas/shortcuts.ts
-  - src/editor/LayersPanel/rows.tsx
-  - src/editor/command-palette/sources/commands.ts
-  - src/editor/command-palette/useSearchActions.ts
-  - src/code/mutation/mutation-queue.ts
-  - src/code/generation/generator-crud.ts
-  - src/code/groups/group-refit.ts
-  - src/code/groups/group-refit.test.ts
-  - src/canvas/node-ops.ts
-  - src/canvas/resize/ResizeManager.ts
-  - src/canvas/resize/ResizeManager.test.ts
-  - src/canvas/drag/CanvasDragOrchestrator.ts
-  - src/canvas/drag/CanvasDragOrchestrator.test.ts
-  - src/editor/LayersPanel/drag.ts
-  - src/editor/LayersPanel/resolve-drop-structure.test.ts
-  - src/editor/LayersPanel/position-fixup.test.ts
-  - src/code/features/paste-engine/copy/index.ts
-  - src/code/features/paste-engine/core/node-creator.ts
-  - src/code/features/paste-engine/paste/executor.ts
-  - src/code/features/paste-engine/types.ts
-  - src/code/features/paste-engine/paste-engine.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/canvas-sandbox/protocol.ts
-  - src/canvas-sandbox/bridge-host.ts
-  - src/canvas-sandbox/bridge-sandbox.ts
-  - src/canvas-sandbox/bridge-host-camera.test.ts
-  - src/canvas/hooks/useCanvasTransform.ts
-  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
-  - workspace collapse / dock / float implementation
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-
-Architecture:
-  - Figma parity is canonical: Group = semantic collection with child-derived bounds; Frame = explicit authored box; Auto Layout = Frame behavior; Layout is not a separate node type
-  - source marker: data-field-group="true"
-  - source wrapper geometry is a derived cache for web/source realization, not Frame paint/layout semantics
-  - a Group inside parent Auto Layout is ONE parent-layout item; grouped descendants no longer participate individually in the outer flow
-  - parser exposes semantic isGroup; never infer Group from generic CSS alone
-  - generic Group/Ungroup owns Cmd/Ctrl+G and Shift+Cmd/Ctrl+G; SVG Group/Ungroup remains separate
-  - Phase A: structural creation/ungroup, parser, Layers glyph, menus/shortcuts/palette, source-stack preservation
-  - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
-Phase B:
-  - Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
-  - derived Group bounds/refit after child move/resize, recursively through nested Groups
-  - Group move remains one wrapper move; never rewrite every descendant per drag tick
-  - normal Group resize scales descendant box geometry as one collection while leaving type sizes, strokes, and effects unchanged; Scale remains a separate operation that can scale those visual properties too
-  - Layers drag supports enter/exit/Group-to-Group with geometry preservation and empty-Group deletion
-  - copy/paste/duplicate must preserve data-field-group via the existing attrs pipeline unless tests prove a gap
-  - undo/redo must coalesce each visible Group gesture into one coherent history step
-Phase B progress:
-  - Phase B3 landed at 2cd41e95461b39bdbf5cc56ed63aac31214fca92: flow-positioned Group refit, native Group descendant geometry resize, recursive nested-Group resize, and deterministic clipboard semantic-marker regression coverage
-  - Existing mutation/history regression suite passed with the B3 postimage; Group resize descendant writes and wrapper write remain one mutation batch / one visible history gesture
-  - Phase B4 landed at 0949d044464953f2d5f5132de8ae15cee97090df: deletion-driven Group refit plus recursive empty-Group collapse across Delete and Layers reparent
-  - Phase B5 landed at 1785dbb85b9fea391ce12f8f79ac55a84de775ca: reversible flow Group/Ungroup semantics, fail-safe flow grouping, and paste remapping for Group flow metadata
-  - Phase B6 landed at a92b4d663bad901e304e0a43bbf6c17d3f780457: exact proportional Group resize with transformed descendants; non-uniform transformed resize remains gated for the future affine Scale model
-  - Phase B7 landed at e4e36f3b050464fb84cc5e29cdcb97f227157984: Group semantic guards are enforced at the command boundary across shortcuts, palette, menu and future callers, with command-level acceptance regressions
-  - Phase B8 landed at 183ecea9ef30e280a3306f02e973f745e3c144f2: derived Group refit supports exact 2D affine child transforms (translate/scale/rotate/skew/matrix + transform-origin) and transform edits trigger refit
-  - Phase B9 landed at 5e40d6c3d058c46480bde4329184674ceede2e74: exact 2D affine transformed absolute Group wrapper refit, transform-origin/percentage-translation compensation, and transformed nested-Group ancestor propagation
-  - Phase B10 landed at 9b158a30646f2073bcf08cfcf773f6bb23659582: Layers reparent into/out of transformed absolute Groups now converts cached painted world corners through the destination local affine basis, preserving exact 2D world geometry instead of subtracting transformed AABBs
-  - Dedicated Scale-tool behavior remains separate future work; transformed flow Group wrappers, perspective/3D transforms, and transform-bearing variant/conditional Layers rebases remain conservatively gated
-<!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
 
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
 ### field-dashboard-thumbnail-previews-r2-20260925 — Thumbnail Capture + Native Dashboard Exit Repair
@@ -1247,6 +1162,95 @@ Validation / Build / Deploy:
 ## Completed Assignments
 
 <!-- FIELD_COMPLETED_ASSIGNMENTS_START -->
+<!-- ASSIGNMENT:native-group-ungroup-20260925:START -->
+### native-group-ungroup-20260925 — Native Group / Ungroup document primitive
+
+Status: complete
+Baseline: a10af177e311dba88197164658d7e16f7233a377
+Activation HEAD: a10af177e311dba88197164658d7e16f7233a377
+Last Sync: 2026-09-26T02:38:23Z
+Implementation baseline: c3f264661da10270df4c5be0d362728038c8e23f
+Phase B baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
+
+Scope: Implement first-class deterministic Figma-style Group/Ungroup distinct from Frame, Auto Layout, and SVG grouping. Group is a semantic collection with child-derived bounds and collective manipulation; grouping/ungrouping and subsequent child edits must preserve rendered appearance, source identity, responsive/variant behavior, and native flex/grid contracts.
+
+Owned:
+  - src/code/parsing/parser.ts
+  - src/code/generation/runtime-guarantees.ts
+  - src/code/groups/group-semantics.ts
+  - src/code/groups/group-semantics.test.ts
+  - src/canvas/commands.ts
+  - src/canvas/ui/ContextMenu.tsx
+  - src/canvas/shortcuts.ts
+  - src/editor/LayersPanel/rows.tsx
+  - src/editor/command-palette/sources/commands.ts
+  - src/editor/command-palette/useSearchActions.ts
+  - src/code/mutation/mutation-queue.ts
+  - src/code/generation/generator-crud.ts
+  - src/code/groups/group-refit.ts
+  - src/code/groups/group-refit.test.ts
+  - src/canvas/node-ops.ts
+  - src/canvas/resize/ResizeManager.ts
+  - src/canvas/resize/ResizeManager.test.ts
+  - src/canvas/drag/CanvasDragOrchestrator.ts
+  - src/canvas/drag/CanvasDragOrchestrator.test.ts
+  - src/editor/LayersPanel/drag.ts
+  - src/editor/LayersPanel/resolve-drop-structure.test.ts
+  - src/editor/LayersPanel/position-fixup.test.ts
+  - src/code/features/paste-engine/copy/index.ts
+  - src/code/features/paste-engine/core/node-creator.ts
+  - src/code/features/paste-engine/paste/executor.ts
+  - src/code/features/paste-engine/types.ts
+  - src/code/features/paste-engine/paste-engine.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/bridge-host-camera.test.ts
+  - src/canvas/hooks/useCanvasTransform.ts
+  - src/canvas/hooks/useCanvasTransform.chrome-wheel.test.ts
+  - workspace collapse / dock / float implementation
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Architecture:
+  - Figma parity is canonical: Group = semantic collection with child-derived bounds; Frame = explicit authored box; Auto Layout = Frame behavior; Layout is not a separate node type
+  - source marker: data-field-group="true"
+  - source wrapper geometry is a derived cache for web/source realization, not Frame paint/layout semantics
+  - a Group inside parent Auto Layout is ONE parent-layout item; grouped descendants no longer participate individually in the outer flow
+  - parser exposes semantic isGroup; never infer Group from generic CSS alone
+  - generic Group/Ungroup owns Cmd/Ctrl+G and Shift+Cmd/Ctrl+G; SVG Group/Ungroup remains separate
+  - Phase A: structural creation/ungroup, parser, Layers glyph, menus/shortcuts/palette, source-stack preservation
+  - Phase B before completion: auto-refit derived bounds, Group resize/scale, Layers drag into/out, copy/paste + undo/redo parity
+Phase B:
+  - Baseline: 5795bfbff1fc00b387344ce91e42489bb49f549c
+  - derived Group bounds/refit after child move/resize, recursively through nested Groups
+  - Group move remains one wrapper move; never rewrite every descendant per drag tick
+  - normal Group resize scales descendant box geometry as one collection while leaving type sizes, strokes, and effects unchanged; Scale remains a separate operation that can scale those visual properties too
+  - Layers drag supports enter/exit/Group-to-Group with geometry preservation and empty-Group deletion
+  - copy/paste/duplicate must preserve data-field-group via the existing attrs pipeline unless tests prove a gap
+  - undo/redo must coalesce each visible Group gesture into one coherent history step
+Phase B progress:
+  - Phase B3 landed at 2cd41e95461b39bdbf5cc56ed63aac31214fca92: flow-positioned Group refit, native Group descendant geometry resize, recursive nested-Group resize, and deterministic clipboard semantic-marker regression coverage
+  - Existing mutation/history regression suite passed with the B3 postimage; Group resize descendant writes and wrapper write remain one mutation batch / one visible history gesture
+  - Phase B4 landed at 0949d044464953f2d5f5132de8ae15cee97090df: deletion-driven Group refit plus recursive empty-Group collapse across Delete and Layers reparent
+  - Phase B5 landed at 1785dbb85b9fea391ce12f8f79ac55a84de775ca: reversible flow Group/Ungroup semantics, fail-safe flow grouping, and paste remapping for Group flow metadata
+  - Phase B6 landed at a92b4d663bad901e304e0a43bbf6c17d3f780457: exact proportional Group resize with transformed descendants; non-uniform transformed resize remains gated for the future affine Scale model
+  - Phase B7 landed at e4e36f3b050464fb84cc5e29cdcb97f227157984: Group semantic guards are enforced at the command boundary across shortcuts, palette, menu and future callers, with command-level acceptance regressions
+  - Phase B8 landed at 183ecea9ef30e280a3306f02e973f745e3c144f2: derived Group refit supports exact 2D affine child transforms (translate/scale/rotate/skew/matrix + transform-origin) and transform edits trigger refit
+  - Phase B9 landed at 5e40d6c3d058c46480bde4329184674ceede2e74: exact 2D affine transformed absolute Group wrapper refit, transform-origin/percentage-translation compensation, and transformed nested-Group ancestor propagation
+  - Phase B10 landed at 9b158a30646f2073bcf08cfcf773f6bb23659582: Layers reparent into/out of transformed absolute Groups now converts cached painted world corners through the destination local affine basis, preserving exact 2D world geometry instead of subtracting transformed AABBs
+  - Phase B11 landed at 14d62d42fd37369619704abf0c518487ded3e8ca: ordinary Group Resize supports exact non-uniform resizing of supported 2D-affine transformed descendants by recovering parent-local painted affines and conjugating them through the Group resize matrix; edge and corner handles preserve painted geometry without scaling typography, strokes, or effects
+  - Completion boundary: dedicated Scale-tool behavior, perspective/3D transforms, transformed flow Group wrappers, and transform-bearing variant/conditional resize/reparent rebases are separate future architecture work and do not keep native Group / Ungroup open
+  - Completion acceptance passed on 14d62d42fd37369619704abf0c518487ded3e8ca: pristine origin/main was already red in the full-repository Vitest suite under the same runtime before B11, so that baseline-red suite was not used as a false all-green gate; the focused Group semantics/refit/commands/resize/drag/Layers/clipboard/history matrix, Group entry-point source-contract assertions, modified-file ESLint, TypeScript --noEmit, and build:all all passed on the detached validated B11 postimage before live source write
+<!-- ASSIGNMENT:native-group-ungroup-20260925:END -->
+
 <!-- ASSIGNMENT:pages-layers-ui3-20260924:START -->
 ### pages-layers-ui3-20260924 — Figma UI3 Pages / Layers parity pass
 
