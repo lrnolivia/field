@@ -48,3 +48,16 @@ fresh editor load → refresh → Dashboard to editor → editor to Dashboard.
 If those are clean, close this follow-up without touching source.
 
 If one is not clean, create a NEW narrowly owned repair assignment after reconciling ownership.
+
+## Full continuity carried forward
+
+The source chat explicitly wanted **all remaining work and future goals preserved**, not just the immediate ghost-frame closeout.
+
+The assignment now contains a `Full source-chat continuity / deferred roadmap` section. Read it before assuming this handoff was only about one animation bug.
+
+The key distinction is:
+
+- **active remaining work:** coordination closeout only — release the legacy reservation and close this follow-up; source is already landed and human visual QA passed
+- **deferred future goals:** preserve the live Dashboard/Canvas shell, shared structural motion grammar, compact Dashboard/no-thumbnail/wizard treatment, optional New Project page two, templates later, thumbnail integrity, same-document navigation, interruption/reversal safety, and future style-set evolution into real field design-system semantics
+
+Those deferred items are continuity/backlog, **not automatic authorization to edit source**. Create fresh bounded assignments against current repo truth when one becomes real work.
