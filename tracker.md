@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:39:08Z
+Last Updated: 2026-09-26T01:42:20Z
 
 ## Active Assignments
 
@@ -144,42 +144,7 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-006:START -->
-### FIELD-INSPECTOR-FIGUI3-006 — Shared Inspector Command Menus — eliminate bespoke Inspector dropdown shells and harden keyboard navigation
 
-Status: active
-Baseline: c3004f11bbbabffb08f040464b16ebe0a0f61443
-Activation HEAD: f44c248647d65bcfcf09974262bc9bca6dd5c7b1
-Last Sync: 2026-09-26T01:39:08Z
-
-Owned:
-  - src/design-system/DropdownMenu.tsx
-  - src/design-system/DropdownMenu.keyboard.test.tsx
-  - src/editor/tools/SizeTool.tsx
-  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
-  - src/editor/figui3-inspector-command-menu-contract.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
-  - src/editor/controls/FieldSelect.tsx
-  - src/editor/controls/ToolSelect.tsx
-  - src/editor/ui/CompactFontFamilyDropdown.tsx
-  - src/editor/ui/FontFamilyPopup.tsx
-  - src/editor/ui/ToolPopup.tsx
-  - src/editor/ui/SearchableDropdown.tsx
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-006:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -1143,6 +1108,25 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-26T01:42:20Z — FIELD-INSPECTOR-FIGUI3-006 — 820c288f1919
+
+Summary: Unified Inspector command menus and hardened shared DropdownMenu keyboard navigation.
+Commit: 820c288f19194dcac14c29f5e05de5dee068ea8d
+
+Paths:
+  - src/design-system/DropdownMenu.keyboard.test.tsx
+  - src/design-system/DropdownMenu.tsx
+  - src/editor/figui3-inspector-command-menu-contract.test.ts
+  - src/editor/tools/SizeTool.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+
+Validation / Build / Deploy:
+- focused tests passed
+- TypeScript passed
+- build:all passed
+- Workers Builds: field succeeded for the exact source commit
+- Design-mode visual QA confirmed
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -2329,4 +2313,41 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:figui3-corrective-sidebar-system-20260925:END -->
+
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-006:START -->
+### FIELD-INSPECTOR-FIGUI3-006 — Shared Inspector Command Menus — eliminate bespoke Inspector dropdown shells and harden keyboard navigation
+
+Status: complete
+Baseline: c3004f11bbbabffb08f040464b16ebe0a0f61443
+Activation HEAD: f44c248647d65bcfcf09974262bc9bca6dd5c7b1
+Last Sync: 2026-09-26T01:42:20Z
+
+Owned:
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/DropdownMenu.keyboard.test.tsx
+  - src/editor/tools/SizeTool.tsx
+  - src/editor/tools/StylesTool/InspectorSectionActions.tsx
+  - src/editor/figui3-inspector-command-menu-contract.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx
+  - src/editor/controls/FieldSelect.tsx
+  - src/editor/controls/ToolSelect.tsx
+  - src/editor/ui/CompactFontFamilyDropdown.tsx
+  - src/editor/ui/FontFamilyPopup.tsx
+  - src/editor/ui/ToolPopup.tsx
+  - src/editor/ui/SearchableDropdown.tsx
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-006:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
