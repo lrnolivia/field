@@ -3,11 +3,11 @@
 ---
 field_assignment: 1
 id: native-scale-visual-metrics-repair
-status: ready-for-implementation
-branch: null
+status: active
+branch: field/native-scale-visual-metrics-repair
 pr: null
-base: 5ca48d5e99fbc90e07a1bc8707486defa05430ae
-kit: 2026-09-26.2
+base: d9f178361333a2a3bb17be90c0277e4b98708ae4
+kit: 2026-09-26.3
 type: repair
 execution_class: contract-worker
 source_assignment: native-scale-tool-qa-closeout
@@ -193,3 +193,10 @@ Human/authenticated QA:
 - merge only after the current merge gate passes
 - do not close/release legacy `native-scale-tool-20260926`; original QA closeout owns final acceptance and release
 - once repair lands, original `native-scale-tool-qa-closeout` resumes from Packet 1
+
+
+## Activation — 2026-09-26
+
+- branch: `field/native-scale-visual-metrics-repair`
+- activated from current `main` at `d9f178361333a2a3bb17be90c0277e4b98708ae4`
+- current repo-hosted handoff kit adopted: `2026-09-26.3`
