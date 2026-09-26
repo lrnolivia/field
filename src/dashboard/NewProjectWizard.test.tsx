@@ -1,6 +1,32 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FieldProjectMeta } from '@/backend/field-projects';
+
+vi.mock('./new-project-model', () => ({
+  DEFAULT_NEW_PROJECT_SETTINGS: {
+    name: 'Untitled',
+    canvasPresetId: 'desktop',
+    pageColor: '#ffffff',
+    styleSetId: 'none',
+    additionalViewportIds: [],
+  },
+  NEW_PROJECT_CANVAS_PRESETS: [
+    { id: 'desktop', label: 'Desktop', detail: '1440 × 900', width: 1440, height: 900 },
+    { id: 'mobile', label: 'Mobile', detail: '390 × 844', width: 390, height: 844 },
+  ],
+  NEW_PROJECT_STYLE_SETS: [
+    { id: 'none', label: 'None', detail: 'No preset styles', suggestedPageColor: '#ffffff' },
+  ],
+  availableResponsiveCanvasPresets: (canvasPresetId: string) => (
+    canvasPresetId === 'desktop'
+      ? [{ id: 'mobile', label: 'Mobile', detail: '390 × 844', width: 390, height: 844 }]
+      : []
+  ),
+  normalizeProjectColor: (value: string) => (
+    /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : '#ffffff'
+  ),
+}));
+
 import NewProjectWizard from './NewProjectWizard';
 
 const createdProject: FieldProjectMeta = {
