@@ -91,3 +91,15 @@ Do not claim tests/build/runtime QA for those features until the successor recor
 Use human desktop QA for native trackpad pinch/rotation feel when browser automation cannot represent it faithfully.
 
 `/builder/noauth` is disposable/in-memory and does not prove authenticated persistence, R2 durability, account identity, or cross-session persistence.
+
+
+## 2026-09-26 successor baseline Firecrawl packet
+
+- URL: https://field.loew.fi/builder/noauth
+- forced live fetch (maxAge 0)
+- HTTP: 200
+- observed page state: Failed to fetch / Reload; editor chrome did not render in this packet
+- classification: QA harness/environment failure, not a Gallery product failure
+- consequence: baseline Gallery runtime behavior remains human-smoke-backed from the prior closeout, but this successor packet is runtime-unverified until the no-auth harness renders normally again
+
+Do not use this packet as evidence that Gallery regressed.

@@ -80,3 +80,18 @@ Old Gallery assignment is released. Do not reopen it.
 Do not expand this branch into visual polish.
 
 Create a separate Figma UI3-style Gallery Inspector + wizard UI redesign assignment once this functional model is proven.
+
+
+## 2026-09-26 architecture investigation — Contract Worker
+
+All seven required pre-edit seams were investigated against the Gallery implementation branch before product mutation.
+
+1. Canvas swap: field's native drag coordinator already has structural reorder/move commits and grid cell-aware behavior. A correct Gallery image-over-image swap should integrate as a bounded Gallery-aware drag strategy/branch rather than DOM-only reordering. This will require explicit later ownership expansion into the minimal src/canvas/drag files when swap work begins.
+2. Media-edit input ownership: useCanvasTransform already honors data-field-no-canvas-input before coordinate-based wheel routing. The portalled Gallery media-edit overlay can own wheel/pointer/keyboard gestures entirely from Gallery-owned code by carrying that marker; no generic canvas-transform edit is required for the first Reposition tranche.
+3. Zoom/rotation source state: Gallery already proves CSS custom properties round-trip through source/Preview. Store zoom + rotation as Gallery image custom properties and compose them into the real image transform; keep focal position source-backed in object-position/transform-origin. View patches deliberately do not reset per-image treatment.
+4. Wizard launch: empty Gallery insertion is already a real selectable root and the insertion bridge reselects created IDs. GalleryTool can detect a selected empty Gallery and transition into the wizard without changing Insert architecture. Existing history coalescing can keep create+wizard configuration one undo group; Cancel can remove the empty root before releasing the group so no half-created artifact remains.
+5. Natural Shuffle: persist a small Gallery-root composition seed custom property. Deterministically permute visual Natural slots per four-item group from seed+group while leaving DOM/source/content order untouched.
+6. Source ratio: persist frame-sizing policy on the Gallery root and intrinsic source ratio on each Gallery item. View geometry consumes that metadata differently per mode; object-fit, focal position, zoom, and rotation remain independent media treatment. Intrinsic ratios can be measured when policy is enabled and refreshed on replace.
+7. Direct media/file drop: current Media tiles already use the canonical toolbar-drag pipeline. Creating a new pre-populated Gallery is native today; adding/replacing inside an existing Gallery needs Gallery-aware target handling in generic toolbar/canvas drag strategy code. Defer that edit until explicit ownership expansion; do not build a Gallery-only uploader.
+
+First implementation capability group: extend Reposition into a bounded media-edit transaction (input ownership + source-backed focal/zoom/rotation + cancel/reset/commit), because it is fully achievable inside current Gallery ownership.
