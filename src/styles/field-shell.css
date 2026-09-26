@@ -62,9 +62,9 @@
   pointer-events: none;
 }
 
-.field-dashboard-layer[data-state='hidden'] {
-  visibility: hidden;
-}
+/* Keep the Dashboard layer continuously composited while hidden. The slabs are
+ * fully offscreen, pointer events are disabled, and React owns aria-hidden.
+ * Avoiding a visibility flip prevents a one-frame compositor flash at handoff. */
 
 .field-new-project-backdrop {
   position: fixed;
@@ -456,6 +456,145 @@
   white-space: nowrap;
 }
 
+/* FIELD_DASHBOARD_FINAL_WIZARD_POLISH_20260926
+ * Keep New Project fast and visual: tiny device choices, one compact color row,
+ * and style chips instead of four settings cards. Creation semantics stay the same. */
+.field-new-project-modal {
+  width: min(500px, calc(100vw - 48px));
+}
+
+.field-new-project-head,
+.field-new-project-actions {
+  padding: 12px 14px;
+}
+
+.field-new-project-body {
+  gap: 13px;
+  padding: 14px;
+}
+
+.field-new-project-field,
+.field-new-project-fieldset {
+  gap: 6px;
+}
+
+.field-new-project-canvas-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.field-new-project-style-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.field-new-project-canvas-option {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 4px 6px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: transparent;
+}
+
+.field-new-project-canvas-option[data-selected='true'] {
+  background: color-mix(in srgb, var(--bg-active) 76%, transparent);
+}
+
+.field-new-project-screen {
+  width: 28px;
+  max-height: 28px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+}
+
+.field-new-project-option-copy {
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.field-new-project-option-copy strong {
+  font-size: 9px;
+}
+
+.field-new-project-option-copy small {
+  font-size: 8px;
+  line-height: 10px;
+}
+
+.field-new-project-row {
+  justify-items: start;
+}
+
+.field-new-project-row .field-new-project-field {
+  width: 168px;
+}
+
+.field-new-project-color-control {
+  width: 168px;
+  height: 28px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  border-radius: 7px;
+}
+
+.field-new-project-color-swatch {
+  width: 28px;
+  height: 26px;
+  padding: 4px;
+}
+
+.field-new-project-color-text {
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+.field-new-project-style-option {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 8px;
+}
+
+.field-new-project-style-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 0;
+  flex: 0 0 10px;
+}
+
+.field-new-project-style-option > span:last-child {
+  display: block;
+  min-width: 0;
+}
+
+.field-new-project-style-option strong {
+  font-size: 9px;
+}
+
+.field-new-project-style-option small {
+  display: none;
+}
+
+.field-new-project-actions-right .field-new-project-secondary {
+  padding: 0 6px;
+  border-color: transparent;
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.field-new-project-actions-right .field-new-project-secondary:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 @media (max-width: 620px) {
   .field-new-project-backdrop {
     padding: 12px;
@@ -469,6 +608,14 @@
   .field-new-project-canvas-grid,
   .field-new-project-style-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  /* FIELD_DASHBOARD_FINAL_WIZARD_POLISH_MOBILE_20260926 */
+  .field-new-project-canvas-grid,
+  .field-new-project-style-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

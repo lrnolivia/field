@@ -101,6 +101,23 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     expect(showIndex).toBeGreaterThan(beatIndex);
   });
 
+  it('keeps the builder visually live until Dashboard actually starts reclaiming the screen', () => {
+    const start = shell.indexOf('const showDashboard = useCallback');
+    const end = shell.indexOf('const releaseProjectReveal = useCallback', start);
+    const showDashboardSource = shell.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(showDashboardSource).toContain('await requestEditorChromeExit(document);');
+    expect(showDashboardSource).not.toContain("builderLayerRef.current?.setAttribute('inert', '');");
+  });
+
+  it('hardens the WAAPI-to-CSS handoff without a visibility/compositor flip', () => {
+    expect(shell).toContain('finalX: toX');
+    expect(shell).toContain('Freeze the exact final transform in inline style BEFORE cancelling WAAPI');
+    expect(shell).toContain('element.style.transform = `translate3d(${finalX}px, 0, 0)`');
+    expect(css).not.toContain(".field-dashboard-layer[data-state='hidden'] {\n  visibility: hidden;\n}");
+    expect(css).toContain('continuously composited while hidden');
+  });
+
   it('keeps reduced motion and interruption-safe transform reads', () => {
     expect(shell).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)').matches");
     expect(readTransformTranslateX('none')).toBe(0);

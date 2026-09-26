@@ -305,6 +305,35 @@ body:has(.field-dashboard-page),
   opacity: .62;
 }
 
+/* FIELD_DASHBOARD_STABLE_REFRESH_20260926
+ * Realtime refresh keeps the last authoritative card painted; a tiny pulse is
+ * enough to communicate work without swapping the card for a skeleton. */
+.field-project-card[data-refreshing='true'] .field-project-preview::before {
+  content: '';
+  position: absolute;
+  z-index: 4;
+  right: 7px;
+  bottom: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  opacity: .36;
+  animation: field-project-refresh-pulse .8s ease-in-out infinite alternate;
+}
+
+@keyframes field-project-refresh-pulse {
+  from { opacity: .28; transform: scale(.85); }
+  to { opacity: .72; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-project-card[data-refreshing='true'] .field-project-preview::before {
+    animation: none;
+    opacity: .48;
+  }
+}
+
 .field-project-preview > img {
   position: absolute;
   inset: 0;
@@ -316,42 +345,55 @@ body:has(.field-dashboard-page),
   background: var(--bg-tertiary);
 }
 
+/* FIELD_DASHBOARD_CUTE_PLACEHOLDER_20260926
+ * A tiny stacked field card reads as "blank project" without turning the whole
+ * thumbnail into diagram art. */
 .field-project-placeholder {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--text-primary) 4%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--text-primary) 4%, transparent) 1px, transparent 1px),
-    var(--bg-tertiary);
-  background-size: 18px 18px;
+  background: color-mix(in srgb, var(--bg-tertiary) 92%, var(--bg-surface));
 }
 
-.field-project-placeholder::after {
-  content: '';
+.field-project-placeholder-grid {
   position: absolute;
-  width: 92px;
-  height: 92px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
-  border-radius: 50%;
+  width: 36px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 54%, transparent);
+  transform: translate(4px, 4px) rotate(2deg);
 }
 
 .field-project-placeholder-mark {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 28px;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 14%, transparent);
-  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 13%, transparent);
+  border-radius: 8px;
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
-  font-size: 18px;
+  background: color-mix(in srgb, var(--bg-surface) 84%, var(--bg-tertiary));
+  box-shadow: 0 3px 9px color-mix(in srgb, #000 10%, transparent);
+  font-size: 14px;
   font-weight: 650;
   letter-spacing: -.04em;
+}
+
+.field-project-placeholder-mark::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  opacity: .55;
 }
 
 .field-project-star-badge {

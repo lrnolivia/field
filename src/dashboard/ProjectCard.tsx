@@ -146,12 +146,12 @@ export default function ProjectCard(props: Props) {
   const { project } = props;
   const trashed = Boolean(project.trashedAt);
 
-  if (props.refreshing) {
-    return <ProjectCardSkeleton label={`Updating ${project.name || 'Untitled'}`} />;
-  }
-
   return (
-    <article className="field-project-card">
+    <article
+      className="field-project-card"
+      aria-busy={props.refreshing || undefined}
+      data-refreshing={props.refreshing ? 'true' : undefined}
+    >
       <button
         className="field-project-preview"
         type="button"

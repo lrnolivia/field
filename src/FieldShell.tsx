@@ -149,13 +149,13 @@ export default function FieldShell() {
       return;
     }
 
-    // Let React commit the offscreen 'showing' state before measuring an
-    // initial Dashboard return. Interrupted motion stays visually pinned by
-    // the inline transform captured above.
-    if (direction === 'show') {
-      await waitForAnimationFrames(1);
-      if (dashboardMotionEpochRef.current !== epoch) return;
-    }
+    // Give React one paint to commit the new shell state before any slab moves.
+    // On hide this is the editor coordinator's chance to park physical chrome
+    // offscreen before Dashboard exposes a single pixel of Canvas. On show it
+    // guarantees both Dashboard slabs are already offscreen before the layer
+    // becomes visually active. This is a compositor handoff fence, not delay.
+    await waitForAnimationFrames(1);
+    if (dashboardMotionEpochRef.current !== epoch) return;
 
     const handles = targets.map(({ element, role }) => {
       const fromX = readTransformTranslateX(window.getComputedStyle(element).transform);
@@ -175,21 +175,25 @@ export default function FieldShell() {
           fill: 'both',
         },
       );
-      return { element, animation };
+      return { element, animation, finalX: toX };
     });
     dashboardAnimationsRef.current = handles;
 
     await Promise.all(handles.map(({ animation }) => animation.finished.catch(() => undefined)));
     if (dashboardMotionEpochRef.current !== epoch) return;
 
-    setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+    // Freeze the exact final transform in inline style BEFORE cancelling WAAPI
+    // or flipping the shell state. This closes the one-frame ownership gap that
+    // can otherwise flash the resting/offscreen CSS state through the compositor.
+    for (const { element, animation, finalX } of handles) {
+      element.style.transform = `translate3d(${finalX}px, 0, 0)`;
+      animation.cancel();
+    }
+    dashboardAnimationsRef.current = [];
 
-    // Hold the final WAAPI fill until React commits the matching CSS state,
-    // then hand transform ownership back to CSS without a one-frame snap.
+    setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
     await waitForAnimationFrames(1);
     if (dashboardMotionEpochRef.current !== epoch) return;
-    for (const { animation } of dashboardAnimationsRef.current) animation.cancel();
-    dashboardAnimationsRef.current = [];
     clearDashboardInlineTransforms(layer);
   }, [cancelDashboardMotion, clearDashboardInlineTransforms, setDashboardLayerState]);
 
@@ -248,7 +252,9 @@ export default function FieldShell() {
 
     let editorCleared = false;
     if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
-      builderLayerRef.current?.setAttribute('inert', '');
+      // Keep the live builder painted through editor exit and the tiny Canvas
+      // ownership beat. The normal dashboardState effect applies inert only
+      // once Dashboard actually begins reclaiming the screen.
       trace.action('field-shell:editor-exit-start', { projectId: builderIdRef.current });
       await requestEditorChromeExit(document);
       editorCleared = true;
