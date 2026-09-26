@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T03:34:21Z
+Last Updated: 2026-09-26T03:38:42Z
 
 ## Active Assignments
 
@@ -104,6 +104,54 @@ Protected:
   - package-lock.json
   - wrangler.jsonc
 <!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:END -->
+
+<!-- ASSIGNMENT:field-persistence-conflict-ux-20260925:START -->
+### field-persistence-conflict-ux-20260925 — Multi-Session Save Conflict UX
+
+Status: active — user explicitly authorized proceeding after the ownership overlap was reported
+Baseline: 21015c35e8029beedd95853ef1c162649afb507f
+Activation HEAD: d13f822d547a3a0e7c0f530a5dcec1fecbbd2265
+Last Sync: 2026-09-26T03:38:42Z
+
+Owned:
+  - src/backend/save-store.ts
+  - src/backend/persistence-conflict.ts
+  - src/backend/persistence-conflict.test.ts
+  - src/editor/PersistenceConflictBanner.tsx
+  - src/editor/PersistenceConflictBanner.test.tsx
+  - src/backend/field-backend.test.ts
+
+Approved Shared:
+  - src/backend/autosave.ts
+  - src/backend/field-backend.ts
+  - src/backend/leave-builder.ts
+  - src/App.tsx
+  - src/editor/header/RightHeader.tsx
+  - src/design-system/ConfirmDialog.tsx
+  - tracker.md
+
+Protected:
+  - cloudflare/worker.js
+  - cloudflare/**
+  - wrangler.jsonc
+  - src/dashboard/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/preview/**
+  - src/preview-sandbox/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/components/**
+  - src/code/gallery/**
+  - src/editor/gallery/**
+  - src/editor/LayersPanel/**
+  - src/editor/tools/**
+  - src/styles/globals.css
+  - src/styles/loew-theme.css
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-persistence-conflict-ux-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
