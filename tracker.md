@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:50:00Z
+Last Updated: 2026-09-26T01:51:27Z
 
 ## Active Assignments
 
@@ -144,10 +144,39 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
+<!-- ASSIGNMENT:native-gallery-carousel-accessibility-20260925:START -->
+### native-gallery-carousel-accessibility-20260925 — Native Gallery Evolution — Phase 5 Carousel Accessibility Semantics
 
+Status: active
+Baseline: d11c5249a773ecb7f3f4fd5795d5a99a44e263dc
+Activation HEAD: 1a85c085bd2c4419f2e15fd8c53337f83d0e2aa3
+Last Sync: 2026-09-26T01:51:27Z
 
+Owned:
+  - src/code/gallery/gallery-model.ts
+  - src/code/gallery/gallery-carousel.test.ts
+  - src/editor/tools/GalleryTool.tsx
 
+Approved Shared:
+  - tracker.md
 
+Protected:
+  - src/backend/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - .env*
+  - package.json
+  - package-lock.json
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/stores/**
+  - src/canvas/**
+  - src/editor/LayersPanel/**
+  - src/editor/command-palette/**
+  - src/editor/left-toolbar/**
+<!-- ASSIGNMENT:native-gallery-carousel-accessibility-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
