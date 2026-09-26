@@ -2,7 +2,7 @@
 
 Canonical repository-owned process infrastructure for field execution work.
 
-Version: `2026-09-26.2`
+Version: `2026-09-26.3`
 
 ## Two execution lanes
 
@@ -105,3 +105,12 @@ When a durable coordination, installer, or QA lesson is learned:
 5. do not silently rewrite active assignment history
 
 A failure should make future field work permanently safer.
+
+
+## Artificial blockers
+
+Contract Workers are expected to fix bounded artificial blockers in field's own coordination/tooling/QA process instead of stopping and waiting for the user.
+
+Repair safely within ownership, validate the repair, record it, and continue. Escalate only genuine external, authorization, product-direction, or ownership dependencies.
+
+Existing chats migrating into this system should read `CURRENT_WORKER_SELF_REGISTRATION.md`.
