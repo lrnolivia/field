@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, json, subprocess
+from pathlib import Path
+
+def run(repo: Path, *args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=repo, text=True, stderr=subprocess.STDOUT).rstrip("\n")
+
+def repo_root(raw):
+    p = Path(raw).expanduser().resolve() if raw else Path("/Users/lrnolivia/Repos/field")
+    if not (p / ".git").exists():
+        raise SystemExit(f"field repo not found: {p}")
+    return p
+
+def active_tracker_section(text):
+    start = text.find("## Active Assignments")
+    if start < 0: return "Active Assignments section not found"
+    end = text.find("## Blocked / Integration Notes", start)
+    if end < 0: end = len(text)
+    return text[start:end].rstrip()
+
+ap = argparse.ArgumentParser(prog="field-handoff")
+ap.add_argument("--repo")
+sub = ap.add_subparsers(dest="cmd", required=True)
+sub.add_parser("doctor")
+sub.add_parser("context")
+sub.add_parser("manifest")
+args = ap.parse_args()
+
+repo = repo_root(args.repo)
+kit = repo / ".field/handoff-kit"
+manifest = json.loads((kit / "manifest.json").read_text())
+
+if args.cmd == "manifest":
+    print(json.dumps(manifest, indent=2))
+    raise SystemExit(0)
+
+head = run(repo, "rev-parse", "HEAD")
+origin = run(repo, "rev-parse", "origin/main")
+version = (kit / "VERSION").read_text().strip()
+
+if args.cmd == "doctor":
+    print(f"repo={repo}")
+    print(f"kit_version={version}")
+    print(f"head={head}")
+    print(f"origin_main={origin}")
+    print(f"head_matches_origin_main={str(head == origin).lower()}")
+else:
+    tracker = (repo / manifest["tracker"]).read_text()
+    print(f"kit_version={version}")
+    print(f"head={head}")
+    print(f"origin_main={origin}")
+    print()
+    print(active_tracker_section(tracker))

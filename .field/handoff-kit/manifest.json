@@ -1,0 +1,19 @@
+{
+  "name": "field-handoff-kit",
+  "version": "2026-09-26.1",
+  "repository": "lrnolivia/field",
+  "default_branch": "main",
+  "tracker": "tracker.md",
+  "chat_bootstrap": ".field/handoff-kit/CHAT_BOOTSTRAP.md",
+  "contract": ".field/handoff-kit/CONTRACT.md",
+  "assignment_template": ".field/handoff-kit/templates/assignment.md",
+  "production_qa": {
+    "noauth_builder": "https://field.loew.fi/builder/noauth",
+    "canvas_host": "https://canvas.field.loew.fi",
+    "preview_host": "https://preview.field.loew.fi"
+  },
+  "installer": {
+    "shell": "macOS Bash 3.2 compatible",
+    "package_contract": "zip name == top-level folder name; install-build-commit-push.sh at package root"
+  }
+}
