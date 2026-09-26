@@ -16,7 +16,10 @@ export default function RenameProjectDialog({ project, saving, onClose, onSave }
     setValue(project?.name ?? '');
     if (!project) return;
 
-    const frame = requestAnimationFrame(() => inputRef.current?.select());
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
     return () => cancelAnimationFrame(frame);
   }, [project]);
 
