@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T07:30:12Z
+Last Updated: 2026-09-26T07:32:23Z
 
 ## Active Assignments
 
@@ -1371,6 +1371,20 @@ Commit: 144d16eb8fb5a525fcac75b241690e562e2799fe
 Paths:
   - src/FieldShell.tsx
   - src/field-shell-motion.test.ts
+  - src/styles/field-shell.css
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T07:32:23Z — field-dashboard-seamless-motion-20260926 — b0c3806f921a
+
+Summary: Unified Dashboard motion with the finalized editor chrome choreography. Dashboard major slabs now reuse the editor structural spring and exit curve, use an 18ms directional stagger, expose the stationary Canvas for two painted frames after editor exit, and drive FieldShell state from real WAAPI completion rather than a fixed timeout. No editor motion, Canvas artifact, realtime, persistence, wizard, or routing contracts were changed.
+Commit: b0c3806f921a6eb4587ff069e5d457e005b29759
+
+Paths:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.test.ts
+  - src/field-shell-motion.ts
   - src/styles/field-shell.css
 
 Validation / Build / Deploy:
