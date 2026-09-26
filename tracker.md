@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:42:20Z
+Last Updated: 2026-09-26T01:46:51Z
 
 ## Active Assignments
 
@@ -144,6 +144,43 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
+
+
+<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:START -->
+### figui3-left-rail-command-chrome-20260925 — FigUI3 Left Rail Command Chrome
+
+Status: active
+Baseline: 2c426cd956766c32a1c7235ce4e9a8bc16777647
+Activation HEAD: 2c426cd956766c32a1c7235ce4e9a8bc16777647
+Last Sync: 2026-09-26T01:46:51Z
+
+Scope: Replace residual inherited Revyme command-rail grammar with compact neutral FigUI3 chrome while preserving command behavior, viewer gating, workspace geometry, and functional selection state.
+
+Owned:
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/figui3-left-rail-command-chrome.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/**
+  - src/editor/header/**
+  - src/design-system/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Architecture:
+  - visual-chrome-only phase
+  - no document-model, source-generation, canvas, runtime, backend, or dependency changes
+<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:END -->
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
