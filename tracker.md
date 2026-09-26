@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T04:31:19Z
+Last Updated: 2026-09-26T05:23:28Z
 
 ## Active Assignments
 
@@ -107,6 +107,47 @@ Protected:
   - package-lock.json
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
+
+<!-- ASSIGNMENT:field-realtime-dashboard-awareness-20260926:START -->
+### field-realtime-dashboard-awareness-20260926 — Realtime Project Events + Dashboard Awareness
+
+Status: active
+Baseline: d8000a5a233ab8de79c9c559a3a23a3b7d9e386d
+Activation HEAD: d8000a5a233ab8de79c9c559a3a23a3b7d9e386d
+Last Sync: 2026-09-26T05:23:28Z
+
+Owned:
+  - cloudflare/worker.js
+  - cloudflare/field-realtime.test.ts
+  - wrangler.jsonc
+  - src/backend/project-events.ts
+  - src/backend/project-events.test.ts
+  - src/dashboard/dashboard-realtime.ts
+  - src/dashboard/dashboard-realtime.test.ts
+  - src/Dashboard.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/autosave.ts
+  - src/backend/persistence-conflict.ts
+  - src/backend/field-backend.ts
+  - src/backend/intentional-navigation.ts
+  - src/backend/leave-builder.ts
+  - src/backend/field-projects.ts
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/project/project-fs.ts
+  - src/code/mutation/**
+  - src/editor/PersistenceConflictBanner.tsx
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-realtime-dashboard-awareness-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
