@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T04:06:39Z
+Last Updated: 2026-09-26T04:31:19Z
 
 ## Active Assignments
 
@@ -1230,6 +1230,21 @@ Paths:
   - src/editor/header/ProjectThumbnailCaptureHost.tsx
   - src/editor/header/project-thumbnail-capture-state.test.ts
   - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T04:31:19Z — field-dashboard-thumbnail-previews-r2-20260925 — 6d1aec15a0e6
+
+Summary: r7 warm thumbnail runtime: retain one bounded hidden Preview runtime across edit bursts, batch incremental ProjectFS writes, correlate render generations, capture only saved/current state, park after short idle, destroy after long idle, and keep compact first-viewport raster work. Focused tests, TypeScript, build:all, and Workers Builds: field passed. Manual latency/resource smoke remains required.
+Commit: 6d1aec15a0e695928f6bf98c1b630b2c7bab17a3
+
+Paths:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
   - src/editor/header/project-thumbnail-r2-contract.test.ts
   - src/preview-sandbox/capture-thumbnail.test.ts
   - src/preview-sandbox/capture-thumbnail.ts
