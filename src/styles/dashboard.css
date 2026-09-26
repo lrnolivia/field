@@ -722,6 +722,38 @@ body:has(.field-dashboard-page),
   font-weight: 620;
 }
 
+.field-dashboard-modal-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-dashboard-modal-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.field-dashboard-modal-danger {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, #d84f4f 80%, transparent);
+  border-radius: var(--radius-md);
+  color: #fff;
+  background: #d84f4f;
+  font-size: 10px;
+  font-weight: 560;
+}
+
+.field-dashboard-modal-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #d84f4f 88%, #000);
+}
+
+.field-dashboard-modal-danger:disabled {
+  opacity: .55;
+}
+
 .field-dashboard-modal input {
   height: 28px;
   padding: 0 8px;

@@ -21,6 +21,7 @@ import DashboardLoadingGrid from '@/dashboard/DashboardLoadingGrid';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
+import DeleteProjectDialog from '@/dashboard/DeleteProjectDialog';
 import NewProjectWizard from '@/dashboard/NewProjectWizard';
 import { createNewProjectData, type NewProjectSettings } from '@/dashboard/new-project-model';
 import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<FieldProjectMeta | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FieldProjectMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<RevymeUser | null>(null);
 
@@ -160,8 +162,6 @@ export default function Dashboard() {
   };
 
   const permanentDelete = async (project: FieldProjectMeta) => {
-    setOpenMenuId(null);
-    if (!window.confirm(`Permanently delete “${project.name || 'Untitled'}”? This cannot be undone.`)) return;
     setBusyId(project.id);
     setError(null);
     try {
@@ -171,6 +171,7 @@ export default function Dashboard() {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusyId(null);
+      setDeleteTarget(null);
     }
   };
 
@@ -223,7 +224,10 @@ export default function Dashboard() {
               onToggleStar={(project) => void runProjectAction(project, () => setFieldProjectStarred(project.id, !project.starred))}
               onTrash={(project) => void runProjectAction(project, () => trashFieldProject(project.id))}
               onRestore={(project) => void runProjectAction(project, () => restoreFieldProject(project.id))}
-              onPermanentDelete={(project) => void permanentDelete(project)}
+              onPermanentDelete={(project) => {
+                setOpenMenuId(null);
+                setDeleteTarget(project);
+              }}
             />
           ) : (
             <EmptyState title={emptyState.title} detail={emptyState.detail} />
@@ -241,6 +245,17 @@ export default function Dashboard() {
           void runProjectAction(target, () => renameFieldProject(target.id, name)).then(() => {
             setRenameTarget(null);
           });
+        }}
+      />
+
+      <DeleteProjectDialog
+        project={deleteTarget}
+        deleting={Boolean(deleteTarget && busyId === deleteTarget.id)}
+        onClose={() => {
+          if (!deleteTarget || busyId !== deleteTarget.id) setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          if (deleteTarget) void permanentDelete(deleteTarget);
         }}
       />
 
