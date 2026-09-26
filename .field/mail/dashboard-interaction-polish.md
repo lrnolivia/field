@@ -1,36 +1,33 @@
 # dashboard-interaction-polish mailbox
 
 to: dashboard-interaction-polish Contract Worker
-type: activation-and-migration
+type: current-state
 
-The user explicitly designated this chat as the Dashboard Worker, asked it to start work, and then authorized fixing blockers.
+Canonical assignment: `dashboard-interaction-polish`
+Branch: `field/dashboard-interaction-polish`
+Draft PR: #5
+Head: `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`
+Current reconciled main: `0f329ba94475288100bb4aa48338d876a8a2f5f1`
+Kit: `2026-09-26.3`
 
-Contract Worker coordination v2 landed after the first candidate implementation was already committed. Treat the old branch/PR only as migration input:
+Product validation now has green evidence:
 
-- old branch: `dashboard-worker/menu-dismiss-20260926`
-- old head: `b24c5abb8388f25f8d85a8efe98ba235ee283268`
-- old Draft PR: #4
+- ProjectCardMenu focused suite: 4/4 passed.
+- DeleteProjectDialog focused suite: 4/4 passed.
+- Focused strict TypeScript validation for the two changed components/tests passed.
+- Main drift since the activation base changes only handoff-kit process files; none overlap this assignment's six owned Dashboard files.
 
-Activation ownership preflight against current Contract Worker assignments and active legacy tracker `Owned:` paths found no collision with this assignment's six owned Dashboard files.
+Artificial blockers repaired/contained:
 
-Canonical target:
+- obsolete pre-contract PR #4 was closed
+- obsolete branch `dashboard-worker/menu-dismiss-20260926` was deleted
+- incomplete archive extraction was identified as a sandbox artifact and rebuilt from the exact head archive
+- package-manager validation was moved to disposable sandbox tooling rather than modifying protected package files
 
-- assignment: `dashboard-interaction-polish`
-- branch: `field/dashboard-interaction-polish`
-- base: `5ca48d5e99fbc90e07a1bc8707486defa05430ae`
-- branch head: `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`
-- Draft PR: #5
+Outstanding harness dependencies:
 
-Do not cross into FieldShell/editor handoff, thumbnail capture, backend persistence, canvas/Preview, Cloudflare, package manifests, or environment files.
+- Cloudflare branch build `45a092f4-8331-451f-a8e1-692624abf981` failed before producing a Preview URL. Preview/deployment infrastructure is owned by active assignment `field-branch-preview-live-qa`; do not trespass.
+- Clean repository `npm ci` is blocked by current lockfile integrity: `package.json` requires Node >=22 and `package-lock.json` resolves `@swc/helpers` at 0.5.15 while a locked dependency requires >=0.5.17, causing npm to request 0.5.23 and reject the lockfile.
+- No active ownership currently reserves `package.json` or `package-lock.json`, but this Dashboard assignment explicitly protects them. Register/assign a bounded package-lock integrity repair rather than expanding this assignment.
 
-The old PR/branch may be closed/deleted only after the canonical replacement has been created and verified.
-
-Canonical replacement is now established. The obsolete pre-contract PR #4 and branch can be retired after one final canonical identity check.
-
-## 2026-09-26 blocker-repair update
-
-- Rehydrated against main `0f329ba94475288100bb4aa48338d876a8a2f5f1` and handoff kit `2026-09-26.3`.
-- Obsolete pre-contract PR #4 is closed and branch `dashboard-worker/menu-dismiss-20260926` is deleted.
-- Canonical PR #5 remains the only Dashboard workstream.
-- Cloudflare branch build `45a092f4-8331-451f-a8e1-692624abf981` failed and produced no Preview URL. That infrastructure is owned by `field-branch-preview-live-qa`; no trespass was made.
-- Exact-head validation sandbox was materialized for `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`. Clean `npm ci` is blocked by existing repository harness state: Node >=22 is required and the current lockfile is missing `@swc/helpers@0.5.23`. A disposable Node 22 validation environment is being used instead; package files remain untouched.
+Do not merge PR #5 until application-build/runtime Preview evidence is available or the merge gate explicitly classifies those harness requirements as non-blocking.
