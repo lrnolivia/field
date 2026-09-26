@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T03:38:42Z
+Last Updated: 2026-09-26T03:41:04Z
 
 ## Active Assignments
 
@@ -1243,6 +1243,28 @@ Paths:
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
+
+### 2026-09-26T03:41:04Z — field-persistence-conflict-ux-20260925 — fc3b8e4c7eee
+
+Summary: Implemented first-class multi-session persistence conflict state and recovery UX; focused tests, TypeScript, and build:all passed.
+Commit: fc3b8e4c7eeed80a4177f2e17412d66f1bed2598
+
+Paths:
+  - src/App.tsx
+  - src/backend/autosave.ts
+  - src/backend/persistence-conflict.test.ts
+  - src/backend/persistence-conflict.ts
+  - src/editor/PersistenceConflictBanner.test.tsx
+  - src/editor/PersistenceConflictBanner.tsx
+  - src/editor/header/RightHeader.tsx
+
+Validation / Build / Deploy:
+- focused persistence/conflict tests passed
+- existing FieldBackend revision / weak-ETag / conflict regressions passed
+- TypeScript passed
+- npm run build:all passed
+- Cloudflare build check: success
+- two-browser production conflict/recovery smoke: pending human verification
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
