@@ -1,5 +1,5 @@
 // LeftMenu.tsx — 52px icon strip for the left toolbar.
-// Matches old builder's leftMenu.tsx design exactly.
+// FigUI3 command rail: compact neutral controls, functional selection accent, restrained floating tooltip.
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -100,7 +100,7 @@ const MenuButton = React.memo(function MenuButton({
       onMouseLeave={disabled ? undefined : tooltip.onLeave}
       // Native browser tooltip removed — we draw our own. Without this,
       // the browser's grey title-bubble fights ours on slow systems.
-      className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
+      className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
         disabled
           ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
           : isActive
@@ -184,7 +184,7 @@ export default function LeftMenu() {
       // not a label hugging the button edge. LeftPanel starts at
       // x=52 so the tooltip lands in the visible margin between the
       // strip and the panel's left border.
-      left: rect.right + 20,
+      left: rect.right + 8,
     });
   }, []);
   const handleLeave = useCallback(() => setTooltip(null), []);
@@ -236,18 +236,18 @@ export default function LeftMenu() {
                   letters glitching (`.vibe-working` in globals.css). The ring
                   lives on a wrapper because the button's own clip-path would
                   cut it. */}
-              <div className={`vibe-ring relative w-8 h-8 cut-corners ${agentRunning ? 'vibe-working' : ''}`} data-testid="vibe-button" data-working={agentRunning || undefined}>
+              <div className={`vibe-ring relative w-8 h-8 rounded-[6px] ${agentRunning ? 'vibe-working' : ''}`} data-testid="vibe-button" data-working={agentRunning || undefined}>
                 <button
                   disabled={isViewerRole}
                   onClick={isViewerRole ? undefined : (e) => { togglePanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
                   onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'Vibe AI', e.currentTarget)}
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
-                  className={`vibe-face absolute inset-0 cut-corners flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
+                  className={`vibe-face absolute inset-0 rounded-[6px] flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
-                      ? 'bg-[var(--accent)] text-[var(--accent-brand-fg)] opacity-40 cursor-not-allowed'
+                      ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
                       : leftPaneOpen && activePanel === 'vibe'
                         ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
-                        : 'bg-[var(--accent)] text-[var(--accent-brand-fg)] hover:bg-[var(--rail-active-bg)] hover:text-[var(--rail-active-fg)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   <span className="vibe-text relative">VIBE</span>
@@ -268,12 +268,12 @@ export default function LeftMenu() {
           onClick={isViewer ? undefined : (e) => { togglePanel('insert'); handleClick('insert'); e.currentTarget.blur(); }}
           onMouseEnter={isViewer ? undefined : (e) => handleEnter('insert', 'Insert', e.currentTarget)}
           onMouseLeave={isViewer ? undefined : handleLeave}
-          className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
+          className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
             isViewer
-              ? 'bg-[var(--accent)] text-[var(--accent-brand-fg)] opacity-40 cursor-not-allowed'
+              ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
               : leftPaneOpen && activePanel === 'insert'
                 ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
-                : 'bg-[var(--accent)] text-[var(--accent-brand-fg)] hover:bg-[var(--rail-active-bg)] hover:text-[var(--rail-active-fg)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
           }`}
         >
           <InsertPlusIcon className="w-4 h-4" />
@@ -335,7 +335,7 @@ export default function LeftMenu() {
           onClick={isViewerRole ? undefined : (e) => { setCodeOpen(v => !v); handleClick('code'); e.currentTarget.blur(); }}
           onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('code', 'Code', e.currentTarget)}
           onMouseLeave={isViewerRole ? undefined : handleLeave}
-          className={`w-8 h-8 cut-corners flex items-center justify-center transition-colors ${
+          className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
             isViewerRole
               ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
               : codeOpen
@@ -370,7 +370,7 @@ export default function LeftMenu() {
               animate={{ opacity: 1, scale: 1, x: 0, y: '-50%' }}
               exit={{ opacity: 0, scale: 0.92, x: -4, y: '-50%' }}
               transition={{ duration: 0.12, ease: 'easeOut' }}
-              className="fixed px-2 py-1 cut-corners bg-[var(--accent)] shadow-md text-[11px] font-medium text-[var(--accent-fg)] whitespace-nowrap pointer-events-none"
+              className="fixed rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1 shadow-[var(--shadow-md)] text-[11px] font-medium text-[var(--text-primary)] whitespace-nowrap pointer-events-none"
               style={{
                 top: tooltip.top,
                 left: tooltip.left,
