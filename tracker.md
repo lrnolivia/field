@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T04:03:26Z
+Last Updated: 2026-09-26T04:06:39Z
 
 ## Active Assignments
 
@@ -1220,6 +1220,23 @@ Validation / Build / Deploy:
 - npm run build:all passed
 - Cloudflare build check: success
 - two-browser production conflict/recovery smoke: pending human verification
+
+### 2026-09-26T04:06:39Z — field-dashboard-thumbnail-previews-r2-20260925 — a12dedfaae81
+
+Summary: r6 thumbnail latency repair: prewarm hidden Preview during autosave, gate capture on saved persistence, discard stale generations before capture/upload, shorten thumbnail-only preload/font/settle/raster/watchdog budgets, remove idle scheduling, and target a compact first-viewport raster. Focused tests, TypeScript, build:all, and Workers Builds: field passed. Manual latency smoke remains required.
+Commit: a12dedfaae81fb99c7d43675d4c9eadab1417f32
+
+Paths:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.test.ts
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
