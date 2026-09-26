@@ -94,11 +94,13 @@ export function coverOverflow(
   frameHeight: number,
   imageWidth: number,
   imageHeight: number,
+  zoom = 1,
 ): OverflowRange {
   if (frameWidth <= 0 || frameHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
     return { x: 0, y: 0 };
   }
-  const scale = Math.max(frameWidth / imageWidth, frameHeight / imageHeight);
+  const safeZoom = Number.isFinite(zoom) ? Math.max(1, zoom) : 1;
+  const scale = Math.max(frameWidth / imageWidth, frameHeight / imageHeight) * safeZoom;
   const renderedWidth = imageWidth * scale;
   const renderedHeight = imageHeight * scale;
   return {

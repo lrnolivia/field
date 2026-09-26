@@ -8,6 +8,8 @@ export interface GalleryContentItem {
   alt: string;
   objectFit: string;
   objectPosition: string;
+  zoom: string;
+  rotation: string;
 }
 
 interface GalleryContentSectionProps {

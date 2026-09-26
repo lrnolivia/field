@@ -2,13 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   galleryAriaLabel,
   GALLERY_ITEM_STYLE_PROPERTY,
+  GALLERY_NATURAL_SEED_STYLE_PROPERTY,
   GALLERY_VIEW_STYLE_PROPERTY,
+  NATURAL_COMPOSITION_COUNT,
   getGalleryDefaultImageFit,
+  getGalleryFrameSizingImagePatch,
+  getGalleryFrameSizingItemPatch,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
+  nextGalleryNaturalSeed,
+  normalizeGalleryNaturalSeed,
   parseGalleryAriaLabel,
 } from './gallery-views';
 
@@ -44,6 +50,22 @@ describe('Gallery view registry', () => {
     expect(getGalleryIndexGeometryPatch('natural', 2)).toEqual({ gridColumn: '3', gridRow: '2', aspectRatio: '1 / 1' });
   });
 
+  it('shuffles Natural deterministically without changing semantic content order', () => {
+    const mediaOrder = ['a', 'b', 'c', 'd'];
+    const defaultGeometry = mediaOrder.map((_, index) => getGalleryIndexGeometryPatch('natural', index, 0));
+    const nextSeed = nextGalleryNaturalSeed(0);
+    const shuffledGeometry = mediaOrder.map((_, index) => getGalleryIndexGeometryPatch('natural', index, nextSeed));
+
+    expect(nextSeed).toBe(1);
+    expect(shuffledGeometry).not.toEqual(defaultGeometry);
+    expect(mediaOrder).toEqual(['a', 'b', 'c', 'd']);
+    expect(getGalleryIndexGeometryPatch('natural', 0, nextSeed)).toEqual(shuffledGeometry[0]);
+    expect(new Set(shuffledGeometry.map((geometry) => geometry.gridColumn + '|' + geometry.gridRow)).size).toBe(4);
+    expect(normalizeGalleryNaturalSeed(-1)).toBe(NATURAL_COMPOSITION_COUNT - 1);
+    expect(nextGalleryNaturalSeed(NATURAL_COMPOSITION_COUNT - 1)).toBe(0);
+    expect(GALLERY_NATURAL_SEED_STYLE_PROPERTY).toBe('--field-gallery-natural-seed');
+  });
+
   it('keeps Strip source-backed while making narrow runtimes reachable', () => {
     expect(getGalleryRootPatch('strip')).toMatchObject({
       gap: '4px',
@@ -52,7 +74,44 @@ describe('Gallery view registry', () => {
       overscrollBehaviorX: 'contain',
     });
     expect(getGalleryItemPatch('strip', 0)).toMatchObject({ width: '120px', height: '620px', scrollSnapAlign: 'start' });
-    expect(getGalleryStripHoverPatch()).toEqual({ width: 'min(380px, calc(100vw - 32px))' });
+    expect(getGalleryStripHoverPatch()).toEqual({ width: 'min(380px, calc(100vw - 32px))', minWidth: '' });
+  });
+
+  it('derives mode-appropriate frames from intrinsic media without changing fit', () => {
+    expect(getGalleryItemPatch('grid', 0, 0, 'source', 1.5)).toMatchObject({
+      aspectRatio: '1.5 / 1',
+      alignSelf: 'start',
+    });
+
+    expect(getGalleryIndexGeometryPatch('natural', 3, 0, 'source', 0.75)).toEqual({
+      gridColumn: '4',
+      gridRow: '1 / span 2',
+      aspectRatio: '0.75 / 1',
+    });
+
+    expect(getGalleryItemPatch('strip', 0, 0, 'source', 1.8)).toMatchObject({
+      width: 'auto',
+      height: '620px',
+      aspectRatio: '1.8 / 1',
+    });
+    expect(getGalleryStripHoverPatch('source')).toEqual({
+      width: '',
+      minWidth: 'min(380px, calc(100vw - 32px))',
+    });
+
+    expect(getGalleryItemPatch('story', 0, 0, 'source', 0.8)).toMatchObject({
+      width: '100%',
+      aspectRatio: '0.8 / 1',
+    });
+
+    expect(getGalleryFrameSizingItemPatch('carousel', 0, 0, 'source', 0.5)).toEqual({});
+    expect(getGalleryFrameSizingImagePatch('carousel', 'source', 0.5)).toEqual({
+      width: 'min(360px, calc(100% - 32px))',
+      height: 'auto',
+      aspectRatio: '0.5 / 1',
+    });
+    expect(getGalleryImagePatch('carousel', 'source', 0.5)).not.toHaveProperty('objectFit');
+    expect(getGalleryImagePatch('carousel', 'source', 0.5)).not.toHaveProperty('objectPosition');
   });
 
   it('preserves Carousel desktop intent while making its stage and image fluid', () => {

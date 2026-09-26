@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { useControl } from '../controls/ControlProvider';
 import { ToolDivider } from '../controls';
@@ -8,6 +8,11 @@ import GalleryContentSection, { type GalleryContentItem } from '../gallery/Galle
 import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
 import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
+import {
+  gallerySelectionAfterRemove,
+  rememberGalleryItemSelection,
+  resolveGalleryItemSelection,
+} from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
 import {
   buildGalleryCarouselControlNodes,
@@ -22,12 +27,34 @@ import {
   isGalleryNode,
 } from '@/code/gallery/gallery-model';
 import {
+  GALLERY_FRAME_SIZING_STYLE_PROPERTY,
+  GALLERY_SOURCE_RATIO_STYLE_PROPERTY,
+  gallerySourceRatioPatch,
+  normalizeGalleryFrameSizing,
+  normalizeGallerySourceRatio,
+  parseGallerySourceRatio,
+  type GalleryFrameSizing,
+} from '@/code/gallery/gallery-frame-sizing';
+import {
+  GALLERY_IMAGE_ROTATION_STYLE_PROPERTY,
+  GALLERY_IMAGE_ZOOM_STYLE_PROPERTY,
+  galleryMediaTreatmentPatch,
+  parseGalleryRotation,
+  parseGalleryZoom,
+  type GalleryMediaTreatment,
+} from '@/code/gallery/gallery-media-treatment';
+import {
+  GALLERY_NATURAL_SEED_STYLE_PROPERTY,
   GALLERY_VIEWS,
+  getGalleryFrameSizingImagePatch,
+  getGalleryFrameSizingItemPatch,
   getGalleryImagePatch,
   getGalleryIndexGeometryPatch,
   getGalleryItemPatch,
   getGalleryRootPatch,
   getGalleryStripHoverPatch,
+  nextGalleryNaturalSeed,
+  normalizeGalleryNaturalSeed,
   type GalleryViewId,
 } from '@/code/gallery/gallery-views';
 import { queueMutation, queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
@@ -40,6 +67,31 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
   return isReplica && vpWidth > 0
     ? { type: 'updateContainerStyle', nodeId, maxWidth: vpWidth, styles }
     : { type: 'updateStyles', nodeId, styles };
+}
+
+function measureGallerySourceRatio(src: string): Promise<number | null> {
+  if (!src || typeof Image === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    let settled = false;
+    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const finish = (ratio: number | null) => {
+      if (settled) return;
+      settled = true;
+      if (timeout !== undefined) globalThis.clearTimeout(timeout);
+      resolve(ratio);
+    };
+    const read = () => finish(
+      image.naturalWidth > 0 && image.naturalHeight > 0
+        ? image.naturalWidth / image.naturalHeight
+        : null,
+    );
+    timeout = globalThis.setTimeout(() => finish(null), 8000);
+    image.onload = read;
+    image.onerror = () => finish(null);
+    image.src = src;
+    if (image.complete && image.naturalWidth > 0) read();
+  });
 }
 
 /**
@@ -153,12 +205,13 @@ function GalleryToolInner() {
   const [replaceItemId, setReplaceItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [cropImageId, setCropImageId] = useState<string | null>(null);
+  const [frameSizingBusy, setFrameSizingBusy] = useState(false);
   const responsiveOverrides = useAtomValue(containerOverridesAtom);
 
   const items = useNodesComputed((nodes) => {
     const gallery = nodeId ? nodes.get(nodeId) : undefined;
     if (!gallery || !isGalleryNode(gallery)) return [];
-    return getGalleryItems(gallery, nodes).map(({ item, image }): GalleryContentItem & GalleryCarouselSyncItem => {
+    return getGalleryItems(gallery, nodes).map(({ item, image }): GalleryContentItem & GalleryCarouselSyncItem & { sourceRatio: string } => {
       const controls = getGalleryCarouselControls(item, nodes);
       return {
         itemId: item.id,
@@ -167,6 +220,9 @@ function GalleryToolInner() {
         alt: image.attrs?.alt ?? '',
         objectFit: image.styles?.objectFit ?? 'cover',
         objectPosition: image.styles?.objectPosition ?? '50% 50%',
+        zoom: image.styles?.[GALLERY_IMAGE_ZOOM_STYLE_PROPERTY] ?? '1',
+        rotation: image.styles?.[GALLERY_IMAGE_ROTATION_STYLE_PROPERTY] ?? '0deg',
+        sourceRatio: item.styles?.[GALLERY_SOURCE_RATIO_STYLE_PROPERTY] ?? '',
         controlIds: [controls.previous?.id, controls.counter?.id, controls.next?.id].filter((id): id is string => !!id),
         domId: item.attrs?.id,
         ariaLabel: item.attrs?.['aria-label'],
@@ -176,26 +232,47 @@ function GalleryToolInner() {
 
   useEffect(() => {
     if (items.length === 0) {
+      // Keep remembered identity across transient parser/replica gaps. A real
+      // selected-item removal clears or advances memory through removeItem.
       setSelectedItemId(null);
       setReplaceItemId(null);
       setCropImageId(null);
       return;
     }
-    if (!selectedItemId || !items.some((item) => item.itemId === selectedItemId)) {
-      setSelectedItemId(items[0].itemId);
-    }
+    const nextSelectedItemId = resolveGalleryItemSelection(
+      nodeId!,
+      items.map((item) => item.itemId),
+      selectedItemId,
+    );
+    if (nextSelectedItemId !== selectedItemId) setSelectedItemId(nextSelectedItemId);
+    rememberGalleryItemSelection(nodeId!, nextSelectedItemId);
     if (replaceItemId && !items.some((item) => item.itemId === replaceItemId)) {
       setReplaceItemId(null);
     }
-  }, [items, replaceItemId, selectedItemId]);
+  }, [items, nodeId, replaceItemId, selectedItemId]);
 
   // The outer gate guarantees these for the lifetime of this inner component.
   const gallery = node!;
   const galleryId = nodeId!;
   const currentView = getGalleryView(gallery);
+  const naturalSeed = normalizeGalleryNaturalSeed(gallery.styles?.[GALLERY_NATURAL_SEED_STYLE_PROPERTY]);
+  const frameSizing = normalizeGalleryFrameSizing(gallery.styles?.[GALLERY_FRAME_SIZING_STYLE_PROPERTY]);
+  const galleryStateSignature = [
+    currentView,
+    frameSizing,
+    naturalSeed,
+    ...items.map((item) => item.itemId + ':' + item.src),
+  ].join('|');
+  const galleryStateRef = useRef(galleryStateSignature);
+  galleryStateRef.current = galleryStateSignature;
   const selectedItem = items.find((item) => item.itemId === selectedItemId) ?? null;
   const prefix = getViewportPrefix(vpId);
   const bridge = getCanvasBridge();
+
+  const selectItem = useCallback((itemId: string | null) => {
+    setSelectedItemId(itemId);
+    rememberGalleryItemSelection(galleryId, itemId);
+  }, [galleryId]);
 
   const patchAndQueue = useCallback((targetId: string, patch: Record<string, string>, responsive = true) => {
     bridge.patchStyles(targetId, prefix, patch);
@@ -226,8 +303,9 @@ function GalleryToolInner() {
     mutations.push({ type: 'updateHtmlAttrs', nodeId: galleryId, attrs: rootAttrs });
 
     items.forEach((item, index) => {
-      const itemPatch = getGalleryItemPatch(view, index);
-      const imagePatch = getGalleryImagePatch(view);
+      const sourceRatio = normalizeGallerySourceRatio(item.sourceRatio);
+      const itemPatch = getGalleryItemPatch(view, index, naturalSeed, frameSizing, sourceRatio);
+      const imagePatch = getGalleryImagePatch(view, frameSizing, sourceRatio);
       bridge.patchStyles(item.itemId, prefix, itemPatch);
       bridge.patchStyles(item.imageId, prefix, imagePatch);
       mutations.push({ type: 'updateStyles', nodeId: item.itemId, styles: itemPatch });
@@ -239,7 +317,7 @@ function GalleryToolInner() {
       // source-backed :hover mutation so Preview and production get the same
       // interaction. Switching away removes the Gallery-owned hover rule.
       mutations.push(view === 'strip'
-        ? { type: 'updateCssHover', nodeId: item.itemId, styles: getGalleryStripHoverPatch() }
+        ? { type: 'updateCssHover', nodeId: item.itemId, styles: getGalleryStripHoverPatch(frameSizing) }
         : { type: 'removeCssHover', nodeId: item.itemId });
     });
 
@@ -253,20 +331,81 @@ function GalleryToolInner() {
     queueMutations(mutations);
     flushNow();
     trace.action('gallery:view-change', { nodeId: galleryId, view, items: items.length });
-  }, [bridge, galleryId, items, prefix, responsiveOverrides]);
+  }, [bridge, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
-  const addMedia = useCallback((urls: string[]) => {
-    // De-dupe only this picker result. Reusing the same canonical project asset
-    // in a later Gallery position is valid content and must not require upload.
+  const applyFrameSizing = useCallback(async (next: GalleryFrameSizing) => {
+    if (next === frameSizing || frameSizingBusy) return;
+    const stateAtStart = galleryStateRef.current;
+    setFrameSizingBusy(true);
+    try {
+      const ratios = await Promise.all(items.map(async (item) => {
+        const stored = parseGallerySourceRatio(item.sourceRatio);
+        if (next !== 'source' || stored !== null) return normalizeGallerySourceRatio(stored);
+        return normalizeGallerySourceRatio(await measureGallerySourceRatio(item.src));
+      }));
+      if (galleryStateRef.current !== stateAtStart) return;
+
+      const rootPatch = { [GALLERY_FRAME_SIZING_STYLE_PROPERTY]: next };
+      bridge.patchStyles(galleryId, prefix, rootPatch);
+      const mutations: Mutation[] = [
+        { type: 'updateStyles', nodeId: galleryId, styles: rootPatch },
+        ...clearResponsivePatchMutations(galleryId, rootPatch, responsiveOverrides),
+      ];
+
+      items.forEach((item, index) => {
+        const ratio = ratios[index] ?? 1;
+        const framePatch = getGalleryFrameSizingItemPatch(currentView, index, naturalSeed, next, ratio);
+        const ratioPatch = next === 'source' ? gallerySourceRatioPatch(ratio) : {};
+        const itemPatch = { ...framePatch, ...ratioPatch };
+        const imagePatch = getGalleryFrameSizingImagePatch(currentView, next, ratio);
+
+        bridge.patchStyles(item.itemId, prefix, itemPatch);
+        mutations.push({ type: 'updateStyles', nodeId: item.itemId, styles: itemPatch });
+        mutations.push(...clearResponsivePatchMutations(item.itemId, { ...framePatch, ...ratioPatch }, responsiveOverrides));
+
+        if (Object.keys(imagePatch).length > 0) {
+          bridge.patchStyles(item.imageId, prefix, imagePatch);
+          mutations.push({ type: 'updateStyles', nodeId: item.imageId, styles: imagePatch });
+          mutations.push(...clearResponsivePatchMutations(item.imageId, imagePatch, responsiveOverrides));
+        }
+
+        if (currentView === 'strip') {
+          mutations.push({ type: 'updateCssHover', nodeId: item.itemId, styles: getGalleryStripHoverPatch(next) });
+        }
+      });
+
+      queueMutations(mutations);
+      flushNow();
+      trace.action('gallery:frame-sizing', { nodeId: galleryId, from: frameSizing, to: next, items: items.length });
+    } finally {
+      setFrameSizingBusy(false);
+    }
+  }, [bridge, currentView, frameSizing, frameSizingBusy, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
+
+  const addMedia = useCallback(async (urls: string[]) => {
     const unique = urls.filter((url, index) => url && urls.indexOf(url) === index);
     if (unique.length === 0) return;
 
+    const stateAtStart = galleryStateRef.current;
+    const measuredRatios = frameSizing === 'source'
+      ? await Promise.all(unique.map((url) => measureGallerySourceRatio(url)))
+      : unique.map(() => null);
+    if (galleryStateRef.current !== stateAtStart) return;
+
     const mutations: Mutation[] = [];
-    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(url, items.length + offset, currentView));
+    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(
+      url,
+      items.length + offset,
+      currentView,
+      '',
+      naturalSeed,
+      frameSizing,
+      frameSizing === 'source' ? normalizeGallerySourceRatio(measuredRatios[offset]) : null,
+    ));
     addedNodes.forEach((sourceNode) => {
       mutations.push({ type: 'addNode', parentId: galleryId, node: sourceNode });
       if (currentView === 'strip') {
-        mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch() });
+        mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch(frameSizing) });
       }
     });
     if (currentView === 'carousel') {
@@ -278,40 +417,97 @@ function GalleryToolInner() {
     }
     queueMutations(mutations);
     flushNow();
-    trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length });
-  }, [currentView, galleryId, items]);
+    trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length, frameSizing });
+  }, [currentView, frameSizing, galleryId, items, naturalSeed]);
 
-  const replaceMedia = useCallback((itemId: string, url: string) => {
+  const replaceMedia = useCallback(async (itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
     if (!target || !url) return;
+
+    const stateAtStart = galleryStateRef.current;
+    const shouldRefreshRatio = frameSizing === 'source' || parseGallerySourceRatio(target.sourceRatio) !== null;
+    const measuredRatio = shouldRefreshRatio ? await measureGallerySourceRatio(url) : null;
+    if (galleryStateRef.current !== stateAtStart) return;
+
     bridge.setAttribute(target.imageId, prefix, 'src', url);
-    queueMutation({ type: 'updateHtmlAttrs', nodeId: target.imageId, attrs: { src: url } });
+    const mutations: Mutation[] = [
+      { type: 'updateHtmlAttrs', nodeId: target.imageId, attrs: { src: url } },
+    ];
+
+    if (shouldRefreshRatio) {
+      const ratio = frameSizing === 'source'
+        ? normalizeGallerySourceRatio(measuredRatio)
+        : parseGallerySourceRatio(measuredRatio);
+      const ratioPatch = ratio === null
+        ? { [GALLERY_SOURCE_RATIO_STYLE_PROPERTY]: '' }
+        : gallerySourceRatioPatch(ratio);
+      const targetIndex = items.findIndex((item) => item.itemId === itemId);
+      const framePatch = frameSizing === 'source' && targetIndex >= 0
+        ? getGalleryFrameSizingItemPatch(currentView, targetIndex, naturalSeed, frameSizing, ratio ?? 1)
+        : {};
+      const itemPatch = { ...framePatch, ...ratioPatch };
+      bridge.patchStyles(target.itemId, prefix, itemPatch);
+      mutations.push({ type: 'updateStyles', nodeId: target.itemId, styles: itemPatch });
+      mutations.push(...clearResponsivePatchMutations(target.itemId, itemPatch, responsiveOverrides));
+
+      if (frameSizing === 'source') {
+        const imagePatch = getGalleryFrameSizingImagePatch(currentView, frameSizing, ratio ?? 1);
+        if (Object.keys(imagePatch).length > 0) {
+          bridge.patchStyles(target.imageId, prefix, imagePatch);
+          mutations.push({ type: 'updateStyles', nodeId: target.imageId, styles: imagePatch });
+          mutations.push(...clearResponsivePatchMutations(target.imageId, imagePatch, responsiveOverrides));
+        }
+      }
+    }
+
+    queueMutations(mutations);
     flushNow();
     setReplaceItemId(null);
-    trace.action('gallery:replace-media', { nodeId: galleryId, itemId });
-  }, [bridge, galleryId, items, prefix]);
+    trace.action('gallery:replace-media', { nodeId: galleryId, itemId, frameSizing, ratioMeasured: measuredRatio !== null });
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const duplicateItem = useCallback((itemId: string) => {
     const sourceIndex = items.findIndex((item) => item.itemId === itemId);
     if (sourceIndex < 0) return;
     const source = items[sourceIndex];
     const insertIndex = sourceIndex + 1;
-    const duplicate = buildGalleryDuplicateItemNode(source, insertIndex, currentView);
+    const duplicate = buildGalleryDuplicateItemNode(source, insertIndex, currentView, naturalSeed, frameSizing);
     const duplicateImage = duplicate.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
     if (!duplicateImage) return;
 
+    const nextItemIds = items.map((item) => item.itemId);
+    nextItemIds.splice(insertIndex, 0, duplicate.id);
+    const ratioById = new Map(items.map((item) => [item.itemId, item.sourceRatio] as const));
+    ratioById.set(duplicate.id, source.sourceRatio);
+
+    const duplicateRatio = normalizeGallerySourceRatio(source.sourceRatio);
+    const duplicateFrameOwnedKeys = Array.from(new Set([
+      ...Object.keys(getGalleryIndexGeometryPatch(currentView, insertIndex, naturalSeed, frameSizing, duplicateRatio)),
+      ...Object.keys(getGalleryFrameSizingItemPatch(currentView, insertIndex, naturalSeed, frameSizing, duplicateRatio)),
+      GALLERY_SOURCE_RATIO_STYLE_PROPERTY,
+    ]));
     const mutations: Mutation[] = [
       { type: 'addNode', parentId: galleryId, node: duplicate, index: insertIndex },
       ...cloneResponsiveOverrideMutations(
         source.itemId,
         duplicate.id,
         responsiveOverrides,
-        Object.keys(getGalleryIndexGeometryPatch(currentView, insertIndex)),
+        duplicateFrameOwnedKeys,
       ),
       ...cloneResponsiveOverrideMutations(source.imageId, duplicateImage.id, responsiveOverrides),
     ];
+
+    nextItemIds.forEach((nextItemId, index) => {
+      const ratio = normalizeGallerySourceRatio(ratioById.get(nextItemId));
+      const geometry = getGalleryIndexGeometryPatch(currentView, index, naturalSeed, frameSizing, ratio);
+      if (Object.keys(geometry).length === 0) return;
+      if (nextItemId !== duplicate.id) bridge.patchStyles(nextItemId, prefix, geometry);
+      mutations.push({ type: 'updateStyles', nodeId: nextItemId, styles: geometry });
+      mutations.push(...clearResponsivePatchMutations(nextItemId, geometry, responsiveOverrides));
+    });
+
     if (currentView === 'strip') {
-      mutations.push({ type: 'updateCssHover', nodeId: duplicate.id, styles: getGalleryStripHoverPatch() });
+      mutations.push({ type: 'updateCssHover', nodeId: duplicate.id, styles: getGalleryStripHoverPatch(frameSizing) });
     }
     if (currentView === 'carousel') {
       const nextItems: GalleryCarouselSyncItem[] = [...items];
@@ -320,38 +516,43 @@ function GalleryToolInner() {
     }
     queueMutations(mutations);
     flushNow();
-    trace.action('gallery:duplicate-media', { nodeId: galleryId, itemId, duplicateId: duplicate.id });
-  }, [currentView, galleryId, items, responsiveOverrides]);
+    trace.action('gallery:duplicate-media', { nodeId: galleryId, itemId, duplicateId: duplicate.id, frameSizing });
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const removeItem = useCallback((itemId: string) => {
     const remaining = items.filter((item) => item.itemId !== itemId);
-    // Imperative-first: the item disappears and the surviving geometry settles
-    // immediately; source mutation below makes that visual result permanent.
     bridge.removeElement?.(itemId);
     remaining.forEach((item, index) => {
-      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index));
+      const ratio = normalizeGallerySourceRatio(item.sourceRatio);
+      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index, naturalSeed, frameSizing, ratio));
     });
     const mutations: Mutation[] = [
-      // Remove Gallery-owned pseudo state while the source element still exists.
       { type: 'removeCssHover', nodeId: itemId },
       { type: 'removeNode', nodeId: itemId },
       ...remaining.map((item, index) => ({
         type: 'updateStyles' as const,
         nodeId: item.itemId,
-        styles: getGalleryItemPatch(currentView, index),
+        styles: getGalleryItemPatch(currentView, index, naturalSeed, frameSizing, normalizeGallerySourceRatio(item.sourceRatio)),
       })),
       ...remaining.flatMap((item, index) => clearResponsivePatchMutations(
         item.itemId,
-        getGalleryIndexGeometryPatch(currentView, index),
+        getGalleryIndexGeometryPatch(currentView, index, naturalSeed, frameSizing, normalizeGallerySourceRatio(item.sourceRatio)),
         responsiveOverrides,
       )),
     ];
     if (currentView === 'carousel') mutations.push(...buildGalleryCarouselSyncMutations(remaining));
     queueMutations(mutations);
     flushNow();
-    if (selectedItemId === itemId) setSelectedItemId(null);
-    trace.action('gallery:remove-media', { nodeId: galleryId, itemId });
-  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides, selectedItemId]);
+    if (selectedItemId === itemId) {
+      const nextSelection = gallerySelectionAfterRemove(
+        items.map((item) => item.itemId),
+        itemId,
+        selectedItemId,
+      );
+      selectItem(nextSelection);
+    }
+    trace.action('gallery:remove-media', { nodeId: galleryId, itemId, frameSizing });
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides, selectItem, selectedItemId]);
 
   const reorderItem = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
@@ -363,12 +564,10 @@ function GalleryToolInner() {
     const [moved] = ordered.splice(from, 1);
     ordered.splice(to, 0, moved);
 
-    // Same imperative-first pattern as canvas drag/drop: reorder the real
-    // iframe element now, then commit source child order. Recompute each item's
-    // view geometry against the NEW order so Natural/Story patterns follow it.
     bridge.reparentLive?.(fromId, prefix, galleryId, to, {});
     ordered.forEach((item, index) => {
-      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index));
+      const ratio = normalizeGallerySourceRatio(item.sourceRatio);
+      bridge.patchStyles(item.itemId, prefix, getGalleryItemPatch(currentView, index, naturalSeed, frameSizing, ratio));
     });
 
     const mutations: Mutation[] = [
@@ -376,11 +575,11 @@ function GalleryToolInner() {
       ...ordered.map((item, index) => ({
         type: 'updateStyles' as const,
         nodeId: item.itemId,
-        styles: getGalleryItemPatch(currentView, index),
+        styles: getGalleryItemPatch(currentView, index, naturalSeed, frameSizing, normalizeGallerySourceRatio(item.sourceRatio)),
       })),
       ...ordered.flatMap((item, index) => clearResponsivePatchMutations(
         item.itemId,
-        getGalleryIndexGeometryPatch(currentView, index),
+        getGalleryIndexGeometryPatch(currentView, index, naturalSeed, frameSizing, normalizeGallerySourceRatio(item.sourceRatio)),
         responsiveOverrides,
       )),
     ];
@@ -388,14 +587,47 @@ function GalleryToolInner() {
 
     queueMutations(mutations);
     flushNow();
-    trace.action('gallery:reorder', { nodeId: galleryId, from, to });
-  }, [bridge, currentView, galleryId, items, prefix, responsiveOverrides]);
+    trace.action('gallery:reorder', { nodeId: galleryId, from, to, frameSizing });
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const moveItem = useCallback((itemId: string, direction: -1 | 1) => {
     const targetId = galleryAdjacentItemId(items, itemId, direction);
     if (!targetId) return;
     reorderItem(itemId, targetId);
   }, [items, reorderItem]);
+
+  const shuffleNatural = useCallback(() => {
+    if (currentView !== 'natural' || items.length < 2) return;
+    const nextSeed = nextGalleryNaturalSeed(naturalSeed);
+    const seedPatch = { [GALLERY_NATURAL_SEED_STYLE_PROPERTY]: String(nextSeed) };
+    bridge.patchStyles(galleryId, prefix, seedPatch);
+
+    const mutations: Mutation[] = [
+      { type: 'updateStyles', nodeId: galleryId, styles: seedPatch },
+    ];
+    items.forEach((item, index) => {
+      const geometry = getGalleryIndexGeometryPatch(
+        'natural',
+        index,
+        nextSeed,
+        frameSizing,
+        normalizeGallerySourceRatio(item.sourceRatio),
+      );
+      bridge.patchStyles(item.itemId, prefix, geometry);
+      mutations.push({ type: 'updateStyles', nodeId: item.itemId, styles: geometry });
+      mutations.push(...clearResponsivePatchMutations(item.itemId, geometry, responsiveOverrides));
+    });
+
+    queueMutations(mutations);
+    flushNow();
+    trace.action('gallery:natural-shuffle', {
+      nodeId: galleryId,
+      fromSeed: naturalSeed,
+      toSeed: nextSeed,
+      items: items.length,
+      frameSizing,
+    });
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const updateAlt = useCallback((value: string) => {
     if (!selectedItem) return;
@@ -412,6 +644,17 @@ function GalleryToolInner() {
     if (!selectedItem) return;
     updateImageStyle('objectPosition', '50% 50%');
   }, [selectedItem, updateImageStyle]);
+
+  const commitMediaTreatment = useCallback((treatment: GalleryMediaTreatment) => {
+    if (!selectedItem) return;
+    patchAndQueue(
+      selectedItem.imageId,
+      galleryMediaTreatmentPatch(treatment.objectPosition, treatment.zoom, treatment.rotation),
+      true,
+    );
+    // One explicit source flush = one coherent media-edit history operation.
+    flushNow();
+  }, [patchAndQueue, selectedItem]);
 
   const updateAllItemStyles = useCallback((patch: Record<string, string>) => {
     const mutations = items.map((item) => styleMutation(item.itemId, patch, isReplica, vpWidth));
@@ -442,6 +685,20 @@ function GalleryToolInner() {
       || selectedItem.objectFit
       || 'cover'
     : 'cover';
+  const effectiveZoom = selectedItem
+    ? parseGalleryZoom(
+        selectedImageOverrides?.get(GALLERY_IMAGE_ZOOM_STYLE_PROPERTY)
+        || bridge.getComputedValue(selectedItem.imageId, prefix, GALLERY_IMAGE_ZOOM_STYLE_PROPERTY)
+        || selectedItem.zoom,
+      )
+    : 1;
+  const effectiveRotation = selectedItem
+    ? parseGalleryRotation(
+        selectedImageOverrides?.get(GALLERY_IMAGE_ROTATION_STYLE_PROPERTY)
+        || bridge.getComputedValue(selectedItem.imageId, prefix, GALLERY_IMAGE_ROTATION_STYLE_PROPERTY)
+        || selectedItem.rotation,
+      )
+    : 0;
   const stripHeight = selectedItem
     ? selectedItemOverrides?.get('height')
       || bridge.getComputedValue(selectedItem.itemId, prefix, 'height')
@@ -453,9 +710,9 @@ function GalleryToolInner() {
       <GalleryContentSection
         items={items}
         selectedItemId={selectedItemId}
-        onSelectItem={setSelectedItemId}
+        onSelectItem={(itemId) => selectItem(itemId)}
         onAddMedia={() => { setReplaceItemId(null); setPickerOpen(true); }}
-        onReplaceItem={(itemId) => { setSelectedItemId(itemId); setReplaceItemId(itemId); setPickerOpen(true); }}
+        onReplaceItem={(itemId) => { selectItem(itemId); setReplaceItemId(itemId); setPickerOpen(true); }}
         onDuplicateItem={duplicateItem}
         onMoveItem={moveItem}
         onRemoveItem={removeItem}
@@ -468,9 +725,14 @@ function GalleryToolInner() {
         currentView={currentView}
         styles={styles}
         stripHeight={stripHeight}
+        frameSizing={frameSizing}
+        frameSizingBusy={frameSizingBusy}
         onViewChange={applyView}
+        onFrameSizingChange={(value) => { void applyFrameSizing(value); }}
         onRootStyleChange={updateStyle}
         onAllItemStyleChange={updateAllItemStyles}
+        onShuffleNatural={shuffleNatural}
+        canShuffleNatural={items.length > 1}
       />
 
       {selectedItem && (
@@ -505,7 +767,9 @@ function GalleryToolInner() {
           src={selectedItem.src}
           vpId={vpId}
           objectPosition={effectiveCropPosition}
-          onCommit={(value) => updateImageStyle('objectPosition', value)}
+          zoom={effectiveZoom}
+          rotation={effectiveRotation}
+          onCommit={commitMediaTreatment}
           onClose={() => setCropImageId(null)}
         />
       )}

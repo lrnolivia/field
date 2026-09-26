@@ -14,6 +14,12 @@ import {
   parseGalleryAriaLabel,
   type GalleryViewId,
 } from './gallery-views';
+import {
+  gallerySourceRatioPatch,
+  normalizeGallerySourceRatio,
+  type GalleryFrameSizing,
+} from './gallery-frame-sizing';
+import { galleryMediaTreatmentPatch } from './gallery-media-treatment';
 
 export interface GalleryItemRef {
   item: CanvasNode;
@@ -165,21 +171,28 @@ export function buildGalleryItemNode(
   index: number,
   view: GalleryViewId,
   alt = '',
+  naturalSeed = 0,
+  frameSizing: GalleryFrameSizing = 'composed',
+  sourceRatio: number | null = null,
 ): GallerySourceNode {
+  const normalizedRatio = normalizeGallerySourceRatio(sourceRatio);
   return {
     type: 'figure',
     id: generateNodeId('gallery-item'),
     name: 'Gallery Item',
-    styles: getGalleryItemPatch(view, index),
+    styles: {
+      ...getGalleryItemPatch(view, index, naturalSeed, frameSizing, normalizedRatio),
+      ...(frameSizing === 'source' || sourceRatio !== null ? gallerySourceRatioPatch(normalizedRatio) : {}),
+    },
     children: [
       {
         type: 'img',
         id: generateNodeId('gallery-image'),
         name: 'Gallery Image',
         styles: {
-          ...getGalleryImagePatch(view),
+          ...getGalleryImagePatch(view, frameSizing, normalizedRatio),
           objectFit: getGalleryDefaultImageFit(view),
-          objectPosition: '50% 50%',
+          ...galleryMediaTreatmentPatch('50% 50%', 1, 0),
         },
         attrs: { src: url, alt },
       },
