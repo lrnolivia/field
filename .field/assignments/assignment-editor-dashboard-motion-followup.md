@@ -524,3 +524,27 @@ Complete only when:
 - four-path visual QA is recorded
 - same-document Dashboard return is still present
 - no source repair remains, or any required repair has been moved into its own separately owned assignment
+
+
+## Successor rehydration — coordination v2 merged
+
+Rehydrated again after Contract Worker coordination v2 merged to current main.
+
+Current Git truth at this refresh:
+
+- main: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
+- field/control: 8baae7d04b1999913f18227e0ff6c8f39c72d500
+- canonical handoff kit on main: 2026-09-26.2
+
+A direct compare from the recorded visual-QA registration baseline 7451b55f29c94e2d56e014590067e7111cd3915a to current main shows only tracker.md and .field/handoff-kit/** changes. No src/** product or motion path changed, so there is no source-change evidence requiring motion repair or renewed normal-motion QA.
+
+The legacy tracker reservation field-dashboard-handoff-overlap-20260926 is still explicitly Status: active on both main and field/control, with the same owned motion integration paths. The current 2026-09-26.2 Contract Worker contract explicitly preserves active legacy tracker.md Owned: reservations until those assignments finish.
+
+Therefore:
+
+- this follow-up remains qa-passed-awaiting-legacy-release
+- it still owns no source paths
+- no implementation branch or PR should be created
+- the prior four-path authenticated human visual QA PASS remains the accepted motion evidence
+- reduced-motion remains an explicit future verification/watch item, not a reason to reopen source
+- closeout becomes eligible only after the legacy reservation is formally completed/released or explicitly reconciled

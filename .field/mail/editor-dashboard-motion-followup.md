@@ -96,3 +96,14 @@ The key distinction is:
 - **deferred future goals:** preserve the live Dashboard/Canvas shell, shared structural motion grammar, compact Dashboard/no-thumbnail/wizard treatment, optional New Project page two, templates later, thumbnail integrity, same-document navigation, interruption/reversal safety, and future style-set evolution into real field design-system semantics
 
 Those deferred items are continuity/backlog, **not automatic authorization to edit source**. Create fresh bounded assignments against current repo truth when one becomes real work.
+
+
+## Successor status refresh after coordination v2 merge
+
+Current main is fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e; current field/control is 8baae7d04b1999913f18227e0ff6c8f39c72d500; the canonical handoff kit on main is now 2026-09-26.2.
+
+The legacy Dashboard handoff reservation is still formally active on both trackers. Coordination v2 explicitly says active legacy Owned: reservations remain authoritative until those assignments finish.
+
+A compare from the visual-QA registration baseline to current main contains only tracker.md and .field/handoff-kit/** changes, with no src/** product changes. No new motion regression is indicated by repository state.
+
+Do not create implementation work. Continue to wait for formal legacy release/reconciliation; then close this follow-up with no implementation branch if current behavior remains unchanged.
