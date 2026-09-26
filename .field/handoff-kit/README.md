@@ -2,7 +2,7 @@
 
 Canonical repository-owned process infrastructure for field execution work.
 
-Version: `2026-09-26.2`
+Version: `2026-09-26.3`
 
 ## Two execution lanes
 
@@ -60,6 +60,10 @@ The built-in ChatGPT GitHub connector is prohibited, including read-only inspect
 Start GitHub work with `COMPOSIO_SEARCH_TOOLS`, verify an ACTIVE connection to the exact repository, and use discovered tool slugs.
 
 If Composio is unavailable, stop. Do not fall back.
+
+## Artificial blockers
+
+Contract Workers repair fixable procedural/tooling/harness/branch/PR/documentation/test-fixture blockers when the repair is safe and inside assignment authority. Genuine ownership, authorization, product-decision, protected-scope, or unworkable external blockers still stop execution.
 
 ## Entry points
 

@@ -63,3 +63,10 @@ assert "Do not use production" in firecrawl
 assert "BLOCKED/UNVERIFIED — HARNESS" in firecrawl
 
 print("Contract Worker v2 regression tests: PASS")
+
+contract = (ROOT / "CONTRACT.md").read_text()
+authoring = (ROOT / "ASSIGNMENT_AUTHORING.md").read_text()
+bootstrap = (ROOT / "CHAT_BOOTSTRAP.md").read_text()
+assert "Artificial blocker rule" in contract
+assert "Artificial blockers discovered during execution" in authoring
+assert "Fix artificial blockers before escalating" in bootstrap

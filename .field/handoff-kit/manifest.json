@@ -1,6 +1,6 @@
 {
   "name": "field-handoff-kit",
-  "version": "2026-09-26.2",
+  "version": "2026-09-26.3",
   "repository": "lrnolivia/field",
   "default_branch": "main",
   "control_branch": "field/control",
@@ -17,7 +17,8 @@
     "implementation_branch_prefix": "field/",
     "assignment_glob": ".field/assignments/assignment-*.md",
     "mail_dir": ".field/mail",
-    "qa_dir": ".field/qa"
+    "qa_dir": ".field/qa",
+    "repair_artificial_blockers": true
   },
   "production_qa": {
     "noauth_builder": "https://field.loew.fi/builder/noauth",

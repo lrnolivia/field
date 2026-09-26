@@ -81,6 +81,12 @@ An assignment is ready when:
 - the work is not a duplicate of an active assignment
 - unresolved questions are explicitly bounded as permitted investigation
 
+## Artificial blockers discovered during execution
+
+Assignments should let workers repair ordinary process friction. If a procedural, tooling, harness, branch/PR, documentation, or test-fixture obstacle is safe to fix inside owned scope, fix it and continue rather than escalating it as a blocker.
+
+If the repair needs new ownership, reserve it first. Genuine ownership, authorization, protected-scope, product-decision, or unworkable external blockers still stop execution.
+
 ## Required body
 
 Every assignment should include:
