@@ -28,8 +28,8 @@
   background: transparent;
 }
 
-/* Dashboard is a pair of real workspace slabs over the already-live Canvas.
- * Move the slabs themselves — never crossfade the whole surface. */
+/* Dashboard and editor chrome now share one spatial motion grammar.
+ * WAAPI owns motion; CSS owns only deterministic rest/offscreen states. */
 .field-dashboard-layer .field-dashboard-page {
   background: transparent;
 }
@@ -40,48 +40,21 @@
   will-change: transform;
 }
 
-/* Give the split enough time to read as spatial choreography. The slightly
- * over-1 easing settles with a tiny spring on arrival without turning into a
- * bounce animation. The two slabs are intentionally offset by 42ms. */
-.field-dashboard-layer .field-dashboard-sidebar {
-  transition: transform 360ms cubic-bezier(.2, 1.12, .3, 1);
-}
-
-.field-dashboard-layer .field-dashboard-main {
-  transition: transform 420ms cubic-bezier(.18, 1.1, .24, 1);
-}
-
 .field-dashboard-layer[data-state='showing'] .field-dashboard-sidebar,
-.field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar,
 .field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar {
-  transform: translate3d(calc(-100% - 12px), 0, 0);
+  transform: translate3d(calc(-100% - 16px), 0, 0);
 }
 
 .field-dashboard-layer[data-state='showing'] .field-dashboard-main,
-.field-dashboard-layer[data-state='hiding'] .field-dashboard-main,
 .field-dashboard-layer[data-state='hidden'] .field-dashboard-main {
-  transform: translate3d(calc(100% + 12px), 0, 0);
+  transform: translate3d(calc(100% + 16px), 0, 0);
 }
 
-/* Reveal Canvas like opening a workspace: the narrow navigation slab starts
- * first, then the project surface follows. Returning to Dashboard reverses
- * the emphasis — the main workspace arrives, then the sidebar settles in. */
-.field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar {
-  transition-delay: 0ms;
-}
-
+.field-dashboard-layer[data-state='visible'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='visible'] .field-dashboard-main,
+.field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar,
 .field-dashboard-layer[data-state='hiding'] .field-dashboard-main {
-  transition-delay: 42ms;
-}
-
-.field-dashboard-layer[data-state='visible'] .field-dashboard-main {
   transform: translate3d(0, 0, 0);
-  transition-delay: 0ms;
-}
-
-.field-dashboard-layer[data-state='visible'] .field-dashboard-sidebar {
-  transform: translate3d(0, 0, 0);
-  transition-delay: 42ms;
 }
 
 .field-dashboard-layer[data-state='hiding'],
@@ -91,11 +64,6 @@
 
 .field-dashboard-layer[data-state='hidden'] {
   visibility: hidden;
-}
-
-.field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar,
-.field-dashboard-layer[data-state='hidden'] .field-dashboard-main {
-  transition: none;
 }
 
 .field-new-project-backdrop {

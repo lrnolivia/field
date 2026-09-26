@@ -14,6 +14,20 @@ import { setFieldProjectIdOverride } from '@/backend/project-id';
 import { fieldBuilderProjectId, fieldPathIsDashboard } from './field-shell-route';
 import { trace } from '@/shared/debug-trace';
 import { requestEditorChromeExit } from '@/editor/editor-entrance';
+import {
+  DASHBOARD_CANVAS_BEAT_FRAMES,
+  DASHBOARD_EXIT_DURATION_MS,
+  DASHBOARD_EXIT_EASING,
+  DASHBOARD_STRUCTURAL_SPRING,
+  collectDashboardPanelTargets,
+  dashboardEntranceKeyframes,
+  dashboardExitKeyframes,
+  dashboardPanelDelay,
+  dashboardPanelOffscreenX,
+  readTransformTranslateX,
+  waitForAnimationFrames,
+  type DashboardMotionDirection,
+} from './field-shell-motion';
 
 type DashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
@@ -81,50 +95,111 @@ export default function FieldShell() {
   const dashboardStateRef = useRef<DashboardLayerState>(dashboardState);
   const revealHeldRef = useRef(false);
   const revealRequestedRef = useRef(false);
-  const transitionTimerRef = useRef<number | null>(null);
-  const showFrameRef = useRef<number | null>(null);
   const builderLayerRef = useRef<HTMLDivElement>(null);
+  const dashboardLayerRef = useRef<HTMLDivElement>(null);
+  const dashboardAnimationsRef = useRef<Array<{ element: HTMLElement; animation: Animation }>>([]);
+  const dashboardMotionEpochRef = useRef(0);
 
   const setDashboardLayerState = useCallback((state: DashboardLayerState) => {
     dashboardStateRef.current = state;
     setDashboardState(state);
   }, []);
 
-  const clearTransitionTimer = useCallback(() => {
-    if (transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current);
-      transitionTimerRef.current = null;
+  const cancelDashboardMotion = useCallback((preserveVisual = true) => {
+    dashboardMotionEpochRef.current += 1;
+    for (const { element, animation } of dashboardAnimationsRef.current) {
+      if (preserveVisual) {
+        const current = window.getComputedStyle(element).transform;
+        element.style.transform = current && current !== 'none'
+          ? current
+          : 'translate3d(0px, 0, 0)';
+      }
+      animation.cancel();
     }
-    if (showFrameRef.current !== null) {
-      cancelAnimationFrame(showFrameRef.current);
-      showFrameRef.current = null;
+    dashboardAnimationsRef.current = [];
+  }, []);
+
+  const clearDashboardInlineTransforms = useCallback((layer: HTMLElement | null) => {
+    if (!layer) return;
+    for (const { element } of collectDashboardPanelTargets(layer)) {
+      element.style.transform = '';
     }
   }, []);
 
-  const showDashboardLayer = useCallback(() => {
-    clearTransitionTimer();
-    if (dashboardStateRef.current === 'visible') return;
-    setDashboardLayerState('showing');
-    showFrameRef.current = requestAnimationFrame(() => {
-      showFrameRef.current = null;
-      setDashboardLayerState('visible');
-    });
-  }, [clearTransitionTimer, setDashboardLayerState]);
+  const animateDashboardLayer = useCallback(async (
+    direction: DashboardMotionDirection,
+  ): Promise<void> => {
+    const currentState = dashboardStateRef.current;
+    if (direction === 'show' && currentState === 'visible') return;
+    if (direction === 'hide' && currentState === 'hidden') return;
 
-  const hideDashboardLayer = useCallback(() => {
-    clearTransitionTimer();
-    if (dashboardStateRef.current === 'hidden' || dashboardStateRef.current === 'hiding') return;
-    setDashboardLayerState('hiding');
-    transitionTimerRef.current = window.setTimeout(() => {
-      transitionTimerRef.current = null;
-      setDashboardLayerState('hidden');
-    }, 480);
-  }, [clearTransitionTimer, setDashboardLayerState]);
+    const layer = dashboardLayerRef.current;
+    cancelDashboardMotion(true);
+    const epoch = dashboardMotionEpochRef.current;
+    setDashboardLayerState(direction === 'show' ? 'showing' : 'hiding');
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const targets = layer ? collectDashboardPanelTargets(layer) : [];
+    const canAnimate = targets.length > 0
+      && targets.every(({ element }) => typeof element.animate === 'function');
+
+    if (reducedMotion || !canAnimate) {
+      clearDashboardInlineTransforms(layer);
+      setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+      return;
+    }
+
+    // Let React commit the offscreen 'showing' state before measuring an
+    // initial Dashboard return. Interrupted motion stays visually pinned by
+    // the inline transform captured above.
+    if (direction === 'show') {
+      await waitForAnimationFrames(1);
+      if (dashboardMotionEpochRef.current !== epoch) return;
+    }
+
+    const handles = targets.map(({ element, role }) => {
+      const fromX = readTransformTranslateX(window.getComputedStyle(element).transform);
+      const toX = direction === 'show'
+        ? 0
+        : dashboardPanelOffscreenX(role, element.getBoundingClientRect().width);
+      const animation = element.animate(
+        direction === 'show'
+          ? dashboardEntranceKeyframes(fromX)
+          : dashboardExitKeyframes(fromX, toX),
+        {
+          duration: direction === 'show'
+            ? DASHBOARD_STRUCTURAL_SPRING.durationMs
+            : DASHBOARD_EXIT_DURATION_MS,
+          delay: dashboardPanelDelay(role, direction),
+          easing: direction === 'show' ? 'linear' : DASHBOARD_EXIT_EASING,
+          fill: 'both',
+        },
+      );
+      return { element, animation };
+    });
+    dashboardAnimationsRef.current = handles;
+
+    await Promise.all(handles.map(({ animation }) => animation.finished.catch(() => undefined)));
+    if (dashboardMotionEpochRef.current !== epoch) return;
+
+    setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+
+    // Hold the final WAAPI fill until React commits the matching CSS state,
+    // then hand transform ownership back to CSS without a one-frame snap.
+    await waitForAnimationFrames(1);
+    if (dashboardMotionEpochRef.current !== epoch) return;
+    for (const { animation } of dashboardAnimationsRef.current) animation.cancel();
+    dashboardAnimationsRef.current = [];
+    clearDashboardInlineTransforms(layer);
+  }, [cancelDashboardMotion, clearDashboardInlineTransforms, setDashboardLayerState]);
+
+  const showDashboardLayer = useCallback(() => animateDashboardLayer('show'), [animateDashboardLayer]);
+  const hideDashboardLayer = useCallback(() => animateDashboardLayer('hide'), [animateDashboardLayer]);
 
   const maybeRevealProject = useCallback((id: string) => {
     if (builderReadyIdRef.current !== id) return;
     if (!revealRequestedRef.current || revealHeldRef.current) return;
-    hideDashboardLayer();
+    void hideDashboardLayer();
   }, [hideDashboardLayer]);
 
   const openProject = useCallback(async (
@@ -140,7 +215,7 @@ export default function FieldShell() {
     revealRequestedRef.current = !options.holdReveal;
 
     if (current !== projectId) {
-      showDashboardLayer();
+      void showDashboardLayer();
       if (switchingProjects) {
         trace.action('field-shell:project-switch-save', { from: current, to: projectId });
         await ensureCurrentProjectSavedBeforeSwitch();
@@ -171,21 +246,28 @@ export default function FieldShell() {
     revealHeldRef.current = false;
     revealRequestedRef.current = false;
 
-    // The editor is a physical layer beneath Dashboard. Let its chrome leave
-    // first, then bring Dashboard's existing reverse split-slide on top.
+    let editorCleared = false;
     if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
       builderLayerRef.current?.setAttribute('inert', '');
       trace.action('field-shell:editor-exit-start', { projectId: builderIdRef.current });
       await requestEditorChromeExit(document);
+      editorCleared = true;
       trace.action('field-shell:editor-exit-complete', { projectId: builderIdRef.current });
     }
 
-    showDashboardLayer();
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (editorCleared && !reducedMotion) {
+      trace.action('field-shell:canvas-ownership-beat', { projectId: builderIdRef.current });
+      await waitForAnimationFrames(DASHBOARD_CANVAS_BEAT_FRAMES);
+    }
+
+    const revealPromise = showDashboardLayer();
     if (options.replace) {
       window.history.replaceState({ fieldSurface: 'dashboard' }, '', '/');
     } else if (!fieldPathIsDashboard(window.location.pathname)) {
       window.history.pushState({ fieldSurface: 'dashboard' }, '', '/');
     }
+    await revealPromise;
     trace.action('field-shell:dashboard-visible', { projectId: builderIdRef.current });
   }, [showDashboardLayer]);
 
@@ -229,7 +311,7 @@ export default function FieldShell() {
     return () => builderLayer.removeAttribute('inert');
   }, [dashboardState]);
 
-  useEffect(() => () => clearTransitionTimer(), [clearTransitionTimer]);
+  useEffect(() => () => cancelDashboardMotion(false), [cancelDashboardMotion]);
 
   const onCanvasReady = useCallback((id: string) => {
     if (builderIdRef.current !== id) return;
@@ -256,6 +338,7 @@ export default function FieldShell() {
       </div>
 
       <div
+        ref={dashboardLayerRef}
         className="field-dashboard-layer"
         data-state={dashboardState}
         aria-hidden={dashboardState === 'hidden' ? 'true' : undefined}
