@@ -1,4 +1,5 @@
 export type EditorEntranceRole = 'left' | 'right' | 'bottom';
+export type FieldDashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
 export interface EditorEntranceTargetSpec {
   selector: string;
@@ -10,27 +11,32 @@ export const EDITOR_ENTRANCE_SIDE_DELAY_MS = 44;
 export const EDITOR_ENTRANCE_BOTTOM_DELAY_MS = 86;
 
 /**
- * Optional cross-navigation seam for Dashboard's outgoing reveal.
- * Dashboard may store an absolute Date.now() timestamp here before navigating.
- * The editor consumes it once and does not begin chrome motion before it.
+ * Dashboard's split-slide is currently 150ms. We intentionally wait 64ms
+ * after the shell enters `hiding`, then apply the per-surface delays:
  *
- * This is deliberately optional: direct /builder loads still animate without
- * Dashboard being involved, and a Dashboard implementation that uses the
- * native View Transition API is detected independently at runtime.
+ *   side chrome starts: 64 + 44 = 108ms into Dashboard's exit
+ *   bottom bar starts:  64 + 86 = 150ms into Dashboard's exit
+ *
+ * So the website is visibly exposed first, the side chrome begins to arrive
+ * near the end of the Dashboard motion, and the bottom island starts exactly
+ * as the Dashboard slabs finish clearing. This is one handoff, not two
+ * unrelated animations.
+ */
+export const EDITOR_ENTRANCE_DASHBOARD_HANDOFF_MS = 64;
+
+export const FIELD_SHELL_SELECTOR = '.field-shell';
+
+/**
+ * Optional compatibility seam for an external/custom navigator.
+ * FieldShell now provides the authoritative `data-dashboard-state`, so normal
+ * Dashboard → editor navigation no longer depends on this marker.
  */
 export const EDITOR_ENTRANCE_NOT_BEFORE_KEY = 'field:editor-reveal-not-before';
 
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
-  // The left side is two fixed siblings: icon rail + active panel body.
   { selector: '[data-left-menu-rail]', role: 'left' },
   { selector: '[data-editor-panel="left-primary"]', role: 'left' },
-
-  // Right inspector shell. The small pane-toggle button intentionally does not
-  // participate; it is a persistent utility control, not the panel surface.
   { selector: '[data-workspace-right-body]', role: 'right' },
-
-  // Animate the toolbar island itself, not its fixed centering wrapper. This
-  // preserves the wrapper's translateX(-50%) positioning contract.
   { selector: '#bottom-toolbar-container', role: 'bottom' },
 ]);
 
@@ -38,12 +44,16 @@ export function editorEntranceDelay(role: EditorEntranceRole): number {
   return role === 'bottom' ? EDITOR_ENTRANCE_BOTTOM_DELAY_MS : EDITOR_ENTRANCE_SIDE_DELAY_MS;
 }
 
-/**
- * Hand-shaped spring keyframes: fast travel, a deliberately tiny overshoot,
- * then two very small corrections. The overshoot is fixed in pixels rather
- * than proportional to panel width so a 52px rail and a 260px inspector both
- * settle with the same restrained physical character.
- */
+export function readFieldDashboardLayerState(
+  root: ParentNode,
+): FieldDashboardLayerState | null {
+  const shell = root.querySelector<HTMLElement>(FIELD_SHELL_SELECTOR);
+  const state = shell?.dataset.dashboardState;
+  return state === 'visible' || state === 'showing' || state === 'hiding' || state === 'hidden'
+    ? state
+    : null;
+}
+
 export function editorEntranceKeyframes(role: EditorEntranceRole): Keyframe[] {
   const start =
     role === 'left'
@@ -116,7 +126,5 @@ export function consumeEditorEntranceNotBeforeDelay(
   if (!raw) return 0;
   const notBefore = Number(raw);
   if (!Number.isFinite(notBefore)) return 0;
-
-  // A stale/bogus handoff must never strand the editor behind invisible chrome.
   return Math.max(0, Math.min(900, notBefore - now));
 }

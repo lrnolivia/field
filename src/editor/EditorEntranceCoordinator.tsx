@@ -4,8 +4,12 @@ import {
   consumeEditorEntranceNotBeforeDelay,
   editorEntranceDelay,
   editorEntranceKeyframes,
+  EDITOR_ENTRANCE_DASHBOARD_HANDOFF_MS,
   EDITOR_ENTRANCE_DURATION_MS,
+  FIELD_SHELL_SELECTOR,
+  readFieldDashboardLayerState,
   type EditorEntranceRole,
+  type FieldDashboardLayerState,
 } from './editor-entrance';
 import { trace } from '@/shared/debug-trace';
 
@@ -52,7 +56,78 @@ function restoreTarget(target: PreparedTarget): void {
   target.element.style.willChange = target.previous.willChange;
 }
 
-async function waitForRevealBoundary(): Promise<void> {
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(finish, ms);
+    function finish() {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }
+    function abort() {
+      window.clearTimeout(timer);
+      finish();
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
+/**
+ * The live FieldShell mounts ProjectLoader/App BEHIND Dashboard before it
+ * reveals the editor. The first version of this choreography started on App
+ * mount, so the entire entrance completed invisibly underneath Dashboard.
+ *
+ * This waits on FieldShell's deterministic `data-dashboard-state` contract.
+ * It is an attribute observation of an explicit state machine — not visual
+ * polling or timing inference from CSS.
+ */
+async function waitForFieldShellReveal(signal: AbortSignal): Promise<void> {
+  const shell = document.querySelector<HTMLElement>(FIELD_SHELL_SELECTOR);
+  if (!shell || signal.aborted) return;
+
+  let state = readFieldDashboardLayerState(document);
+  if (state === 'hidden' || state === null) return;
+
+  if (state !== 'hiding') {
+    state = await new Promise<FieldDashboardLayerState | null>((resolve) => {
+      let settled = false;
+      const finish = (value: FieldDashboardLayerState | null) => {
+        if (settled) return;
+        settled = true;
+        observer.disconnect();
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      };
+      const observer = new MutationObserver(() => {
+        const next = readFieldDashboardLayerState(document);
+        if (next === 'hiding' || next === 'hidden' || next === null) finish(next);
+      });
+      const onAbort = () => finish(null);
+
+      observer.observe(shell, {
+        attributes: true,
+        attributeFilter: ['data-dashboard-state'],
+      });
+      signal.addEventListener('abort', onAbort, { once: true });
+
+      // Close the tiny race between the read above and observer registration.
+      const immediate = readFieldDashboardLayerState(document);
+      if (immediate === 'hiding' || immediate === 'hidden' || immediate === null) {
+        finish(immediate);
+      }
+    });
+  }
+
+  if (signal.aborted) return;
+  if (state === 'hiding') {
+    await wait(EDITOR_ENTRANCE_DASHBOARD_HANDOFF_MS, signal);
+  }
+}
+
+async function waitForRevealBoundary(signal: AbortSignal): Promise<void> {
+  await waitForFieldShellReveal(signal);
+  if (signal.aborted) return;
+
   const transition = (document as ActiveViewTransitionDocument).activeViewTransition;
   if (transition?.finished) {
     try {
@@ -66,13 +141,9 @@ async function waitForRevealBoundary(): Promise<void> {
     typeof sessionStorage === 'undefined' ? null : sessionStorage,
   );
 
-  if (handoffDelay > 0) {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, handoffDelay));
-  }
+  if (handoffDelay > 0) await wait(handoffDelay, signal);
+  if (signal.aborted) return;
 
-  // Let the hydrated Canvas paint once before chrome moves over it. This makes
-  // the choreography read as "workspace assembling around the real website",
-  // never as panels arriving while the Canvas itself is still appearing.
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
@@ -93,15 +164,20 @@ export default function EditorEntranceCoordinator() {
       return;
     }
 
+    // IMPORTANT: prepare immediately while Dashboard still covers the builder.
+    // That leaves only Canvas/content underneath the outgoing Dashboard; chrome
+    // cannot flash in its final position before the reveal handoff.
     const prepared = discovered.map(({ element, role }) => prepareTarget(element, role));
     const animations: Animation[] = [];
     const timers: number[] = [];
+    const abortController = new AbortController();
     let cancelled = false;
     let settledCount = 0;
 
     root.dataset.editorEntranceState = 'prepared';
     trace.action('editor-entrance:prepared', {
       targets: prepared.map(({ role }) => role),
+      dashboardState: readFieldDashboardLayerState(document),
     });
 
     const settle = (target: PreparedTarget) => {
@@ -113,9 +189,12 @@ export default function EditorEntranceCoordinator() {
       }
     };
 
-    void waitForRevealBoundary().then(() => {
-      if (cancelled) return;
+    void waitForRevealBoundary(abortController.signal).then(() => {
+      if (cancelled || abortController.signal.aborted) return;
       root.dataset.editorEntranceState = 'entering';
+      trace.action('editor-entrance:entering', {
+        dashboardState: readFieldDashboardLayerState(document),
+      });
 
       for (const target of prepared) {
         const timer = window.setTimeout(() => {
@@ -150,6 +229,7 @@ export default function EditorEntranceCoordinator() {
 
     return () => {
       cancelled = true;
+      abortController.abort();
       for (const timer of timers) window.clearTimeout(timer);
       for (const animation of animations) {
         animation.onfinish = null;
