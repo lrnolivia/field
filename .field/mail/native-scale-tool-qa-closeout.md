@@ -44,3 +44,23 @@ Then prove current deployed lineage contains `ec3b443` and run the basic 2× rec
 - One gesture creates multiple undo steps → history batching regression.
 - QA requires source edits → stop and create a separate repair assignment with explicit ownership.
 
+
+
+## 2026-09-26 runtime QA stop
+
+Packet 1 produced a real product failure.
+
+Verified behavior:
+- 100 × 50 rectangle with stroke 2 and radius 10
+- Scale factor 2 from center
+- geometry became 200 × 100
+- center remained fixed at (1013, 595)
+- undo/redo restored the correct geometry states
+- stroke remained 2 instead of 4
+- radius remained 10 instead of 20
+
+Classification: **FAIL — PRODUCT**.
+
+The QA-only successor stopped immediately and did not modify protected Scale source. Packets 2–6 were not run.
+
+Repair work is split into `native-scale-visual-metrics-repair`. Preserve the active legacy `native-scale-tool-20260926` tracker reservation until repaired Scale passes the original closeout acceptance matrix.

@@ -11,7 +11,7 @@ control_head_before_registration: c2194a6e7e87d200b89248a4681d91448ef03ddd
 environment: macOS disposable detached worktree using repository-installed toolchain; GitHub/Cloudflare production build check
 build: pass
 tests: pass
-runtime_qa: not-run
+runtime_qa: fail-product
 tested_at: 2026-09-26T04:57:29-04:00
 ```
 
@@ -68,3 +68,69 @@ These are process/package history only.
 
 Current runtime acceptance classification: **NOT RUN**.
 
+
+
+## Runtime QA — 2026-09-26
+
+### Repository/deployment lineage
+
+- Scale implementation: `ec3b443b6ff61073afe0a4cf2f1f3bc28c9aa96a`
+- production QA session started from deployed main descendant `7e585a2fe66e062bae8a46041a6e08901027f9a8`
+- Cloudflare `Workers Builds: field` for `7e585a2...`: completed / success, build `19506efb-9c57-4f49-97ef-3ccf1f5dec23`
+- current main after QA: `5ca48d5e99fbc90e07a1bc8707486defa05430ae`
+- comparison from tested head to current main changes only handoff-kit coordination files and `tracker.md`; no Scale implementation path changed
+
+### Packet 1 — basic visual metrics + history
+
+Classification: **FAIL — PRODUCT**
+
+Fixture preimage:
+- width: 100
+- height: 50
+- X: 963
+- Y: 570
+- stroke: 2
+- corner radius: 10
+- center: (1013, 595)
+
+Action:
+- dedicated Scale tool active
+- center anchor selected
+- factor 2 committed through Scale multiplier Enter/blur path
+
+Committed postimage:
+- width: 200
+- height: 100
+- X: 913
+- Y: 545
+- stroke: **2**
+- corner radius: **10**
+- center: (1013, 595)
+
+Expected:
+- width: 200
+- height: 100
+- stroke: **4**
+- corner radius: **20**
+- center unchanged
+
+History:
+- one undo restored 100 × 50 at X 963 / Y 570
+- one redo restored 200 × 100 at X 913 / Y 545
+
+Failure:
+- geometry and center-anchor placement pass
+- undo/redo geometry pass
+- visual metric scaling fails: stroke and radius are not scaled
+
+### Harness notes
+
+- Firecrawl `/builder/noauth` live-interaction attempts were blocked by the account's two-concurrent-job limit after the initial session; this is **BLOCKED/UNVERIFIED — HARNESS**, not a field product failure.
+- The product failure above was reproduced in the disposable `/builder/noauth` runtime with Composio Browser and visible inspector values.
+- An earlier browser-agent summary claimed Packet 1 passed, but its own step log contradicted that summary; it was rejected. A narrowed explicit Enter/blur + field-read pass produced the failure evidence recorded above.
+
+### Stop condition
+
+Per assignment contract, QA stops here. Packets 2–6 and final human feel are not run until the separate repair assignment lands and deployment lineage is re-verified.
+
+Successor: `native-scale-visual-metrics-repair`.

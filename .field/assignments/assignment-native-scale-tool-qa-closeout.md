@@ -3,7 +3,7 @@
 ---
 field_assignment: 1
 id: native-scale-tool-qa-closeout
-status: active
+status: blocked-product-defect
 branch: null
 base: 7451b55f29c94e2d56e014590067e7111cd3915a
 kit: 2026-09-26.1
@@ -250,3 +250,31 @@ Complete only when:
 - any product defects have been split into separate repair work;
 - the legacy Scale ownership reservation is released/closed under the current coordination rules.
 
+
+
+## Runtime QA stop — 2026-09-26
+
+Classification: **FAIL — PRODUCT**.
+
+QA stopped after Packet 1, as required by this assignment, because deployed Scale changed box geometry but did not scale the rectangle's visual metrics.
+
+Observed on the disposable production QA harness:
+
+- preimage: width 100, height 50, X 963, Y 570, stroke 2, corner radius 10
+- action: dedicated Scale, center anchor, factor 2 committed through the Scale inspector
+- postimage: width 200, height 100, X 913, Y 545, stroke 2, corner radius 10
+- center before: (1013, 595)
+- center after: (1013, 595)
+- one undo restored 100 × 50 at X 963 / Y 570
+- one redo restored 200 × 100 at X 913 / Y 545
+- expected visual metrics were stroke 4 and radius 20
+- actual visual metrics remained stroke 2 and radius 10
+
+Packets 2–6 and the final human feel check are intentionally not run after this product failure.
+
+Successor repair assignment:
+
+- `native-scale-visual-metrics-repair`
+- canonical control record: `.field/assignments/assignment-native-scale-visual-metrics-repair.md`
+
+Do not release the legacy `native-scale-tool-20260926` reservation yet. The repair successor must resume within that existing ownership lineage rather than create a competing legacy tracker reservation.
