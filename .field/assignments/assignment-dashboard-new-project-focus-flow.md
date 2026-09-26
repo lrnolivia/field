@@ -5,7 +5,7 @@ field_assignment: 1
 id: dashboard-new-project-focus-flow
 status: active
 branch: field/dashboard-new-project-focus-flow
-pr: null
+pr: 10
 base: d9f178361333a2a3bb17be90c0277e4b98708ae4
 kit: 2026-09-26.3
 type: follow-up
@@ -32,49 +32,39 @@ qa:
   authenticated: false
 ---
 
-## Mandatory rehydration
-
-Use Composio exclusively for GitHub access. Refresh current main and active ownership before mutation.
-
 ## Goal
 
 Make New Project keyboard focus deterministic across open and step transitions so the wizard behaves like a professional design tool rather than dropping focus when controls disappear.
 
-## Why this exists
-
-The Dashboard Worker is continuing independent work while earlier Dashboard PRs wait on infrastructure/merge gates.
-
-Current New Project behavior has a bounded focus defect:
-- opening calls `select()` without explicitly focusing the project-name input
-- moving to “More options” removes the activated button but does not place focus on the new step
-- returning Back likewise does not deliberately restore focus to the project-name control
-
 ## Current verified state
 
 - activation base: `d9f178361333a2a3bb17be90c0277e4b98708ae4`
-- active ownership audit found no owner for either intended path
-- Escape/backdrop already respect the saving state
-- this tranche does not change project creation data/model behavior or visual styling
+- implementation head: `fa46e7e675812423b6826a0d79bc3957283c22ad`
+- Draft PR #10 targets `main`
+- exact diff contains only the two owned paths
+- focused Vitest: 4/4 PASS
+- focused strict TypeScript: PASS
+- no visual treatment or project-creation model behavior changed
 
 ## Decisions already made
 
 - initial open focuses and selects Project name
 - entering Responsive canvases focuses the step heading
 - Back restores focus/select to Project name
-- keep existing Escape/backdrop saving locks intact
+- existing Escape/backdrop saving locks stay intact
 - no CSS, model, backend, Dashboard container, shell, or Preview changes
 
 ## Acceptance criteria
 
-- [ ] opening the wizard focuses Project name
-- [ ] opening selects the current Project name text
-- [ ] More options moves focus into the Responsive canvases step
-- [ ] Back restores focus/select to Project name
-- [ ] Escape still closes while idle
-- [ ] Escape/backdrop still do not close while creation is in flight
-- [ ] focused tests pass
-- [ ] focused strict TypeScript validation passes
-- [ ] exact changed paths remain within ownership
+- [x] opening the wizard focuses Project name
+- [x] opening selects the current Project name text
+- [x] More options moves focus into the Responsive canvases step
+- [x] Back restores focus/select to Project name
+- [x] Escape still closes while idle
+- [x] Escape/backdrop still do not close while creation is in flight
+- [x] focused tests pass
+- [x] focused strict TypeScript validation passes
+- [x] exact changed paths remain within ownership
 
 ## Intended ownership
 
@@ -97,10 +87,10 @@ Approved Shared:
 
 ## Validation
 
-- focused Vitest suite
-- focused strict TypeScript validation
-- exact changed-path audit
-- committed-source re-read
+- focused Vitest: PASS, 4/4
+- focused strict TypeScript: PASS
+- exact changed-path audit: PASS
+- committed branch source re-read before validation
 
 ## Runtime QA
 
@@ -113,6 +103,7 @@ Current Dashboard Worker chat; explicit user direction to continue building when
 ## Completion contract
 
 - implementation remains on `field/dashboard-new-project-focus-flow`
-- open one Draft PR targeting main
-- update mailbox/QA
+- Draft PR #10 targets `main`
+- mailbox/QA contain exact-head evidence
 - do not modify other Dashboard assignment paths
+- merge remains subject to current merge authority/gate
