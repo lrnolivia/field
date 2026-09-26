@@ -3,7 +3,7 @@
 ---
 field_assignment: 1
 id: editor-dashboard-motion-followup
-status: blocked-legacy-owner
+status: qa-passed-awaiting-legacy-release
 branch: null
 pr: null
 base: 7451b55f29c94e2d56e014590067e7111cd3915a
@@ -178,14 +178,28 @@ The result should satisfy all of the following:
 - no page-load blink
 - reduced-motion still resolves immediately and cleanly
 
+## Human visual QA — PASS
+
+On 2026-09-26, the user explicitly verified all four required visual paths and reported that **all four pass**:
+
+1. fresh `/builder/<project>` load
+2. browser refresh while already in the editor
+3. Dashboard → editor
+4. editor → Dashboard
+
+This is authenticated human visual QA evidence for the motion acceptance criteria. No white-edge flash, blank slab, bare-Canvas pause, fully assembled Dashboard ghost frame, page-load blink, or panel/content separation was reported.
+
+The implementation does not need another motion repair based on this QA result.
+
+The only remaining closeout dependency is coordination: `field-dashboard-handoff-overlap-20260926` is still marked active in the legacy tracker and still owns the relevant motion integration paths. Do not create a competing source assignment merely to close this record.
+
 ## Exact next actions
 
 1. Re-read current `main`, `field/control`, and legacy `tracker.md`.
 2. Confirm whether `field-dashboard-handoff-overlap-20260926` is still active.
-3. If it is active, do not modify source; only observe/report.
-4. Once it is complete, perform the four-path authenticated human visual QA above.
-5. If all four pass, close this follow-up with QA evidence and no implementation branch.
-6. If any fail, register a new bounded repair assignment against then-current `main`; do not silently expand this migration record into implementation.
+3. While it remains active, do not modify its source surfaces.
+4. Once that legacy assignment releases ownership, mark this follow-up complete/closed with no implementation branch.
+5. Only create a new repair assignment if a later regression is observed.
 
 ## Non-goals
 

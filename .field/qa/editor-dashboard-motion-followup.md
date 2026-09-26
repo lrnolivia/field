@@ -10,9 +10,9 @@ current_main_at_registration: 7451b55f29c94e2d56e014590067e7111cd3915a
 environment: user local macOS isolated installer worktree plus current GitHub source inspection
 build: passed-for-bef8a9e-tree
 tests: focused-routing-tests-passed-for-bef8a9e-tree
-runtime_qa: not-run-after-routing-fix
+runtime_qa: pass-human-authenticated-all-four-paths
 tested_at: 2026-09-26
-evidence: installer-log-and-current-repository-state
+evidence: installer-log-current-repository-state-and-user-human-visual-pass
 ```
 
 ## Tests that actually ran for the routing repair
@@ -69,15 +69,42 @@ That defect was repaired by `bef8a9e`.
 
 The user had positively reacted to the editor entrance work before discovering that separate hard-navigation bypass.
 
+## Human authenticated visual QA — PASS
+
+On 2026-09-26, after the Dashboard integration landed, the user explicitly reported **all four pass** for the required visual acceptance paths:
+
+1. fresh editor load
+2. browser refresh while already in the editor
+3. Dashboard → editor
+4. editor → Dashboard
+
+Repository `main` observed immediately before recording this evidence:
+
+`7451b55f29c94e2d56e014590067e7111cd3915a`
+
+This is human visual evidence, not automated/browser-harness evidence.
+
+No defect was reported for:
+
+- white-space / viewport-edge flash
+- blank panel slab
+- bare-Canvas handoff pause
+- fully assembled Dashboard ghost frame
+- hard-navigation/page-load blink
+- physical panel/content separation
+- the overall structural-versus-playful motion hierarchy
+
+The visual acceptance requirement for this migrated follow-up is therefore satisfied.
+
+Coordination closeout remains pending only because the legacy tracker still marks `field-dashboard-handoff-overlap-20260926` active and owning the relevant source paths.
+
 ## Not run / not proven
 
 Do **not** upgrade these to PASS:
 
-- post-`bef8a9e` authenticated visual verification of editor → Dashboard was not explicitly recorded in this source chat
-- the later `45d0976` overlap refinement was not visually verified by this source chat
-- the later `cba42ea` ghost-frame repair was not visually verified by this source chat
 - no Firecrawl authenticated production packet succeeded; Cloudflare Access blocked that route
 - no fresh full build was rerun by this source chat at current `main` `7451b55...`
+- the user-provided human visual PASS does not by itself prove reduced-motion behavior unless separately exercised
 
 ## Required remaining QA
 
