@@ -36,6 +36,7 @@ import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { leaveBuilderTo } from '@/backend/leave-builder';
+import { showFieldDashboard } from '@/backend/field-navigation';
 
 // ─── Back chevron — same glyph the settings overlay uses for its
 // "Back to canvas" affordance. Inline so we don't pull a third-
@@ -114,15 +115,11 @@ export function LogoButton() {
         label: 'Go to Dashboard',
         onClick: () => {
           trace.action('left-header:logo-dashboard');
-          // Hard nav: `/dashboard` is owned by revyme-cloud (different
-          // app), reached via the dispatcher. React Router with
-          // basename="/builder" can't route there.
-          //
-          // leaveBuilderTo, not a bare assignment: it flushes the mutation
-          // queue AND awaits the backend save. Doing only the first left the
-          // project dirty at unload, which is exactly when the browser's
-          // "Leave site?" guard fires.
-          void leaveBuilderTo('/dashboard', 'logo-dashboard');
+          // field's Dashboard is now a persistent layer in FieldShell, not a
+          // separate page. Route through the shared navigation seam so the
+          // editor can animate its physical chrome out first and Dashboard can
+          // slide back over the still-live Canvas.
+          void showFieldDashboard();
         },
       },
       {
