@@ -1,13 +1,13 @@
 ---
 field_assignment: 1
 id: native-gallery-qol-creation-flow
-status: ready-for-implementation
+status: active
 branch: field/native-gallery-qol-creation-flow
 pr: 3
 pr_url: https://github.com/lrnolivia/field/pull/3
-branch_head: 30b5d4d1b3f17e314e0cc550dc1105b610f09c9e
+branch_head: 55f3901660e4892c95adea8507a42294543f7398
 base: 7e585a2fe66e062bae8a46041a6e08901027f9a8
-kit: 2026-09-26.1
+kit: 2026-09-26.3
 type: migrated-product-continuation
 execution_class: contract-worker
 source_chat: field Gallery Worker

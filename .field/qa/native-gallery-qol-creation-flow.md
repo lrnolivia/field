@@ -115,3 +115,25 @@ Do not use this packet as evidence that Gallery regressed.
 - comparison evidence: the no-file bootstrap SHA 30b5d4d1b3f17e314e0cc550dc1105b610f09c9e also fails the same Workers Builds check; current main coordination SHA fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e also fails it. GitHub reports no Actions workflows and the Cloudflare check exposes no annotations.
 - exact repo dependency-tree tests / TypeScript / build:all remain **unverified in this Contract Worker environment**; do not claim them passed.
 - runtime QA for this unmerged branch remains pending; production no-auth baseline itself is currently harness-failing as recorded above.
+
+
+## 2026-09-26 branch validation — Natural Shuffle 55f3901660e4
+
+- exact implementation SHA: 55f3901660e4892c95adea8507a42294543f7398
+- parent SHA: aec681c0c09090cd4aee6bb73bc8ff2d8e031f3d
+- commit path audit: 8 changed files, all inside assignment-owned Gallery paths; 161 additions / 29 deletions
+- pre-publication structural invariants passed for:
+  - source-backed Natural seed property
+  - six deterministic compositions
+  - seed-zero compatibility
+  - seeded add/duplicate/remove/reorder paths
+  - one-batch Shuffle transaction
+  - no Shuffle reorder mutation
+  - functional Inspector Shuffle action
+  - focused deterministic and duplicate continuity regression source
+  - no conflict markers in the eight postimage files
+- Draft PR #3 head was verified at this SHA after publication
+- exact repo dependency-tree Vitest / TypeScript / build:all remain unverified in this Contract Worker environment because the allowed workbench has Node but no installed TypeScript/compiler or repository dependency tree
+- the authored focused regressions are present in source but must not be reported as executed
+- Cloudflare Workers Builds was in progress at the first post-publication check; final classification is recorded only after a completed check is observed
+- runtime / Preview QA for this unmerged Shuffle remains pending

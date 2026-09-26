@@ -116,3 +116,27 @@ Changed only assignment-owned Gallery paths. Added a source-backed media-treatme
 - focused unit coverage for treatment serialization/clamping and duplicate preservation
 
 No generic canvas, drag, mutation/history, parser/generator, backend, dashboard, design-system, Cloudflare, package, or lockfile path was changed.
+
+
+## 2026-09-26 implementation block — deterministic Natural Shuffle
+
+Implementation commit: 55f3901660e4892c95adea8507a42294543f7398
+Draft PR: #3
+
+Natural now has a real source-backed Shuffle action:
+- root composition state is a small --field-gallery-natural-seed custom property
+- seed 0 preserves the existing Terra Prime Natural geometry exactly
+- six deterministic source-slot-to-visual-role compositions are available
+- Shuffle changes item geometry only; source/media/content/accessibility order is unchanged
+- one queued mutation batch plus one flush records the seed and every item geometry together
+- selected media identity is not touched
+- the four-track Natural runtime and narrow horizontal reachability stay unchanged
+- Add and Duplicate inherit the current seed
+- Duplicate, Remove, and Reorder recompute index-owned Natural geometry against the current seed and clear stale responsive geometry
+- focused regressions cover deterministic seed cycling, unchanged semantic order, seeded new-item geometry, and seeded duplicate geometry
+
+Moving-main reconciliation before publication:
+- main had advanced to 0f329ba94475288100bb4aa48338d876a8a2f5f1
+- main-only drift was coordination/handoff-kit plus tracker.md
+- there was zero overlap with Gallery-owned source
+- no active legacy or field/control assignment owned Gallery paths
