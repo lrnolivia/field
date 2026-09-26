@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T01:46:51Z
+Last Updated: 2026-09-26T01:50:00Z
 
 ## Active Assignments
 
@@ -146,41 +146,7 @@ Protected:
 
 
 
-<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:START -->
-### figui3-left-rail-command-chrome-20260925 — FigUI3 Left Rail Command Chrome
 
-Status: active
-Baseline: 2c426cd956766c32a1c7235ce4e9a8bc16777647
-Activation HEAD: 2c426cd956766c32a1c7235ce4e9a8bc16777647
-Last Sync: 2026-09-26T01:46:51Z
-
-Scope: Replace residual inherited Revyme command-rail grammar with compact neutral FigUI3 chrome while preserving command behavior, viewer gating, workspace geometry, and functional selection state.
-
-Owned:
-  - src/editor/left-toolbar/LeftMenu.tsx
-  - src/editor/figui3-left-rail-command-chrome.test.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/editor/LayersPanel/**
-  - src/editor/header/**
-  - src/design-system/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/**
-  - src/backend/**
-  - src/preview/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-
-Architecture:
-  - visual-chrome-only phase
-  - no document-model, source-generation, canvas, runtime, backend, or dependency changes
-<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:END -->
 
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
@@ -1164,6 +1130,22 @@ Validation / Build / Deploy:
 - build:all passed
 - Workers Builds: field succeeded for the exact source commit
 - Design-mode visual QA confirmed
+
+### 2026-09-26T01:50:00Z — figui3-left-rail-command-chrome-20260925 — b421d6436f54
+
+Summary: FigUI3 left-rail command chrome polish. Removed inherited cut-corner rail grammar, neutralized inactive VIBE/Insert chrome, preserved functional active-selection styling, and migrated the tooltip to restrained neutral floating geometry.
+
+Commit: b421d6436f549c53144fce4f238ee82eb64f0463
+
+Paths:
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/figui3-left-rail-command-chrome.test.ts
+
+Validation / Build / Deploy:
+  - focused Vitest: 3/3 passed
+  - git diff --check: passed
+  - npx tsc --noEmit --pretty false: passed
+  - screenshot-level visual QA remains pending
 
 <!-- FIELD_COMMIT_LEDGER_END -->
 
@@ -2387,4 +2369,64 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:FIELD-INSPECTOR-FIGUI3-006:END -->
+<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:START -->
+### figui3-left-rail-command-chrome-20260925 — FigUI3 Left Rail Command Chrome
+
+Status: complete
+Baseline: 2c426cd956766c32a1c7235ce4e9a8bc16777647
+Activation HEAD: 2c426cd956766c32a1c7235ce4e9a8bc16777647
+Implementation: b421d6436f549c53144fce4f238ee82eb64f0463
+Last Sync: 2026-09-26T01:50:00Z
+
+Scope: Replace residual inherited Revyme command-rail grammar with compact neutral FigUI3 chrome while preserving command behavior, viewer gating, workspace geometry, and functional selection state.
+
+Owned:
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/figui3-left-rail-command-chrome.test.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/editor/LayersPanel/**
+  - src/editor/header/**
+  - src/design-system/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/**
+  - src/backend/**
+  - src/preview/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+
+Architecture:
+  - visual-chrome-only phase
+  - no document-model, source-generation, canvas, runtime, backend, or dependency changes
+<!-- ASSIGNMENT:figui3-left-rail-command-chrome-20260925:END -->
+
+Validation:
+  - focused Vitest: 3/3 passed
+  - git diff --check: passed
+  - npx tsc --noEmit --pretty false: passed
+
+Result:
+  - removed residual inherited cut-corner command-rail grammar
+  - neutralized inactive VIBE and Insert command chrome
+  - preserved functional active selection state
+  - migrated the rail tooltip to restrained neutral floating chrome
+  - tightened tooltip gutter from 20px to 8px
+  - no document-model, source-generation, canvas, runtime, backend, dependency, or routing changes
+
+Remaining visual QA:
+  - matched-scale rail density
+  - icon optical weight
+  - tooltip spacing
+  - dark/light neutral balance
+
+Architecture drift:
+  - none
+
+
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
