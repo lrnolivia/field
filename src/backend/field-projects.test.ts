@@ -54,6 +54,29 @@ describe('field dashboard project API client', () => {
     await expect(renameFieldProject('abc123', 'New name', fetchImpl)).resolves.toMatchObject({ name: 'New name' });
   });
 
+  it('normalizes Cloudflare-weakened metadata ETags before conditional updates', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'GET') {
+        return json(
+          { name: 'old' },
+          { headers: { ETag: 'W/"m1"' } },
+        );
+      }
+
+      const headers = new Headers(init?.headers);
+      expect(headers.get('If-Match')).toBe('"m1"');
+
+      return json(
+        { project: { ...meta, name: 'New name' } },
+        { headers: { ETag: 'W/"m2"' } },
+      );
+    }) as unknown as typeof fetch;
+
+    await expect(
+      renameFieldProject('abc123', 'New name', fetchImpl),
+    ).resolves.toMatchObject({ name: 'New name' });
+  });
+
   it('retries one metadata conflict against the latest revision', async () => {
     let getCount = 0;
     let putCount = 0;
@@ -68,6 +91,50 @@ describe('field dashboard project API client', () => {
     }) as unknown as typeof fetch;
 
     await expect(setFieldProjectStarred('abc123', true, fetchImpl)).resolves.toMatchObject({ starred: true });
+    expect(getCount).toBe(2);
+    expect(putCount).toBe(2);
+  });
+
+  it('normalizes the refreshed ETag when retrying a metadata conflict', async () => {
+    let getCount = 0;
+    let putCount = 0;
+
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'GET') {
+        getCount++;
+        return json(
+          {},
+          {
+            headers: {
+              ETag: getCount === 1 ? 'W/"m1"' : 'W/"m2"',
+            },
+          },
+        );
+      }
+
+      putCount++;
+      const headers = new Headers(init?.headers);
+
+      if (putCount === 1) {
+        expect(headers.get('If-Match')).toBe('"m1"');
+        return json(
+          { error: 'Persistence conflict' },
+          { status: 412 },
+        );
+      }
+
+      expect(headers.get('If-Match')).toBe('"m2"');
+
+      return json(
+        { project: { ...meta, starred: true } },
+        { headers: { ETag: 'W/"m3"' } },
+      );
+    }) as unknown as typeof fetch;
+
+    await expect(
+      setFieldProjectStarred('abc123', true, fetchImpl),
+    ).resolves.toMatchObject({ starred: true });
+
     expect(getCount).toBe(2);
     expect(putCount).toBe(2);
   });

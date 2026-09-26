@@ -81,6 +81,19 @@ export async function createFieldProject(fetchImpl: typeof fetch = fetch): Promi
   return readProjectMutation(response, 'Project create');
 }
 
+function normalizeR2Revision(value: string): string {
+  const revision = value.trim();
+
+  // R2 gives the Worker a strong quoted object ETag, but Cloudflare may weaken
+  // the HTTP response validator in transit:
+  //
+  //   "abc" -> W/"abc"
+  //
+  // Dashboard metadata updates reuse this value as an If-Match precondition,
+  // so restore the original strong R2 spelling before sending it back.
+  return revision.startsWith('W/') ? revision.slice(2) : revision;
+}
+
 async function getMetaRevision(
   id: string,
   fetchImpl: typeof fetch,
@@ -93,8 +106,17 @@ async function getMetaRevision(
   });
   if (response.status === 404) return { revision: null };
   if (!response.ok) throw await responseError(response, 'Project metadata load');
-  const revision = response.headers.get('ETag');
-  if (!revision) throw new Error('Project metadata load succeeded without an ETag');
+
+  const rawRevision = response.headers.get('ETag');
+  if (!rawRevision) {
+    throw new Error('Project metadata load succeeded without an ETag');
+  }
+
+  const revision = normalizeR2Revision(rawRevision);
+  if (!revision) {
+    throw new Error('Project metadata load returned an empty ETag');
+  }
+
   return { revision };
 }
 
