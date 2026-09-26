@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T06:26:16Z
+Last Updated: 2026-09-26T06:28:35Z
 
 ## Active Assignments
 
@@ -108,61 +108,7 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
-<!-- ASSIGNMENT:field-dashboard-canvas-shell-20260926:START -->
-### field-dashboard-canvas-shell-20260926 — Live Dashboard Layer + New Project Wizard
 
-Status: active
-Baseline: 1d00d3c01b1a18c2e1531dbc34087e1fd2742ee9
-Activation HEAD: 1d00d3c01b1a18c2e1531dbc34087e1fd2742ee9
-Last Sync: 2026-09-26T06:23:51Z
-
-Owned:
-  - src/main.tsx
-  - src/FieldShell.tsx
-  - src/field-shell-route.ts
-  - src/field-shell-route.test.ts
-  - src/Dashboard.tsx
-  - src/ProjectLoader.tsx
-  - src/backend/field-navigation.ts
-  - src/backend/field-navigation.test.ts
-  - src/backend/project-id.ts
-  - src/backend/project-id.test.ts
-  - src/dashboard/NewProjectWizard.tsx
-  - src/dashboard/new-project-model.ts
-  - src/dashboard/new-project-model.test.ts
-  - src/editor/header/ProjectChip.tsx
-  - src/styles/field-shell.css
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/backend/autosave.ts
-  - src/backend/persistence-conflict.ts
-  - src/backend/field-backend.ts
-  - src/backend/project-events.ts
-  - src/backend/editor-realtime.ts
-  - src/backend/editor-realtime-controller.ts
-  - src/backend/field-projects.ts
-  - src/backend/intentional-navigation.ts
-  - src/backend/leave-builder.ts
-  - src/editor/header/ProjectThumbnailCaptureHost.tsx
-  - src/editor/header/project-thumbnail-capture-state.ts
-  - src/preview-sandbox/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/code/project/project-fs.ts
-  - src/code/mutation/**
-  - src/dashboard/dashboard-realtime.ts
-  - src/dashboard/dashboard-loading.ts
-  - src/dashboard/ProjectCard.tsx
-  - src/dashboard/ProjectGrid.tsx
-  - src/styles/dashboard.css
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:field-dashboard-canvas-shell-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
@@ -2907,4 +2853,60 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:field-dashboard-loading-feedback-20260926:END -->
+
+<!-- ASSIGNMENT:field-dashboard-canvas-shell-20260926:START -->
+### field-dashboard-canvas-shell-20260926 — Live Dashboard Layer + New Project Wizard
+
+Status: complete
+Baseline: 1d00d3c01b1a18c2e1531dbc34087e1fd2742ee9
+Activation HEAD: 1d00d3c01b1a18c2e1531dbc34087e1fd2742ee9
+Last Sync: 2026-09-26T06:28:35Z
+
+Owned:
+  - src/main.tsx
+  - src/FieldShell.tsx
+  - src/field-shell-route.ts
+  - src/field-shell-route.test.ts
+  - src/Dashboard.tsx
+  - src/ProjectLoader.tsx
+  - src/backend/field-navigation.ts
+  - src/backend/field-navigation.test.ts
+  - src/backend/project-id.ts
+  - src/backend/project-id.test.ts
+  - src/dashboard/NewProjectWizard.tsx
+  - src/dashboard/new-project-model.ts
+  - src/dashboard/new-project-model.test.ts
+  - src/editor/header/ProjectChip.tsx
+  - src/styles/field-shell.css
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/backend/autosave.ts
+  - src/backend/persistence-conflict.ts
+  - src/backend/field-backend.ts
+  - src/backend/project-events.ts
+  - src/backend/editor-realtime.ts
+  - src/backend/editor-realtime-controller.ts
+  - src/backend/field-projects.ts
+  - src/backend/intentional-navigation.ts
+  - src/backend/leave-builder.ts
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/preview-sandbox/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/code/project/project-fs.ts
+  - src/code/mutation/**
+  - src/dashboard/dashboard-realtime.ts
+  - src/dashboard/dashboard-loading.ts
+  - src/dashboard/ProjectCard.tsx
+  - src/dashboard/ProjectGrid.tsx
+  - src/styles/dashboard.css
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-dashboard-canvas-shell-20260926:END -->
 <!-- FIELD_COMPLETED_ASSIGNMENTS_END -->
