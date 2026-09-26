@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T03:48:53Z
+Last Updated: 2026-09-26T04:03:26Z
 
 ## Active Assignments
 
@@ -18,47 +18,6 @@ Last Updated: 2026-09-26T03:48:53Z
 
 
 
-<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
-### field-dashboard-thumbnail-previews-r2-20260925 — Thumbnail Capture + Native Dashboard Exit Repair
-
-Status: active
-Baseline: 1785dbb85b9fea391ce12f8f79ac55a84de775ca
-Activation HEAD: 14fcfb5ce358951eaa5e0176540ca065837af394
-Last Sync: 2026-09-25T09:44:44Z
-
-Owned:
-  - src/editor/header/ProjectThumbnailCaptureHost.tsx
-  - src/editor/header/project-thumbnail-r2-contract.test.ts
-  - src/preview-sandbox/capture-thumbnail.ts
-  - src/preview-sandbox/main.tsx
-  - src/backend/intentional-navigation.ts
-  - src/backend/intentional-navigation.test.ts
-  - src/backend/autosave.ts
-  - src/backend/leave-builder.ts
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/design-system/DropdownMenu.tsx
-  - src/design-system/**
-  - src/dashboard/**
-  - src/styles/dashboard.css
-  - src/backend/field-projects.ts
-  - cloudflare/**
-  - src/editor/header/ProjectChip.tsx
-  - src/editor/header/PreviewOverlay.tsx
-  - src/preview/dashboard-thumbnail-page.ts
-  - src/preview/preview-project-payload.ts
-  - src/code/parsing/**
-  - src/code/generation/**
-  - src/code/groups/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - package.json
-  - package-lock.json
-  - wrangler.jsonc
-<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
 <!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:START -->
 ### native-gallery-completion-hardening-20260925 — Native Gallery Completion + Hardening Tranche
@@ -105,7 +64,49 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:native-gallery-completion-hardening-20260925:END -->
 
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:START -->
+### field-dashboard-thumbnail-previews-r2-20260925 — Thumbnail Fast Refresh + Generation Integrity
 
+Status: active
+Baseline: 1785dbb85b9fea391ce12f8f79ac55a84de775ca
+Activation HEAD: e1118a2fa4c878c98a854ee43ca44d9da8fbe082
+Last Sync: 2026-09-26T04:03:26Z
+
+Owned:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-capture-state.ts
+  - src/editor/header/project-thumbnail-capture-state.test.ts
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
+  - src/preview-sandbox/main.tsx
+  - src/backend/intentional-navigation.ts
+  - src/backend/intentional-navigation.test.ts
+  - src/backend/autosave.ts
+  - src/backend/leave-builder.ts
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/design-system/DropdownMenu.tsx
+  - src/design-system/**
+  - src/dashboard/**
+  - src/styles/dashboard.css
+  - src/backend/field-projects.ts
+  - cloudflare/**
+  - src/editor/header/ProjectChip.tsx
+  - src/editor/header/PreviewOverlay.tsx
+  - src/preview/dashboard-thumbnail-page.ts
+  - src/preview/preview-project-payload.ts
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/code/groups/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - package.json
+  - package-lock.json
+  - wrangler.jsonc
+<!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
