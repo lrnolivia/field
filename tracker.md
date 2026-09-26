@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T05:23:28Z
+Last Updated: 2026-09-26T05:29:07Z
 
 ## Active Assignments
 
@@ -1290,6 +1290,24 @@ Paths:
   - src/preview-sandbox/capture-thumbnail.test.ts
   - src/preview-sandbox/capture-thumbnail.ts
   - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T05:29:07Z — field-realtime-dashboard-awareness-20260926 — 2c67a1ec44b5
+
+Summary: Added authenticated user-scoped Durable Object WebSocket project events, durable-mutation event emission, reusable browser transport, and coalesced authoritative Dashboard refresh. Focused server/client tests, existing persistence/dashboard/thumbnail regressions, TypeScript, build:all, and Workers Builds: field passed. Editor/Canvas remote reaction intentionally remains for the next owner.
+Commit: 2c67a1ec44b533f326c0615712a5a2699e9b8ea2
+
+Paths:
+  - cloudflare/field-realtime.test.ts
+  - cloudflare/worker.js
+  - src/Dashboard.tsx
+  - src/backend/project-events.test.ts
+  - src/backend/project-events.ts
+  - src/dashboard/dashboard-realtime.test.ts
+  - src/dashboard/dashboard-realtime.ts
+  - wrangler.jsonc
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
