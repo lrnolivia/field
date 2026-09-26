@@ -5,7 +5,7 @@ field_assignment: 1
 id: dashboard-interaction-polish
 status: active
 branch: field/dashboard-interaction-polish
-pr: null
+pr: 5
 base: 5ca48d5e99fbc90e07a1bc8707486defa05430ae
 kit: 2026-09-26.2
 type: repair
@@ -63,6 +63,8 @@ Contract Worker coordination v2 landed on `main` after the initial implementatio
 - Active Contract Worker `owned` paths were refreshed before activation; none overlap the six intended owned paths in this assignment.
 - Pre-contract branch `dashboard-worker/menu-dismiss-20260926` contains the candidate repair at head `b24c5abb8388f25f8d85a8efe98ba235ee283268`.
 - Pre-contract Draft PR #4 targets `main`; it is migration input only and is not the canonical PR for this assignment.
+- Canonical branch `field/dashboard-interaction-polish` exists at `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`, created from the activation base without carrying the obsolete branch ancestry.
+- Canonical Draft PR #5 targets `main`.
 - No focused tests, TypeScript validation, build, or runtime QA have yet been recorded as passing for the canonical assignment.
 
 ## Decisions already made

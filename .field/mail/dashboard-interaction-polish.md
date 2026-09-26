@@ -18,8 +18,11 @@ Canonical target:
 - assignment: `dashboard-interaction-polish`
 - branch: `field/dashboard-interaction-polish`
 - base: `5ca48d5e99fbc90e07a1bc8707486defa05430ae`
-- Draft PR: create after canonical branch exists
+- branch head: `932af6d67c84fc0b9eccab46d6f78ad5aade49cf`
+- Draft PR: #5
 
 Do not cross into FieldShell/editor handoff, thumbnail capture, backend persistence, canvas/Preview, Cloudflare, package manifests, or environment files.
 
 The old PR/branch may be closed/deleted only after the canonical replacement has been created and verified.
+
+Canonical replacement is now established. The obsolete pre-contract PR #4 and branch can be retired after one final canonical identity check.

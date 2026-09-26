@@ -3,7 +3,7 @@
 ```yaml
 assignment: dashboard-interaction-polish
 branch: field/dashboard-interaction-polish
-pr: null
+pr: 5
 tested_head_sha: null
 tested_main_sha: 5ca48d5e99fbc90e07a1bc8707486defa05430ae
 environment: not-started
