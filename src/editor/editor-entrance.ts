@@ -20,12 +20,16 @@ export interface EditorEntranceTarget {
 }
 
 export const FIELD_SHELL_SELECTOR = '.field-shell';
+export const DIRECT_LOAD_RENDER_EVENT = 'revyme:render-complete';
 
 /**
- * The PHYSICAL panel shells live in ChromeIslands. The content wrappers sit
- * above them. They must move by the same pixel distance or the user sees
- * "content sliding over a stationary panel" instead of a pane entering.
+ * ProjectLoader keeps a loading-shell overlay mounted for ~280ms after the
+ * first Canvas render completes. The entrance must begin after that overlay
+ * clears or a hard refresh animates invisibly underneath it.
  */
+export const DIRECT_LOAD_SHELL_CLEAR_MS = 310;
+export const DIRECT_LOAD_FAILSAFE_MS = 4400;
+
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
   { selector: '[data-workspace-island="left"]', role: 'left' },
   { selector: '[data-left-menu-rail]', role: 'left' },
@@ -34,15 +38,9 @@ export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Obje
   { selector: '[data-workspace-island="right"]', role: 'right' },
   { selector: '[data-workspace-right-body]', role: 'right' },
 
-  // This inner island contains both the toolbar controls and its backing
-  // surface/shadow, while the outer fixed wrapper keeps centering intact.
   { selector: '#bottom-toolbar-container', role: 'bottom' },
 ]);
 
-/**
- * Side panes are intentionally restrained: enough under-damping to communicate
- * mass, but only a tiny overshoot.
- */
 export const EDITOR_SIDE_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
   stiffness: 470,
   damping: 32,
@@ -51,11 +49,6 @@ export const EDITOR_SIDE_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
   samples: 30,
 });
 
-/**
- * The bottom toolbar is field's one playful beat. Lower damping gives it a
- * clearly perceptible rise past rest, fall back, and final settle without
- * becoming a rubber toy.
- */
 export const EDITOR_BOTTOM_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
   stiffness: 390,
   damping: 20,
@@ -99,10 +92,6 @@ export function collectEditorEntranceTargets(root: ParentNode): EditorEntranceTa
   return targets;
 }
 
-/**
- * One shared distance per role keeps the physical island and the content that
- * sits above it locked together throughout the entire entrance.
- */
 export function editorEntranceDistances(
   targets: readonly EditorEntranceTarget[],
   viewportWidth: number,
@@ -135,16 +124,6 @@ export function editorEntranceDistances(
   };
 }
 
-/**
- * Unit displacement for an under-damped mass/spring/damper system.
- *
- * 1 = still at the starting edge
- * 0 = resting position
- * negative = physically overshot past rest
- *
- * This is actual spring physics sampled for WAAPI; it is not a hand-authored
- * "fake bounce" keyframe list.
- */
 export function springDisplacement(
   elapsedSeconds: number,
   profile: Pick<EditorSpringProfile, 'stiffness' | 'damping' | 'mass'>,
@@ -154,8 +133,6 @@ export function springDisplacement(
   const dampingRatio = damping / (2 * Math.sqrt(stiffness * mass));
 
   if (dampingRatio >= 1) {
-    // These product profiles are intentionally under-damped, but keep the
-    // helper finite if tuning crosses critical damping in a future pass.
     return Math.exp(-naturalFrequency * elapsedSeconds);
   }
 

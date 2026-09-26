@@ -1,6 +1,9 @@
 import { useLayoutEffect } from 'react';
 import {
   collectEditorEntranceTargets,
+  DIRECT_LOAD_FAILSAFE_MS,
+  DIRECT_LOAD_RENDER_EVENT,
+  DIRECT_LOAD_SHELL_CLEAR_MS,
   editorEntranceDelay,
   editorEntranceDistances,
   editorSpringKeyframes,
@@ -53,6 +56,10 @@ function restoreTarget(target: PreparedTarget): void {
   target.element.style.willChange = target.previous.willChange;
 }
 
+function nextPaint(callback: () => void): number {
+  return requestAnimationFrame(() => requestAnimationFrame(callback));
+}
+
 export default function EditorEntranceCoordinator() {
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -68,13 +75,23 @@ export default function EditorEntranceCoordinator() {
     let prepared: PreparedTarget[] = [];
     let animations: Animation[] = [];
     let timers: number[] = [];
+    let frames: number[] = [];
     let cycle = 0;
     let running = false;
+    let directLoadArmed = false;
+    let directLoadStarted = false;
+    let renderCompleteSeen = false;
     let lastDashboardState: FieldDashboardLayerState | null = readFieldDashboardLayerState(document);
 
-    const cancelMotion = (restore = true) => {
+    const clearScheduled = () => {
       for (const timer of timers) window.clearTimeout(timer);
       timers = [];
+      for (const frame of frames) cancelAnimationFrame(frame);
+      frames = [];
+    };
+
+    const cancelMotion = (restore = true) => {
+      clearScheduled();
       for (const animation of animations) {
         animation.onfinish = null;
         animation.oncancel = null;
@@ -108,6 +125,7 @@ export default function EditorEntranceCoordinator() {
       trace.action('editor-entrance:prepared', {
         cycle,
         dashboardState: readFieldDashboardLayerState(document),
+        directLoadArmed,
         targets: prepared.map(({ role, element }) => ({
           role,
           surface: element.dataset.workspaceIsland ?? element.id ?? element.dataset.editorPanel ?? 'chrome',
@@ -133,6 +151,7 @@ export default function EditorEntranceCoordinator() {
       trace.action('editor-entrance:entering', {
         cycle: currentCycle,
         dashboardState: readFieldDashboardLayerState(document),
+        directLoad: directLoadArmed,
       });
 
       const settleOne = (target: PreparedTarget) => {
@@ -142,6 +161,7 @@ export default function EditorEntranceCoordinator() {
           prepared = [];
           animations = [];
           timers = [];
+          frames = [];
           running = false;
           root.dataset.editorEntranceState = 'settled';
           trace.action('editor-entrance:settled', { cycle: currentCycle });
@@ -181,69 +201,97 @@ export default function EditorEntranceCoordinator() {
       }
     };
 
+    const runAfterPaint = () => {
+      const frame = nextPaint(run);
+      frames.push(frame);
+    };
+
     const beginNewRevealCycle = () => {
       cycle += 1;
       cancelMotion(true);
+      directLoadArmed = false;
+      directLoadStarted = false;
       prepare();
+    };
+
+    const startDirectLoadAfterShellClears = () => {
+      if (!directLoadArmed || directLoadStarted) return;
+      directLoadStarted = true;
+      const timer = window.setTimeout(() => {
+        if (!directLoadArmed) return;
+        trace.action('editor-entrance:direct-load-shell-cleared', {
+          renderCompleteSeen,
+        });
+        runAfterPaint();
+      }, DIRECT_LOAD_SHELL_CLEAR_MS);
+      timers.push(timer);
+    };
+
+    const onRenderComplete = () => {
+      renderCompleteSeen = true;
+      if (!directLoadArmed) return;
+      trace.action('editor-entrance:direct-load-render-complete', {});
+      startDirectLoadAfterShellClears();
     };
 
     const handleDashboardState = (state: FieldDashboardLayerState | null) => {
       const previous = lastDashboardState;
       lastDashboardState = state;
 
-      // Direct /builder load: there is no Dashboard exit to wait for.
-      if (state === 'hidden' && previous === 'hidden' && cycle === 0) {
-        cycle = 1;
-        prepare();
-        requestAnimationFrame(run);
-        return;
-      }
-
-      // Dashboard has just begun leaving. Prepare all physical chrome offscreen
-      // while the Dashboard still fully covers the builder.
       if (state === 'hiding' && previous !== 'hiding') {
         beginNewRevealCycle();
         return;
       }
 
-      // IMPORTANT: start only after FieldShell's authoritative state reaches
-      // hidden. Dashboard may tune its animation duration freely; there is no
-      // hardcoded 150/360/420/480ms dependency here.
       if (state === 'hidden' && previous !== 'hidden') {
+        directLoadArmed = false;
+        directLoadStarted = false;
         if (cycle === 0) cycle = 1;
         if (!prepared.length) prepare();
-        requestAnimationFrame(run);
+        runAfterPaint();
       }
     };
 
+    window.addEventListener(DIRECT_LOAD_RENDER_EVENT, onRenderComplete);
+
     if (!shell) {
       cycle = 1;
+      directLoadArmed = true;
       prepare();
-      requestAnimationFrame(run);
-      return () => cancelMotion(true);
-    }
-
-    // Initial direct builder load starts hidden. Dashboard-first navigation
-    // starts visible and will be prepared on the later `hiding` transition.
-    if (lastDashboardState === 'hidden') {
+    } else if (lastDashboardState === 'hidden') {
+      // A fresh /builder URL and a browser refresh both start with the shell
+      // already hidden. ProjectLoader still places BuilderLoadingShell above
+      // App until Canvas paints, so we prepare chrome offscreen NOW but wait
+      // for that real render boundary before beginning the spring.
       cycle = 1;
+      directLoadArmed = true;
+      root.dataset.editorEntranceState = 'waiting-canvas';
       prepare();
-      requestAnimationFrame(run);
+
+      const fallback = window.setTimeout(() => {
+        if (!directLoadArmed || directLoadStarted) return;
+        trace.action('editor-entrance:direct-load-failsafe', {});
+        startDirectLoadAfterShellClears();
+      }, DIRECT_LOAD_FAILSAFE_MS);
+      timers.push(fallback);
     } else {
-      root.dataset.editorEntranceState = 'waiting';
+      root.dataset.editorEntranceState = 'waiting-dashboard';
     }
 
-    const observer = new MutationObserver(() => {
+    const observer = shell ? new MutationObserver(() => {
       handleDashboardState(readFieldDashboardLayerState(document));
-    });
-    observer.observe(shell, {
+    }) : null;
+
+    observer?.observe(shell!, {
       attributes: true,
       attributeFilter: ['data-dashboard-state'],
     });
 
     return () => {
-      observer.disconnect();
+      observer?.disconnect();
+      window.removeEventListener(DIRECT_LOAD_RENDER_EVENT, onRenderComplete);
       cycle += 1;
+      directLoadArmed = false;
       cancelMotion(true);
       delete root.dataset.editorEntranceState;
     };

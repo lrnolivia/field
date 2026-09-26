@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectEditorEntranceTargets,
+  DIRECT_LOAD_FAILSAFE_MS,
+  DIRECT_LOAD_RENDER_EVENT,
+  DIRECT_LOAD_SHELL_CLEAR_MS,
   editorEntranceDelay,
   editorEntranceDistances,
   editorSpringKeyframes,
@@ -13,7 +16,7 @@ import {
 } from './editor-entrance';
 
 describe('editor entrance choreography', () => {
-  it('targets the physical ChromeIslands together with their content', () => {
+  it('targets physical panel shells together with their content and excludes Canvas', () => {
     document.body.innerHTML = `
       <div data-workspace-island="left"></div>
       <div data-left-menu-rail></div>
@@ -57,7 +60,7 @@ describe('editor entrance choreography', () => {
     expect(distances.bottom).toBe(90);
   });
 
-  it('uses actual under-damped spring physics with a restrained side overshoot', () => {
+  it('uses actual under-damped spring physics with restrained sides', () => {
     expect(EDITOR_SIDE_SPRING).toMatchObject({
       stiffness: 470,
       damping: 32,
@@ -73,7 +76,7 @@ describe('editor entrance choreography', () => {
     expect(frames[frames.length - 1].translate).toBe('0px 0');
   });
 
-  it('gives the bottom toolbar a materially bouncier spring and a small delayed entrance', () => {
+  it('gives the bottom toolbar a materially bouncier spring', () => {
     expect(EDITOR_BOTTOM_SPRING).toMatchObject({
       stiffness: 390,
       damping: 20,
@@ -94,6 +97,13 @@ describe('editor entrance choreography', () => {
     });
     expect(Math.min(...translations)).toBeLessThan(-8);
     expect(frames[frames.length - 1].translate).toBe('0 0px');
+  });
+
+  it('defines an explicit direct-load boundary after the ProjectLoader shell clears', () => {
+    expect(DIRECT_LOAD_RENDER_EVENT).toBe('revyme:render-complete');
+    expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeGreaterThan(280);
+    expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeLessThan(400);
+    expect(DIRECT_LOAD_FAILSAFE_MS).toBeGreaterThan(4000);
   });
 
   it('reads FieldShell hidden as the authoritative Dashboard completion state', () => {
