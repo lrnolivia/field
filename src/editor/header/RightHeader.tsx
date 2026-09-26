@@ -52,7 +52,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   // blocks the tab, and gives a plan-limit rejection no way to act on itself.
   // `upgradable` marks the PAYMENT_REQUIRED case so the dialog can offer the
   // plans overlay instead of a dead OK button.
-  const [publishError, setPublishError] = useState<{ message: string; upgradable: boolean } | null>(null);
+  const [publishError, setPublishError] = useState<{ message: string; upgradable: boolean; retryable?: boolean } | null>(null);
   const [meta, setMeta] = useState<WebsiteMeta | null>(null);
   const [open, setOpen] = useState(false);
   // ─── Fake progress ticker ────────────────────────────────────────────
@@ -220,7 +220,15 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     } catch (err) {
       trace.error('header:publish-error', err);
       setProgress(0);
-      setPublishError({ message: 'Something went wrong while publishing. Check the console for details.', upgradable: false });
+      const isSaveConflict = typeof err === 'object' && err !== null
+        && 'code' in err && (err as { code?: unknown }).code === 'PERSISTENCE_CONFLICT';
+      setPublishError({
+        message: isSaveConflict
+          ? 'Resolve the save conflict before publishing. Your edits are still in this tab.'
+          : 'Something went wrong while publishing. Check the console for details.',
+        upgradable: false,
+        retryable: !isSaveConflict,
+      });
     } finally {
       stopProgress();
       setPublishing(false);
@@ -353,19 +361,20 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         onClose={() => setPublishError(null)}
         onConfirm={() => {
           const upgrade = publishError?.upgradable;
+          const retryable = publishError?.retryable !== false;
           setPublishError(null);
           if (upgrade) {
             trace.action('header:publish-blocked-upgrade');
             setSettingsSection('plans');
             setSettingsOpen(true);
-          } else {
+          } else if (retryable) {
             void handlePublish();
           }
         }}
         title={publishError?.upgradable ? 'Upgrade to publish' : 'Publish failed'}
         message={publishError?.message ?? ''}
-        confirmLabel={publishError?.upgradable ? 'See plans' : 'Try again'}
-        cancelLabel={publishError?.upgradable ? 'Not now' : 'Close'}
+        confirmLabel={publishError?.upgradable ? 'See plans' : publishError?.retryable === false ? 'Close' : 'Try again'}
+        cancelLabel={publishError?.upgradable ? 'Not now' : publishError?.retryable === false ? 'Keep editing' : 'Close'}
       />
     </>
   );

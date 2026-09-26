@@ -53,6 +53,7 @@ import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-pan
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
@@ -223,6 +224,7 @@ export default function App() {
           state when the connection drops, and the matching toast. */}
       <OfflineWatcher />
       <OfflineToast />
+      <PersistenceConflictBanner />
 
       {/* Headers — fixed at top corners, canvas visible between them */}
       <LeftHeader />

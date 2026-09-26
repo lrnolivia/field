@@ -11,6 +11,7 @@ import type { ProjectData } from './types';
 import { projectFS } from '../code/project/project-fs';
 import { trace } from '@/shared/debug-trace';
 import { consumeIntentionalNavigationBypass } from './intentional-navigation';
+import { createPersistenceConflictState, persistenceConflictAtom } from './persistence-conflict';
 
 const DEBOUNCE_MS = 2000;
 /** Bounded auto-retry after a failed save. */
@@ -22,7 +23,7 @@ let pendingSave = false;
 let isSaving = false;
 let currentSave: Promise<void> | null = null;
 let changeGeneration = 0;
-let persistenceConflict = false;
+let persistenceConflict = getDefaultStore().get(persistenceConflictAtom) !== null;
 let lastSaveError: unknown = null;
 
 function getStore() {
@@ -99,6 +100,9 @@ async function performSave(): Promise<void> {
       // writes until reload/reconciliation so this tab can never hammer a
       // known-stale revision or silently replace newer R2 state.
       persistenceConflict = true;
+      if (!store.get(persistenceConflictAtom)) {
+        store.set(persistenceConflictAtom, createPersistenceConflictState(id));
+      }
       trace.error('autosave:conflict', { id, error: String(err) });
       return;
     }
@@ -231,8 +235,11 @@ export function cancelPendingAutosave(): void {
     clearTimeout(debounceTimer);
     debounceTimer = null;
   }
+  if (persistenceConflict) {
+    trace.action('autosave:cancel-skipped-unresolved-conflict');
+    return;
+  }
   pendingSave = false;
-  persistenceConflict = false;
   lastSaveError = null;
   trace.action('autosave:cancelled-pending');
 }
