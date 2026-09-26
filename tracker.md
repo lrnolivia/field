@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T07:43:14Z
+Last Updated: 2026-09-26T08:04:51Z
 
 ## Active Assignments
 
@@ -108,39 +108,6 @@ Protected:
   - wrangler.jsonc
 <!-- ASSIGNMENT:field-dashboard-thumbnail-previews-r2-20260925:END -->
 
-<!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:START -->
-### field-dashboard-seamless-motion-20260926 — Unified Dashboard / Canvas Motion Handoff
-
-Status: active
-Baseline: bef8a9e4fa5c7a3daee456ad871aab843457750e
-Activation HEAD: bef8a9e4fa5c7a3daee456ad871aab843457750e
-Last Sync: 2026-09-26T07:30:12Z
-
-Owned:
-  - src/FieldShell.tsx
-  - src/field-shell-motion.ts
-  - src/field-shell-motion.test.ts
-  - src/styles/field-shell.css
-
-Approved Shared:
-  - tracker.md
-
-Protected:
-  - src/Dashboard.tsx
-  - src/ProjectLoader.tsx
-  - src/main.tsx
-  - src/backend/**
-  - src/dashboard/**
-  - src/editor/**
-  - src/canvas/**
-  - src/canvas-sandbox/**
-  - src/preview-sandbox/**
-  - src/styles/dashboard.css
-  - cloudflare/**
-  - wrangler.jsonc
-  - package.json
-  - package-lock.json
-<!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:END -->
 
 <!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:START -->
 ### figui3-polish-addendum-rich-inspector-popovers-20260925 — Rich Inspector Popovers + Figma-like Toolbar Parity Closeout
@@ -209,6 +176,49 @@ Architecture:
   - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture changes
 <!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:END -->
 
+<!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:START -->
+### field-dashboard-seamless-motion-20260926 — Unified Dashboard / Canvas Motion Handoff + Final Dashboard Polish
+
+Status: active
+Baseline: bef8a9e4fa5c7a3daee456ad871aab843457750e
+Activation HEAD: 06f3da804107ca9ab873d8296b39c98b7a44f8e6
+Last Sync: 2026-09-26T08:04:51Z
+
+Owned:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.ts
+  - src/field-shell-motion.test.ts
+  - src/styles/field-shell.css
+  - src/dashboard/ProjectCard.tsx
+  - src/dashboard/dashboard-final-polish.test.ts
+  - src/styles/dashboard.css
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/Dashboard.tsx
+  - src/ProjectLoader.tsx
+  - src/main.tsx
+  - src/backend/**
+  - src/dashboard/DashboardLoadingGrid.tsx
+  - src/dashboard/ProjectGrid.tsx
+  - src/dashboard/dashboard-loading.ts
+  - src/dashboard/dashboard-loading.test.ts
+  - src/dashboard/dashboard-realtime.ts
+  - src/dashboard/dashboard-realtime.test.ts
+  - src/dashboard/NewProjectWizard.tsx
+  - src/dashboard/new-project-model.ts
+  - src/dashboard/new-project-model.test.ts
+  - src/editor/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-dashboard-seamless-motion-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
