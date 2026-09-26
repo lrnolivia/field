@@ -151,3 +151,16 @@ When importing an older worker's prepared handoff:
 - remove stale process mechanics
 - do not blindly apply a patch
 - convert useful history into canonical assignment/mail/QA records
+
+
+## Artificial blockers discovered during implementation
+
+Do not automatically stop because the workflow itself is broken.
+
+If the blocker is caused by stale instructions, coordination metadata, branch/PR bookkeeping, a deterministic tool invocation, or the QA harness, repair it when the repair is bounded and does not violate another assignment's ownership.
+
+Record what was wrong and what changed, then continue the assignment.
+
+If the repair needs someone else's owned path or a materially separate implementation tranche, create/request a bounded repair assignment instead of silently trespassing.
+
+A real external dependency remains a blocker. A defect in our own process should normally become work.

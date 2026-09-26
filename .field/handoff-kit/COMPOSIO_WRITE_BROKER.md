@@ -67,6 +67,15 @@ The Composio Executor does not expand scope, redesign architecture, acquire owne
 - preserve unrelated work
 - merge only when explicitly authorized by the current assignment/manager and the merge gate passes
 
+
+## Transport/tooling blockers
+
+A deterministic Composio invocation failure, stale Git metadata assumption, or incorrect bounded transaction is an artificial blocker when the repository/connection itself is available.
+
+The Contract Worker or Night Shift Manager should correct the request/tool usage and retry safely rather than stopping for user intervention.
+
+Do not weaken repository safety rules, force-push, bypass ownership, or fall back to the prohibited native GitHub connector merely to clear a blocker.
+
 ## Failure rule
 
 If Composio GitHub is unavailable:
