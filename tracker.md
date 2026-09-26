@@ -151,6 +151,61 @@ Protected:
   - package.json
   - package-lock.json
 <!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:END -->
+<!-- ASSIGNMENT:native-scale-tool-20260926:START -->
+### native-scale-tool-20260926 — Dedicated proportional Scale operation
+
+Status: active
+Baseline: 41189092172516e09540749de26b75b3497691eb
+Activation HEAD: 41189092172516e09540749de26b75b3497691eb
+Last Sync: 2026-09-26T08:57:48Z
+
+Scope: First-class Figma-style proportional Scale in Design. Resize remains separate; Scale authors real source geometry/visual metrics and fails closed on unsupported semantics.
+
+Owned:
+  - src/canvas/scale/**
+  - src/canvas/selection/ScaleHandles.tsx
+  - src/editor/tools/ScaleTool.tsx
+  - src/editor/scale-tool.integration.test.ts
+  - src/code/stores/tool-store.scale.test.ts
+
+Approved Shared:
+  - src/code/stores/tool-store.ts
+  - src/code/stores/tool-store.creator-lock.test.ts
+  - src/canvas/shortcuts.ts
+  - src/canvas/selection/SelectionOverlay.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/figui3-bottom-toolbar-figma-parity.test.ts
+  - src/editor/PropertiesPanel.tsx
+  - tracker.md
+
+Protected:
+  - src/canvas/resize/**
+  - src/canvas/drag/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - src/code/groups/**
+  - src/code/mutation/**
+  - src/code/parsing/**
+  - src/code/generation/**
+  - src/backend/**
+  - src/dashboard/**
+  - src/FieldShell.tsx
+  - src/Dashboard.tsx
+  - src/styles/**
+  - src/design-system/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+  - .env*
+
+Architecture:
+  - K activates Scale; Sketch is Shift+P; Path remains P
+  - Scale is not Resize and does not modify ResizeManager
+  - live pointer feedback is disposable; commit authors source values
+  - one visible Scale gesture remains one history step
+  - Group acceptance is baseline-gated; pre-existing invalid Group geometry is BLOCKED — GROUP BASELINE
+<!-- ASSIGNMENT:native-scale-tool-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
