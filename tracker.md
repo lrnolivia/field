@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T03:05:00Z
+Last Updated: 2026-09-26T03:34:21Z
 
 ## Active Assignments
 
@@ -1178,6 +1178,20 @@ Commit: 4ef4fb143473b58fe046a75f3aab547a758cb67b
 Paths:
   - src/editor/header/project-thumbnail-r2-contract.test.ts
   - src/preview-sandbox/main.tsx
+
+Validation / Build / Deploy:
+- update this event if production verification is still pending
+
+### 2026-09-26T03:34:21Z — field-dashboard-thumbnail-previews-r2-20260925 — fc8b3d190e60
+
+Summary: r5 thumbnail repair: production trace proved capture-requested was reached but raster never returned. First-viewport capture now bounds fonts/idle/raster work, skips font re-embedding, prunes off-viewport DOM, and returns correlated raster errors. Focused tests, TypeScript, build:all, and Workers Builds: field passed. Manual production smoke remains required.
+Commit: fc8b3d190e608b9e84ef80f19e11d93df64987ae
+
+Paths:
+  - src/editor/header/ProjectThumbnailCaptureHost.tsx
+  - src/editor/header/project-thumbnail-r2-contract.test.ts
+  - src/preview-sandbox/capture-thumbnail.test.ts
+  - src/preview-sandbox/capture-thumbnail.ts
 
 Validation / Build / Deploy:
 - update this event if production verification is still pending
