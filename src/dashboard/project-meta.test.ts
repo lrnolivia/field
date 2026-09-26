@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldProjectMeta } from '@/backend/field-projects';
-import { formatRelativeEditedTime, getDashboardEmptyState, selectFieldProjects } from './project-meta';
+import { formatDashboardActionError, formatRelativeEditedTime, getDashboardEmptyState, selectFieldProjects } from './project-meta';
 
 const rows: FieldProjectMeta[] = [
   { id: 'a', name: 'Alpha', createdAt: '2026-09-20T00:00:00Z', updatedAt: '2026-09-25T02:00:00Z', starred: false, trashedAt: null, thumbnail: null },
@@ -19,6 +19,20 @@ describe('dashboard project selection', () => {
 
   it('sorts Trash by trashedAt', () => {
     expect(selectFieldProjects(rows, 'trash', '').map((row) => row.id)).toEqual(['c']);
+  });
+});
+
+describe('dashboard action errors', () => {
+  it('turns a metadata 412 into a calm reload-and-retry message', () => {
+    expect(formatDashboardActionError(
+      new Error('Project metadata update failed: 412 {"error":"Persistence conflict"}'),
+    )).toBe('This project changed elsewhere. Reload the dashboard, then try that action again.');
+  });
+
+  it('preserves unrelated dashboard errors', () => {
+    expect(formatDashboardActionError(new Error('Project duplicate failed: 500'))).toBe(
+      'Project duplicate failed: 500',
+    );
   });
 });
 

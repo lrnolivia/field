@@ -16,7 +16,7 @@ import DashboardSidebar from '@/dashboard/DashboardSidebar';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
-import { getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
+import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
 
 function navigateToProject(project: FieldProjectMeta) {
   window.location.href = `/builder/${encodeURIComponent(project.id)}`;
@@ -89,7 +89,7 @@ export default function Dashboard() {
     try {
       replaceProject(await action());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(formatDashboardActionError(cause));
     } finally {
       setBusyId(null);
     }
