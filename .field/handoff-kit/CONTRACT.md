@@ -83,14 +83,6 @@ Stop. Do not fall back to the built-in GitHub connector.
 
 This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate Codex lane.
 
-## 4a. Artificial blocker rule
-
-Workers must fix artificial blockers they discover when the repair is safe and within assignment authority. Fixable procedural, tooling, harness, branch/PR, documentation, test-fixture, or local-integration friction is not a reason to stop.
-
-Genuine stop conditions remain ownership conflicts, required access or secrets the worker does not possess, unauthorized destructive or privileged changes, protected or out-of-scope paths, unresolved product decisions requiring the user, or external failures without a safe workaround.
-
-If the repair needs new path ownership, reserve it first. If it is genuinely separate work, create a successor assignment instead of silently expanding scope.
-
 ## 5. Three coordination planes
 
 ### Control plane

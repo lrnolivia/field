@@ -26,7 +26,6 @@ assert manifest["legacy_tracker"] == "tracker.md"
 assert "tracker" not in manifest
 assert manifest["contract_worker"]["github_transport"] == "composio-exclusive"
 assert manifest["contract_worker"]["native_github_connector_allowed"] is False
-assert manifest["contract_worker"]["repair_artificial_blockers"] is True
 
 contract = (ROOT / "CONTRACT.md").read_text()
 for phrase in [
@@ -35,7 +34,6 @@ for phrase in [
     "field/control",
     "assignment-<unique-name>.md",
     "Exact-SHA merge gate",
-    "Artificial blocker rule",
 ]:
     assert phrase in contract, phrase
 
@@ -49,7 +47,7 @@ for phrase in [
     assert phrase in broker, phrase
 
 bootstrap = (ROOT / "CHAT_BOOTSTRAP.md").read_text()
-for phrase in ["Use Composio exclusively", "field/control", "active legacy", "Fix artificial blockers before escalating"]:
+for phrase in ["Use Composio exclusively", "field/control", "active legacy"]:
     assert phrase in bootstrap, phrase
 
 legacy_template = (ROOT / "templates/assignment.md").read_text()

@@ -49,12 +49,6 @@ CONTRACT WORKER GITHUB UNAVAILABLE
 
 Do not substitute another GitHub plugin, web search, or remembered repository state.
 
-## Fix artificial blockers before escalating
-
-Contract Workers are expected to repair fixable process or harness friction they can safely resolve within assignment authority. Do not stop for an artificial blocker.
-
-Stop only for genuine ownership, authorization, protected-scope, unresolved user-decision, or external failures without a safe workaround. If the fix needs new ownership, reserve it first; if it is genuinely separate work, create a successor assignment.
-
 ## Existing chat / process reset
 
 When the current repo-hosted kit conflicts with remembered or copied process rules:

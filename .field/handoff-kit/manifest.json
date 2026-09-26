@@ -17,8 +17,7 @@
     "implementation_branch_prefix": "field/",
     "assignment_glob": ".field/assignments/assignment-*.md",
     "mail_dir": ".field/mail",
-    "qa_dir": ".field/qa",
-    "repair_artificial_blockers": true
+    "qa_dir": ".field/qa"
   },
   "production_qa": {
     "noauth_builder": "https://field.loew.fi/builder/noauth",
