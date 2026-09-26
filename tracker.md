@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T08:11:30Z
+Last Updated: 2026-09-26T08:34:35Z
 
 ## Active Assignments
 
@@ -176,7 +176,46 @@ Architecture:
   - no document-model, source-generation, mutation, canvas, runtime, backend, or deployment architecture changes
 <!-- ASSIGNMENT:figui3-polish-addendum-rich-inspector-popovers-20260925:END -->
 
+<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:START -->
+### field-dashboard-handoff-overlap-20260926 — Overlapped Dashboard / Editor Ownership Handoff
 
+Status: active
+Baseline: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
+Activation HEAD: 04d4ae24f7471b035e97f907aece0e5f2e7d990b
+Last Sync: 2026-09-26T08:34:35Z
+
+Owned:
+  - src/FieldShell.tsx
+  - src/field-shell-motion.ts
+  - src/field-shell-motion.test.ts
+  - src/editor/EditorEntranceCoordinator.tsx
+
+Approved Shared:
+  - tracker.md
+
+Protected:
+  - src/Dashboard.tsx
+  - src/ProjectLoader.tsx
+  - src/main.tsx
+  - src/styles/field-shell.css
+  - src/styles/dashboard.css
+  - src/dashboard/**
+  - src/backend/**
+  - src/editor/editor-entrance.ts
+  - src/editor/editor-entrance.test.ts
+  - src/editor/header/**
+  - src/editor/BottomToolbar.tsx
+  - src/editor/ui/**
+  - src/editor/tools/**
+  - src/design-system/**
+  - src/canvas/**
+  - src/canvas-sandbox/**
+  - src/preview-sandbox/**
+  - cloudflare/**
+  - wrangler.jsonc
+  - package.json
+  - package-lock.json
+<!-- ASSIGNMENT:field-dashboard-handoff-overlap-20260926:END -->
 <!-- FIELD_ACTIVE_ASSIGNMENTS_END -->
 
 ## Blocked / Integration Notes
