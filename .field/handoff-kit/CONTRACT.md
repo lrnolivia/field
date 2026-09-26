@@ -10,6 +10,26 @@ The repo-hosted handoff kit owns the process: rehydration, tracker semantics, co
 
 Assignments must not embed a stale copy of the handoff kit.
 
+## Contract Worker GitHub transport
+
+For the **Contract Worker / Night Shift lane**, Composio is the exclusive GitHub transport for **all repository access**, including both reads and writes.
+
+- All GitHub repository reads and writes must go through Composio.
+- The built-in ChatGPT GitHub connector is prohibited for Contract Worker and Night Shift operations, including read-only inspection.
+- Do not substitute another GitHub plugin/app, web search, or remembered repository state.
+- Start every GitHub workflow with `COMPOSIO_SEARCH_TOOLS`, verify an ACTIVE GitHub connection for the exact repository, and discover exact tool slugs rather than inventing them.
+- The Contract Worker or Night Shift Manager owns reasoning, scope, architecture, ownership decisions, and the exact requested mutation.
+- The Composio Executor is transport infrastructure only and must not reinterpret or expand the work.
+- If Composio GitHub is unavailable, stop with:
+
+```text
+CONTRACT WORKER GITHUB UNAVAILABLE
+```
+
+Do not fall back to the built-in GitHub connector.
+
+This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate PJM / Master / Codex Worker lane unless that lane's own contract explicitly adopts it.
+
 ## Standard package UX
 
 Every delivered installer ZIP must unpack to one matching top-level directory:
