@@ -53,9 +53,33 @@ function effectiveNodeTransform(node: CanvasNode): string {
   }).trim();
 }
 
-function hasUnsupportedTransform(node: CanvasNode): boolean {
+function hasEffectiveTransform(node: CanvasNode): boolean {
   const transform = effectiveNodeTransform(node);
   return !!transform && transform !== 'none';
+}
+
+const REBASE_TRANSFORM_STYLE_KEYS = [
+  'x', 'y', 'z', 'translateX', 'translateY', 'translateZ',
+  'scale', 'scaleX', 'scaleY',
+  'rotate', 'rotateX', 'rotateY', 'rotateZ',
+  'skewX', 'skewY', 'transformPerspective',
+] as const;
+
+const VARIANT_TRANSFORM_KEYS = new Set<string>([
+  'transform', 'transformOrigin', 'transformBox',
+  ...REBASE_TRANSFORM_STYLE_KEYS,
+]);
+
+function hasVariantOrConditionalTransformChannel(node: CanvasNode): boolean {
+  for (const styles of Object.values(node.motionVariants ?? {})) {
+    for (const key of Object.keys(styles ?? {})) {
+      if (VARIANT_TRANSFORM_KEYS.has(key)) return true;
+    }
+  }
+  for (const key of Object.keys(node.conditionalStyles ?? {})) {
+    if (VARIANT_TRANSFORM_KEYS.has(key)) return true;
+  }
+  return false;
 }
 
 function mulAffine(a: Affine2D, b: Affine2D): Affine2D {
@@ -411,7 +435,24 @@ function nativeGroupPositionMode(node: CanvasNode): 'absolute' | 'flow' | null {
 }
 
 function isSupportedNativeGroupContainer(node: CanvasNode): boolean {
-  return !!node.isGroup && nativeGroupPositionMode(node) !== null && !hasUnsupportedTransform(node);
+  if (!node.isGroup) return false;
+  const mode = nativeGroupPositionMode(node);
+  if (!mode) return false;
+
+  const transform = effectiveNodeTransform(node);
+  if (!transform || transform === 'none') return true;
+
+  // Parent layout owns a flow Group's origin; B9 intentionally kept this
+  // transformed-wrapper case gated. B10 only opens ABSOLUTE Groups whose
+  // transform is exactly representable by the same 2D affine model as refit.
+  if (mode !== 'absolute') return false;
+  const width = px(node.styles?.width);
+  const height = px(node.styles?.height);
+  if (width == null || height == null || width < 0 || height < 0) return false;
+  const transformBox = node.styles?.transformBox?.trim();
+  if (transformBox && transformBox !== 'border-box') return false;
+  return parseAffineTransform(transform, width, height) !== null
+    && parseTransformOrigin(node.styles?.transformOrigin, width, height) !== null;
 }
 /**
  * Compute one shrink-wrap step for a native field Group.
@@ -690,6 +731,139 @@ export interface NativeGroupWorldBox {
   height: number;
 }
 
+export interface NativeGroupWorldPoint {
+  x: number;
+  y: number;
+}
+
+export interface NativeGroupWorldCorners {
+  TL: NativeGroupWorldPoint;
+  TR: NativeGroupWorldPoint;
+  BR: NativeGroupWorldPoint;
+  BL: NativeGroupWorldPoint;
+}
+
+export interface NativeGroupLocalSize {
+  width: number;
+  height: number;
+}
+
+function fmtAffineScalar(value: number): string {
+  const rounded = Math.round(value * 1_000_000) / 1_000_000;
+  const normalized = Object.is(rounded, -0) ? 0 : rounded;
+  return String(normalized);
+}
+
+function finiteWorldCorners(corners: NativeGroupWorldCorners): boolean {
+  return [corners.TL, corners.TR, corners.BR, corners.BL]
+    .every((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+}
+
+function affineQuadIsParallelogram(corners: NativeGroupWorldCorners): boolean {
+  if (!finiteWorldCorners(corners)) return false;
+  const expectedX = corners.TR.x + corners.BL.x - corners.TL.x;
+  const expectedY = corners.TR.y + corners.BL.y - corners.TL.y;
+  const span = Math.max(
+    1,
+    Math.abs(corners.TR.x - corners.TL.x),
+    Math.abs(corners.TR.y - corners.TL.y),
+    Math.abs(corners.BL.x - corners.TL.x),
+    Math.abs(corners.BL.y - corners.TL.y),
+  );
+  const tolerance = Math.max(0.05, span * 1e-5);
+  return Math.abs(corners.BR.x - expectedX) <= tolerance
+    && Math.abs(corners.BR.y - expectedY) <= tolerance;
+}
+
+function resolveLayersWorldToLocalMoveStyles(args: {
+  dragged: CanvasNode;
+  draggedWorldCorners: NativeGroupWorldCorners;
+  newParentWorldCorners: NativeGroupWorldCorners;
+  newParentLocalSize: NativeGroupLocalSize;
+}): Record<string, string> | null {
+  const { dragged, draggedWorldCorners, newParentWorldCorners, newParentLocalSize } = args;
+  if (!affineQuadIsParallelogram(draggedWorldCorners)
+      || !affineQuadIsParallelogram(newParentWorldCorners)) return null;
+
+  const childWidth = px(dragged.styles?.width);
+  const childHeight = px(dragged.styles?.height);
+  const parentWidth = newParentLocalSize.width;
+  const parentHeight = newParentLocalSize.height;
+  if (childWidth == null || childHeight == null || childWidth <= 0 || childHeight <= 0) return null;
+  if (![parentWidth, parentHeight].every(Number.isFinite) || parentWidth <= 0 || parentHeight <= 0) return null;
+
+  // The parent's painted border-box corners define an exact screen-space
+  // affine basis. Divide its top/left edge vectors by the untransformed local
+  // border-box dimensions, then invert that 2x2 basis. Camera pan/zoom cancels
+  // automatically because BOTH quads were captured in the same screen space.
+  const ux = (newParentWorldCorners.TR.x - newParentWorldCorners.TL.x) / parentWidth;
+  const uy = (newParentWorldCorners.TR.y - newParentWorldCorners.TL.y) / parentWidth;
+  const vx = (newParentWorldCorners.BL.x - newParentWorldCorners.TL.x) / parentHeight;
+  const vy = (newParentWorldCorners.BL.y - newParentWorldCorners.TL.y) / parentHeight;
+  const determinant = ux * vy - vx * uy;
+  if (![ux, uy, vx, vy, determinant].every(Number.isFinite) || Math.abs(determinant) < 1e-10) return null;
+
+  const toLocal = (point: NativeGroupWorldPoint): NativeGroupWorldPoint => {
+    const dx = point.x - newParentWorldCorners.TL.x;
+    const dy = point.y - newParentWorldCorners.TL.y;
+    return {
+      x: (dx * vy - vx * dy) / determinant,
+      y: (ux * dy - dx * uy) / determinant,
+    };
+  };
+
+  const localCorners: NativeGroupWorldCorners = {
+    TL: toLocal(draggedWorldCorners.TL),
+    TR: toLocal(draggedWorldCorners.TR),
+    BR: toLocal(draggedWorldCorners.BR),
+    BL: toLocal(draggedWorldCorners.BL),
+  };
+  if (!affineQuadIsParallelogram(localCorners)) return null;
+
+  const a = (localCorners.TR.x - localCorners.TL.x) / childWidth;
+  const b = (localCorners.TR.y - localCorners.TL.y) / childWidth;
+  const c = (localCorners.BL.x - localCorners.TL.x) / childHeight;
+  const d = (localCorners.BL.y - localCorners.TL.y) / childHeight;
+  const childDeterminant = a * d - c * b;
+  if (![a, b, c, d, childDeterminant].every(Number.isFinite) || Math.abs(childDeterminant) < 1e-10) return null;
+
+  const moveStyles: Record<string, string> = {
+    position: 'absolute',
+    left: fmtPx(localCorners.TL.x),
+    top: fmtPx(localCorners.TL.y),
+    right: '',
+    bottom: '',
+  };
+
+  const identity = Math.abs(a - 1) < 1e-6
+    && Math.abs(b) < 1e-6
+    && Math.abs(c) < 1e-6
+    && Math.abs(d - 1) < 1e-6;
+  const draggedHasTransform = hasEffectiveTransform(dragged);
+  if (!identity || draggedHasTransform) {
+    // Responsive/variant transform channels cannot be rewritten from ONE
+    // Layers viewport without changing another viewport's semantics. Refuse
+    // rather than bake one tile's geometry into the shared base style.
+    if (hasVariantOrConditionalTransformChannel(dragged)) return null;
+
+    const transformBox = dragged.styles?.transformBox?.trim();
+    if (transformBox && transformBox !== 'border-box') return null;
+    const effective = effectiveNodeTransform(dragged);
+    if (effective && effective !== 'none' && parseAffineTransform(effective, childWidth, childHeight) == null) return null;
+
+    moveStyles.transform = identity
+      ? 'none'
+      : 'matrix(' + [a, b, c, d].map(fmtAffineScalar).join(', ') + ', 0, 0)';
+    moveStyles.transformOrigin = '0px 0px';
+    moveStyles.transformBox = 'border-box';
+    for (const key of REBASE_TRANSFORM_STYLE_KEYS) {
+      if (dragged.styles?.[key] != null && dragged.styles[key] !== '') moveStyles[key] = '';
+    }
+  }
+
+  return moveStyles;
+}
+
 function applyRefitStepToWorking(
   groupId: string,
   working: Map<string, CanvasNode>,
@@ -836,10 +1010,16 @@ export function planNativeGroupLayersReparent(
     nodes: Map<string, CanvasNode>;
     draggedWorld: NativeGroupWorldBox;
     newParentWorld: NativeGroupWorldBox;
+    draggedWorldCorners?: NativeGroupWorldCorners | null;
+    newParentWorldCorners?: NativeGroupWorldCorners | null;
+    newParentLocalSize?: NativeGroupLocalSize | null;
     preserveDraggedGeometry: boolean;
   },
 ): NativeGroupLayersReparentPlan | null {
-  const { draggedId, newParentId, nodes, draggedWorld, newParentWorld, preserveDraggedGeometry } = args;
+  const {
+    draggedId, newParentId, nodes, draggedWorld, newParentWorld,
+    draggedWorldCorners, newParentWorldCorners, newParentLocalSize, preserveDraggedGeometry,
+  } = args;
   const dragged = nodes.get(draggedId);
   const destination = nodes.get(newParentId);
   if (!dragged || !destination || !dragged.parentId || dragged.parentId === newParentId) return null;
@@ -868,11 +1048,43 @@ export function planNativeGroupLayersReparent(
 
   const moveStyles: Record<string, string> = {};
   if (preserveDraggedGeometry) {
-    moveStyles.position = 'absolute';
-    moveStyles.left = fmtPx(draggedWorld.left - newParentWorld.left);
-    moveStyles.top = fmtPx(draggedWorld.top - newParentWorld.top);
-    moveStyles.right = '';
-    moveStyles.bottom = '';
+    const sourceOrDraggedTransformed = (!!source && sourceIsGroup && hasEffectiveTransform(source))
+      || hasEffectiveTransform(dragged);
+    const destinationTransformed = hasEffectiveTransform(destination);
+    const requiresAffineConversion = sourceOrDraggedTransformed || destinationTransformed;
+
+    const fallbackParentWidth = destinationIsGroup ? px(destination.styles?.width) : null;
+    const fallbackParentHeight = destinationIsGroup ? px(destination.styles?.height) : null;
+    const localSize = newParentLocalSize
+      ?? (fallbackParentWidth != null && fallbackParentHeight != null
+        ? { width: fallbackParentWidth, height: fallbackParentHeight }
+        : null);
+
+    const affineMoveStyles = draggedWorldCorners && newParentWorldCorners && localSize
+      ? resolveLayersWorldToLocalMoveStyles({
+        dragged,
+        draggedWorldCorners,
+        newParentWorldCorners,
+        newParentLocalSize: localSize,
+      })
+      : null;
+
+    if (affineMoveStyles) {
+      Object.assign(moveStyles, affineMoveStyles);
+    } else if (requiresAffineConversion) {
+      // An AABB subtraction destroys orientation under transformed parents. If
+      // exact painted corners/local dimensions are cold or unsupported, fail
+      // the entire Layers gesture instead of changing hierarchy with drift.
+      return null;
+    } else {
+      // Legacy exact fast path for ordinary axis-aligned Groups. Keeping this
+      // independent of the corners cache avoids regressing cold-cache drops.
+      moveStyles.position = 'absolute';
+      moveStyles.left = fmtPx(draggedWorld.left - newParentWorld.left);
+      moveStyles.top = fmtPx(draggedWorld.top - newParentWorld.top);
+      moveStyles.right = '';
+      moveStyles.bottom = '';
+    }
   }
   working.set(draggedId, {
     ...dragged,

@@ -666,6 +666,82 @@ describe('native Group Layers reparent planning', () => {
     expect(plan?.groupIds).toContain('g2');
     expect(plan?.moveStyles.left).toBe('-140px');
   });
+
+  it('enters a rotated absolute Group through an exact inverse world-to-local affine', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '100px', height: '80px', transform: 'rotate(90deg)' }, { isGroup: true, children: [] });
+    const b = node('b', 'root', { position: 'absolute', left: '160px', top: '90px', width: '40px', height: '20px' });
+    const root = node('root', null, { position: 'relative', width: '500px', height: '500px' }, { children: ['g', 'b'] });
+    const plan = planNativeGroupLayersReparent({
+      draggedId: 'b', newParentId: 'g',
+      nodes: new Map([[root.id, root], [group.id, group], [b.id, b]]),
+      draggedWorld: box(160, 90, 40, 20),
+      newParentWorld: box(110, 40, 80, 100),
+      draggedWorldCorners: { TL: { x: 160, y: 90 }, TR: { x: 200, y: 90 }, BR: { x: 200, y: 110 }, BL: { x: 160, y: 110 } },
+      newParentWorldCorners: { TL: { x: 190, y: 40 }, TR: { x: 190, y: 140 }, BR: { x: 110, y: 140 }, BL: { x: 110, y: 40 } },
+      newParentLocalSize: { width: 100, height: 80 },
+      preserveDraggedGeometry: true,
+    });
+    expect(plan?.moveStyles).toMatchObject({
+      position: 'absolute', left: '50px', top: '30px',
+      transform: 'matrix(0, -1, 1, 0, 0, 0)', transformOrigin: '0px 0px', transformBox: 'border-box',
+    });
+    const out = new Map(plan?.patches.map((p) => [p.nodeId, p.styles]) ?? []);
+    expect(out.get('b')).toMatchObject({ left: '0px', top: '40px' });
+    expect(out.get('g')).toMatchObject({ left: '170px', top: '80px', width: '20px', height: '40px' });
+  });
+
+  it('exits a rotated Group without collapsing the child to its world AABB origin', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '100px', height: '80px', transform: 'rotate(90deg)' }, { isGroup: true, children: ['a', 'b'] });
+    const a = node('a', 'g', { position: 'absolute', left: '20px', top: '10px', width: '40px', height: '20px' });
+    const b = node('b', 'g', { position: 'absolute', left: '70px', top: '50px', width: '20px', height: '20px' });
+    const root = node('root', null, { position: 'relative', width: '500px', height: '500px' }, { children: ['g'] });
+    const plan = planNativeGroupLayersReparent({
+      draggedId: 'a', newParentId: 'root',
+      nodes: new Map([[root.id, root], [group.id, group], [a.id, a], [b.id, b]]),
+      draggedWorld: box(160, 60, 20, 40),
+      newParentWorld: box(0, 0, 500, 500),
+      draggedWorldCorners: { TL: { x: 180, y: 60 }, TR: { x: 180, y: 100 }, BR: { x: 160, y: 100 }, BL: { x: 160, y: 60 } },
+      newParentWorldCorners: { TL: { x: 0, y: 0 }, TR: { x: 500, y: 0 }, BR: { x: 500, y: 500 }, BL: { x: 0, y: 500 } },
+      newParentLocalSize: { width: 500, height: 500 },
+      preserveDraggedGeometry: true,
+    });
+    expect(plan?.moveStyles).toMatchObject({
+      left: '180px', top: '60px', transform: 'matrix(0, 1, -1, 0, 0, 0)', transformOrigin: '0px 0px',
+    });
+  });
+
+  it('canonicalizes a base motion rotate channel when a transformed child exits a Group', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '100px', height: '80px' }, { isGroup: true, children: ['a', 'b'] });
+    const a = node('a', 'g', { position: 'absolute', left: '20px', top: '10px', width: '40px', height: '20px', rotate: '90' });
+    const b = node('b', 'g', { position: 'absolute', left: '70px', top: '50px', width: '20px', height: '20px' });
+    const root = node('root', null, { position: 'relative', width: '500px', height: '500px' }, { children: ['g'] });
+    const plan = planNativeGroupLayersReparent({
+      draggedId: 'a', newParentId: 'root',
+      nodes: new Map([[root.id, root], [group.id, group], [a.id, a], [b.id, b]]),
+      draggedWorld: box(130, 50, 20, 40),
+      newParentWorld: box(0, 0, 500, 500),
+      draggedWorldCorners: { TL: { x: 150, y: 50 }, TR: { x: 150, y: 90 }, BR: { x: 130, y: 90 }, BL: { x: 130, y: 50 } },
+      newParentWorldCorners: { TL: { x: 0, y: 0 }, TR: { x: 500, y: 0 }, BR: { x: 500, y: 500 }, BL: { x: 0, y: 500 } },
+      newParentLocalSize: { width: 500, height: 500 },
+      preserveDraggedGeometry: true,
+    });
+    expect(plan?.moveStyles).toMatchObject({
+      left: '150px', top: '50px', transform: 'matrix(0, 1, -1, 0, 0, 0)', rotate: '',
+    });
+  });
+
+  it('keeps transformed flow Groups and perspective Group wrappers gated in Layers', () => {
+    const root = node('root', null, { position: 'relative', width: '500px', height: '500px' }, { children: ['flow', 'perspective', 'a'] });
+    const a = node('a', 'root', { position: 'absolute', left: '20px', top: '20px', width: '20px', height: '20px' });
+    const flow = node('flow', 'root', { position: 'relative', width: '100px', height: '80px', transform: 'rotate(10deg)' }, { isGroup: true, children: [] });
+    const perspective = node('perspective', 'root', { position: 'absolute', left: '0px', top: '0px', width: '100px', height: '80px', transform: 'perspective(400px) rotateY(20deg)' }, { isGroup: true, children: [] });
+    const shared = {
+      draggedId: 'a', nodes: new Map([[root.id, root], [a.id, a], [flow.id, flow], [perspective.id, perspective]]),
+      draggedWorld: box(20, 20), newParentWorld: box(0, 0, 100, 80), preserveDraggedGeometry: true,
+    };
+    expect(planNativeGroupLayersReparent({ ...shared, newParentId: 'flow' })).toBeNull();
+    expect(planNativeGroupLayersReparent({ ...shared, newParentId: 'perspective' })).toBeNull();
+  });
 });
 
 });

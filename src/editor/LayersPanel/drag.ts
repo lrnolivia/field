@@ -6,7 +6,8 @@
 import type { MouseEvent as ReactMouseEvent, MutableRefObject } from 'react';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { flushNow, queueMutation } from '@/code/mutation/mutation-queue';
-import { getContentRoot, isPrimaryViewport, findChildRects, findNodeComputedStyle, findNodeComputedStyles, findNodeRect, forceRenderAfterExternalEdit, redirectToFitTextWrapper } from '@/canvas/node-ops';
+import { getContentRoot, getViewportPrefix, isPrimaryViewport, findChildRects, findNodeComputedStyle, findNodeComputedStyles, findNodeRect, forceRenderAfterExternalEdit, redirectToFitTextWrapper } from '@/canvas/node-ops';
+import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { planNativeGroupLayersReparent } from '@/code/groups/group-refit';
 import { computeReorderAssignments, computeReplicaOrderMirrorUpdates, flexForFlowChildEnteringFlex } from '@/canvas/drag/reparent-utils';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
@@ -22,6 +23,27 @@ import { isFrameTag } from '@/shared/constants';
 import { sortChildrenByVisualOrder } from './rows';
 
 export type DropIndicator = { layerId: string; nodeId: string; position: 'before' | 'after' | 'inside'; depth: number };
+
+type LayersWorldCorners = {
+  TL: { x: number; y: number };
+  TR: { x: number; y: number };
+  BR: { x: number; y: number };
+  BL: { x: number; y: number };
+};
+
+function readCachedLayersWorldCorners(nodeId: string, vpId: string): LayersWorldCorners | null {
+  const bridge = getCanvasBridge() as any;
+  if (typeof bridge.getCachedCorners !== 'function') return null;
+  return bridge.getCachedCorners(nodeId, getViewportPrefix(vpId)) ?? null;
+}
+
+function readCachedLayersLocalSize(nodeId: string, vpId: string): { width: number; height: number } | null {
+  const values = findNodeComputedStyles(nodeId, vpId, ['__offsetWidth', '__offsetHeight']);
+  const width = Number.parseFloat(values.__offsetWidth ?? '');
+  const height = Number.parseFloat(values.__offsetHeight ?? '');
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return { width, height };
+}
 
 /** The viewport / variant PREFIX of a layer-row id. Row ids are viewport-prefixed
  *  (`"mobile:hero"`); viewport HEADER rows are `"__vp_mobile"`. Callers need the
@@ -419,6 +441,14 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
         && (!!sourceParentBeforeDrop?.isGroup || !!destinationBeforeDrop?.isGroup);
       const draggedWorldRect = touchesNativeGroup ? findNodeRect(draggedId, dropVpId) : null;
       const destinationWorldRect = touchesNativeGroup ? findNodeRect(finalParentId, dropVpId) : null;
+      // B10: transformed reparent cannot use bounding-rect subtraction. The
+      // measure pass already caches each painted border-box quad plus logical
+      // offsetWidth/offsetHeight, all against the same camera epoch. Capture
+      // those exact values BEFORE mutation; the pure planner inverts the
+      // destination basis and fails closed if required affine truth is cold.
+      const draggedWorldCorners = touchesNativeGroup ? readCachedLayersWorldCorners(draggedId, dropVpId) : null;
+      const destinationWorldCorners = touchesNativeGroup ? readCachedLayersWorldCorners(finalParentId, dropVpId) : null;
+      const destinationLocalSize = touchesNativeGroup ? readCachedLayersLocalSize(finalParentId, dropVpId) : null;
 
       // If the target parent is a flex container OR an auto-placed grid,
       // CSS `order` decides paint order. Plain JSX `reorder`/`move` is
@@ -590,6 +620,9 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
             nodes,
             draggedWorld: { left: draggedWorldRect.left, top: draggedWorldRect.top, width: draggedWorldRect.width, height: draggedWorldRect.height },
             newParentWorld: { left: destinationWorldRect.left, top: destinationWorldRect.top, width: destinationWorldRect.width, height: destinationWorldRect.height },
+            draggedWorldCorners,
+            newParentWorldCorners: destinationWorldCorners,
+            newParentLocalSize: destinationLocalSize,
             // A native Group is an absolute child-space. When LEAVING a Group
             // for an ordinary flex/grid parent, keep the existing layout-entry
             // behavior; otherwise preserve world geometry exactly.
@@ -605,6 +638,9 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
           draggedId, finalParentId, dropVpId,
           hasDraggedRect: !!draggedWorldRect,
           hasDestinationRect: !!destinationWorldRect,
+          hasDraggedCorners: !!draggedWorldCorners,
+          hasDestinationCorners: !!destinationWorldCorners,
+          hasDestinationLocalSize: !!destinationLocalSize,
         });
         return;
       }
