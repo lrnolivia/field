@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planScaledStyles, scalableBoundProperties, unsafeScaleChannelProperties } from '../scale-policy';
+import { planScaledStyles, planScaledSvgShapeAttrs, scaleSvgViewBox, scalableBoundProperties, unsafeScaleChannelProperties } from '../scale-policy';
 
 describe('Scale authored-property policy', () => {
   it('scales geometry, typography, stroke and corner metrics', () => {
@@ -22,6 +22,35 @@ describe('Scale authored-property policy', () => {
       borderWidth: '1px',
       borderRadius: '5px',
     });
+  });
+
+  it('bakes native SVG geometry, stroke metrics and viewBox into source space', () => {
+    const result = planScaledSvgShapeAttrs('rect', {
+      width: '100%',
+      height: '100%',
+      rx: '10',
+      ry: '10',
+      'stroke-width': '2',
+      'stroke-dasharray': '4 2',
+      'stroke-dashoffset': '1',
+    }, 2);
+
+    expect(result.blocked).toEqual([]);
+    expect(result.attrs).toMatchObject({
+      rx: '20',
+      ry: '20',
+      'stroke-width': '4',
+      'stroke-dasharray': '8 4',
+      'stroke-dashoffset': '2',
+    });
+    expect(result.attrs.width).toBeUndefined();
+    expect(result.attrs.height).toBeUndefined();
+    expect(scaleSvgViewBox('0 0 100 50', 2)).toBe('0 0 200 100');
+  });
+
+  it('fails closed for unrepresentable native SVG visual metrics', () => {
+    const result = planScaledSvgShapeAttrs('rect', { 'stroke-width': 'var(--stroke)' }, 2);
+    expect(result.blocked).toContain('stroke-width:variable');
   });
 
   it('preserves relative font-size semantics instead of double-scaling descendants', () => {

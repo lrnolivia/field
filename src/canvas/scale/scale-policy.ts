@@ -3,6 +3,7 @@
 // strings and never mutates shared variables/tokens.
 
 import { formatScaleNumber, formatScalePx } from './scale-math';
+import { scaleShapeGeometry } from '@/shared/svg-geometry';
 
 export type ScaleValueClass =
   | 'zero'
@@ -17,6 +18,12 @@ export type ScaleValueClass =
 
 export interface ScalePolicyResult {
   styles: Record<string, string>;
+  blocked: string[];
+  preserved: string[];
+}
+
+export interface ScaleSvgAttrPolicyResult {
+  attrs: Record<string, string>;
   blocked: string[];
   preserved: string[];
 }
@@ -234,6 +241,76 @@ function scaleDasharray(value: string, factor: number): { value: string; blocked
       return part;
     }).join(''),
   };
+}
+
+
+function readSvgAttr(attrs: Readonly<Record<string, string>>, kebab: string, camel: string): string | undefined {
+  return attrs[kebab] ?? attrs[camel];
+}
+
+function scaleSvgMetric(
+  label: string,
+  value: string,
+  factor: number,
+): { value: string; blocked?: string; preserved?: string } {
+  const cls = classifyScaleValue(value);
+  if (cls === 'zero') return { value: '0' };
+  if (cls === 'number') return { value: formatScaleNumber(Number.parseFloat(value) * factor) };
+  if (cls === 'px') return { value: formatScalePx(Number.parseFloat(value) * factor) };
+  if (cls === 'percentage') return { value, preserved: `${label}:percentage` };
+  return { value, blocked: `${label}:${cls}` };
+}
+
+/**
+ * Bake a native SVG shape's authored coordinate-space metrics for Scale.
+ *
+ * Live Scale preview intentionally leaves these alone: doubling only the outer
+ * viewport already paints the correct proportional preview. On COMMIT we also
+ * multiply the viewBox + inner geometry/metrics by the same factor. That keeps
+ * the viewBox->viewport mapping unchanged while making source values truthful
+ * (e.g. stroke-width 2 -> 4, rect rx 10 -> 20) instead of relying on an
+ * implicit viewport magnification.
+ */
+export function planScaledSvgShapeAttrs(
+  tag: string,
+  attrs: Readonly<Record<string, string>>,
+  factor: number,
+): ScaleSvgAttrPolicyResult {
+  const out: Record<string, string> = {
+    ...scaleShapeGeometry(tag, { ...attrs }, factor, factor),
+  };
+  const blocked: string[] = [];
+  const preserved: string[] = [];
+
+  const scaleMetric = (kebab: string, camel: string) => {
+    const raw = readSvgAttr(attrs, kebab, camel);
+    if (raw == null || raw === '') return;
+    const result = scaleSvgMetric(kebab, raw, factor);
+    if (result.blocked) blocked.push(result.blocked);
+    if (result.preserved) preserved.push(result.preserved);
+    if (!result.blocked && result.value !== raw) out[kebab] = result.value;
+  };
+
+  scaleMetric('stroke-width', 'strokeWidth');
+  scaleMetric('stroke-dashoffset', 'strokeDashoffset');
+
+  const dasharray = readSvgAttr(attrs, 'stroke-dasharray', 'strokeDasharray');
+  if (dasharray != null && dasharray !== '' && dasharray !== 'none') {
+    const result = scaleDasharray(dasharray, factor);
+    if (result.blocked) blocked.push(result.blocked);
+    if (result.preserved) preserved.push(result.preserved);
+    if (!result.blocked && result.value !== dasharray) out['stroke-dasharray'] = result.value;
+  }
+
+  return { attrs: out, blocked, preserved };
+}
+
+/** Multiply all four authored viewBox coordinates by the same Scale factor. */
+export function scaleSvgViewBox(viewBox: string | undefined, factor: number): string | null {
+  if (!viewBox || !Number.isFinite(factor) || factor < 0) return null;
+  const parts = viewBox.trim().split(/[\s,]+/).map(Number);
+  if (parts.length !== 4 || !parts.every(Number.isFinite) || parts[2] <= 0 || parts[3] <= 0) return null;
+  return parts.map((n) => formatScaleNumber(n * factor)).join(' ');
 }
 
 /** Scale a node's authored inline style map. No computed-value flattening. */
