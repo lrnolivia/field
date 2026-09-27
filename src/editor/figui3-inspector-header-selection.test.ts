@@ -29,7 +29,11 @@ describe('FigUI3 inspector header + selection colors contract', () => {
     expect(source).toContain("'See all ' + String(groups.length) + ' colors'");
     expect(source).toContain('if (groups.length <= 1) return null');
     expect(source).toContain('Detach variable in selected scope');
-    expect(source).toContain('Select objects using this color');
+    expect(source).toContain('Locate objects using this color');
+    expect(source).toContain('onMouseEnter={startHover}');
+    expect(source).toContain('onMouseLeave={cancelHover}');
+    expect(source).not.toContain('onFocus={startHover}');
+    expect(source).not.toContain('onBlur={cancelHover}');
     expect(source).toContain('Apply color style');
     expect(source).toContain('<PresetPicker');
     expect(aggregation).toContain('collectSelectionScopeIds');
