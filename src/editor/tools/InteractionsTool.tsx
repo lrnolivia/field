@@ -43,6 +43,7 @@ import ImagePickerInput from '../controls/ImagePickerInput';
 import ToolPopup from '../ui/ToolPopup';
 import { trace } from '@/shared/debug-trace';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 
 const TRIGGER_OPTIONS = [
   { value: 'click', label: 'Click' },
@@ -193,7 +194,7 @@ function ComponentInstanceEventInteractions({ selectedId, componentFile }: { sel
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
         title="Add interaction"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        <FieldGlyph behavior="plus"><FieldMorphGlyph active={addOpen} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
       </button>
       {addOpen && (
         <>
@@ -320,7 +321,7 @@ function ChooseEventSubMenu({ eventVars, onChoose }: { eventVars: ComponentProp[
     <div onMouseEnter={() => setShowSub(true)} onMouseLeave={() => setShowSub(false)}>
       <button ref={btnRef} type="button" className={ADD_ITEM} onClick={() => setShowSub(s => !s)}>
         <span className={ADD_ITEM_LABEL}>Choose Event</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0 ml-2"><polyline points="9 18 15 12 9 6" /></svg>
+        <FieldGlyph behavior="chevron" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] ml-2"><FieldMorphGlyph active={showSub} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={2.5} /></FieldGlyph>
       </button>
       {showSub && createPortal(
         <div style={{ position: 'fixed', left: subPos.x, top: subPos.y, transform: 'translateX(-100%)', zIndex: 9999 }}
@@ -361,9 +362,7 @@ function InteractionAddMenu({ buttonRef, onNewTransition, onNewEvent, eventVars,
     <div className="relative" ref={ref}>
       <button ref={buttonRef} onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]" title="Add interaction">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+        <FieldGlyph behavior="plus"><FieldMorphGlyph active={open} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
       </button>
       {open && (
         <>
@@ -911,10 +910,7 @@ function AddButton({ onClick, buttonRef }: { onClick: () => void; buttonRef: Rea
       className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
       title="Add interaction"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
+      <FieldGlyph behavior="plus"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></FieldGlyph>
     </button>
   );
 }
