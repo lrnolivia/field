@@ -65,6 +65,7 @@ import {
   getTransformedCorners, getBBox, captureElement,
 } from './sandbox/read-handlers';
 import { bakeGroupResize, clearGroupResizeBake, liveRefitGroup } from './sandbox/group-resize';
+import { setSelectionColorLocateHighlight, clearSelectionColorLocateHighlights } from './sandbox/selection-color-locate';
 import {
   removeElement, reparentLive, createPlaceholder, movePlaceholder, patchPlaceholderStyles,
   swapTwoElements, removePlaceholders, getPlaceholderRect, liftNode, restoreNode, commitMergedOrder,
@@ -476,6 +477,8 @@ const api: SandboxApi = {
   patchMultipleStyles,
   previewPatchStyles,
   previewRestoreStyles,
+  setSelectionColorLocateHighlight,
+  clearSelectionColorLocateHighlights,
   injectCSS,
   removeCSS,
   setThemeMode(mode: 'light' | 'dark'): void {
