@@ -69,12 +69,27 @@ import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, 
 // settings section; the SettingsOverlay renders whatever is registered.
 if (CLOUD_ENABLED) initCloudPlugin();
 
-export default function App() {
+interface AppProps {
+  onCanvasFirstPaint?: () => void;
+  interactive?: boolean;
+}
+
+export default function App({ onCanvasFirstPaint, interactive = true }: AppProps = {}) {
+  const editorRootRef = useRef<HTMLDivElement>(null);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const cameraInsets = workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+
+  useEffect(() => {
+    const root = editorRootRef.current;
+    if (!root) return;
+    if (interactive) root.removeAttribute('inert');
+    else root.setAttribute('inert', '');
+    return () => root.removeAttribute('inert');
+  }, [interactive]);
+
   useEffect(() => {
     setCanvasInsets(cameraInsets);
     const previous = previousInsets.current;
@@ -209,7 +224,12 @@ export default function App() {
 
   return (
     <CollaborationProvider>
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}>
+    <div
+      ref={editorRootRef}
+      aria-busy={!interactive ? true : undefined}
+      data-editor-interactive={interactive ? 'true' : 'false'}
+      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}
+    >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <ChromeIslands />
@@ -262,7 +282,7 @@ export default function App() {
           restore marginLeft 296 here and -12 on the right-sidebar shells
           (the 12px = the cut-notch underlap). */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative', marginLeft: 0 }}>
-        <Canvas />
+        <Canvas onFirstCanvasPaint={onCanvasFirstPaint} />
         {/* Right panel: PropertiesPanel by default, swap for the
             project-wide comments list while comment mode is active.
             Both panel modes are 260 px wide. Viewer read-only handling lives inside
