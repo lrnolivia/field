@@ -99,15 +99,15 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
 
   return (
     <>
-      <div className="space-y-4 p-3">
+      <section className="space-y-4 p-3" aria-labelledby="gallery-creation-title">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</div>
-          <div className="text-[10px] tabular-nums text-[var(--text-disabled)]">
+          <h3 id="gallery-creation-title" className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</h3>
+          <div className="text-[10px] tabular-nums text-[var(--text-disabled)]" aria-live="polite">
             Step {stepIndex + 1} / {STEPS.length}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-3 gap-1" role="navigation" aria-label="Gallery creation steps">
           {STEPS.map((entry, index) => (
             <button
               key={entry.id}
@@ -142,9 +142,9 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                 Select at least one image to continue.
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-1" role="list" aria-label="Selected Gallery media">
                 {mediaUrls.map((url, index) => (
-                  <div key={url} className="flex h-9 items-center gap-2 border border-[var(--control-border)] px-2">
+                  <div key={url} role="listitem" className="flex h-9 items-center gap-2 border border-[var(--control-border)] px-2">
                     <img src={url} alt="" draggable={false} className="h-6 w-6 object-cover" />
                     <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">{url.split('/').pop() || 'Image'}</span>
                     <button
@@ -268,7 +268,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       <ImageSearchModal
         isOpen={pickerOpen}
