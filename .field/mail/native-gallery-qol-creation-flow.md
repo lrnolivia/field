@@ -379,3 +379,36 @@ Product discipline:
 - this pass preserved compact Figma-class desktop-tool density rather than inflating every target to mobile-style 44px
 - 24px was treated as the WCAG minimum for compact icon controls; 44px remains a recommendation for touch-heavy contexts, not a reason to turn field into tablet UI
 - no generic SaaS cards, decorative gradients, glass, oversized radii, or redundant onboarding chrome were added
+
+
+## 2026-09-26 UI/UX + UIAudit pass — Reposition overlay
+
+Implementation commits:
+- 7d8f03b02edff06266eb29112c6a134ec8c8adb8 — Harden Gallery Reposition controls
+- 539ce12b9a6369e80618fda28c0e2e68b7d3bff0 — Trap Gallery Reposition keyboard focus
+
+Verified interaction defect fixed:
+- prior global Enter handling committed Reposition even when a toolbar button had keyboard focus
+- pressing Enter to activate Reset or a rotate control could therefore save/close before the intended button action
+- Enter now commits only when focus is not on an interactive descendant
+- overlay keyboard treatment shortcuts also ignore child-control key events
+
+Accessibility / interaction hardening:
+- Reposition dialog is linked to complete screen-reader instructions
+- toolbar controls now meet the 24px compact-control minimum target
+- toolbar controls have explicit focus-visible states and titles
+- visible Cancel was added alongside Done; Escape still cancels
+- Reposition is marked modal and Tab / Shift+Tab are contained inside the exclusive edit surface
+- focus wraps deterministically between the overlay and enabled toolbar controls, preventing keyboard interaction from leaking into the underlying editor mid-edit
+
+Visual / implementation hardening:
+- visible help was shortened to the essential pointer/keyboard cues
+- hard-coded rgba center-marker / shadow chrome was replaced with field tokens and color-mix
+- arbitrary local toolbar radius was removed
+- toolbar shadow uses the shared shadow token
+- no Gallery treatment/source semantics changed; this is interaction/UI hardening only
+
+Performance note:
+- the overlay continues to poll bridge.getRect on requestAnimationFrame while Reposition is active
+- this was not changed during UI audit because it intentionally tracks canvas pan/zoom/reflow and the bridge returns the canvas rect seam; no verified event/subscription replacement was established
+- do not remove or throttle it speculatively without parity evidence

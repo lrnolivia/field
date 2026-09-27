@@ -381,3 +381,48 @@ Build signal:
 - 2e5e527fbf50 had no check-run yet on the first post-publication read
 - exact repo dependency-tree Vitest / TypeScript / build:all remain unverified in this environment
 - live contrast, dark theme, narrow Inspector, 200% zoom, screen-reader, and runtime keyboard QA remain pending
+
+
+### Cloudflare follow-up for wizard semantics 2e5e527fbf50
+
+- Workers Builds check 108527117930 completed with failure and zero annotations
+- classification: established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Gallery wizard semantic regression
+- exact dependency-tree Vitest / TypeScript / build:all remain unverified
+
+
+## 2026-09-26 source-level UIAudit — Reposition overlay
+
+Initial verified findings:
+- P1 Accessibility / Interaction Integrity: global Enter committed the edit even when a toolbar button had focus, conflicting with keyboard activation of Reset / rotate controls
+- P1 Accessibility: exclusive Reposition mode did not contain Tab focus, allowing focus to escape into the underlying editor while the mode remained active
+- P2 Accessibility: toolbar action targets were below the 24px WCAG 2.2 minimum target
+- P2 Accessibility / UX: Cancel existed only as Escape; no visible cancel action or linked complete keyboard instructions
+- P3 Theming / Integrity: center marker and toolbar shadow used hard-coded rgba chrome and a local arbitrary radius
+
+Fix commit 7d8f03b02edf:
+- exact scope: src/editor/gallery/GalleryCropOverlay.tsx only; 30 additions / 12 deletions
+- guarded Enter from interactive descendants
+- guarded overlay treatment shortcuts from child-control events
+- added aria-describedby instructions
+- added visible Cancel
+- raised five toolbar actions to h-6 / min-w-6
+- added focus-visible states and explicit titles
+- replaced hard-coded rgba chrome with field tokens / color-mix
+- removed local toolbar radius and used shared shadow token
+- Workers Builds check 108528117951 completed failure with zero annotations
+- classification: established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Reposition product failure
+
+Focus-containment follow-up 539ce12b9a63:
+- exact scope: src/editor/gallery/GalleryCropOverlay.tsx only; 22 additions / 0 deletions
+- aria-modal=true
+- Tab and Shift+Tab cycle within overlay + enabled controls
+- forward/backward wrapping is explicit
+- existing Escape cancel and guarded Enter commit semantics remain intact
+- Draft PR #3 is open/draft and points to this SHA
+- no Workers check existed on the first post-publication read
+
+UIAudit score remains 17 / 20 — Good:
+- Accessibility remains 3/4 because runtime screen-reader behavior, real focus traversal, contrast, and end-to-end keyboard behavior still require live testing even though the verified source defects above are fixed
+- Performance remains 4/4 at source level; the active-only rect polling is deliberate and not a verified thrash defect
+- Responsive 3/4 and Theming 3/4 remain limited by unavailable live rendering / token contrast verification
+- Implementation Integrity remains 4/4
