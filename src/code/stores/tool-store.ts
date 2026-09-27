@@ -6,7 +6,7 @@ import { atom } from 'jotai';
 import { trace } from '@/shared/debug-trace';
 
 export type ToolMode = 'select' | 'scale' | 'frame' | 'text' | 'hand'
-  | 'shape-rect' | 'shape-ellipse' | 'shape-triangle' | 'shape-path'
+  | 'shape-rect' | 'shape-line' | 'shape-ellipse' | 'shape-triangle' | 'shape-path'
   | 'layout-rows' | 'layout-columns' | 'layout-grids'
   | 'sketch';
 
@@ -23,7 +23,7 @@ export function isLayoutMode(mode: ToolMode): boolean {
 /** Tool modes that CREATE nodes (frame / text / layout / shape / sketch). */
 export const CREATOR_TOOL_MODES: ReadonlySet<string> = new Set([
   'frame', 'text', 'layout-rows', 'layout-columns', 'layout-grids',
-  'shape-rect', 'shape-ellipse', 'shape-triangle', 'shape-path', 'sketch',
+  'shape-rect', 'shape-line', 'shape-ellipse', 'shape-triangle', 'shape-path', 'sketch',
 ]);
 export function isCreatorToolMode(mode: string): boolean { return CREATOR_TOOL_MODES.has(mode); }
 
