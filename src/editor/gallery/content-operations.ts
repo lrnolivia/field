@@ -1,5 +1,11 @@
 import { buildGalleryItemNode, type GallerySourceNode } from '@/code/gallery/gallery-model';
+import {
+  galleryMediaTreatmentPatch,
+  parseGalleryRotation,
+  parseGalleryZoom,
+} from '@/code/gallery/gallery-media-treatment';
 import type { GalleryViewId } from '@/code/gallery/gallery-views';
+import type { GalleryFrameSizing } from '@/code/gallery/gallery-frame-sizing';
 
 export interface GalleryContentOperationItem {
   itemId: string;
@@ -8,6 +14,9 @@ export interface GalleryContentOperationItem {
   alt: string;
   objectFit: string;
   objectPosition: string;
+  zoom: string;
+  rotation: string;
+  sourceRatio: string;
 }
 
 /** Return the adjacent real Gallery item for a precise one-step reorder. */
@@ -34,14 +43,29 @@ export function buildGalleryDuplicateItemNode(
   item: GalleryContentOperationItem,
   insertIndex: number,
   view: GalleryViewId,
+  naturalSeed = 0,
+  frameSizing: GalleryFrameSizing = 'composed',
 ): GallerySourceNode {
-  const duplicate = buildGalleryItemNode(item.src, insertIndex, view, item.alt);
+  const sourceRatio = Number.parseFloat(item.sourceRatio);
+  const duplicate = buildGalleryItemNode(
+    item.src,
+    insertIndex,
+    view,
+    item.alt,
+    naturalSeed,
+    frameSizing,
+    Number.isFinite(sourceRatio) && sourceRatio > 0 ? sourceRatio : null,
+  );
   const image = duplicate.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
   if (image) {
     image.styles = {
       ...image.styles,
       objectFit: item.objectFit || 'cover',
-      objectPosition: item.objectPosition || '50% 50%',
+      ...galleryMediaTreatmentPatch(
+        item.objectPosition || '50% 50%',
+        parseGalleryZoom(item.zoom),
+        parseGalleryRotation(item.rotation),
+      ),
     };
   }
   return duplicate;

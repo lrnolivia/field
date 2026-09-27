@@ -31,6 +31,17 @@ describe('Gallery Media-panel insertion', () => {
       .toEqual(['https://cdn.example.com/site/images/same.webp']);
   });
 
+  it('carries intrinsic ratios for direct drop into an existing Gallery', () => {
+    const item = buildGalleryMediaToolbarItem([
+      { url: '/wide.jpg', sourceRatio: 2 },
+      { url: '/portrait.jpg', sourceRatio: 0.75 },
+    ]);
+    expect(item.galleryMedia).toEqual([
+      { url: '/wide.jpg', sourceRatio: 2 },
+      { url: '/portrait.jpg', sourceRatio: 0.75 },
+    ]);
+  });
+
   it('builds a native Grid Gallery through canonical source descriptors', () => {
     const item = buildGalleryMediaToolbarItem(['/a.jpg', '/b.jpg']);
     expect(item).toMatchObject({
@@ -41,6 +52,10 @@ describe('Gallery Media-panel insertion', () => {
       ghostSize: { width: 360, height: 220 },
     });
     expect(item.defaultStyles[GALLERY_VIEW_STYLE_PROPERTY]).toBe('grid');
+    expect(item.galleryMedia).toEqual([
+      { url: '/a.jpg', sourceRatio: null },
+      { url: '/b.jpg', sourceRatio: null },
+    ]);
     expect(item.defaultStyles).not.toHaveProperty('minHeight');
 
     const children = item.children?.() ?? [];

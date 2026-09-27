@@ -7,7 +7,10 @@ import { deriveUploadKey } from '@/editor/left-toolbar/panels/media-gallery-util
 export interface GalleryMediaAsset {
   url: string;
   key?: string;
+  sourceRatio?: number | null;
 }
+
+export type GalleryMediaToolbarAsset = string | GalleryMediaAsset;
 
 /**
  * Resolve the user's Media-panel selection against the visible upload order.
@@ -47,8 +50,15 @@ function sourceNodeToDescriptor(node: GallerySourceNode): NewNodeDescriptor {
  * drop coordinator owns placement/source mutation exactly as it does for an
  * Insert-panel Gallery; this helper only supplies the pre-populated descriptor.
  */
-export function buildGalleryMediaToolbarItem(urls: readonly string[]): ToolbarItem {
-  const media = urls.filter((url) => url.trim().length > 0);
+export function buildGalleryMediaToolbarItem(assets: readonly GalleryMediaToolbarAsset[]): ToolbarItem {
+  const seen = new Set<string>();
+  const media = assets.flatMap((asset) => {
+    const entry = typeof asset === 'string' ? { url: asset } : asset;
+    const url = entry.url.trim();
+    if (!url || seen.has(url)) return [];
+    seen.add(url);
+    return [{ url, sourceRatio: entry.sourceRatio ?? null }];
+  });
   return {
     id: 'media-selection-gallery',
     elementType: 'div',
@@ -56,7 +66,10 @@ export function buildGalleryMediaToolbarItem(urls: readonly string[]): ToolbarIt
     // No empty-Gallery minHeight here: this Gallery already has real children.
     defaultStyles: getGalleryRootPatch('grid'),
     defaultAttrs: galleryRootAttrs('grid'),
-    children: () => media.map((url, index) => sourceNodeToDescriptor(buildGalleryItemNode(url, index, 'grid'))),
+    children: () => media.map((asset, index) => sourceNodeToDescriptor(
+      buildGalleryItemNode(asset.url, index, 'grid'),
+    )),
     ghostSize: { width: 360, height: 220 },
+    galleryMedia: media,
   };
 }

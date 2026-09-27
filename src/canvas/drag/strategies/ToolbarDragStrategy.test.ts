@@ -1,5 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
-import { ToolbarDragStrategy } from './ToolbarDragStrategy';
+import { resolveGalleryDropRoot, ToolbarDragStrategy } from './ToolbarDragStrategy';
+import type { CanvasNode } from '@/code/parsing/parser';
 import type { ToolbarItem } from '../toolbar-item-config';
 import type { DragContext } from '../types';
 
@@ -26,6 +27,57 @@ const makeContext = (overrides: Partial<DragContext> = {}): DragContext => ({
 });
 
 describe('ToolbarDragStrategy', () => {
+  it('resolves nested Gallery hits to the existing Gallery root', () => {
+    const nodes = new Map<string, CanvasNode>([
+      ['gallery', {
+        id: 'gallery',
+        type: 'div',
+        name: 'Gallery',
+        parentId: null,
+        children: ['item'],
+        styles: { '--field-gallery-view': 'grid' },
+        attrs: {},
+      } as CanvasNode],
+      ['item', {
+        id: 'item',
+        type: 'figure',
+        name: 'Gallery Item',
+        parentId: 'gallery',
+        children: ['image'],
+        styles: { '--field-gallery-item': '1' },
+        attrs: {},
+      } as CanvasNode],
+      ['image', {
+        id: 'image',
+        type: 'img',
+        name: 'Gallery Image',
+        parentId: 'item',
+        children: [],
+        styles: {},
+        attrs: { src: '/a.jpg' },
+      } as CanvasNode],
+    ]);
+
+    expect(resolveGalleryDropRoot(['image'], nodes)?.id).toBe('gallery');
+    expect(resolveGalleryDropRoot(['item'], nodes)?.id).toBe('gallery');
+    expect(resolveGalleryDropRoot(['gallery'], nodes)?.id).toBe('gallery');
+  });
+
+  it('leaves unrelated toolbar targets on the generic drop path', () => {
+    const nodes = new Map<string, CanvasNode>([
+      ['frame', {
+        id: 'frame',
+        type: 'div',
+        name: 'Frame',
+        parentId: null,
+        children: [],
+        styles: {},
+        attrs: {},
+      } as CanvasNode],
+    ]);
+    expect(resolveGalleryDropRoot(['frame'], nodes)).toBeNull();
+  });
+
   it('canHandle always returns false', () => {
     const strategy = new ToolbarDragStrategy();
     expect(strategy.canHandle()).toBe(false);

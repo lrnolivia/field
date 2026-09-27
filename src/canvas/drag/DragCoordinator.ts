@@ -21,6 +21,7 @@ import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 import { beginOverlayFollow, updateOverlayFollow, endOverlayFollow } from './overlay-follow';
 import { CanvasDragStrategy } from './strategies/CanvasDragStrategy';
 import { LayoutLiftedStrategy } from './strategies/LayoutLiftedStrategy';
+import { GalleryDragStrategy } from './strategies/GalleryDragStrategy';
 import { GridDragStrategy } from './strategies/GridDragStrategy';
 import { OverlayDragStrategy as OverlayDragStrategyInstance } from './strategies/OverlayDragStrategy';
 import { AbsoluteInFrameStrategy } from './strategies/AbsoluteInFrameStrategy';
@@ -153,13 +154,14 @@ export class DragCoordinator {
 
   // Available strategies (checked in order — first canHandle() wins)
   // Order matters: more specific strategies first, canvas drag is the fallback.
-  // GridDragStrategy sits BEFORE LayoutLiftedStrategy because the latter
-  // hard-bails on grid parents now — without this ordering, a grid child
-  // would fall through to AbsoluteInFrameStrategy / CanvasDragStrategy
-  // and lose its cell-aware swap behavior.
+  // GalleryDragStrategy sits BEFORE the generic Grid/Flex strategies:
+  // Gallery is a semantic primitive whose media drag is identity-swap across
+  // every view, not generic insert-and-shift layout reordering.
+  // GridDragStrategy still sits BEFORE LayoutLiftedStrategy for ordinary grids.
   private strategies: DragStrategy[] = [
     OverlayDragStrategyInstance,      // overlay nodes → offset from trigger, no drop targets
-    new GridDragStrategy(),           // grid children → cell-aware swap (explicit) or reorder (auto-flow)
+    new GalleryDragStrategy(),        // Gallery media/item → exact identity swap in all five views
+    new GridDragStrategy(),           // ordinary grid children → cell-aware swap/reorder
     new LayoutLiftedStrategy(),       // flex/block children → lift + placeholder + order-based reorder
     new AbsoluteInFrameStrategy(),    // absolute children inside a frame → position relative to parent
     new CanvasDragStrategy(),         // fallback — absolute on canvas root

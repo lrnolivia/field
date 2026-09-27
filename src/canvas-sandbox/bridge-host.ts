@@ -340,6 +340,10 @@ export class PostMessageBridge implements CanvasBridge {
     this.remote?.reparentLive(nodeId, vpPrefix, newParentId, index, styles);
   }
 
+  scrollElementBy(nodeId: string, vpPrefix: string, dx: number, dy: number): void {
+    this.remote?.scrollElementBy(nodeId, vpPrefix, dx, dy);
+  }
+
   /** Fire-and-forget batch style patch. */
   patchMultipleStyles(updates: Array<{ nodeId: string; vpPrefix: string; styles: Record<string, string>; important: boolean }>): void {
     this.remote?.patchMultipleStyles(updates as PatchUpdate[]);
