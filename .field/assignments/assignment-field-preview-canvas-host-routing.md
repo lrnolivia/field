@@ -14,9 +14,18 @@ owned:
   - cloudflare/worker.js
   - cloudflare/field-persistence.test.ts
   - .field/handoff-kit/qa/BROWSER_PREVIEW_QA_PROTOCOL.md
+  - src/canvas-sandbox/origin.ts
+  - src/canvas-sandbox/origin.test.ts
+  - src/canvas-sandbox/protocol.ts
 approved_shared: []
 protected:
-  - src/**
+  - src/canvas/**
+  - src/editor/**
+  - src/backend/**
+  - src/dashboard/**
+  - src/code/**
+  - src/preview-sandbox/**
+  - src/design-system/**
   - wrangler.jsonc
   - package.json
   - package-lock.json
@@ -94,3 +103,9 @@ Make the smallest deterministic routing repair.
 - Activated from exact main 0c71cab5cdab71e651e08e9c35a3a79202eeac35.
 - Repair branch: field/field-preview-canvas-host-routing.
 - Implementation is limited to the three owned paths.
+
+## 2026-09-27 root-cause expansion
+
+Live QA proved the Worker route alone was insufficient. The editor constructs Canvas from `SANDBOX_ORIGIN` in `src/canvas-sandbox/protocol.ts` as `canvas.${window.location.hostname}`, which turns a branch editor host into an unreachable two-level hostname such as `canvas.<branch>.field-preview.loew.fi`.
+
+This assignment therefore also owns the minimal deterministic origin resolver and focused regression test. No active worker owns these paths.
