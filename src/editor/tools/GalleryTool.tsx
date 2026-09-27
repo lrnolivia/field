@@ -19,6 +19,7 @@ import {
 import { useNodesComputed } from '@/code/stores/node-family';
 import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
+import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
 import {
   buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
@@ -524,45 +525,49 @@ function GalleryToolInner() {
     if (!target || !url) return;
 
     const stateAtStart = galleryStateRef.current;
-    const shouldRefreshRatio = frameSizing === 'source' || parseGallerySourceRatio(target.sourceRatio) !== null;
+    const shouldRefreshRatio = galleryReplacementNeedsSourceRatio(frameSizing, target.sourceRatio);
     const measuredRatio = shouldRefreshRatio ? await measureGallerySourceRatio(url) : null;
     if (galleryStateRef.current !== stateAtStart) return;
 
-    bridge.setAttribute(target.imageId, prefix, 'src', url);
+    const targetIndex = items.findIndex((item) => item.itemId === itemId);
+    if (targetIndex < 0) return;
+    const plan = buildGalleryReplacementPlan({
+      src: url,
+      view: currentView,
+      index: targetIndex,
+      naturalSeed,
+      frameSizing,
+      currentSourceRatio: target.sourceRatio,
+      measuredSourceRatio: measuredRatio,
+    });
+
+    bridge.setAttribute(target.imageId, prefix, 'src', plan.imageAttrs.src);
     const mutations: Mutation[] = [
-      { type: 'updateHtmlAttrs', nodeId: target.imageId, attrs: { src: url } },
+      { type: 'updateHtmlAttrs', nodeId: target.imageId, attrs: plan.imageAttrs },
     ];
 
-    if (shouldRefreshRatio) {
-      const ratio = frameSizing === 'source'
-        ? normalizeGallerySourceRatio(measuredRatio)
-        : parseGallerySourceRatio(measuredRatio);
-      const ratioPatch = ratio === null
-        ? { [GALLERY_SOURCE_RATIO_STYLE_PROPERTY]: '' }
-        : gallerySourceRatioPatch(ratio);
-      const targetIndex = items.findIndex((item) => item.itemId === itemId);
-      const framePatch = frameSizing === 'source' && targetIndex >= 0
-        ? getGalleryFrameSizingItemPatch(currentView, targetIndex, naturalSeed, frameSizing, ratio ?? 1)
-        : {};
-      const itemPatch = { ...framePatch, ...ratioPatch };
-      bridge.patchStyles(target.itemId, prefix, itemPatch);
-      mutations.push({ type: 'updateStyles', nodeId: target.itemId, styles: itemPatch });
-      mutations.push(...clearResponsivePatchMutations(target.itemId, itemPatch, responsiveOverrides));
+    if (Object.keys(plan.itemPatch).length > 0) {
+      bridge.patchStyles(target.itemId, prefix, plan.itemPatch);
+      mutations.push({ type: 'updateStyles', nodeId: target.itemId, styles: plan.itemPatch });
+      mutations.push(...clearResponsivePatchMutations(target.itemId, plan.itemPatch, responsiveOverrides));
+    }
 
-      if (frameSizing === 'source') {
-        const imagePatch = getGalleryFrameSizingImagePatch(currentView, frameSizing, ratio ?? 1);
-        if (Object.keys(imagePatch).length > 0) {
-          bridge.patchStyles(target.imageId, prefix, imagePatch);
-          mutations.push({ type: 'updateStyles', nodeId: target.imageId, styles: imagePatch });
-          mutations.push(...clearResponsivePatchMutations(target.imageId, imagePatch, responsiveOverrides));
-        }
-      }
+    if (Object.keys(plan.imagePatch).length > 0) {
+      bridge.patchStyles(target.imageId, prefix, plan.imagePatch);
+      mutations.push({ type: 'updateStyles', nodeId: target.imageId, styles: plan.imagePatch });
+      mutations.push(...clearResponsivePatchMutations(target.imageId, plan.imagePatch, responsiveOverrides));
     }
 
     queueMutations(mutations);
     flushNow();
     setReplaceItemId(null);
-    trace.action('gallery:replace-media', { nodeId: galleryId, itemId, frameSizing, ratioMeasured: measuredRatio !== null });
+    trace.action('gallery:replace-media', {
+      nodeId: galleryId,
+      itemId,
+      frameSizing,
+      ratioMeasured: measuredRatio !== null,
+      treatmentPreserved: true,
+    });
   }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
 
   const duplicateItem = useCallback((itemId: string) => {
