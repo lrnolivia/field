@@ -58,8 +58,10 @@ for phrase in [
 legacy = (ROOT / "templates/assignment.md").read_text()
 assert "DEPRECATED" in legacy
 
-firecrawl = (ROOT / "qa/FIRECRAWL_QA_PROTOCOL.md").read_text()
-assert "Do not use production" in firecrawl
-assert "BLOCKED/UNVERIFIED — HARNESS" in firecrawl
+browser_preview = (ROOT / "qa/BROWSER_PREVIEW_QA_PROTOCOL.md").read_text()
+assert "Do not use production" in browser_preview
+assert "exact PR head SHA" in browser_preview
+assert "browser-driven QA" in browser_preview
+assert "BLOCKED/UNVERIFIED — HARNESS" in browser_preview
 
 print("Contract Worker v2 regression tests: PASS")

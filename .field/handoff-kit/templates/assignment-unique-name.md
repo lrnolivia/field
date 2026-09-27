@@ -7,7 +7,7 @@ status: active
 branch: field/<unique-name>
 pr: null
 base: <main-sha>
-kit: 2026-09-26.3
+kit: 2026-09-26.4
 type: handoff | plan-to-action | repair | follow-up | qa-closeout
 execution_class: contract-worker
 owned:
@@ -17,7 +17,7 @@ approved_shared:
 protected:
   - <path>
 qa:
-  firecrawl: true | false
+  browser_preview: true | false
   authenticated: true | false
 ---
 
@@ -89,7 +89,9 @@ Protected:
 ## Runtime QA
 
 Primary evidence:
-- <environment-specific evidence>
+- exact PR head SHA
+- live branch Preview URL
+- browser-driven acceptance actions and resulting evidence
 
 Secondary evidence:
 - <supporting evidence>
