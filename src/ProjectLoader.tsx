@@ -553,28 +553,20 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // to show behind it — the previewed template inside the builder when the
   // snapshot loaded, the ordinary loading shell when it didn't (share links).
   // The picker performs the remix + redirect itself.
-  if (!ready) {
-    return (
-      <BuilderLoadingShell
-        status={loadError ? "Project couldn't open" : 'Opening project'}
-        detail={loadError ? 'field could not finish loading this project.' : undefined}
-        recoverable={!!loadError}
-      />
-    );
-  }
-
   // Keep the shell OVERLAID on the mounted App until the canvas has actually
   // painted (first Renderer render-complete) — dropping it at `ready` showed
   // an empty canvas for ~300ms while the sandbox rendered the viewports. The
   // shell fades out over the fully-drawn page instead.
   return (
     <>
-      <App
+      {ready && <App
         interactive={editorInteractive}
         onCanvasFirstPaint={() => setCanvasPainted(true)}
-      />
+      />}
       <CanvasReadyShellOverlay
-        painted={canvasPainted}
+        hydrated={ready}
+        loadError={loadError}
+        painted={ready && canvasPainted}
         onReady={() => {
           setEditorInteractive(true);
           onCanvasReady?.();
@@ -589,9 +581,13 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
 }
 
 function CanvasReadyShellOverlay({
+  hydrated,
+  loadError,
   painted,
   onReady,
 }: {
+  hydrated: boolean;
+  loadError: string | null;
   painted: boolean;
   onReady?: () => void;
 }) {
@@ -615,12 +611,13 @@ function CanvasReadyShellOverlay({
       const timer = window.setTimeout(() => setPhase('exit'), wait);
       return () => window.clearTimeout(timer);
     }
+    if (!hydrated || loadError) return;
     const timer = window.setTimeout(() => {
       setDelayed(true);
       trace.action('project-loader:canvas-delayed', {});
     }, 4000);
     return () => window.clearTimeout(timer);
-  }, [painted, phase]);
+  }, [hydrated, loadError, painted, phase]);
 
   useEffect(() => {
     if (phase !== 'exit') return;
@@ -639,9 +636,9 @@ function CanvasReadyShellOverlay({
       pointerEvents: phase === 'exit' ? 'none' : 'auto',
     }}>
       <BuilderLoadingShell
-        status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
-        detail={delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
-        recoverable={delayed}
+        status={loadError ? "Project couldn't open" : !hydrated ? 'Opening project' : delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
+        detail={loadError ? 'field could not finish loading this project.' : delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
+        recoverable={!!loadError || delayed}
       />
     </div>
   );
