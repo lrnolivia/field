@@ -33,6 +33,7 @@ import { captureVisualRect } from '@/canvas/visual-rect';
 import { needsSizeCompensation, sizeInputWrite } from '@/canvas/resize/size-input-compensation';
 import { trace } from '@/shared/debug-trace';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
+import { commitNativeGroupInspectorResize } from '@/canvas/resize/native-group-resize-runtime';
 
 // ─── Unit parsing ───────────────────────────────────────────────────────────
 
@@ -449,6 +450,7 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
     onUpdateMultipleProp(updates);
   }, [isFitInnerRedirect, nodeIdProp, onUpdateMultipleProp]);
   const isTopLevel = !!(node?.isCanvasNode) || !node?.parentId;
+  const isNativeGroup = !isFitInnerRedirect && node?.isGroup === true;
   const isInteracting = useAtomValue(canvasInteractingAtom);
   const inset = useMemo(() => getInsetState(styles), [styles]);
   const isFitSvgWrapper = nodeId.endsWith('-svg') && styles.height === 'auto' && styles.width;
@@ -465,7 +467,7 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
   // existing CSS overflow implementation underneath, but stop hiding this
   // common frame behavior in Advanced. Scroll/axis-specific overflow can
   // still be refined in Advanced when needed.
-  const showClipContent = !!node && isFrameTag(node.type) && !isViewportFrame && !isFitInnerRedirect;
+  const showClipContent = !!node && !isNativeGroup && isFrameTag(node.type) && !isViewportFrame && !isFitInnerRedirect;
   const viewportsConfig = useAtomValue(viewportsConfigAtom);
   const activeComponentVariant = useAtomValue(activeComponentVariantAtom);
 
@@ -917,6 +919,7 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
   );
 
   const widthUnitOptions = useMemo(() => {
+    if (isNativeGroup) return [{ value: 'px', label: 'px' }];
     if (pxOnly) return UNIT_OPTIONS.map(o => o.value === 'px' ? o : { ...o, disabled: true });
     // VECTOR SET: a viewport unit or a flex fill sizes ONE axis from outside
     // and breaks the ratio the two dimensions share (choosing `vw` produced a
@@ -934,9 +937,10 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
     }
     if (!widthCanFill) return disableAutoForCode(UNIT_OPTIONS);
     return disableAutoForCode([...UNIT_OPTIONS, { value: 'fill', label: 'fill' }]);
-  }, [widthCanFill, isTopLevel, pxOnly, disableAutoForCode, isFitSvgWrapper, isIconSetInstance]);
+  }, [widthCanFill, isTopLevel, pxOnly, disableAutoForCode, isFitSvgWrapper, isIconSetInstance, isNativeGroup]);
 
   const heightUnitOptions = useMemo(() => {
+    if (isNativeGroup) return [{ value: 'px', label: 'px' }];
     if (pxOnly) return UNIT_OPTIONS.map(o => o.value === 'px' ? o : { ...o, disabled: true });
     // VECTOR SET: a viewport unit or a flex fill sizes ONE axis from outside
     // and breaks the ratio the two dimensions share (choosing `vw` produced a
@@ -950,7 +954,7 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
     }
     if (!heightCanFill) return disableAutoForCode(UNIT_OPTIONS);
     return disableAutoForCode([...UNIT_OPTIONS, { value: 'fill', label: 'fill' }]);
-  }, [heightCanFill, isTopLevel, pxOnly, disableAutoForCode, isIconSetInstance]);
+  }, [heightCanFill, isTopLevel, pxOnly, disableAutoForCode, isIconSetInstance, isNativeGroup]);
 
   // Min/max width/height accept ONLY Fixed (px) or % — auto/vw/vh don't apply as a
   // constraint (clearing a min/max = REMOVE the row via its ×, not an "auto" unit).
@@ -1014,7 +1018,8 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
   // active on either axis (width = `calc(100% - L - R)` would conflict
   // with the ratio — user should clear the pin first).
   const shouldShowAspectLock =
-    !isViewportFrame
+    !isNativeGroup
+    && !isViewportFrame
     && !isFitSvgWrapper
     && !isWidthFill
     && !isHeightFill
@@ -1121,6 +1126,13 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
   }, [transformedSizeWrite, updateStyleLive, isVectorSet, vectorVariantNatural, setLiveSize]);
 
   const handleWidthChange = useCallback((v: string) => {
+    if (isNativeGroup) {
+      const nextWidth = Number.parseFloat(v);
+      if (Number.isFinite(nextWidth) && nextWidth > 0) {
+        commitNativeGroupInspectorResize({ groupId: nodeId, vpId, nextWidth });
+      }
+      return;
+    }
     // VECTOR SET — the two dimensions are ONE number: a vector has a single
     // aspect, so typing either field writes BOTH as definite px through the
     // variant's ratio. Definite px is what the live-component pipeline is built
@@ -1195,7 +1207,7 @@ if (heightIsAuto) {
       if (compensated) onUpdateMultiple(compensated);
       else onUpdate('width', clampNonNegative(v));
     }
-  }, [isWidthFill, inset, styles, nodeId, computed.parentWidth, computed.width, aspectRatioNum, onUpdate, onUpdateMultiple, transformedSizeWrite, isVectorSet, vectorVariantNatural, vectorFitDim]);
+  }, [isNativeGroup, vpId, isWidthFill, inset, styles, nodeId, computed.parentWidth, computed.width, aspectRatioNum, onUpdate, onUpdateMultiple, transformedSizeWrite, isVectorSet, vectorVariantNatural, vectorFitDim]);
 
   // Shared trigger for the "switch to auto on a no-layout frame" case.
   // Called from both width AND height unit-change handlers BEFORE writing
@@ -1206,11 +1218,12 @@ if (heightIsAuto) {
   // helper LayoutTool's `+` button uses, so the resulting layout is
   // identical regardless of which entry point the user took.
   const maybeInjectLayoutForAuto = useCallback(() => {
+    if (isNativeGroup) return;
     const nodes = getNodesSnapshot();
     const selfNode = nodes.get(nodeId);
     if (!shouldInjectLayoutOnAuto(selfNode, styles.display ?? '')) return;
     injectFlexLayoutOnFrame(nodeId, nodes, vpId);
-  }, [nodeId, styles.display, vpId]);
+  }, [nodeId, styles.display, vpId, isNativeGroup]);
 
   // Auto on an ALREADY-laid-out frame: injection never runs, so children
   // sized in % (or FILL grow on this frame's own main axis) make the axis
@@ -1222,6 +1235,7 @@ if (heightIsAuto) {
   }, [nodeId, vpId]);
 
   const handleWidthUnitChange = useCallback((fromUnit: DimUnit, toUnit: DimUnit, typedNum?: number) => {
+    if (isNativeGroup) return;
     // VECTOR SET: the unit dropdown drives a Fit MODE, not the stored unit.
     if (isVectorSet && vectorVariantNatural) {
       const act = vectorSetUnitAction({
@@ -1340,10 +1354,17 @@ if (heightIsAuto) {
     }
     onUpdate('width', newVal);
     trace.action('size:unit-change', { label: 'W', from: fromUnit, to: toUnit, currentPx, newVal });
-  }, [widthIsMainAxis, isWidthFillMain, flexVal, nodeId, computed, onUpdate, onUpdateMultiple, maybeInjectLayoutForAuto, freezeChildrenForAuto, activeComponentVariant, isVectorSet, vectorVariantNatural, vectorFitDim, computed.width, computed.height]);
+  }, [isNativeGroup, widthIsMainAxis, isWidthFillMain, flexVal, nodeId, computed, onUpdate, onUpdateMultiple, maybeInjectLayoutForAuto, freezeChildrenForAuto, activeComponentVariant, isVectorSet, vectorVariantNatural, vectorFitDim, computed.width, computed.height]);
 
   // ─── Height change handler ────────────────────────────────────────────
   const handleHeightChange = useCallback((v: string) => {
+    if (isNativeGroup) {
+      const nextHeight = Number.parseFloat(v);
+      if (Number.isFinite(nextHeight) && nextHeight > 0) {
+        commitNativeGroupInspectorResize({ groupId: nodeId, vpId, nextHeight });
+      }
+      return;
+    }
     // VECTOR SET — mirror of handleWidthChange: both dimensions, definite px,
     // linked through the variant's ratio.
     const linkedH = isVectorSet ? vectorSetLinkedWrite(vectorVariantNatural, 'height', v) : null;
@@ -1425,9 +1446,10 @@ if (heightIsAuto) {
       if (compensated) onUpdateMultiple(compensated);
       else onUpdate('height', clampNonNegative(v));
     }
-  }, [isHeightFill, inset, styles, nodeId, computed.parentHeight, computed.height, computed.width, computed.parentWidth, aspectRatioNum, onUpdate, onUpdateMultiple, transformedSizeWrite, isVectorSet, vectorVariantNatural, vectorFitDim]);
+  }, [isNativeGroup, vpId, isHeightFill, inset, styles, nodeId, computed.parentHeight, computed.height, computed.width, computed.parentWidth, aspectRatioNum, onUpdate, onUpdateMultiple, transformedSizeWrite, isVectorSet, vectorVariantNatural, vectorFitDim]);
 
   const handleHeightUnitChange = useCallback((fromUnit: DimUnit, toUnit: DimUnit, typedNum?: number) => {
+    if (isNativeGroup) return;
     // VECTOR SET: the unit dropdown drives a Fit MODE, not the stored unit.
     if (isVectorSet && vectorVariantNatural) {
       const act = vectorSetUnitAction({
@@ -1514,7 +1536,7 @@ if (heightIsAuto) {
     }
     onUpdate('height', newVal);
     trace.action('size:unit-change', { label: 'H', from: fromUnit, to: toUnit, currentPx, newVal });
-  }, [heightIsMainAxis, isHeightFillMain, flexVal, nodeId, computed, onUpdate, onUpdateMultiple, maybeInjectLayoutForAuto, freezeChildrenForAuto, activeComponentVariant, isVectorSet, vectorVariantNatural, vectorFitDim, computed.width, computed.height]);
+  }, [isNativeGroup, heightIsMainAxis, isHeightFillMain, flexVal, nodeId, computed, onUpdate, onUpdateMultiple, maybeInjectLayoutForAuto, freezeChildrenForAuto, activeComponentVariant, isVectorSet, vectorVariantNatural, vectorFitDim, computed.width, computed.height]);
 
   // ─── Flex shorthand parsing ──────────────────────────────────────────
   const flex = parseFlex(styles.flex || '');
@@ -1571,7 +1593,7 @@ if (heightIsAuto) {
   // ─── Render ───────────────────────────────────────────────────────────
   // Viewport frame has no min/max CSS knobs — the breakpoint width is the
   // only configurable dimension. Suppress the add-property menu.
-  const addAction = !isViewportFrame && advancedOptions.length > 0 ? (
+  const addAction = !isNativeGroup && !isViewportFrame && advancedOptions.length > 0 ? (
     <div className="relative">
       <button
         ref={addPropertyRef}
@@ -1625,18 +1647,18 @@ if (heightIsAuto) {
       property="width"
       value={widthHug ? 'auto' : isWidthFillMain ? String(fillMultiplier) : isWidthFillCross ? String(Math.round(computed.width)) : (inset.horizontalInset ? `${Math.round(computed.width)}px` : (roundPxDisplay(pickLiveDim(styles.width, liveSize?.w) || styles.width) || 'auto'))}
       onChange={handleWidthChange}
-      onChangeLive={isWidthFill || inset.horizontalInset ? undefined : (v) => liveSizeScrub('width', v)}
-      mirrorNegative={canMirrorThroughZero && !isWidthFill && !inset.horizontalInset}
+      onChangeLive={isNativeGroup || isWidthFill || inset.horizontalInset ? undefined : (v) => liveSizeScrub('width', v)}
+      mirrorNegative={!isNativeGroup && canMirrorThroughZero && !isWidthFill && !inset.horizontalInset}
       onUnitChange={handleWidthUnitChange}
       computedSize={isVectorSet && liveSize?.w ? parseFloat(liveSize.w) : computed.width}
       parentSize={computed.parentWidth}
       unitOptions={widthUnitOptions}
-      currentUnit={isFitRow(vectorFitDim, 'width') ? 'auto' : widthHug ? 'auto' : isWidthFill ? 'fill' : undefined}
-      hideResetStyle={isPrimary}
+      currentUnit={isNativeGroup ? 'px' : isFitRow(vectorFitDim, 'width') ? 'auto' : widthHug ? 'auto' : isWidthFill ? 'fill' : undefined}
+      hideResetStyle={isPrimary || isNativeGroup}
       overridden={isWidthFill && flexFillOverridden ? true : undefined}
       onResetOverride={isVectorSet ? resetVectorSetSize : (isWidthFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
-      onAddMin={() => addProp('minWidth')}
-      onAddMax={() => addProp('maxWidth')}
+      onAddMin={isNativeGroup ? undefined : () => addProp('minWidth')}
+      onAddMax={isNativeGroup ? undefined : () => addProp('maxWidth')}
     />
   );
 
@@ -1682,19 +1704,19 @@ if (heightIsAuto) {
       property="height"
       value={heightHug ? 'auto' : isFitSvgWrapper ? `${Math.round(computed.height) || 0}px` : isHeightFillMain ? String(fillMultiplier) : isHeightFillCross ? String(Math.round(computed.height)) : (inset.verticalInset ? `${Math.round(computed.height)}px` : (roundPxDisplay(pickLiveDim(styles.height, liveSize?.h) || styles.height) || 'auto'))}
       onChange={isFitSvgWrapper ? () => {} : handleHeightChange}
-      onChangeLive={isFitSvgWrapper || isHeightFill || inset.verticalInset ? undefined : (v) => liveSizeScrub('height', v)}
-      mirrorNegative={canMirrorThroughZero && !isFitSvgWrapper && !isHeightFill && !inset.verticalInset}
+      onChangeLive={isNativeGroup || isFitSvgWrapper || isHeightFill || inset.verticalInset ? undefined : (v) => liveSizeScrub('height', v)}
+      mirrorNegative={!isNativeGroup && canMirrorThroughZero && !isFitSvgWrapper && !isHeightFill && !inset.verticalInset}
       onUnitChange={isFitSvgWrapper ? () => {} : handleHeightUnitChange}
       computedSize={isVectorSet && liveSize?.h ? parseFloat(liveSize.h) : computed.height}
       parentSize={computed.parentHeight}
       unitOptions={isFitSvgWrapper ? [{ value: 'auto', label: 'Fit' }, ...heightUnitOptions.map(o => ({ ...o, disabled: true }))] : heightUnitOptions}
-      currentUnit={isFitRow(vectorFitDim, 'height') ? 'auto' : heightHug ? 'auto' : isFitSvgWrapper ? 'auto' : isHeightFill ? 'fill' : undefined}
+      currentUnit={isNativeGroup ? 'px' : isFitRow(vectorFitDim, 'height') ? 'auto' : heightHug ? 'auto' : isFitSvgWrapper ? 'auto' : isHeightFill ? 'fill' : undefined}
       disabled={!!isFitSvgWrapper}
-      hideResetStyle={isPrimary}
+      hideResetStyle={isPrimary || isNativeGroup}
       overridden={isHeightFill && flexFillOverridden ? true : undefined}
       onResetOverride={isVectorSet ? resetVectorSetSize : (isHeightFill && flexFillOverridden ? resetFlexFillOverride : undefined)}
-      onAddMin={() => addProp('minHeight')}
-      onAddMax={() => addProp('maxHeight')}
+      onAddMin={isNativeGroup ? undefined : () => addProp('minHeight')}
+      onAddMax={isNativeGroup ? undefined : () => addProp('maxHeight')}
     />
   );
 
@@ -1741,7 +1763,7 @@ if (heightIsAuto) {
 
       {/* Flex/Grid child controls — only for relative children in flex/grid parents, never for top-level */}
       {(() => {
-        if (isTopLevel) return null;
+        if (isNativeGroup || isTopLevel) return null;
         const pos = styles.position || 'relative';
         const isRelative = pos === 'relative' || pos === 'static' || pos === '';
         const isFlexChild = parentLayout === 'flex' && isRelative;
@@ -1776,22 +1798,22 @@ if (heightIsAuto) {
       {/* Dynamically added min/max properties — same layout as Width/Height.
           Suppressed for viewport frames since min/max are CSS-only knobs and
           the only configurable viewport dimension is the breakpoint width. */}
-      {!isViewportFrame && visibleProps.has('minWidth') && (
+      {!isNativeGroup && !isViewportFrame && visibleProps.has('minWidth') && (
         <DimensionRow label="Min Width" property="minWidth" value={styles.minWidth || 'auto'}
           onChange={v => onUpdate('minWidth', v)} onChangeLive={v => updateStyleLive('minWidth', v)} onUnitChange={(_, to) => minMaxUnitChange('minWidth', to)}
           computedSize={computed.width} parentSize={computed.parentWidth} unitOptions={minMaxUnitOptions} />
       )}
-      {!isViewportFrame && visibleProps.has('maxWidth') && (
+      {!isNativeGroup && !isViewportFrame && visibleProps.has('maxWidth') && (
         <DimensionRow label="Max Width" property="maxWidth" value={styles.maxWidth || 'auto'}
           onChange={v => onUpdate('maxWidth', v)} onChangeLive={v => updateStyleLive('maxWidth', v)} onUnitChange={(_, to) => minMaxUnitChange('maxWidth', to)}
           computedSize={computed.width} parentSize={computed.parentWidth} unitOptions={minMaxUnitOptions} />
       )}
-      {!isViewportFrame && visibleProps.has('minHeight') && (
+      {!isNativeGroup && !isViewportFrame && visibleProps.has('minHeight') && (
         <DimensionRow label="Min Height" property="minHeight" value={styles.minHeight || 'auto'}
           onChange={v => onUpdate('minHeight', v)} onChangeLive={v => updateStyleLive('minHeight', v)} onUnitChange={(_, to) => minMaxUnitChange('minHeight', to)}
           computedSize={computed.height} parentSize={computed.parentHeight} unitOptions={minMaxUnitOptions} />
       )}
-      {!isViewportFrame && visibleProps.has('maxHeight') && (
+      {!isNativeGroup && !isViewportFrame && visibleProps.has('maxHeight') && (
         <DimensionRow label="Max Height" property="maxHeight" value={styles.maxHeight || 'auto'}
           onChange={v => onUpdate('maxHeight', v)} onChangeLive={v => updateStyleLive('maxHeight', v)} onUnitChange={(_, to) => minMaxUnitChange('maxHeight', to)}
           computedSize={computed.height} parentSize={computed.parentHeight} unitOptions={minMaxUnitOptions} />

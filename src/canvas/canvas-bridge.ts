@@ -66,6 +66,17 @@ export interface CanvasBridge {
 
   /** Patch inline styles on a canvas element. 60fps safe. */
   patchStyles(nodeId: string, vpPrefix: string, styles: Record<string, string>, important?: boolean): void;
+  /** Transient Selection-colors locate cue rendered on the actual sandbox DOM node. */
+  setSelectionColorLocateHighlight?(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void;
+  clearSelectionColorLocateHighlights?(): void;
+
 
   /** Motion-preview !important patch that snapshots each key's PRIOR inline
    *  value sandbox-side on first write — so the paired restore can put back
@@ -180,6 +191,8 @@ class NullBridge implements CanvasBridge {
   getContainerRect(): DOMRect | null { return null; }
   getElementIdsAtPoint(): string[] { return []; }
   patchStyles(): void {}
+  setSelectionColorLocateHighlight(): void {}
+  clearSelectionColorLocateHighlights(): void {}
   patchAttrsAndStyles(): void {}
   setInnerHTML(): void {}
   setAttribute(): void {}

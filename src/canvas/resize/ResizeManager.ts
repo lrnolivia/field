@@ -47,15 +47,12 @@ import { resizeLiveOps } from '@/canvas/resize/resize-live-store';
 import { getInsetState, mergeVariantPinStyles } from '@/shared/pin-utils';
 import { trace } from '@/shared/debug-trace';
 import { getNodeFromCache, injectNodeIntoCache, getCachedNodesMap } from '@/code/stores/store';
+import { planNativeGroupResize } from '@/code/groups/group-refit';
 import {
-  nativeGroupResizeHasCompleteAffineGeometry,
-  nativeGroupResizeHasTransformedGeometry,
-  nativeGroupResizeNodeSupportsAffine,
-  planNativeGroupResize,
-  resolveNativeGroupResizeAffineFromCorners,
-  type NativeGroupResizeCorners,
-  type NativeGroupResizeSnapshot,
-} from '@/code/groups/group-refit';
+  captureNativeGroupResizeSnapshot,
+  nativeGroupResizeInteractionPolicy,
+} from './native-group-resize-runtime';
+export { nativeGroupResizeInteractionPolicy } from './native-group-resize-runtime';
 import { findChildRects, getContentRootRect } from '@/canvas/node-ops';
 import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/canvas-math';
 import type { SnapGuide, Transform } from '@/shared/types';
@@ -93,105 +90,6 @@ function overlayTopLevelAncestor(nodeId: string, nodes: NodeMap): string {
     cur = next;
   }
   return cur?.id ?? nodeId;
-}
-
-function readNativeGroupResizeCorners(nodeId: string, vpId: string): NativeGroupResizeCorners | null {
-  const bridge = getCanvasBridge() as any;
-  if (typeof bridge.getCachedCorners !== 'function') return null;
-  return bridge.getCachedCorners(nodeId, getViewportPrefix(vpId)) ?? null;
-}
-
-function readNativeGroupResizeLocalSize(nodeId: string, vpId: string): { width: number; height: number } | null {
-  const values = findNodeComputedStyles(nodeId, vpId, ['__offsetWidth', '__offsetHeight']);
-  const width = Number.parseFloat(values.__offsetWidth ?? '');
-  const height = Number.parseFloat(values.__offsetHeight ?? '');
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
-  return { width, height };
-}
-
-function captureNativeGroupResizeSnapshot(groupId: string, vpId: string): NativeGroupResizeSnapshot | null {
-  const root = getNodeFromCache(groupId);
-  if (!root?.isGroup || root.children.length === 0) return null;
-
-  const snapshot: NativeGroupResizeSnapshot = new Map();
-  const visiting = new Set<string>();
-  const groupGeometry = new Map<string, { corners: NativeGroupResizeCorners; width: number; height: number }>();
-
-  const readGroupGeometry = (gid: string) => {
-    const cached = groupGeometry.get(gid);
-    if (cached) return cached;
-    const corners = readNativeGroupResizeCorners(gid, vpId);
-    const size = readNativeGroupResizeLocalSize(gid, vpId);
-    if (!corners || !size) return null;
-    const value = { corners, width: size.width, height: size.height };
-    groupGeometry.set(gid, value);
-    return value;
-  };
-
-  const visit = (gid: string): boolean => {
-    if (visiting.has(gid)) return false;
-    visiting.add(gid);
-    const group = getNodeFromCache(gid);
-    if (!group?.isGroup) return false;
-
-    for (const childId of group.children) {
-      const child = getNodeFromCache(childId);
-      if (!child) return false;
-      const cs = findNodeComputedStyles(childId, vpId, [
-        'position', 'left', 'top', 'width', 'height', 'transform', 'rotate', 'scale',
-      ]);
-      if (cs.position !== 'absolute') return false;
-      const transform = (cs.transform || '').trim();
-      const rotate = (cs.rotate || '').trim();
-      const scale = (cs.scale || '').trim();
-      const transformed = !!((transform && transform !== 'none')
-        || (rotate && rotate !== 'none' && rotate !== '0' && rotate !== '0deg')
-        || (scale && scale !== 'none' && scale !== '1'));
-
-      const left = Number.parseFloat(cs.left);
-      const top = Number.parseFloat(cs.top);
-      const width = Number.parseFloat(cs.width);
-      const height = Number.parseFloat(cs.height);
-      if (![left, top, width, height].every(Number.isFinite) || width < 0 || height < 0) return false;
-
-      const box = { left, top, width, height };
-      if (transformed) {
-        // B11 only opens exact base 2D affine transforms. Perspective/3D,
-        // non-border transform boxes, and transform-bearing variant/conditional
-        // channels remain gated rather than baking one viewport into source.
-        if (!nativeGroupResizeNodeSupportsAffine(child, width, height)) return false;
-        const parentGeometry = readGroupGeometry(gid);
-        const childWorldCorners = readNativeGroupResizeCorners(childId, vpId);
-        if (!parentGeometry || !childWorldCorners) return false;
-        const affine = resolveNativeGroupResizeAffineFromCorners({
-          childWorldCorners,
-          parentWorldCorners: parentGeometry.corners,
-          parentLocalWidth: parentGeometry.width,
-          parentLocalHeight: parentGeometry.height,
-          childBox: box,
-        });
-        if (!affine) return false;
-        snapshot.set(childId, { ...box, transformed: true, affine });
-      } else {
-        snapshot.set(childId, box);
-      }
-
-      if (child.isGroup && !visit(child.id)) return false;
-    }
-    return true;
-  };
-
-  return visit(groupId) ? snapshot : null;
-}
-
-export type NativeGroupResizeInteractionPolicy = 'free' | 'blocked';
-
-export function nativeGroupResizeInteractionPolicy(
-  snapshot: NativeGroupResizeSnapshot,
-  _isCorner: boolean,
-): NativeGroupResizeInteractionPolicy {
-  if (!nativeGroupResizeHasTransformedGeometry(snapshot)) return 'free';
-  return nativeGroupResizeHasCompleteAffineGeometry(snapshot) ? 'free' : 'blocked';
 }
 
 function collectResizeSiblings(

@@ -240,6 +240,21 @@ export class PostMessageBridge implements CanvasBridge {
     this.remote?.patchStyles(nodeId, vpPrefix, styles, important);
   }
 
+  setSelectionColorLocateHighlight(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void {
+    this.remote?.setSelectionColorLocateHighlight(nodeId, vpPrefix, luminousRgb, contrastTone, mode, revision);
+  }
+
+  clearSelectionColorLocateHighlights(): void {
+    this.remote?.clearSelectionColorLocateHighlights();
+  }
+
   previewPatchStyles(nodeId: string, vpPrefix: string, styles: Record<string, string>): void {
     this.remote?.previewPatchStyles(nodeId, vpPrefix, styles);
   }
