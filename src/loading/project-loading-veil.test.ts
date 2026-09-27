@@ -6,9 +6,9 @@ import {
   loadingVeilShouldShowDetails,
 } from './ProjectLoadingVeil';
 import {
-  FIELD_LOADING_MESH,
-  REVYME_MESH_FRAGMENT_SHADER,
-} from './RevymeMeshGradientLayer';
+  RESHADERS_MESH_FLOW_MONO,
+  LOADING_VEIL_FRAGMENT_SHADER,
+} from './ReshadersMeshFlowLayer';
 
 describe('ProjectLoadingVeil', () => {
   it('uses an untinted blurred 90% grayscale backdrop', () => {
@@ -18,13 +18,13 @@ describe('ProjectLoadingVeil', () => {
     });
   });
 
-  it('composites the native animated mesh with Hard Light', () => {
+  it('composites the ReShaders Mesh Flow shader with Hard Light', () => {
     expect(LOADING_VEIL_MESH_BLEND_MODE).toBe('hard-light');
-    expect(FIELD_LOADING_MESH.speed).toBeGreaterThan(0);
-    expect(REVYME_MESH_FRAGMENT_SHADER).toContain('getPosition');
-    expect(REVYME_MESH_FRAGMENT_SHADER).toContain('u_distortion');
-    expect(REVYME_MESH_FRAGMENT_SHADER).toContain('u_swirl');
-    expect(REVYME_MESH_FRAGMENT_SHADER).toContain('u_grainOverlay');
+    expect(RESHADERS_MESH_FLOW_MONO.speed).toBeGreaterThan(0);
+    expect(LOADING_VEIL_FRAGMENT_SHADER).toContain('meshFlow');
+    expect(LOADING_VEIL_FRAGMENT_SHADER).toContain('u_warp');
+    expect(LOADING_VEIL_FRAGMENT_SHADER).toContain('u_softness');
+    expect(LOADING_VEIL_FRAGMENT_SHADER).toContain('u_grain');
   });
 
   it('uses the monochrome wordmark within the light mark', () => {

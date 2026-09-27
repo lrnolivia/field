@@ -1,4 +1,4 @@
-import RevymeMeshGradientLayer from './RevymeMeshGradientLayer';
+import ReshadersMeshFlowLayer from './ReshadersMeshFlowLayer';
 
 export const LOADING_VEIL_BACKDROP = Object.freeze({
   blurPx: 34,
@@ -57,6 +57,7 @@ export default function ProjectLoadingVeil({
           pointer-events: none;
           mix-blend-mode: ${LOADING_VEIL_MESH_BLEND_MODE};
           opacity: .88;
+          filter: blur(32px);
         }
 
         [data-project-loading-veil] [data-loading-grain] {
@@ -202,7 +203,7 @@ export default function ProjectLoadingVeil({
 
       <div data-loading-backdrop aria-hidden />
       <div data-loading-mesh-stage aria-hidden>
-        <RevymeMeshGradientLayer />
+        <ReshadersMeshFlowLayer />
       </div>
       <div data-loading-grain aria-hidden />
 
