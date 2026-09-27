@@ -1,5 +1,5 @@
-export const LOADING_VEIL_BACKDROP = Object.freeze({ blurPx: 18, grayscale: 0.2, dim: 0.56 });
-export const LOADING_VEIL_LOGO_SRC = '/field-brand/monochrome/logo-light-trans.png';
+export const LOADING_VEIL_BACKDROP = Object.freeze({ blurPx: 24, grayscale: 0.2, dim: 0.56 });
+export const LOADING_VEIL_LOGO_SRC = '/field-brand/loading/Logo.png';
 
 interface ProjectLoadingVeilProps {
   status?: string;
@@ -30,7 +30,10 @@ export default function ProjectLoadingVeil({
           background:rgba(12,13,16,${LOADING_VEIL_BACKDROP.dim});
           backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
           -webkit-backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
-          transition:opacity 360ms cubic-bezier(.2,.7,.2,1);
+          transition:
+            opacity 360ms cubic-bezier(.2,.7,.2,1),
+            backdrop-filter 360ms cubic-bezier(.2,.7,.2,1),
+            -webkit-backdrop-filter 360ms cubic-bezier(.2,.7,.2,1);
         }
         [data-loading-atmosphere] {
           position:absolute; inset:-18%; pointer-events:none;
@@ -39,7 +42,6 @@ export default function ProjectLoadingVeil({
             radial-gradient(ellipse 30% 40% at 84% 70%,rgba(142,151,169,.095),transparent 72%),
             radial-gradient(ellipse 24% 32% at 68% 12%,rgba(111,119,135,.06),transparent 74%);
           opacity:.82;
-          animation:field-loading-drift 12s cubic-bezier(.45,0,.55,1) infinite alternate;
           transition:opacity 280ms ease;
         }
         [data-loading-content] {
@@ -47,26 +49,27 @@ export default function ProjectLoadingVeil({
           width:min(360px,calc(100vw - 40px));
           display:flex; flex-direction:column; align-items:center;
           z-index:1; text-align:center;
-          transition:opacity 240ms ease,transform 360ms cubic-bezier(.2,.7,.2,1);
+          transition:opacity 360ms cubic-bezier(.2,.7,.2,1);
+        }
+        [data-loading-mark-wrap] {
+          position:relative; isolation:isolate; width:48px; height:48px;
+          margin-bottom:18px; display:grid; place-items:center;
+        }
+        [data-loading-mark-wrap]::before {
+          content:""; position:absolute; z-index:-1; left:50%; top:50%;
+          width:88px; height:88px; border-radius:50%; transform:translate(-50%,-50%);
+          background:radial-gradient(circle,rgba(255,255,255,.3) 0%,rgba(255,255,255,.15) 27%,rgba(255,255,255,.055) 50%,transparent 72%);
+          filter:blur(5px); opacity:.68;
+          animation:field-loading-glow 4.8s ease-in-out infinite;
         }
         [data-loading-logo] {
-          display:block; width:76px; height:76px; object-fit:contain;
-          opacity:.88; margin-bottom:18px;
-          animation:field-loading-mark 4.8s ease-in-out infinite;
+          display:block; width:48px; height:48px; object-fit:contain;
+          opacity:.88; animation:field-loading-mark 4.8s ease-in-out infinite;
         }
         [data-loading-status-panel] { width:100%; }
         [data-loading-status] {
           color:rgba(248,248,250,.9); font-size:13px; line-height:18px;
           font-weight:500; letter-spacing:.005em;
-        }
-        [data-loading-progress] {
-          position:relative; width:78px; height:2px; margin:14px auto 0;
-          border-radius:2px; overflow:hidden; background:rgba(255,255,255,.13);
-        }
-        [data-loading-progress]::after {
-          content:''; position:absolute; inset:0 auto 0 -42%; width:42%;
-          border-radius:inherit; background:rgba(242,243,247,.76);
-          animation:field-loading-progress 1.65s cubic-bezier(.55,.08,.35,.92) infinite;
         }
         [data-loading-detail] {
           margin-top:7px; color:rgba(226,228,234,.62);
@@ -88,38 +91,40 @@ export default function ProjectLoadingVeil({
         [data-canvas-loading-phase="exit"] [data-loading-atmosphere],
         [data-canvas-loading-phase="enter"] [data-loading-content],
         [data-canvas-loading-phase="exit"] [data-loading-content] { opacity:0; }
-        [data-canvas-loading-phase="enter"] [data-loading-content],
-        [data-canvas-loading-phase="exit"] [data-loading-content] { transform:translate(-50%,-47%); }
-        @keyframes field-loading-drift {
-          from { transform:translate3d(-1.2%,.4%,0) scale(1); }
-          to { transform:translate3d(1.2%,-.4%,0) scale(1.035); }
+        [data-canvas-loading-phase="enter"] [data-loading-backdrop],
+        [data-canvas-loading-phase="exit"] [data-loading-backdrop] {
+          backdrop-filter:blur(0) grayscale(0);
+          -webkit-backdrop-filter:blur(0) grayscale(0);
         }
         @keyframes field-loading-mark {
           0%,100% { opacity:.78; }
           50% { opacity:1; }
         }
-        @keyframes field-loading-progress {
-          0% { transform:translateX(0); }
-          100% { transform:translateX(340%); }
+        @keyframes field-loading-glow {
+          0%,100% { opacity:.44; transform:translate(-50%,-50%) scale(.88); }
+          50% { opacity:.94; transform:translate(-50%,-50%) scale(1.12); }
         }
         @media(prefers-reduced-motion:reduce) {
-          [data-loading-atmosphere], [data-loading-logo], [data-loading-progress]::after { animation:none!important; }
-          [data-loading-progress]::after { left:0; width:100%; opacity:.48; }
-          [data-canvas-loading-phase] [data-loading-content] { transition:none; }
+          [data-loading-logo] { animation:none!important; opacity:.88; }
+          [data-loading-mark-wrap]::before { animation:none!important; opacity:.68; }
+          [data-canvas-loading-phase] [data-loading-content],
+          [data-canvas-loading-phase] [data-loading-backdrop],
+          [data-canvas-loading-phase] [data-loading-atmosphere] { transition:none; }
         }
         @media(max-width:520px) {
-          [data-loading-logo] { width:68px; height:68px; margin-bottom:15px; }
+          [data-loading-mark-wrap] { margin-bottom:15px; }
         }
       `}</style>
 
       <div data-loading-backdrop aria-hidden="true" />
       <div data-loading-atmosphere aria-hidden="true" />
       <div data-loading-content>
-        <img data-loading-logo src={LOADING_VEIL_LOGO_SRC} alt="" aria-hidden="true" />
+        <div data-loading-mark-wrap>
+          <img data-loading-logo src={LOADING_VEIL_LOGO_SRC} alt="" aria-hidden="true" />
+        </div>
         <div data-loading-status-panel>
           <div data-loading-status role="status" aria-live="polite" aria-atomic="true">{status}</div>
           {detail && <div data-loading-detail>{detail}</div>}
-          {!recoverable && <div data-loading-progress aria-hidden="true" />}
           {recoverable && (
             <div data-loading-actions>
               <button type="button" onClick={() => window.location.reload()}>Retry</button>

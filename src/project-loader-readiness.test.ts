@@ -30,7 +30,7 @@ describe('ProjectLoader canvas readiness contract', () => {
   it('gates semantic readiness on the Canvas first-paint callback', () => {
     expect(canvasSource).toContain('onFirstCanvasPaint?.()');
     expect(canvasSource).toContain("trace.action('canvas:first-paint'");
-    expect(projectLoaderSource).toContain('painted={canvasPainted}');
+    expect(projectLoaderSource).toContain('painted={ready && canvasPainted}');
     expect(projectLoaderSource).toContain('onCanvasFirstPaint={() => setCanvasPainted(true)}');
   });
 

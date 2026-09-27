@@ -1,19 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ProjectLoadingVeil, { LOADING_VEIL_BACKDROP } from './ProjectLoadingVeil';
+import ProjectLoadingVeil, { LOADING_VEIL_BACKDROP, LOADING_VEIL_LOGO_SRC } from './ProjectLoadingVeil';
 
 describe('ProjectLoadingVeil', () => {
   it('keeps the workspace visible under a restrained backdrop', () => {
-    expect(LOADING_VEIL_BACKDROP).toEqual({ blurPx: 18, grayscale: 0.2, dim: 0.56 });
+    expect(LOADING_VEIL_BACKDROP).toEqual({ blurPx: 24, grayscale: 0.2, dim: 0.56 });
     const { container } = render(<ProjectLoadingVeil status="Opening project" />);
     expect(screen.getByRole('status').textContent).toContain('Opening project');
     expect(container.querySelector('[data-loading-logo]')).not.toBeNull();
-    expect(container.querySelector('[data-loading-progress]')).not.toBeNull();
+    expect(LOADING_VEIL_LOGO_SRC).toBe('/field-brand/loading/Logo.png');
+    expect(container.querySelector('[data-loading-mark-wrap]')).not.toBeNull();
+    expect(container.querySelector('[data-loading-progress]')).toBeNull();
+    expect(container.querySelector('style')?.textContent).toContain('@keyframes field-loading-mark');
+    expect(container.querySelector('style')?.textContent).toContain('@keyframes field-loading-glow');
+    expect(container.querySelector('style')?.textContent).not.toContain('field-loading-drift');
   });
 
-  it('shows progress while opening and actionable recovery when loading is delayed', () => {
+  it('shows actionable recovery when loading is delayed', () => {
     const { rerender, container } = render(<ProjectLoadingVeil status="Starting canvas" />);
-    expect(container.querySelector('[data-loading-progress]')).not.toBeNull();
 
     rerender(
       <ProjectLoadingVeil
@@ -26,6 +30,5 @@ describe('ProjectLoadingVeil', () => {
       .toContain('The project loaded');
     expect(screen.getByRole('button', { name: 'Retry' })).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Back to projects' })).not.toBeNull();
-    expect(container.querySelector('[data-loading-progress]')).toBeNull();
   });
 });
