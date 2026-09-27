@@ -10,8 +10,18 @@
 // of a picker for a property that's just a name.
 
 import React from 'react';
+import { FieldGlyph } from '@/editor/glyph';
 
 interface CursorIconProps { size?: number }
+
+const withCursorGlyph = (Icon: React.FC<CursorIconProps>): React.FC<CursorIconProps> => {
+  const AnimatedCursorIcon: React.FC<CursorIconProps> = (props) => (
+    <FieldGlyph behavior="generic">
+      <Icon {...props} />
+    </FieldGlyph>
+  );
+  return AnimatedCursorIcon;
+};
 
 export type CursorName =
   | 'auto' | 'default' | 'pointer' | 'text' | 'move' | 'not-allowed' | 'none'
@@ -258,42 +268,42 @@ const ZoomOut: React.FC<CursorIconProps> = ({ size = 37 }) => (
 
 /** Lookup: cursor name → SVG icon component. Falls back to default arrow. */
 export const CURSOR_ICONS: Record<string, React.FC<CursorIconProps>> = {
-  auto: DefaultArrow,
-  default: DefaultArrow,
-  pointer: Pointer,
-  text: Text,
-  move: Move,
-  'not-allowed': NotAllowed,
-  none: None,
-  crosshair: Crosshair,
-  help: Help,
-  wait: Wait,
-  progress: Progress,
-  grab: Grab,
-  grabbing: Grabbing,
-  'zoom-in': ZoomIn,
-  'zoom-out': ZoomOut,
-  copy: Copy,
-  alias: Alias,
-  'context-menu': ContextMenu,
-  cell: Cell,
-  'vertical-text': VerticalText,
-  'no-drop': NoDrop,
-  'all-scroll': AllScroll,
-  'col-resize': ColResize,
-  'row-resize': RowResize,
-  'n-resize': NResize,
-  's-resize': SResize,
-  'e-resize': EResize,
-  'w-resize': WResize,
-  'ne-resize': NeResize,
-  'nw-resize': NwResize,
-  'se-resize': SeResize,
-  'sw-resize': SwResize,
-  'ew-resize': EwResize,
-  'ns-resize': NsResize,
-  'nesw-resize': NeswResize,
-  'nwse-resize': NwseResize,
+  auto: withCursorGlyph(DefaultArrow),
+  default: withCursorGlyph(DefaultArrow),
+  pointer: withCursorGlyph(Pointer),
+  text: withCursorGlyph(Text),
+  move: withCursorGlyph(Move),
+  'not-allowed': withCursorGlyph(NotAllowed),
+  none: withCursorGlyph(None),
+  crosshair: withCursorGlyph(Crosshair),
+  help: withCursorGlyph(Help),
+  wait: withCursorGlyph(Wait),
+  progress: withCursorGlyph(Progress),
+  grab: withCursorGlyph(Grab),
+  grabbing: withCursorGlyph(Grabbing),
+  'zoom-in': withCursorGlyph(ZoomIn),
+  'zoom-out': withCursorGlyph(ZoomOut),
+  copy: withCursorGlyph(Copy),
+  alias: withCursorGlyph(Alias),
+  'context-menu': withCursorGlyph(ContextMenu),
+  cell: withCursorGlyph(Cell),
+  'vertical-text': withCursorGlyph(VerticalText),
+  'no-drop': withCursorGlyph(NoDrop),
+  'all-scroll': withCursorGlyph(AllScroll),
+  'col-resize': withCursorGlyph(ColResize),
+  'row-resize': withCursorGlyph(RowResize),
+  'n-resize': withCursorGlyph(NResize),
+  's-resize': withCursorGlyph(SResize),
+  'e-resize': withCursorGlyph(EResize),
+  'w-resize': withCursorGlyph(WResize),
+  'ne-resize': withCursorGlyph(NeResize),
+  'nw-resize': withCursorGlyph(NwResize),
+  'se-resize': withCursorGlyph(SeResize),
+  'sw-resize': withCursorGlyph(SwResize),
+  'ew-resize': withCursorGlyph(EwResize),
+  'ns-resize': withCursorGlyph(NsResize),
+  'nesw-resize': withCursorGlyph(NeswResize),
+  'nwse-resize': withCursorGlyph(NwseResize),
 };
 
 /** Human label for a cursor name (e.g. 'not-allowed' → 'Not Allowed'). */
