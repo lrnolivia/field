@@ -113,7 +113,12 @@ import { addViewport } from './helpers/addViewport';
 // the per-transaction selection snapshot.
 
 
-export default function Canvas() {
+interface CanvasProps {
+  onFirstCanvasPaint?: () => void;
+}
+
+export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
+  const firstPaintReportedRef = useRef(false);
   // Read the store this component subscribes to. main.tsx wraps the app in
   // <Provider> with no store prop, which creates an isolated store — distinct
   // from getDefaultStore(). Reading via getDefaultStore() inside imperative
@@ -414,6 +419,11 @@ export default function Canvas() {
 
     onRenderComplete: () => {
       trace.action('canvas:iframe-render-complete', {});
+      if (!firstPaintReportedRef.current) {
+        firstPaintReportedRef.current = true;
+        trace.action('canvas:first-paint', {});
+        onFirstCanvasPaint?.();
+      }
       // Shape-edit / drag-commit overlay reveal: SvgEditorOverlay's
       // unmount and the SVG-group drag commit both set
       // `shapeEditCommitPendingAtom` to suppress SelectionOverlay until
