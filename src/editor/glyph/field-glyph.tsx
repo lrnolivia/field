@@ -22,7 +22,14 @@ export type FieldGlyphBehavior =
   | 'align-right'
   | 'align-top'
   | 'align-center-v'
-  | 'align-bottom';
+  | 'align-bottom'
+  | 'stack'
+  | 'layers'
+  | 'media'
+  | 'globe'
+  | 'branch'
+  | 'code'
+  | 'presets';
 
 const rest = { x: 0, y: 0, rotate: 0, scale: 1, scaleX: 1, scaleY: 1 };
 
@@ -46,6 +53,13 @@ export const fieldGlyphVariants: Record<FieldGlyphBehavior, Variants> = {
   'align-top': { rest, hover: { y: -2, scale: 1.05 }, tap: { y: -0.75, scale: 0.84 } },
   'align-center-v': { rest, hover: { scaleX: 1.08, scaleY: 0.9 }, tap: { scaleX: 0.86, scaleY: 0.78 } },
   'align-bottom': { rest, hover: { y: 2, scale: 1.05 }, tap: { y: 0.75, scale: 0.84 } },
+  stack: { rest, hover: { x: 1.5, y: -1.5, scale: 1.08 }, tap: { x: 0, y: 0.5, scale: 0.84 } },
+  layers: { rest, hover: { y: -2, scale: 1.1 }, tap: { y: 0.5, scale: 0.82 } },
+  media: { rest, hover: { rotate: -5, y: -1, scale: 1.08 }, tap: { rotate: 2, scale: 0.82 } },
+  globe: { rest, hover: { rotate: 18, scale: 1.07 }, tap: { rotate: -5, scale: 0.83 } },
+  branch: { rest, hover: { x: 2, scale: 1.06 }, tap: { x: 0.5, scale: 0.83 } },
+  code: { rest, hover: { scaleX: 1.18, scaleY: 1.04 }, tap: { scaleX: 0.82, scaleY: 0.84 } },
+  presets: { rest, hover: { rotate: -8, y: -1, scale: 1.07 }, tap: { rotate: 3, scale: 0.83 } },
 };
 
 export function FieldGlyph({ behavior = 'generic', children, className = '' }: { behavior?: FieldGlyphBehavior; children: ReactNode; className?: string }) {

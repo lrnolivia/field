@@ -6,6 +6,8 @@
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useFieldReducedMotion } from '@/editor/motion';
 import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
@@ -40,6 +42,7 @@ import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { ChatImageIcon } from '@/shared/icons';
+import './bottom-toolbar-glyphs.css';
 
 // ─── Chevron & Check icons ─────────────────────────────────────────────────
 
@@ -82,10 +85,10 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
       }`}
       style={{ border: 'none', fontFamily: 'Inter, system-ui, sans-serif', textAlign: 'left' }}
     >
-      <span className="w-4 h-4 flex items-center justify-center shrink-0">
-        {active ? <CheckSvg /> : null}
+      <span data-field-toolbar-check={active || undefined} className="w-4 h-4 flex items-center justify-center shrink-0" aria-hidden="true">
+        <CheckSvg />
       </span>
-      <span className="w-4 h-4 flex items-center justify-center shrink-0">{icon ?? null}</span>
+      <span data-field-toolbar-glyph="menu" className="w-4 h-4 flex items-center justify-center shrink-0">{icon ?? null}</span>
       <span>{label}</span>
       {shortcut && <ShortcutHint text={shortcut} />}
     </button>
@@ -106,9 +109,29 @@ function DropdownDivider() {
 
 // ─── Split Button (icon + chevron) ──────────────────────────────────────────
 
-function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }: {
+function ChangingToolIcon({ iconKey, children }: { iconKey: string; children: React.ReactNode }) {
+  const reducedMotion = useFieldReducedMotion();
+  return (
+    <span data-field-toolbar-glyph="tool-switch" className="relative inline-flex w-4 h-4 items-center justify-center">
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={iconKey}
+          className="absolute inset-0 inline-flex items-center justify-center"
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: -35, scale: .72 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: 35, scale: .72 }}
+          transition={{ duration: reducedMotion ? 0 : .22, ease: [.2, .8, .2, 1] }}
+        >
+          {children}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
+function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronClick, title, dataTool }: {
   active: boolean; icon: React.ReactNode; onClick: () => void;
-  onChevronClick: () => void; title: string; dataTool?: string;
+  onChevronClick: () => void; title: string; dataTool?: string; open?: boolean; iconKey?: string;
 }) {
   return (
     <div className="flex items-center gap-px">
@@ -124,7 +147,9 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
         }`}
         style={{ border: 'none', cursor: 'pointer' }}
       >
-        {icon}
+        {iconKey
+          ? <ChangingToolIcon iconKey={iconKey}>{icon}</ChangingToolIcon>
+          : <span data-field-toolbar-glyph={dataTool ?? 'generic'} className="inline-flex items-center justify-center">{icon}</span>}
       </button>
       {/* The chevron sits on the TOOLBAR surface, not on the accent pill —
           so its active color must be --accent (visible on the surface by
@@ -132,6 +157,7 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
           is light: accent-fg is dark-on-dark there). */}
       <button
         onClick={onChevronClick}
+        data-toolbar-chevron-open={open || undefined}
         className={`flex items-center justify-center w-[20px] h-[36px] rounded-[6px] transition-colors ${
           active
             ? 'text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -140,7 +166,7 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
         // Keep the narrow chevron hit target optically subordinate to the main tool.
         style={{ border: 'none', cursor: 'pointer' }}
       >
-        <ChevronDownSvg />
+        <span data-field-toolbar-glyph="chevron" className="inline-flex items-center justify-center"><ChevronDownSvg /></span>
       </button>
     </div>
   );
@@ -166,7 +192,7 @@ function ToolButton({ active, onClick, title, children, dataTutorial, dataTool, 
       }`}
       style={{ border: 'none', cursor: 'pointer' }}
     >
-      {children}
+      <span data-field-toolbar-glyph={dataTool ?? 'generic'} className="inline-flex items-center justify-center">{children}</span>
     </button>
   );
 }
@@ -216,6 +242,8 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
     <div className="relative" ref={ref}>
       <SplitButton
         active={isActive || open}
+        open={open}
+        iconKey={toolMode === 'hand' || spaceHand ? 'hand' : toolMode === 'scale' ? 'scale' : 'select'}
         icon={currentIcon}
         onClick={() => onSelect(toolMode === 'hand' ? 'hand' : toolMode === 'scale' ? 'scale' : 'select')}
         onChevronClick={() => setOpen(!open)}
@@ -253,6 +281,7 @@ function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (
     <div className="relative" ref={ref} data-tutorial="frame-tool">
       <SplitButton
         active={toolMode === 'frame' || open}
+        open={open}
         icon={<FrameToolbarIcon className="w-4 h-4" />}
         onClick={onSelect}
         onChevronClick={() => setOpen((value) => !value)}
@@ -309,6 +338,8 @@ function ShapeDropdown({ toolMode, onSelect, onOpenMedia }: {
     <div className="relative" ref={ref} data-tutorial="shape-tool">
       <SplitButton
         active={active || open}
+        open={open}
+        iconKey={currentShape}
         icon={shapeIcons[currentShape]}
         onClick={() => onSelect(currentShape)}
         onChevronClick={() => setOpen((value) => !value)}
@@ -353,6 +384,8 @@ function PenDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (mo
     <div className="relative" ref={ref}>
       <SplitButton
         active={active || open}
+        open={open}
+        iconKey={current}
         icon={icon}
         onClick={() => onSelect(current)}
         onChevronClick={() => setOpen((value) => !value)}
@@ -395,10 +428,10 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
       className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] border border-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--control-bg-hover)] hover:text-[var(--text-primary)]"
       style={{ cursor: 'pointer' }}
     >
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" aria-hidden="true">
+      <span data-field-toolbar-glyph="smart-zoom" className="inline-flex items-center justify-center"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" aria-hidden="true">
         <path d="M5.25 2.5H2.5v2.75M10.75 2.5h2.75v2.75M13.5 10.75v2.75h-2.75M5.25 13.5H2.5v-2.75" />
         <circle cx="8" cy="8" r="1.4" />
-      </svg>
+      </svg></span>
     </button>
   );
 }
@@ -624,7 +657,7 @@ export default function BottomToolbar() {
               className="flex items-center justify-center w-[32px] h-[32px] rounded-[6px] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)] transition-colors"
               style={{ cursor: 'pointer' }}
             >
-              <SearchIcon className="w-4 h-4" />
+              <span data-field-toolbar-glyph="search" className="inline-flex items-center justify-center"><SearchIcon className="w-4 h-4" /></span>
             </button>
           )}
 
