@@ -27,8 +27,8 @@ describe('ProjectLoadingVeil', () => {
     expect(REVYME_MESH_FRAGMENT_SHADER).toContain('u_grainOverlay');
   });
 
-  it('uses the exact loader logo asset exported from the approved Figma mock', () => {
-    expect(LOADING_VEIL_LOGO_SRC).toBe('/field-brand/loading/field-loading-logo.png');
+  it('uses the monochrome wordmark within the light mark', () => {
+    expect(LOADING_VEIL_LOGO_SRC).toBe('/field-brand/monochrome/logo-light-trans.png');
   });
 
   it('keeps routine loading visually quiet and reveals only actionable detail', () => {

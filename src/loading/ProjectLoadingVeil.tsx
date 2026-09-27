@@ -6,7 +6,7 @@ export const LOADING_VEIL_BACKDROP = Object.freeze({
 });
 
 export const LOADING_VEIL_MESH_BLEND_MODE = 'hard-light';
-export const LOADING_VEIL_LOGO_SRC = '/field-brand/loading/field-loading-logo.png';
+export const LOADING_VEIL_LOGO_SRC = '/field-brand/monochrome/logo-light-trans.png';
 
 export function loadingVeilShouldShowDetails(detail?: string, recoverable = false): boolean {
   return Boolean(detail || recoverable);
@@ -105,12 +105,22 @@ export default function ProjectLoadingVeil({
           position: absolute;
           left: 0;
           top: 0;
-          width: clamp(92px, 7.2vw, 126px);
-          height: clamp(92px, 7.2vw, 126px);
+          width: clamp(46px, 3.47vw, 94px);
+          aspect-ratio: 94 / 102;
           transform: translate(-50%, -50%);
-          object-fit: contain;
           display: block;
-          filter: drop-shadow(0 4px 24px rgba(255,255,255,.18));
+          background: #f6f6f6;
+          border-radius: 15%;
+          box-shadow: 0 2px 10px rgba(255,255,255,.10);
+        }
+
+        [data-project-loading-veil] [data-loading-logo] img {
+          position: absolute;
+          right: 8%;
+          bottom: 9%;
+          width: 55%;
+          height: auto;
+          display: block;
         }
 
         [data-canvas-loading-phase="waiting"] [data-loading-logo] {
@@ -198,7 +208,7 @@ export default function ProjectLoadingVeil({
 
       <div data-loading-logo-stage aria-hidden>
         <span data-loading-logo-bloom />
-        <img data-loading-logo src={LOADING_VEIL_LOGO_SRC} alt="" />
+        <span data-loading-logo><img src={LOADING_VEIL_LOGO_SRC} alt="" /></span>
       </div>
 
       <div
