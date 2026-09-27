@@ -243,8 +243,6 @@ function SelectionColorRow({
           type="button"
           onMouseEnter={startHover}
           onMouseLeave={cancelHover}
-          onFocus={startHover}
-          onBlur={cancelHover}
           onClick={clickLocate}
           title="Locate objects using this color"
           aria-label="Locate objects using this color"
