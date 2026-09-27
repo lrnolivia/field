@@ -620,7 +620,7 @@ export function computeSelectionSets(
 
 export const LayerRow = React.memo(function LayerRow({
   layer, isSelected, isChildOfSelected, hasHighlightedChildren, isLastHighlightedChild,
-  isDragOver, dropPosition, dropDepth, isDragging, effectiveHidden,
+  isDragOver, dropPosition, dropDepth, isDragging, effectiveHidden, locateFlashRevision,
   onSelect, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
   isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection,
 }: {
@@ -646,6 +646,7 @@ export const LayerRow = React.memo(function LayerRow({
    *  icon AND the toggle direction so clicking on a hidden replica's row
    *  removes the @media/variant override instead of writing it again. */
   effectiveHidden: boolean;
+  locateFlashRevision?: number;
   onSelect: (layerId: string, nodeId: string, e?: React.MouseEvent) => void;
   onToggleExpand: (id: string) => void;
   onDragStart: (e: React.MouseEvent, layerId: string, nodeId: string) => void;
@@ -745,7 +746,9 @@ export const LayerRow = React.memo(function LayerRow({
       data-selected={isSelected ? 'true' : 'false'}
       data-selected-descendant={isChildOfSelected ? 'true' : 'false'}
       data-component-tone={useComponentTone ? 'true' : 'false'}
+      data-locate-flashing={locateFlashRevision != null ? 'true' : undefined}
     >
+      {locateFlashRevision != null && <div key={locateFlashRevision} aria-hidden className="field-layer-locate-flash" />}
       {/* Viewport-pinned selection / hover background. It's absolutely
           positioned and sized to the panel's VISIBLE width minus padding, then
           counter-translated by the horizontal scroll offset (CSS vars set on
