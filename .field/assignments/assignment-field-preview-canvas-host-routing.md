@@ -3,8 +3,8 @@
 ---
 field_assignment: 1
 id: field-preview-canvas-host-routing
-status: ready-for-implementation
-branch: null
+status: active
+branch: field/field-preview-canvas-host-routing
 pr: null
 base: 0c71cab5cdab71e651e08e9c35a3a79202eeac35
 kit: 2026-09-26.4
@@ -87,3 +87,10 @@ Make the smallest deterministic routing repair.
 - Canvas security headers match production Canvas semantics
 - no regression to main editor or site Preview routing
 - record exact tested head/main SHA and Preview URL
+
+
+## 2026-09-27 activation
+
+- Activated from exact main 0c71cab5cdab71e651e08e9c35a3a79202eeac35.
+- Repair branch: field/field-preview-canvas-host-routing.
+- Implementation is limited to the three owned paths.

@@ -2,7 +2,7 @@
 
 ```yaml
 assignment: field-preview-canvas-host-routing
-status: not-run
+status: in-progress
 tested_head_sha: null
 tested_main_sha: 0c71cab5cdab71e651e08e9c35a3a79202eeac35
 environment: branch Preview

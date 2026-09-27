@@ -25,3 +25,10 @@ Thumbnail work is complete and is not a blocker for this repair.
 ### Repair requested
 
 A Contract Worker should activate this assignment, fix the Worker hostname classifier + routing headers, add regression coverage, update the canonical browser Preview QA protocol, prove branch Canvas first paint on the exact repair head, and merge/close out normally.
+
+
+## 2026-09-27 implementation started
+
+- Repair branch activated from exact main 0c71cab5cdab71e651e08e9c35a3a79202eeac35.
+- Deterministic fix: classify *.canvas-preview.loew.fi as Canvas while preserving production Canvas and site Preview behavior.
+- Regression coverage includes the failing motion branch hostname and a hash-prefixed Canvas Preview hostname.
