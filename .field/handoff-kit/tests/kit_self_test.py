@@ -7,7 +7,7 @@ required = [
     "VERSION", "manifest.json", "README.md", "CHAT_BOOTSTRAP.md", "CONTRACT.md",
     "ASSIGNMENT_AUTHORING.md", "COMPOSIO_WRITE_BROKER.md", "bin/field-handoff",
     "installer/INSTALLER_CONTRACT.md", "installer/install-template.sh",
-    "qa/FIRECRAWL_QA_PROTOCOL.md", "qa/QA_CLASSIFICATION.md", "qa/AUTHENTICATED_QA.md",
+    "qa/BROWSER_PREVIEW_QA_PROTOCOL.md", "qa/QA_CLASSIFICATION.md", "qa/AUTHENTICATED_QA.md",
     "templates/assignment.md", "templates/assignment-unique-name.md",
     "templates/package-README.md", "templates/apply.mjs",
     "tests/contract_worker_v2_test.py",
@@ -19,13 +19,15 @@ for rel in required:
 
 manifest = json.loads((ROOT / "manifest.json").read_text())
 version = (ROOT / "VERSION").read_text().strip()
-assert manifest["version"] == version == "2026-09-26.3"
+assert manifest["version"] == version == "2026-09-26.4"
 assert manifest["repository"] == "lrnolivia/field"
 assert manifest["control_branch"] == "field/control"
 assert manifest["legacy_tracker"] == "tracker.md"
 assert "tracker" not in manifest
 assert manifest["contract_worker"]["github_transport"] == "composio-exclusive"
 assert manifest["contract_worker"]["native_github_connector_allowed"] is False
+assert manifest["runtime_qa"]["web_visible"] == "pr-preview-browser"
+assert manifest["runtime_qa"]["protocol"].endswith("BROWSER_PREVIEW_QA_PROTOCOL.md")
 
 contract = (ROOT / "CONTRACT.md").read_text()
 for phrase in [
@@ -80,3 +82,15 @@ assert all("artificial blocker" in text.lower() for text in blocker_docs)
 assert manifest["current_worker_self_registration"].endswith("CURRENT_WORKER_SELF_REGISTRATION.md")
 
 print("field handoff kit self-test: PASS")
+
+
+browser_policy_docs = [
+    (ROOT / "CONTRACT.md").read_text(),
+    (ROOT / "CHAT_BOOTSTRAP.md").read_text(),
+    (ROOT / "ASSIGNMENT_AUTHORING.md").read_text(),
+    (ROOT / "README.md").read_text(),
+    (ROOT / "templates/assignment-unique-name.md").read_text(),
+    (ROOT / "qa/BROWSER_PREVIEW_QA_PROTOCOL.md").read_text(),
+]
+assert all("Firecrawl" not in text for text in browser_policy_docs)
+assert all("browser" in text.lower() for text in browser_policy_docs)
