@@ -4,6 +4,7 @@
 // (which would cycle: registry → editor → CursorTool → VariableModal → registry).
 
 import React from 'react';
+import { motion } from 'motion/react';
 import { CURSOR_ICONS, CURSOR_NAMES, cursorLabel } from './cursor-icons';
 
 export function CursorPickerGrid({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -13,9 +14,12 @@ export function CursorPickerGrid({ value, onChange }: { value: string; onChange:
         const Icon = CURSOR_ICONS[name];
         const isSelected = value === name;
         return (
-          <button
+          <motion.button
             key={name}
             type="button"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             onClick={() => onChange(name)}
             title={cursorLabel(name)}
             style={{ cursor: name }}
@@ -33,7 +37,7 @@ export function CursorPickerGrid({ value, onChange }: { value: string; onChange:
             <span className={`text-[10px] truncate w-full text-center ${isSelected ? 'text-[var(--accent-fg)]' : 'text-[var(--text-secondary)]'}`}>
               {cursorLabel(name)}
             </span>
-          </button>
+          </motion.button>
         );
       })}
     </div>
