@@ -7,6 +7,7 @@ import { useReducedMotion, type Transition, type Variants } from 'motion/react';
  * not arbitrary component durations. Editor feedback is ephemeral UI state:
  * it must never serialize into the design graph, generated source, Preview
  * semantics, or the production website.
+ * Spatial feedback belongs on local affordance parts; hit-target geometry stays fixed.
  */
 export const fieldMotion = {
   response: { type: 'spring', stiffness: 560, damping: 26, mass: 0.42 } satisfies Transition,
