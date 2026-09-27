@@ -2,7 +2,7 @@
 // Runs before <App /> is shown: loads user + project from backend,
 // hydrates ProjectFS, and redirects to sign-in if unauthenticated (cloud).
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
@@ -553,28 +553,20 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // to show behind it — the previewed template inside the builder when the
   // snapshot loaded, the ordinary loading shell when it didn't (share links).
   // The picker performs the remix + redirect itself.
-  if (!ready) {
-    return (
-      <BuilderLoadingShell
-        status={loadError ? "Project couldn't open" : 'Opening project'}
-        detail={loadError ? 'field could not finish loading this project.' : undefined}
-        recoverable={!!loadError}
-      />
-    );
-  }
-
   // Keep the shell OVERLAID on the mounted App until the canvas has actually
   // painted (first Renderer render-complete) — dropping it at `ready` showed
   // an empty canvas for ~300ms while the sandbox rendered the viewports. The
   // shell fades out over the fully-drawn page instead.
   return (
     <>
-      <App
+      {ready && <App
         interactive={editorInteractive}
         onCanvasFirstPaint={() => setCanvasPainted(true)}
-      />
+      />}
       <CanvasReadyShellOverlay
-        painted={canvasPainted}
+        hydrated={ready}
+        loadError={loadError}
+        painted={ready && canvasPainted}
         onReady={() => {
           setEditorInteractive(true);
           onCanvasReady?.();
@@ -589,52 +581,64 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
 }
 
 function CanvasReadyShellOverlay({
+  hydrated,
+  loadError,
   painted,
   onReady,
 }: {
+  hydrated: boolean;
+  loadError: string | null;
   painted: boolean;
   onReady?: () => void;
 }) {
-  const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
+  const [phase, setPhase] = useState<'enter' | 'waiting' | 'exit' | 'done'>('enter');
   const [delayed, setDelayed] = useState(false);
+  const startedAt = useRef(performance.now());
+  const readyCallback = useRef(onReady);
+  readyCallback.current = onReady;
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setPhase('waiting'));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     if (phase !== 'waiting') return;
-
     if (painted) {
       trace.action('project-loader:canvas-painted', {});
-      const raf = requestAnimationFrame(() => setPhase('fading'));
-      return () => cancelAnimationFrame(raf);
+      // Minimum visibility is measured from mount, never added to a slow load.
+      const wait = Math.max(0, 850 - (performance.now() - startedAt.current));
+      const timer = window.setTimeout(() => setPhase('exit'), wait);
+      return () => window.clearTimeout(timer);
     }
-
-    const timeout = setTimeout(() => {
+    if (!hydrated || loadError) return;
+    const timer = window.setTimeout(() => {
       setDelayed(true);
       trace.action('project-loader:canvas-delayed', {});
     }, 4000);
-    trace.action('project-loader:shell-overlay-waiting', {});
-    return () => clearTimeout(timeout);
-  }, [painted, phase]);
+    return () => window.clearTimeout(timer);
+  }, [hydrated, loadError, painted, phase]);
 
   useEffect(() => {
-    if (phase !== 'fading') return;
-    trace.action('project-loader:shell-overlay-fade', {});
-    const t = setTimeout(() => {
+    if (phase !== 'exit') return;
+    trace.action('project-loader:veil-exit', {});
+    const timer = window.setTimeout(() => {
       setPhase('done');
-      onReady?.();
-    }, 280);
-    return () => clearTimeout(t);
-  }, [onReady, phase]);
+      readyCallback.current?.();
+    }, 360);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   if (phase === 'done') return null;
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: phase === 'fading' ? 'none' : 'auto',
-      opacity: phase === 'fading' ? 0 : 1, transition: 'opacity 260ms ease',
+    <div data-canvas-loading-phase={phase} style={{
+      position: 'fixed', inset: 0, zIndex: 100000,
+      pointerEvents: phase === 'exit' ? 'none' : 'auto',
     }}>
       <BuilderLoadingShell
-        status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
-        detail={delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
-        recoverable={delayed}
+        status={loadError ? "Project couldn't open" : !hydrated ? 'Opening project' : delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
+        detail={loadError ? 'field could not finish loading this project.' : delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
+        recoverable={!!loadError || delayed}
       />
     </div>
   );
