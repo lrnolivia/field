@@ -1,273 +1,101 @@
 import { useEffect, useRef } from 'react';
 
-type State = [number, number, number, number, number, number, number?];
-type Ellipse = {
-  name: string;
-  blend: 'normal' | 'multiply' | 'overlay';
-  states: [State, State, State];
-};
+type State = { x:number; y:number; width:number; height:number; rotation:number; blur:number; opacity:number; z:number };
+type Ellipse = { name:string; blend:'normal'|'multiply'|'overlay'; gradient:'mono'|'color'; states:[State,State,State]; missing?:'first'|'first-two' };
 
-const W = 390;
-const H = 844;
-const SEGMENT_MS = 2000;
-const CYCLE_MS = 6000;
-const NOISE_STEP_MS = 100;
+const INSTANCE_WIDTH=2875;
+const INSTANCE_HEIGHT=4568;
+const FRAME_WIDTH=4568;
+const FRAME_HEIGHT=2975;
+const SEGMENT_MS=2000;
+const CYCLE_MS=6000;
+const s=(x:number,y:number,width:number,height:number,rotation:number,blur:number,z:number,opacity=1):State=>({x,y,width,height,rotation,blur,z,opacity});
 
-const state = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  rotation: number,
-  blur: number,
-  opacity = 1,
-): State => [x, y, width, height, rotation, blur, opacity];
-
-export const FIGMA_LOADING_FRAME = Object.freeze({
-  fileKey: 'ywgbSYrD0fUcXmREaWjqRw',
-  frameNodeId: '8:2679',
-  componentSetNodeId: '8:3',
-  sourceWidth: W,
-  sourceHeight: H,
-  frameBlendMode: 'hard-light',
-  selectedVariant: 'Frame 51',
-  variantDurationMs: SEGMENT_MS,
-  cycleMs: CYCLE_MS,
-  noiseComponentSetNodeId: '8:48',
-  noiseBlendMode: 'soft-light',
-  noiseStepMs: NOISE_STEP_MS,
-  noiseTilePx: 256,
-  gradientStops: [
-    [0, '#525252'],
-    [0.1958332061767578, '#3a3a3a'],
-    [0.4510415494441986, '#ffffff'],
-    [0.6489582061767578, '#808080'],
-    [0.8624998927116394, '#7a7a7a'],
-  ] as const,
-  noiseAssets: [
-    '/field-brand/loading/noise-1.png',
-    '/field-brand/loading/noise-2.png',
-    '/field-brand/loading/noise-3.png',
-    '/field-brand/loading/noise-4.png',
-  ] as const,
+export const FIGMA_LOADING_FRAME=Object.freeze({
+  fileKey:'ywgbSYrD0fUcXmREaWjqRw',
+  frameNodeId:'8:2679',
+  placedInstanceNodeId:'8:2680',
+  componentSetNodeId:'8:3',
+  frameWidth:FRAME_WIDTH,frameHeight:FRAME_HEIGHT,
+  instanceWidth:INSTANCE_WIDTH,instanceHeight:INSTANCE_HEIGHT,
+  frameBlendMode:'hard-light',variantDurationMs:SEGMENT_MS,cycleMs:CYCLE_MS,
+  noiseBlendMode:'soft-light',noiseStepMs:100,
+  monochromeStops:[[0,'#525252'],[0.195833,'#3a3a3a'],[0.451042,'#ffffff'],[0.648958,'#808080'],[0.8625,'#7a7a7a']] as const,
 });
 
-const ELLIPSES: readonly Ellipse[] = [
-  {
-    name: 'Ellipse 259',
-    blend: 'normal',
-    states: [
-      state(218.424, 461.917, 598.372, 598.372, 112.763, 135.985),
-      state(869.82, -184.18, 703.758, 703.758, -111.237, 159.935),
-      state(759.696, -321.844, 709.252, 709.252, -91.704, 161.183),
-    ],
-  },
-  {
-    name: 'Ellipse 260',
-    blend: 'multiply',
-    states: [
-      state(-43.82, 329.415, 875.883, 875.883, 63.605, 112.311),
-      state(342.016, -512.339, 956.233, 956.233, -6.434, 122.614),
-      state(779.692, -617.761, 783.113, 649.232, -70.725, 129.337),
-    ],
-  },
-  {
-    name: 'Ellipse 261',
-    blend: 'overlay',
-    states: [
-      state(123.539, -520.888, 875.883, 875.883, -16.973, 112.311),
-      state(894.474, 757.738, 956.233, 956.233, -179.689, 122.614),
-      state(1106.301, 262.913, 1008.67, 1008.67, -152.105, 129.337),
-    ],
-  },
-  {
-    name: 'Ellipse 262',
-    blend: 'normal',
-    states: [
-      state(384.451, 1449.583, 709.252, 709.252, 91.704, 161.183),
-      state(-156.821, 615.156, 598.372, 598.372, -112.763, 135.985),
-      state(494.575, 1313.806, 703.758, 703.758, 111.237, 159.935),
-    ],
-  },
-  {
-    name: 'Ellipse 263',
-    blend: 'multiply',
-    states: [
-      state(-419.065, 747.658, 875.883, 875.883, -63.605, 112.311, 0),
-      state(-419.065, 747.658, 875.883, 875.883, -63.605, 112.311, 1),
-      state(596.148, 1911.784, 783.113, 649.232, 70.725, 129.337, 1),
-    ],
-  },
-  {
-    name: 'Ellipse 264',
-    blend: 'overlay',
-    states: [
-      state(731.056, 864.826, 1008.67, 1008.67, 152.105, 129.337),
-      state(-251.706, 1597.962, 875.883, 875.883, 16.973, 112.311),
-      state(710.931, 335.179, 956.233, 956.233, 179.689, 122.614),
-    ],
-  },
-  {
-    name: 'Ellipse 265',
-    blend: 'multiply',
-    states: [
-      state(-33.229, 1641.964, 956.233, 956.233, 6.434, 122.614, 0),
-      state(-33.229, 1641.964, 956.233, 956.233, 6.434, 122.614, 0),
-      state(-33.229, 1641.964, 956.233, 956.233, 6.434, 122.614, 1),
-    ],
-  },
+const F52_263=s(-3089.264,4046.568,5125.528,6155.688,-55.942,229.843,4,1);
+const F53_265=s(-244.954,8886.84,7028.72,5203.156,4.733,250.928,5,1);
+const ELLIPSES:readonly Ellipse[]=[
+ {name:'Ellipse 259',blend:'normal',gradient:'mono',states:[
+  s(1610.174,2500.043,3439.65,4256.148,119.749,278.292,0),
+  s(6412.135,-996.844,4016.97,5028.632,-117.892,327.305,0),
+  s(5600.323,-1741.924,3840.15,5227.391,-92.321,329.86,0)]},
+ {name:'Ellipse 260',blend:'multiply',gradient:'mono',states:[
+  s(-323.036,1782.901,5125.528,6155.688,55.942,229.843,1),
+  s(2521.275,-2772.942,7028.72,5203.156,-4.733,250.928,1),
+  s(5747.73,-3343.522,4431.529,4664.261,-64.532,264.688,1)]},
+ {name:'Ellipse 261',blend:'overlay',gradient:'mono',states:[
+  s(910.703,-2819.214,6328.735,4910.259,-12.631,229.843,2),
+  s(6593.882,4101.124,7049.104,5175.505,-179.772,250.928,2),
+  s(8155.421,1422.969,7050.619,5948.268,-158.761,264.688,3)]},
+ {name:'Ellipse 262',blend:'normal',gradient:'mono',states:[
+  s(2834.095,7845.608,3840.15,5227.391,92.321,329.86,3),
+  s(-1156.054,3329.425,3439.65,4256.148,-119.749,278.292,3),
+  s(3645.906,7110.742,4016.97,5028.632,117.892,327.305,4)]},
+ {name:'Ellipse 263',blend:'multiply',gradient:'color',missing:'first',states:[
+  {...F52_263,opacity:0},F52_263,s(4394.684,10347.193,4431.529,4664.261,64.532,264.688,2,1)]},
+ {name:'Ellipse 264',blend:'overlay',gradient:'mono',states:[
+  s(5389.192,4680.715,7050.619,5948.268,158.761,264.688,4),
+  s(-1855.525,8648.684,6328.735,4910.259,12.631,229.843,5),
+  s(5240.834,1814.098,7049.104,5175.505,179.772,250.928,6)]},
+ {name:'Ellipse 265',blend:'multiply',gradient:'color',missing:'first-two',states:[
+  {...F53_265,opacity:0,z:5},{...F53_265,opacity:0,z:5},F53_265]},
 ];
 
-const GRADIENT =
-  'conic-gradient(from 90deg at 50% 50%, #525252 0%, #3a3a3a 19.58332061767578%, #ffffff 45.10415494441986%, #808080 64.89582061767578%, #7a7a7a 86.24998927116394%, #525252 100%)';
+const MONO='conic-gradient(from 90deg at 50% 50%,#525252 0%,#3a3a3a 19.5833%,#fff 45.1042%,#808080 64.8958%,#7a7a7a 86.25%,#525252 100%)';
+const COLOR='conic-gradient(from 90deg at 50% 50%,#ff6161 0%,#ffd361 19.5833%,#95ffa0 45.1042%,#95b9ff 64.8958%,#d795ff 86.25%,#ff6161 100%)';
+const px=(n:number)=>String(n)+'px';
+const key=(a:State,offset:number):Keyframe=>({offset,left:px(a.x),top:px(a.y),width:px(a.width),height:px(a.height),transform:'rotate('+a.rotation+'deg)',filter:'blur('+a.blur+'px)',opacity:a.opacity,zIndex:String(a.z)});
 
-const keyframe = (s: State, offset: number): Keyframe => ({
-  offset,
-  left: `${s[0]}px`,
-  top: `${s[1]}px`,
-  width: `${s[2]}px`,
-  height: `${s[3]}px`,
-  transform: `rotate(${s[4]}deg)`,
-  filter: `blur(${s[5]}px)`,
-  opacity: s[6] ?? 1,
-});
+const NOISE=['/field-brand/loading/figma-noise-1.png','/field-brand/loading/figma-noise-2.png','/field-brand/loading/figma-noise-3.png','/field-brand/loading/figma-noise-4.png'] as const;
 
-export default function ReshadersMeshFlowLayer() {
-  const stage = useRef<HTMLDivElement>(null);
-  const plane = useRef<HTMLDivElement>(null);
-  const refs = useRef(new Map<string, HTMLDivElement>());
+const CSS=[
+ '[data-figma-loading-frame] [data-figma-noise]{position:absolute;left:0;top:0;width:100%;height:96.941%;pointer-events:none;mix-blend-mode:soft-light;overflow:hidden}',
+ '[data-figma-loading-frame] [data-noise-frame]{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:0;animation:field-noise-frame 400ms steps(1,end) infinite}',
+ '[data-figma-loading-frame] [data-noise-frame="2"]{animation-delay:-300ms}',
+ '[data-figma-loading-frame] [data-noise-frame="3"]{animation-delay:-200ms}',
+ '[data-figma-loading-frame] [data-noise-frame="4"]{animation-delay:-100ms}',
+ '@keyframes field-noise-frame{0%,24.99%{opacity:1}25%,100%{opacity:0}}',
+ '@media(prefers-reduced-motion:reduce){[data-figma-loading-frame] [data-noise-frame]{animation:none;opacity:0}[data-figma-loading-frame] [data-noise-frame="1"]{opacity:1}}'
+].join('\n');
 
-  useEffect(() => {
-    if (!stage.current || !plane.current) return;
-
-    const fit = () => {
-      const width = Math.max(1, stage.current!.clientWidth);
-      const height = Math.max(1, stage.current!.clientHeight);
-      // The authored Figma instance is the 390×844 component rotated 90° and
-      // non-uniformly fitted to the full frame. Keep that exact relationship.
-      plane.current!.style.transform =
-        `matrix(0,${-(height / W)},${width / H},0,0,${height})`;
-    };
-
-    const observer = new ResizeObserver(fit);
-    observer.observe(stage.current);
-    fit();
-
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const animations: Animation[] = [];
-
-    if (!reduced) {
-      for (const ellipse of ELLIPSES) {
-        const element = refs.current.get(ellipse.name);
-        if (!element) continue;
-        const [a, b, c] = ellipse.states;
-        animations.push(
-          element.animate(
-            [
-              keyframe(a, 0),
-              keyframe(b, 1 / 3),
-              keyframe(c, 2 / 3),
-              keyframe(a, 1),
-            ],
-            {
-              duration: CYCLE_MS,
-              iterations: Infinity,
-              easing: 'linear',
-            },
-          ),
-        );
-      }
-    }
-
-    return () => {
-      observer.disconnect();
-      animations.forEach((animation) => animation.cancel());
-    };
-  }, []);
-
-  return (
-    <div
-      ref={stage}
-      data-figma-loading-frame
-      aria-hidden
-      style={{
-        position: 'absolute',
-        inset: 0,
-        overflow: 'hidden',
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        ref={plane}
-        data-figma-mesh-plane
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: W,
-          height: H,
-          transformOrigin: '0 0',
-          background: '#000',
-          overflow: 'hidden',
-        }}
-      >
-        {ELLIPSES.map((ellipse) => {
-          const s = ellipse.states[0];
-          return (
-            <div
-              key={ellipse.name}
-              ref={(node) => {
-                if (node) refs.current.set(ellipse.name, node);
-                else refs.current.delete(ellipse.name);
-              }}
-              data-figma-mesh-ellipse={ellipse.name}
-              style={{
-                position: 'absolute',
-                left: s[0],
-                top: s[1],
-                width: s[2],
-                height: s[3],
-                borderRadius: '50%',
-                background: GRADIENT,
-                transform: `rotate(${s[4]}deg)`,
-                transformOrigin: '50% 50%',
-                filter: `blur(${s[5]}px)`,
-                opacity: s[6] ?? 1,
-                mixBlendMode: ellipse.blend,
-                willChange: 'left, top, width, height, transform, filter, opacity',
-              }}
-            />
-          );
-        })}
-      </div>
-
-      <div data-figma-noise />
-      <style>{`
-        [data-figma-loading-frame] [data-figma-noise] {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 1;
-          mix-blend-mode: soft-light;
-          background-image: url("${FIGMA_LOADING_FRAME.noiseAssets[0]}");
-          background-repeat: repeat;
-          background-size: ${FIGMA_LOADING_FRAME.noiseTilePx}px ${FIGMA_LOADING_FRAME.noiseTilePx}px;
-          animation: field-figma-noise ${NOISE_STEP_MS * 4}ms steps(1, end) infinite;
-        }
-
-        @keyframes field-figma-noise {
-          0%, 24.99% { background-image: url("${FIGMA_LOADING_FRAME.noiseAssets[0]}"); }
-          25%, 49.99% { background-image: url("${FIGMA_LOADING_FRAME.noiseAssets[1]}"); }
-          50%, 74.99% { background-image: url("${FIGMA_LOADING_FRAME.noiseAssets[2]}"); }
-          75%, 100% { background-image: url("${FIGMA_LOADING_FRAME.noiseAssets[3]}"); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          [data-figma-loading-frame] [data-figma-noise] {
-            animation: none;
-          }
-        }
-      `}</style>
-    </div>
-  );
+export default function ReshadersMeshFlowLayer(){
+ const stage=useRef<HTMLDivElement>(null);
+ const plane=useRef<HTMLDivElement>(null);
+ const refs=useRef(new Map<string,HTMLDivElement>());
+ useEffect(()=>{
+  if(!stage.current||!plane.current)return;
+  const fit=()=>{
+   const sx=Math.max(1,stage.current!.clientWidth)/FRAME_WIDTH;
+   const sy=Math.max(1,stage.current!.clientHeight)/FRAME_HEIGHT;
+   plane.current!.style.transform='matrix(0,'+(-sy)+','+sx+',0,0,'+(INSTANCE_WIDTH*sy)+')';
+  };
+  const ro=new ResizeObserver(fit);ro.observe(stage.current);fit();
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animations:Animation[]=[];
+  if(!reduced)for(const e of ELLIPSES){
+   const el=refs.current.get(e.name);if(!el)continue;
+   const[a,b,c]=e.states;
+   const frames=e.missing==='first'?[key(a,0),key(b,1/3),key(c,2/3),key({...c,opacity:0},.999),key(a,1)]:e.missing==='first-two'?[key(a,0),key(b,1/3),key(c,2/3),key({...c,opacity:0},.999),key(a,1)]:[key(a,0),key(b,1/3),key(c,2/3),key(a,1)];
+   animations.push(el.animate(frames,{duration:CYCLE_MS,iterations:Infinity,easing:'linear'}));
+  }
+  return()=>{ro.disconnect();animations.forEach(a=>a.cancel())};
+ },[]);
+ return <div ref={stage} data-figma-loading-frame aria-hidden style={{position:'absolute',inset:0,overflow:'hidden',background:'#000'}}>
+  <div ref={plane} data-figma-placed-instance style={{position:'absolute',left:0,top:0,width:INSTANCE_WIDTH,height:INSTANCE_HEIGHT,transformOrigin:'0 0',background:'#000',overflow:'hidden'}}>
+   {ELLIPSES.map(e=>{const a=e.states[0];return <div key={e.name} ref={n=>{if(n)refs.current.set(e.name,n);else refs.current.delete(e.name)}} style={{position:'absolute',left:a.x,top:a.y,width:a.width,height:a.height,borderRadius:'50%',background:e.gradient==='mono'?MONO:COLOR,transform:'rotate('+a.rotation+'deg)',transformOrigin:'50% 50%',filter:'blur('+a.blur+'px)',opacity:a.opacity,mixBlendMode:e.blend,zIndex:a.z,willChange:'left,top,width,height,transform,filter,opacity'}}/>})}
+  </div>
+  <div data-figma-noise>{NOISE.map((src,i)=><img key={src} src={src} alt="" data-noise-frame={i+1}/>)}</div>
+  <style>{CSS}</style>
+ </div>;
 }
