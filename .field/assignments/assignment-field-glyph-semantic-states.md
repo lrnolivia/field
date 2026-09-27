@@ -16,6 +16,12 @@ owned:
   - src/editor/tools/LayoutTool.tsx
   - src/editor/tools/CursorTool.tsx
   - src/editor/tools/CursorTool/cursor-icons.tsx
+  - src/editor/tools/OverlayTool.tsx
+  - src/editor/ui/VariableModal.tsx
+  - src/editor/tools/AnimationTool/AddEffectDropdown.tsx
+  - src/editor/overlays/settings-shared.tsx
+  - src/editor/agent/AgentChat.tsx
+  - src/editor/agent/ChangesCard.tsx
 approved_shared: []
 protected:
   - src/Dashboard.tsx
@@ -118,3 +124,9 @@ Performance acceptance:
 - No measurable growth in DOM geometry/layout work caused by glyph animation.
 - Exact-head QA must include a dense-icon stress pass (rapid hover/click/reversal across multiple controls) and report any dropped/sticky/stale animation behavior.
 - If broad motion coverage creates a perceptible performance regression, reduce implementation cost before reducing semantic coverage.
+
+## 2026-09-27 hourly glyph sweep expansion
+
+- User requested explicit 25–50 icon batches hourly until complete.
+- Batch 2 expands ownership only into currently unclaimed editor surfaces: OverlayTool, VariableModal, Animation AddEffectDropdown, settings-shared, AgentChat, and ChangesCard.
+- Dashboard, gallery, loading veil, left rail handoff, and other actively owned paths remain untouched.
