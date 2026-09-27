@@ -17,7 +17,7 @@ type Props = {
 
 export default function ProjectGrid({ projects, refreshingProjectIds, openMenuId, onOpenMenuId, ...actions }: Props) {
   return (
-    <div className="field-project-grid">
+    <div className="field-project-grid" role="list">
       {projects.map((project) => (
         <ProjectCard
           key={project.id}
