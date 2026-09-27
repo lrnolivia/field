@@ -1,15 +1,16 @@
-// FIGUI3_TOOLBAR_RESOURCES_VIEW_CONTROLS_TEST_20260926
+// FIGUI3_TOOLBAR_RESOURCES_VIEW_CONTROLS_TEST_20260927
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 resources + view-control placement', () => {
-  it('routes Resources to the canonical Library and Media panels', () => {
+  it('routes Resources directly to Library and Image/video to Media', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain('function ResourcesMenu()');
-    expect(toolbar).toContain("openCanonicalPanel('library')");
-    expect(toolbar).toContain("openCanonicalPanel('media')");
+    expect(toolbar).toContain('function ResourcesButton()');
+    expect(toolbar).toContain("setLeftPanel('library')");
+    expect(toolbar).toContain('label="Image/video…"');
+    expect(toolbar).toContain("setLeftPanel('media')");
     expect(toolbar).toContain('setLeftPaneOpen(true)');
     expect(toolbar).toContain('dataTool="resources"');
   });

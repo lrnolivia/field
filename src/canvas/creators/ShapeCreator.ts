@@ -4,7 +4,7 @@
 //
 // Flow: pointerdown → draw preview → pointerup → validate → inject SVG JSX → cleanup
 //
-// Supports 4 shape types: rectangle, ellipse, triangle, path (diagonal line).
+// Supports rectangle, line, ellipse, triangle, plus the Pen/path editor.
 // Each generates an <svg> wrapper with the appropriate inner shape child.
 
 import { transformManager } from '@/canvas/transform';
@@ -47,7 +47,7 @@ const DEFAULT_SHAPE_FILL = '#3b82f6';
 // freshly drawn line reads as line art rather than a filled shape.
 const DEFAULT_PATH_STROKE = '#AAAAAA';
 
-export type ShapeMode = 'shape-rect' | 'shape-ellipse' | 'shape-triangle' | 'shape-path';
+export type ShapeMode = 'shape-rect' | 'shape-line' | 'shape-ellipse' | 'shape-triangle' | 'shape-path';
 
 export interface ShapeCreatorCallbacks {
   getContainerRect: () => DOMRect;
@@ -70,6 +70,7 @@ function shapeDisplayName(mode: ShapeMode): string {
     case 'shape-rect': return 'Rectangle';
     case 'shape-ellipse': return 'Ellipse';
     case 'shape-triangle': return 'Triangle';
+    case 'shape-line': return 'Line';
     case 'shape-path': return 'Path';
   }
 }
@@ -101,6 +102,16 @@ function createInnerShapeEl(mode: ShapeMode, width: number, height: number): SVG
       polygon.setAttribute('points', `${w / 2},0 ${w},${h} 0,${h}`);
       polygon.setAttribute('fill', DEFAULT_SHAPE_FILL);
       return polygon;
+    }
+    case 'shape-line': {
+      const path = document.createElementNS(SVG_NS, 'path');
+      const w = Math.round(width);
+      const h = Math.round(height);
+      path.setAttribute('d', `M0,${h} L${w},0`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', DEFAULT_SHAPE_FILL);
+      path.setAttribute('stroke-width', '2');
+      return path;
     }
     case 'shape-path': {
       const path = document.createElementNS(SVG_NS, 'path');
@@ -138,6 +149,8 @@ export function innerShapeJSX(mode: ShapeMode, width: number, height: number): s
       return `<path d="${ellipsePathD(w, h)}" fill="${DEFAULT_SHAPE_FILL}" stroke="#000000" stroke-width="0" />`;
     case 'shape-triangle':
       return `<polygon points="${w / 2},0 ${w},${h} 0,${h}" fill="${DEFAULT_SHAPE_FILL}" stroke="#000000" stroke-width="0" />`;
+    case 'shape-line':
+      return `<path d="M0,${h} L${w},0" fill="none" stroke="${DEFAULT_SHAPE_FILL}" strokeWidth="2" />`;
     case 'shape-path':
       // Path-mode is stroke-only (fill="none") so stroke must be visible
       // immediately — keep it at the original width=2 so the line is
