@@ -40,3 +40,21 @@ evidence: []
 - package_manifest_changes: none
 - moving_main_at_publication: unchanged at `66a6f90ef9658e5a66409c0ebe48727715b3452b`
 - CI: IN PROGRESS
+
+## Validation evidence — 2026-09-27
+
+- source_transpile: PASS — 16 files, 0 syntax diagnostics
+- focused_contract_assertions: PASS — 10/10
+- whitespace_conflict_scan: PASS — 0 failures
+- exact_changed_path_audit: PASS — 16 paths, all assignment-owned
+- package_manifest_changes: none
+- full_vitest: BLOCKED — isolated validation npm Arborist failure/timeouts
+- full_project_typescript: NOT RUN
+- npm_run_build_all: NOT RUN
+- workers_branch_build: FAIL / INFRASTRUCTURE-CLASSIFIED — identical failure class on unrelated active branches, zero check annotations
+- runtime_qa: BLOCKED — branch Preview infrastructure unavailable
+- ui_audit_accessibility: PASS WITH FOLLOW-UP — reduced-motion hooks present; ToolSwitch now exposes aria-pressed; existing compact desktop control geometry intentionally preserved
+- ui_audit_performance: PASS WITH WATCH — routine motion uses transform-based glyph/swatch/thumb feedback; ToolSection height/auto is the single bounded user-triggered layout animation to watch in runtime QA
+- ui_audit_theming: PASS — no new theme-color system or package changes
+- ui_audit_responsive: NO GEOMETRY CHANGE — existing editor dimensions preserved
+- ui_audit_integrity: PASS — motion centralized under field.MOTION and remains editor-feedback-only

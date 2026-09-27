@@ -27,3 +27,12 @@ Assignment: `field-motion-semantic-controls`
 - Published exactly 16 owned files: canonical `src/editor/motion/**` plus the twelve targeted shared controls.
 - No package manifests, Dashboard structural motion, thumbnail, Scale, canvas, backend, or generated-source paths changed.
 - CI/preview validation is in progress against the exact branch head.
+
+## 2026-09-27 validation classification
+
+- Exact head source transpile diagnostic: 16/16 changed TS/TSX files, 0 syntax failures.
+- Focused source-contract validation: 10/10 assertions passed.
+- Whitespace/conflict-marker audit: 0 failures.
+- Workers build for PR #12 failed with zero annotations, but the same Workers check also fails on unrelated Dashboard head `932af6d67c84fc0b9eccab46d6f78ad5aade49cf` and Gallery head `25a379f1d32bc22f13248dac0346e0b0a6d425c9`; classify as known branch-preview/deployment infrastructure, not a demonstrated motion defect.
+- Full Vitest/project build could not run in the isolated Composio sandbox because its npm installer hit an Arborist `edgesOut` defect/timeouts. Do not claim those checks passed.
+- Runtime Preview QA remains blocked by the active branch-preview infrastructure assignment.
