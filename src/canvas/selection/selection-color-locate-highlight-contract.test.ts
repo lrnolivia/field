@@ -11,16 +11,19 @@ describe('Selection color locate geometry contract', () => {
     expect(source).toContain('setSelectionColorLocateHighlight');
   });
 
-  it('uses painted-alpha drop shadows on the real sandbox element', () => {
-    expect(sandbox).toContain('drop-shadow(0 0 0.65px');
-    expect(sandbox).toContain('drop-shadow(0 0 1.65px');
-    expect(sandbox).toContain('drop-shadow(0 0 3.25px');
-    expect(sandbox).toContain('const animation = el.animate');
+  it('builds a true alpha-edge keyline from the rendered object silhouette', () => {
+    expect(sandbox).toContain('operator="erode" radius="1.5"');
+    expect(sandbox).toContain('operator="dilate" radius="1"');
+    expect(sandbox).toContain('mode="overlay"');
+    expect(sandbox).toContain('flood-opacity="0.96"');
+    expect(sandbox).toContain('flood-opacity="0.82"');
   });
 
-  it('keeps the high-energy definition layer tighter than the atmosphere', () => {
-    expect(sandbox).toContain('0.98 * strength');
-    expect(sandbox).toContain('0.46 * strength');
-    expect(sandbox).toContain('0.16 * strength');
+  it('keeps the luminous stack tight and stronger than the old subtle recipe', () => {
+    expect(sandbox).toContain('drop-shadow(0 0 0.45px');
+    expect(sandbox).toContain('drop-shadow(0 0 1.25px');
+    expect(sandbox).toContain('drop-shadow(0 0 2.35px');
+    expect(sandbox).toContain('1.00 * strength');
+    expect(sandbox).toContain('0.88 * strength');
   });
 });
