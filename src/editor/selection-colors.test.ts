@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { aggregateSelectionColors, buildColorReplacementStyles, collectSelectionScopeIds } from './selection-colors';
 
+if (!('HTMLElement' in globalThis)) {
+  Object.defineProperty(globalThis, 'HTMLElement', { value: class HTMLElement {} });
+}
+
 function node(id: string, styles: Record<string, string> = {}, children: string[] = []): CanvasNode {
   return { id, type: 'div', name: id, parentId: null, children, styles, textContent: '' } as CanvasNode;
 }
