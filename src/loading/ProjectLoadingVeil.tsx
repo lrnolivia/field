@@ -1,10 +1,5 @@
-import ReshadersMeshFlowLayer, { FIGMA_LOADING_FRAME } from './ReshadersMeshFlowLayer';
-
-export const LOADING_VEIL_BACKDROP = Object.freeze({ blurPx: 42, grayscale: 0.9 });
-export const LOADING_VEIL_MESH_BLEND_MODE = FIGMA_LOADING_FRAME.frameBlendMode;
+export const LOADING_VEIL_BACKDROP = Object.freeze({ blurPx: 18, grayscale: 0.2, dim: 0.56 });
 export const LOADING_VEIL_LOGO_SRC = '/field-brand/monochrome/logo-light-trans.png';
-export const loadingVeilShouldShowDetails = (detail?: string, recoverable = false) =>
-  Boolean(detail || recoverable);
 
 interface ProjectLoadingVeilProps {
   status?: string;
@@ -17,167 +12,122 @@ export default function ProjectLoadingVeil({
   detail,
   recoverable = false,
 }: ProjectLoadingVeilProps) {
-  const showDetails = loadingVeilShouldShowDetails(detail, recoverable);
-
-  return <div
-    data-builder-loading-shell
-    data-project-loading-veil
-    style={{
-      position: 'fixed',
-      inset: 0,
-      overflow: 'hidden',
-      background: 'transparent',
-      fontFamily: 'var(--loew-ui-font, Inter, sans-serif)',
-    }}
-  >
-    <style>{`
-      [data-loading-backdrop] {
-        position:absolute; inset:0; pointer-events:none;
-        background:rgba(255,255,255,.001);
-        opacity:1;
-        backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
-        -webkit-backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
-        transition:
-          backdrop-filter 320ms cubic-bezier(.22,.72,.24,1),
-          -webkit-backdrop-filter 320ms cubic-bezier(.22,.72,.24,1),
-          opacity 280ms ease;
-      }
-      [data-canvas-loading-phase="enter"] [data-loading-backdrop],
-      [data-canvas-loading-phase="exit"] [data-loading-backdrop] {
-        opacity:0;
-        backdrop-filter:blur(0) grayscale(0);
-        -webkit-backdrop-filter:blur(0) grayscale(0);
-      }
-
-      [data-loading-mesh-stage] {
-        position:absolute; inset:0; overflow:hidden; pointer-events:none;
-        mix-blend-mode:${LOADING_VEIL_MESH_BLEND_MODE};
-        opacity:1;
-        transition:opacity 190ms ease;
-      }
-      [data-canvas-loading-phase="enter"] [data-loading-mesh-stage],
-      [data-canvas-loading-phase="exit"] [data-loading-mesh-stage] { opacity:0; }
-
-      [data-loading-logo-stage] {
-        position:absolute; left:50%; top:50%; width:0; height:0;
-        z-index:2; pointer-events:none; opacity:1;
-        transition:opacity 260ms ease;
-      }
-      [data-canvas-loading-phase="enter"] [data-loading-logo-stage],
-      [data-canvas-loading-phase="exit"] [data-loading-logo-stage] { opacity:0; }
-      [data-loading-logo-bloom] {
-        position:absolute; left:0; top:0;
-        width:clamp(220px,16vw,300px); aspect-ratio:1;
-        border-radius:50%; transform:translate(-50%,-50%);
-        background:radial-gradient(circle,
-          rgba(255,255,255,.78) 0%,
-          rgba(255,255,255,.42) 12%,
-          rgba(255,255,255,.20) 28%,
-          rgba(255,255,255,.072) 48%,
-          rgba(255,255,255,0) 74%);
-        filter:blur(26px); opacity:.48; mix-blend-mode:screen;
-        animation:field-sleep 6.2s cubic-bezier(.37,0,.63,1) infinite;
-        transition:opacity 260ms ease;
-      }
-      [data-loading-logo] {
-        position:absolute; left:0; top:0;
-        width:clamp(48px,3.65vw,96px); aspect-ratio:1;
-        transform:translate(-50%,-50%);
-        display:block; overflow:hidden;
-        background:#f4f4f2;
-        border:1px solid rgba(255,255,255,.30);
-        border-radius:22%;
-        box-shadow:
-          0 1px 1px rgba(255,255,255,.18) inset,
-          0 7px 28px rgba(0,0,0,.20);
-      }
-      [data-loading-logo] img {
-        position:absolute; right:8%; bottom:8%;
-        width:58%; height:auto; display:block;
-      }
-      [data-canvas-loading-phase="waiting"] [data-loading-logo] {
-        animation:field-mark-in 320ms cubic-bezier(.16,.86,.24,1) both;
-      }
-      [data-canvas-loading-phase="exit"] [data-loading-logo] {
-        animation:field-mark-out 220ms cubic-bezier(.55,.08,.82,.34) both;
-      }
-      [data-canvas-loading-phase="enter"] [data-loading-logo] { opacity:0; }
-
-      @keyframes field-mark-in {
-        0% { opacity:0; transform:translate(-50%,-50%) scale(.76); }
-        72% { opacity:1; transform:translate(-50%,-50%) scale(1.035); }
-        100% { opacity:1; transform:translate(-50%,-50%) scale(1); }
-      }
-      @keyframes field-mark-out {
-        from { opacity:1; transform:translate(-50%,-50%) scale(1); }
-        to { opacity:0; transform:translate(-50%,-50%) scale(0); }
-      }
-      @keyframes field-sleep {
-        0%,100% { opacity:.39; filter:blur(29px) brightness(.88); }
-        50% { opacity:.62; filter:blur(25px) brightness(1.08); }
-      }
-
-      [data-loading-status-panel] {
-        position:absolute; left:50%; top:calc(50% + 118px);
-        transform:translateX(-50%);
-        width:min(380px,calc(100vw - 48px));
-        color:rgba(255,255,255,.92);
-        text-align:center; text-shadow:0 1px 10px rgba(0,0,0,.42);
-        z-index:3;
-      }
-      [data-loading-actions] {
-        display:flex; justify-content:center; gap:7px; margin-top:12px;
-      }
-      [data-loading-actions] button {
-        height:29px; padding:0 11px; border-radius:7px;
-        border:1px solid rgba(255,255,255,.18);
-        background:rgba(20,20,20,.42); color:rgba(255,255,255,.92);
-        font:inherit; font-size:12px;
-        backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-      }
-      [data-loading-actions] button:last-child {
-        background:transparent; border-color:transparent;
-        color:rgba(255,255,255,.72);
-      }
-
-      @media(prefers-reduced-motion:reduce) {
-        [data-canvas-loading-phase] [data-loading-logo] {
-          animation:none!important;
-          transform:translate(-50%,-50%)!important;
-        }
-        [data-loading-logo-bloom] {
-          animation:none!important; opacity:.5; filter:blur(26px);
-        }
-      }
-    `}</style>
-
-    <div data-loading-backdrop aria-hidden />
-    <div data-loading-mesh-stage aria-hidden><ReshadersMeshFlowLayer /></div>
-
-    <div data-loading-logo-stage aria-hidden>
-      <span data-loading-logo-bloom />
-      <span data-loading-logo><img src={LOADING_VEIL_LOGO_SRC} alt="" /></span>
-    </div>
-
+  return (
     <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      style={showDetails ? undefined : {
-        position:'absolute', width:1, height:1, padding:0, margin:-1,
-        overflow:'hidden', clip:'rect(0,0,0,0)', whiteSpace:'nowrap', border:0,
+      data-builder-loading-shell
+      data-project-loading-veil
+      style={{
+        position: 'fixed',
+        inset: 0,
+        overflow: 'hidden',
+        fontFamily: 'var(--loew-ui-font, Inter, sans-serif)',
+        color: '#f5f5f5',
       }}
     >
-      {showDetails
-        ? <div data-loading-status-panel>
-            <div style={{fontSize:13,fontWeight:520}}>{status}</div>
-            {detail && <div style={{marginTop:6,fontSize:12,lineHeight:1.5,color:'rgba(255,255,255,.68)'}}>{detail}</div>}
-            {recoverable && <div data-loading-actions>
+      <style>{`
+        [data-loading-backdrop] {
+          position:absolute; inset:0; pointer-events:none;
+          background:rgba(12,13,16,${LOADING_VEIL_BACKDROP.dim});
+          backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
+          -webkit-backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});
+          transition:opacity 360ms cubic-bezier(.2,.7,.2,1);
+        }
+        [data-loading-atmosphere] {
+          position:absolute; inset:-18%; pointer-events:none;
+          background:
+            radial-gradient(ellipse 32% 44% at 18% 28%,rgba(189,193,205,.13),transparent 74%),
+            radial-gradient(ellipse 30% 40% at 84% 70%,rgba(142,151,169,.095),transparent 72%),
+            radial-gradient(ellipse 24% 32% at 68% 12%,rgba(111,119,135,.06),transparent 74%);
+          opacity:.82;
+          animation:field-loading-drift 12s cubic-bezier(.45,0,.55,1) infinite alternate;
+          transition:opacity 280ms ease;
+        }
+        [data-loading-content] {
+          position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+          width:min(360px,calc(100vw - 40px));
+          display:flex; flex-direction:column; align-items:center;
+          z-index:1; text-align:center;
+          transition:opacity 240ms ease,transform 360ms cubic-bezier(.2,.7,.2,1);
+        }
+        [data-loading-logo] {
+          display:block; width:76px; height:76px; object-fit:contain;
+          opacity:.88; margin-bottom:18px;
+          animation:field-loading-mark 4.8s ease-in-out infinite;
+        }
+        [data-loading-status-panel] { width:100%; }
+        [data-loading-status] {
+          color:rgba(248,248,250,.9); font-size:13px; line-height:18px;
+          font-weight:500; letter-spacing:.005em;
+        }
+        [data-loading-progress] {
+          position:relative; width:78px; height:2px; margin:14px auto 0;
+          border-radius:2px; overflow:hidden; background:rgba(255,255,255,.13);
+        }
+        [data-loading-progress]::after {
+          content:''; position:absolute; inset:0 auto 0 -42%; width:42%;
+          border-radius:inherit; background:rgba(242,243,247,.76);
+          animation:field-loading-progress 1.65s cubic-bezier(.55,.08,.35,.92) infinite;
+        }
+        [data-loading-detail] {
+          margin-top:7px; color:rgba(226,228,234,.62);
+          font-size:12px; line-height:18px; font-weight:400;
+        }
+        [data-loading-actions] { display:flex; justify-content:center; gap:8px; margin-top:15px; }
+        [data-loading-actions] button {
+          height:30px; padding:0 11px; border-radius:6px;
+          border:1px solid rgba(255,255,255,.16);
+          background:rgba(255,255,255,.07); color:rgba(250,250,252,.92);
+          font:inherit; font-size:12px; cursor:pointer;
+          transition:background-color 140ms ease,border-color 140ms ease;
+        }
+        [data-loading-actions] button:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.24); }
+        [data-loading-actions] button:last-child { background:transparent; border-color:transparent; color:rgba(230,232,238,.7); }
+        [data-canvas-loading-phase="enter"] [data-loading-backdrop],
+        [data-canvas-loading-phase="enter"] [data-loading-atmosphere],
+        [data-canvas-loading-phase="exit"] [data-loading-backdrop],
+        [data-canvas-loading-phase="exit"] [data-loading-atmosphere],
+        [data-canvas-loading-phase="enter"] [data-loading-content],
+        [data-canvas-loading-phase="exit"] [data-loading-content] { opacity:0; }
+        [data-canvas-loading-phase="enter"] [data-loading-content],
+        [data-canvas-loading-phase="exit"] [data-loading-content] { transform:translate(-50%,-47%); }
+        @keyframes field-loading-drift {
+          from { transform:translate3d(-1.2%,.4%,0) scale(1); }
+          to { transform:translate3d(1.2%,-.4%,0) scale(1.035); }
+        }
+        @keyframes field-loading-mark {
+          0%,100% { opacity:.78; }
+          50% { opacity:1; }
+        }
+        @keyframes field-loading-progress {
+          0% { transform:translateX(0); }
+          100% { transform:translateX(340%); }
+        }
+        @media(prefers-reduced-motion:reduce) {
+          [data-loading-atmosphere], [data-loading-logo], [data-loading-progress]::after { animation:none!important; }
+          [data-loading-progress]::after { left:0; width:100%; opacity:.48; }
+          [data-canvas-loading-phase] [data-loading-content] { transition:none; }
+        }
+        @media(max-width:520px) {
+          [data-loading-logo] { width:68px; height:68px; margin-bottom:15px; }
+        }
+      `}</style>
+
+      <div data-loading-backdrop aria-hidden="true" />
+      <div data-loading-atmosphere aria-hidden="true" />
+      <div data-loading-content>
+        <img data-loading-logo src={LOADING_VEIL_LOGO_SRC} alt="" aria-hidden="true" />
+        <div data-loading-status-panel>
+          <div data-loading-status role="status" aria-live="polite" aria-atomic="true">{status}</div>
+          {detail && <div data-loading-detail>{detail}</div>}
+          {!recoverable && <div data-loading-progress aria-hidden="true" />}
+          {recoverable && (
+            <div data-loading-actions>
               <button type="button" onClick={() => window.location.reload()}>Retry</button>
               <button type="button" onClick={() => window.location.assign('/')}>Back to projects</button>
-            </div>}
-          </div>
-        : status}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-  </div>;
+  );
 }
