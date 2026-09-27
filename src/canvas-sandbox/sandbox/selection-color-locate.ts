@@ -32,42 +32,37 @@ function ensureSelectionColorLocateEdgeFilter(): void {
       <filter id="${selectionColorLocateEdgeFilterId()}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
         <feMorphology in="SourceAlpha" operator="erode" radius="1" result="eroded" />
         <feComposite in="SourceAlpha" in2="eroded" operator="out" result="innerEdge" />
-        <feFlood flood-color="#ffffff" flood-opacity="0.98" result="innerFlood" />
+        <feFlood flood-color="#ffffff" flood-opacity="0.5" result="innerFlood" />
         <feComposite in="innerFlood" in2="innerEdge" operator="in" result="innerTone" />
-        <feBlend in="SourceGraphic" in2="innerTone" mode="overlay" />
+        <feMerge>
+          <feMergeNode in="SourceGraphic" />
+          <feMergeNode in="innerTone" />
+        </feMerge>
       </filter>
     </defs>`;
   (document.body ?? document.documentElement).appendChild(svg);
 }
 
-function luminousCore(rgb: [number, number, number]): [number, number, number] {
-  // Very bright, still hue-bearing: this is the front glow directly beneath
-  // the object. The broader layers carry the more recognizable source hue.
-  return rgb.map((channel) => Math.round(channel + (255 - channel) * 0.74)) as [number, number, number];
-}
-
 export function buildSelectionColorLocateFilter(
   baseFilter: string,
-  luminousRgb: [number, number, number],
+  glowRgb: [number, number, number],
   contrastTone: 'white' | 'black',
   strength: number,
+  radiusScale = 1,
 ): string {
   void contrastTone;
-  const core = luminousCore(luminousRgb);
-  const originalRadius = 2.35;
+  const originalRadius = 2.35 * radiusScale;
   const frontRadius = originalRadius * 0.5;
   const backRadius = originalRadius * 1.5;
 
   return [
     baseFilter && baseFilter !== 'none' ? baseFilter : '',
-    // 1px white OVERLAY edge on the INSIDE of the painted alpha geometry.
+    // Figma pass: 1px white INNER stroke at 50% NORMAL compositing.
     `url(#${selectionColorLocateEdgeFilterId()})`,
-    // Front: very bright source hue, half-radius, directly under the object.
-    `drop-shadow(0 0 ${frontRadius.toFixed(2)}px ${rgba(core, 1.00 * strength)})`,
-    // Middle: the normal luminous source-color glow.
-    `drop-shadow(0 0 ${originalRadius.toFixed(2)}px ${rgba(luminousRgb, 0.92 * strength)})`,
-    // Back: duplicate of the main glow at 1.5x radius for atmosphere.
-    `drop-shadow(0 0 ${backRadius.toFixed(2)}px ${rgba(luminousRgb, 0.56 * strength)})`,
+    // Same real source/fallback color throughout; no blend-mode tricks.
+    `drop-shadow(0 0 ${frontRadius.toFixed(2)}px ${rgba(glowRgb, 0.94 * strength)})`,
+    `drop-shadow(0 0 ${originalRadius.toFixed(2)}px ${rgba(glowRgb, 0.72 * strength)})`,
+    `drop-shadow(0 0 ${backRadius.toFixed(2)}px ${rgba(glowRgb, 0.38 * strength)})`,
   ].filter(Boolean).join(' ');
 }
 
@@ -100,19 +95,21 @@ export function setSelectionColorLocateHighlight(
   cancelKey(key);
 
   const baseFilter = getComputedStyle(el).filter || 'none';
-  const low = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 0.08 : 0.52);
-  const peak = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 1 : 0.88);
-  const end = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 0 : 0.52);
+  // Salience comes primarily from breathing radius/opacity, not extreme blend modes.
+  const low = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 0.28 : 0.48, 0.78);
+  const peak = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, 1, 1.32);
+  const settle = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 0.56 : 0.48, 0.88);
+  const end = buildSelectionColorLocateFilter(baseFilter, luminousRgb, contrastTone, mode === 'click' ? 0 : 0.48, 0.78);
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const keyframes: Keyframe[] = reducedMotion
     ? [{ filter: peak }, { filter: peak }]
     : mode === 'click'
-      ? [{ filter: low, offset: 0 }, { filter: peak, offset: 0.34 }, { filter: peak, offset: 0.58 }, { filter: end, offset: 1 }]
-      : [{ filter: low, offset: 0 }, { filter: peak, offset: 0.5 }, { filter: end, offset: 1 }];
+      ? [{ filter: low, offset: 0 }, { filter: peak, offset: 0.32 }, { filter: settle, offset: 0.68 }, { filter: end, offset: 1 }]
+      : [{ filter: low, offset: 0 }, { filter: peak, offset: 0.5 }, { filter: settle, offset: 1 }];
 
   const animation = el.animate(keyframes, {
-    duration: reducedMotion ? (mode === 'click' ? 900 : 60_000) : (mode === 'click' ? 1900 : 2500),
+    duration: reducedMotion ? (mode === 'click' ? 900 : 60_000) : (mode === 'click' ? 1800 : 2200),
     iterations: mode === 'hover' ? Infinity : 1,
     easing: mode === 'click' ? 'cubic-bezier(.22,.7,.22,1)' : 'ease-in-out',
     fill: 'both',

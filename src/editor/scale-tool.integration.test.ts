@@ -11,11 +11,12 @@ describe('dedicated Scale product integration', () => {
     expect(shortcuts).not.toContain("key: 'k', label: 'Sketch tool'");
   });
 
-  it('puts Scale in the cursor family and advertises the migrated Sketch key', () => {
+  it('puts Scale in the cursor family and keeps Pencil on Shift+P inside the Pen family', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(toolbar).toContain('label="Scale" shortcut="K"');
-    expect(toolbar).toContain('title="Sketch (Shift+P)"');
-    expect(toolbar).not.toContain('MenuItem label="Sketch"');
+    expect(toolbar).toContain('function PenDropdown');
+    expect(toolbar).toContain('label="Pencil" shortcut="Shift+P"');
+    expect(toolbar).toContain('label="Pen" shortcut="P"');
   });
 
   it('uses dedicated corner-only Scale handles instead of renaming Resize', () => {
