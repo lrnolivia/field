@@ -183,10 +183,12 @@ export default function GalleryCropOverlay({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const interactiveTarget = target?.closest('button, input, select, textarea, [contenteditable="true"]');
       if (event.key === 'Escape') {
         event.preventDefault();
         cancel();
-      } else if (event.key === 'Enter') {
+      } else if (event.key === 'Enter' && !interactiveTarget) {
         event.preventDefault();
         finish();
       }
@@ -240,6 +242,7 @@ export default function GalleryCropOverlay({
       data-field-no-canvas-input="true"
       role="dialog"
       aria-label="Reposition gallery image"
+      aria-describedby="gallery-reposition-help"
       tabIndex={0}
       style={{
         position: 'fixed',
@@ -261,6 +264,7 @@ export default function GalleryCropOverlay({
         setLiveTreatment(positionRef.current, zoomRef.current * factor, rotationRef.current);
       }}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (!naturalSize) return;
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
           event.preventDefault();
@@ -365,6 +369,9 @@ export default function GalleryCropOverlay({
         }
       }}
     >
+      <span id="gallery-reposition-help" className="sr-only">
+        Drag or use the arrow keys to pan. Use the mouse wheel, pinch, plus, or minus to zoom. Use left and right bracket keys to rotate. Hold Shift for larger keyboard steps. Enter saves changes and Escape cancels.
+      </span>
       <div
         aria-hidden="true"
         style={{
@@ -374,9 +381,9 @@ export default function GalleryCropOverlay({
           width: 14,
           height: 14,
           transform: 'translate(-50%, -50%)',
-          border: '1px solid rgba(255,255,255,.9)',
+          border: '1px solid var(--selection)',
           borderRadius: '50%',
-          boxShadow: '0 0 0 1px rgba(0,0,0,.35)',
+          boxShadow: '0 0 0 1px color-mix(in srgb, var(--bg-base) 65%, transparent)',
           pointerEvents: 'none',
         }}
       />
@@ -389,50 +396,61 @@ export default function GalleryCropOverlay({
           minHeight: 24,
           display: 'flex',
           alignItems: 'center',
-          gap: 7,
-          padding: '0 8px',
+          gap: 4,
+          padding: '0 6px',
           border: '1px solid var(--control-border)',
-          borderRadius: 5,
           background: 'var(--bg-surface)',
           color: 'var(--text-primary)',
-          boxShadow: '0 2px 8px rgba(0,0,0,.18)',
+          boxShadow: 'var(--shadow-lg)',
           fontSize: 11,
           whiteSpace: 'nowrap',
           pointerEvents: 'auto',
         }}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <span>Drag · wheel/pinch zoom · [ ] rotate · Shift for 5%</span>
+        <span aria-hidden="true">Drag · wheel zoom · [ ] rotate</span>
         <span style={{ color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
           {currentValue} · {Math.round(mediaZoom * 100)}% · {Math.round(mediaRotation * 10) / 10}°
         </span>
         <button
           type="button"
           aria-label="Rotate image left 15 degrees"
+          title="Rotate left 15°"
           onClick={() => setLiveTreatment(positionRef.current, zoomRef.current, rotationRef.current - 15)}
-          style={{ color: 'var(--text-secondary)', background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+          className="h-6 min-w-6 px-1.5 flex items-center justify-center border border-transparent text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
         >
           −15°
         </button>
         <button
           type="button"
           onClick={reset}
-          style={{ color: 'var(--text-secondary)', background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+          title="Reset pan, zoom, and rotation"
+          className="h-6 min-w-6 px-1.5 flex items-center justify-center border border-transparent text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
         >
           Reset
         </button>
         <button
           type="button"
           aria-label="Rotate image right 15 degrees"
+          title="Rotate right 15°"
           onClick={() => setLiveTreatment(positionRef.current, zoomRef.current, rotationRef.current + 15)}
-          style={{ color: 'var(--text-secondary)', background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+          className="h-6 min-w-6 px-1.5 flex items-center justify-center border border-transparent text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
         >
           +15°
         </button>
         <button
           type="button"
+          onClick={cancel}
+          title="Cancel reposition changes"
+          className="h-6 min-w-6 px-1.5 flex items-center justify-center border border-transparent text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
           onClick={finish}
-          style={{ color: 'var(--accent-text)', background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+          title="Save reposition changes"
+          className="h-6 min-w-6 px-1.5 flex items-center justify-center border border-transparent text-[10px] text-[var(--accent-text)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
         >
           Done
         </button>
