@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 // Stable mirror — border parses ::after rule from code, doesn't change on
 // reparent. Avoids re-render cascade during fast drag.
-import { UnifiedControlProvider, useControlContext, ShowControlLabels } from '../../../controls/unified';
+import { UnifiedControlProvider, useControlContext, ShowControlLabels, InspectorProvenanceBoundary } from '../../../controls/unified';
 import { BorderIcon } from '@/design-system/PropertyIcons';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import { VariableBoundPill } from '../../../controls/VariableBoundPill';
@@ -936,7 +936,9 @@ function BorderPresetPillRow({ group, onClear, hideLabel = false }: {
 export function BorderControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="border" defaultValue="" mode={mode} {...mp}>
-      <BorderAtom compactSection={compactSection} />
+      <InspectorProvenanceBoundary>
+        <BorderAtom compactSection={compactSection} />
+      </InspectorProvenanceBoundary>
     </UnifiedControlProvider>
   );
 }

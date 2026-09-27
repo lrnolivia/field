@@ -6,7 +6,7 @@ import { useLivePreview } from '../../../hooks/useLivePreview';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import LocaleBoundPill, { useLocaleStyleOverrides } from '@/editor/controls/LocaleBoundPill';
-import { UnifiedControlProvider, useControlContext, useControlContextOptional, ShowControlLabels } from '../../../controls/unified';
+import { UnifiedControlProvider, useControlContext, useControlContextOptional, ShowControlLabels, InspectorProvenanceBoundary } from '../../../controls/unified';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import { VariableBoundPill, LegacyVariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useControlOptional } from '../../../controls/ControlProvider';
@@ -1646,7 +1646,9 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
 export function FillControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="backgroundColor" defaultValue="" mode={mode} {...mp}>
-      <FillAtom compactSection={compactSection} />
+      <InspectorProvenanceBoundary>
+        <FillAtom compactSection={compactSection} />
+      </InspectorProvenanceBoundary>
     </UnifiedControlProvider>
   );
 }

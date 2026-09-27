@@ -20,6 +20,21 @@ export function ShowControlLabels({ children }: { children: React.ReactNode }) {
   return React.createElement(UnifiedControlContext.Provider, { value: next }, children);
 }
 
+
+/** UI-neutral proof surface for the canonical provenance model. `display: contents`
+ * avoids changing Inspector geometry while exposing stable diagnostics for QA/tests. */
+export function InspectorProvenanceBoundary({ children }: { children: React.ReactNode }) {
+  const ctx = useContext(UnifiedControlContext);
+  if (!ctx) return children as React.ReactElement;
+  return React.createElement('div', {
+    'data-inspector-property': ctx.property,
+    'data-inspector-read-source': ctx.resolution.read.source.kind,
+    'data-inspector-write-target': ctx.resolution.write.target.kind,
+    'data-inspector-editable': ctx.resolution.write.editable ? 'true' : 'false',
+    style: { display: 'contents' },
+  }, children);
+}
+
 /** Access the unified control context. Must be used within a UnifiedControlProvider. */
 export function useControlContext(): UnifiedControlContextValue {
   const ctx = useContext(UnifiedControlContext);

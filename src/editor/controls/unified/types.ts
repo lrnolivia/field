@@ -2,6 +2,7 @@
 
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { ReactNode } from 'react';
+import type { InspectorPropertyResolution } from '@/editor/inspector/provenance';
 
 /** Control modes determine value routing */
 export type ControlMode =
@@ -55,6 +56,9 @@ export interface UnifiedControlContextValue {
 
   // Binding detection (computed in 'direct' mode)
   binding: ControlBinding;
+
+  /** Canonical read provenance + write target for the active property. */
+  resolution: InspectorPropertyResolution;
 
   // Node context (available in 'direct' mode)
   nodeId: string | null;
