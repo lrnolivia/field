@@ -3,20 +3,14 @@
 ---
 field_assignment: 1
 id: field-preview-canvas-host-routing
-status: active
+status: complete
 branch: field/field-preview-canvas-host-routing
-pr: null
-base: 0c71cab5cdab71e651e08e9c35a3a79202eeac35
+pr: 19
+base: 5888f65dd63a6e8ff6ba829c8ac2abf0ddeacfd1
 kit: 2026-09-26.4
 type: repair
 execution_class: contract-worker
-owned:
-  - cloudflare/worker.js
-  - cloudflare/field-persistence.test.ts
-  - .field/handoff-kit/qa/BROWSER_PREVIEW_QA_PROTOCOL.md
-  - src/canvas-sandbox/origin.ts
-  - src/canvas-sandbox/origin.test.ts
-  - src/canvas-sandbox/protocol.ts
+owned: []
 approved_shared: []
 protected:
   - src/canvas/**
@@ -109,3 +103,15 @@ Make the smallest deterministic routing repair.
 Live QA proved the Worker route alone was insufficient. The editor constructs Canvas from `SANDBOX_ORIGIN` in `src/canvas-sandbox/protocol.ts` as `canvas.${window.location.hostname}`, which turns a branch editor host into an unreachable two-level hostname such as `canvas.<branch>.field-preview.loew.fi`.
 
 This assignment therefore also owns the minimal deterministic origin resolver and focused regression test. No active worker owns these paths.
+
+## 2026-09-27 verified closeout
+
+- Exact tested head: `4fb9352004f879d13f614c295dec71380d57a7f9`.
+- Exact tested main: `5888f65dd63a6e8ff6ba829c8ac2abf0ddeacfd1`.
+- Worker routing/security tests: PASS — 10/10.
+- Canvas origin resolution: PASS — 6/6.
+- Branch Preview build/deploy: PASS.
+- Browser runtime QA: PASS — editor loads, iframe uses the single-level `*.canvas-preview.loew.fi` host, Canvas first paint is visible, direct Canvas host serves the sandbox shell, and no Canvas start/error state appears.
+- PR #19 merged as `f394090180284f3a70bdf8dd6b280f692d96d0dc`.
+- Main Cloudflare deployment: PASS — Version `7a908371-4d49-409a-997a-0f20c0e95d64`.
+- Ownership released.

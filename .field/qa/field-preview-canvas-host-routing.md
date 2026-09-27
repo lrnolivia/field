@@ -2,32 +2,36 @@
 
 ```yaml
 assignment: field-preview-canvas-host-routing
-status: in-progress
-tested_head_sha: null
-tested_main_sha: 0c71cab5cdab71e651e08e9c35a3a79202eeac35
-environment: branch Preview
-runtime_qa: required
+branch: field/field-preview-canvas-host-routing
+pr: 19
+status: pass
+tested_head_sha: 4fb9352004f879d13f614c295dec71380d57a7f9
+tested_main_sha: 5888f65dd63a6e8ff6ba829c8ac2abf0ddeacfd1
+environment: branch Preview + deployed main
+build: PASS
+tests: PASS
+runtime_qa: PASS
+tested_at: 2026-09-27T05:54:42Z
+evidence: exact-head tests + Cloudflare build + Browser Tool runtime QA
 ```
 
-## Root-cause evidence
+## Deterministic validation
 
-- current Worker production Canvas classifier: exact `canvas.field.loew.fi`
-- observed branch Canvas host pattern: `<branch>.canvas-preview.loew.fi`
-- current branch host falls through to editor/root asset routing
-- Canvas COOP/COEP/CORP/OAC path is therefore skipped
-- branch Preview itself can build/deploy successfully while Canvas fails
+- Worker routing/security test: PASS — 10/10 on Node 22.
+- Canvas origin resolver: PASS — 6/6 representative cases.
+- Branch Preview build/deploy on exact head: PASS.
+- Main deployment for merge commit `f394090180284f3a70bdf8dd6b280f692d96d0dc`: PASS.
+- Main Cloudflare Version ID: `7a908371-4d49-409a-997a-0f20c0e95d64`.
 
-## Required acceptance evidence
+## Runtime QA
 
-NOT RUN. The implementing worker must record:
+- editor `/builder/noauth`: PASS
+- iframe origin: `https://field-field-preview-canvas-host-routing.canvas-preview.loew.fi`
+- Canvas first paint: PASS
+- direct Canvas host: PASS — `#sandbox-root` shell, no 403/project-list failure
+- no `Canvas is taking longer to start`: PASS
+- no `Canvas error`: PASS
 
-- exact repair head SHA
-- exact main SHA
-- targeted routing test results
-- branch Preview build/deploy result
-- branch Preview URL
-- resolved Canvas host
-- asset path served for Canvas host
-- Canvas security headers
-- real Canvas first paint result
-- regression check for editor root + site Preview
+## Result
+
+PASS — shared branch Canvas Preview routing/origin repair is merged and deployed.

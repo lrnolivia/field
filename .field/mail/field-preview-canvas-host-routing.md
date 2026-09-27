@@ -32,3 +32,17 @@ A Contract Worker should activate this assignment, fix the Worker hostname class
 - Repair branch activated from exact main 0c71cab5cdab71e651e08e9c35a3a79202eeac35.
 - Deterministic fix: classify *.canvas-preview.loew.fi as Canvas while preserving production Canvas and site Preview behavior.
 - Regression coverage includes the failing motion branch hostname and a hash-prefixed Canvas Preview hostname.
+
+## 2026-09-27 closeout
+
+Canvas Preview routing/origin repair is merged and deployed.
+
+- PR: `#19`
+- exact tested head: `4fb9352004f879d13f614c295dec71380d57a7f9`
+- merged main commit: `f394090180284f3a70bdf8dd6b280f692d96d0dc`
+- main Cloudflare version: `7a908371-4d49-409a-997a-0f20c0e95d64`
+- routing/security tests: 10/10 PASS
+- origin resolution cases: 6/6 PASS
+- runtime Preview QA: PASS
+
+Dependent branches must rebuild from repaired `main` before Canvas-dependent QA is current.
