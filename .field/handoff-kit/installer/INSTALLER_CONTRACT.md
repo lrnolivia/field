@@ -1,5 +1,7 @@
 # Installer contract
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 The installer system is retained for the **Codex/local-repository lane** and legacy assignments that explicitly require it.
 
 It is not the default execution mechanism for Contract Workers.
