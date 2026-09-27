@@ -6,8 +6,8 @@ id: field-motion-semantic-controls
 status: active
 branch: field/field-motion-semantic-controls
 pr: null
-base: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
-kit: 2026-09-26.2
+base: 66a6f90ef9658e5a66409c0ebe48727715b3452b
+kit: 2026-09-26.3
 type: plan-to-action
 execution_class: contract-worker
 owned:
@@ -80,15 +80,15 @@ Core rules:
 
 ## Current verified state
 
-- Current `main` at activation: `fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e`.
-- Handoff kit: `2026-09-26.2`.
+- Current `main` after 2026-09-27 rehydration: `66a6f90ef9658e5a66409c0ebe48727715b3452b`.
+- Handoff kit: `2026-09-26.3`.
 - `motion` is already present in `package.json` at `^12.38.0`.
 - Current shared controls use mostly CSS color transitions and one-off hard-coded transform timings.
 - `SidebarRow` currently hard-codes a 120ms disclosure rotation.
 - `ToolSwitch` currently uses generic 200ms CSS movement.
 - `SpacingControl` axis-pair affordances are text arrows (`↔` / `↕`).
 - `ColorInput` already has a dedicated `ColorSwatch` child and performance-sensitive live picker behavior that must not regress.
-- Active legacy Dashboard handoff ownership currently reserves `src/FieldShell.tsx`, `src/field-shell-motion.ts`, `src/field-shell-motion.test.ts`, and `src/editor/EditorEntranceCoordinator.tsx`; this assignment does not touch them.
+- The legacy Dashboard↔Canvas reservation has cleared. Those structural motion surfaces remain protected and out of scope for this semantic-control assignment.
 - Active Contract Worker ownership does not currently overlap this assignment's owned paths.
 
 ## Decisions already made
@@ -101,7 +101,7 @@ Core rules:
 - No package dependency changes.
 - Reduced motion remains a first-class contract.
 - Editor feedback motion must not serialize into the field design graph, generated source, Preview semantics, or production website.
-- Do not alter the still-owned Dashboard↔Canvas handoff in this assignment.
+- Do not alter Dashboard↔Canvas structural choreography in this assignment; it belongs to the structural-motion follow-up.
 
 ## Implementation intent
 
@@ -143,7 +143,7 @@ Apply the vocabulary to:
 
 Owned paths are exactly those in frontmatter.
 
-No overlap with the active legacy Dashboard motion assignment is permitted.
+Dashboard↔Canvas structural motion remains protected and out of scope; its cleared legacy reservation does not expand this assignment.
 
 ## Investigation permitted during implementation
 
