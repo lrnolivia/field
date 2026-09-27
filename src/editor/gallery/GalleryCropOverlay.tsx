@@ -262,7 +262,6 @@ export default function GalleryCropOverlay({
       data-gallery-crop-overlay
       data-field-no-canvas-input="true"
       role="dialog"
-      aria-modal="true"
       aria-label="Reposition gallery image"
       aria-describedby="gallery-reposition-help"
       tabIndex={0}
