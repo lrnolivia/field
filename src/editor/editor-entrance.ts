@@ -1,9 +1,11 @@
 export type EditorEntranceRole = 'left' | 'right' | 'bottom';
+export type EditorEntrancePhase = 'default' | 'left-surface' | 'left-rail';
 export type FieldDashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
 export interface EditorEntranceTargetSpec {
   selector: string;
   role: EditorEntranceRole;
+  phase: EditorEntrancePhase;
 }
 
 export interface EditorSpringProfile {
@@ -17,6 +19,7 @@ export interface EditorSpringProfile {
 export interface EditorEntranceTarget {
   element: HTMLElement;
   role: EditorEntranceRole;
+  phase: EditorEntrancePhase;
 }
 
 export interface EditorChromeExitRequestDetail {
@@ -40,14 +43,14 @@ export const DIRECT_LOAD_FAILSAFE_MS = 4400;
  * The canvas itself is deliberately absent.
  */
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
-  { selector: '[data-workspace-island="left"]', role: 'left' },
-  { selector: '[data-left-menu-rail]', role: 'left' },
-  { selector: '[data-editor-panel="left-primary"]', role: 'left' },
+  { selector: '[data-workspace-island="left"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-left-menu-rail]', role: 'left', phase: 'left-rail' },
+  { selector: '[data-editor-panel="left-primary"]', role: 'left', phase: 'left-surface' },
 
-  { selector: '[data-workspace-island="right"]', role: 'right' },
-  { selector: '[data-workspace-right-body]', role: 'right' },
+  { selector: '[data-workspace-island="right"]', role: 'right', phase: 'default' },
+  { selector: '[data-workspace-right-body]', role: 'right', phase: 'default' },
 
-  { selector: '#bottom-toolbar-container', role: 'bottom' },
+  { selector: '#bottom-toolbar-container', role: 'bottom', phase: 'default' },
 ]);
 
 /**
@@ -77,6 +80,7 @@ export const EDITOR_BOTTOM_SPRING: Readonly<EditorSpringProfile> = Object.freeze
 
 export const EDITOR_BOTTOM_DELAY_MS = 42;
 
+
 /**
  * Leaving for Dashboard is not a reversed spring. Structural chrome accelerates
  * cleanly away, making room for Dashboard's own incoming split-slide.
@@ -87,12 +91,39 @@ export const EDITOR_EXIT_SIDE_DELAY_MS = 18;
 export const EDITOR_EXIT_BOTTOM_DELAY_MS = 0;
 export const EDITOR_EXIT_EASING = 'cubic-bezier(.42, 0, .78, .28)';
 
+/**
+ * Dashboard -> editor left-edge handoff.
+ *
+ * Dashboard's sidebar uses the same 220ms decisive structural exit as editor
+ * side chrome. Let that surface fully vacate the edge before the editor's
+ * backing island + Layers/content surface return from the same direction.
+ * The narrow tool rail follows one short beat later so it reads as an overlay
+ * arriving on top of the restored surface, not as a competing slab.
+ */
+export const EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS = EDITOR_EXIT_SIDE_DURATION_MS;
+export const EDITOR_DASHBOARD_LEFT_RAIL_STAGGER_MS = 72;
+export const EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS =
+  EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS + EDITOR_DASHBOARD_LEFT_RAIL_STAGGER_MS;
+
 export function editorSpringProfile(role: EditorEntranceRole): Readonly<EditorSpringProfile> {
   return role === 'bottom' ? EDITOR_BOTTOM_SPRING : EDITOR_SIDE_SPRING;
 }
 
-export function editorEntranceDelay(role: EditorEntranceRole): number {
-  return role === 'bottom' ? EDITOR_BOTTOM_DELAY_MS : 0;
+export function editorEntranceDelay(
+  role: EditorEntranceRole,
+  phase: EditorEntrancePhase = 'default',
+  dashboardHandoff = false,
+): number {
+  const baseDelay = role === 'bottom' ? EDITOR_BOTTOM_DELAY_MS : 0;
+  if (!dashboardHandoff) return baseDelay;
+
+  if (phase === 'left-surface') {
+    return Math.max(baseDelay, EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS);
+  }
+  if (phase === 'left-rail') {
+    return Math.max(baseDelay, EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS);
+  }
+  return baseDelay;
 }
 
 export function editorExitDuration(role: EditorEntranceRole): number {
@@ -121,7 +152,7 @@ export function collectEditorEntranceTargets(root: ParentNode): EditorEntranceTa
     for (const node of root.querySelectorAll<HTMLElement>(spec.selector)) {
       if (seen.has(node)) continue;
       seen.add(node);
-      targets.push({ element: node, role: spec.role });
+      targets.push({ element: node, role: spec.role, phase: spec.phase });
     }
   }
 

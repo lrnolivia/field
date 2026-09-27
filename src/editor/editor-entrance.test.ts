@@ -7,6 +7,9 @@ import {
   EDITOR_BOTTOM_DELAY_MS,
   EDITOR_BOTTOM_SPRING,
   EDITOR_CHROME_EXIT_REQUEST_EVENT,
+  EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS,
+  EDITOR_DASHBOARD_LEFT_RAIL_STAGGER_MS,
+  EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS,
   EDITOR_EXIT_BOTTOM_DURATION_MS,
   EDITOR_EXIT_SIDE_DURATION_MS,
   EDITOR_SIDE_SPRING,
@@ -34,8 +37,13 @@ describe('editor chrome choreography', () => {
     `;
 
     const targets = collectEditorEntranceTargets(document);
-    expect(targets.map(({ role }) => role)).toEqual([
-      'left', 'left', 'left', 'right', 'right', 'bottom',
+    expect(targets.map(({ role, phase }) => ({ role, phase }))).toEqual([
+      { role: 'left', phase: 'left-surface' },
+      { role: 'left', phase: 'left-rail' },
+      { role: 'left', phase: 'left-surface' },
+      { role: 'right', phase: 'default' },
+      { role: 'right', phase: 'default' },
+      { role: 'bottom', phase: 'default' },
     ]);
     expect(targets.some(({ element }) => element.dataset.workspaceIsland === 'left')).toBe(true);
     expect(targets.some(({ element }) => element.dataset.workspaceIsland === 'right')).toBe(true);
@@ -88,6 +96,8 @@ describe('editor chrome choreography', () => {
     });
     expect(editorEntranceDelay('bottom')).toBe(EDITOR_BOTTOM_DELAY_MS);
     expect(EDITOR_BOTTOM_DELAY_MS).toBe(42);
+    expect(editorEntranceDelay('left', 'left-surface')).toBe(0);
+    expect(editorEntranceDelay('left', 'left-rail')).toBe(0);
 
     const bottomOvershoot = springOvershootRatio(EDITOR_BOTTOM_SPRING);
     expect(bottomOvershoot).toBeGreaterThan(0.1);
@@ -99,6 +109,20 @@ describe('editor chrome choreography', () => {
     });
     expect(Math.min(...translations)).toBeLessThan(-8);
     expect(frames[frames.length - 1].translate).toBe('0 0px');
+  });
+
+  it('stages Dashboard -> editor left surfaces as one rail changing jobs', () => {
+    expect(EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS).toBe(EDITOR_EXIT_SIDE_DURATION_MS);
+    expect(EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS).toBe(220);
+    expect(EDITOR_DASHBOARD_LEFT_RAIL_STAGGER_MS).toBe(72);
+    expect(EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS).toBe(292);
+
+    expect(editorEntranceDelay('left', 'left-surface', true)).toBe(220);
+    expect(editorEntranceDelay('left', 'left-rail', true)).toBe(292);
+
+    // Other chrome keeps the accepted overlap timing.
+    expect(editorEntranceDelay('right', 'default', true)).toBe(0);
+    expect(editorEntranceDelay('bottom', 'default', true)).toBe(EDITOR_BOTTOM_DELAY_MS);
   });
 
   it('exits structural chrome cleanly with no reverse bounce', () => {
