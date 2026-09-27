@@ -69,52 +69,26 @@ function parseLocateRgb(color: string): LocateGlowRgb | null {
   return rgb.slice(1, 4).map((v) => Math.max(0, Math.min(255, Number(v)))) as LocateGlowRgb;
 }
 
-function rgbToHsl([r8, g8, b8]: LocateGlowRgb): [number, number, number] {
-  const r = r8 / 255; const g = g8 / 255; const b = b8 / 255;
-  const max = Math.max(r, g, b); const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h = 0;
-  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-  else if (max === g) h = (b - r) / d + 2;
-  else h = (r - g) / d + 4;
-  return [h / 6, s, l];
+function normalizedRgbDistance(a: LocateGlowRgb, b: LocateGlowRgb): number {
+  const d = Math.sqrt(
+    (a[0] - b[0]) ** 2
+    + (a[1] - b[1]) ** 2
+    + (a[2] - b[2]) ** 2,
+  );
+  return d / (255 * Math.sqrt(3));
 }
 
-function hslToRgb([h, s, l]: [number, number, number]): LocateGlowRgb {
-  if (s === 0) {
-    const v = Math.round(l * 255);
-    return [v, v, v];
-  }
-  const hue2rgb = (p: number, q: number, t0: number) => {
-    let t = t0;
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1 / 6) return p + (q - p) * 6 * t;
-    if (t < 1 / 2) return q;
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-    return p;
-  };
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-  return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)]
-    .map((v) => Math.round(v * 255)) as LocateGlowRgb;
-}
-
-/** Bright, electric, but intentionally softened so pure RGB paints do not
- * become a harsh saturated outline. */
-export function resolveLocateLuminousRgb(tint: string | null, tone: 'white' | 'black'): LocateGlowRgb {
-  if (!tint) return tone === 'white' ? [242, 244, 248] : [44, 46, 52];
+/**
+ * Figma-pass glow color: use the REAL selected paint whenever it has enough
+ * perceptual distance from the broad backdrop class. Only fall back to the
+ * adaptive black/white contrast color when the paint would disappear (for
+ * example black-on-black or white-on-white). No saturation/lightness rewrite.
+ */
+export function resolveLocateGlowRgb(tint: string | null, tone: 'white' | 'black'): LocateGlowRgb {
+  const fallback: LocateGlowRgb = tone === 'white' ? [255, 255, 255] : [0, 0, 0];
+  if (!tint) return fallback;
   const rgb = parseLocateRgb(tint);
-  if (!rgb) return tone === 'white' ? [242, 244, 248] : [44, 46, 52];
-  const light = locateColorLuminance(tint);
-  if (light != null && light <= 0.035) return [82, 84, 90];
-  if (light != null && light >= 0.965) return [246, 247, 249];
-  const [h, sat, lum] = rgbToHsl(rgb);
-  // Locate should feel electric without reproducing harsh source saturation.
-  // Push lightness much higher and pull saturation down: pure RGB blue becomes
-  // a luminous periwinkle-blue rather than a nuclear primary outline.
-  return hslToRgb([h, Math.min(0.58, sat * 0.56), Math.max(0.68, Math.min(0.82, lum + 0.18))]);
+  if (!rgb) return fallback;
+  const backdrop: LocateGlowRgb = tone === 'white' ? [0, 0, 0] : [255, 255, 255];
+  return normalizedRgbDistance(rgb, backdrop) < 0.18 ? fallback : rgb;
 }
