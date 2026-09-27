@@ -52,8 +52,8 @@ const ELLIPSES:readonly E[]=[
 
 const GRAD='conic-gradient(from 90deg at 50% 50%,#ff6161 0%,#ffd361 19.5833%,#95ffa0 45.1042%,#95b9ff 64.8958%,#d795ff 86.25%,#ff6161 100%)';
 const k=(a:S,offset:number):Keyframe=>({
-  offset,left:\`\${a[0]}px\`,top:\`\${a[1]}px\`,width:\`\${a[2]}px\`,height:\`\${a[3]}px\`,
-  transform:\`rotate(\${a[4]}deg)\`,filter:\`blur(\${a[5]}px)\`,opacity:a[6]??1,
+  offset,left:`${a[0]}px`,top:`${a[1]}px`,width:`${a[2]}px`,height:`${a[3]}px`,
+  transform:`rotate(${a[4]}deg)`,filter:`blur(${a[5]}px)`,opacity:a[6]??1,
 });
 
 export default function ReshadersMeshFlowLayer(){
@@ -63,7 +63,7 @@ export default function ReshadersMeshFlowLayer(){
     if(!stage.current||!plane.current)return;
     const fit=()=>{
       const w=Math.max(1,stage.current!.clientWidth),h=Math.max(1,stage.current!.clientHeight);
-      plane.current!.style.transform=\`matrix(0,\${-(h/W)},\${w/H},0,0,\${h})\`;
+      plane.current!.style.transform=`matrix(0,${-(h/W)},${w/H},0,0,${h})`;
     };
     const ro=new ResizeObserver(fit);ro.observe(stage.current);fit();
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -79,13 +79,13 @@ export default function ReshadersMeshFlowLayer(){
     <div ref={plane} style={{position:'absolute',left:0,top:0,width:W,height:H,transformOrigin:'0 0',background:'#000',overflow:'hidden'}}>
       {ELLIPSES.map(e=>{const a=e.states[0];return <div key={e.name} ref={n=>{if(n)refs.current.set(e.name,n);else refs.current.delete(e.name)}} style={{
         position:'absolute',left:a[0],top:a[1],width:a[2],height:a[3],borderRadius:'50%',background:GRAD,
-        transform:\`rotate(\${a[4]}deg)\`,transformOrigin:'50% 50%',filter:\`blur(\${a[5]}px)\`,opacity:a[6]??1,mixBlendMode:e.blend,
+        transform:`rotate(${a[4]}deg)`,transformOrigin:'50% 50%',filter:`blur(${a[5]}px)`,opacity:a[6]??1,mixBlendMode:e.blend,
         willChange:'left,top,width,height,transform,filter,opacity'
       }}/>}
       )}
     </div>
     <div data-figma-noise />
-    <style>{\`
+    <style>{`
       [data-figma-loading-frame] [data-figma-noise]{position:absolute;inset:0;pointer-events:none;opacity:.92;mix-blend-mode:soft-light;background-size:148px 148px;animation:field-noise 400ms steps(1,end) infinite}
       @keyframes field-noise{
         0%,24.99%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='11' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -94,6 +94,6 @@ export default function ReshadersMeshFlowLayer(){
         75%,100%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='71' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
       }
       @media(prefers-reduced-motion:reduce){[data-figma-loading-frame] [data-figma-noise]{animation:none}}
-    \`}</style>
+    `}</style>
   </div>;
 }
