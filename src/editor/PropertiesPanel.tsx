@@ -767,17 +767,11 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         </div>
 
         <div data-inspector-group="appearance" className="contents">
-        {/* Selection (multi-select only) — aggregated fills across
-            all selected nodes. Placed right above Styles so the user's
-            mental model of "set the color" lands first on the
-            multi-color aggregator, then on per-element overrides
-            below. Returns null on single-select. */}
-        {isMultiSelect && (
-          <>
-            <SelectionTool />
-            <ToolDivider />
-          </>
-        )}
+        {/* Selection colors — selected-scope aggregate visual paints. The
+            tool decides when the aggregate is useful (multi-select, or a
+            selected design subtree / multi-color selection) and stays hidden
+            for a simple single-color leaf so it does not duplicate Fill. */}
+        <SelectionTool />
         {/* Styles: Fill, Radius, Padding, Margin, Overflow, Opacity.
             Hidden on a templated viewport — those styles belong to the
             Template's root, not the page (edit via Template → Edit). */}

@@ -47,6 +47,9 @@ interface ProjectLoaderProps {
 
 export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}) {
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [canvasPainted, setCanvasPainted] = useState(false);
+  const [editorInteractive, setEditorInteractive] = useState(false);
   // When set, a `?remix=` load is paused on the workspace picker — the
   // remix only runs once the user chooses a workspace (see below).
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
@@ -537,8 +540,9 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
 
     init().catch(err => {
       trace.error('project-loader:init-error', err);
-      // Show app anyway so user isn't stuck on blank screen
-      if (!cancelled) setReady(true);
+      if (!cancelled) {
+        setLoadError(err instanceof Error ? err.message : String(err));
+      }
     });
 
     return () => { cancelled = true; };
@@ -549,7 +553,13 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // snapshot loaded, the ordinary loading shell when it didn't (share links).
   // The picker performs the remix + redirect itself.
   if (!ready) {
-    return <BuilderLoadingShell />;
+    return (
+      <BuilderLoadingShell
+        status={loadError ? "Project couldn't open" : 'Opening project'}
+        detail={loadError ? 'field could not finish loading this project.' : undefined}
+        recoverable={!!loadError}
+      />
+    );
   }
 
   // Keep the shell OVERLAID on the mounted App until the canvas has actually
@@ -558,8 +568,17 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // shell fades out over the fully-drawn page instead.
   return (
     <>
-      <App />
-      <CanvasReadyShellOverlay onReady={onCanvasReady} />
+      <App
+        interactive={editorInteractive}
+        onCanvasFirstPaint={() => setCanvasPainted(true)}
+      />
+      <CanvasReadyShellOverlay
+        painted={canvasPainted}
+        onReady={() => {
+          setEditorInteractive(true);
+          onCanvasReady?.();
+        }}
+      />
       {/* The remix picker rides ON TOP of the mounted builder so the choice is
           made over the template the user is looking at. Blocking — see the
           component: no ×, no Escape, no backdrop. */}
@@ -568,26 +587,33 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   );
 }
 
-function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
+function CanvasReadyShellOverlay({
+  painted,
+  onReady,
+}: {
+  painted: boolean;
+  onReady?: () => void;
+}) {
   const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
+  const [delayed, setDelayed] = useState(false);
+
   useEffect(() => {
-    let cancelled = false;
-    const finish = () => {
-      // One extra frame so the just-completed render is actually painted
-      // before the shell starts fading.
-      requestAnimationFrame(() => { if (!cancelled) setPhase('fading'); });
-    };
-    window.addEventListener('revyme:render-complete', finish, { once: true });
-    // Failsafe: an empty project may render before the listener attaches (or
-    // never emit) — never trap the user behind the shell.
-    const failsafe = setTimeout(finish, 4000);
+    if (phase !== 'waiting') return;
+
+    if (painted) {
+      trace.action('project-loader:canvas-painted', {});
+      const raf = requestAnimationFrame(() => setPhase('fading'));
+      return () => cancelAnimationFrame(raf);
+    }
+
+    const timeout = setTimeout(() => {
+      setDelayed(true);
+      trace.action('project-loader:canvas-delayed', {});
+    }, 4000);
     trace.action('project-loader:shell-overlay-waiting', {});
-    return () => {
-      cancelled = true;
-      window.removeEventListener('revyme:render-complete', finish);
-      clearTimeout(failsafe);
-    };
-  }, []);
+    return () => clearTimeout(timeout);
+  }, [painted, phase]);
+
   useEffect(() => {
     if (phase !== 'fading') return;
     trace.action('project-loader:shell-overlay-fade', {});
@@ -597,13 +623,18 @@ function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
     }, 280);
     return () => clearTimeout(t);
   }, [onReady, phase]);
+
   if (phase === 'done') return null;
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: phase === 'fading' ? 'none' : 'auto',
       opacity: phase === 'fading' ? 0 : 1, transition: 'opacity 260ms ease',
     }}>
-      <BuilderLoadingShell />
+      <BuilderLoadingShell
+        status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
+        detail={delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
+        recoverable={delayed}
+      />
     </div>
   );
 }
@@ -614,7 +645,15 @@ function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
 // spinner — the builder visibly "is there" while the project loads, instead
 // of a bare Loading… label.
 
-function BuilderLoadingShell() {
+function BuilderLoadingShell({
+  status = 'Opening project',
+  detail,
+  recoverable = false,
+}: {
+  status?: string;
+  detail?: string;
+  recoverable?: boolean;
+}) {
   const surface = 'var(--bg-surface, #16161d)';
   const border = '1px solid var(--border-light, rgba(255,255,255,0.08))';
   // Placeholder chips take the cut classes, not radii — the shell must preview
@@ -622,14 +661,23 @@ function BuilderLoadingShell() {
   // 28px+ chips, cut-sm for the 12px text lines). Circles stay circles.
   const ph = (w: number | string, h: number): React.CSSProperties => ({
     width: w, height: h,
-    background: 'var(--bg-hover, rgba(255,255,255,0.06))',
-    animation: 'rvy-shell-pulse 1.4s ease-in-out infinite',
+    background: 'linear-gradient(145deg, color-mix(in srgb, var(--bg-hover) 95%, white 5%), color-mix(in srgb, var(--bg-hover) 76%, black 24%))',
   });
   const sep: React.CSSProperties = { width: 1, height: 26, background: 'var(--border-light, rgba(255,255,255,0.08))', margin: '0 4px' };
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
+    <div
+      data-builder-loading-shell
+      style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}
+    >
       <style>{`
-        @keyframes rvy-shell-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        [data-builder-loading-shell] [data-skeleton] { position: relative; overflow: hidden; isolation: isolate; box-shadow: inset 0 1px color-mix(in srgb, white 14%, transparent), inset 0 -1px color-mix(in srgb, black 15%, transparent); }
+        [data-builder-loading-shell] [data-skeleton]::before { content: ''; position: absolute; inset: -120% -180%; background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.045) 42%, rgba(255,255,255,.32) 49%, rgba(255,255,255,.11) 52%, rgba(255,255,255,.42) 54%, rgba(255,255,255,.045) 59%, transparent 69%); transform: translateX(-55%); animation: field-shell-specular 2.85s cubic-bezier(.45,0,.55,1) infinite; }
+        [data-builder-loading-shell] [data-skeleton]::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .12; mix-blend-mode: soft-light; background-size: 96px 96px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.73' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E"); }
+        @keyframes field-shell-specular { 0% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
+        @media (prefers-reduced-motion: reduce) {
+          [data-builder-loading-shell] [data-skeleton]::before { animation: none !important; transform: translateX(0); }
+          [data-builder-loading-shell] * { transition-duration: 0.01ms !important; }
+        }
       `}</style>
 
       {/* Left slab — 308px full height, bottom-right cut, mirroring the
@@ -646,8 +694,8 @@ function BuilderLoadingShell() {
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12 }}>
-            <div className="cut-corners cut-sm" style={ph(90, 12)} />
-            <div className="cut-corners cut-sm" style={ph(44, 12)} />
+            <div data-skeleton className="cut-corners cut-sm" style={ph(90, 12)} />
+            <div data-skeleton className="cut-corners cut-sm" style={ph(44, 12)} />
           </div>
         </div>
 
@@ -656,15 +704,67 @@ function BuilderLoadingShell() {
         <div style={{ position: 'absolute', top: 52, bottom: 0, left: 0, width: 52, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '16px 10px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-              <div key={i} className="cut-corners" style={{ ...ph(32, 32), animationDelay: `${i * 80}ms` }} />
+              <div key={i} data-skeleton className="cut-corners" style={{ ...ph(32, 32), animationDelay: `${i * 80}ms` }} />
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 20, height: 1, background: 'var(--border-light, rgba(255,255,255,0.08))' }} />
-            <div style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '200ms' }} />
-            <div style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
+            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '200ms' }} />
+            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
           </div>
         </div>
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: 'absolute',
+          left: 308,
+          right: 260,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          padding: 24,
+          textAlign: 'center',
+          pointerEvents: 'auto',
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #f5f5f5)' }}>{status}</div>
+        {detail && (
+          <div style={{ maxWidth: 360, fontSize: 12, lineHeight: 1.5, color: 'var(--text-secondary, #9b9ba7)' }}>{detail}</div>
+        )}
+        {recoverable && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                height: 28, padding: '0 10px', borderRadius: 6,
+                border: '1px solid var(--control-border, rgba(255,255,255,0.12))',
+                background: 'var(--bg-hover, rgba(255,255,255,0.06))',
+                color: 'var(--text-primary, #f5f5f5)', fontSize: 12,
+              }}
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.assign('/')}
+              style={{
+                height: 28, padding: '0 10px', borderRadius: 6,
+                border: '1px solid transparent', background: 'transparent',
+                color: 'var(--text-secondary, #9b9ba7)', fontSize: 12,
+              }}
+            >
+              Back to projects
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom toolbar — docked flush to the bottom like the real bar, with
@@ -676,21 +776,21 @@ function BuilderLoadingShell() {
           padding: '6px 8px',
           ['--cut-border-color' as string]: 'var(--border-light)',
         }}>
-          <div className="cut-corners" style={{ ...ph(48, 32) }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '90ms' }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '180ms' }} />
-          <div className="cut-corners" style={{ ...ph(48, 32), animationDelay: '270ms' }} />
-          <div className="cut-corners" style={{ ...ph(48, 32), animationDelay: '360ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32) }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '90ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '180ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '270ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '360ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(52, 32), animationDelay: '450ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(52, 32), animationDelay: '450ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(64, 32), animationDelay: '540ms' }} />
-          <div className="cut-corners" style={{ ...ph(56, 32), animationDelay: '630ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(64, 32), animationDelay: '540ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(56, 32), animationDelay: '630ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '720ms' }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '810ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '720ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '810ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(72, 32), animationDelay: '900ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(72, 32), animationDelay: '900ms' }} />
         </div>
       </div>
 

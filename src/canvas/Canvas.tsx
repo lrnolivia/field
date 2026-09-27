@@ -66,6 +66,7 @@ import CanvasOverlay from './selection/CanvasOverlay';
 import CanvasFileDrop from './CanvasFileDrop';
 import SelectionOverlay from './selection/SelectionOverlay';
 import LayerDropHighlight from './selection/LayerDropHighlight';
+import SelectionColorLocateHighlight from './selection/SelectionColorLocateHighlight';
 import ShapeEditOverlayHost from './selection/ShapeEditOverlayHost';
 import SketchEditOverlay from './selection/SketchEditOverlay';
 import CanvasNodeNameDisplay from './selection/CanvasNodeNameDisplay';
@@ -113,7 +114,12 @@ import { addViewport } from './helpers/addViewport';
 // the per-transaction selection snapshot.
 
 
-export default function Canvas() {
+interface CanvasProps {
+  onFirstCanvasPaint?: () => void;
+}
+
+export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
+  const firstPaintReportedRef = useRef(false);
   // Read the store this component subscribes to. main.tsx wraps the app in
   // <Provider> with no store prop, which creates an isolated store — distinct
   // from getDefaultStore(). Reading via getDefaultStore() inside imperative
@@ -414,6 +420,11 @@ export default function Canvas() {
 
     onRenderComplete: () => {
       trace.action('canvas:iframe-render-complete', {});
+      if (!firstPaintReportedRef.current) {
+        firstPaintReportedRef.current = true;
+        trace.action('canvas:first-paint', {});
+        onFirstCanvasPaint?.();
+      }
       // Shape-edit / drag-commit overlay reveal: SvgEditorOverlay's
       // unmount and the SVG-group drag commit both set
       // `shapeEditCommitPendingAtom` to suppress SelectionOverlay until
@@ -1407,6 +1418,7 @@ export default function Canvas() {
             INSIDE — stable JSX slot, independent of SelectionOverlay's early
             returns (mirrors ShapeEditOverlayHost's placement). */}
         <LayerDropHighlight />
+        <SelectionColorLocateHighlight />
         {/* Shape-edit overlay lives at this stable JSX slot — outside
             SelectionOverlay's many conditional return paths. Mounting it
             inside SelectionOverlay caused React to unmount+remount it
