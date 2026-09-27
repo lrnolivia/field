@@ -20,6 +20,27 @@ A successful CI/build check is not runtime QA.
 
 If the required branch Preview is unavailable or the browser capability cannot exercise the acceptance criteria, classify runtime QA as `BLOCKED/UNVERIFIED — HARNESS` unless the assignment defines another valid harness.
 
+
+## Canvas-dependent Preview preflight
+
+When the acceptance surface depends on Canvas, the editor shell loading is not sufficient runtime evidence.
+
+Before attributing a Canvas failure to the feature branch:
+
+1. identify the branch-specific Canvas hostname used by that exact Preview
+2. verify the Canvas host resolves the Canvas sandbox (/sandbox or /sandbox/index.html), not the editor root
+3. verify Canvas reaches first paint
+4. verify the Canvas response carries the production Canvas isolation headers:
+   - Cross-Origin-Resource-Policy: cross-origin
+   - Cross-Origin-Opener-Policy: same-origin
+   - Cross-Origin-Embedder-Policy: credentialless
+   - Origin-Agent-Cluster: ?1
+5. only then exercise the feature's Canvas-dependent acceptance criteria
+
+If the branch Preview editor loads but its Canvas host is misrouted or cannot reach first paint, classify the feature's Canvas-dependent runtime QA as shared Preview infrastructure failure unless separate evidence proves a feature regression. Do not mutate unrelated feature code to hide a Preview routing failure.
+
+Record the exact Canvas hostname and first-paint result with the normal exact-SHA Preview evidence.
+
 ## Browser-driven QA
 
 The browser may perform real user-facing actions required by the acceptance criteria, including:
