@@ -5,14 +5,20 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 resources + view-control placement', () => {
-  it('routes Resources directly to Library and Image/video to Media', () => {
+  it('opens Media directly from the image split button and keeps Components in its dropdown', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
+    const shape = toolbar.indexOf('<ShapeDropdown');
+    const resources = toolbar.indexOf('<ResourcesButton />');
+    const pen = toolbar.indexOf('<PenDropdown');
     expect(toolbar).toContain('function ResourcesButton()');
-    expect(toolbar).toContain("setLeftPanel('library')");
-    expect(toolbar).toContain('label="Image/video…"');
-    expect(toolbar).toContain("setLeftPanel('media')");
-    expect(toolbar).toContain('setLeftPaneOpen(true)');
+    expect(toolbar).toContain('title="Media"');
+    expect(toolbar).toContain("openPanel('media')");
+    expect(toolbar).toContain('label="Components"');
+    expect(toolbar).toContain("openPanel('library')");
+    expect(toolbar).not.toContain('label="Image/video…"');
     expect(toolbar).toContain('dataTool="resources"');
+    expect(resources).toBeGreaterThan(shape);
+    expect(resources).toBeLessThan(pen);
   });
 
   it('uses deterministic smart zoom: selection when selected, canvas otherwise', () => {

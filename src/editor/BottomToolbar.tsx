@@ -29,7 +29,8 @@ import {
   FigmaTriangleIcon as ShapeTriangleIcon,
   FigmaPathIcon as ShapePathIcon,
   FigmaRowsIcon as LayoutRowsIcon,
-  FigmaLibraryIcon as ResourcesIcon,
+  FigmaImageIcon as ResourcesIcon,
+  FigmaLibraryIcon as ComponentsIcon,
   FigmaSearchIcon as SearchIcon,
   FigmaCommentIcon as CommentBubbleIcon,
   FigmaPencilIcon as SketchPencilIcon,
@@ -41,7 +42,6 @@ import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
-import { ChatImageIcon } from '@/shared/icons';
 import './bottom-toolbar-glyphs.css';
 
 // ─── Chevron & Check icons ─────────────────────────────────────────────────
@@ -301,10 +301,9 @@ function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (
 
 // ─── Shape Dropdown ─────────────────────────────────────────────────────────
 
-function ShapeDropdown({ toolMode, onSelect, onOpenMedia }: {
+function ShapeDropdown({ toolMode, onSelect }: {
   toolMode: ToolMode;
   onSelect: (shape: 'rectangle' | 'line' | 'ellipse' | 'triangle') => void;
-  onOpenMedia: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [lastShape, setLastShape] = useState<'rectangle' | 'line' | 'ellipse' | 'triangle'>('rectangle');
@@ -352,8 +351,6 @@ function ShapeDropdown({ toolMode, onSelect, onOpenMedia }: {
           <MenuItem label="Line" shortcut="L" active={toolMode === 'shape-line'} icon={<LineToolbarIcon className="w-4 h-4" />} onClick={() => choose('line')} />
           <MenuItem label="Ellipse" shortcut="O" active={toolMode === 'shape-ellipse'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => choose('ellipse')} />
           <MenuItem label="Triangle" shortcut="Shift+T" active={toolMode === 'shape-triangle'} icon={<ShapeTriangleIcon className="w-4 h-4" size={16} />} onClick={() => choose('triangle')} />
-          <DropdownDivider />
-          <MenuItem label="Image/video…" shortcut="⇧⌘K" icon={<ChatImageIcon className="w-4 h-4" />} onClick={() => { onOpenMedia(); setOpen(false); }} />
         </DropdownContainer>
       )}
     </div>
@@ -439,17 +436,36 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
 // ─── Resources ──────────────────────────────────────────────────────────────
 
 function ResourcesButton() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  const openLibrary = useCallback(() => {
-    setLeftPanel('library');
+  useClickOutside(ref, open, () => setOpen(false));
+
+  const openPanel = useCallback((panel: 'media' | 'library') => {
+    setLeftPanel(panel);
     setLeftPaneOpen(true);
-    trace.action('toolbar:resources-open', { panel: 'library' });
+    setOpen(false);
+    trace.action(panel === 'media' ? 'toolbar:media-open' : 'toolbar:components-open');
   }, [setLeftPanel, setLeftPaneOpen]);
+
   return (
-    <ToolButton onClick={openLibrary} title="Resources" dataTool="resources">
-      <ResourcesIcon className="w-4 h-4" size={16} />
-    </ToolButton>
+    <div className="relative" ref={ref}>
+      <SplitButton
+        active={open}
+        open={open}
+        icon={<ResourcesIcon className="w-4 h-4" size={16} />}
+        onClick={() => openPanel('media')}
+        onChevronClick={() => setOpen((value) => !value)}
+        title="Media"
+        dataTool="resources"
+      />
+      {open && (
+        <DropdownContainer>
+          <MenuItem label="Components" icon={<ComponentsIcon className="w-4 h-4" size={16} />} onClick={() => openPanel('library')} />
+        </DropdownContainer>
+      )}
+    </div>
   );
 }
 
@@ -472,8 +488,6 @@ export default function BottomToolbar() {
   // the menu entry remains as a secondary path).
   const isViewer = useIsViewer();
   const creatorLocked = useAtomValue(creatorToolsLockedAtom);
-  const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
   const setSettingsSection = useSetAtom(settingsSectionAtom);
   // Sites already on a paid, active plan don't need the Upgrade nudge —
@@ -598,14 +612,14 @@ export default function BottomToolbar() {
                     setToolMode(mode);
                   }
                 }}
-                onOpenMedia={() => {
-                  setToolMode('select');
-                  setLeftPanel('media');
-                  setLeftPaneOpen(true);
-                  trace.action('toolbar:media-open');
-                }}
               />
             </CreatorGate>
+
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
+                <ResourcesButton />
+              </CreatorGate>
+            )}
 
             <CreatorGate locked={creatorLocked}>
               <PenDropdown toolMode={toolMode} onSelect={(mode) => {
@@ -624,12 +638,6 @@ export default function BottomToolbar() {
                 >
                   <TextToolbarIcon className="w-4 h-4" />
                 </ToolButton>
-              </CreatorGate>
-            )}
-
-            {!isContainerSetMaster && (
-              <CreatorGate locked={creatorLocked}>
-                <ResourcesButton />
               </CreatorGate>
             )}
 

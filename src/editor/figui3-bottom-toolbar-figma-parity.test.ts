@@ -29,14 +29,15 @@ describe('FigUI3 bottom toolbar Figma parity', () => {
     expect(toolbar).toContain('label="Section library…"');
   });
 
-  it('uses field-native shape semantics with Figma naming and media routing', () => {
+  it('uses field-native shape semantics and keeps Media as a direct adjacent insertion surface', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(toolbar).toContain('label="Rectangle" shortcut="R"');
     expect(toolbar).toContain('label="Line" shortcut="L"');
     expect(toolbar).toContain('label="Ellipse" shortcut="O"');
     expect(toolbar).toContain('label="Triangle" shortcut="Shift+T"');
-    expect(toolbar).toContain('label="Image/video…"');
-    expect(toolbar).toContain("setLeftPanel('media')");
+    expect(toolbar).toContain('title="Media"');
+    expect(toolbar).toContain('label="Components"');
+    expect(toolbar).not.toContain('label="Image/video…"');
     expect(toolbar).not.toContain('<LayoutDropdown');
   });
 

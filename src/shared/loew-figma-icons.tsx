@@ -188,6 +188,14 @@ export const FigmaLayersIcon = (p: LoewFigmaIconProps) => (
   </IconBase>
 );
 
+export const FigmaImageIcon = (p: LoewFigmaIconProps) => (
+  <IconBase {...p}>
+    <rect x="2.5" y="3" width="11" height="10" rx="1" />
+    <circle cx="10.7" cy="5.8" r="1" />
+    <path d="m3.3 11 3.1-3.1 2.1 2.1 1.5-1.5 2.8 2.8" />
+  </IconBase>
+);
+
 export const FigmaLibraryIcon = (p: LoewFigmaIconProps) => (
   <IconBase {...p}>
     <rect x="2.5" y="2.5" width="3" height="11" rx=".6" />
