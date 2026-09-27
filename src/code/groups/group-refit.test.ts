@@ -750,6 +750,42 @@ describe('native Group Layers reparent planning', () => {
     expect(plan?.moveStyles.left).toBe('-140px');
   });
 
+
+  it('allows a canvas-root node to enter a native Group and refits the destination', () => {
+    const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '20px', height: '20px' }, { isGroup: true, children: ['a'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const canvas = node('canvas-node', null, { position: 'absolute', left: '160px', top: '90px', width: '20px', height: '20px' }, { isCanvasNode: true });
+    const root = node('root', null, {}, { children: ['g'] });
+    const plan = planNativeGroupLayersReparent({
+      draggedId: 'canvas-node',
+      newParentId: 'g',
+      nodes: new Map([[root.id, root], [group.id, group], [a.id, a], [canvas.id, canvas]]),
+      draggedWorld: box(160, 90),
+      newParentWorld: box(100, 50, 20, 20),
+      preserveDraggedGeometry: true,
+    });
+    expect(plan?.moveStyles).toMatchObject({ position: 'absolute', left: '60px', top: '40px' });
+    expect(new Map(plan?.patches.map((patch) => [patch.nodeId, patch.styles]) ?? []).get('g')).toMatchObject({
+      width: '80px',
+      height: '60px',
+    });
+  });
+
+  it('allows the final Group child to exit to the canvas root and removes the empty Group', () => {
+    const group = node('g', null, { position: 'absolute', left: '100px', top: '50px', width: '20px', height: '20px' }, { isGroup: true, isCanvasNode: true, children: ['a'] });
+    const a = node('a', 'g', { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' });
+    const plan = planNativeGroupLayersReparent({
+      draggedId: 'a',
+      newParentId: null,
+      nodes: new Map([[group.id, group], [a.id, a]]),
+      draggedWorld: box(100, 50),
+      newParentWorld: box(0, 0, 0, 0),
+      preserveDraggedGeometry: false,
+    });
+    expect(plan?.moveStyles).toEqual({});
+    expect(plan?.removeGroupIds).toEqual(['g']);
+  });
+
   it('enters a rotated absolute Group through an exact inverse world-to-local affine', () => {
     const group = node('g', 'root', { position: 'absolute', left: '100px', top: '50px', width: '100px', height: '80px', transform: 'rotate(90deg)' }, { isGroup: true, children: [] });
     const b = node('b', 'root', { position: 'absolute', left: '160px', top: '90px', width: '40px', height: '20px' });
