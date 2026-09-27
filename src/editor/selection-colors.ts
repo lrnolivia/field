@@ -145,8 +145,7 @@ export function aggregateSelectionColors(
       value,
       targets,
       nodeIds: Array.from(new Set(targets.map((target) => target.nodeId))),
-    }))
-    .sort((a, b) => b.targets.length - a.targets.length || a.value.localeCompare(b.value));
+    })); // Map insertion order is the first paint encountered in document traversal.
 }
 
 export function buildColorReplacementStyles(

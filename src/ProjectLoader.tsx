@@ -661,8 +661,7 @@ function BuilderLoadingShell({
   // 28px+ chips, cut-sm for the 12px text lines). Circles stay circles.
   const ph = (w: number | string, h: number): React.CSSProperties => ({
     width: w, height: h,
-    background: 'var(--bg-hover, rgba(255,255,255,0.06))',
-    animation: 'rvy-shell-pulse 1.4s ease-in-out infinite',
+    background: 'linear-gradient(145deg, color-mix(in srgb, var(--bg-hover) 95%, white 5%), color-mix(in srgb, var(--bg-hover) 76%, black 24%))',
   });
   const sep: React.CSSProperties = { width: 1, height: 26, background: 'var(--border-light, rgba(255,255,255,0.08))', margin: '0 4px' };
   return (
@@ -671,9 +670,13 @@ function BuilderLoadingShell({
       style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}
     >
       <style>{`
-        @keyframes rvy-shell-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        [data-builder-loading-shell] [data-skeleton] { position: relative; overflow: hidden; isolation: isolate; box-shadow: inset 0 1px color-mix(in srgb, white 14%, transparent), inset 0 -1px color-mix(in srgb, black 15%, transparent); }
+        [data-builder-loading-shell] [data-skeleton]::before { content: ''; position: absolute; inset: -120% -180%; background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.045) 42%, rgba(255,255,255,.32) 49%, rgba(255,255,255,.11) 52%, rgba(255,255,255,.42) 54%, rgba(255,255,255,.045) 59%, transparent 69%); transform: translateX(-55%); animation: field-shell-specular 2.85s cubic-bezier(.45,0,.55,1) infinite; }
+        [data-builder-loading-shell] [data-skeleton]::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .12; mix-blend-mode: soft-light; background-size: 96px 96px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.73' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E"); }
+        @keyframes field-shell-specular { 0% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
         @media (prefers-reduced-motion: reduce) {
-          [data-builder-loading-shell] * { animation: none !important; transition-duration: 0.01ms !important; }
+          [data-builder-loading-shell] [data-skeleton]::before { animation: none !important; transform: translateX(0); }
+          [data-builder-loading-shell] * { transition-duration: 0.01ms !important; }
         }
       `}</style>
 
@@ -691,8 +694,8 @@ function BuilderLoadingShell({
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12 }}>
-            <div className="cut-corners cut-sm" style={ph(90, 12)} />
-            <div className="cut-corners cut-sm" style={ph(44, 12)} />
+            <div data-skeleton className="cut-corners cut-sm" style={ph(90, 12)} />
+            <div data-skeleton className="cut-corners cut-sm" style={ph(44, 12)} />
           </div>
         </div>
 
@@ -701,13 +704,13 @@ function BuilderLoadingShell({
         <div style={{ position: 'absolute', top: 52, bottom: 0, left: 0, width: 52, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '16px 10px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-              <div key={i} className="cut-corners" style={{ ...ph(32, 32), animationDelay: `${i * 80}ms` }} />
+              <div key={i} data-skeleton className="cut-corners" style={{ ...ph(32, 32), animationDelay: `${i * 80}ms` }} />
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 20, height: 1, background: 'var(--border-light, rgba(255,255,255,0.08))' }} />
-            <div style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '200ms' }} />
-            <div style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
+            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '200ms' }} />
+            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
           </div>
         </div>
       </div>
@@ -773,21 +776,21 @@ function BuilderLoadingShell({
           padding: '6px 8px',
           ['--cut-border-color' as string]: 'var(--border-light)',
         }}>
-          <div className="cut-corners" style={{ ...ph(48, 32) }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '90ms' }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '180ms' }} />
-          <div className="cut-corners" style={{ ...ph(48, 32), animationDelay: '270ms' }} />
-          <div className="cut-corners" style={{ ...ph(48, 32), animationDelay: '360ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32) }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '90ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '180ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '270ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '360ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(52, 32), animationDelay: '450ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(52, 32), animationDelay: '450ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(64, 32), animationDelay: '540ms' }} />
-          <div className="cut-corners" style={{ ...ph(56, 32), animationDelay: '630ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(64, 32), animationDelay: '540ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(56, 32), animationDelay: '630ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '720ms' }} />
-          <div className="cut-corners" style={{ ...ph(34, 32), animationDelay: '810ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '720ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '810ms' }} />
           <div style={sep} />
-          <div className="cut-corners" style={{ ...ph(72, 32), animationDelay: '900ms' }} />
+          <div data-skeleton className="cut-corners" style={{ ...ph(72, 32), animationDelay: '900ms' }} />
         </div>
       </div>
 

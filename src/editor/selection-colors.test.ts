@@ -11,6 +11,29 @@ function node(id: string, styles: Record<string, string> = {}, children: string[
 }
 
 describe('Selection colors Figma-parity scope', () => {
+  it('keeps first document occurrence order independent of counts and lexical color order', () => {
+    const nodes = new Map<string, CanvasNode>([
+      ['frame', node('frame', {}, ['first', 'second', 'third', 'fourth'])],
+      ['first', node('first', { color: '#ffffff' })],
+      ['second', node('second', { color: '#222222' })],
+      ['third', node('third', { color: '#222222' })],
+      ['fourth', node('fourth', { color: '#111111' })],
+    ]);
+    expect(aggregateSelectionColors(['frame'], nodes).map((g) => g.value)).toEqual(['#ffffff', '#222222', '#111111']);
+    nodes.get('third')!.styles.color = '#111111';
+    expect(aggregateSelectionColors(['frame'], nodes).map((g) => g.value)).toEqual(['#ffffff', '#222222', '#111111']);
+  });
+  it('keeps first encountered document order instead of ranking by count or name', () => {
+    const nodes = new Map<string, CanvasNode>([
+      ['frame', node('frame', { backgroundColor: '#cc0000' }, ['first', 'second', 'third'])],
+      ['first', node('first', { color: '#00bb00' })],
+      ['second', node('second', { color: '#00bb00' })],
+      ['third', node('third', { color: '#0000aa' })],
+    ]);
+    expect(aggregateSelectionColors(['frame'], nodes).map((group) => group.value)).toEqual([
+      '#cc0000', '#00bb00', '#0000aa',
+    ]);
+  });
   it('walks a selected frame subtree and excludes expanded component internals', () => {
     const nodes = new Map<string, CanvasNode>([
       ['frame', node('frame', {}, ['title', 'card', 'instance:master-child'])],

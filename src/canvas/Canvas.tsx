@@ -66,6 +66,7 @@ import CanvasOverlay from './selection/CanvasOverlay';
 import CanvasFileDrop from './CanvasFileDrop';
 import SelectionOverlay from './selection/SelectionOverlay';
 import LayerDropHighlight from './selection/LayerDropHighlight';
+import SelectionColorLocateHighlight from './selection/SelectionColorLocateHighlight';
 import ShapeEditOverlayHost from './selection/ShapeEditOverlayHost';
 import SketchEditOverlay from './selection/SketchEditOverlay';
 import CanvasNodeNameDisplay from './selection/CanvasNodeNameDisplay';
@@ -1417,6 +1418,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
             INSIDE — stable JSX slot, independent of SelectionOverlay's early
             returns (mirrors ShapeEditOverlayHost's placement). */}
         <LayerDropHighlight />
+        <SelectionColorLocateHighlight />
         {/* Shape-edit overlay lives at this stable JSX slot — outside
             SelectionOverlay's many conditional return paths. Mounting it
             inside SelectionOverlay caused React to unmount+remount it
