@@ -5,7 +5,7 @@ field_assignment: 1
 id: dashboard-collection-semantics
 status: active
 branch: field/dashboard-collection-semantics
-pr: null
+pr: 13
 base: 66a6f90ef9658e5a66409c0ebe48727715b3452b
 kit: 2026-09-26.3
 type: follow-up
@@ -42,42 +42,48 @@ Make the Dashboard project collection and loading/count feedback semantically co
 ## Why this exists
 
 UIAudit found a bounded accessibility gap in otherwise solid Dashboard UI:
-- the project grid is visually a collection but exposes no list semantics
-- project cards are not exposed as collection items
-- the visible project count is an unlabeled bare number
-- initial loading feedback is visual and busy-state based, but not exposed as a status region
+- the project grid was visually a collection but exposed no list semantics
+- project cards were not exposed as collection items
+- the visible project count was an unlabeled bare number
+- initial loading feedback was visual/busy-state based, but not exposed as a status region
 
 ## Current verified state
 
 - activation base: `66a6f90ef9658e5a66409c0ebe48727715b3452b`
 - active Contract Worker + legacy ownership audit found no owner for any intended path
-- no CSS or visual treatment change is required
-- existing controls remain real buttons with existing labels/states
+- canonical implementation head: `007d20c42c01fdf716b668af6868086c9dbd12f9`
+- Draft PR #13 targets `main`
+- DashboardCollectionSemantics.test.tsx: 3/3 PASS
+- focused strict TypeScript: PASS
+- exact base diff contains only the five owned paths
+- no CSS or visual treatment changed
 
 ## Decisions already made
 
 - project grid exposes `role="list"`
 - project cards expose `role="listitem"`
-- visible project count exposes a contextual accessible name with singular/plural project wording
-- initial loading grid exposes a polite status region while preserving `aria-busy`
-- no layout, styling, routing, project-data, or menu/dialog behavior changes
+- visible project count exposes contextual accessible naming with singular/plural project wording
+- initial loading grid exposes a named `role="status"` while preserving `aria-busy`
+- no layout, styling, routing, project-data, menu/dialog, or backend behavior changes
 
 ## Acceptance criteria
 
-- [ ] project grid exposes list semantics
-- [ ] each rendered project card exposes list-item semantics
-- [ ] project count exposes contextual accessible text
-- [ ] initial loading grid exposes a named status region and remains busy
-- [ ] focused tests pass
-- [ ] focused strict TypeScript passes
-- [ ] exact changed paths remain within ownership
+- [x] project grid exposes list semantics
+- [x] each rendered project card exposes list-item semantics
+- [x] project count exposes contextual accessible text
+- [x] initial loading grid exposes a named status region and remains busy
+- [x] focused tests pass
+- [x] focused strict TypeScript passes
+- [x] exact changed paths remain within ownership
 
 ## Validation
 
-- focused Vitest
-- focused strict TypeScript
-- exact changed-path audit
-- committed-source re-read
+- focused Vitest: 3/3 PASS
+- focused strict TypeScript: PASS
+- exact changed-path audit: five owned paths only
+- committed-source re-read: PASS
+- patch-generation escape defect was caught by committed-source re-read and corrected before validation
+- disposable TypeScript harness initially included its Vitest config without Node types; harness include was repaired outside repository source and rerun PASS
 
 ## Runtime QA
 
