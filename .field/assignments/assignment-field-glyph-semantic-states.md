@@ -95,3 +95,26 @@ Branch Preview `/builder/noauth` must prove:
 ## Completion
 
 Exact-head branch build PASS, changed-path audit PASS, browser QA PASS, exact-SHA merge gate refresh.
+## Performance contract
+
+Animating every editor icon must not make field feel heavier.
+
+Implementation requirements:
+- Generic hover/press response stays CSS/transform-driven wherever semantic state is unchanged.
+- Use Morphicons only for real state changes; do not render morph machinery for icons that merely need tactile response.
+- Animate compositor-friendly properties only: primarily `transform` and `opacity`.
+- Do not animate width, height, top, left, padding, margin, grid/flex geometry, filter blur, or other layout/paint-heavy properties for routine glyph feedback.
+- No per-frame React state updates, no requestAnimationFrame loops per glyph, and no per-icon hover state in React.
+- Do not attach bespoke pointer/mouse listeners to every icon when parent variants/CSS can express the interaction.
+- No synchronous layout reads (`getBoundingClientRect`, computed-style measurement, etc.) in the animation interaction path.
+- Do not leave `will-change` permanently enabled across the editor icon population. Compositor promotion, if ever needed, must be temporary and justified.
+- Reuse shared variants/tokens; do not allocate new animation objects on every render when static definitions work.
+- Preserve interruptibility without queuing animation work.
+- Reduced-motion paths must be cheaper than full motion, not an alternate JS animation pipeline.
+
+Performance acceptance:
+- Canvas/editor interaction remains responsive while rapidly hovering/clicking dense icon clusters.
+- No visible scroll/hover jank in dense panels, Layers, toolbars, or inspector controls.
+- No measurable growth in DOM geometry/layout work caused by glyph animation.
+- Exact-head QA must include a dense-icon stress pass (rapid hover/click/reversal across multiple controls) and report any dropped/sticky/stale animation behavior.
+- If broad motion coverage creates a perceptible performance regression, reduce implementation cost before reducing semantic coverage.

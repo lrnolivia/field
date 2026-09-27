@@ -9,3 +9,15 @@ Assignment: `field-glyph-semantic-states`
 - Branch: `field/field-glyph-semantic-states`.
 - Scope is intentionally narrow: Interactions, Layout, Cursor, plus `src/editor/glyph/**` only.
 - Broad hover/press density is already solved in main. This tranche upgrades semantic state changes to true glyph transformations.
+
+## Performance direction
+
+User explicitly requires 100% glyph-animation coverage without weighing field down.
+
+Performance is now a merge gate:
+- CSS/transform fallback for generic response.
+- Morphicons only for true semantic state transitions.
+- no per-icon hover React state/listeners/rAF loops.
+- no layout-property animation or layout reads in the interaction path.
+- no persistent `will-change` across large icon populations.
+- dense-icon stress QA required before merge.
