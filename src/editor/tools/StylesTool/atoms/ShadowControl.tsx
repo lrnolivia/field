@@ -7,7 +7,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { projectVersionAtom } from '@/code/project/project-fs';
 import { liveUpdatePresetToken } from '../../../ui/preset-live-update';
 import { UnifiedControlProvider } from '../../../controls/unified/ControlProvider';
-import { useControlContext, ShowControlLabels } from '../../../controls/unified/useControlContext';
+import { useControlContext, ShowControlLabels, InspectorProvenanceBoundary } from '../../../controls/unified/useControlContext';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import type { AtomProps } from '../../../controls/unified/types';
 import ToolInput from '../../../controls/ToolInput';
@@ -402,7 +402,9 @@ function ShadowPresetPillRow({ tokenName, tokenLabel, currentValue, previewColor
 export function ShadowControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="boxShadow" defaultValue="" mode={mode} {...mp}>
-      <ShadowAtom compactSection={compactSection} />
+      <InspectorProvenanceBoundary>
+        <ShadowAtom compactSection={compactSection} />
+      </InspectorProvenanceBoundary>
     </UnifiedControlProvider>
   );
 }
