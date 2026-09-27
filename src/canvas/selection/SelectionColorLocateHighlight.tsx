@@ -5,7 +5,7 @@ import { nodesAtom } from '@/code/stores/store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getViewportPrefix } from '@/canvas/node-ops';
-import { locateColorLuminance, resolveLocateLuminousRgb } from './selection-color-locate-visual';
+import { locateColorLuminance, resolveLocateGlowRgb } from './selection-color-locate-visual';
 
 export function locateContrastTone(nodeId: string, vpId: string, nodes: Map<string, { parentId?: string | null; styles?: Record<string, string> }>): 'white' | 'black' {
   const bridge = getCanvasBridge();
@@ -43,7 +43,7 @@ export default function SelectionColorLocateHighlight() {
       bridge.setSelectionColorLocateHighlight?.(
         id,
         prefix,
-        resolveLocateLuminousRgb(request.tint, tone),
+        resolveLocateGlowRgb(request.tint, tone),
         tone,
         request.mode,
         request.revision,

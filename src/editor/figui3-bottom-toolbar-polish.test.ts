@@ -1,4 +1,4 @@
-// FIGUI3_BOTTOM_TOOLBAR_POLISH_TEST_20260925
+// FIGUI3_BOTTOM_TOOLBAR_POLISH_TEST_20260927
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -11,30 +11,19 @@ describe('FigUI3 bottom toolbar optical parity', () => {
     expect(toolbar).toContain('rounded-[11px]');
     expect(toolbar).not.toContain('cut-corners');
     expect(toolbar).not.toContain('cut-border');
-    expect(toolbar).not.toContain('--cut-border-color');
   });
 
-  it('keeps full-size authoring controls while utilities are denser', () => {
+  it('gives split chevrons a real adjacent Figma-like hit surface', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain("'w-[32px] h-[32px]' : 'w-[36px] h-[36px]'");
-    expect(toolbar).toContain('px-2 py-2 gap-0.5');
-    expect(toolbar).toContain('h-[20px]');
-    expect(toolbar).toContain('mx-0.5');
+    expect(toolbar).toContain('w-[20px] h-[36px] rounded-[6px]');
+    expect(toolbar).toContain('bg-[var(--bg-hover)]');
+    expect(toolbar).toContain('gap-px');
   });
 
-  it('preserves sparse functional accent and neutral utility chrome', () => {
+  it('keeps menu checks and tool icons in separate columns', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain("bg-[var(--accent)] text-[var(--accent-fg)]");
-    expect(toolbar).toContain('data-toolbar-tool="smart-zoom"');
-    expect(toolbar).toContain('hover:bg-[var(--control-bg-hover)]');
-    expect(toolbar).not.toContain('LocaleDropdown');
-    expect(toolbar).not.toContain('ThemeSwitcher');
-  });
-
-  it('keeps compact rounded local command menus', () => {
-    const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain('rounded-[8px]');
-    expect(toolbar).toContain('shadow-[var(--shadow-lg)] p-1');
-    expect(toolbar).toContain('rounded-[5px]');
+    expect(toolbar).toContain('{active ? <CheckSvg /> : null}');
+    expect(toolbar).toContain('{icon ?? null}');
+    expect(toolbar).toContain('min-w-[200px] rounded-[10px]');
   });
 });

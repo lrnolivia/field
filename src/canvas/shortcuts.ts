@@ -72,8 +72,8 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   const cleanups: (() => void)[] = [];
 
   // Helpers: focused-toolbar masters where most creators are no-ops.
-  //   - Icon-set master: only shape tools (rect / circle / triangle /
-  //     path) apply. Frame / Text / Layout / Sketch keys are
+  //   - Icon-set master: only shape tools (rectangle / line / ellipse / triangle /
+  //     pen path) apply. Frame / Text / Layout / Sketch keys are
   //     swallowed.
   // Gated per-handler so the keyboard binding still exists (avoids
   // "shortcut not registered" surprises in the global help overlay)
@@ -114,7 +114,8 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   //   R           → Square (shape-rect)
   //   O           → Circle (shape-ellipse)
   //   Shift+T     → Triangle (shape-triangle)
-  //   P           → Path (shape-path)
+  //   L           → Line (shape-line)
+  //   P           → Pen (shape-path)
   // Each toggles back to 'select' if its mode is already active so the
   // user can press the same key twice to cancel a half-started draw.
   cleanups.push(keyboard.register({ key: 'r', label: 'Square tool', category: 'tools', handler: () => {
@@ -126,10 +127,13 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   cleanups.push(keyboard.register({ key: 't', shift: true, label: 'Triangle tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'shape-triangle' ? 'select' : 'shape-triangle');
   }}));
-  cleanups.push(keyboard.register({ key: 'p', label: 'Path tool', category: 'tools', handler: () => {
+  cleanups.push(keyboard.register({ key: 'l', label: 'Line tool', category: 'tools', handler: () => {
+    setToolMode(toolModeRef.current === 'shape-line' ? 'select' : 'shape-line');
+  }}));
+  cleanups.push(keyboard.register({ key: 'p', label: 'Pen tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'shape-path' ? 'select' : 'shape-path');
   }}));
-  // Sketch (Pencil) — Shift+P, while P remains the Path/Pen tool.
+  // Pencil/Sketch — Shift+P; line creation uses L and Pen uses P.
   // Enabled on regular pages AND vector-set (icon-set) masters.
   cleanups.push(keyboard.register({ key: 'p', shift: true, label: 'Sketch tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'sketch' ? 'select' : 'sketch');

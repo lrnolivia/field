@@ -2,6 +2,7 @@
 // FIGUI3_BOTTOM_TOOLBAR_POLISH_20260925
 // FIGUI3_BOTTOM_TOOLBAR_FIGMA_PARITY_20260926
 // FIGUI3_TOOLBAR_RESOURCE_VIEW_CONTROLS_20260926
+// FIGUI3_TOOLBAR_FIGMA_PASS_20260927
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,7 +10,7 @@ import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { toolModeAtom, panHighlightAtom, isShapeMode, isLayoutMode, type ToolMode } from '@/code/stores/tool-store';
+import { toolModeAtom, panHighlightAtom, type ToolMode } from '@/code/stores/tool-store';
 import { zoomToFit, zoomToFitSelection } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { selectedNodeAtom } from '@/code/stores/store';
@@ -26,8 +27,6 @@ import {
   FigmaTriangleIcon as ShapeTriangleIcon,
   FigmaPathIcon as ShapePathIcon,
   FigmaRowsIcon as LayoutRowsIcon,
-  FigmaColumnsIcon as LayoutColumnsIcon,
-  FigmaGridIcon as LayoutGridIcon,
   FigmaLibraryIcon as ResourcesIcon,
   FigmaSearchIcon as SearchIcon,
   FigmaCommentIcon as CommentBubbleIcon,
@@ -51,6 +50,11 @@ const ScaleToolbarIcon = ({ className = '' }: { className?: string }) => (
     <path d="M3.25 6.1V3.25H6.1" />
     <path d="M9.9 12.75h2.85V9.9" />
     <path d="M3.55 3.55l3.1 3.1M12.45 12.45l-3.1-3.1" />
+  </svg>
+);
+const LineToolbarIcon = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" className={className} width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" aria-hidden>
+    <path d="M3 13 13 3" />
   </svg>
 );
 
@@ -79,8 +83,9 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
       style={{ border: 'none', fontFamily: 'Inter, system-ui, sans-serif', textAlign: 'left' }}
     >
       <span className="w-4 h-4 flex items-center justify-center shrink-0">
-        {active ? <CheckSvg /> : icon ?? null}
+        {active ? <CheckSvg /> : null}
       </span>
+      <span className="w-4 h-4 flex items-center justify-center shrink-0">{icon ?? null}</span>
       <span>{label}</span>
       {shortcut && <ShortcutHint text={shortcut} />}
     </button>
@@ -89,7 +94,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
 
 function DropdownContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[180px] rounded-[8px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
+    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] rounded-[10px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
       {children}
     </div>
   );
@@ -106,7 +111,7 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
   onChevronClick: () => void; title: string; dataTool?: string;
 }) {
   return (
-    <div className="flex items-center">
+    <div className="flex items-center gap-px">
       <button
         onClick={onClick}
         title={title}
@@ -127,13 +132,13 @@ function SplitButton({ active, icon, onClick, onChevronClick, title, dataTool }:
           is light: accent-fg is dark-on-dark there). */}
       <button
         onClick={onChevronClick}
-        className={`flex items-center justify-center w-[12px] h-[36px] transition-colors ${
+        className={`flex items-center justify-center w-[20px] h-[36px] rounded-[6px] transition-colors ${
           active
-            ? 'text-[var(--accent)] opacity-80 hover:opacity-100'
-            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-[5px]'
+            ? 'text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
         }`}
         // Keep the narrow chevron hit target optically subordinate to the main tool.
-        style={{ border: 'none', cursor: 'pointer', backgroundColor: 'transparent' }}
+        style={{ border: 'none', cursor: 'pointer' }}
       >
         <ChevronDownSvg />
       </button>
@@ -219,9 +224,46 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Move" shortcut="V" active={toolMode === 'select'} onClick={() => { onSelect('select'); setOpen(false); }} />
-          <MenuItem label="Hand tool" shortcut="H" active={toolMode === 'hand'} icon={<div className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+          <MenuItem label="Move" shortcut="V" active={toolMode === 'select'} icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
+          <MenuItem label="Hand tool" shortcut="H" active={toolMode === 'hand'} icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
           {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
+        </DropdownContainer>
+      )}
+    </div>
+  );
+}
+
+// ─── Frame Dropdown ─────────────────────────────────────────────────────────
+
+function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
+  useClickOutside(ref, open, () => setOpen(false));
+
+  const openSectionLibrary = useCallback(() => {
+    setLeftPanel('insert');
+    setLeftPaneOpen(true);
+    setOpen(false);
+    trace.action('toolbar:section-library');
+  }, [setLeftPanel, setLeftPaneOpen]);
+
+  return (
+    <div className="relative" ref={ref} data-tutorial="frame-tool">
+      <SplitButton
+        active={toolMode === 'frame' || open}
+        icon={<FrameToolbarIcon className="w-4 h-4" />}
+        onClick={onSelect}
+        onChevronClick={() => setOpen((value) => !value)}
+        title="Frame (F)"
+        dataTool="frame"
+      />
+      {open && (
+        <DropdownContainer>
+          <MenuItem label="Frame" shortcut="F" active={toolMode === 'frame'} icon={<FrameToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect(); setOpen(false); }} />
+          <DropdownDivider />
+          <MenuItem label="Section library…" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={openSectionLibrary} />
         </DropdownContainer>
       )}
     </div>
@@ -230,21 +272,37 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
 
 // ─── Shape Dropdown ─────────────────────────────────────────────────────────
 
-// Vector-shape split button. Sketch has its own Figma-like toolbar slot.
-function ShapeDropdown({ active, onSelect }: {
-  active: boolean; onSelect: (shape: string) => void;
+function ShapeDropdown({ toolMode, onSelect, onOpenMedia }: {
+  toolMode: ToolMode;
+  onSelect: (shape: 'rectangle' | 'line' | 'ellipse' | 'triangle') => void;
+  onOpenMedia: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [currentShape, setCurrentShape] = useState('triangle');
+  const [lastShape, setLastShape] = useState<'rectangle' | 'line' | 'ellipse' | 'triangle'>('rectangle');
   const ref = useRef<HTMLDivElement>(null);
-
   useClickOutside(ref, open, () => setOpen(false));
 
-  const shapeIcons: Record<string, React.ReactNode> = {
-    square: <ShapeSquareIcon className="w-4 h-4" size={16} />,
-    circle: <ShapeCircleIcon className="w-4 h-4" size={16} />,
+  useEffect(() => {
+    if (toolMode === 'shape-rect') setLastShape('rectangle');
+    else if (toolMode === 'shape-ellipse') setLastShape('ellipse');
+    else if (toolMode === 'shape-triangle') setLastShape('triangle');
+    else if (toolMode === 'shape-line') setLastShape('line');
+  }, [toolMode]);
+
+  const active = toolMode === 'shape-rect' || toolMode === 'shape-line' || toolMode === 'shape-ellipse' || toolMode === 'shape-triangle';
+  const currentShape = active
+    ? (toolMode === 'shape-rect' ? 'rectangle' : toolMode === 'shape-line' ? 'line' : toolMode === 'shape-ellipse' ? 'ellipse' : 'triangle')
+    : lastShape;
+  const shapeIcons: Record<typeof currentShape, React.ReactNode> = {
+    rectangle: <ShapeSquareIcon className="w-4 h-4" size={16} />,
+    ellipse: <ShapeCircleIcon className="w-4 h-4" size={16} />,
     triangle: <ShapeTriangleIcon className="w-4 h-4" size={16} />,
-    path: <ShapePathIcon className="w-4 h-4" size={16} />,
+    line: <LineToolbarIcon className="w-4 h-4" />,
+  };
+  const choose = (shape: typeof currentShape) => {
+    setLastShape(shape);
+    onSelect(shape);
+    setOpen(false);
   };
 
   return (
@@ -252,67 +310,59 @@ function ShapeDropdown({ active, onSelect }: {
       <SplitButton
         active={active || open}
         icon={shapeIcons[currentShape]}
-        onClick={() => { onSelect(currentShape); }}
-        onChevronClick={() => setOpen(!open)}
-        title="Shapes"
+        onClick={() => onSelect(currentShape)}
+        onChevronClick={() => setOpen((value) => !value)}
+        title="Shape tools"
         dataTool="shape"
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Square" shortcut="R" active={active && currentShape === 'square'} icon={<ShapeSquareIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('square'); onSelect('square'); setOpen(false); }} />
-          <MenuItem label="Circle" shortcut="O" active={active && currentShape === 'circle'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('circle'); onSelect('circle'); setOpen(false); }} />
-          <MenuItem label="Triangle" shortcut="Shift+T" active={active && currentShape === 'triangle'} icon={<ShapeTriangleIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('triangle'); onSelect('triangle'); setOpen(false); }} />
-          <MenuItem label="Path" shortcut="P" active={active && currentShape === 'path'} icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => { setCurrentShape('path'); onSelect('path'); setOpen(false); }} />
+          <MenuItem label="Rectangle" shortcut="R" active={toolMode === 'shape-rect'} icon={<ShapeSquareIcon className="w-4 h-4" size={16} />} onClick={() => choose('rectangle')} />
+          <MenuItem label="Line" shortcut="L" active={toolMode === 'shape-line'} icon={<LineToolbarIcon className="w-4 h-4" />} onClick={() => choose('line')} />
+          <MenuItem label="Ellipse" shortcut="O" active={toolMode === 'shape-ellipse'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => choose('ellipse')} />
+          <MenuItem label="Triangle" shortcut="Shift+T" active={toolMode === 'shape-triangle'} icon={<ShapeTriangleIcon className="w-4 h-4" size={16} />} onClick={() => choose('triangle')} />
+          <DropdownDivider />
+          <MenuItem label="Image/video…" shortcut="⇧⌘K" icon={<ChatImageIcon className="w-4 h-4" />} onClick={() => { onOpenMedia(); setOpen(false); }} />
         </DropdownContainer>
       )}
     </div>
   );
 }
 
-// ─── Layout Dropdown ────────────────────────────────────────────────────────
+// ─── Pen / Pencil Dropdown ──────────────────────────────────────────────────
 
-function LayoutDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (layout: string) => void }) {
+function PenDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (mode: 'shape-path' | 'sketch') => void }) {
   const [open, setOpen] = useState(false);
-  // Last layout the user chose — what the split button activates by default.
-  // Synced from toolMode so re-selecting the dropdown shows the latest pick.
-  const [lastLayout, setLastLayout] = useState<'rows' | 'columns' | 'grids'>('rows');
+  const [lastMode, setLastMode] = useState<'shape-path' | 'sketch'>('shape-path');
   const ref = useRef<HTMLDivElement>(null);
-
-  // Keep lastLayout in sync with toolMode (e.g. when activated via shortcut)
-  useEffect(() => {
-    if (toolMode === 'layout-rows') setLastLayout('rows');
-    else if (toolMode === 'layout-columns') setLastLayout('columns');
-    else if (toolMode === 'layout-grids') setLastLayout('grids');
-  }, [toolMode]);
-
   useClickOutside(ref, open, () => setOpen(false));
-
-  const active = isLayoutMode(toolMode);
-  const currentLayout: 'rows' | 'columns' | 'grids' = active
-    ? (toolMode === 'layout-rows' ? 'rows' : toolMode === 'layout-columns' ? 'columns' : 'grids')
-    : lastLayout;
-
-  const layoutIcons: Record<string, React.ReactNode> = {
-    rows: <LayoutRowsIcon className="w-4 h-4" size={16} />,
-    columns: <LayoutColumnsIcon className="w-4 h-4" size={16} />,
-    grids: <LayoutGridIcon className="w-4 h-4" size={16} />,
+  useEffect(() => {
+    if (toolMode === 'shape-path' || toolMode === 'sketch') setLastMode(toolMode);
+  }, [toolMode]);
+  const active = toolMode === 'shape-path' || toolMode === 'sketch';
+  const current = active ? toolMode as 'shape-path' | 'sketch' : lastMode;
+  const icon = current === 'sketch'
+    ? <SketchPencilIcon className="w-4 h-4" size={16} />
+    : <ShapePathIcon className="w-4 h-4" size={16} />;
+  const choose = (mode: 'shape-path' | 'sketch') => {
+    setLastMode(mode);
+    onSelect(mode);
+    setOpen(false);
   };
-
   return (
     <div className="relative" ref={ref}>
       <SplitButton
         active={active || open}
-        icon={layoutIcons[currentLayout]}
-        onClick={() => { onSelect(currentLayout); }}
-        onChevronClick={() => setOpen(!open)}
-        title="Layout"
-        dataTool="layout"
+        icon={icon}
+        onClick={() => onSelect(current)}
+        onChevronClick={() => setOpen((value) => !value)}
+        title="Pen / Pencil"
+        dataTool="pen"
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Rows" shortcut="Shift+R" active={active && currentLayout === 'rows'} icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => { setLastLayout('rows'); onSelect('rows'); setOpen(false); }} />
-          <MenuItem label="Columns" shortcut="Shift+C" active={active && currentLayout === 'columns'} icon={<LayoutColumnsIcon className="w-4 h-4" size={16} />} onClick={() => { setLastLayout('columns'); onSelect('columns'); setOpen(false); }} />
-          <MenuItem label="Grids" shortcut="Shift+G" active={active && currentLayout === 'grids'} icon={<LayoutGridIcon className="w-4 h-4" size={16} />} onClick={() => { setLastLayout('grids'); onSelect('grids'); setOpen(false); }} />
+          <MenuItem label="Pen" shortcut="P" active={toolMode === 'shape-path'} icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
+          <MenuItem label="Pencil" shortcut="Shift+P" active={toolMode === 'sketch'} icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
         </DropdownContainer>
       )}
     </div>
@@ -355,46 +405,18 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
 
 // ─── Resources ──────────────────────────────────────────────────────────────
 
-function ResourcesMenu() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+function ResourcesButton() {
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-
-  useClickOutside(ref, open, () => setOpen(false));
-
-  const openCanonicalPanel = useCallback((panel: 'library' | 'media') => {
-    setLeftPanel(panel);
+  const openLibrary = useCallback(() => {
+    setLeftPanel('library');
     setLeftPaneOpen(true);
-    setOpen(false);
-    trace.action('toolbar:resources-open', { panel });
+    trace.action('toolbar:resources-open', { panel: 'library' });
   }, [setLeftPanel, setLeftPaneOpen]);
-
   return (
-    <div className="relative" ref={ref} data-toolbar-resources>
-      <ToolButton
-        active={open}
-        onClick={() => setOpen((value) => !value)}
-        title="Resources"
-        dataTool="resources"
-      >
-        <ResourcesIcon className="w-4 h-4" size={16} />
-      </ToolButton>
-      {open && (
-        <DropdownContainer>
-          <MenuItem
-            label="Components"
-            icon={<ResourcesIcon className="w-4 h-4" size={16} />}
-            onClick={() => openCanonicalPanel('library')}
-          />
-          <MenuItem
-            label="Media gallery"
-            icon={<ChatImageIcon className="w-4 h-4" />}
-            onClick={() => openCanonicalPanel('media')}
-          />
-        </DropdownContainer>
-      )}
-    </div>
+    <ToolButton onClick={openLibrary} title="Resources" dataTool="resources">
+      <ResourcesIcon className="w-4 h-4" size={16} />
+    </ToolButton>
   );
 }
 
@@ -417,6 +439,8 @@ export default function BottomToolbar() {
   // the menu entry remains as a secondary path).
   const isViewer = useIsViewer();
   const creatorLocked = useAtomValue(creatorToolsLockedAtom);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
   const setSettingsSection = useSetAtom(settingsSectionAtom);
   // Sites already on a paid, active plan don't need the Upgrade nudge —
@@ -514,73 +538,48 @@ export default function BottomToolbar() {
             boxShadow: 'var(--shadow-md)',
           } as React.CSSProperties}
         />
-        {/* Figma-like authoring cluster. field-only creation tools stay here
-            when the toolbar remains their clearest home. */}
+        {/* Figma-like authoring cluster: grouped tool families, no duplicate layout/media surfaces. */}
         <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
           <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} />
 
           {!isViewer && <>
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
-                <ToolButton
-                  active={toolMode === 'frame'}
-                  onClick={() => handleToolClick('frame')}
-                  title="Draw Frame (F)"
-                  dataTutorial="frame-tool"
-                  dataTool="frame"
-                >
-                  <FrameToolbarIcon className="w-4 h-4" />
-                </ToolButton>
-              </CreatorGate>
-            )}
-
-            {isIconSetMaster ? (
-              <>
-                <ToolButton active={toolMode === 'shape-rect'} onClick={() => handleToolClick('shape-rect')} title="Square (R)" dataTool="shape-rect">
-                  <ShapeSquareIcon className="w-4 h-4" size={16} />
-                </ToolButton>
-                <ToolButton active={toolMode === 'shape-ellipse'} onClick={() => handleToolClick('shape-ellipse')} title="Circle (O)" dataTool="shape-ellipse">
-                  <ShapeCircleIcon className="w-4 h-4" size={16} />
-                </ToolButton>
-                <ToolButton active={toolMode === 'shape-triangle'} onClick={() => handleToolClick('shape-triangle')} title="Triangle (Shift+T)" dataTool="shape-triangle">
-                  <ShapeTriangleIcon className="w-4 h-4" size={16} />
-                </ToolButton>
-                <ToolButton active={toolMode === 'shape-path'} onClick={() => handleToolClick('shape-path')} title="Path (P)" dataTool="shape-path">
-                  <ShapePathIcon className="w-4 h-4" size={16} />
-                </ToolButton>
-              </>
-            ) : (
-              <CreatorGate locked={creatorLocked}>
-                <ShapeDropdown
-                  active={isShapeMode(toolMode)}
-                  onSelect={(shape) => {
-                    const shapeToMode: Record<string, ToolMode> = {
-                      square: 'shape-rect',
-                      circle: 'shape-ellipse',
-                      triangle: 'shape-triangle',
-                      path: 'shape-path',
-                    };
-                    const mode = shapeToMode[shape];
-                    if (mode) {
-                      trace.action('toolbar:shape', { shape, mode });
-                      setToolMode(mode);
-                    }
-                  }}
-                />
+                <FrameDropdown toolMode={toolMode} onSelect={() => handleToolClick('frame')} />
               </CreatorGate>
             )}
 
             <CreatorGate locked={creatorLocked}>
-              <ToolButton
-                active={toolMode === 'sketch'}
-                onClick={() => handleToolClick('sketch')}
-                title="Sketch (Shift+P)"
-                dataTool="sketch"
-              >
-                <SketchPencilIcon className="w-4 h-4" size={16} />
-              </ToolButton>
+              <ShapeDropdown
+                toolMode={toolMode}
+                onSelect={(shape) => {
+                  const shapeToMode: Record<string, ToolMode> = {
+                    rectangle: 'shape-rect',
+                    line: 'shape-line',
+                    ellipse: 'shape-ellipse',
+                    triangle: 'shape-triangle',
+                  };
+                  const mode = shapeToMode[shape];
+                  if (mode) {
+                    trace.action('toolbar:shape', { shape, mode });
+                    setToolMode(mode);
+                  }
+                }}
+                onOpenMedia={() => {
+                  setToolMode('select');
+                  setLeftPanel('media');
+                  setLeftPaneOpen(true);
+                  trace.action('toolbar:media-open');
+                }}
+              />
             </CreatorGate>
 
+            <CreatorGate locked={creatorLocked}>
+              <PenDropdown toolMode={toolMode} onSelect={(mode) => {
+                trace.action('toolbar:pen-tool', { mode });
+                setToolMode(mode);
+              }} />
+            </CreatorGate>
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
                 <ToolButton
@@ -597,26 +596,10 @@ export default function BottomToolbar() {
 
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
-                <ResourcesMenu />
+                <ResourcesButton />
               </CreatorGate>
             )}
 
-            {!isContainerSetMaster && (
-              <CreatorGate locked={creatorLocked}>
-                <LayoutDropdown toolMode={toolMode} onSelect={(layout) => {
-                  const layoutToMode: Record<string, ToolMode> = {
-                    rows: 'layout-rows',
-                    columns: 'layout-columns',
-                    grids: 'layout-grids',
-                  };
-                  const mode = layoutToMode[layout];
-                  if (mode) {
-                    trace.action('toolbar:layout', { layout, mode });
-                    setToolMode(toolMode === mode ? 'select' : mode);
-                  }
-                }} />
-              </CreatorGate>
-            )}
           </>}
         </div>
 
@@ -626,7 +609,7 @@ export default function BottomToolbar() {
             command search, comments, and account upgrade only. */}
         <div
           data-toolbar-cluster="utility"
-          className="flex items-center gap-0.5 p-0.5 rounded-[8px] bg-[var(--control-bg)]"
+          className="flex items-center gap-0.5"
         >
           <SmartZoomButton selectedId={selectedId} />
 
@@ -677,17 +660,3 @@ export default function BottomToolbar() {
     </div>
   );
 }
-
-// ─── Inline zoom SVGs ───────────────────────────────────────────────────────
-
-const ZoomOutSvg = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
-    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" />
-  </svg>
-);
-
-const ZoomInSvg = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
-    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
-  </svg>
-);

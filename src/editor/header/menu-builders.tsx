@@ -496,7 +496,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
     id: 'insert',
     label: 'Insert',
     // Mirrors the bottom toolbar exactly: Frame, Text, Layout (rows /
-    // columns / grids), the four shape primitives, then Sketch. Each
+    // columns / grids), the native shape primitives, then Pen and Pencil. Each
     // item just sets `toolModeAtom` — the same atom the bottom-toolbar
     // buttons + the F / T / Shift+R / R / O / Shift+T / P / K shortcuts
     // already drive. Items + shortcuts are kept in lockstep with
@@ -510,12 +510,13 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       { id: 'insert-layout-columns', label: 'Columns', shortcut: 'Shift+C', onClick: () => menuSetTool('layout-columns') },
       { id: 'insert-layout-grids', label: 'Grids', shortcut: 'Shift+G', onClick: () => menuSetTool('layout-grids') },
       { type: 'separator' },
-      { id: 'insert-shape-rect', label: 'Square', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
-      { id: 'insert-shape-ellipse', label: 'Circle', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
+      { id: 'insert-shape-rect', label: 'Rectangle', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
+      { id: 'insert-shape-ellipse', label: 'Ellipse', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
       { id: 'insert-shape-triangle', label: 'Triangle', shortcut: 'Shift+T', onClick: () => menuSetTool('shape-triangle') },
-      { id: 'insert-shape-path', label: 'Path', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
+      { id: 'insert-shape-line', label: 'Line', shortcut: 'L', onClick: () => menuSetTool('shape-line') },
+      { id: 'insert-shape-path', label: 'Pen', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
       { type: 'separator' },
-      { id: 'insert-sketch', label: 'Sketch', shortcut: 'K', onClick: () => menuSetTool('sketch') },
+      { id: 'insert-sketch', label: 'Pencil', shortcut: 'Shift+P', onClick: () => menuSetTool('sketch') },
     ],
   },
   {
