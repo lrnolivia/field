@@ -113,5 +113,8 @@ export function resolveLocateLuminousRgb(tint: string | null, tone: 'white' | 'b
   if (light != null && light <= 0.035) return [82, 84, 90];
   if (light != null && light >= 0.965) return [246, 247, 249];
   const [h, sat, lum] = rgbToHsl(rgb);
-  return hslToRgb([h, Math.min(0.72, sat * 0.68), Math.max(0.62, Math.min(0.74, lum + 0.10))]);
+  // Locate should feel electric without reproducing harsh source saturation.
+  // Push lightness much higher and pull saturation down: pure RGB blue becomes
+  // a luminous periwinkle-blue rather than a nuclear primary outline.
+  return hslToRgb([h, Math.min(0.58, sat * 0.56), Math.max(0.68, Math.min(0.82, lum + 0.18))]);
 }
