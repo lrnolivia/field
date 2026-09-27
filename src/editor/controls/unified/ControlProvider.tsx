@@ -529,9 +529,10 @@ export function UnifiedControlProvider({
       isComponentFile: isComponentVariantViewport,
       locale: isDefaultLocale ? null : 'active',
       localeValue: isDefaultLocale || !selectedId ? undefined : localeOverrides.get(selectedId)?.styles?.[property],
+      animationOwner: binding.bound ? binding.boundBy : null,
       valueSource,
     });
-  }, [mode, outerControl?.resolveProperty, property, node, nodeStyles, overrides, isReplica, vpWidth, isComponentVariantViewport, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, valueSource.source, valueSource.ref]);
+  }, [mode, outerControl?.resolveProperty, property, node, nodeStyles, overrides, isReplica, vpWidth, isComponentVariantViewport, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, binding.bound, binding.boundBy, valueSource.source, valueSource.ref]);
 
   const ctx: UnifiedControlContextValue = useMemo(() => ({
     value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive,

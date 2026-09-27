@@ -30,6 +30,7 @@ import { presetTokensAtom } from '@/code/stores/preset-store';
 import { pageVariablesAtom } from '@/code/stores/page-variables-store';
 import { resolveTokenValue } from '@/code/project/preset-ops';
 import { useControl } from './ControlProvider';
+import { inspectorPropertyTooltip } from '@/editor/inspector/provenance/resolve-property';
 import { useControlContextOptional } from './unified/useControlContext';
 import { getAllMenuItems, type MenuItem, type MenuContext } from './control-menu-items';
 import { useHoistMenuItems } from './hoist-context';
@@ -232,7 +233,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
 
   const {
     nodeId, node, styles, vpId, isReplica, vpWidth,
-    hasOverride, getValueSource,
+    hasOverride, getValueSource, resolveProperty,
     createVariable, removeVariable, updateStyle, updateStyleLive, updateMultipleStyles,
     cmsBinding,
   } = useControl();
@@ -365,6 +366,8 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
       ? JSON.stringify(node?.motionProps?.transition ?? {})
       : styles[property];
   const valueSource = getValueSource(property);
+  const propertyResolution = unifiedCtx?.propertyResolution ?? resolveProperty(property);
+  const provenanceTooltip = inspectorPropertyTooltip(propertyResolution);
   const hasVar = valueSource.source === 'prop';
   const varRef = valueSource.ref;
   // Show the variable's friendly LABEL (from @propMeta), not the raw camelCase prop id — and keep it in
@@ -840,6 +843,9 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
     <>
       <button
         ref={buttonRef}
+        title={provenanceTooltip}
+        data-inspector-source={propertyResolution.read.source}
+        data-inspector-write-target={propertyResolution.write.target}
         onClick={openMenu}
         // Right-click opens the SAME menu (Copy/Paste Style live here, standard).
         onContextMenu={(e) => { e.preventDefault(); openMenu(); }}

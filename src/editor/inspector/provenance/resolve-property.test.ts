@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '@/code/parsing/parser';
-import { resolveInspectorProperty, resolveMultiSelection, type PropertyResolutionInput } from './resolve-property';
+import { inspectorPropertyTooltip, resolveInspectorProperty, resolveMultiSelection, type PropertyResolutionInput } from './resolve-property';
 
 const node = (styles: Record<string, string> = {}, extra: Partial<CanvasNode> = {}): CanvasNode => ({
   id: 'card', styles, motionVariants: null, conditionalStyles: null,
@@ -34,6 +34,14 @@ describe('Inspector property provenance', () => {
       .toMatchObject({ read: { source: 'responsive' }, write: { target: 'responsive-band', editable: true }, reset: { target: 'responsive-band' } });
     expect(resolveInspectorProperty(input({ node: selected, isReplica: true, viewportWidth: 375 })))
       .toMatchObject({ read: { source: 'inherited', inherited: true }, write: { target: 'responsive-band' }, reset: null });
+  });
+
+  it('does not claim a tablet-only override belongs to the mobile band', () => {
+    const overrides = new Map([['card', new Map([[768, new Map([['backgroundColor', '#333']])]])]]);
+    const result = resolveInspectorProperty(input({ overrides, isReplica: true, viewportWidth: 375 }));
+    expect(result.read).toMatchObject({ source: 'inherited', inherited: true });
+    expect(result.write).toMatchObject({ target: 'responsive-band', editable: true });
+    expect(result.reset).toBeNull();
   });
 
   it('distinguishes default, named, and conditional variants', () => {
@@ -71,5 +79,14 @@ describe('Inspector property provenance', () => {
     const responsive = resolveInspectorProperty(input({ isReplica: true, viewportWidth: 768 }));
     expect(resolveMultiSelection('backgroundColor', [local, responsive]).write)
       .toMatchObject({ target: 'read-only', editable: false });
+  });
+
+  it('explains confident sources in a small label tooltip', () => {
+    expect(inspectorPropertyTooltip(resolveInspectorProperty(input()))).toBeUndefined();
+    expect(inspectorPropertyTooltip(resolveInspectorProperty(input({ valueSource: { source: 'prop', ref: 'brandColor' } }))))
+      .toContain('Variable brandColor');
+    const responsive = node({ backgroundColor: '#fff' }, { responsiveStyleValues: { backgroundColor: { 768: '#333' } } });
+    expect(inspectorPropertyTooltip(resolveInspectorProperty(input({ node: responsive, effectiveValue: '#333', isReplica: true, viewportWidth: 768 }))))
+      .toContain('Responsive 768');
   });
 });

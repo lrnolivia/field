@@ -1,6 +1,6 @@
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { ContainerOverrideMap } from '@/code/stores/container-query-store';
-import { getOverridesAtWidth } from '@/code/stores/container-query-store';
+import { getOverridesAtWidth, hasOverrideAtWidth } from '@/code/stores/container-query-store';
 
 export type InspectorReadSource =
   | 'local' | 'responsive' | 'component-variant' | 'conditional-variant'
@@ -93,14 +93,27 @@ export function resolveInspectorProperty(input: PropertyResolutionInput): Inspec
   if (variantCms && 'value' in variantCms) return make('cms', 'component-variant-style', variant ?? undefined, null, { target: 'component-variant-style', detail: variant ?? undefined });
   if (conditional && variant && variant in conditional) return make('conditional-variant', 'component-variant-conditional', variant, null, { target: 'component-variant-conditional', detail: variant });
   if (variantStyle && property in variantStyle) return make('component-variant', 'component-variant-style', variant!, null, variant !== 'default' ? { target: 'component-variant-style', detail: variant! } : null);
-  if (mediaValue !== undefined || responsive) return make('responsive', 'responsive-band', String(input.viewportWidth), null, { target: 'responsive-band', detail: String(input.viewportWidth) });
+  if (mediaValue !== undefined || responsive) {
+    const ownsBand = !!responsive || !!(input.overrides && input.viewportWidth && hasOverrideAtWidth(input.overrides, node.id, property, input.viewportWidth));
+    const resolved = make('responsive', 'responsive-band', String(input.viewportWidth), null,
+      ownsBand ? { target: 'responsive-band', detail: String(input.viewportWidth) } : null);
+    resolved.read.inherited = !ownsBand;
+    return resolved;
+  }
   if (localeOwns) return make('locale', 'locale-override', input.locale ?? undefined, null, { target: 'locale-override', detail: input.locale ?? undefined });
 
   // An instance's resolved style may originate in its master. Do not claim it is locally authored.
   if (node.componentInstanceId || node.isComponentInstance) {
     return make('component-instance', 'component-instance-override', node.componentInstanceId ?? node.id);
   }
-  if (variant && variant !== 'default') return make('inherited', 'component-variant-style', variant);
+  if (variant && variant !== 'default') {
+    if (property in (node.motionVariants?.default ?? {})) {
+      const resolved = make('component-variant', 'component-variant-style', 'default');
+      resolved.read.inherited = true;
+      return resolved;
+    }
+    return make('inherited', 'component-variant-style', variant);
+  }
   if (input.isReplica && input.viewportWidth) return make('inherited', 'responsive-band', String(input.viewportWidth));
   if (authoredValue !== undefined && property in node.styles) return make('local', 'node-base-style');
   if (authoredValue !== undefined && property in (node.motionVariants?.default ?? {})) return make('component-variant', 'component-variant-style', 'default');
@@ -121,4 +134,25 @@ export function resolveMultiSelection(property: string, members: InspectorProper
     reset: compatible && members.every(member => member.reset?.target === first.reset?.target) ? first.reset : null,
     binding: members.every(member => member.binding?.kind === first.binding?.kind && member.binding?.ref === first.binding?.ref) ? first.binding : null,
   };
+}
+
+/** Small, explicit hover explanation for existing Inspector labels. */
+export function inspectorPropertyTooltip(resolution: InspectorPropertyResolution): string | undefined {
+  const { read, write } = resolution;
+  const owner: Partial<Record<InspectorReadSource, string>> = {
+    responsive: `Responsive ${read.detail ?? ''}`.trim(),
+    'component-variant': `Component variant ${read.detail ?? ''}`.trim(),
+    'conditional-variant': `Variant condition ${read.detail ?? ''}`.trim(),
+    'component-instance': 'Component instance',
+    variable: `Variable ${read.detail ?? ''}`.trim(),
+    preset: `Preset ${read.detail ?? ''}`.trim(),
+    cms: `CMS field ${read.detail ?? ''}`.trim(),
+    locale: `Locale ${read.detail ?? ''}`.trim(),
+    'animation-bound': `Animation ${read.detail ?? ''}`.trim(),
+    'computed-only': 'Computed CSS',
+  };
+  const label = owner[read.source];
+  if (!label) return undefined;
+  if (!write.editable) return `${label} · ${write.reason ?? 'Use the binding control to edit'}`;
+  return read.inherited ? `${label} · Inherited here` : label;
 }
