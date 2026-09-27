@@ -1,65 +1,55 @@
-/* field.GLYPH fallback
- *
- * Broad editor-only response for interactive SVG glyphs, including icons
- * nested in local button wrappers, that have not yet
- * received an explicit semantic FieldGlyph / FieldMorphGlyph behavior.
- *
- * Priority:
- *   semantic morph > explicit field.GLYPH > explicit field.MOTION > fallback.
- *
- * This is editor chrome only. It never reaches the Canvas/site runtime.
+/* field.GLYPH fallback for editor chrome. Explicit semantic motion wins.
+ * Unmigrated interactive SVGs respond through CSS only: no React hover state,
+ * pointer listeners, rAF loops, or persistent compositor promotion.
+ * Canvas and Preview render in separate documents, outside this editor root.
  */
+@supports selector(svg:not(button svg)) {
+  [data-editor-interactive="true"]
+    :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href])
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-motion-part],
+      [data-field-toolbar-glyph] svg
+    )) {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 180ms cubic-bezier(.2, .8, .2, 1), opacity 140ms ease;
+  }
 
-@supports selector(button:has(svg)) {
   @media (hover: hover) and (pointer: fine) {
     [data-editor-interactive="true"]
-      :is([data-properties-panel], [data-editor-panel], [data-left-menu-rail])
-      button:not(:disabled)
-      :not(:has([data-field-glyph]))
-      :not(:has([data-field-glyph-morph]))
-      :not(:has([data-field-motion]))
-      :not(:has([data-field-motion-part]))
-      svg {
-      transform-box: fill-box;
-      transform-origin: center;
-      transition:
-        transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-        opacity 140ms ease;
-      transform: translateY(0) scale(1);
-    }
-
-    [data-editor-interactive="true"]
-      :is([data-properties-panel], [data-editor-panel], [data-left-menu-rail])
-      button:not(:disabled)
-      :not(:has([data-field-glyph]))
-      :not(:has([data-field-glyph-morph]))
-      :not(:has([data-field-motion]))
-      :not(:has([data-field-motion-part]))
-      :hover
-      svg {
+      :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href]):hover
+      svg:not(:where(
+        [data-field-glyph] svg,
+        [data-field-glyph-morph] svg,
+        [data-field-motion] svg,
+        [data-field-motion-part],
+        [data-field-toolbar-glyph] svg
+      )) {
       transform: translateY(-1px) scale(1.08);
     }
   }
 
   [data-editor-interactive="true"]
-    :is([data-properties-panel], [data-editor-panel], [data-left-menu-rail])
-    button:not(:disabled)
-    :not(:has([data-field-glyph]))
-    :not(:has([data-field-glyph-morph]))
-    :not(:has([data-field-motion]))
-    :not(:has([data-field-motion-part]))
-    :active
-    svg {
-    transform: translateY(0.5px) scale(0.82) rotate(-2deg);
+    :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href]):active
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-motion-part],
+      [data-field-toolbar-glyph] svg
+    )) {
+    transform: translateY(.5px) scale(.82) rotate(-2deg);
   }
 
   @media (prefers-reduced-motion: reduce) {
     [data-editor-interactive="true"]
-      :is([data-properties-panel], [data-editor-panel], [data-left-menu-rail])
-      button
-      svg {
-      transition-duration: 0ms !important;
-      transform: none !important;
+      :is(button, [role="button"], a[href])
+      svg:not(:where([data-field-glyph] svg, [data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-toolbar-glyph] svg)) {
+      transition: none;
+      transform: none;
     }
   }
 }
