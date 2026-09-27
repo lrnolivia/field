@@ -34,6 +34,11 @@ approved_shared:
   - src/canvas-sandbox/bridge-sandbox.ts
   - src/canvas-sandbox/gallery-scroll-bridge.test.ts
   - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
+  - cloudflare/worker.js
+  - cloudflare/field-persistence.test.ts
+  - src/canvas-sandbox/origin.ts
+  - src/canvas-sandbox/origin.test.ts
+  - src/canvas-sandbox/protocol.ts
 protected:
   - src/code/parsing/**
   - src/code/generation/**
@@ -44,7 +49,6 @@ protected:
   - src/backend/**
   - src/dashboard/**
   - src/design-system/**
-  - cloudflare/**
   - package.json
   - package-lock.json
   - wrangler.jsonc

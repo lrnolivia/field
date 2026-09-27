@@ -456,3 +456,28 @@ Purpose:
 4. Source-ratio correctness for direct Media drops using already-loaded thumbnail intrinsic ratios
 
 The assignment's obsolete blanket protected entries for src/canvas/drag/** and src/canvas-sandbox/** are removed because they conflict with these exact approved_shared children. All unlisted files in those subsystems remain outside Gallery authority.
+
+
+## 2026-09-27 PR #19 Canvas Preview adaptation
+
+User explicitly requested adapting PR #19 to this Gallery branch and deploying its Canvas Preview fix.
+
+Verified reference:
+- PR #19: [field] Fix Canvas routing on branch Previews
+- reference head: 4fb9352004f879d13f614c295dec71380d57a7f9
+- reference Workers Builds check completed success with zero annotations
+- Gallery exact runtime before adaptation: 2bb456e08872d6fa3e65db09cd4aea86cb3910f5
+- outer field Preview loaded, but /builder/noauth Canvas remained at "Canvas is taking longer to start"
+
+First divergence:
+1. Gallery protocol.ts still derived production/no-port Canvas origin as canvas.<editor-host>, which turns immutable/branch field-preview hosts into nonexistent nested names.
+2. Gallery cloudflare/worker.js recognized only canvas.field.loew.fi as Canvas, so *.canvas-preview.loew.fi fell through to editor-root routing and lacked Canvas isolation headers.
+
+Bounded adaptation authorized from PR #19:
+- cloudflare/worker.js
+- cloudflare/field-persistence.test.ts
+- src/canvas-sandbox/origin.ts
+- src/canvas-sandbox/origin.test.ts
+- src/canvas-sandbox/protocol.ts
+
+The PR #19 handoff-kit documentation edit is intentionally not copied; Gallery records the same runtime preflight evidence in its canonical mailbox/QA.
