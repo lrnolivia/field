@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { motion, type Variants } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import './field-glyph-fallback.css';
 
 export type FieldGlyphBehavior =
   | 'generic'
