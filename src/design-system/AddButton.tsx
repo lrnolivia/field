@@ -14,13 +14,15 @@ import {
 type AddButtonProps = ComponentPropsWithoutRef<typeof motion.button>;
 
 const AddButton = forwardRef<HTMLButtonElement, AddButtonProps>(
-  function AddButton({ className = '', disabled, ...props }, ref) {
+  function AddButton({ className = '', disabled, type = 'button', ...props }, ref) {
     const reducedMotion = useFieldReducedMotion();
     const interactive = !disabled && !reducedMotion;
 
     return (
       <motion.button
         ref={ref}
+        type={type}
+        aria-label={props['aria-label'] ?? props.title ?? 'Add'}
         disabled={disabled}
         initial="rest"
         whileHover={interactive ? 'hover' : undefined}
@@ -31,6 +33,7 @@ const AddButton = forwardRef<HTMLButtonElement, AddButtonProps>(
       >
         <motion.svg
           data-field-motion-part="glyph"
+          aria-hidden="true"
           width="12"
           height="12"
           viewBox="0 0 24 24"

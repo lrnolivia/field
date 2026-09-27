@@ -12,7 +12,7 @@
 // the first edit converts that side to px. The oracle enforces the same
 // rule for AI-written files (SPACING_UNIT_NOT_PX).
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { motion, type Variants } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import ToolInput from './ToolInput';
@@ -147,6 +147,8 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
   const userToggledRef = useRef(false); // tracks if user explicitly toggled individual mode
   const [localValues, setLocalValues] = useState(values.map(v => String(parseNum(v))));
   const focusedRef = useRef<number | null>(null);
+  const skipBlurCommitRef = useRef<number | null>(null);
+  const labelIdBase = useId();
 
   // Sync from props (skip while user is editing)
   useEffect(() => {
@@ -198,10 +200,17 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
   }, [localValues, onChange, labels, allowNegative]);
 
   const handleSegmentKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Enter') { commitSegment(index); (e.target as HTMLInputElement).blur(); }
-    else if (e.key === 'Escape') {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitSegment(index);
+      skipBlurCommitRef.current = index;
+      (e.currentTarget as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
       setLocalValues(prev => { const n = [...prev]; n[index] = String(parseNum(values[index])); return n; });
-      (e.target as HTMLInputElement).blur();
+      focusedRef.current = null;
+      skipBlurCommitRef.current = index;
+      (e.currentTarget as HTMLInputElement).blur();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
@@ -211,6 +220,15 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
       onChange(index, `${newVal}px`);
     }
   }, [commitSegment, localValues, values, onChange, allowNegative]);
+
+  const handleSegmentBlur = useCallback((index: number) => {
+    if (skipBlurCommitRef.current === index) {
+      skipBlurCommitRef.current = null;
+      focusedRef.current = null;
+      return;
+    }
+    commitSegment(index);
+  }, [commitSegment]);
 
   return (
     <div className="w-full">
@@ -255,7 +273,9 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
               When uniform → a STATIC px badge; spacing is px-only, so there
               is no unit to cycle. */}
           <button
-            tabIndex={-1}
+            type="button"
+            aria-label={showIndividual ? 'Use uniform spacing' : 'Uniform spacing in pixels'}
+            aria-pressed={!showIndividual}
             onClick={() => {
               if (!showIndividual) return;
               // Switch back to uniform — consolidate longhands into shorthand
@@ -264,7 +284,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
               const num = parseFloat(localValues[0]) || 0;
               onChangeAll(`${num}px`);
             }}
-            className={`flex items-center justify-center h-7 w-7 transition-colors ${
+            className={`flex items-center justify-center h-7 w-7 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)] ${
               !showIndividual
                 ? 'bg-[var(--button-secondary-bg)] text-[var(--text-disabled)] cursor-default'
                 : 'bg-[var(--choice-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer'
@@ -278,7 +298,9 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
           </button>
           {/* Right button: individual sides */}
           <button
-            tabIndex={-1}
+            type="button"
+            aria-label="Use individual spacing values"
+            aria-pressed={showIndividual}
             onClick={() => { setShowIndividual(true); userToggledRef.current = true; }}
             className={`flex items-center justify-center h-7 w-7 transition-colors ${
               showIndividual
@@ -305,17 +327,18 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
               return (
                 <div key={i} className="flex-1 flex flex-col relative">
                   <input
+                    id={`${labelIdBase}-${i}`}
                     type="text"
                     value={val}
                     onChange={e => handleSegmentChange(i, e.target.value)}
                     onKeyDown={e => handleSegmentKeyDown(e, i)}
-                    onBlur={() => commitSegment(i)}
+                    onBlur={() => handleSegmentBlur(i)}
                     onFocus={e => { focusedRef.current = i; e.target.select(); }}
                     placeholder="0"
                     className={`w-full h-7 px-1.5 text-xs text-center bg-[var(--grid-line)] text-[var(--text-primary)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] focus:outline-none focus:z-10 transition-colors ${isFirst ? 'rounded-l-lg' : '-ml-[1px]'} ${isLast ? 'rounded-r-lg' : ''}`}
                   />
                   <div className="flex justify-center items-center mt-0.5" style={{ gap: '2px' }}>
-                    <span className="text-[9px] text-[var(--text-secondary)]">{labels[i]}</span>
+                    <label htmlFor={`${labelIdBase}-${i}`} className="text-[9px] text-[var(--text-secondary)]">{labels[i]}</label>
                     <span className={`text-[9px] leading-none ${unit === 'px' ? 'text-[var(--text-disabled)]' : 'text-[var(--accent-text)]'}`}>
                       {unit}
                     </span>

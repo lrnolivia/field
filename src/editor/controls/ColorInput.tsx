@@ -4,7 +4,7 @@
 
 import { useState, useRef, useCallback, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
-import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import { fieldMotion, fieldSpatialTransition, swatchVariants, useFieldReducedMotion } from '@/editor/motion';
 import { useLivePreview } from '../hooks/useLivePreview';
 import { useAtomValue } from 'jotai';
 import ToolPopup, { useToolPopupOptional, useToolPopup } from '../ui/ToolPopup';
@@ -203,26 +203,36 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
 
   return (
     <>
-      <motion.button
+      <div className={swatchOnly ? "inline-flex" : "flex w-full min-w-0 items-center"}>
+        <motion.button
         ref={btnRef}
+        type="button"
+        aria-label={swatchOnly ? `Choose color ${displayText}` : undefined}
         onClick={handleClick}
         initial="rest"
-        whileHover={reducedMotion ? undefined : (swatchOnly ? { y: -1, scale: fieldMotion.swatchHoverScale } : 'hover')}
-        whileTap={reducedMotion ? undefined : (swatchOnly ? { y: 0, scale: fieldMotion.swatchTapScale } : 'tap')}
+        whileHover={reducedMotion ? undefined : 'hover'}
+        whileTap={reducedMotion ? undefined : 'tap'}
         transition={fieldSpatialTransition(reducedMotion, fieldMotion.glyph)}
         data-field-motion="color-input"
         className={swatchOnly
           // Hover moves the BORDER, not a ring: clip-path clips box-shadows, so
           // the old hover:ring-1 was sliced open at both notches.
-          ? "w-7 h-7 cut-corners cut-border [--cut-border-color:rgba(255,255,255,0.1)] border border-white/10 shrink-0 cursor-pointer hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-colors"
+          ? "relative w-7 h-7 cut-corners cut-border [--cut-border-color:rgba(255,255,255,0.1)] border border-white/10 shrink-0 cursor-pointer hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-colors"
           : embedded
-            ? "w-full h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden"
+            ? "flex-1 h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden"
             : isPresetRef
-              ? "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] rounded-[var(--control-radius)] cursor-pointer transition-colors min-w-0 overflow-hidden hover:border-[var(--control-border-hover)]"
-              : "w-full h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors min-w-0 overflow-hidden"}
-        style={swatchOnly ? { backgroundColor: displayColor } : undefined}
+              ? "flex-1 h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] rounded-[var(--control-radius)] cursor-pointer transition-colors min-w-0 overflow-hidden hover:border-[var(--control-border-hover)]"
+              : "flex-1 h-8 flex items-center gap-2 px-1 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors min-w-0 overflow-hidden"}
       >
-        {!swatchOnly && (
+        {swatchOnly ? (
+          <motion.span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 cut-corners"
+            style={{ backgroundColor: displayColor }}
+            variants={swatchVariants}
+            transition={fieldSpatialTransition(reducedMotion, fieldMotion.glyph)}
+          />
+        ) : (
           isPresetRef ? (
             <>
               <ColorSwatch interactive style={{ backgroundColor: displayColor }} />
@@ -230,20 +240,22 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
               <span className={`text-xs font-medium truncate flex-1 text-[var(--text-primary)]`}>
                 {presetLabel}
               </span>
-              {!embedded && <span onClick={(e) => { e.stopPropagation(); onChange(''); }}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-sm ml-1 shrink-0">&times;</span>}
             </>
           ) : (
             <>
               <ColorSwatch interactive style={(mixed || empty) ? CHECKER_STYLE : { backgroundColor: displayColor }} />
               <span className={`text-xs truncate flex-1 text-left ${empty && !mixed ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>{mixed ? 'Mixed' : empty ? 'Add' : inlineDisplayText}</span>
-              {onRemove && (
-                <RemoveButton onClick={(e) => { e.stopPropagation(); onRemove(); }} />
-              )}
             </>
           )
         )}
-      </motion.button>
+        </motion.button>
+        {!swatchOnly && isPresetRef && !embedded && (
+          <RemoveButton label="Clear color preset" onClick={() => onChange('')} />
+        )}
+        {!swatchOnly && !isPresetRef && onRemove && (
+          <RemoveButton label="Remove color" onClick={() => onRemove()} />
+        )}
+      </div>
       {/* Standalone popup — only when NOT inside a ToolPopup */}
       {!popupCtx && (
         <ToolPopup

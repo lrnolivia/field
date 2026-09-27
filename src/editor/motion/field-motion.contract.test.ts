@@ -34,8 +34,22 @@ describe('field.MOTION control integration contract', () => {
 
     expect(section).toContain('<AnimatePresence initial={false}>');
     expect(section).toContain('useFieldReducedMotion()');
-    expect(toggle).toContain('aria-pressed={value}');
+    expect(toggle).toContain('role="switch"');
+    expect(toggle).toContain('aria-checked={value}');
     expect(toggle).toContain('fieldMotion.toggle');
     expect(toggle).not.toContain('duration-200 ease-in-out');
+
+    const remove = source('src/editor/controls/RemoveButton.tsx');
+    const stepper = source('src/editor/controls/ToolPlusMinus.tsx');
+    const spacing = source('src/editor/controls/SpacingControl.tsx');
+    const color = source('src/editor/controls/ColorInput.tsx');
+    expect(remove).toContain('<motion.button');
+    expect(remove).toContain('type="button"');
+    expect(stepper).toContain('aria-label="Decrease value"');
+    expect(stepper).toContain('aria-label="Increase value"');
+    expect(spacing).not.toContain('tabIndex={-1}');
+    expect(spacing).toContain('skipBlurCommitRef');
+    expect(color).toContain('aria-label={swatchOnly ? `Choose color ${displayText}` : undefined}');
+    expect(color).toContain('<RemoveButton label="Clear color preset"');
   });
 });

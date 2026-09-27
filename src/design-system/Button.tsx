@@ -37,6 +37,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   children,
   disabled,
   className = '',
+  type = 'button',
   ...props
 }, ref) {
   const reducedMotion = useFieldReducedMotion();
@@ -45,6 +46,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   return (
     <motion.button
       ref={ref}
+      type={type}
+      aria-busy={loading || undefined}
       disabled={blocked}
       whileTap={!blocked && !reducedMotion ? { scale: fieldMotion.buttonTapScale } : undefined}
       transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
@@ -60,7 +63,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
       {...props}
     >
       {loading ? (
-        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <svg aria-hidden="true" className="animate-spin motion-reduce:animate-none w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
         </svg>
       ) : icon}

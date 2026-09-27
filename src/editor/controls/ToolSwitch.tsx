@@ -8,19 +8,22 @@ interface Props {
   value: boolean;
   onChange: (value: boolean) => void;
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
-export default function ToolSwitch({ value, onChange, disabled }: Props) {
+export default function ToolSwitch({ value, onChange, disabled, ariaLabel = 'Toggle setting' }: Props) {
   const reducedMotion = useFieldReducedMotion();
 
   return (
     <button
       type="button"
-      aria-pressed={value}
+      role="switch"
+      aria-checked={value}
+      aria-label={ariaLabel}
       data-field-motion="switch"
       onClick={() => { if (!disabled) { trace.action('tool-switch:toggle', { from: value, to: !value }); onChange(!value); } }}
       disabled={disabled}
-      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${value ? 'bg-[var(--accent)]' : 'bg-[var(--control-border)]'}`}
+      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-offset-1 focus-visible:ring-[var(--selection)] focus-visible:ring-offset-[var(--panel-bg)] disabled:cursor-not-allowed disabled:opacity-50 ${value ? 'bg-[var(--accent)]' : 'bg-[var(--control-border)]'}`}
     >
       <motion.span
         data-field-motion-part="thumb"
