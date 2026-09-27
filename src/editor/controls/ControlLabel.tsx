@@ -131,7 +131,18 @@ function PlainOverrideLabel({ label, subLabel, onReset, cell }: { label: string;
       >
         <span className="text-xs font-medium truncate" style={{ color: accent }}>{label}</span>
         {onReset && (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: accent }}>
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+            style={{ color: accent }}
+          >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         )}

@@ -465,7 +465,18 @@ function MenuPanel({
               {entry.trailingIcon && <span className="shrink-0 min-w-4 flex items-center justify-center opacity-90 group-hover:opacity-100">{entry.trailingIcon}</span>}
               {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)]/70">{entry.shortcut}</span>}
               {hasSubmenu && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70 group-hover:opacity-100">
+                <svg
+                  data-field-submenu-chevron
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`shrink-0 opacity-70 group-hover:opacity-100 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}
+                >
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               )}
