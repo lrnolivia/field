@@ -60,8 +60,11 @@ export default function ProjectLoadingVeil({
 
       [data-loading-logo-stage] {
         position:absolute; left:50%; top:50%; width:0; height:0;
-        z-index:2; pointer-events:none;
+        z-index:2; pointer-events:none; opacity:1;
+        transition:opacity 260ms ease;
       }
+      [data-canvas-loading-phase="enter"] [data-loading-logo-stage],
+      [data-canvas-loading-phase="exit"] [data-loading-logo-stage] { opacity:0; }
       [data-loading-logo-bloom] {
         position:absolute; left:0; top:0;
         width:clamp(220px,16vw,300px); aspect-ratio:1;
@@ -76,9 +79,6 @@ export default function ProjectLoadingVeil({
         animation:field-sleep 6.2s cubic-bezier(.37,0,.63,1) infinite;
         transition:opacity 260ms ease;
       }
-      [data-canvas-loading-phase="enter"] [data-loading-logo-bloom],
-      [data-canvas-loading-phase="exit"] [data-loading-logo-bloom] { opacity:0; }
-
       [data-loading-logo] {
         position:absolute; left:0; top:0;
         width:clamp(48px,3.65vw,96px); aspect-ratio:1;
