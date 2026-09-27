@@ -5,8 +5,10 @@ field_assignment: 1
 id: project-loading-veil
 status: active
 branch: field/project-loading-veil
-pr: null
+pr: 34
 base: 12d1fb9c64165482d4bfcaa1553a1daaf9fd4049
+implementation_head: e334b2fac13a8e81cb2a52fe1e4e21ff22217960
+merge_commit: b7b32070e98f29c0a14cd3048047ef1d13400b68
 type: loading-experience
 execution_class: contract-worker
 owned:
