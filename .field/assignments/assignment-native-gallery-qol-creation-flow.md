@@ -5,7 +5,7 @@ status: active
 branch: field/native-gallery-qol-creation-flow
 pr: 3
 pr_url: https://github.com/lrnolivia/field/pull/3
-branch_head: 463a16f9d7b4563ef5a9f8eb05204eda4eb14371
+branch_head: 54d1c62ea9e8a272ff446cff7940360e3047eda0
 base: 7e585a2fe66e062bae8a46041a6e08901027f9a8
 kit: 2026-09-26.3
 type: migrated-product-continuation

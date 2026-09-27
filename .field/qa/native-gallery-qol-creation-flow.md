@@ -243,3 +243,33 @@ Do not use this packet as evidence that Gallery regressed.
 - Workers Builds: field check-run 108514148196 completed with failure and zero annotations
 - classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a wizard product failure; the same lane already failed the no-file bootstrap, prior Gallery successor commits, and unrelated current-main coordination commits
 - runtime/Preview wizard QA remains pending
+
+
+## 2026-09-26 branch validation — wizard planner 221364a5324e
+
+- exact implementation SHA: 221364a5324ea1967dd13a730c633e06e91b4c20
+- parent SHA: 463a16f9d7b4563ef5a9f8eb05204eda4eb14371
+- commit scope: 3 Gallery-owned files; 202 additions / 33 deletions
+- pure planner/regression files added under src/code/gallery; GalleryTool refactored onto the planner
+- authored regressions cover canonical ordered source construction, Natural/Source-ratio state, Strip hover, Carousel semantics, fit, and invalid plan guards
+- regression source was authored but not executed in this environment
+- Workers Builds check 108514791363 completed failure with zero annotations
+- classification: the established pre-existing Workers build-lane infrastructure failure, not product-failure evidence
+- exact repo dependency-tree Vitest / TypeScript / build:all remain unverified
+
+
+## 2026-09-26 branch validation — created media selection 54d1c62ea9e8
+
+- exact implementation SHA: 54d1c62ea9e8a272ff446cff7940360e3047eda0
+- parent SHA: 221364a5324ea1967dd13a730c633e06e91b4c20
+- exact commit scope: 3 Gallery-owned files; 18 additions / 4 deletions
+- paths:
+  - src/editor/gallery/gallery-selection.ts
+  - src/editor/gallery/gallery-selection.test.ts
+  - src/editor/tools/GalleryTool.tsx
+- focused regression source covers newly created media selection and empty-create preservation
+- authored tests were not executed in this environment
+- Draft PR #3 is open/draft and verified at this SHA
+- Workers Builds check 108515085392 completed failure with zero annotations
+- classification: the established pre-existing Workers build-lane infrastructure failure, not product-failure evidence
+- runtime/Preview behavior remains pending

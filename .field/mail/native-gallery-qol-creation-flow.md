@@ -271,3 +271,29 @@ Focused regression source was added for:
 - multiple concurrent creation sessions sharing one history hold
 - media URL dedupe/order
 - initial media reorder/remove behavior
+
+
+## 2026-09-26 implementation block — wizard source transaction planner
+
+Implementation commit: 221364a5324ea1967dd13a730c633e06e91b4c20
+
+Wizard Finish source construction was extracted from the editor callback into a deterministic Gallery-domain planner:
+- buildGalleryWizardSourcePlan owns canonical root styles/attrs, media order, real item nodes, initial fit, Source-ratio state, deterministic Natural seed, Strip hover state, and Carousel mode intent
+- empty-media plans fail explicitly
+- Source-ratio plans fail explicitly when required intrinsic ratios are absent
+- GalleryTool now measures asynchronous media ratios, then delegates deterministic source construction to the pure planner before its existing one-batch Finish mutation
+- focused regression source covers ordered canonical creation, Source-ratio Natural state, Strip hover, Carousel semantics, initial fit, empty media, and incomplete Source-ratio input
+- no protected mutation/history implementation or generic insertion/drag code changed
+
+
+## 2026-09-26 implementation block — newly created media selection
+
+Implementation commit: 54d1c62ea9e8a272ff446cff7940360e3047eda0
+
+Selection continuity now follows newly created real media identity:
+- wizard Finish selects the first media item it just created
+- Add media selects the first newly added media item
+- Duplicate selects the fresh duplicate rather than leaving Inspector focus on the source item
+- empty create sets preserve the current selection
+- behavior is centralized in gallerySelectionAfterCreate and remains editor-only
+- source order, source identity, and history grouping are unchanged
