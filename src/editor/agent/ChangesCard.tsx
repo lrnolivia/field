@@ -14,6 +14,8 @@
 // does not tell you whether you like it.
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAtom, useSetAtom } from 'jotai';
 import {
   getFriendlyFileName, switchActiveFile, activeFilePathAtom,
@@ -354,16 +356,19 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
             >
               Undo
             </button>
-            <button
+            <motion.button
               ref={moreRef}
               type="button"
               title="More"
               aria-label="More"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
               onClick={() => setMenuOpen((v) => !v)}
               className="flex h-6 w-7 items-center justify-center cut-corners bg-[var(--grid-line)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus:outline-none focus-visible:text-[var(--text-primary)]"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
-            </button>
+              <FieldGlyph behavior="ellipsis"><FieldMorphGlyph active={menuOpen} from={glyphIcons.ellipsis} to={glyphIcons.close} size={12} strokeWidth={1.7} turn={90} /></FieldGlyph>
+            </motion.button>
             <DropdownMenu
               isOpen={menuOpen}
               onClose={() => setMenuOpen(false)}
@@ -387,9 +392,12 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
           });
           const action = actionFor(row);
           return (
-            <button
+            <motion.button
               key={row.key}
               type="button"
+              initial="rest"
+              whileHover={action ? 'hover' : undefined}
+              whileTap={action ? 'tap' : undefined}
               title={title}
               disabled={!action}
               onClick={() => { trace.action('agent-changes:open', { kind: row.kind, key: row.key }); action?.(); }}
@@ -397,14 +405,14 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
               onMouseLeave={() => setHovered((h) => (h === row.key ? null : h))}
               className="group flex h-7 w-full items-center gap-2 cut-corners px-2 text-left transition-colors enabled:hover:bg-[var(--grid-line)] focus:outline-none focus-visible:bg-[var(--grid-line)] disabled:cursor-default"
             >
-              <span className="shrink-0 text-[var(--text-tertiary)]"><RowIcon kind={row.kind} /></span>
+              <span className="shrink-0 text-[var(--text-tertiary)]"><FieldGlyph behavior="generic"><RowIcon kind={row.kind} /></FieldGlyph></span>
               <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-secondary)] group-enabled:group-hover:text-[var(--text-primary)]">{label}</span>
               {/* The count answers "how much"; on hover the row answers "and
                   you can go look". Same slot, so nothing reflows. */}
               <span className="shrink-0 text-[11px] text-[var(--text-tertiary)]">
                 {action && hovered === row.key ? <span className="text-[var(--text-secondary)]">View</span> : detail}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

@@ -10,6 +10,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { motion as glyphMotion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { trace } from '@/shared/debug-trace';
 import { FlagIcon } from '@/shared/flag-icon';
 
@@ -268,10 +270,13 @@ export function RowSelect({
 
   return (
     <>
-      <button
+      <glyphMotion.button
         id={id}
         ref={triggerRef}
         type="button"
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         onClick={() => {
           trace.action('row-select:toggle', { id, open: !open });
           setOpen((o) => !o);
@@ -283,21 +288,11 @@ export function RowSelect({
             selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'
           }`}
         >
-          {selected?.icon}
+          {selected?.icon && <FieldGlyph behavior="generic">{selected.icon}</FieldGlyph>}
           <span className="truncate">{selected ? selected.label : placeholder}</span>
         </span>
-        <svg
-          className={`w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+        <FieldGlyph behavior="chevron"><FieldMorphGlyph active={open} from={glyphIcons.chevronDown} to={glyphIcons.chevronUp} size={14} strokeWidth={2} spring="snappy" /></FieldGlyph>
+      </glyphMotion.button>
 
       {open && rect &&
         createPortal(
@@ -313,9 +308,12 @@ export function RowSelect({
               }}
             >
               {options.map((opt) => (
-                <button
+                <glyphMotion.button
                   key={opt.value}
                   type="button"
+                  initial="rest"
+                  whileHover="hover"
+                  whileTap="tap"
                   onClick={() => {
                     trace.action('row-select:change', { id, from: value, to: opt.value });
                     onChange(opt.value);
@@ -327,9 +325,9 @@ export function RowSelect({
                       : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                   }`}
                 >
-                  {opt.icon}
+                  {opt.icon && <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>}
                   <span className="truncate">{opt.label}</span>
-                </button>
+                </glyphMotion.button>
               ))}
             </div>
           </>,
@@ -418,16 +416,16 @@ export function ConfirmModal({
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-light)]">
               <h3 className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
-              <button
+              <glyphMotion.button
+                initial="rest"
+                whileHover={!isLoading ? 'hover' : undefined}
+                whileTap={!isLoading ? 'tap' : undefined}
                 onClick={onCancel}
                 disabled={isLoading}
                 className="p-1 hover:bg-[var(--bg-hover)] cut-corners transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
+                <FieldGlyph behavior="generic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></FieldGlyph>
+              </glyphMotion.button>
             </div>
             <div className="p-3 flex flex-col gap-3">
               <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{message}</p>

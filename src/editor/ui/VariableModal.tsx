@@ -5,6 +5,8 @@
 // Design pixel-matched to the old builder's VariableModal.
 
 import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { createPortal } from 'react-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import Modal from '@/design-system/Modal';
@@ -1017,16 +1019,17 @@ export default function VariableModal({
       // "+" type picker — component files only (typed props). On page files, variables are typed
       // page-variables managed elsewhere; the per-style "Create" flow on the left still applies.
       headerAction={isComponent ? (
-        <button
+        <motion.button
           ref={addBtnRef}
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           onClick={() => setPickerOpen(o => !o)}
           title="Add a variable"
           className="p-1 hover:bg-[var(--bg-hover)] cut-corners transition-colors cursor-pointer text-[var(--text-secondary)]"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+          <FieldGlyph behavior="plus"><FieldMorphGlyph active={pickerOpen} from={glyphIcons.plus} to={glyphIcons.close} size={15} strokeWidth={2} turn={90} /></FieldGlyph>
+        </motion.button>
       ) : undefined}
     >
       {pickerOpen && (
@@ -1115,9 +1118,12 @@ export default function VariableModal({
                       ? typeIcon
                       : (boundIcon !== 'generic' ? boundIcon : (typeIcon ?? 'generic'));
                   return (
-                    <div
+                    <motion.div
                       key={v.name}
                       ref={isSelected ? selectedRowRef : undefined}
+                      initial="rest"
+                      whileHover="hover"
+                      whileTap="tap"
                       // The WHOLE row is the select target (incl. the px-2/py-1.5
                       // padding) — previously the onClick sat on the inner button,
                       // leaving the top/bottom padding strips dead.
@@ -1146,12 +1152,15 @@ export default function VariableModal({
                           className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 text-white"
                           style={{ backgroundColor: accentVar }}
                         >
-                          <VariableTypeIcon iconKey={iconKey} size={11} />
+                          <FieldGlyph behavior="generic"><VariableTypeIcon iconKey={iconKey} size={11} /></FieldGlyph>
                         </span>
                         <span className="flex-1 min-w-0 text-xs truncate">{v.label || v.name}</span>
                       </div>
                       {/* Hover ⋯ → Duplicate / Remove menu */}
-                      <button
+                      <motion.button
+                        initial="rest"
+                        whileHover="hover"
+                        whileTap="tap"
                         onClick={(e) => {
                           e.stopPropagation();
                           const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -1162,9 +1171,9 @@ export default function VariableModal({
                         }`}
                         title="More"
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
-                      </button>
-                    </div>
+                        <FieldGlyph behavior="ellipsis"><FieldMorphGlyph active={rowMenu?.name === v.name} from={glyphIcons.ellipsis} to={glyphIcons.close} size={16} strokeWidth={1.5} turn={90} /></FieldGlyph>
+                      </motion.button>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -1190,16 +1199,17 @@ export default function VariableModal({
               </div>
               <div className="flex flex-col mt-3 flex-1 overflow-y-auto scrollbar-hide">
                 {removeWarning.nodes.map((n) => (
-                  <button
+                  <motion.button
                     key={`${n.id}:${n.varName}`}
+                    initial="rest"
+                    whileHover="hover"
+                    whileTap="tap"
                     onClick={() => goToNode(n.id)}
                     className="group flex items-center justify-between gap-2 py-1.5 border-b border-[var(--border-light)] text-left cursor-pointer transition-opacity hover:opacity-70"
                   >
                     <span className="text-xs text-[var(--text-primary)] truncate">{n.label}</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-secondary)]">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
+                    <FieldGlyph behavior="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-secondary)]"><polyline points="9 18 15 12 9 6" /></svg></FieldGlyph>
+                  </motion.button>
                 ))}
               </div>
             </div>

@@ -3,6 +3,8 @@
 // that effect's popup.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAnchoredMenu } from '../../hooks/useAnchoredMenu';
 import { createPortal } from 'react-dom';
 import { useAtomValue } from 'jotai';
@@ -118,15 +120,13 @@ function KeyframeSubMenu({ label, desc, existingKeyframes, onCreateNew, onApply 
 
   return (
     <div onMouseEnter={() => setShowSub(true)} onMouseLeave={() => setShowSub(false)}>
-      <button ref={btnRef} type="button" title={desc}
+      <motion.button ref={btnRef} type="button" title={desc}
+        initial="rest" whileHover="hover" whileTap="tap"
         className="group flex items-center justify-between mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer bg-transparent hover:!bg-[var(--accent)] border-none whitespace-nowrap"
         onClick={() => setShowSub(!showSub)}>
         <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">{label}</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0 ml-2">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+        <FieldGlyph behavior="chevron"><FieldMorphGlyph active={showSub} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={2.5} spring="snappy" /></FieldGlyph>
+      </motion.button>
       {showSub && createPortal(
         <div
           ref={portalRef}
@@ -137,14 +137,12 @@ function KeyframeSubMenu({ label, desc, existingKeyframes, onCreateNew, onApply 
           {/* Invisible bridge to cover the gap between button and flyout */}
           <div style={{ position: 'absolute', top: 0, right: -12, width: 16, height: '100%' }} />
           <div className="min-w-max bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-2xl py-1">
-            <button type="button"
+            <motion.button type="button" initial="rest" whileHover="hover" whileTap="tap"
               className="group flex items-center gap-2 mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer bg-transparent hover:!bg-[var(--accent)] border-none"
               onClick={onCreateNew}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
+              <FieldGlyph behavior="plus"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg></FieldGlyph>
               <span className="text-[12px] font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">Create New</span>
-            </button>
+            </motion.button>
             {existingKeyframes.length > 0 && (
               <>
                 <div className="h-px mx-2 my-1" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
@@ -152,14 +150,12 @@ function KeyframeSubMenu({ label, desc, existingKeyframes, onCreateNew, onApply 
                   <span className="text-[10px] font-semibold text-[var(--text-disabled)] uppercase">Existing</span>
                 </div>
                 {existingKeyframes.map(name => (
-                  <button key={name} type="button"
+                  <motion.button key={name} type="button" initial="rest" whileHover="hover" whileTap="tap"
                     className="group flex items-center gap-2 mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer bg-transparent hover:!bg-[var(--accent)] border-none"
                     onClick={() => onApply(name)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-                    </svg>
+                    <FieldGlyph behavior="generic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg></FieldGlyph>
                     <span className="text-[12px] text-[var(--text-primary)] group-hover:text-[var(--accent-fg)] truncate">{name}</span>
-                  </button>
+                  </motion.button>
                 ))}
               </>
             )}
@@ -199,15 +195,13 @@ function EffectSubMenu({ label, desc, children, onSelect }: {
 
   return (
     <div onMouseEnter={() => setShowSub(true)} onMouseLeave={() => setShowSub(false)}>
-      <button ref={btnRef} type="button" title={desc}
+      <motion.button ref={btnRef} type="button" title={desc}
+        initial="rest" whileHover="hover" whileTap="tap"
         className="group flex items-center justify-between mx-1.5 px-2.5 py-1.5 cut-corners w-[calc(100%-12px)] text-left cursor-pointer bg-transparent hover:!bg-[var(--accent)] border-none whitespace-nowrap"
         onClick={() => setShowSub(!showSub)}>
         <span className="text-xs font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-fg)]">{label}</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className="text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)] shrink-0 ml-2">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+        <FieldGlyph behavior="chevron"><FieldMorphGlyph active={showSub} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={2.5} spring="snappy" /></FieldGlyph>
+      </motion.button>
       {showSub && createPortal(
         <div ref={portalRef}
           style={{ position: 'fixed', left: subPos.x, top: subPos.y, transform: 'translateX(-100%)', zIndex: 9999 }}
@@ -322,8 +316,11 @@ export default function AddEffectDropdown({ onAdd, existing, isTextNode, isSketc
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <motion.button
         ref={btnRef}
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         onClick={() => {
           // Sketch wrappers: only one animation type makes sense
           // (the perfect-freehand draw-on replay), so the type picker
@@ -339,10 +336,8 @@ export default function AddEffectDropdown({ onAdd, existing, isTextNode, isSketc
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
         title="Add animation effect"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
+        <FieldGlyph behavior="plus"><FieldMorphGlyph active={!isSketchNode && open} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
+      </motion.button>
 
       {open && (
         <>
