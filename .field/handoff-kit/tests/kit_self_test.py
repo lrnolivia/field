@@ -81,9 +81,6 @@ blocker_docs = [
 assert all("artificial blocker" in text.lower() for text in blocker_docs)
 assert manifest["current_worker_self_registration"].endswith("CURRENT_WORKER_SELF_REGISTRATION.md")
 
-print("field handoff kit self-test: PASS")
-
-
 browser_policy_docs = [
     (ROOT / "CONTRACT.md").read_text(),
     (ROOT / "CHAT_BOOTSTRAP.md").read_text(),
@@ -94,3 +91,5 @@ browser_policy_docs = [
 ]
 assert all("Firecrawl" not in text for text in browser_policy_docs)
 assert all("browser" in text.lower() for text in browser_policy_docs)
+
+print("field handoff kit self-test: PASS")
