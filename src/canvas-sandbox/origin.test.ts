@@ -26,6 +26,14 @@ describe('resolveSandboxOrigin', () => {
     })).toBe('https://field-field-motion-semantic-controls.canvas-preview.loew.fi');
   });
 
+  it('maps the Gallery worker branch Preview to its matching Canvas Preview host', () => {
+    expect(resolveSandboxOrigin({
+      protocol: 'https:',
+      hostname: 'field-native-gallery-qol-creation-flow.field-preview.loew.fi',
+      port: '',
+    })).toBe('https://field-native-gallery-qol-creation-flow.canvas-preview.loew.fi');
+  });
+
   it('maps an immutable editor Preview to its matching immutable Canvas Preview', () => {
     expect(resolveSandboxOrigin({
       protocol: 'https:',
