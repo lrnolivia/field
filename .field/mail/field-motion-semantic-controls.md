@@ -36,3 +36,10 @@ Assignment: `field-motion-semantic-controls`
 - Workers build for PR #12 failed with zero annotations, but the same Workers check also fails on unrelated Dashboard head `932af6d67c84fc0b9eccab46d6f78ad5aade49cf` and Gallery head `25a379f1d32bc22f13248dac0346e0b0a6d425c9`; classify as known branch-preview/deployment infrastructure, not a demonstrated motion defect.
 - Full Vitest/project build could not run in the isolated Composio sandbox because its npm installer hit an Arborist `edgesOut` defect/timeouts. Do not claim those checks passed.
 - Runtime Preview QA remains blocked by the active branch-preview infrastructure assignment.
+
+## 2026-09-27 type hardening
+
+- New exact head: `78c03b37abae9159d32c840759eafe96b40e29ee`.
+- Removed direct `HTMLMotionProps` type-export dependency from AddButton/Button; props now derive from `typeof motion.button` through React `ComponentPropsWithoutRef`. Runtime behavior is unchanged.
+- Focused 10/10 source-contract assertions still pass on the hardened head.
+- Workers build still fails with zero annotations, consistent with the already classified branch-preview infrastructure defect.

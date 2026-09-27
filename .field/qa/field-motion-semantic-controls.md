@@ -3,7 +3,7 @@
 assignment: field-motion-semantic-controls
 branch: field/field-motion-semantic-controls
 pr: 12
-tested_head_sha: 3a419be9aa82dd9bc2e5d19959690f33fca066bb
+tested_head_sha: 78c03b37abae9159d32c840759eafe96b40e29ee
 tested_main_sha: null
 environment: not-yet-run
 build: NOT RUN
@@ -58,3 +58,10 @@ evidence: []
 - ui_audit_theming: PASS — no new theme-color system or package changes
 - ui_audit_responsive: NO GEOMETRY CHANGE — existing editor dimensions preserved
 - ui_audit_integrity: PASS — motion centralized under field.MOTION and remains editor-feedback-only
+
+## Hardened head
+
+- exact_head_sha: `78c03b37abae9159d32c840759eafe96b40e29ee`
+- focused_contract_assertions: PASS — 10/10 on hardened head
+- workers_branch_build: FAIL / INFRASTRUCTURE-CLASSIFIED — zero annotations; same external failure pattern
+- main_reconciliation: unchanged at `66a6f90ef9658e5a66409c0ebe48727715b3452b`
