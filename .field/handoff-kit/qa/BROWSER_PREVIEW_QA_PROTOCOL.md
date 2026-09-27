@@ -1,5 +1,7 @@
 # Browser Preview QA protocol
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 Use the real field branch Preview as the canonical runtime for web-visible Contract Worker QA.
 
 ## Canonical runtime target
