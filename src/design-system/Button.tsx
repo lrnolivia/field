@@ -2,17 +2,19 @@
 // Replaces scattered button class patterns across the builder.
 // Uses CSS variables for theming consistency.
 
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
+import { motion, type HTMLMotionProps } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = HTMLMotionProps<'button'> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   icon?: React.ReactNode;
-}
+};
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: 'h-[30px] px-2 text-xs',
@@ -27,7 +29,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   danger: 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300',
 };
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   variant = 'secondary',
   size = 'md',
   loading = false,
@@ -36,11 +38,17 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   disabled,
   className = '',
   ...props
-}, ref) => {
+}, ref) {
+  const reducedMotion = useFieldReducedMotion();
+  const blocked = Boolean(disabled || loading);
+
   return (
-    <button
+    <motion.button
       ref={ref}
-      disabled={disabled || loading}
+      disabled={blocked}
+      whileTap={!blocked && !reducedMotion ? { scale: fieldMotion.buttonTapScale } : undefined}
+      transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
+      data-field-motion="button-press"
       className={`
         inline-flex items-center justify-center gap-1.5 font-medium
         cut-corners transition-colors cursor-pointer border-none select-none
@@ -57,7 +65,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
         </svg>
       ) : icon}
       {children}
-    </button>
+    </motion.button>
   );
 });
 

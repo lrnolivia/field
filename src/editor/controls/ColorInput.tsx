@@ -3,6 +3,8 @@
 // The whole thing is one clickable row — swatch square + hex/rgb value text.
 
 import { useState, useRef, useCallback, type CSSProperties } from 'react';
+import { motion } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { useLivePreview } from '../hooks/useLivePreview';
 import { useAtomValue } from 'jotai';
 import ToolPopup, { useToolPopupOptional, useToolPopup } from '../ui/ToolPopup';
@@ -56,6 +58,7 @@ const CHECKER_STYLE: CSSProperties = {
 
 
 export default function ColorInput({ value, onChange, onChangeLive, showAlpha, embedded = false, swatchOnly, onRemove, mixed, empty }: ColorInputProps) {
+  const reducedMotion = useFieldReducedMotion();
   const popupCtx = useToolPopupOptional();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -200,13 +203,18 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
 
   return (
     <>
-      <button
+      <motion.button
         ref={btnRef}
         onClick={handleClick}
+        initial="rest"
+        whileHover={reducedMotion ? undefined : (swatchOnly ? { y: -1, scale: fieldMotion.swatchHoverScale } : 'hover')}
+        whileTap={reducedMotion ? undefined : (swatchOnly ? { y: 0, scale: fieldMotion.swatchTapScale } : 'tap')}
+        transition={fieldSpatialTransition(reducedMotion, fieldMotion.glyph)}
+        data-field-motion="color-input"
         className={swatchOnly
           // Hover moves the BORDER, not a ring: clip-path clips box-shadows, so
           // the old hover:ring-1 was sliced open at both notches.
-          ? "w-7 h-7 cut-corners cut-border [--cut-border-color:rgba(255,255,255,0.1)] border border-white/10 shrink-0 cursor-pointer hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-all"
+          ? "w-7 h-7 cut-corners cut-border [--cut-border-color:rgba(255,255,255,0.1)] border border-white/10 shrink-0 cursor-pointer hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-colors"
           : embedded
             ? "w-full h-[var(--control-height)] flex items-center gap-2 px-1 bg-transparent border-0 cursor-pointer transition-colors min-w-0 overflow-hidden"
             : isPresetRef
@@ -217,7 +225,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
         {!swatchOnly && (
           isPresetRef ? (
             <>
-              <ColorSwatch style={{ backgroundColor: displayColor }} />
+              <ColorSwatch interactive style={{ backgroundColor: displayColor }} />
               {/* Label sits ON the accent fill, so it takes --accent-fg. */}
               <span className={`text-xs font-medium truncate flex-1 text-[var(--text-primary)]`}>
                 {presetLabel}
@@ -227,7 +235,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             </>
           ) : (
             <>
-              <ColorSwatch style={(mixed || empty) ? CHECKER_STYLE : { backgroundColor: displayColor }} />
+              <ColorSwatch interactive style={(mixed || empty) ? CHECKER_STYLE : { backgroundColor: displayColor }} />
               <span className={`text-xs truncate flex-1 text-left ${empty && !mixed ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>{mixed ? 'Mixed' : empty ? 'Add' : inlineDisplayText}</span>
               {onRemove && (
                 <RemoveButton onClick={(e) => { e.stopPropagation(); onRemove(); }} />
@@ -235,7 +243,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             </>
           )
         )}
-      </button>
+      </motion.button>
       {/* Standalone popup — only when NOT inside a ToolPopup */}
       {!popupCtx && (
         <ToolPopup

@@ -14,6 +14,8 @@ import {
   type HTMLAttributes,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { motion } from "motion/react";
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from "@/editor/motion";
 import EllipsisMenu from "./EllipsisMenu";
 import DropdownMenu, { type DropdownMenuEntry } from "./DropdownMenu";
 
@@ -103,6 +105,7 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
     ref
   ) => {
     const s = SIZE_CLASSES[size];
+    const reducedMotion = useFieldReducedMotion();
 
     // Right-click opens the SAME menu list as the ellipsis dots, but
     // anchored at the cursor instead of the dots button. The cursor coords
@@ -158,7 +161,8 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
             className={`shrink-0 flex items-center justify-center ${s.icon}`}
             aria-hidden="true"
           >
-            <svg
+            <motion.svg
+              data-field-motion="sidebar-disclosure"
               width="8"
               height="8"
               viewBox="0 0 24 24"
@@ -167,13 +171,11 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{
-                transform: expandable.expanded ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 120ms",
-              }}
+              animate={{ rotate: expandable.expanded ? 90 : 0 }}
+              transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
             >
               <polyline points="9 18 15 12 9 6" />
-            </svg>
+            </motion.svg>
           </span>
         )}
         {prefixSlot && (

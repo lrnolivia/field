@@ -13,6 +13,8 @@
 // rule for AI-written files (SPACING_UNIT_NOT_PX).
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { motion, type Variants } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import ToolInput from './ToolInput';
 import { trace } from '@/shared/debug-trace';
 
@@ -33,6 +35,48 @@ function IndividualIcon({ className }: { className?: string }) {
       <path fill="currentColor"
         d="M93.66 202.34A8 8 0 0 1 88 216H48a8 8 0 0 1-8-8v-40a8 8 0 0 1 13.66-5.66ZM88 40H48a8 8 0 0 0-8 8v40a8 8 0 0 0 13.66 5.66l40-40A8 8 0 0 0 88 40m123.06 120.61a8 8 0 0 0-8.72 1.73l-40 40A8 8 0 0 0 168 216h40a8 8 0 0 0 8-8v-40a8 8 0 0 0-4.94-7.39M208 40h-40a8 8 0 0 0-5.66 13.66l40 40A8 8 0 0 0 216 88V48a8 8 0 0 0-8-8" />
     </svg>
+  );
+}
+
+
+const AXIS_LEFT: Variants = { rest: { x: 0 }, hover: { x: -1.25 }, tap: { x: -0.5, scale: 0.94 } };
+const AXIS_RIGHT: Variants = { rest: { x: 0 }, hover: { x: 1.25 }, tap: { x: 0.5, scale: 0.94 } };
+const AXIS_UP: Variants = { rest: { y: 0 }, hover: { y: -1.25 }, tap: { y: -0.5, scale: 0.94 } };
+const AXIS_DOWN: Variants = { rest: { y: 0 }, hover: { y: 1.25 }, tap: { y: 0.5, scale: 0.94 } };
+
+function AxisMotionGlyph({ axis }: { axis: 'horizontal' | 'vertical' }) {
+  const reducedMotion = useFieldReducedMotion();
+  const transition = fieldSpatialTransition(reducedMotion, fieldMotion.glyph);
+
+  return (
+    <motion.span
+      initial="rest"
+      whileHover={!reducedMotion ? 'hover' : undefined}
+      whileTap={!reducedMotion ? 'tap' : undefined}
+      data-field-motion={`spacing-${axis}`}
+      className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]"
+      title={axis === 'horizontal' ? 'Horizontal padding' : 'Vertical padding'}
+    >
+      {axis === 'horizontal' ? (
+        <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <motion.g variants={AXIS_LEFT} transition={transition}>
+            <path d="M7 8H2.5M2.5 8 5 5.5M2.5 8 5 10.5" />
+          </motion.g>
+          <motion.g variants={AXIS_RIGHT} transition={transition}>
+            <path d="M9 8h4.5M13.5 8 11 5.5M13.5 8 11 10.5" />
+          </motion.g>
+        </svg>
+      ) : (
+        <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <motion.g variants={AXIS_UP} transition={transition}>
+            <path d="M8 7V2.5M8 2.5 5.5 5M8 2.5 10.5 5" />
+          </motion.g>
+          <motion.g variants={AXIS_DOWN} transition={transition}>
+            <path d="M8 9v4.5M8 13.5 5.5 11M8 13.5 10.5 11" />
+          </motion.g>
+        </svg>
+      )}
+    </motion.span>
   );
 }
 
@@ -175,7 +219,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
         {axisPair && !showIndividual && onChangeAxis ? (
           <div data-spacing-axis-pair className="grid grid-cols-2 gap-2 flex-1 min-w-0">
             <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
-              <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Horizontal padding">↔</span>
+              <AxisMotionGlyph axis="horizontal" />
               <ToolInput
                 value={String(parseNum(values[1]))}
                 onChange={(v) => onChangeAxis('horizontal', `${clampSpacingValue(parseFloat(v) || 0, allowNegative)}px`)}
@@ -184,7 +228,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
               />
             </div>
             <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
-              <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Vertical padding">↕</span>
+              <AxisMotionGlyph axis="vertical" />
               <ToolInput
                 value={String(parseNum(values[0]))}
                 onChange={(v) => onChangeAxis('vertical', `${clampSpacingValue(parseFloat(v) || 0, allowNegative)}px`)}
