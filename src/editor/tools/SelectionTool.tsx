@@ -8,10 +8,13 @@
 // Read truth comes from the parsed CanvasNode graph. Writes still route through
 // updateNodeStyles so responsive / variant / instance behavior stays centralized.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLivePreview } from '../hooks/useLivePreview';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
+import { selectionColorLocateAtom, locateSelectionColor } from '@/code/stores/selection-color-locate-store';
+import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { useNodesComputed } from '@/code/stores/node-family';
 import { ColorSwatch, ToolSection, ToolDivider } from '../controls';
 import ToolPopup from '../ui/ToolPopup';
@@ -26,7 +29,6 @@ import { parseVarRef } from '@/shared/css-utils';
 import {
   aggregateSelectionColors,
   buildColorReplacementStyles,
-  collectSelectionScopeIds,
   type SelectionColorGroup,
 } from '../selection-colors';
 
@@ -103,15 +105,20 @@ function colorLabel(value: string, presetName: string, presetLabel?: string): st
 
 function SelectionColorRow({
   group,
-  onSelectMatching,
 }: {
   group: SelectionColorGroup;
-  onSelectMatching: () => void;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const styleRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
+  const [hoverActive, setHoverActive] = useState(false);
+  const setLocate = useSetAtom(selectionColorLocateAtom);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRevision = useRef<number | null>(null);
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter((token) => token.category === 'color');
 
@@ -124,9 +131,41 @@ function SelectionColorRow({
   const [livePreview, setLivePreview] = useLivePreview<string>([group.value]);
   const displayValue = livePreview ?? resolvedColor;
   const labelText = colorLabel(group.value, presetName, preset?.label);
-  const occurrenceLabel = group.targets.length === 1
-    ? '1 occurrence'
-    : String(group.targets.length) + ' occurrences';
+  const tint = /^#(?:[0-9a-f]{3,8})$/i.test(resolvedColor) || /^rgba?\(/i.test(resolvedColor)
+    ? resolvedColor : null;
+  const cancelHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+    setHoverActive(false);
+    setLocate((current) => current?.mode === 'hover' && current.revision === activeRevision.current ? null : current);
+  };
+  const startHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      const request = locateSelectionColor(group.nodeIds, tint, 'hover');
+      activeRevision.current = request.revision;
+      setLocate(request);
+      setHoverActive(true);
+      trace.action('selection-color:locate-hover', { color: group.value, count: group.nodeIds.length });
+    }, 1500);
+  };
+  const clickLocate = () => {
+    cancelHover();
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    const request = locateSelectionColor(group.nodeIds, tint, 'click');
+    activeRevision.current = request.revision;
+    setLocate(request);
+    setLeftPanel('layers');
+    setLeftPaneOpen(true);
+    trace.action('selection-color:locate-click', { color: group.value, count: group.nodeIds.length });
+    clickTimer.current = setTimeout(() => {
+      setLocate((current) => current?.revision === request.revision ? null : current);
+    }, 2200);
+  };
+  useEffect(() => () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+  }, []);
 
   const previewColor = (raw: string) => {
     livePatchReplacementStyles(buildColorReplacementStyles(group.targets, raw));
@@ -154,30 +193,27 @@ function SelectionColorRow({
 
   return (
     <>
+      <style>{`
+        @keyframes field-locate-target { 0%, 100% { transform: scale(1); opacity: .65; } 50% { transform: scale(1.12); opacity: 1; } }
+        .field-selection-color-target[data-locate-pulsing="true"] svg { animation: field-locate-target 2.4s ease-in-out infinite; transform-origin: center; }
+        @media (prefers-reduced-motion: reduce) { .field-selection-color-target svg { animation: none !important; } }
+      `}</style>
       <div
         data-selection-color-row
         data-selection-color-variable={isVariable ? 'true' : undefined}
-        className="group/selection-color grid grid-cols-[minmax(0,1fr)_auto_28px_28px] gap-0.5 items-center w-full min-w-0"
+        className="group/selection-color grid grid-cols-[minmax(0,1fr)_28px_28px] gap-0.5 items-center w-full min-w-0"
       >
         <button
           ref={btnRef}
           type="button"
           onClick={() => setIsOpen(true)}
           className="h-[var(--control-height)] min-w-0 flex items-center gap-2 px-2 bg-[var(--grid-line)] border border-[var(--control-border)] rounded-[var(--control-radius)] text-left hover:border-[var(--control-border-hover)] transition-colors overflow-hidden"
-          title={labelText + ' · ' + occurrenceLabel}
-          aria-label={'Edit selection color ' + labelText + ', ' + occurrenceLabel}
+          title={labelText}
+          aria-label={'Edit selection color ' + labelText}
         >
           <ColorSwatch style={{ background: displayValue }} />
           <span className="min-w-0 flex-1 text-xs text-[var(--text-primary)] truncate">{labelText}</span>
         </button>
-
-        <span
-          className="min-w-[20px] px-1 text-[10px] text-right tabular-nums text-[var(--text-disabled)]"
-          aria-label={occurrenceLabel}
-          title={occurrenceLabel}
-        >
-          {group.targets.length}
-        </span>
 
         {isVariable ? (
           <button
@@ -205,10 +241,14 @@ function SelectionColorRow({
 
         <button
           type="button"
-          onClick={onSelectMatching}
-          title="Select objects using this color"
-          aria-label="Select objects using this color"
-          className="h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-primary)] opacity-0 group-hover/selection-color:opacity-100 focus-visible:opacity-100 hover:bg-[var(--bg-hover)] transition-opacity"
+          onMouseEnter={startHover}
+          onMouseLeave={cancelHover}
+          onClick={clickLocate}
+          title="Locate objects using this color"
+          aria-label="Locate objects using this color"
+          data-selection-color-locate
+          data-locate-pulsing={hoverActive ? 'true' : undefined}
+          className="field-selection-color-target h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-primary)] opacity-0 group-hover/selection-color:opacity-100 focus-visible:opacity-100 hover:bg-[var(--bg-hover)] transition-opacity"
         >
           <TargetIcon />
         </button>
@@ -252,21 +292,17 @@ function SelectionColorRow({
 
 export default function SelectionTool() {
   const selectedIds = useAtomValue(selectedIdsAtom);
-  const setSelectedIds = useSetAtom(selectedIdsAtom);
   const [showAll, setShowAll] = useState(false);
 
   const selectionData = useNodesComputed(
     (nodes) => {
       const resolveNode = (id: string) => getNodeFromCache(id) ?? nodes.get(id);
-      return {
-        groups: aggregateSelectionColors(selectedIds, nodes, resolveNode),
-        scopeSize: collectSelectionScopeIds(selectedIds, nodes, resolveNode).length,
-      };
+      return aggregateSelectionColors(selectedIds, nodes, resolveNode);
     },
     [selectedIds],
   );
 
-  const { groups, scopeSize } = selectionData;
+  const groups = selectionData;
 
   // A simple leaf with one color already has the canonical Fill/Stroke control
   // immediately below. Show the aggregate when a single selection owns a design
@@ -282,19 +318,7 @@ export default function SelectionTool() {
     <>
       <ToolSection title="Selection colors" collapsible={false}>
         <div data-selection-colors-figui3 className="flex flex-col gap-1">
-          {visibleGroups.map((group) => (
-            <SelectionColorRow
-              key={group.value}
-              group={group}
-              onSelectMatching={() => {
-                setSelectedIds(group.nodeIds);
-                trace.action('selection-color:select-matching', {
-                  count: group.nodeIds.length,
-                  color: group.value,
-                });
-              }}
-            />
-          ))}
+          {visibleGroups.map((group) => <SelectionColorRow key={group.value} group={group} />)}
 
           {hasOverflow && (
             <button
