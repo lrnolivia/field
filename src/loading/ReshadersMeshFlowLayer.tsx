@@ -51,6 +51,7 @@ const ELLIPSES:readonly E[]=[
 ];
 
 const GRAD='conic-gradient(from 90deg at 50% 50%,#ff6161 0%,#ffd361 19.5833%,#95ffa0 45.1042%,#95b9ff 64.8958%,#d795ff 86.25%,#ff6161 100%)';
+const NOISE=['/field-brand/loading/figma-noise-1.png','/field-brand/loading/figma-noise-2.png','/field-brand/loading/figma-noise-3.png','/field-brand/loading/figma-noise-4.png'];
 const k=(a:S,offset:number):Keyframe=>({
   offset,left:`${a[0]}px`,top:`${a[1]}px`,width:`${a[2]}px`,height:`${a[3]}px`,
   transform:`rotate(${a[4]}deg)`,filter:`blur(${a[5]}px)`,opacity:a[6]??1,
@@ -84,28 +85,13 @@ export default function ReshadersMeshFlowLayer(){
       }}/>}
       )}
     </div>
-    <div data-figma-noise>
-      <img src="/field-brand/loading/figma-noise-1.png" alt="" data-noise-frame="1" />
-      <img src="/field-brand/loading/figma-noise-2.png" alt="" data-noise-frame="2" />
-      <img src="/field-brand/loading/figma-noise-3.png" alt="" data-noise-frame="3" />
-      <img src="/field-brand/loading/figma-noise-4.png" alt="" data-noise-frame="4" />
-    </div>
+    <div data-figma-noise>{NOISE.map((src,i)=><img key={src} src={src} alt="" data-noise-frame={i+1}/>)}</div>
     <style>{`
-      [data-figma-loading-frame] [data-figma-noise]{
-        position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
-      }
-      [data-figma-loading-frame] [data-noise-frame]{
-        position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
-        opacity:0;animation:field-noise-frame 400ms steps(1,end) infinite;
-      }
-      [data-figma-loading-frame] [data-noise-frame="2"]{animation-delay:-300ms}
-      [data-figma-loading-frame] [data-noise-frame="3"]{animation-delay:-200ms}
-      [data-figma-loading-frame] [data-noise-frame="4"]{animation-delay:-100ms}
-      @keyframes field-noise-frame{0%,24.99%{opacity:1}25%,100%{opacity:0}}
-      @media(prefers-reduced-motion:reduce){
-        [data-figma-loading-frame] [data-noise-frame]{animation:none;opacity:0}
-        [data-figma-loading-frame] [data-noise-frame="1"]{opacity:1}
-      }
+      [data-figma-noise]{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light}
+      [data-noise-frame]{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:0;animation:field-noise 400ms steps(1,end) infinite}
+      [data-noise-frame="2"]{animation-delay:-300ms}[data-noise-frame="3"]{animation-delay:-200ms}[data-noise-frame="4"]{animation-delay:-100ms}
+      @keyframes field-noise{0%,24.99%{opacity:1}25%,100%{opacity:0}}
+      @media(prefers-reduced-motion:reduce){[data-noise-frame]{animation:none;opacity:0}[data-noise-frame="1"]{opacity:1}}
     `}</style>
   </div>;
 }
