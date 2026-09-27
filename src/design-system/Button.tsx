@@ -4,7 +4,7 @@
 
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { motion } from 'motion/react';
-import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import { buttonContentVariants, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -49,7 +49,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
       type={type}
       aria-busy={loading || undefined}
       disabled={blocked}
-      whileTap={!blocked && !reducedMotion ? { scale: fieldMotion.buttonTapScale } : undefined}
+      initial="rest"
+      whileHover={!blocked && !reducedMotion ? 'hover' : undefined}
+      whileTap={!blocked && !reducedMotion ? 'tap' : undefined}
       transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
       data-field-motion="button-press"
       className={`
@@ -62,12 +64,18 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
       `.trim()}
       {...props}
     >
-      {loading ? (
-        <svg aria-hidden="true" className="animate-spin motion-reduce:animate-none w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
-        </svg>
-      ) : icon}
-      {children}
+      <motion.span
+        className="inline-flex min-w-0 items-center justify-center gap-1.5"
+        variants={buttonContentVariants}
+        transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
+      >
+        {loading ? (
+          <svg aria-hidden="true" className="animate-spin motion-reduce:animate-none w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
+          </svg>
+        ) : icon}
+        {children}
+      </motion.span>
     </motion.button>
   );
 });

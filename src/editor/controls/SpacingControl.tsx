@@ -39,10 +39,10 @@ function IndividualIcon({ className }: { className?: string }) {
 }
 
 
-const AXIS_LEFT: Variants = { rest: { x: 0 }, hover: { x: -1.25 }, tap: { x: -0.5, scale: 0.94 } };
-const AXIS_RIGHT: Variants = { rest: { x: 0 }, hover: { x: 1.25 }, tap: { x: 0.5, scale: 0.94 } };
-const AXIS_UP: Variants = { rest: { y: 0 }, hover: { y: -1.25 }, tap: { y: -0.5, scale: 0.94 } };
-const AXIS_DOWN: Variants = { rest: { y: 0 }, hover: { y: 1.25 }, tap: { y: 0.5, scale: 0.94 } };
+const AXIS_LEFT: Variants = { rest: { x: 0 }, hover: { x: -2.5 }, tap: { x: -1, scale: 0.88 } };
+const AXIS_RIGHT: Variants = { rest: { x: 0 }, hover: { x: 2.5 }, tap: { x: 1, scale: 0.88 } };
+const AXIS_UP: Variants = { rest: { y: 0 }, hover: { y: -2.5 }, tap: { y: -1, scale: 0.88 } };
+const AXIS_DOWN: Variants = { rest: { y: 0 }, hover: { y: 2.5 }, tap: { y: 1, scale: 0.88 } };
 
 function AxisMotionGlyph({ axis }: { axis: 'horizontal' | 'vertical' }) {
   const reducedMotion = useFieldReducedMotion();

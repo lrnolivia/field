@@ -9,16 +9,18 @@ import { useReducedMotion, type Transition, type Variants } from 'motion/react';
  * semantics, or the production website.
  */
 export const fieldMotion = {
-  response: { type: 'spring', stiffness: 720, damping: 38, mass: 0.34 } satisfies Transition,
-  glyph: { type: 'spring', stiffness: 620, damping: 30, mass: 0.38 } satisfies Transition,
-  toggle: { type: 'spring', stiffness: 520, damping: 32, mass: 0.55 } satisfies Transition,
-  disclosure: { type: 'spring', stiffness: 470, damping: 32, mass: 0.56 } satisfies Transition,
-  spatial: { type: 'spring', stiffness: 410, damping: 34, mass: 0.68 } satisfies Transition,
-  expressive: { type: 'spring', stiffness: 360, damping: 26, mass: 0.72 } satisfies Transition,
-  buttonTapScale: 0.985,
-  actionTapScale: 0.99,
-  swatchHoverScale: 1.045,
-  swatchTapScale: 0.975,
+  response: { type: 'spring', stiffness: 560, damping: 26, mass: 0.42 } satisfies Transition,
+  glyph: { type: 'spring', stiffness: 500, damping: 22, mass: 0.44 } satisfies Transition,
+  toggle: { type: 'spring', stiffness: 430, damping: 22, mass: 0.62 } satisfies Transition,
+  disclosure: { type: 'spring', stiffness: 420, damping: 23, mass: 0.6 } satisfies Transition,
+  spatial: { type: 'spring', stiffness: 360, damping: 25, mass: 0.72 } satisfies Transition,
+  expressive: { type: 'spring', stiffness: 330, damping: 21, mass: 0.78 } satisfies Transition,
+  buttonHoverScale: 1.02,
+  buttonHoverY: -1.25,
+  buttonTapScale: 0.955,
+  actionTapScale: 0.97,
+  swatchHoverScale: 1.1,
+  swatchTapScale: 0.92,
 } as const;
 
 export function useFieldReducedMotion(): boolean {
@@ -34,30 +36,36 @@ export function fieldSpatialTransition(
 
 export const addGlyphVariants: Variants = {
   rest: { rotate: 0, scale: 1 },
-  hover: { rotate: 8, scale: 1.07 },
-  tap: { rotate: -3, scale: 0.88 },
+  hover: { rotate: 16, scale: 1.18 },
+  tap: { rotate: -7, scale: 0.78 },
 };
 
 export const removeGlyphVariants: Variants = {
   rest: { scaleX: 1, scaleY: 1, x: 0 },
-  hover: { scaleX: 0.88, scaleY: 1, x: -0.25 },
-  tap: { scaleX: 0.76, scaleY: 0.92, x: 0 },
+  hover: { scaleX: 0.72, scaleY: 1, x: -1.25 },
+  tap: { scaleX: 0.56, scaleY: 0.86, x: 0 },
 };
 
 export const plusGlyphVariants: Variants = {
   rest: { rotate: 0, scale: 1 },
-  hover: { rotate: 7, scale: 1.07 },
-  tap: { rotate: -2, scale: 0.86 },
+  hover: { rotate: 14, scale: 1.16 },
+  tap: { rotate: -6, scale: 0.78 },
 };
 
 export const minusGlyphVariants: Variants = {
   rest: { scaleX: 1, scaleY: 1 },
-  hover: { scaleX: 0.86, scaleY: 1 },
-  tap: { scaleX: 0.72, scaleY: 0.9 },
+  hover: { scaleX: 0.7, scaleY: 1 },
+  tap: { scaleX: 0.54, scaleY: 0.84 },
 };
 
 export const swatchVariants: Variants = {
   rest: { y: 0, scale: 1 },
-  hover: { y: -1, scale: fieldMotion.swatchHoverScale },
-  tap: { y: 0, scale: fieldMotion.swatchTapScale },
+  hover: { y: -2, scale: fieldMotion.swatchHoverScale },
+  tap: { y: 0.75, scale: fieldMotion.swatchTapScale },
+};
+
+export const buttonContentVariants: Variants = {
+  rest: { y: 0, scale: 1 },
+  hover: { y: fieldMotion.buttonHoverY, scale: fieldMotion.buttonHoverScale },
+  tap: { y: 0.75, scale: fieldMotion.buttonTapScale },
 };

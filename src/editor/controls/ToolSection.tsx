@@ -106,9 +106,9 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
             key="content"
             data-inspector-section-content
             data-field-motion="section-content"
-            initial={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0, y: -2 }}
+            initial={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
             animate={reducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1, y: 0 }}
-            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0, y: -2 }}
+            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
             transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
             className="flex flex-col px-2.5 pb-1 gap-[var(--control-gap)] overflow-hidden"
           >

@@ -19,10 +19,14 @@ describe('field.MOTION semantic contract', () => {
     expect(fieldMotion.expressive.type).toBe('spring');
   });
 
-  it('keeps routine press and hover geometry restrained', () => {
-    expect(fieldMotion.buttonTapScale).toBeGreaterThanOrEqual(0.98);
-    expect(fieldMotion.actionTapScale).toBeGreaterThanOrEqual(0.98);
-    expect(fieldMotion.swatchHoverScale).toBeLessThanOrEqual(1.05);
+  it('keeps routine feedback visible without becoming theatrical', () => {
+    // Human Preview QA rejected the original ~1–2% transforms as perceptually invisible.
+    // Preserve a meaningful response floor while keeping outer hit targets/layout stable.
+    expect(fieldMotion.buttonTapScale).toBeLessThanOrEqual(0.96);
+    expect(fieldMotion.buttonTapScale).toBeGreaterThanOrEqual(0.94);
+    expect(fieldMotion.actionTapScale).toBeLessThanOrEqual(0.98);
+    expect(fieldMotion.swatchHoverScale).toBeGreaterThanOrEqual(1.08);
+    expect(fieldMotion.swatchHoverScale).toBeLessThanOrEqual(1.12);
   });
 
   it('snaps spatial travel under reduced motion instead of removing state feedback', () => {
