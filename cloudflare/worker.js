@@ -1,5 +1,7 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
+const CANVAS_PREVIEW_HOST_SUFFIX = ".canvas-preview.loew.fi";
+const FIELD_PREVIEW_HOST_SUFFIX = ".field-preview.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
@@ -13,8 +15,16 @@ const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
 const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const jwksCache = new Map();
 
+function isCanvasHost(hostname) {
+  return (
+    hostname === CANVAS_HOST ||
+    hostname.endsWith(CANVAS_PREVIEW_HOST_SUFFIX) ||
+    (hostname.startsWith("canvas.") && hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX))
+  );
+}
+
 function assetPathForHost(hostname, pathname) {
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     return "/sandbox" + (pathname === "/" ? "/index.html" : pathname);
   }
 
@@ -26,7 +36,7 @@ function assetPathForHost(hostname, pathname) {
 }
 
 function indexPathForHost(hostname) {
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     return "/sandbox/index.html";
   }
 
@@ -40,7 +50,7 @@ function indexPathForHost(hostname) {
 function applyRevymeHeaders(response, hostname) {
   const headers = new Headers(response.headers);
 
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Embedder-Policy", "credentialless");
