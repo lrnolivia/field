@@ -47,6 +47,9 @@ interface ProjectLoaderProps {
 
 export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}) {
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [canvasPainted, setCanvasPainted] = useState(false);
+  const [editorInteractive, setEditorInteractive] = useState(false);
   // When set, a `?remix=` load is paused on the workspace picker — the
   // remix only runs once the user chooses a workspace (see below).
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
@@ -537,8 +540,9 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
 
     init().catch(err => {
       trace.error('project-loader:init-error', err);
-      // Show app anyway so user isn't stuck on blank screen
-      if (!cancelled) setReady(true);
+      if (!cancelled) {
+        setLoadError(err instanceof Error ? err.message : String(err));
+      }
     });
 
     return () => { cancelled = true; };
@@ -549,7 +553,13 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // snapshot loaded, the ordinary loading shell when it didn't (share links).
   // The picker performs the remix + redirect itself.
   if (!ready) {
-    return <BuilderLoadingShell />;
+    return (
+      <BuilderLoadingShell
+        status={loadError ? "Project couldn't open" : 'Opening project'}
+        detail={loadError ? 'field could not finish loading this project.' : undefined}
+        recoverable={!!loadError}
+      />
+    );
   }
 
   // Keep the shell OVERLAID on the mounted App until the canvas has actually
@@ -558,8 +568,17 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   // shell fades out over the fully-drawn page instead.
   return (
     <>
-      <App />
-      <CanvasReadyShellOverlay onReady={onCanvasReady} />
+      <App
+        interactive={editorInteractive}
+        onCanvasFirstPaint={() => setCanvasPainted(true)}
+      />
+      <CanvasReadyShellOverlay
+        painted={canvasPainted}
+        onReady={() => {
+          setEditorInteractive(true);
+          onCanvasReady?.();
+        }}
+      />
       {/* The remix picker rides ON TOP of the mounted builder so the choice is
           made over the template the user is looking at. Blocking — see the
           component: no ×, no Escape, no backdrop. */}
@@ -568,26 +587,33 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   );
 }
 
-function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
+function CanvasReadyShellOverlay({
+  painted,
+  onReady,
+}: {
+  painted: boolean;
+  onReady?: () => void;
+}) {
   const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
+  const [delayed, setDelayed] = useState(false);
+
   useEffect(() => {
-    let cancelled = false;
-    const finish = () => {
-      // One extra frame so the just-completed render is actually painted
-      // before the shell starts fading.
-      requestAnimationFrame(() => { if (!cancelled) setPhase('fading'); });
-    };
-    window.addEventListener('revyme:render-complete', finish, { once: true });
-    // Failsafe: an empty project may render before the listener attaches (or
-    // never emit) — never trap the user behind the shell.
-    const failsafe = setTimeout(finish, 4000);
+    if (phase !== 'waiting') return;
+
+    if (painted) {
+      trace.action('project-loader:canvas-painted', {});
+      const raf = requestAnimationFrame(() => setPhase('fading'));
+      return () => cancelAnimationFrame(raf);
+    }
+
+    const timeout = setTimeout(() => {
+      setDelayed(true);
+      trace.action('project-loader:canvas-delayed', {});
+    }, 4000);
     trace.action('project-loader:shell-overlay-waiting', {});
-    return () => {
-      cancelled = true;
-      window.removeEventListener('revyme:render-complete', finish);
-      clearTimeout(failsafe);
-    };
-  }, []);
+    return () => clearTimeout(timeout);
+  }, [painted, phase]);
+
   useEffect(() => {
     if (phase !== 'fading') return;
     trace.action('project-loader:shell-overlay-fade', {});
@@ -597,13 +623,18 @@ function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
     }, 280);
     return () => clearTimeout(t);
   }, [onReady, phase]);
+
   if (phase === 'done') return null;
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: phase === 'fading' ? 'none' : 'auto',
       opacity: phase === 'fading' ? 0 : 1, transition: 'opacity 260ms ease',
     }}>
-      <BuilderLoadingShell />
+      <BuilderLoadingShell
+        status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
+        detail={delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
+        recoverable={delayed}
+      />
     </div>
   );
 }
@@ -614,7 +645,15 @@ function CanvasReadyShellOverlay({ onReady }: { onReady?: () => void }) {
 // spinner — the builder visibly "is there" while the project loads, instead
 // of a bare Loading… label.
 
-function BuilderLoadingShell() {
+function BuilderLoadingShell({
+  status = 'Opening project',
+  detail,
+  recoverable = false,
+}: {
+  status?: string;
+  detail?: string;
+  recoverable?: boolean;
+}) {
   const surface = 'var(--bg-surface, #16161d)';
   const border = '1px solid var(--border-light, rgba(255,255,255,0.08))';
   // Placeholder chips take the cut classes, not radii — the shell must preview
@@ -627,9 +666,15 @@ function BuilderLoadingShell() {
   });
   const sep: React.CSSProperties = { width: 1, height: 26, background: 'var(--border-light, rgba(255,255,255,0.08))', margin: '0 4px' };
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
+    <div
+      data-builder-loading-shell
+      style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}
+    >
       <style>{`
         @keyframes rvy-shell-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) {
+          [data-builder-loading-shell] * { animation: none !important; transition-duration: 0.01ms !important; }
+        }
       `}</style>
 
       {/* Left slab — 308px full height, bottom-right cut, mirroring the
@@ -665,6 +710,58 @@ function BuilderLoadingShell() {
             <div style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
           </div>
         </div>
+      </div>
+
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: 'absolute',
+          left: 308,
+          right: 260,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          padding: 24,
+          textAlign: 'center',
+          pointerEvents: 'auto',
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #f5f5f5)' }}>{status}</div>
+        {detail && (
+          <div style={{ maxWidth: 360, fontSize: 12, lineHeight: 1.5, color: 'var(--text-secondary, #9b9ba7)' }}>{detail}</div>
+        )}
+        {recoverable && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                height: 28, padding: '0 10px', borderRadius: 6,
+                border: '1px solid var(--control-border, rgba(255,255,255,0.12))',
+                background: 'var(--bg-hover, rgba(255,255,255,0.06))',
+                color: 'var(--text-primary, #f5f5f5)', fontSize: 12,
+              }}
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.assign('/')}
+              style={{
+                height: 28, padding: '0 10px', borderRadius: 6,
+                border: '1px solid transparent', background: 'transparent',
+                color: 'var(--text-secondary, #9b9ba7)', fontSize: 12,
+              }}
+            >
+              Back to projects
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom toolbar — docked flush to the bottom like the real bar, with
