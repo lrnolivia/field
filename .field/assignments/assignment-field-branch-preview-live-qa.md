@@ -3,19 +3,14 @@
 ---
 field_assignment: 1
 id: field-branch-preview-live-qa
-status: active
+status: complete
 branch: field/field-branch-preview-live-qa
-pr: null
+pr: 15
 base: fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e
 kit: 2026-09-26.2
 type: follow-up
 execution_class: contract-worker
-owned:
-  - .github/workflows/**
-  - cloudflare/**
-  - wrangler.jsonc
-  - .field/handoff-kit/qa/**
-  - .field/handoff-kit/tests/**
+owned: []
 approved_shared: []
 protected:
   - src/**
@@ -69,3 +64,10 @@ Build the smallest deterministic Preview/QA infrastructure supporting automatic 
 Primary: real branch Preview plus Firecrawl small-packet QA.
 
 Secondary: deployment/check evidence, exact URL/status evidence, and handoff-kit regression tests.
+
+
+## 2026-09-27 closeout correction
+
+- PR #15 is merged and the canonical QA record is `verified`.
+- The prior Preview-infrastructure ownership reservation is released as stale coordination.
+- This assignment is complete. A newly discovered branch Canvas hostname routing defect is tracked separately as `field-preview-canvas-host-routing`.
