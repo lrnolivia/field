@@ -49,10 +49,11 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
@@ -78,7 +79,9 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
   const editorRootRef = useRef<HTMLDivElement>(null);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth });
   const cameraInsets = workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
 
@@ -233,6 +236,7 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <ChromeIslands />
+      <WorkspacePaneResizeHandles hidden={previewMode} />
       <PageAppearanceBridge />
       {/* Live-collab broadcast loops + remote cursor overlay. Renders
           inside the provider so its hooks have context; the overlay
@@ -285,7 +289,7 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
         <Canvas onFirstCanvasPaint={onCanvasFirstPaint} />
         {/* Right panel: PropertiesPanel by default, swap for the
             project-wide comments list while comment mode is active.
-            Both panel modes are 260 px wide. Viewer read-only handling lives inside
+            Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
         {!previewMode && rightPaneOpen && (

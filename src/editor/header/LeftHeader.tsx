@@ -1,5 +1,5 @@
 // LeftHeader.tsx — Top-left header bar above the left panel.
-// 52 px height, spans menu + panel width (308 px). Two slots:
+// 52 px height, spans the rail + the user's resizable panel width. Two slots:
 //   1. field icon (left) — opens an account/menubar dropdown
 //   2. Project name chip (right) — shows the website title, opens
 //      a project-scoped menu (rename, site settings, dashboard)
@@ -16,7 +16,7 @@ import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_WORKSPACE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -248,7 +248,8 @@ export default function LeftHeader() {
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
   trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
 
   return (
@@ -258,7 +259,7 @@ export default function LeftHeader() {
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: LEFT_WORKSPACE_WIDTH, left: workspace.left.inset, top: workspace.left.top }}
+      style={{ width: workspace.left.width, left: workspace.left.inset, top: workspace.left.top }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).

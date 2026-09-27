@@ -1,5 +1,5 @@
 // RightHeader.tsx — Top-right header bar above the properties panel.
-// Exact port from old builder: 52px height, 260px width.
+// Compact 52px header whose width follows the resizable properties pane.
 // Contains: Settings, Export, Preview (play icon), Live buttons.
 //
 // The Live button does NOT publish on click — it opens `LiveDropdown`
@@ -28,7 +28,7 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 
@@ -44,7 +44,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const isClosedSource = useIsClosedSource();
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
-  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth });
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
