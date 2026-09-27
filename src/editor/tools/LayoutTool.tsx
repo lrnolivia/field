@@ -25,6 +25,7 @@ import { isPrimaryViewport } from '@/canvas/node-ops';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { isFitSize } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import GalleryTool from './GalleryTool';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 import { parseVarRef } from '@/shared/css-utils';
@@ -1437,13 +1438,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
       className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
       title={hasLayout ? 'Remove Layout' : 'Add Layout'}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-        {hasLayout ? (
-          <line x1="5" y1="12" x2="19" y2="12" />
-        ) : (
-          <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>
-        )}
-      </svg>
+      <FieldGlyph behavior={hasLayout ? 'minus' : 'plus'}><FieldMorphGlyph active={hasLayout} from={glyphIcons.plus} to={glyphIcons.minus} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
     </button>
   );
 

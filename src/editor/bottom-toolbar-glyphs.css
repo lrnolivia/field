@@ -1,0 +1,58 @@
+/* Toolbar glyphs stay idle without React hover state, listeners or layers.
+   The wrapper keeps existing SVG transforms (for example the cursor baseline)
+   separate from the response transform. */
+[data-field-toolbar-glyph] {
+  transform: translate3d(0, 0, 0) scale(1);
+  transition: transform 190ms cubic-bezier(.2, .8, .2, 1), opacity 150ms ease;
+}
+
+[data-field-toolbar-check] {
+  opacity: 0;
+  transform: scale(.55) rotate(-35deg);
+  transition: transform 190ms cubic-bezier(.2, .8, .2, 1), opacity 150ms ease;
+}
+[data-field-toolbar-check="true"] {
+  opacity: 1;
+  transform: scale(1) rotate(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover > [data-field-toolbar-glyph] {
+    transform: translateY(-1.5px) scale(1.12);
+  }
+  button:not(:disabled):hover > [data-field-toolbar-glyph="frame"],
+  button:not(:disabled):hover > [data-field-toolbar-glyph="resources"] {
+    transform: translateY(-2px) scale(1.08);
+  }
+  button:not(:disabled):hover > [data-field-toolbar-glyph="search"],
+  button:not(:disabled):hover > [data-field-toolbar-glyph="smart-zoom"] {
+    transform: scale(1.15) rotate(-5deg);
+  }
+  button:not(:disabled):hover > [data-field-toolbar-glyph="chevron"] {
+    transform: translateY(1.5px) scale(1.1);
+  }
+  button:not(:disabled):hover [data-field-toolbar-glyph="menu"] {
+    transform: translateX(1.5px) scale(1.06);
+  }
+}
+
+button:not(:disabled):active > [data-field-toolbar-glyph] {
+  transform: translateY(.5px) scale(.82);
+  transition-duration: 95ms;
+}
+
+button[data-toolbar-chevron-open] > [data-field-toolbar-glyph="chevron"],
+button[data-toolbar-chevron-open]:hover > [data-field-toolbar-glyph="chevron"] {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-field-toolbar-glyph],
+  [data-field-toolbar-check],
+  button:not(:disabled):hover > [data-field-toolbar-glyph],
+  button:not(:disabled):active > [data-field-toolbar-glyph],
+  button[data-toolbar-chevron-open] > [data-field-toolbar-glyph="chevron"] {
+    transform: none;
+    transition: none;
+  }
+}

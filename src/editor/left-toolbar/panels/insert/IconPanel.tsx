@@ -344,6 +344,7 @@ function IconCell({ iconData, isDark }: IconCellProps) {
   }, [iconData.icon]);
   return (
     <div
+      data-field-icon-cell
       onPointerDown={handlePointerDown}
       className="aspect-square flex items-center justify-center bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cut-corners transition-colors cursor-grab active:cursor-grabbing"
       title={iconData.name}

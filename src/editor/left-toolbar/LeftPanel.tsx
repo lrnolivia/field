@@ -13,6 +13,7 @@ import LocalePanel from './panels/LocalePanel';
 import CmsPanel from './panels/CmsPanel';
 import BranchesPanel from './panels/BranchesPanel';
 import { trace } from '@/shared/debug-trace';
+import './left-panel-glyphs.css';
 
 function PresetsPanel() {
   return <LibraryPanel mode="presets" />;
