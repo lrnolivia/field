@@ -57,6 +57,12 @@ If self-registration is blocked by stale metadata, old process instructions, a m
 
 If the blocker is an ownership collision or requires changes outside current authority, stop that conflicting mutation and register/request the smallest repair/reconciliation needed.
 
+## Web runtime QA
+
+For web-visible work, treat the live PR Preview as the branch runtime. After the Preview build succeeds, use a browser-capable tool to exercise the acceptance criteria against the exact branch SHA, normally through `/builder/noauth` when auth is not under test. Record the Preview URL and runtime evidence in the assignment QA record.
+
+A build alone is not runtime QA. Do not validate an unmerged branch against production. If the branch moves, rerun the affected browser QA.
+
 ## Finish
 
 Re-read the three canonical control files and any branch/PR you created.
