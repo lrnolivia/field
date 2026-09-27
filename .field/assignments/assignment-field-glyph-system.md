@@ -5,8 +5,8 @@ field_assignment: 1
 id: field-glyph-system
 status: active
 branch: field/field-glyph-system
-pr: null
-base: 4b368eefdb75707efc3a6f94c759cccac8a78e90
+pr: 30
+base: d424f8126b0b11b98777c6fc0d18a73e7813f8ee
 kit: 2026-09-26.4
 type: follow-up
 execution_class: contract-worker
@@ -25,6 +25,9 @@ owned:
   - src/editor/controls/ToolPlusMinus.tsx
   - src/editor/controls/ToolSection.tsx
   - src/editor/controls/ToolSwitch.tsx
+  - src/editor/controls/InspectorIconButtonGroup.tsx
+  - src/editor/controls/ToolSegmentedControl.tsx
+  - src/editor/controls/ToolInput.tsx
   - src/editor/controls/InspectorObjectHeader.tsx
   - src/editor/LayersPanel.tsx
   - src/editor/LayersPanel/rows.tsx
@@ -127,3 +130,9 @@ Exact branch Preview `/builder/noauth`: Canvas health preflight; representative 
 Exact-head Cloudflare Preview PASS, focused glyph tests PASS, package/lock audit PASS, changed-path ownership PASS, browser runtime QA PASS, exact-SHA merge-gate refresh.
 
 If the user still says the editor feels sparse, that is a coverage failure.
+## 2026-09-27 ownership expansion
+
+- PR #30 is the implementation PR.
+- Shared-control coverage expanded into `ToolInput.tsx`, `ToolSegmentedControl.tsx`, and `InspectorIconButtonGroup.tsx` as part of the same deterministic glyph layer.
+- No conflicting active editor assignment was identified for these paths during the pre-sweep ownership audit.
+- Current reconciled base is `d424f8126b0b11b98777c6fc0d18a73e7813f8ee`; exact validated branch head is `af9775d47ae1f63fe8b8ecb8d99efd02c75ff3b1`.
