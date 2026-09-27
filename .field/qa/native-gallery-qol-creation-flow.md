@@ -210,3 +210,36 @@ Do not use this packet as evidence that Gallery regressed.
 - Cloudflare Workers Builds check 108445502039 completed with failure and no annotations
 - classification: pre-existing Workers build-lane infrastructure failure, not evidence of a selection-continuity product failure; the same lane was already failing bootstrap, prior Gallery commits, and unrelated main coordination commits
 - runtime/Preview QA remains pending
+
+
+## 2026-09-26 branch validation — creation wizard 463a16f9d7b4
+
+- exact implementation SHA: 463a16f9d7b4563ef5a9f8eb05204eda4eb14371
+- parent SHA: 4f05002053e3cf7af0bf9209968a332c1ec8e8c9
+- commit path audit: 7 files, 568 additions / 0 deletions
+- path scope:
+  - 6 files are inside Gallery-owned src/code/gallery/**, src/editor/gallery/**, or src/editor/tools/GalleryTool.tsx
+  - src/canvas/insertion-bridge.ts is the explicitly reserved approved_shared path
+  - no src/canvas/drag/**, mutation implementation, parser, generation, store, backend, Preview sandbox, or dashboard file changed
+- exact shared-file pre-publication guard:
+  - src/canvas/insertion-bridge.ts had the same blob on current main and the Gallery branch immediately before publication
+  - the shared edit adds only the fresh-empty-Gallery session signal around the existing successful-insert/selection seam
+- semantic postimage audit passed for:
+  - canonical empty-insert gating
+  - insertion signal before selection rebinding
+  - no source/runtime setup marker
+  - Media → Layout → Behavior step order
+  - canonical multi-select media picker
+  - all five real views
+  - frame sizing, fit, and Natural composition choices
+  - Finish source mutation batch before history release
+  - Cancel root removal before history release
+  - normal Gallery editing after Finish
+- exact published TSX was manually re-read after commit, including conditional Inspector rendering and Finish/Cancel transaction wiring
+- apparent doubled regex escaping in rendered tool output was checked by literal character count: both wizard and existing duplicate media-node regexes contain exactly one backslash before the dot and are correct
+- focused regression files are authored in source but NOT executed in this Contract Worker environment
+- exact dependency-tree Vitest / TypeScript / npm run build:all remain unverified because the allowed environment still does not expose the repository dependency tree/compiler toolchain
+- Draft PR #3 remains open/draft and points to this SHA
+- Workers Builds: field check-run 108514148196 completed with failure and zero annotations
+- classification: pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a wizard product failure; the same lane already failed the no-file bootstrap, prior Gallery successor commits, and unrelated current-main coordination commits
+- runtime/Preview wizard QA remains pending

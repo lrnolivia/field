@@ -217,3 +217,57 @@ Scope is strictly bounded:
 - no Gallery source marker, runtime attribute, CSS property, or Preview state is introduced
 - no generic insertion behavior may otherwise change
 - no src/canvas/drag/** file is authorized by this expansion
+
+
+## 2026-09-26 implementation block — atomic Gallery creation wizard
+
+Implementation commit: 463a16f9d7b4563ef5a9f8eb05204eda4eb14371
+Draft PR: #3
+
+Adding the canonical empty Gallery now transitions into a functional Media → Layout → Behavior setup flow rather than leaving a confusing empty component in the normal Inspector.
+
+Launch / ownership:
+- the active legacy Scale assignment owns src/canvas/drag/**, so Gallery did not edit the toolbar config or generic drag subsystem
+- the collision-free canonical insertion seam src/canvas/insertion-bridge.ts was explicitly added to approved_shared before source modification
+- insertion-bridge changes are intentionally bounded: detect a one-node empty Gallery insertion and register its created root ID before selection rebinding
+- no source/runtime wizard-pending attribute, CSS property, or private serialized wizard config was introduced
+- pre-populated Gallery media drags bypass setup because their insertion payload contains media descendants
+
+Media:
+- reuses canonical ImageSearchModal project media/search/upload/create surface
+- supports multi-select
+- dedupes URLs without changing the user's chosen order
+- initial order can be moved up/down or removed before Finish
+- no new media backend
+
+Layout:
+- all five real Gallery views are offered: Grid / Natural / Strip / Story / Carousel
+- lightweight live structural preview uses the same Natural slot geometry helper rather than inventing another Natural layout algorithm
+
+Behavior:
+- initial frame sizing: Composed vs Source ratio
+- initial image fit: Cover vs Contain
+- Natural exposes initial deterministic composition Shuffle
+
+Atomic source/history behavior:
+- insertion registers a fresh Gallery creation session and holds history coalescing before the selected root mounts
+- only the canonical freshly inserted empty Gallery can claim that session; old Galleries that happen to be empty do not auto-launch setup
+- unclaimed sessions self-release after five seconds so insertion cannot permanently hold global history
+- once claimed, the setup flow owns the editor until Finish or Cancel; no active-session timeout can split the required undo group
+- Finish measures Source-ratio media first when required, then commits root view/frame state, real media children, fit, Strip hover or Carousel controls in one mutation batch + one flush
+- Finish releases the held history only after that source flush
+- Cancel removes the inserted Gallery root, flushes removal, then releases the held history, leaving no half-created artifact
+- normal Gallery Inspector editing resumes after Finish
+
+History investigation:
+- current history.ts exports holdHistoryCoalescing / releaseHistoryCoalescing
+- the lower paste engine only queues mutations and does not force an immediate history snapshot
+- the existing paste/insertion path therefore remains compatible with holding the pending debounced history group through setup
+
+Focused regression source was added for:
+- canonical empty-Gallery payload classification
+- history hold/claim/release
+- abandoned/unclaimed-session release
+- multiple concurrent creation sessions sharing one history hold
+- media URL dedupe/order
+- initial media reorder/remove behavior
