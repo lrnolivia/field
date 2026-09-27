@@ -60,21 +60,27 @@ export default function GalleryImageSection({
           </ToolButton>
           <button
             type="button"
-            className="h-[var(--control-height-sm)] px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="h-[var(--control-height-sm)] px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
             onClick={onResetPosition}
+            aria-label="Center image position"
             title="Center image position"
           >
             Center
           </button>
         </div>
       </ToolRow>
-      <div className="text-[10px] tabular-nums text-[var(--text-disabled)]">
-        {formatObjectPosition(parseObjectPosition(objectPosition))}
-        {' · '}
-        {Math.round(zoom * 100)}%
-        {' · '}
-        {Math.round(rotation * 10) / 10}°
-      </div>
+      <ToolRow label="Transform">
+        <div
+          className="min-w-0 truncate text-[10px] tabular-nums text-[var(--text-disabled)]"
+          aria-label={'Position ' + formatObjectPosition(parseObjectPosition(objectPosition)) + ', zoom ' + Math.round(zoom * 100) + ' percent, rotation ' + (Math.round(rotation * 10) / 10) + ' degrees'}
+        >
+          {formatObjectPosition(parseObjectPosition(objectPosition))}
+          {' · '}
+          {Math.round(zoom * 100)}%
+          {' · '}
+          {Math.round(rotation * 10) / 10}°
+        </div>
+      </ToolRow>
       <ToolRow label="Treatment">
         <ToolButton className="w-full" onClick={onResetTreatment}>
           Reset pan / zoom / rotate

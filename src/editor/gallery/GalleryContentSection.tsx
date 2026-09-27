@@ -51,7 +51,7 @@ export default function GalleryContentSection({
         <button
           type="button"
           onClick={onAddMedia}
-          className="w-5 h-5 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
           aria-label="Add gallery media"
           title="Add media"
         >
@@ -79,6 +79,7 @@ export default function GalleryContentSection({
                 key={item.itemId}
                 role="listitem"
                 aria-label={`Gallery image ${index + 1}: ${item.alt || 'Image'}`}
+                aria-current={active ? 'true' : undefined}
                 draggable
                 onDragStart={() => setDraggedItemId(item.itemId)}
                 onDragEnd={() => setDraggedItemId(null)}
@@ -103,14 +104,20 @@ export default function GalleryContentSection({
                   {item.src && <img src={item.src} alt="" className="w-full h-full object-cover" draggable={false} />}
                 </div>
                 <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">{item.alt || 'Image'}</span>
-                <span className="text-[10px] text-[var(--text-disabled)] opacity-0 group-hover:opacity-100">↕</span>
+                <span className="w-4 h-6 flex items-center justify-center text-[var(--text-disabled)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true">
+                  <svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 1v10M2.5 3.5 5 1l2.5 2.5M2.5 8.5 5 11l2.5-2.5" />
+                  </svg>
+                </span>
                 <button
                   type="button"
                   aria-label={`Remove image ${index + 1}`}
                   onClick={(event) => { event.stopPropagation(); onRemoveItem(item.itemId); }}
-                  className={`w-5 h-5 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                  className={`w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 >
-                  ×
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
+                    <path d="m2 2 6 6M8 2 2 8" />
+                  </svg>
                 </button>
               </div>
             );
@@ -134,9 +141,11 @@ export default function GalleryContentSection({
               title="Move up"
               disabled={selectedIndex === 0}
               onClick={() => onMoveItem(selectedItem.itemId, -1)}
-              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none"
+              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
             >
-              ↑
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m2.5 6.5 2.5-3 2.5 3" />
+              </svg>
             </button>
             <button
               type="button"
@@ -144,9 +153,11 @@ export default function GalleryContentSection({
               title="Move down"
               disabled={selectedIndex === items.length - 1}
               onClick={() => onMoveItem(selectedItem.itemId, 1)}
-              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none"
+              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
             >
-              ↓
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m2.5 3.5 2.5 3 2.5-3" />
+              </svg>
             </button>
             <button
               type="button"

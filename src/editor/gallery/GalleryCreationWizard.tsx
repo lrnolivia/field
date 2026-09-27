@@ -57,7 +57,7 @@ function Preview({
   }, [view]);
 
   return (
-    <div style={rootStyle} aria-label={'Gallery ' + view + ' preview'}>
+    <div style={rootStyle} role="img" aria-label={'Gallery ' + view + ' preview'}>
       {urls.map((url, index) => {
         let itemStyle: CSSProperties = { overflow: 'hidden', minWidth: 0, background: 'var(--grid-line)' };
         if (view === 'grid') itemStyle = { ...itemStyle, aspectRatio: '1 / 1' };
@@ -100,9 +100,11 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
   return (
     <>
       <div className="space-y-4 p-3">
-        <div>
+        <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</div>
-          <div className="text-[10px] text-[var(--text-disabled)]">Media → Layout → Behavior</div>
+          <div className="text-[10px] tabular-nums text-[var(--text-disabled)]">
+            Step {stepIndex + 1} / {STEPS.length}
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-1">
@@ -111,15 +113,16 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               key={entry.id}
               type="button"
               disabled={busy || (index > 0 && mediaUrls.length === 0)}
+              aria-current={entry.id === step ? 'step' : undefined}
               onClick={() => setStep(entry.id)}
               className={
-                'h-7 border px-2 text-[10px] disabled:opacity-40 ' +
+                'h-7 border px-2 text-[10px] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40 ' +
                 (entry.id === step
                   ? 'border-[var(--border-focus)] bg-[var(--choice-bg)] text-[var(--text-primary)]'
                   : 'border-[var(--control-border)] text-[var(--text-secondary)]')
               }
             >
-              {index + 1}. {entry.label}
+              {entry.label}
             </button>
           ))}
         </div>
@@ -130,7 +133,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               type="button"
               disabled={busy}
               onClick={() => setPickerOpen(true)}
-              className="h-7 w-full border border-[var(--control-border)] text-[10px] text-[var(--text-primary)] disabled:opacity-40"
+              className="h-7 w-full border border-[var(--control-border)] text-[10px] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40"
             >
               Choose media
             </button>
@@ -144,9 +147,42 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                   <div key={url} className="flex h-9 items-center gap-2 border border-[var(--control-border)] px-2">
                     <img src={url} alt="" draggable={false} className="h-6 w-6 object-cover" />
                     <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">{url.split('/').pop() || 'Image'}</span>
-                    <button type="button" disabled={busy || index === 0} onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, -1))}>↑</button>
-                    <button type="button" disabled={busy || index === mediaUrls.length - 1} onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, 1))}>↓</button>
-                    <button type="button" disabled={busy} onClick={() => setMediaUrls((current) => removeGalleryWizardMedia(current, index))}>×</button>
+                    <button
+                      type="button"
+                      aria-label={'Move image ' + (index + 1) + ' up'}
+                      title="Move up"
+                      disabled={busy || index === 0}
+                      onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, -1))}
+                      className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m2.5 6.5 2.5-3 2.5 3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={'Move image ' + (index + 1) + ' down'}
+                      title="Move down"
+                      disabled={busy || index === mediaUrls.length - 1}
+                      onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, 1))}
+                      className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m2.5 3.5 2.5 3 2.5-3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={'Remove image ' + (index + 1)}
+                      title="Remove"
+                      disabled={busy}
+                      onClick={() => setMediaUrls((current) => removeGalleryWizardMedia(current, index))}
+                      className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
+                        <path d="m2 2 6 6M8 2 2 8" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -194,7 +230,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                 type="button"
                 disabled={busy}
                 onClick={() => setNaturalSeed((seed) => nextGalleryNaturalSeed(seed))}
-                className="h-7 w-full border border-[var(--control-border)] text-[10px] text-[var(--text-primary)] disabled:opacity-40"
+                className="h-7 w-full border border-[var(--control-border)] text-[10px] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40"
               >
                 Shuffle Natural composition
               </button>
@@ -206,17 +242,17 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
         {error && <div role="alert" className="text-[10px] text-[var(--text-secondary)]">{error}</div>}
 
         <div className="flex items-center justify-between border-t border-[var(--border-light)] pt-3">
-          <button type="button" disabled={busy} onClick={onCancel} className="h-7 px-2 text-[10px] text-[var(--text-secondary)]">Cancel</button>
+          <button type="button" disabled={busy} onClick={onCancel} className="h-7 px-2 border border-transparent text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40">Cancel</button>
           <div className="flex gap-1">
             {stepIndex > 0 && (
-              <button type="button" disabled={busy} onClick={() => setStep(STEPS[stepIndex - 1].id)} className="h-7 border border-[var(--control-border)] px-2 text-[10px]">Back</button>
+              <button type="button" disabled={busy} onClick={() => setStep(STEPS[stepIndex - 1].id)} className="h-7 border border-[var(--control-border)] px-2 text-[10px] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40">Back</button>
             )}
             {stepIndex < STEPS.length - 1 ? (
               <button
                 type="button"
                 disabled={busy || mediaUrls.length === 0}
                 onClick={() => setStep(STEPS[stepIndex + 1].id)}
-                className="h-7 border border-[var(--border-focus)] bg-[var(--choice-bg)] px-3 text-[10px] disabled:opacity-40"
+                className="h-7 border border-[var(--border-focus)] bg-[var(--choice-bg)] px-3 text-[10px] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] disabled:opacity-40"
               >
                 Next
               </button>
@@ -225,7 +261,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                 type="button"
                 disabled={busy || mediaUrls.length === 0}
                 onClick={() => onFinish({ mediaUrls, view, frameSizing, fit, naturalSeed })}
-                className="h-7 border border-[var(--border-focus)] bg-[var(--choice-bg)] px-3 text-[10px] disabled:opacity-40"
+                className="h-7 border border-[var(--border-focus)] bg-[var(--choice-bg)] px-3 text-[10px] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] disabled:opacity-40"
               >
                 {busy ? 'Creating…' : 'Finish'}
               </button>

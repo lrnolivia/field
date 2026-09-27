@@ -68,6 +68,10 @@ export default function GalleryViewSection({
         />
       </ToolRow>
 
+      <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
+        Frame changes geometry only; image fit stays independent.
+      </div>
+
       {(currentView === 'grid' || currentView === 'natural') && (
         <ToolRow label="Gap">
           <ToolInput
@@ -86,7 +90,7 @@ export default function GalleryViewSection({
             <ToolButton onClick={onShuffleNatural} disabled={!canShuffleNatural}>Shuffle</ToolButton>
           </ToolRow>
           <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-            Shuffle changes the Natural composition without changing media or reading order.
+            Rearranges visual roles without changing media or reading order.
           </div>
         </>
       )}
@@ -127,7 +131,7 @@ export default function GalleryViewSection({
             />
           </ToolRow>
           <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-            Horizontal image strips expand on hover. Height can vary by breakpoint.
+            Height follows the active breakpoint; hover expands width.
           </div>
         </>
       )}
@@ -157,13 +161,10 @@ export default function GalleryViewSection({
 
       {currentView === 'carousel' && (
         <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-          Native scroll-snap carousel with source-backed previous/next controls. Order and counters follow Gallery content.
+          Scroll-snap carousel; controls and counters follow media order.
         </div>
       )}
 
-      <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-        Frame sizing changes the media frame, not image fit. Layout settings use field's responsive overrides; view and frame identity stay shared across breakpoints.
-      </div>
     </ToolSection>
   );
 }
