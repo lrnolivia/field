@@ -168,3 +168,132 @@ Second polish pass after live visual review:
   parity for every user component, font source, or responsive variant.
 - Light editor surfaces now use a subtle grey pane/toolbar hierarchy. The
   canvas remains separate, while the user's website CSS stays untouched.
+## FigUI next — adaptive spatial chrome (future direction; not implemented)
+
+This section records post-UI3 product direction. It is **not** evidence that the following behavior has landed.
+
+UI3 remains the professional grammar and current baseline: compact neutral chrome, precise spacing, stable spatial memory, restrained radii/shadows, strong inspector alignment, and a canvas-first workspace.
+
+The next generation should make that grammar **adaptive**.
+
+### Core idea
+
+The interface should physically reorganize around the task instead of permanently accumulating panels.
+
+The website remains the stable artifact in the center. Capability comes to the artifact when needed, then recedes.
+
+Target interface layers:
+
+1. **Workspace spine** — small persistent navigation for the primary product modes and essential project controls.
+2. **Context panes** — Layers, Pages, Components, Assets, Properties, Content, etc.; stable in location but collapsible/reassignable rather than permanently all-visible.
+3. **Local controls** — compact controls close to the current selection for the few actions most likely to matter now.
+4. **Task surfaces** — temporary higher-power regions such as Motion, responsive state matrix, agent conversation, history/diff, parity, console, data bindings, accessibility, or runtime diagnostics.
+
+### Canvas edges as capability zones
+
+Treat the edges of the workspace as expandable functional regions:
+
+- **left = context** — Pages, Layers, Components, Assets, project/agent history
+- **right = intent** — Properties, Variables, Interaction, Data, Semantics, Accessibility
+- **bottom = time / state / runtime** — Motion, responsive states, versions, parity, console
+- **center = artifact** — the real website
+
+A task surface should grow from the edge that conceptually owns it and collapse when the task ends.
+
+Examples:
+
+- selecting animation-capable content can reveal a bottom Motion surface;
+- responsive editing can expand the canvas into multiple live viewport states;
+- code inspection can split the artifact with its source relationship instead of replacing the canvas;
+- parity inspection can expose Design / Source / Preview comparison;
+- data-bound components can reveal binding and state controls;
+- agent work can attach to the actual selected object rather than appearing as a detached generic chat.
+
+### Semantic inspector
+
+After UI3 parity is stable, challenge the permanently giant all-purpose inspector.
+
+The default inspector should emphasize controls relevant to what the selected object **is**, while still preserving an advanced / All view.
+
+Examples:
+
+- text → Type / Layout / Appearance
+- layout container → Layout / Size / Appearance
+- component instance → Instance / Properties / Layout
+- interactive control → Component / State / Interaction / Accessibility
+- CMS/data-bound object → Content / Binding / Layout
+
+Professional power should come from accurate progressive disclosure, not from showing every possible section at all times.
+
+### Spatial state instead of hidden mode switching
+
+When several states must be compared together, prefer spatial coexistence over tab-hopping.
+
+Important future examples:
+
+- Desktop / Tablet / Mobile live together on the canvas
+- inherited vs overridden breakpoint properties are visually legible
+- responsive, theme, interaction, and locale states can be treated as dimensions of the same artifact
+- before/after or branch/version comparison can be visual as well as source-based
+
+The tool should reduce the amount of state users must keep in their heads.
+
+### Agent UI
+
+AI should not visually dominate field.
+
+Do not turn the product into a glowing prompt box with a canvas attached.
+
+Agents should operate through the same document/design graph as human editing and should be grounded in current selection, components, variables, tokens, content, source, and runtime state.
+
+Agent output should ideally appear as inspectable changesets that can be applied, reverted, compared, or branched.
+
+### Stable spatial memory still matters
+
+Do not abandon the structural left/right-panel model merely because floating interfaces are fashionable.
+
+Deep professional work benefits from predictable locations for structure and properties.
+
+The next-generation move is to let those stable regions **change role intelligently**, not to make every control float.
+
+### Visual futurism
+
+FigUI next may look **somewhat futuristic**.
+
+The prohibition is not futurism; it is decorative futurism that reduces precision.
+
+Allowed when purposeful:
+
+- restrained translucency or material depth
+- subtle luminous state/focus cues
+- spatial expansion and collapse
+- layered motion that explains hierarchy
+- soft optical transitions between task states
+- carefully controlled blur or glass on genuinely floating/transient surfaces
+- occasional speculative visual treatment that makes the product feel slightly ahead of contemporary tools
+
+Avoid:
+
+- neon/gaming chrome
+- permanent glow
+- giant rounded cards and pills everywhere
+- liquid/glass treatment on every surface
+- AI-purple gradients as product identity
+- ornamental depth that obscures hierarchy
+- motion without informational purpose
+
+Target feeling:
+
+> **a precision instrument from slightly ahead of the present**
+
+The product can feel futuristic in both behavior **and** appearance, but behavior wins when the two conflict.
+
+### Design thesis
+
+UI3 gives field its professional grammar.
+
+FigUI next makes that grammar adaptive, spatial, semantic, state-aware, and slightly speculative.
+
+The target is not “Figma with more buttons.”
+
+The target is a workspace where layout, content, components, responsive state, motion, code, data, semantics, agents, and runtime can become first-class materials around the same real website without permanently crowding the interface.
