@@ -109,4 +109,6 @@ Do not cross another assignment's ownership boundary. When a blocker requires an
 
 The website is the real artifact. Source remains first-class. Preview is runtime truth. Design, source, Preview, and production should remain aligned.
 
-For visible/runtime changes, production or assignment-preview QA is part of completion when required by the assignment.
+For web-visible changes, use the assignment's live branch Preview as runtime truth and perform browser-driven QA against the exact PR head SHA. Prefer `/builder/noauth` when auth is not under test. A green build alone does not satisfy runtime QA, production must not stand in for an unmerged branch, and any head-SHA change makes prior runtime evidence stale.
+
+For native/system changes, use the assignment-specific runtime harness.

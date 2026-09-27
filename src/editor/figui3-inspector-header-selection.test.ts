@@ -21,17 +21,22 @@ describe('FigUI3 inspector header + selection colors contract', () => {
     expect(source).not.toContain('Reset instance');
   });
 
-  it('matches FigUI3 selection-color overflow and hover-action grammar', () => {
+  it('matches Figma-style mixed-scope Selection colors and hover-action grammar', () => {
     const source = read('src/editor/tools/SelectionTool.tsx');
+    const aggregation = read('src/editor/selection-colors.ts');
     expect(source).toContain('Selection colors');
     expect(source).toContain('SELECTION_COLOR_VISIBLE_LIMIT = 10');
-    expect(source).toContain('See all ${groups.length} colors');
-    expect(source).toContain('Detach variable');
-    expect(source).toContain('Select item using this color');
-    expect(source).toContain('title="Style"');
+    expect(source).toContain("'See all ' + String(groups.length) + ' colors'");
+    expect(source).toContain('if (groups.length <= 1) return null');
+    expect(source).toContain('Detach variable in selected scope');
+    expect(source).toContain('Select objects using this color');
+    expect(source).toContain('Apply color style');
     expect(source).toContain('<PresetPicker');
-    expect(source).toContain('splitPaintOpacity');
-    expect(source).toContain('serializePaintOpacity');
+    expect(aggregation).toContain('collectSelectionScopeIds');
+    expect(aggregation).toContain('gradient-stop');
+    expect(aggregation).toContain('border-shorthand');
+    expect(aggregation).not.toContain('boxShadow');
+    expect(aggregation).not.toContain('textShadow');
   });
 
   it('keeps style/preset surfaces neutral and exposes custom/library structure honestly', () => {
