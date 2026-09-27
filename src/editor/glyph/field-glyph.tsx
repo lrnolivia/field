@@ -15,6 +15,8 @@ export type FieldGlyphBehavior =
   | 'ellipsis'
   | 'copy'
   | 'gear'
+  | 'step-up'
+  | 'step-down'
   | 'align-left'
   | 'align-center-h'
   | 'align-right'
@@ -36,6 +38,8 @@ export const fieldGlyphVariants: Record<FieldGlyphBehavior, Variants> = {
   ellipsis: { rest, hover: { scaleX: 1.16, scaleY: 1.08 }, tap: { scaleX: 0.78, scaleY: 0.88 } },
   copy: { rest, hover: { x: 1.25, y: -1, scale: 1.05 }, tap: { x: 0.5, y: 0.5, scale: 0.82 } },
   gear: { rest, hover: { rotate: 18, scale: 1.06 }, tap: { rotate: -8, scale: 0.82 } },
+  'step-up': { rest, hover: { y: -1.75, scale: 1.08 }, tap: { y: -0.5, scale: 0.82 } },
+  'step-down': { rest, hover: { y: 1.75, scale: 1.08 }, tap: { y: 0.5, scale: 0.82 } },
   'align-left': { rest, hover: { x: -2, scale: 1.05 }, tap: { x: -0.75, scale: 0.84 } },
   'align-center-h': { rest, hover: { scaleX: 0.9, scaleY: 1.08 }, tap: { scaleX: 0.78, scaleY: 0.86 } },
   'align-right': { rest, hover: { x: 2, scale: 1.05 }, tap: { x: 0.75, scale: 0.84 } },

@@ -3,6 +3,8 @@
 // Exact input styling from old builder's ToolInput.tsx.
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { useScrubInteracting } from '@/editor/hooks/useScrubInteracting';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
@@ -292,28 +294,38 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
         // chevrons ~3px closer together, keeping the down chevron clear of
         // the field's bottom-right cut.
         <div className={`absolute right-1 inset-y-[3px] w-3 ${alwaysShowStepper || isFocused ? 'flex' : 'hidden group-hover:flex'} flex-col`}>
-          <button
+          <motion.button
             tabIndex={-1}
             type="button"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             aria-label={`Increase ${ariaLabel ?? 'value'}`}
             onMouseDown={(e) => startChevronDrag('up', e)}
             className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
           >
-            <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-all group-hover/chevron:-translate-y-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="18 15 12 9 6 15" />
-            </svg>
-          </button>
-          <button
+            <FieldGlyph behavior="step-up">
+              <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </FieldGlyph>
+          </motion.button>
+          <motion.button
             tabIndex={-1}
             type="button"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             aria-label={`Decrease ${ariaLabel ?? 'value'}`}
             onMouseDown={(e) => startChevronDrag('down', e)}
             className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
           >
-            <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-all group-hover/chevron:translate-y-px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
+            <FieldGlyph behavior="step-down">
+              <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </FieldGlyph>
+          </motion.button>
         </div>
       )}
     </div>
