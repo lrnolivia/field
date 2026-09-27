@@ -18,8 +18,8 @@ export default function InspectorModeTabs() {
         aria-selected={mode === 'design'}
         onClick={() => setMode('design')}
         className={mode === 'design'
-          ? 'px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] bg-[var(--choice-bg)] cut-corners'
-          : 'px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}
+          ? 'h-6 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
+          : 'h-6 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
       >
         Design
       </button>
@@ -29,8 +29,8 @@ export default function InspectorModeTabs() {
         aria-selected={mode === 'prototype'}
         onClick={() => setMode('prototype')}
         className={mode === 'prototype'
-          ? 'px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] bg-[var(--choice-bg)] cut-corners'
-          : 'px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}
+          ? 'h-6 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
+          : 'h-6 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
       >
         Prototype
       </button>

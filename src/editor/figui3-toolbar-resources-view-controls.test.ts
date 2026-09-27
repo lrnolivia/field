@@ -5,18 +5,17 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 resources + view-control placement', () => {
-  it('opens Media directly from the image split button and keeps Components in its dropdown', () => {
+  it('keeps Image/video in the shape family as the default and Resources adjacent', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     const shape = toolbar.indexOf('<ShapeDropdown');
     const resources = toolbar.indexOf('<ResourcesButton />');
     const pen = toolbar.indexOf('<PenDropdown');
+    expect(toolbar).toContain("useState<ShapeToolChoice>('media')");
+    expect(toolbar).toContain('label="Image/video…"');
+    expect(toolbar).toContain("setLeftPanel('media')");
     expect(toolbar).toContain('function ResourcesButton()');
-    expect(toolbar).toContain('title="Media"');
-    expect(toolbar).toContain("openPanel('media')");
-    expect(toolbar).toContain('label="Components"');
-    expect(toolbar).toContain("openPanel('library')");
-    expect(toolbar).not.toContain('label="Image/video…"');
-    expect(toolbar).toContain('dataTool="resources"');
+    expect(toolbar).toContain('title="Resources"');
+    expect(toolbar).toContain("setLeftPanel('library')");
     expect(resources).toBeGreaterThan(shape);
     expect(resources).toBeLessThan(pen);
   });

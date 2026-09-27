@@ -1,4 +1,10 @@
-import { LEFT_WORKSPACE_WIDTH, RIGHT_PANE_WIDTH } from '@/code/stores/workspace-panels-store';
+import {
+  DEFAULT_LEFT_CONTENT_WIDTH,
+  DEFAULT_RIGHT_PANE_WIDTH,
+  LEFT_RAIL_WIDTH,
+  clampLeftContentWidth,
+  clampRightPaneWidth,
+} from '@/code/stores/workspace-panels-store';
 
 export type WorkspacePresentation = 'hidden' | 'docked' | 'floating';
 
@@ -27,6 +33,11 @@ export const WORKSPACE_FLOAT_INSET = 8;
 export const WORKSPACE_HEADER_HEIGHT = 52;
 export const WORKSPACE_FLOAT_RADIUS = 8;
 export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
+
+export interface WorkspacePaneWidths {
+  leftContentWidth?: number;
+  rightPaneWidth?: number;
+}
 function side(
   open: boolean,
   oppositeOpen: boolean,
@@ -53,14 +64,25 @@ function side(
  * - one pane  => floating workspace
  * - zero panes => canvas workspace
  *
+ * SETTLED FIELD-NATIVE DIVERGENCE (user-approved 2026-09-27):
+ * preserve the one-pane floating treatment and the full left-workspace
+ * collapse/restore flow. FigUI3 parity work must not "correct" either into
+ * Figma's always-docked / rail-preserving model.
+ *
  * Floating chrome does not shrink the physical canvas. `cameraInsets`
  * describes only the safe rectangle used by automatic fit/center commands.
  * Small local restore controls are intentionally not promoted to full-edge
  * insets: doing so would waste an entire canvas strip for a tiny overlay.
  */
-export function deriveWorkspaceLayout(leftOpen: boolean, rightOpen: boolean): WorkspaceLayout {
-  const left = side(leftOpen, rightOpen, LEFT_WORKSPACE_WIDTH);
-  const right = side(rightOpen, leftOpen, RIGHT_PANE_WIDTH);
+export function deriveWorkspaceLayout(
+  leftOpen: boolean,
+  rightOpen: boolean,
+  widths: WorkspacePaneWidths = {},
+): WorkspaceLayout {
+  const leftContentWidth = clampLeftContentWidth(widths.leftContentWidth ?? DEFAULT_LEFT_CONTENT_WIDTH);
+  const rightPaneWidth = clampRightPaneWidth(widths.rightPaneWidth ?? DEFAULT_RIGHT_PANE_WIDTH);
+  const left = side(leftOpen, rightOpen, LEFT_RAIL_WIDTH + leftContentWidth);
+  const right = side(rightOpen, leftOpen, rightPaneWidth);
 
   return {
     left,

@@ -29,8 +29,8 @@ import {
   FigmaTriangleIcon as ShapeTriangleIcon,
   FigmaPathIcon as ShapePathIcon,
   FigmaRowsIcon as LayoutRowsIcon,
-  FigmaImageIcon as ResourcesIcon,
-  FigmaLibraryIcon as ComponentsIcon,
+  FigmaImageIcon as MediaIcon,
+  FigmaLibraryIcon as ResourcesIcon,
   FigmaSearchIcon as SearchIcon,
   FigmaCommentIcon as CommentBubbleIcon,
   FigmaPencilIcon as SketchPencilIcon,
@@ -301,52 +301,69 @@ function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (
 
 // ─── Shape Dropdown ─────────────────────────────────────────────────────────
 
+type ShapeToolChoice = 'media' | 'rectangle' | 'line' | 'ellipse' | 'triangle';
+
 function ShapeDropdown({ toolMode, onSelect }: {
   toolMode: ToolMode;
-  onSelect: (shape: 'rectangle' | 'line' | 'ellipse' | 'triangle') => void;
+  onSelect: (shape: Exclude<ShapeToolChoice, 'media'>) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [lastShape, setLastShape] = useState<'rectangle' | 'line' | 'ellipse' | 'triangle'>('rectangle');
+  // field-specific FigUI3 decision: Image/video belongs to the shape/insert
+  // family and is the DEFAULT face of this split button. Like Figma tool
+  // families, the control remembers the most recently selected member.
+  const [lastChoice, setLastChoice] = useState<ShapeToolChoice>('media');
   const ref = useRef<HTMLDivElement>(null);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   useClickOutside(ref, open, () => setOpen(false));
 
   useEffect(() => {
-    if (toolMode === 'shape-rect') setLastShape('rectangle');
-    else if (toolMode === 'shape-ellipse') setLastShape('ellipse');
-    else if (toolMode === 'shape-triangle') setLastShape('triangle');
-    else if (toolMode === 'shape-line') setLastShape('line');
+    if (toolMode === 'shape-rect') setLastChoice('rectangle');
+    else if (toolMode === 'shape-ellipse') setLastChoice('ellipse');
+    else if (toolMode === 'shape-triangle') setLastChoice('triangle');
+    else if (toolMode === 'shape-line') setLastChoice('line');
   }, [toolMode]);
 
-  const active = toolMode === 'shape-rect' || toolMode === 'shape-line' || toolMode === 'shape-ellipse' || toolMode === 'shape-triangle';
-  const currentShape = active
+  const activeShape = toolMode === 'shape-rect' || toolMode === 'shape-line' || toolMode === 'shape-ellipse' || toolMode === 'shape-triangle';
+  const currentChoice: ShapeToolChoice = activeShape
     ? (toolMode === 'shape-rect' ? 'rectangle' : toolMode === 'shape-line' ? 'line' : toolMode === 'shape-ellipse' ? 'ellipse' : 'triangle')
-    : lastShape;
-  const shapeIcons: Record<typeof currentShape, React.ReactNode> = {
+    : lastChoice;
+  const choiceIcons: Record<ShapeToolChoice, React.ReactNode> = {
+    media: <MediaIcon className="w-4 h-4" size={16} />,
     rectangle: <ShapeSquareIcon className="w-4 h-4" size={16} />,
     ellipse: <ShapeCircleIcon className="w-4 h-4" size={16} />,
     triangle: <ShapeTriangleIcon className="w-4 h-4" size={16} />,
     line: <LineToolbarIcon className="w-4 h-4" />,
   };
-  const choose = (shape: typeof currentShape) => {
-    setLastShape(shape);
-    onSelect(shape);
+
+  const choose = (choice: ShapeToolChoice) => {
+    setLastChoice(choice);
+    if (choice === 'media') {
+      setLeftPanel('media');
+      setLeftPaneOpen(true);
+      trace.action('toolbar:media-open', { source: 'shape-family' });
+    } else {
+      onSelect(choice);
+    }
     setOpen(false);
   };
 
   return (
     <div className="relative" ref={ref} data-tutorial="shape-tool">
       <SplitButton
-        active={active || open}
+        active={activeShape || open}
         open={open}
-        iconKey={currentShape}
-        icon={shapeIcons[currentShape]}
-        onClick={() => onSelect(currentShape)}
+        iconKey={currentChoice}
+        icon={choiceIcons[currentChoice]}
+        onClick={() => choose(currentChoice)}
         onChevronClick={() => setOpen((value) => !value)}
-        title="Shape tools"
+        title={currentChoice === 'media' ? 'Image/video' : 'Shape tools'}
         dataTool="shape"
       />
       {open && (
         <DropdownContainer>
+          <MenuItem label="Image/video…" shortcut="⇧⌘K" active={!activeShape && currentChoice === 'media'} icon={<MediaIcon className="w-4 h-4" size={16} />} onClick={() => choose('media')} />
+          <DropdownDivider />
           <MenuItem label="Rectangle" shortcut="R" active={toolMode === 'shape-rect'} icon={<ShapeSquareIcon className="w-4 h-4" size={16} />} onClick={() => choose('rectangle')} />
           <MenuItem label="Line" shortcut="L" active={toolMode === 'shape-line'} icon={<LineToolbarIcon className="w-4 h-4" />} onClick={() => choose('line')} />
           <MenuItem label="Ellipse" shortcut="O" active={toolMode === 'shape-ellipse'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => choose('ellipse')} />
@@ -436,36 +453,18 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
 // ─── Resources ──────────────────────────────────────────────────────────────
 
 function ResourcesButton() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  useClickOutside(ref, open, () => setOpen(false));
-
-  const openPanel = useCallback((panel: 'media' | 'library') => {
-    setLeftPanel(panel);
+  const openLibrary = useCallback(() => {
+    setLeftPanel('library');
     setLeftPaneOpen(true);
-    setOpen(false);
-    trace.action(panel === 'media' ? 'toolbar:media-open' : 'toolbar:components-open');
+    trace.action('toolbar:resources-open', { panel: 'library' });
   }, [setLeftPanel, setLeftPaneOpen]);
 
   return (
-    <div className="relative" ref={ref}>
-      <SplitButton
-        active={open}
-        open={open}
-        icon={<ResourcesIcon className="w-4 h-4" size={16} />}
-        onClick={() => openPanel('media')}
-        onChevronClick={() => setOpen((value) => !value)}
-        title="Media"
-        dataTool="resources"
-      />
-      {open && (
-        <DropdownContainer>
-          <MenuItem label="Components" icon={<ComponentsIcon className="w-4 h-4" size={16} />} onClick={() => openPanel('library')} />
-        </DropdownContainer>
-      )}
-    </div>
+    <ToolButton onClick={openLibrary} title="Resources" dataTool="resources">
+      <ResourcesIcon className="w-4 h-4" size={16} />
+    </ToolButton>
   );
 }
 

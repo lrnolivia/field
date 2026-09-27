@@ -29,6 +29,8 @@ interface Props {
   isReplica: boolean;
   vpWidth: number;
   isTopLevel?: boolean;
+  /** Compose position controls into the canonical Layout section. */
+  bare?: boolean;
 }
 
 interface ConstraintsActionProps {
@@ -91,7 +93,7 @@ function ConstraintsAction({ nodeId, vpId, position, styles, showPins, onUpdate,
   );
 }
 
-export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, vpId, isReplica, vpWidth, isTopLevel }: Props) {
+export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, vpId, isReplica, vpWidth, isTopLevel, bare = false }: Props) {
   // FIT-TEXT REDIRECT (mirrors SizeTool): the SVG wrapper is the layout
   // participant — position / pins / transform live ON it (fit-text-gen lifts
   // them at wrap). Selecting the inner <p> must read and write those keys on
@@ -266,7 +268,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
   if (isTopLevel) {
     return (
       <>
-        <ToolSection title="Position">
+        <ToolSection title="Position" bare={bare}>
           <SpaceControl
             left={styles.left || '0px'}
             top={styles.top || '0px'}
@@ -276,7 +278,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
           />
           <RotateControl compact />
         </ToolSection>
-        <ToolDivider />
+        {!bare && <ToolDivider />}
       </>
     );
   }
@@ -285,6 +287,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
     <>
       <ToolSection
         title="Position"
+        bare={bare}
         action={
           <ConstraintsAction
             nodeId={nodeId}
@@ -297,6 +300,20 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
           />
         }
       >
+        {bare && (
+          <div data-layout-position-inline-header className="flex h-6 items-center justify-between">
+            <span className="text-[11px] font-medium text-[var(--text-secondary)]">Position</span>
+            <ConstraintsAction
+              nodeId={nodeId}
+              vpId={vpId}
+              position={position}
+              styles={styles}
+              showPins={showPins}
+              onUpdate={updateStyle}
+              onUpdateMultiple={updateMultipleStyles}
+            />
+          </div>
+        )}
         {/* Alignment icons — accent blue when enabled, disabled gray otherwise */}
         {isSvgNode ? (
           <AlignmentButtons enabled={isAbsolute || isFixed} onAlign={handleShapeAlign} />
@@ -333,7 +350,7 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
 
         <RotateControl compact />
       </ToolSection>
-      <ToolDivider />
+      {!bare && <ToolDivider />}
     </>
   );
 }
