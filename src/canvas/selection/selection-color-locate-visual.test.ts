@@ -1,37 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { locateColorLuminance, resolveLocateDefinitionGlow } from './selection-color-locate-visual';
+import { locateColorLuminance, resolveLocateLuminousRgb } from './selection-color-locate-visual';
 
-describe('Selection color locate definition glow', () => {
-  it('uses screen for a real non-extreme paint color', () => {
-    expect(resolveLocateDefinitionGlow('#6C0606', 'white')).toEqual({
-      stroke: '#6C0606',
-      blendMode: 'screen',
-    });
+describe('Selection color locate luminous tint', () => {
+  it('turns pure blue into a lighter, less saturated electric blue', () => {
+    const rgb = resolveLocateLuminousRgb('#0000FF', 'white');
+    expect(rgb[0]).toBeGreaterThan(70);
+    expect(rgb[1]).toBeGreaterThan(70);
+    expect(rgb[2]).toBeGreaterThan(rgb[0]);
+    expect(rgb[2]).toBeLessThan(245);
   });
 
-  it('uses overlay for black paints', () => {
-    expect(resolveLocateDefinitionGlow('#000000', 'white')).toEqual({
-      stroke: '#000000',
-      blendMode: 'overlay',
-    });
+  it('lifts dark red without preserving harsh full saturation', () => {
+    const [r, g, b] = resolveLocateLuminousRgb('#6C0606', 'white');
+    expect(r).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(50);
+    expect(b).toBeGreaterThan(50);
   });
 
-  it('uses soft-light for white paints', () => {
-    expect(resolveLocateDefinitionGlow('#ffffff', 'black')).toEqual({
-      stroke: '#ffffff',
-      blendMode: 'soft-light',
-    });
-  });
-
-  it('falls back to the contrast tone for unresolved variable colors', () => {
-    expect(resolveLocateDefinitionGlow('var(--brand)', 'black')).toEqual({
-      stroke: 'black',
-      blendMode: 'overlay',
-    });
-    expect(resolveLocateDefinitionGlow(null, 'white')).toEqual({
-      stroke: 'white',
-      blendMode: 'soft-light',
-    });
+  it('keeps black and white neutral', () => {
+    expect(resolveLocateLuminousRgb('#000000', 'white')).toEqual([82, 84, 90]);
+    expect(resolveLocateLuminousRgb('#ffffff', 'black')).toEqual([246, 247, 249]);
   });
 
   it('ignores effectively transparent colors', () => {

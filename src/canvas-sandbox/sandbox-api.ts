@@ -160,6 +160,15 @@ export interface SandboxApi {
     important: boolean,
   ): void | Promise<void>;
   patchMultipleStyles(updates: PatchUpdate[]): void | Promise<void>;
+  setSelectionColorLocateHighlight(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void | Promise<void>;
+  clearSelectionColorLocateHighlights(): void | Promise<void>;
   /** Motion-preview !important patch that SNAPSHOTS each key's prior inline
    *  value on first write, so previewRestoreStyles can put back exactly what
    *  the DOM had (a runtime animation's `opacity: 1` lives inline, not in
