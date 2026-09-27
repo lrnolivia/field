@@ -14,7 +14,8 @@ import {
   type HTMLAttributes,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { FieldMorphGlyph, glyphIcons } from "@/editor/glyph";
+import { motion } from "motion/react";
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from "@/editor/glyph";
 import EllipsisMenu from "./EllipsisMenu";
 import DropdownMenu, { type DropdownMenuEntry } from "./DropdownMenu";
 
@@ -134,8 +135,11 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
     }, []);
 
     return (
-      <div
+      <motion.div
         ref={ref}
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         className={`
         group flex items-center ${s.row} rounded-[4px] transition-colors select-none
         ${
@@ -159,26 +163,28 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
             className={`shrink-0 flex items-center justify-center ${s.icon}`}
             aria-hidden="true"
           >
-            <FieldMorphGlyph
-              active={expandable.expanded}
+            <FieldGlyph behavior="chevron">
+              <FieldMorphGlyph
+                active={expandable.expanded}
               from={glyphIcons.chevronRight}
               to={glyphIcons.chevronDown}
               size={8}
               strokeWidth={2.5}
-              spring="snappy"
-            />
+                spring="snappy"
+              />
+            </FieldGlyph>
           </span>
         )}
         {prefixSlot && (
           <span className="shrink-0 flex items-center justify-center">
-            {prefixSlot}
+            <FieldGlyph behavior="generic">{prefixSlot}</FieldGlyph>
           </span>
         )}
         <span
           className={`shrink-0 flex items-center justify-center ${s.icon}`}
           style={{ color: iconColor }}
         >
-          {icon}
+          <FieldGlyph behavior="generic">{icon}</FieldGlyph>
         </span>
         {inlineEdit ? (
           <SidebarRowRenameInput
@@ -202,7 +208,7 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
             />
           </>
         )}
-      </div>
+      </motion.div>
     );
   }
 );

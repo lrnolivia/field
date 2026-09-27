@@ -77,13 +77,6 @@ function DiamondIcon() {
   return <span className="block w-3.5 h-3.5 border border-current rotate-45 rounded-[2px]" aria-hidden />;
 }
 
-function OverflowIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <circle cx="3.2" cy="8" r="1.15" /><circle cx="8" cy="8" r="1.15" /><circle cx="12.8" cy="8" r="1.15" />
-    </svg>
-  );
-}
 
 function componentLabel(path: string | null | undefined): string {
   if (!path) return '';
@@ -236,18 +229,21 @@ export default function InspectorObjectHeader({
 
       {!!componentFile && (
         <div className="px-3 pb-2 flex items-center">
-          <button
+          <motion.button
             type="button"
             data-inspector-component-source
+            initial="rest"
+            whileHover={canNavigate ? 'hover' : undefined}
+            whileTap={canNavigate ? 'tap' : undefined}
             disabled={!canNavigate}
             onClick={goToMain}
             title={canNavigate ? 'Go to main component' : isRemote ? 'Linked component' : 'Main component navigation is unavailable for this component type'}
             className={`h-7 max-w-full inline-flex items-center gap-2 px-2 rounded-[7px] text-xs transition-colors ${canNavigate ? 'text-[var(--text-primary)] bg-[var(--bg-raised)] hover:bg-[var(--bg-hover)] cursor-pointer' : 'text-[var(--text-secondary)] cursor-default'}`}
           >
             <span className="truncate">From this file</span>
-            <span className="shrink-0 text-[var(--text-secondary)]"><DiamondIcon /></span>
+            <span className="shrink-0 text-[var(--text-secondary)]"><FieldGlyph behavior="copy"><DiamondIcon /></FieldGlyph></span>
             <span className="sr-only">{sourceLabel}</span>
-          </button>
+          </motion.button>
         </div>
       )}
 
@@ -259,29 +255,29 @@ export default function InspectorObjectHeader({
             className="absolute right-3 top-8 z-[10029] min-w-[220px] py-1.5 bg-[var(--dropdown-bg)] border border-[var(--border-light)] rounded-[12px] shadow-[var(--shadow-lg)] overflow-hidden"
           >
             {canNavigate && (
-              <button type="button" onClick={goToMain} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-                <DiamondIcon />
+              <motion.button type="button" initial="rest" whileHover="hover" whileTap="tap" onClick={goToMain} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+                <FieldGlyph behavior="copy"><DiamondIcon /></FieldGlyph>
                 <span className="flex-1">Go to main component</span>
-              </button>
+              </motion.button>
             )}
             {!!componentFile && matchingIds.length > 0 && (
-              <button type="button" onClick={selectMatching} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-                <MatchingIcon />
+              <motion.button type="button" initial="rest" whileHover="hover" whileTap="tap" onClick={selectMatching} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+                <FieldGlyph behavior="generic"><MatchingIcon /></FieldGlyph>
                 <span className="flex-1">Select matching layers</span>
                 <span className="text-[10px] text-[var(--text-disabled)]">{matchingIds.length}</span>
-              </button>
+              </motion.button>
             )}
             {!!componentFile && (
-              <button type="button" onClick={revealComponent} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-                <SlidersIcon />
+              <motion.button type="button" initial="rest" whileHover="hover" whileTap="tap" onClick={revealComponent} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+                <FieldGlyph behavior="generic"><SlidersIcon /></FieldGlyph>
                 <span className="flex-1">Component properties</span>
-              </button>
+              </motion.button>
             )}
             {variablesAvailable && (
-              <button type="button" onClick={openVariables} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-                <VariablesIcon />
+              <motion.button type="button" initial="rest" whileHover="hover" whileTap="tap" onClick={openVariables} className="w-full h-8 px-3 flex items-center gap-2 text-xs text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+                <FieldGlyph behavior="generic"><VariablesIcon /></FieldGlyph>
                 <span className="flex-1">Variables</span>
-              </button>
+              </motion.button>
             )}
           </div>
         </>
