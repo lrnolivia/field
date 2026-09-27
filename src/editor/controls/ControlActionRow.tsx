@@ -2,6 +2,8 @@
 // Replaces 17+ duplicated className strings across tool panels.
 
 import React from 'react';
+import { motion } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 interface ControlActionRowProps {
   onClick?: (e: React.MouseEvent) => void;
@@ -24,6 +26,7 @@ const BASE =
   'w-full min-w-0 h-[var(--control-height)] flex items-center gap-1.5 bg-[var(--grid-line)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors text-xs text-[var(--text-primary)]';
 
 export function ControlActionRow({ onClick, children, center, embedded = false, className, ...rest }: ControlActionRowProps) {
+  const reducedMotion = useFieldReducedMotion();
   // Extract only data-* attributes from rest
   const dataAttrs: Record<string, string | undefined> = {};
   for (const key of Object.keys(rest)) {
@@ -38,14 +41,17 @@ export function ControlActionRow({ onClick, children, center, embedded = false, 
     : BASE;
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileTap={!reducedMotion ? { scale: fieldMotion.actionTapScale } : undefined}
+      transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
+      data-field-motion="action-press"
       className={`${baseClass} ${paddingClass}${className ? ' ' + className : ''}`}
       {...dataAttrs}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 

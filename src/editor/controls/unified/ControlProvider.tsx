@@ -23,6 +23,7 @@ import type { ControlMode, ControlBinding, UnifiedControlProviderProps, UnifiedC
 import type { ScrollAnimData } from '@/code/parsing/scroll-parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
+import { resolvePropertyResolution } from '@/editor/inspector/provenance';
 
 // ─── Pure functions (exported for testing) ───────────────────────────────────
 
@@ -273,11 +274,50 @@ export function UnifiedControlProvider({
     return resolveBinding(property, nodeId, scrollData, nodeStyles[property]);
   }, [mode, property, nodeId, scrollData, nodeStyles[property]]);
 
+  const resolution = useMemo(() => {
+    let resolved = isDirect && outerControl?.getPropertyResolution
+      ? outerControl.getPropertyResolution(property)
+      : resolvePropertyResolution({
+          property,
+          effectiveValue: value,
+          nodeId,
+          hasAuthoredBase: isDirect && !!node?.styles && Object.prototype.hasOwnProperty.call(node.styles, property),
+          baseValue: node?.styles?.[property],
+          ...(!isDirect ? {
+            computedValue: value,
+            computedReason: `Control mode ${mode} owns a dedicated writer outside direct Inspector style mutation.`,
+          } : {}),
+        });
+
+    if (isDirect && binding.bound && binding.boundBy) {
+      resolved = resolvePropertyResolution({
+        property,
+        effectiveValue: value,
+        nodeId,
+        animationBoundBy: binding.boundBy,
+      });
+    }
+    return resolved;
+  }, [isDirect, outerControl?.getPropertyResolution, property, value, nodeId, node, mode, binding.bound, binding.boundBy]);
+
+  // Only hard-block unresolved/read-only ownership here. Variable/preset/CMS bindings
+  // keep their existing explicit detach/apply actions, some of which intentionally
+  // reuse onChange after the user has chosen that action.
+  const directWriteAllowed = !isDirect || resolution.write.target.kind !== 'read-only';
+
   // onChange routing
   const onChange = useCallback((newValue: string) => {
     trace.action('unified-control:change', { property, mode, value: newValue });
     switch (mode) {
       case 'direct': {
+        if (!directWriteAllowed) {
+          trace.action('unified-control:blocked-provenance-write', {
+            property,
+            target: resolution.write.target.kind,
+            reason: resolution.write.reason ?? null,
+          });
+          return;
+        }
         // Route through outer ControlProvider (handles map-aware routing)
         trace.action('unified-control:direct-route', { property, hasOuter: !!outerControl, value: newValue?.slice?.(0, 20) });
         if (outerControlRef.current) {
@@ -334,13 +374,23 @@ export function UnifiedControlProvider({
         externalOnChange?.(newValue);
         break;
     }
-  }, [mode, property, selectedIds, stopProps, onStopChange, externalOnChange, activeComponentVariant]);
+  }, [mode, property, selectedIds, stopProps, onStopChange, externalOnChange, activeComponentVariant,
+      directWriteAllowed, resolution.write.target.kind, resolution.write.reason]);
 
   // onChangeMultiple (for shorthand properties like border, padding)
   const onChangeMultiple = useCallback((styles: Record<string, string>) => {
     trace.action('unified-control:change-multiple', { property, mode, keys: Object.keys(styles) });
     switch (mode) {
       case 'direct': {
+        if (!directWriteAllowed) {
+          trace.action('unified-control:blocked-provenance-write-multiple', {
+            property,
+            target: resolution.write.target.kind,
+            reason: resolution.write.reason ?? null,
+            keys: Object.keys(styles),
+          });
+          return;
+        }
         // Route through outer ControlProvider (handles map-aware routing)
         if (outerControlRef.current) {
           outerControlRef.current.updateMultipleStyles(styles);
@@ -369,7 +419,8 @@ export function UnifiedControlProvider({
         break;
       }
     }
-  }, [mode, property, selectedIds, stopProps, onStopChange, externalOnChange]);
+  }, [mode, property, selectedIds, stopProps, onStopChange, externalOnChange,
+      directWriteAllowed, resolution.write.target.kind, resolution.write.reason]);
 
   // DOM-only live patch — for slider drag previews. Direct mode goes
   // through the outer ControlProvider's updateStyleLive so map-aware
@@ -380,6 +431,7 @@ export function UnifiedControlProvider({
   // should still call onChangeLive — it'll route to onChange in
   // those cases.
   const onChangeLive = useCallback((newValue: string) => {
+    if (mode === 'direct' && !directWriteAllowed) return;
     if (mode === 'direct' && outerControlRef.current?.updateStyleLive) {
       outerControlRef.current.updateStyleLive(property, newValue);
     } else if (externalOnChangeLive) {
@@ -389,13 +441,14 @@ export function UnifiedControlProvider({
     } else {
       onChange(newValue);
     }
-  }, [mode, property, onChange, externalOnChangeLive]);
+  }, [mode, property, onChange, externalOnChangeLive, directWriteAllowed]);
 
   // Multi-property DOM-only live patch (e.g. shadow = boxShadow + filter).
   // Reuses the per-key `updateStyleLive` so map/variant/replica routing is
   // identical to the single-prop path. Non-direct modes commit (no DOM-only
   // path), matching `onChangeLive`'s fallback.
   const onChangeMultipleLive = useCallback((styles: Record<string, string>) => {
+    if (mode === 'direct' && !directWriteAllowed) return;
     if (mode === 'direct' && outerControlRef.current?.updateStyleLive) {
       const live = outerControlRef.current.updateStyleLive;
       for (const [k, v] of Object.entries(styles)) live(k, v);
@@ -412,7 +465,7 @@ export function UnifiedControlProvider({
     } else {
       onChangeMultiple(styles);
     }
-  }, [mode, onChangeMultiple, externalOnChangeLive]);
+  }, [mode, onChangeMultiple, externalOnChangeLive, directWriteAllowed]);
 
   // Overrides (direct mode only)
   const hasOverride = isDirect && selectedId ? _hasOverride(overrides, selectedId, property) : false;
@@ -517,11 +570,11 @@ export function UnifiedControlProvider({
 
   const ctx: UnifiedControlContextValue = useMemo(() => ({
     value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive,
-    property, mode, binding, hideLabel,
+    property, mode, binding, resolution, hideLabel,
     nodeId, node, allProps,
     hasOverride, getOverrides,
     hasVariable, variableRef, createVariable, removeVariable,
-  }), [value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive, property, mode, binding, hideLabel, nodeId, node, allProps,
+  }), [value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive, property, mode, binding, resolution, hideLabel, nodeId, node, allProps,
        hasOverride, getOverrides, hasVariable, variableRef, createVariable, removeVariable]);
 
   return (
