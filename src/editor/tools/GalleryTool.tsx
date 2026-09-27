@@ -17,6 +17,7 @@ import {
 } from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
 import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
+import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import {
   buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
@@ -307,59 +308,45 @@ function GalleryToolInner() {
         return;
       }
 
-      const wizardSeed = config.view === 'natural' ? normalizeGalleryNaturalSeed(config.naturalSeed) : 0;
-      const rootPatch = {
-        ...getGalleryRootPatch(config.view),
-        [GALLERY_FRAME_SIZING_STYLE_PROPERTY]: config.frameSizing,
-        [GALLERY_NATURAL_SEED_STYLE_PROPERTY]: String(wizardSeed),
-        minHeight: '',
-      };
-      const rootAttrs: Record<string, string> = {
-        ...galleryRootAttrs(config.view, gallery.attrs?.['aria-label']),
-        'aria-roledescription': config.view === 'carousel' ? 'carousel' : '',
-      };
-
-      bridge.patchStyles(galleryId, prefix, rootPatch);
-      bridge.setAttribute(galleryId, prefix, 'aria-label', rootAttrs['aria-label']);
-      bridge.setAttribute(galleryId, prefix, 'aria-roledescription', rootAttrs['aria-roledescription']);
-
-      const addedNodes = config.mediaUrls.map((url, index) => {
-        const ratio = config.frameSizing === 'source' ? normalizeGallerySourceRatio(measuredRatios[index]) : null;
-        const sourceNode = buildGalleryItemNode(url, index, config.view, '', wizardSeed, config.frameSizing, ratio);
-        const imageNode = sourceNode.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
-        if (imageNode) imageNode.styles = { ...imageNode.styles, objectFit: config.fit };
-        return sourceNode;
+      const plan = buildGalleryWizardSourcePlan({
+        ...config,
+        sourceRatios: measuredRatios,
+        ariaLabel: gallery.attrs?.['aria-label'],
       });
 
+      bridge.patchStyles(galleryId, prefix, plan.rootPatch);
+      bridge.setAttribute(galleryId, prefix, 'aria-label', plan.rootAttrs['aria-label']);
+      bridge.setAttribute(galleryId, prefix, 'aria-roledescription', plan.rootAttrs['aria-roledescription']);
+
       const mutations: Mutation[] = [
-        { type: 'updateStyles', nodeId: galleryId, styles: rootPatch },
-        { type: 'updateHtmlAttrs', nodeId: galleryId, attrs: rootAttrs },
-        ...addedNodes.map((sourceNode) => ({ type: 'addNode' as const, parentId: galleryId, node: sourceNode })),
+        { type: 'updateStyles', nodeId: galleryId, styles: plan.rootPatch },
+        { type: 'updateHtmlAttrs', nodeId: galleryId, attrs: plan.rootAttrs },
+        ...plan.itemNodes.map((sourceNode) => ({ type: 'addNode' as const, parentId: galleryId, node: sourceNode })),
       ];
 
-      if (config.view === 'strip') {
-        addedNodes.forEach((sourceNode) => {
-          mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch(config.frameSizing) });
+      if (plan.stripHoverPatch) {
+        plan.itemNodes.forEach((sourceNode) => {
+          mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: plan.stripHoverPatch! });
         });
       }
-      if (config.view === 'carousel') {
+      if (plan.carousel) {
         mutations.push(...buildGalleryCarouselSyncMutations(
-          addedNodes.map((sourceNode) => ({ itemId: sourceNode.id, controlIds: [] })),
+          plan.itemNodes.map((sourceNode) => ({ itemId: sourceNode.id, controlIds: [] })),
         ));
       }
 
       queueMutations(mutations);
       flushNow();
-      selectItem(addedNodes[0]?.id ?? null);
+      selectItem(plan.itemNodes[0]?.id ?? null);
       setCreationWizardOpen(false);
       completeGalleryCreationSession(galleryId);
       trace.action('gallery:wizard-finish', {
         nodeId: galleryId,
-        items: addedNodes.length,
+        items: plan.itemNodes.length,
         view: config.view,
         frameSizing: config.frameSizing,
         fit: config.fit,
-        naturalSeed: wizardSeed,
+        naturalSeed: plan.naturalSeed,
       });
     } catch (error) {
       setCreationWizardError(error instanceof Error ? error.message : 'Could not create Gallery.');
