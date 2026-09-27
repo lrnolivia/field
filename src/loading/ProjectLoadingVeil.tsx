@@ -10,10 +10,10 @@ interface ProjectLoadingVeilProps{status?:string;detail?:string;recoverable?:boo
 export default function ProjectLoadingVeil({status='Opening project',detail,recoverable=false}:ProjectLoadingVeilProps){
   const showDetails=loadingVeilShouldShowDetails(detail,recoverable);
   return <div data-builder-loading-shell data-project-loading-veil style={{position:'fixed',inset:0,overflow:'hidden',background:'transparent',fontFamily:'var(--loew-ui-font, Inter, sans-serif)'}}>
-    <style>{\`
-      [data-loading-backdrop]{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.001);opacity:1;backdrop-filter:blur(\${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(\${LOADING_VEIL_BACKDROP.grayscale});-webkit-backdrop-filter:blur(\${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(\${LOADING_VEIL_BACKDROP.grayscale});transition:backdrop-filter 240ms ease,-webkit-backdrop-filter 240ms ease,opacity 220ms ease}
+    <style>{`
+      [data-loading-backdrop]{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.001);opacity:1;backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});-webkit-backdrop-filter:blur(${LOADING_VEIL_BACKDROP.blurPx}px) grayscale(${LOADING_VEIL_BACKDROP.grayscale});transition:backdrop-filter 240ms ease,-webkit-backdrop-filter 240ms ease,opacity 220ms ease}
       [data-canvas-loading-phase="enter"] [data-loading-backdrop],[data-canvas-loading-phase="exit"] [data-loading-backdrop]{opacity:0;backdrop-filter:blur(0) grayscale(0);-webkit-backdrop-filter:blur(0) grayscale(0)}
-      [data-loading-mesh-stage]{position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:\${LOADING_VEIL_MESH_BLEND_MODE};opacity:1;transition:opacity 220ms ease}
+      [data-loading-mesh-stage]{position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:${LOADING_VEIL_MESH_BLEND_MODE};opacity:1;transition:opacity 220ms ease}
       [data-canvas-loading-phase="enter"] [data-loading-mesh-stage],[data-canvas-loading-phase="exit"] [data-loading-mesh-stage]{opacity:0}
       [data-loading-logo-stage]{position:absolute;left:50%;top:50%;width:0;height:0;z-index:2;pointer-events:none}
       [data-loading-logo-bloom]{position:absolute;left:0;top:0;width:clamp(220px,16vw,300px);aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,255,255,.72) 0%,rgba(255,255,255,.40) 12%,rgba(255,255,255,.20) 28%,rgba(255,255,255,.075) 48%,rgba(255,255,255,0) 74%);filter:blur(26px);opacity:.46;mix-blend-mode:screen;animation:field-sleep 6.2s cubic-bezier(.37,0,.63,1) infinite;transition:opacity 220ms ease}
@@ -31,7 +31,7 @@ export default function ProjectLoadingVeil({status='Opening project',detail,reco
       [data-loading-actions] button{height:29px;padding:0 11px;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:rgba(20,20,20,.42);color:rgba(255,255,255,.92);font:inherit;font-size:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
       [data-loading-actions] button:last-child{background:transparent;border-color:transparent;color:rgba(255,255,255,.72)}
       @media(prefers-reduced-motion:reduce){[data-canvas-loading-phase] [data-loading-logo]{animation:none!important;transform:translate(-50%,-50%)!important}[data-loading-logo-bloom]{animation:none!important;opacity:.5;filter:blur(26px)}}
-    \`}</style>
+    `}</style>
     <div data-loading-backdrop aria-hidden/>
     <div data-loading-mesh-stage aria-hidden><ReshadersMeshFlowLayer/></div>
     <div data-loading-logo-stage aria-hidden><span data-loading-logo-bloom/><span data-loading-logo><img src={LOADING_VEIL_LOGO_SRC} alt=""/></span></div>
