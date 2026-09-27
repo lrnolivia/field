@@ -21,17 +21,19 @@ import { claimGalleryCreationSession, completeGalleryCreationSession, hasGallery
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
 import {
-  buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
-  galleryCarouselSlideAttrs,
-  galleryCarouselSlideDomId,
-  galleryCarouselSlideResetAttrs,
   galleryRootAttrs,
   getGalleryCarouselControls,
   getGalleryItems,
   getGalleryView,
   isGalleryNode,
 } from '@/code/gallery/gallery-model';
+import {
+  buildGalleryCarouselSyncMutations,
+  clearGalleryCarouselSlideMutations,
+  clearResponsivePatchMutations,
+  cloneResponsiveOverrideMutations,
+} from '@/code/gallery/gallery-mutations';
 import {
   GALLERY_FRAME_SIZING_STYLE_PROPERTY,
   GALLERY_SOURCE_RATIO_STYLE_PROPERTY,
@@ -109,83 +111,6 @@ function measureGallerySourceRatio(src: string): Promise<number | null> {
  * the properties owned by the new view patch at widths where they actually
  * exist. Image fit/focal state is not part of those patches and is preserved.
  */
-interface GalleryCarouselSyncItem {
-  itemId: string;
-  controlIds: readonly string[];
-  domId?: string;
-  ariaLabel?: string;
-}
-
-function removeGalleryCarouselControlMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
-  return items.flatMap((item) => item.controlIds.map((controlId) => ({ type: 'removeNode' as const, nodeId: controlId })));
-}
-
-function clearGalleryCarouselSlideMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
-  return items.map((item) => ({
-    type: 'updateHtmlAttrs' as const,
-    nodeId: item.itemId,
-    attrs: galleryCarouselSlideResetAttrs(item.ariaLabel),
-  }));
-}
-
-function buildGalleryCarouselSyncMutations(items: readonly GalleryCarouselSyncItem[]): Mutation[] {
-  const itemIds = items.map((item) => item.itemId);
-  const slideDomIds = items.map((item) => item.domId?.trim() || galleryCarouselSlideDomId(item.itemId));
-  return [
-    ...removeGalleryCarouselControlMutations(items),
-    ...items.map((item, index) => ({
-      type: 'updateHtmlAttrs' as const,
-      nodeId: item.itemId,
-      attrs: galleryCarouselSlideAttrs(item.itemId, index, itemIds.length, slideDomIds[index], item.ariaLabel),
-    })),
-    ...items.flatMap((item, index) => buildGalleryCarouselControlNodes(itemIds, index, slideDomIds).map((node) => ({
-      type: 'addNode' as const,
-      parentId: item.itemId,
-      node,
-    }))),
-  ];
-}
-
-function cloneResponsiveOverrideMutations(
-  sourceId: string,
-  targetId: string,
-  overrides: ContainerOverrideMap,
-  excludedProperties: readonly string[] = [],
-): Mutation[] {
-  const byWidth = overrides.get(sourceId);
-  if (!byWidth) return [];
-  const mutations: Mutation[] = [];
-  const excluded = new Set(excludedProperties);
-  for (const [maxWidth, properties] of byWidth) {
-    const styles = Object.fromEntries([...properties].filter(([key]) => !excluded.has(key)));
-    if (Object.keys(styles).length > 0) {
-      mutations.push({ type: 'updateContainerStyle', nodeId: targetId, maxWidth, styles });
-    }
-  }
-  return mutations;
-}
-
-function clearResponsivePatchMutations(
-  nodeId: string,
-  patch: Record<string, string>,
-  overrides: ContainerOverrideMap,
-): Mutation[] {
-  const byWidth = overrides.get(nodeId);
-  if (!byWidth) return [];
-  const ownedKeys = Object.keys(patch);
-  const mutations: Mutation[] = [];
-  for (const [maxWidth, properties] of byWidth) {
-    const clear: Record<string, string> = {};
-    for (const key of ownedKeys) {
-      if (properties.has(key)) clear[key] = '';
-    }
-    if (Object.keys(clear).length > 0) {
-      mutations.push({ type: 'updateContainerStyle', nodeId, maxWidth, styles: clear });
-    }
-  }
-  return mutations;
-}
-
 /**
  * Outer gate keeps GalleryTool's hook count stable across transient selection /
  * parser changes. PropertiesPanel normally mounts this only for a Gallery, but
