@@ -57,7 +57,7 @@ const COLOR='conic-gradient(from 90deg at 50% 50%,#ff6161 0%,#ffd361 19.5833%,#9
 const px=(n:number)=>String(n)+'px';
 const key=(a:State,offset:number):Keyframe=>({offset,left:px(a.x),top:px(a.y),width:px(a.width),height:px(a.height),transform:'rotate('+a.rotation+'deg)',filter:'blur('+a.blur+'px)',opacity:a.opacity,zIndex:String(a.z)});
 
-const NOISE=['/field-brand/loading/figma-noise-1.png','/field-brand/loading/figma-noise-2.png','/field-brand/loading/figma-noise-3.png','/field-brand/loading/figma-noise-4.png'] as const;
+const NOISE=['/field-brand/loading/noise-1.png','/field-brand/loading/noise-2.png','/field-brand/loading/noise-3.png','/field-brand/loading/noise-4.png'] as const;
 
 const CSS=[
  '[data-figma-loading-frame] [data-figma-noise]{position:absolute;left:0;top:0;width:100%;height:96.941%;pointer-events:none;mix-blend-mode:soft-light;overflow:hidden}',
