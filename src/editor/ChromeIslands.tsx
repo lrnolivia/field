@@ -6,6 +6,7 @@ import { useAtomValue } from 'jotai';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
+  WORKSPACE_FLOAT_INSET,
   WORKSPACE_FLOAT_RADIUS,
   WORKSPACE_FLOAT_SHADOW,
   type WorkspaceSideLayout,
@@ -38,21 +39,24 @@ export default function ChromeIslands() {
 
   return (
     <>
-      {leftOpen && (
-        <div
-          aria-hidden
-          data-workspace-island="left"
-          className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
-          style={{
-            left: layout.left.inset,
-            top: layout.left.top,
-            width: layout.left.width,
-            height: `calc(100vh - ${layout.left.top + layout.left.bottom}px)`,
-            ...SURFACE,
-            ...floatingStyle(layout.left),
-          }}
-        />
-      )}
+      <div
+        aria-hidden
+        data-workspace-island="left"
+        data-visible={leftOpen ? 'true' : 'false'}
+        className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
+        style={{
+          left: leftOpen ? layout.left.inset : WORKSPACE_FLOAT_INSET,
+          top: leftOpen ? layout.left.top : WORKSPACE_FLOAT_INSET,
+          width: leftOpen ? layout.left.width : 264,
+          height: leftOpen ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 44,
+          ...SURFACE,
+          ...(leftOpen ? floatingStyle(layout.left) : {
+            border: '1px solid var(--border-light)',
+            borderRadius: WORKSPACE_FLOAT_RADIUS,
+            boxShadow: WORKSPACE_FLOAT_SHADOW,
+          }),
+        }}
+      />
 
       {rightOpen && (
         <div

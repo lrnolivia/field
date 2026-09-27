@@ -6,8 +6,6 @@
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { useFieldReducedMotion } from '@/editor/motion';
 import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
@@ -35,7 +33,6 @@ import {
   FigmaCommentIcon as CommentBubbleIcon,
   FigmaPencilIcon as SketchPencilIcon,
   FigmaChevronDownIcon,
-  FigmaCheckIcon,
 } from '@/shared/loew-figma-icons';
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
@@ -44,10 +41,9 @@ import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import './bottom-toolbar-glyphs.css';
 
-// ─── Chevron & Check icons ─────────────────────────────────────────────────
+// ─── Menu affordance ───────────────────────────────────────────────────────
 
 const ChevronDownSvg = () => <FigmaChevronDownIcon size={12} />;
-const CheckSvg = () => <FigmaCheckIcon size={14} />;
 const ScaleToolbarIcon = ({ className = '' }: { className?: string }) => (
   <svg viewBox="0 0 16 16" className={className} width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M3.25 6.1V3.25H6.1" />
@@ -78,16 +74,16 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   return (
     <button
       onClick={disabled ? undefined : onClick}
-      className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 bg-transparent ${
+      aria-current={active ? 'true' : undefined}
+      className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 ${
         disabled
           ? 'text-[var(--text-disabled)] cursor-not-allowed opacity-50'
-          : 'text-[var(--text-primary)] hover:bg-[var(--btn-secondary-bg)] cursor-pointer'
+          : active
+            ? 'text-[var(--text-primary)] bg-[var(--btn-secondary-bg)] cursor-pointer'
+            : 'text-[var(--text-primary)] hover:bg-[var(--btn-secondary-bg)] cursor-pointer'
       }`}
       style={{ border: 'none', fontFamily: 'Inter, system-ui, sans-serif', textAlign: 'left' }}
     >
-      <span data-field-toolbar-check={active || undefined} className="w-4 h-4 flex items-center justify-center shrink-0" aria-hidden="true">
-        <CheckSvg />
-      </span>
       <span data-field-toolbar-glyph="menu" className="w-4 h-4 flex items-center justify-center shrink-0">{icon ?? null}</span>
       <span>{label}</span>
       {shortcut && <ShortcutHint text={shortcut} />}
@@ -110,21 +106,9 @@ function DropdownDivider() {
 // ─── Split Button (icon + chevron) ──────────────────────────────────────────
 
 function ChangingToolIcon({ iconKey, children }: { iconKey: string; children: React.ReactNode }) {
-  const reducedMotion = useFieldReducedMotion();
   return (
-    <span data-field-toolbar-glyph="tool-switch" className="relative inline-flex w-4 h-4 items-center justify-center">
-      <AnimatePresence initial={false} mode="popLayout">
-        <motion.span
-          key={iconKey}
-          className="absolute inset-0 inline-flex items-center justify-center"
-          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: -35, scale: .72 }}
-          animate={{ opacity: 1, rotate: 0, scale: 1 }}
-          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: 35, scale: .72 }}
-          transition={{ duration: reducedMotion ? 0 : .22, ease: [.2, .8, .2, 1] }}
-        >
-          {children}
-        </motion.span>
-      </AnimatePresence>
+    <span data-field-toolbar-glyph="tool-switch" data-icon={iconKey} className="inline-flex w-4 h-4 items-center justify-center">
+      {children}
     </span>
   );
 }
@@ -158,6 +142,9 @@ function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronCl
       <button
         onClick={onChevronClick}
         data-toolbar-chevron-open={open || undefined}
+        aria-label={`${title} options`}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className={`flex items-center justify-center w-[20px] h-[36px] rounded-[6px] transition-colors ${
           active
             ? 'text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -215,10 +202,10 @@ function CreatorGate({ locked, children }: { locked: boolean; children: React.Re
 
 // ─── Cursor Dropdown ────────────────────────────────────────────────────────
 
-function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
+function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, open, setOpen }: {
   toolMode: ToolMode; commentModeActive: boolean; onSelect: (m: ToolMode) => void; allowScale: boolean;
+  open: boolean; setOpen: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // Comment mode forces toolMode to 'select' under the hood, but it's a
   // separate tool from the user's POV — so the cursor button must read
@@ -241,7 +228,7 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
   return (
     <div className="relative" ref={ref}>
       <SplitButton
-        active={isActive || open}
+        active={isActive}
         open={open}
         iconKey={toolMode === 'hand' || spaceHand ? 'hand' : toolMode === 'scale' ? 'scale' : 'select'}
         icon={currentIcon}
@@ -263,8 +250,7 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale }: {
 
 // ─── Frame Dropdown ─────────────────────────────────────────────────────────
 
-function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: () => void }) {
-  const [open, setOpen] = useState(false);
+function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode; onSelect: () => void; open: boolean; setOpen: (open: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
@@ -280,11 +266,11 @@ function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (
   return (
     <div className="relative" ref={ref} data-tutorial="frame-tool">
       <SplitButton
-        active={toolMode === 'frame' || open}
+        active={toolMode === 'frame'}
         open={open}
         icon={<FrameToolbarIcon className="w-4 h-4" />}
         onClick={onSelect}
-        onChevronClick={() => setOpen((value) => !value)}
+        onChevronClick={() => setOpen(!open)}
         title="Frame (F)"
         dataTool="frame"
       />
@@ -303,15 +289,14 @@ function FrameDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (
 
 type ShapeToolChoice = 'media' | 'rectangle' | 'line' | 'ellipse' | 'triangle';
 
-function ShapeDropdown({ toolMode, onSelect }: {
+function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
   toolMode: ToolMode;
   onSelect: (shape: Exclude<ShapeToolChoice, 'media'>) => void;
+  open: boolean; setOpen: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  // field-specific FigUI3 decision: Image/video belongs to the shape/insert
-  // family and is the DEFAULT face of this split button. Like Figma tool
-  // families, the control remembers the most recently selected member.
-  const [lastChoice, setLastChoice] = useState<ShapeToolChoice>('media');
+  // The icon reflects the selected drawing tool. Image/video opens a browser
+  // and never replaces the drawing-tool icon or claims an active tool state.
+  const [lastChoice, setLastChoice] = useState<ShapeToolChoice>('rectangle');
   const ref = useRef<HTMLDivElement>(null);
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
@@ -337,12 +322,12 @@ function ShapeDropdown({ toolMode, onSelect }: {
   };
 
   const choose = (choice: ShapeToolChoice) => {
-    setLastChoice(choice);
     if (choice === 'media') {
       setLeftPanel('media');
       setLeftPaneOpen(true);
       trace.action('toolbar:media-open', { source: 'shape-family' });
     } else {
+      setLastChoice(choice);
       onSelect(choice);
     }
     setOpen(false);
@@ -351,18 +336,18 @@ function ShapeDropdown({ toolMode, onSelect }: {
   return (
     <div className="relative" ref={ref} data-tutorial="shape-tool">
       <SplitButton
-        active={activeShape || open}
+        active={activeShape}
         open={open}
         iconKey={currentChoice}
         icon={choiceIcons[currentChoice]}
         onClick={() => choose(currentChoice)}
-        onChevronClick={() => setOpen((value) => !value)}
-        title={currentChoice === 'media' ? 'Image/video' : 'Shape tools'}
+        onChevronClick={() => setOpen(!open)}
+        title="Shape tools"
         dataTool="shape"
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Image/video…" shortcut="⇧⌘K" active={!activeShape && currentChoice === 'media'} icon={<MediaIcon className="w-4 h-4" size={16} />} onClick={() => choose('media')} />
+          <MenuItem label="Image/video…" shortcut="⇧⌘K" icon={<MediaIcon className="w-4 h-4" size={16} />} onClick={() => choose('media')} />
           <DropdownDivider />
           <MenuItem label="Rectangle" shortcut="R" active={toolMode === 'shape-rect'} icon={<ShapeSquareIcon className="w-4 h-4" size={16} />} onClick={() => choose('rectangle')} />
           <MenuItem label="Line" shortcut="L" active={toolMode === 'shape-line'} icon={<LineToolbarIcon className="w-4 h-4" />} onClick={() => choose('line')} />
@@ -376,8 +361,7 @@ function ShapeDropdown({ toolMode, onSelect }: {
 
 // ─── Pen / Pencil Dropdown ──────────────────────────────────────────────────
 
-function PenDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (mode: 'shape-path' | 'sketch') => void }) {
-  const [open, setOpen] = useState(false);
+function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode; onSelect: (mode: 'shape-path' | 'sketch') => void; open: boolean; setOpen: (open: boolean) => void }) {
   const [lastMode, setLastMode] = useState<'shape-path' | 'sketch'>('shape-path');
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
@@ -397,12 +381,12 @@ function PenDropdown({ toolMode, onSelect }: { toolMode: ToolMode; onSelect: (mo
   return (
     <div className="relative" ref={ref}>
       <SplitButton
-        active={active || open}
+        active={active}
         open={open}
         iconKey={current}
         icon={icon}
         onClick={() => onSelect(current)}
-        onChevronClick={() => setOpen((value) => !value)}
+        onChevronClick={() => setOpen(!open)}
         title="Pen / Pencil"
         dataTool="pen"
       />
@@ -472,6 +456,11 @@ function ResourcesButton() {
 
 export default function BottomToolbar() {
   const [toolMode, setToolMode] = useAtom(toolModeAtom);
+  const [openMenu, setOpenMenu] = useState<'cursor' | 'frame' | 'shape' | 'pen' | null>(null);
+  const menuProps = (menu: 'cursor' | 'frame' | 'shape' | 'pen') => ({
+    open: openMenu === menu,
+    setOpen: (open: boolean) => setOpenMenu(open ? menu : null),
+  });
   // DIAGNOSTIC (temporary): when does the toolbar re-render, and what toolMode
   // does it see? Pairs with border-radius-handle:state to test whether the
   // tool-reset lands in a later (deferred) commit than the selection.
@@ -507,17 +496,19 @@ export default function BottomToolbar() {
   const isContainerSetMaster = isIconSetMaster;
   const handleToolClick = useCallback((mode: ToolMode) => {
     trace.action('toolbar:tool-click', { mode });
-    setToolMode(toolMode === mode && mode !== 'select' ? 'select' : mode);
+    setOpenMenu(null);
+    setToolMode(mode);
     // Picking a creator tool exits comment mode (mutually exclusive,
     // mirrors the builder's behavior).
     if (commentModeActive) setCommentModeActive(false);
-  }, [toolMode, setToolMode, commentModeActive, setCommentModeActive]);
+  }, [setToolMode, commentModeActive, setCommentModeActive]);
 
   // Cursor / Hand selection — same as picking any tool, comment mode is
   // mutually exclusive so selecting the cursor exits it. Clicking the
   // cursor button while in comment mode is the user's "back to V".
   const handleSelectTool = useCallback((mode: ToolMode) => {
     trace.action('toolbar:select-tool', { mode });
+    setOpenMenu(null);
     setToolMode(mode);
     if (commentModeActive) setCommentModeActive(false);
   }, [setToolMode, commentModeActive, setCommentModeActive]);
@@ -586,18 +577,19 @@ export default function BottomToolbar() {
         />
         {/* Figma-like authoring cluster: grouped tool families, no duplicate layout/media surfaces. */}
         <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
-          <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} />
+          <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} {...menuProps('cursor')} />
 
           {!isViewer && <>
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
-                <FrameDropdown toolMode={toolMode} onSelect={() => handleToolClick('frame')} />
+                <FrameDropdown toolMode={toolMode} onSelect={() => handleToolClick('frame')} {...menuProps('frame')} />
               </CreatorGate>
             )}
 
             <CreatorGate locked={creatorLocked}>
               <ShapeDropdown
                 toolMode={toolMode}
+                {...menuProps('shape')}
                 onSelect={(shape) => {
                   const shapeToMode: Record<string, ToolMode> = {
                     rectangle: 'shape-rect',
@@ -608,6 +600,7 @@ export default function BottomToolbar() {
                   const mode = shapeToMode[shape];
                   if (mode) {
                     trace.action('toolbar:shape', { shape, mode });
+                    setOpenMenu(null);
                     setToolMode(mode);
                   }
                 }}
@@ -621,8 +614,9 @@ export default function BottomToolbar() {
             )}
 
             <CreatorGate locked={creatorLocked}>
-              <PenDropdown toolMode={toolMode} onSelect={(mode) => {
+              <PenDropdown toolMode={toolMode} {...menuProps('pen')} onSelect={(mode) => {
                 trace.action('toolbar:pen-tool', { mode });
+                setOpenMenu(null);
                 setToolMode(mode);
               }} />
             </CreatorGate>

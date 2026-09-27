@@ -29,7 +29,7 @@ import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import GalleryTool from './GalleryTool';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 import { parseVarRef } from '@/shared/css-utils';
-import { collapsePaddingToAxes, paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
+import { paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
 import { parseAutoTrack, formatAutoTrack,
   type TrackList, type Track, type TrackUnit,
   TRACK_UNIT_OPTIONS,
@@ -59,6 +59,8 @@ interface Props {
   /** Mature size/clipping controls composed into the canonical Layout section.
    *  Keeps the engines split while matching Figma's one-panel model. */
   sizeContent?: ReactNode;
+  /** Plain frames still have meaningful CSS padding before auto layout is added. */
+  showPaddingWithoutLayout?: boolean;
 }
 
 function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
@@ -97,9 +99,10 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
           {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
             <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
           ))}
-          <button type="button" onClick={() => { apply(collapsePaddingToAxes(sides)); setExpandedByUser(false); }}
-            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            title="Use horizontal and vertical padding" aria-label="Use horizontal and vertical padding">
+          <button type="button" disabled={!axisCompatible} onClick={() => setExpandedByUser(false)}
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
+            title={axisCompatible ? 'Show horizontal and vertical padding' : 'Match opposite sides to show paired padding'}
+            aria-label="Show horizontal and vertical padding">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
               <path d="M2 5h12M2 11h12M5 2v12M11 2v12" />
             </svg>
@@ -913,7 +916,7 @@ export default function LayoutTool(props: Props) {
   return <StandardLayoutTool {...props} />;
 }
 
-function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, positionContent, sizeContent }: Props) {
+function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, positionContent, sizeContent, showPaddingWithoutLayout = false }: Props) {
   // useControl gives us the variable-binding helpers (`getValueSource`,
   // `removeVariable`) the Direction + Wrap rows need to surface the
   // purple variable pill — these rows are rendered as custom segmented
@@ -1483,9 +1486,12 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   return (
     <>
-      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || !!sizeContent || !!positionContent} action={toggleAction}>
+      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || showPaddingWithoutLayout || !!sizeContent || !!positionContent} action={toggleAction}>
         {positionContent}
         {sizeContent}
+        {!hasLayout && showPaddingWithoutLayout && (
+          <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+        )}
         {hasLayout && (
           <div className="flex flex-col gap-2">
             <InspectorIconButtonGroup

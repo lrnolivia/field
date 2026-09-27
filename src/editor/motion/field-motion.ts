@@ -37,8 +37,8 @@ export function fieldSpatialTransition(
 
 export const addGlyphVariants: Variants = {
   rest: { rotate: 0, scale: 1 },
-  hover: { rotate: 16, scale: 1.18 },
-  tap: { rotate: -7, scale: 0.78 },
+  hover: { rotate: 0, scale: 1.12 },
+  tap: { rotate: 0, scale: 0.82 },
 };
 
 export const removeGlyphVariants: Variants = {
@@ -49,8 +49,8 @@ export const removeGlyphVariants: Variants = {
 
 export const plusGlyphVariants: Variants = {
   rest: { rotate: 0, scale: 1 },
-  hover: { rotate: 14, scale: 1.16 },
-  tap: { rotate: -6, scale: 0.78 },
+  hover: { rotate: 0, scale: 1.12 },
+  tap: { rotate: 0, scale: 0.82 },
 };
 
 export const minusGlyphVariants: Variants = {

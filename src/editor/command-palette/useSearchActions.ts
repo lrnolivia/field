@@ -63,7 +63,6 @@ import { createAndOpenProject, menuNewPage } from '@/editor/header/menu-builders
 import { exportProject } from '@/editor/header/export-project';
 import { previewModeAtom, shortcutsModalOpenAtom } from '@/code/stores/editor-store';
 import { settingsOverlayOpenAtom } from '@/code/stores/website-settings-store';
-import { startOnboarding } from '@/editor/onboarding';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { shareAsTemplate } from '@/backend/revyme-backend';
 import { projectFS } from '@/code/project/project-fs';
@@ -255,9 +254,6 @@ function executeCommand(commandId: string): void {
       break;
     case 'open-shortcuts':
       store.set(shortcutsModalOpenAtom, true);
-      break;
-    case 'launch-tutorial':
-      startOnboarding();
       break;
     case 'open-docs': {
       // Docs are served by the marketing site: the Next dispatcher on

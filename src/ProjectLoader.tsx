@@ -2,11 +2,10 @@
 // Runs before <App /> is shown: loads user + project from backend,
 // hydrates ProjectFS, and redirects to sign-in if unauthenticated (cloud).
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
-import ProjectLoadingVeil from './loading/ProjectLoadingVeil';
 import RemixWorkspacePicker from './RemixWorkspacePicker';
 import { remixTemplate, remixTemplateShare } from '@/backend/revyme-backend';
 import { backend } from './backend';
@@ -50,7 +49,11 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canvasPainted, setCanvasPainted] = useState(false);
+  const [canvasStalled, setCanvasStalled] = useState(false);
+  const [canvasRevealPhase, setCanvasRevealPhase] = useState<'pending' | 'entering' | 'settled'>('pending');
   const [editorInteractive, setEditorInteractive] = useState(false);
+  const onCanvasReadyRef = useRef(onCanvasReady);
+  onCanvasReadyRef.current = onCanvasReady;
   // When set, a `?remix=` load is paused on the workspace picker — the
   // remix only runs once the user chooses a workspace (see below).
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
@@ -549,37 +552,62 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
     return () => { cancelled = true; };
   }, [setUser, setActiveFile, openCmsEditor]);
 
-  // Remix flow: the picker is BLOCKING and renders over whatever we managed
-  // to show behind it — the previewed template inside the builder when the
-  // snapshot loaded, the ordinary loading shell when it didn't (share links).
-  // The picker performs the remix + redirect itself.
+  useEffect(() => {
+    if (!ready || canvasPainted) return;
+    const timeout = window.setTimeout(() => {
+      setCanvasStalled(true);
+      trace.action('project-loader:canvas-delayed', {});
+    }, 10000);
+    return () => window.clearTimeout(timeout);
+  }, [ready, canvasPainted]);
+
+  useEffect(() => {
+    if (!canvasPainted) return;
+    trace.action('project-loader:canvas-painted', {});
+    onCanvasReadyRef.current?.();
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setCanvasRevealPhase('settled');
+      setEditorInteractive(true);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setCanvasRevealPhase('entering'));
+    return () => cancelAnimationFrame(frame);
+  }, [canvasPainted]);
+
+  useEffect(() => {
+    if (canvasRevealPhase !== 'entering') return;
+    // animationend is authoritative; the timer covers interrupted animations.
+    const timeout = window.setTimeout(() => {
+      setCanvasRevealPhase('settled');
+      setEditorInteractive(true);
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [canvasRevealPhase]);
+
+  // The remix picker remains over the mounted editor once its project exists.
   if (!ready) {
-    return (
-      <BuilderLoadingShell
-        status={loadError ? "Project couldn't open" : 'Opening project'}
-        detail={loadError ? 'field could not finish loading this project.' : undefined}
-        recoverable={!!loadError}
-      />
-    );
+    return loadError
+      ? <ProjectRecovery title="Project couldn't open" detail={loadError} />
+      : <span className="sr-only" role="status">Opening project</span>;
   }
 
-  // Keep the shell OVERLAID on the mounted App until the canvas has actually
-  // painted (first Renderer render-complete) — dropping it at `ready` showed
-  // an empty canvas for ~300ms while the sandbox rendered the viewports. The
-  // shell fades out over the fully-drawn page instead.
   return (
     <>
       <App
         interactive={editorInteractive}
+        canvasRevealPhase={canvasRevealPhase}
         onCanvasFirstPaint={() => setCanvasPainted(true)}
-      />
-      <CanvasReadyShellOverlay
-        painted={canvasPainted}
-        onReady={() => {
+        onCanvasRevealComplete={() => {
+          setCanvasRevealPhase('settled');
           setEditorInteractive(true);
-          onCanvasReady?.();
         }}
       />
+      {canvasStalled && !canvasPainted && (
+        <ProjectRecovery
+          title="Canvas didn't start"
+          detail="The project opened, but the canvas has not painted yet."
+        />
+      )}
       {/* The remix picker rides ON TOP of the mounted builder so the choice is
           made over the template the user is looking at. Blocking — see the
           component: no ×, no Escape, no backdrop. */}
@@ -588,78 +616,23 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   );
 }
 
-function CanvasReadyShellOverlay({
-  painted,
-  onReady,
-}: {
-  painted: boolean;
-  onReady?: () => void;
-}) {
-  const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
-  const [delayed, setDelayed] = useState(false);
-
-  useEffect(() => {
-    if (phase !== 'waiting') return;
-
-    if (painted) {
-      trace.action('project-loader:canvas-painted', {});
-      const raf = requestAnimationFrame(() => setPhase('fading'));
-      return () => cancelAnimationFrame(raf);
-    }
-
-    const timeout = setTimeout(() => {
-      setDelayed(true);
-      trace.action('project-loader:canvas-delayed', {});
-    }, 4000);
-    trace.action('project-loader:shell-overlay-waiting', {});
-    return () => clearTimeout(timeout);
-  }, [painted, phase]);
-
-  useEffect(() => {
-    if (phase !== 'fading') return;
-    trace.action('project-loader:shell-overlay-fade', {});
-    const t = setTimeout(() => {
-      setPhase('done');
-      onReady?.();
-    }, 280);
-    return () => clearTimeout(t);
-  }, [onReady, phase]);
-
-  if (phase === 'done') return null;
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: phase === 'fading' ? 'none' : 'auto',
-      opacity: phase === 'fading' ? 0 : 1, transition: 'opacity 260ms ease',
-    }}>
-      <BuilderLoadingShell
-        status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
-        detail={delayed ? 'The project loaded, but the visual canvas has not painted yet.' : undefined}
-        recoverable={delayed}
-      />
-    </div>
-  );
-}
-
-// ─── Loading veil ───────────────────────────────────────────────────────────
-//
-// Loading is intentionally NOT a preview of final editor geometry. The real
-// chrome gets its own entrance once Canvas has painted; this veil protects that
-// reveal while preserving the same status/error semantics.
-
-function BuilderLoadingShell({
-  status = 'Opening project',
+function ProjectRecovery({
+  title,
   detail,
-  recoverable = false,
 }: {
-  status?: string;
-  detail?: string;
-  recoverable?: boolean;
+  title: string;
+  detail: string;
 }) {
   return (
-    <ProjectLoadingVeil
-      status={status}
-      detail={detail}
-      recoverable={recoverable}
-    />
+    <div data-project-recovery role="alert" className="fixed inset-0 z-[160000] grid place-items-center bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      <div className="max-w-sm px-6 text-center">
+        <h1 className="text-sm font-semibold">{title}</h1>
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">{detail}</p>
+        <div className="mt-5 flex justify-center gap-2">
+          <button type="button" className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-xs" onClick={() => window.location.reload()}>Retry</button>
+          <button type="button" className="rounded-md px-3 py-1.5 text-xs text-[var(--text-secondary)]" onClick={() => window.location.assign('/')}>Back to projects</button>
+        </div>
+      </div>
+    </div>
   );
 }

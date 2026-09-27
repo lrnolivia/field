@@ -37,7 +37,6 @@ import { toast } from 'sonner';
 import type { AutoPanSpeed } from '@/code/stores/user-preferences-store';
 import { previewModeAtom, shortcutsModalOpenAtom, exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import { paletteOpenAtom } from '@/code/stores/palette-store';
-import { startOnboarding } from '@/editor/onboarding';
 import { BUILDER_THEMES } from '@/shared/builder-themes';
 
 type TabId = 'file' | 'edit' | 'insert' | 'view';
@@ -572,11 +571,6 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
         },
       },
       { type: 'separator' },
-      // Launch tutorial — re-runs the first-run onboarding tour on demand.
-      // `startOnboarding()` dispatches the window event the mounted
-      // OnboardingTutorial listens for; it just re-shows the tour as a
-      // one-off and does NOT clear the localStorage completion flag.
-      { id: 'help-tutorial', label: 'Launch tutorial', onClick: () => { trace.action('menu:view-launch-tutorial'); startOnboarding(); } },
     ],
   },
   ];

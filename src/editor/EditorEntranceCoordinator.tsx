@@ -3,7 +3,7 @@ import {
   collectEditorEntranceTargets,
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
-  DIRECT_LOAD_SHELL_CLEAR_MS,
+  DIRECT_LOAD_CHROME_STAGGER_MS,
   EDITOR_CHROME_EXIT_REQUEST_EVENT,
   EDITOR_EXIT_EASING,
   editorEntranceDelay,
@@ -371,7 +371,7 @@ export default function EditorEntranceCoordinator() {
           renderCompleteSeen,
         });
         runEntranceAfterPaint();
-      }, DIRECT_LOAD_SHELL_CLEAR_MS);
+      }, DIRECT_LOAD_CHROME_STAGGER_MS);
       timers.push(timer);
     };
 

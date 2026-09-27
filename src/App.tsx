@@ -35,7 +35,6 @@ import PluginRuntimeWindow from './plugins/PluginRuntimeWindow';
 import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
 import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
-import { OnboardingTutorial } from './editor/onboarding';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -58,6 +57,8 @@ import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
 import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import './loading/canvas-reveal.css';
+import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
 // page open is distracting noise. The animation runs in PREVIEW (and at
@@ -72,10 +73,12 @@ if (CLOUD_ENABLED) initCloudPlugin();
 
 interface AppProps {
   onCanvasFirstPaint?: () => void;
+  onCanvasRevealComplete?: () => void;
+  canvasRevealPhase?: 'pending' | 'entering' | 'settled';
   interactive?: boolean;
 }
 
-export default function App({ onCanvasFirstPaint, interactive = true }: AppProps = {}) {
+export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
@@ -231,6 +234,13 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
       ref={editorRootRef}
       aria-busy={!interactive ? true : undefined}
       data-editor-interactive={interactive ? 'true' : 'false'}
+      data-canvas-reveal-phase={canvasRevealPhase}
+      onAnimationEnd={(event) => {
+        if (event.animationName === 'field-canvas-reveal'
+          && (event.target as HTMLElement).hasAttribute('data-canvas-root')) {
+          onCanvasRevealComplete?.();
+        }
+      }}
       style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
@@ -310,6 +320,7 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
         )}
         {!previewMode && <button
           type="button"
+          data-workspace-right-toggle
           aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           onClick={() => setRightPaneOpen(v => !v)}
@@ -376,12 +387,6 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
           marketplace plugins (and later commands/blocks/templates).
           Portal-mounted so it escapes any overflow/transform ancestors. */}
       <CommandPalette />
-      {/* First-run product tour — shown once per browser (localStorage
-          gate). Portals to body at z-[99999], cuts a spotlight hole around
-          each chrome target tagged with `data-tutorial`. Hidden for
-          viewers: the creator tools it walks through aren't in their
-          stripped toolbar, so the steps would have no anchor. */}
-      {!isViewer && <OnboardingTutorial />}
       {/* "Start from a template" prompt — brand-new cloud websites only
           (ProjectLoader arms it when the site loads with zero files).
           Offers free marketplace templates; closing keeps the blank

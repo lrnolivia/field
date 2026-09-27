@@ -210,11 +210,12 @@ export default function LeftMenu() {
     suppressedKey,
   };
 
-  if (!leftPaneOpen) return null;
-
   return (
     <div
       data-left-menu-rail
+      data-visible={leftPaneOpen ? 'true' : 'false'}
+      aria-hidden={leftPaneOpen ? undefined : true}
+      inert={!leftPaneOpen}
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).

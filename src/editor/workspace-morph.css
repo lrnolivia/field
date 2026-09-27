@@ -1,0 +1,49 @@
+/* Collapse/restore uses the same restrained spatial grammar as chrome entry. */
+[data-workspace-island],
+[data-workspace-right-header],
+[data-workspace-right-body],
+[data-workspace-right-toggle],
+[data-workspace-left-header],
+[data-left-menu-rail],
+[data-editor-panel='left-primary'],
+[data-workspace-left-restore] {
+  transition:
+    left 340ms cubic-bezier(.2, .8, .2, 1),
+    right 340ms cubic-bezier(.2, .8, .2, 1),
+    top 340ms cubic-bezier(.2, .8, .2, 1),
+    width 340ms cubic-bezier(.2, .8, .2, 1),
+    height 340ms cubic-bezier(.2, .8, .2, 1),
+    border-radius 340ms cubic-bezier(.2, .8, .2, 1),
+    box-shadow 340ms cubic-bezier(.2, .8, .2, 1),
+    opacity 200ms ease,
+    transform 340ms cubic-bezier(.2, .8, .2, 1);
+}
+
+[data-workspace-left-header][data-visible='false'],
+[data-left-menu-rail][data-visible='false'],
+[data-editor-panel='left-primary'][data-visible='false'] {
+  opacity: 0;
+  transform: translateX(-12px) scale(.98);
+  pointer-events: none;
+}
+
+[data-workspace-left-restore][data-visible='false'] {
+  opacity: 0;
+  transform: translateY(-8px) scale(.96);
+  pointer-events: none;
+}
+
+html[data-workspace-resizing='true'] :is(
+  [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+  [data-workspace-left-header], [data-left-menu-rail], [data-editor-panel='left-primary']
+) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+    [data-workspace-right-toggle], [data-workspace-left-header], [data-left-menu-rail],
+    [data-editor-panel='left-primary'], [data-workspace-left-restore]
+  ) { transition: none; }
+}

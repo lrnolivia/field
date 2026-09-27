@@ -2,23 +2,24 @@ import { useAtom } from 'jotai';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { LogoButton } from '@/editor/header/LeftHeader';
 import ProjectChip from '@/editor/header/ProjectChip';
-import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_RADIUS, WORKSPACE_FLOAT_SHADOW } from '@/editor/workspace-layout';
+import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_RADIUS } from '@/editor/workspace-layout';
 import { trace } from '@/shared/debug-trace';
 
 export default function WorkspaceRestoreBar() {
   const [leftOpen, setLeftOpen] = useAtom(leftPaneOpenAtom);
-  if (leftOpen) return null;
-
   return (
     <div
       data-workspace-left-restore
-      className="fixed z-[9999] flex h-11 items-center overflow-hidden border border-[var(--border-light)] bg-[var(--bg-panel)]"
+      data-visible={leftOpen ? 'false' : 'true'}
+      aria-hidden={leftOpen ? true : undefined}
+      inert={leftOpen}
+      className="fixed z-[9999] flex h-11 items-center overflow-hidden"
       style={{
         left: WORKSPACE_FLOAT_INSET,
         top: WORKSPACE_FLOAT_INSET,
         width: 264,
         borderRadius: WORKSPACE_FLOAT_RADIUS,
-        boxShadow: WORKSPACE_FLOAT_SHADOW,
+        opacity: leftOpen ? 0 : 1,
       }}
     >
       <div className="flex h-full w-10 shrink-0 items-center justify-center">

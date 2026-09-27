@@ -35,7 +35,7 @@ const rest = { x: 0, y: 0, rotate: 0, scale: 1, scaleX: 1, scaleY: 1 };
 
 export const fieldGlyphVariants: Record<FieldGlyphBehavior, Variants> = {
   generic: { rest, hover: { y: -1, scale: 1.08 }, tap: { y: 0.5, scale: 0.82 } },
-  plus: { rest, hover: { rotate: 16, scale: 1.18 }, tap: { rotate: -7, scale: 0.78 } },
+  plus: { rest, hover: { rotate: 0, scale: 1.12 }, tap: { rotate: 0, scale: 0.82 } },
   minus: { rest, hover: { scaleX: 0.7, scaleY: 1, x: -0.6 }, tap: { scaleX: 0.54, scaleY: 0.84, x: 0 } },
   chevron: { rest, hover: { x: 1.5, scale: 1.08 }, tap: { x: 0.5, scale: 0.84 } },
   eye: { rest, hover: { scaleX: 1.04, scaleY: 0.78 }, tap: { scaleX: 0.9, scaleY: 0.62 } },

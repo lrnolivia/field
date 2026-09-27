@@ -3,7 +3,7 @@ import {
   collectEditorEntranceTargets,
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
-  DIRECT_LOAD_SHELL_CLEAR_MS,
+  DIRECT_LOAD_CHROME_STAGGER_MS,
   EDITOR_BOTTOM_DELAY_MS,
   EDITOR_BOTTOM_SPRING,
   EDITOR_CHROME_EXIT_REQUEST_EVENT,
@@ -34,7 +34,7 @@ import {
 describe('editor chrome choreography', () => {
   it('targets physical panel shells together with their content and excludes Canvas', () => {
     document.body.innerHTML = `
-      <div data-workspace-island="left"></div>
+      <div data-workspace-island="left" data-visible="true"></div>
       <div data-left-menu-rail></div>
       <div data-editor-panel="left-primary"></div>
       <div data-workspace-island="right"></div>
@@ -59,7 +59,7 @@ describe('editor chrome choreography', () => {
 
   it('uses one shared travel distance for every surface in the same pane', () => {
     document.body.innerHTML = `
-      <div data-workspace-island="left"></div>
+      <div data-workspace-island="left" data-visible="true"></div>
       <div data-left-menu-rail></div>
       <div data-editor-panel="left-primary"></div>
       <div data-workspace-island="right"></div>
@@ -183,10 +183,10 @@ describe('editor chrome choreography', () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the direct-load boundary after ProjectLoader shell clears', () => {
+  it('lets the canvas lead the direct-load chrome without a loading shell', () => {
     expect(DIRECT_LOAD_RENDER_EVENT).toBe('revyme:render-complete');
-    expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeGreaterThan(280);
-    expect(DIRECT_LOAD_SHELL_CLEAR_MS).toBeLessThan(400);
+    expect(DIRECT_LOAD_CHROME_STAGGER_MS).toBeGreaterThan(0);
+    expect(DIRECT_LOAD_CHROME_STAGGER_MS).toBeLessThan(180);
     expect(DIRECT_LOAD_FAILSAFE_MS).toBeGreaterThan(4000);
   });
 

@@ -717,6 +717,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             nodeId={node.id}
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
+            showPaddingWithoutLayout={isFrame}
             templateRoot={isTemplateRootEdit}
             positionContent={composePositionIntoLayout ? (
               <PositionTool

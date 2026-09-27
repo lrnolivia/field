@@ -36,11 +36,10 @@ export const DIRECT_LOAD_RENDER_EVENT = 'revyme:render-complete';
 export const EDITOR_CHROME_EXIT_REQUEST_EVENT = 'field:editor-chrome-exit-request';
 
 /**
- * ProjectLoader keeps a loading-shell overlay mounted for ~280ms after the
- * first Canvas render completes. The entrance must begin after that overlay
- * clears or a hard refresh animates invisibly underneath it.
+ * Let the canvas reveal lead direct-load chrome by one short beat. The canvas
+ * is visible from its first painted frame; no loading layer covers this handoff.
  */
-export const DIRECT_LOAD_SHELL_CLEAR_MS = 310;
+export const DIRECT_LOAD_CHROME_STAGGER_MS = 110;
 export const DIRECT_LOAD_FAILSAFE_MS = 4400;
 
 /**
@@ -48,7 +47,7 @@ export const DIRECT_LOAD_FAILSAFE_MS = 4400;
  * The canvas itself is deliberately absent.
  */
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
-  { selector: '[data-workspace-island="left"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-workspace-island="left"][data-visible="true"]', role: 'left', phase: 'left-surface' },
   { selector: '[data-left-menu-rail]', role: 'left', phase: 'left-rail' },
   { selector: '[data-editor-panel="left-primary"]', role: 'left', phase: 'left-surface' },
 

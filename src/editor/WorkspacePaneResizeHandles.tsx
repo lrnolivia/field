@@ -33,6 +33,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
+    document.documentElement.dataset.workspaceResizing = 'true';
     const startX = event.clientX;
     const startWidth = side === 'left' ? leftContentWidth : rightPaneWidth;
     document.body.style.cursor = 'col-resize';
@@ -49,6 +50,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
       window.removeEventListener('pointercancel', finish);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      delete document.documentElement.dataset.workspaceResizing;
       const delta = e.clientX - startX;
       const width = side === 'left'
         ? clampLeftContentWidth(startWidth + delta)

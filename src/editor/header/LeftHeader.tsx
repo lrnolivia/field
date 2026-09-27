@@ -254,7 +254,11 @@ export default function LeftHeader() {
 
   return (
     <>
-      {leftPaneOpen && <div
+      <div
+      data-workspace-left-header
+      data-visible={leftPaneOpen ? 'true' : 'false'}
+      aria-hidden={leftPaneOpen ? undefined : true}
+      inert={!leftPaneOpen}
       className="h-[52px] border-b border-[var(--border-light)] fixed top-0 left-0 z-[9999] flex"
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
@@ -291,7 +295,7 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      {leftPaneOpen && <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
+      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
         <div className="flex-1 min-w-0 flex items-center">
           {previewMode ? (
             <Button
@@ -332,9 +336,9 @@ export default function LeftHeader() {
             <path d="M5.25 2.25v11.5" />
           </svg></FieldGlyph>
         </motion.button>
-      </div>}
+      </div>
 
-    </div>}
+    </div>
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).

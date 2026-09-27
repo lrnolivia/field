@@ -6,16 +6,6 @@
   transition: transform 190ms cubic-bezier(.2, .8, .2, 1), opacity 150ms ease;
 }
 
-[data-field-toolbar-check] {
-  opacity: 0;
-  transform: scale(.55) rotate(-35deg);
-  transition: transform 190ms cubic-bezier(.2, .8, .2, 1), opacity 150ms ease;
-}
-[data-field-toolbar-check="true"] {
-  opacity: 1;
-  transform: scale(1) rotate(0);
-}
-
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover > [data-field-toolbar-glyph] {
     transform: translateY(-1.5px) scale(1.12);
@@ -48,7 +38,6 @@ button[data-toolbar-chevron-open]:hover > [data-field-toolbar-glyph="chevron"] {
 
 @media (prefers-reduced-motion: reduce) {
   [data-field-toolbar-glyph],
-  [data-field-toolbar-check],
   button:not(:disabled):hover > [data-field-toolbar-glyph],
   button:not(:disabled):active > [data-field-toolbar-glyph],
   button[data-toolbar-chevron-open] > [data-field-toolbar-glyph="chevron"] {

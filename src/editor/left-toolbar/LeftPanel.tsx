@@ -41,7 +41,7 @@ export default function LeftPanel() {
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const PanelComponent = PANEL_MAP[activePanel];
-  if (!leftOpen || !PanelComponent) return null;
+  if (!PanelComponent) return null;
 
   const workspace = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth });
   trace.fn('LeftPanel.render', { activePanel, presentation: workspace.left.presentation });
@@ -49,6 +49,9 @@ export default function LeftPanel() {
   return (
     <div
       data-editor-panel="left-primary"
+      data-visible={leftOpen ? 'true' : 'false'}
+      aria-hidden={leftOpen ? undefined : true}
+      inert={!leftOpen}
       data-tutorial="left-panel"
       className="fixed z-[5000] flex flex-col overflow-hidden"
       style={{
