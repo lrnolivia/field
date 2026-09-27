@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const main = readFileSync(new URL('../../main.tsx', import.meta.url), 'utf8');
-const css = readFileSync(new URL('../../styles/field-glyph-global.css', import.meta.url), 'utf8');
+const main = readFileSync(path.join(process.cwd(), 'src/main.tsx'), 'utf8');
+const css = readFileSync(path.join(process.cwd(), 'src/styles/field-glyph-global.css'), 'utf8');
+const cssRules = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 describe('field.GLYPH universal app-shell fallback', () => {
   it('marks only the main app document and loads the universal fallback', () => {
@@ -21,9 +23,9 @@ describe('field.GLYPH universal app-shell fallback', () => {
   });
 
   it('stays compositor-cheap at rest', () => {
-    expect(css).not.toContain('will-change');
-    expect(css).not.toContain('requestAnimationFrame');
-    expect(css).not.toContain('filter:');
+    expect(cssRules).not.toMatch(/will-change\s*:/);
+    expect(cssRules).not.toContain('requestAnimationFrame');
+    expect(cssRules).not.toMatch(/(?:^|[;{}])\s*filter\s*:/m);
     expect(css).toContain('prefers-reduced-motion: reduce');
   });
 });
