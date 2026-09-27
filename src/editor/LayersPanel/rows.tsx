@@ -3,6 +3,8 @@
 // lifted verbatim from LayersPanel.tsx (Phase 7 god-file split, item 7.7).
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { isTextTag } from '@/shared/constants';
 import { layerAcceptsInsideDrop } from './drag';
@@ -852,18 +854,20 @@ export const LayerRow = React.memo(function LayerRow({
           style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${58 + depth * 16}px)))` }}
         >
         {hasChildren ? (
-          <button
+          <motion.button
             draggable={false}
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             onClick={(e) => { e.stopPropagation(); onToggleExpand(id); }}
             className="w-3 h-3 flex items-center justify-center rounded-[3px] shrink-0 transition-colors hover:bg-[var(--bg-active)]"
             style={{ color: isSelected ? selFg : 'var(--text-secondary)' }}
+            aria-label={isExpanded ? 'Collapse layer' : 'Expand layer'}
           >
-            {isExpanded ? (
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m4.75 6.25 3.25 3.25 3.25-3.25" /></svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m6.25 4.75 3.25 3.25-3.25 3.25" /></svg>
-            )}
-          </button>
+            <FieldGlyph behavior="chevron">
+              <FieldMorphGlyph active={isExpanded} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={1.25} spring="snappy" />
+            </FieldGlyph>
+          </motion.button>
         ) : (
           <span className="w-3 h-3 shrink-0" aria-hidden="true" />
         )}
@@ -985,41 +989,37 @@ export const LayerRow = React.memo(function LayerRow({
           const onColor = isSelected ? 'var(--text-primary)' : 'var(--text-secondary)';
           return (
             <div className="flex items-center gap-0.5 shrink-0 sticky right-1.5 z-10">
-              <button
+              <motion.button
                 draggable={false}
+                initial="rest"
+                whileHover="hover"
+                whileTap="tap"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleLock(layer.nodeId!); }}
                 className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isLocked ? 'opacity-100' : hoverOnly}`}
                 title={isLocked ? 'Unlock layer' : 'Lock layer'}
+                aria-label={isLocked ? 'Unlock layer' : 'Lock layer'}
                 data-locked={isLocked ? 'true' : undefined}
               >
-                {isLocked ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5" />
-                  </svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 8.8-1.3" />
-                  </svg>
-                )}
-              </button>
-              <button
+                <FieldGlyph behavior="lock">
+                  <FieldMorphGlyph active={isLocked} from={glyphIcons.unlock} to={glyphIcons.lock} size={13} strokeWidth={1.5} color={isLocked ? onColor : strokeColor} />
+                </FieldGlyph>
+              </motion.button>
+              <motion.button
                 draggable={false}
+                initial="rest"
+                whileHover="hover"
+                whileTap="tap"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleVisibility(layer.nodeId!, layer.viewportId); }}
                 className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isHidden ? 'opacity-100' : hoverOnly}`}
                 title={isHidden ? 'Show layer' : 'Hide layer'}
+                aria-label={isHidden ? 'Show layer' : 'Hide layer'}
               >
-                {isHidden ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
+                <FieldGlyph behavior="eye">
+                  <FieldMorphGlyph active={isHidden} from={glyphIcons.eye} to={glyphIcons.eyeOff} size={13} strokeWidth={1.5} color={isHidden ? onColor : strokeColor} />
+                </FieldGlyph>
+              </motion.button>
             </div>
           );
 

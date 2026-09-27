@@ -12,6 +12,8 @@
 // and are consumed verbatim by the logo dropdown.
 
 import { useRef, useState, useMemo } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_WORKSPACE_WIDTH } from '@/code/stores/workspace-panels-store';
@@ -211,17 +213,20 @@ export function LogoButton() {
 
   return (
     <>
-      <button
+      <motion.button
         ref={ref}
         type="button"
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         aria-label="Open menu"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex items-center justify-center w-8 h-8 cut-corners cursor-pointer border-none bg-transparent hover:bg-white/[0.10] transition-colors"
       >
-        <FieldIcon />
-      </button>
+        <FieldGlyph behavior="generic"><FieldIcon /></FieldGlyph>
+      </motion.button>
       <DropdownMenu
         isOpen={open}
         onClose={() => setOpen(false)}
@@ -307,8 +312,11 @@ export default function LeftHeader() {
           )}
         </div>
 
-        <button
+        <motion.button
           type="button"
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           aria-label="Collapse left pane"
           title="Collapse left pane"
           onClick={() => {
@@ -318,11 +326,11 @@ export default function LeftHeader() {
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none"
           data-field-pane-collapse
         >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">
+          <FieldGlyph behavior="generic"><svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">
             <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
             <path d="M5.25 2.25v11.5" />
-          </svg>
-        </button>
+          </svg></FieldGlyph>
+        </motion.button>
       </div>}
 
     </div>}

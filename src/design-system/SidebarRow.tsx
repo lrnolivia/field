@@ -15,7 +15,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { motion } from "motion/react";
-import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from "@/editor/motion";
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from "@/editor/glyph";
 import EllipsisMenu from "./EllipsisMenu";
 import DropdownMenu, { type DropdownMenuEntry } from "./DropdownMenu";
 
@@ -105,7 +105,6 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
     ref
   ) => {
     const s = SIZE_CLASSES[size];
-    const reducedMotion = useFieldReducedMotion();
 
     // Right-click opens the SAME menu list as the ellipsis dots, but
     // anchored at the cursor instead of the dots button. The cursor coords
@@ -136,8 +135,11 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
     }, []);
 
     return (
-      <div
+      <motion.div
         ref={ref}
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         className={`
         group flex items-center ${s.row} rounded-[4px] transition-colors select-none
         ${
@@ -161,33 +163,28 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
             className={`shrink-0 flex items-center justify-center ${s.icon}`}
             aria-hidden="true"
           >
-            <motion.svg
-              data-field-motion="sidebar-disclosure"
-              width="8"
-              height="8"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              animate={{ rotate: expandable.expanded ? 90 : 0 }}
-              transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </motion.svg>
+            <FieldGlyph behavior="chevron">
+              <FieldMorphGlyph
+                active={expandable.expanded}
+              from={glyphIcons.chevronRight}
+              to={glyphIcons.chevronDown}
+              size={8}
+              strokeWidth={2.5}
+                spring="snappy"
+              />
+            </FieldGlyph>
           </span>
         )}
         {prefixSlot && (
           <span className="shrink-0 flex items-center justify-center">
-            {prefixSlot}
+            <FieldGlyph behavior="generic">{prefixSlot}</FieldGlyph>
           </span>
         )}
         <span
           className={`shrink-0 flex items-center justify-center ${s.icon}`}
           style={{ color: iconColor }}
         >
-          {icon}
+          <FieldGlyph behavior="generic">{icon}</FieldGlyph>
         </span>
         {inlineEdit ? (
           <SidebarRowRenameInput
@@ -211,7 +208,7 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
             />
           </>
         )}
-      </div>
+      </motion.div>
     );
   }
 );

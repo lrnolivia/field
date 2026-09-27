@@ -6,6 +6,8 @@
 // Inputs always visible, disabled when pin is inactive.
 
 import { useCallback, useMemo, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { useLivePreview } from '../../hooks/useLivePreview';
 import { useAtomValue } from 'jotai';
 import { canvasInteractingAtom, getNodeFromCache } from '@/code/stores/store';
@@ -526,15 +528,18 @@ export default function PinControl({ styles, nodeId, vpId, onUpdate, onUpdateMul
   const PinBtn = ({ side }: { side: PinSide }) => {
     const active = pins[side];
     return (
-      <button
+      <motion.button
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         onClick={() => handlePinToggle(side)}
         className={`flex items-center justify-center text-xs font-medium cut-corners transition-colors cursor-pointer ${active
           ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
           : 'bg-[var(--control-bg)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
         }`}
       >
-        {side[0].toUpperCase()}
-      </button>
+        <FieldGlyph behavior="pin">{side[0].toUpperCase()}</FieldGlyph>
+      </motion.button>
     );
   };
 
