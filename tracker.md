@@ -6,7 +6,7 @@
 >
 > Tracker entries do NOT authorize launching Workers, Codex sessions, Work mode, sub-agents, background agents, autonomous tasks, or new chats.
 
-Last Updated: 2026-09-26T16:23:04Z
+Last Updated: 2026-09-27T01:50:50Z
 
 ## Active Assignments
 
@@ -133,7 +133,7 @@ Architecture:
 - 2026-09-25T02:17:03Z — Existing-chat adoption: this tracker was initialized after `81a7dbd633db` had already landed because the generic handoff kit was introduced midstream. No pre-implementation tracker reservation existed. Git history is authoritative.
 - 2026-09-25T02:17:03Z — Pages/Layers source work is landed and deployed. Screenshot-level post-deploy visual parity remains unverified and should be registered as a new assignment before further implementation.
 - Workspace chrome housing integration: user explicitly authorized `workspace-chrome-floating-panes` against the Pages/Layers source postimage landed at `9a74cb253444`. `LeftHeader.tsx` and `LeftMenu.tsx` are shared integration surfaces only; the installer is exact-postimage guarded and must stop on later drift rather than replay stale changes.
-- 2026-09-26T16:23:04Z — Dashboard PR #5 (field/dashboard-interaction-polish, head 932af6d67c84fc0b9eccab46d6f78ad5aade49cf) is code-green but integration-blocked: ProjectCardMenu 4/4 PASS, DeleteProjectDialog 4/4 PASS, and focused strict TypeScript PASS. Cloudflare Preview build 45a092f4-8331-451f-a8e1-692624abf981 failed before producing a Preview URL, while a duplicate Workers Builds: field check for the same build remains stuck in_progress. Remaining gate = BLOCKED/UNVERIFIED — HARNESS / Preview-deployment infrastructure, not Dashboard product code. Preview infrastructure is separately owned by field-branch-preview-live-qa; PR #5 remains Draft pending usable runtime evidence.
+- 2026-09-27T01:50:50Z — Dashboard Preview integration root cause isolated. Open Dashboard PRs #5, #8, #10, #11, #13, and #14 all show the same Cloudflare check shape: one completed Workers Builds: field failure plus a duplicate check stuck in_progress. Direct Cloudflare log inspection of the two newest failures (#13 build f97b1538-783f-49a8-974d-661d7b400c73; #14 build 5cc408f0-4241-497b-9063-a3fb455493a4) shows npm run build completes successfully and the failure occurs only at npx wrangler preview: Wrangler 4.141.0 requires a previews block in wrangler.jsonc, including Preview-safe FIELD_ACCESS_TEAM_DOMAIN, FIELD_ACCESS_AUD, FIELD_PROJECTS R2 binding, and isolated Durable Object Preview handling. This is a shared Preview/deployment harness blocker, not evidence of Dashboard product-code failure. The existing field-branch-preview-live-qa assignment owns .github/workflows/**, cloudflare/**, and wrangler.jsonc, but its canonical QA remains not-started; activate that lane rather than modifying Preview infrastructure from Dashboard branches.
 <!-- FIELD_BLOCKED_NOTES_END -->
 
 ## Installer / Handoff Kit Lessons
