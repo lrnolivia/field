@@ -3,13 +3,13 @@
 assignment: field-motion-semantic-controls
 branch: field/field-motion-semantic-controls
 pr: 12
-tested_head_sha: 35e345face8672dc7e8cc12b583f6f4cd80d0f39
-tested_main_sha: afe03bed68ad2bc346c7c9b1b239ef93dcf983c3
-environment: source-contract validated; branch Preview blocked by shared infrastructure
-build: BLOCKED/UNVERIFIED — HARNESS (Workers branch build fails with zero annotations; shared infrastructure class)
-tests: NOT RUN — full Vitest/project TypeScript remain unavailable in isolated Composio sandbox; deterministic source-contract assertions 13/13 PASS
-runtime_qa: BLOCKED — ENVIRONMENT (branch Preview unavailable)
-tested_at: null
+tested_head_sha: efe9921fab4ceffa2369da67e4a32b0665717852
+tested_main_sha: f113cc483fd8a509e0da8d8950aa5f5e0b25788b
+environment: exact branch Preview deployed successfully; automated interaction QA harness unavailable
+build: PASS — Cloudflare exact-head main Vite build + Worker Preview deployment; build:all NOT RUN
+tests: PARTIAL — deterministic source-contract assertions 13/13 PASS on unchanged implementation content; full Vitest/TypeScript NOT RUN
+runtime_qa: BLOCKED/UNVERIFIED — HARNESS (Preview works; available automated browser runners cannot attach)
+tested_at: 2026-09-27T03:24:35Z
 evidence: []
 
 ## Required runtime checks
@@ -89,3 +89,26 @@ evidence: []
 - runtime_qa: BLOCKED — ENVIRONMENT
 - human_feel_check: BLOCKED — ENVIRONMENT
 - merge_gate: NOT SATISFIED — PR #12 remains Draft/unmerged
+
+
+## Exact synchronized Preview — head efe9921fab4ceffa2369da67e4a32b0665717852
+
+- current_main_sha: `f113cc483fd8a509e0da8d8950aa5f5e0b25788b`
+- workers_build: PASS
+- workers_build_id: `8b27109a-deaf-4a26-a9ab-253eb3fc2fca`
+- preview_deployment: PASS
+- preview_deployment_commit: `efe9921`
+- preview_infrastructure: PASS — PR #15 merged and exact-head branch Preview deployed
+- user_runtime_availability_report: PASS — user reports Preview works
+- implementation_changed_paths: 16, all assignment-owned
+- package_manifest_changes: none
+- deterministic_source_contract_assertions: PASS — 13/13 on implementation content at `35e345face8672dc7e8cc12b583f6f4cd80d0f39`; implementation files unchanged by the subsequent main-sync merge
+- exact_checkout: PASS — Composio-local checkout resolved to `efe9921fab4ceffa2369da67e4a32b0665717852`
+- npm_ci: BLOCKED — BASELINE/REPO LOCKFILE: `package-lock.json` missing `@swc/helpers@0.5.23`; motion PR does not touch manifests
+- full_vitest: BLOCKED — ENVIRONMENT: dependency installation OOM-killed even in reduced validation fixture
+- full_project_typescript: NOT RUN — dependency graph unavailable in validation sandbox
+- npm_run_build_all: NOT RUN — dependency graph unavailable in validation sandbox; Cloudflare proves only the main Vite build used for Worker deployment
+- runtime_interaction_qa: BLOCKED/UNVERIFIED — HARNESS: Firecrawl internal failures after infrastructure recovery; fallback Chromium blocked by execution environment administrator
+- human_feel_check: NOT RECORDED — user confirmed Preview availability, not the complete motion acceptance surface
+- product_failure_found: none
+- merge_gate: NOT SATISFIED — current CONTRACT requires the assignment's required validation/QA to actually be satisfied; PR #12 remains Draft/unmerged

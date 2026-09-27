@@ -53,3 +53,17 @@ Assignment: `field-motion-semantic-controls`
 - Scale completion does not conflict with this assignment and no Scale paths were touched.
 - Cloudflare Workers branch build for the exact head completed FAILURE with zero annotations, consistent with the known shared branch-preview infrastructure defect already recorded on this assignment.
 - Runtime Preview/UI feel/reduced-motion QA remains BLOCKED — ENVIRONMENT. PR #12 stays Draft and unmerged rather than bypassing the merge gate.
+
+
+## 2026-09-27 exact-head Preview recovery and final gate
+
+- Preview infrastructure fix PR #15 merged to `main` at `f113cc483fd8a509e0da8d8950aa5f5e0b25788b`.
+- PR #12 was synchronized to that main; exact current head is `efe9921fab4ceffa2369da67e4a32b0665717852`.
+- Cloudflare Workers build and Preview deployment succeeded for exact head `efe9921` (Build ID `8b27109a-deaf-4a26-a9ab-253eb3fc2fca`).
+- Exact Preview deployment URLs were posted by Cloudflare; the user independently reported that Preview works.
+- No motion/product code was changed to repair Preview infrastructure.
+- A Composio-local exact checkout confirmed HEAD `efe9921fab4ceffa2369da67e4a32b0665717852`.
+- Local validator baseline issue: `npm ci` fails because the checked-in lockfile is missing `@swc/helpers@0.5.23`; PR #12 did not change package manifests.
+- Node 22 was available for validation, but fallback full/shallow dependency installs were OOM-killed by the validation sandbox, including a minimal Vitest fixture.
+- Runtime browser QA remains harness-blocked: Firecrawl can no longer attach to the live Preview (internal tool failure); a fallback local Chromium run is blocked by the execution environment administrator.
+- Per the exact-SHA merge gate, do not merge until required runtime interaction QA and remaining assignment-required validation are actually evidenced or explicitly superseded by a current user decision.
