@@ -1,6 +1,7 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
 const CANVAS_PREVIEW_HOST_SUFFIX = ".canvas-preview.loew.fi";
+const FIELD_PREVIEW_HOST_SUFFIX = ".field-preview.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
@@ -15,7 +16,11 @@ const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const jwksCache = new Map();
 
 function isCanvasHost(hostname) {
-  return hostname === CANVAS_HOST || hostname.endsWith(CANVAS_PREVIEW_HOST_SUFFIX);
+  return (
+    hostname === CANVAS_HOST ||
+    hostname.endsWith(CANVAS_PREVIEW_HOST_SUFFIX) ||
+    (hostname.startsWith("canvas.") && hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX))
+  );
 }
 
 function assetPathForHost(hostname, pathname) {
