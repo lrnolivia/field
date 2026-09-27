@@ -1,5 +1,7 @@
 # Contract Worker assignment authoring
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 ## Core rule
 
 > An assignment is not a transcript. It is the smallest complete executable representation of the next unit of work.

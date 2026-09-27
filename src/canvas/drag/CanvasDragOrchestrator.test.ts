@@ -167,6 +167,8 @@ const mockUpdateNodeStyles = vi.fn();
 const mockCommitDragPosition = vi.fn();
 const mockGetActiveFilePath = vi.fn(() => 'app/page.tsx');
 const mockForceCanvasRender = vi.fn();
+const mockFindNodeRect = vi.fn();
+const mockFindNodeComputedStyles = vi.fn(() => ({}));
 vi.mock('../node-ops', () => ({
   updateNodeStyles: (opts: any) => mockUpdateNodeStyles(opts),
   commitDragPosition: (id: any, styles: any, contentEl: any) => mockCommitDragPosition(id, styles, contentEl),
@@ -174,6 +176,8 @@ vi.mock('../node-ops', () => ({
   forceCanvasRender: () => mockForceCanvasRender(),
   getSvgGroupAncestorChain: vi.fn(() => []),
   getViewportPrefix: vi.fn(() => ''),
+  findNodeRect: (...args: any[]) => mockFindNodeRect(...args),
+  findNodeComputedStyles: (...args: any[]) => mockFindNodeComputedStyles(...args),
 }));
 
 vi.mock('@/code/svg/refit-group', () => ({
@@ -191,15 +195,23 @@ vi.mock('../ViewportHeaderManager', () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeNodes(entries: Record<string, { type?: string; parentId?: string | null; isCanvasNode?: boolean }> = {}) {
+function makeNodes(entries: Record<string, {
+  type?: string;
+  parentId?: string | null;
+  isCanvasNode?: boolean;
+  isGroup?: boolean;
+  children?: string[];
+  styles?: Record<string, string>;
+}> = {}) {
   return new Map(Object.entries(entries).map(([id, data]) => [id, {
     id,
     type: data.type ?? 'div',
     parentId: data.parentId !== undefined ? data.parentId : null,
     isCanvasNode: data.isCanvasNode ?? false,
-    styles: {},
+    isGroup: data.isGroup,
+    styles: data.styles ?? {},
     attrs: {},
-    children: [],
+    children: data.children ?? [],
     name: '',
     textContent: '',
   } as any]));
@@ -239,6 +251,7 @@ function makeOpts(overrides: Partial<CanvasDragOrchestratorOpts> = {}): CanvasDr
 describe('CanvasDragOrchestrator — commitUpdates branches', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFindNodeComputedStyles.mockReturnValue({});
   });
 
   // ── Move updates sync the IMPERATIVE node cache ────────────────────────────
@@ -280,6 +293,95 @@ describe('CanvasDragOrchestrator — commitUpdates branches', () => {
     // Style sync: empty values removed, new values merged.
     expect(cached?.styles?.left).toBeUndefined();
     expect(cached?.styles?.flex).toBe('0 0 auto');
+  });
+
+
+  test('native Group reparent applies planner move styles and derived bounds in one commit', () => {
+    const nodes = makeNodes({
+      'target-group': {
+        parentId: null,
+        isCanvasNode: true,
+        isGroup: true,
+        children: ['existing'],
+        styles: { position: 'absolute', left: '100px', top: '50px', width: '20px', height: '20px' },
+      },
+      existing: {
+        parentId: 'target-group',
+        styles: { position: 'absolute', left: '0px', top: '0px', width: '20px', height: '20px' },
+      },
+      dragged: {
+        parentId: null,
+        isCanvasNode: true,
+        styles: { position: 'absolute', left: '160px', top: '90px', width: '20px', height: '20px' },
+      },
+    });
+    mockFindNodeRect.mockImplementation((id: string) => id === 'target-group'
+      ? ({ left: 100, top: 50, width: 20, height: 20 } as DOMRect)
+      : ({ left: 160, top: 90, width: 20, height: 20 } as DOMRect));
+    mockFindNodeComputedStyles.mockImplementation((_id: string, _vp: string, props: string[]) => {
+      const out: Record<string, string> = {};
+      for (const prop of props) {
+        if (prop === 'display') out[prop] = 'block';
+        if (prop === '__offsetWidth' || prop === '__offsetHeight') out[prop] = '20';
+      }
+      return out;
+    });
+
+    const opts = makeOpts({ getNodes: vi.fn(() => nodes) });
+    const orchestrator = new CanvasDragOrchestrator(opts);
+    orchestrator.commitUpdates([{
+      type: 'move',
+      nodeId: 'dragged',
+      newParentId: 'target-group',
+      newIndex: 1,
+      styles: { position: 'absolute', left: '999px', top: '999px' },
+      canvasNode: false,
+    }]);
+
+    const move = mockQueueMutation.mock.calls.map((call) => call[0]).find((mutation) => mutation.type === 'move');
+    expect(move).toMatchObject({
+      nodeId: 'dragged',
+      newParentId: 'target-group',
+      styles: { position: 'absolute', left: '60px', top: '40px', right: '', bottom: '' },
+    });
+    const derived = mockQueueMutation.mock.calls.map((call) => call[0])
+      .filter((mutation) => mutation.type === 'updateStyles');
+    expect(derived.some((mutation) => mutation.nodeId === 'target-group')).toBe(true);
+  });
+
+  test('native Group reparent fails closed before hierarchy mutation when geometry is unavailable', async () => {
+    const { injectNodeIntoCache, getNodeFromCache } = await import('@/code/stores/store');
+    const nodes = makeNodes({
+      'target-group': {
+        parentId: null,
+        isCanvasNode: true,
+        isGroup: true,
+        children: [],
+        styles: { position: 'absolute', left: '100px', top: '50px', width: '20px', height: '20px' },
+      },
+      dragged: {
+        parentId: null,
+        isCanvasNode: true,
+        styles: { position: 'absolute', left: '160px', top: '90px', width: '20px', height: '20px' },
+      },
+    });
+    injectNodeIntoCache(nodes.get('dragged') as any);
+    injectNodeIntoCache(nodes.get('target-group') as any);
+    mockFindNodeRect.mockReturnValue(null);
+
+    const opts = makeOpts({ getNodes: vi.fn(() => nodes) });
+    const orchestrator = new CanvasDragOrchestrator(opts);
+    orchestrator.commitUpdates([{
+      type: 'move',
+      nodeId: 'dragged',
+      newParentId: 'target-group',
+      styles: { position: 'absolute', left: '10px', top: '10px' },
+      canvasNode: false,
+    }]);
+
+    expect(mockQueueMutation).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'move', nodeId: 'dragged' }));
+    expect(getNodeFromCache('dragged')?.parentId).toBeNull();
+    expect(mockForceCanvasRender).toHaveBeenCalled();
   });
 
   // ── Branch 1: Component variant root ──────────────────────────────────────

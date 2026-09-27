@@ -11,7 +11,9 @@ import type { CanvasNode } from '@/code/parsing/parser';
 import { generateNodeId } from '@/shared/id-utils';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { vpIdFromPrefix, getNodeHitsAtPoint, findNodeRect, isPrimaryViewport, getActiveFilePath, parseRectCacheKey, getViewportPrefix, patchNodeStyles } from '@/canvas/node-ops';
-import { queueMutation } from '@/code/mutation/mutation-queue';
+import { flushNow, queueMutation, queueMutations } from '@/code/mutation/mutation-queue';
+import { buildGalleryMediaAddPlan } from '@/code/gallery/gallery-media-add-plan';
+import { isGalleryNode } from '@/code/gallery/gallery-model';
 import { recenteredPosition } from './drop-recenter';
 import { getDefaultStore } from 'jotai';
 import { selectedIdsAtom } from '@/code/stores/store';
@@ -106,6 +108,22 @@ function findDeepestFrameAtPoint(
   return null;
 }
 
+export function resolveGalleryDropRoot(
+  hitIds: readonly string[],
+  nodes: Map<string, CanvasNode>,
+): CanvasNode | null {
+  for (const hitId of hitIds) {
+    let node = nodes.get(hitId);
+    const visited = new Set<string>();
+    while (node && !visited.has(node.id)) {
+      if (isGalleryNode(node)) return node;
+      visited.add(node.id);
+      node = node.parentId ? nodes.get(node.parentId) : undefined;
+    }
+  }
+  return null;
+}
+
 /** Parse a CSS value to px number. Returns null for non-px values (%, auto, fill, etc.) */
 function parsePxValue(value: string | undefined): number | null {
   if (!value) return null;
@@ -143,6 +161,7 @@ export class ToolbarDragStrategy implements DragStrategy {
   private dropParentId: string | null = null;
   private dropIndex: number | undefined = undefined;
   private isOverCanvas = false;
+  private galleryDropTargetId: string | null = null;
   private lastMouseScreen: Point = { x: 0, y: 0 };
   /** An ABSOLUTE drop whose width or height is not px was centred on the
    *  GHOST size; once the node has painted, its real box is measured and
@@ -184,6 +203,7 @@ export class ToolbarDragStrategy implements DragStrategy {
     // my mind", not "drop here".
     if (isOverEditorPanel(mouseScreen.x, mouseScreen.y)) {
       this.isOverCanvas = false;
+      this.galleryDropTargetId = null;
       this.dropParentId = null;
       this.dropIndex = undefined;
       this.currentVpId = null;
@@ -207,6 +227,73 @@ export class ToolbarDragStrategy implements DragStrategy {
     // any parentless root id, not just the literal 'root' (component masters
     // have ids like `hero-root`).
     const hit = getViewportIdAtPoint(mouseScreen.x, mouseScreen.y, context.nodes);
+
+    this.galleryDropTargetId = null;
+    if (this.item.galleryMedia?.length) {
+      const gallery = resolveGalleryDropRoot(
+        getNodeHitsAtPoint(mouseScreen.x, mouseScreen.y).map((entry) => entry.id),
+        context.nodes,
+      );
+      if (gallery) {
+        if (isInstanceOwnedNode(gallery.id, gallery as any)) {
+          this.isOverCanvas = false;
+          this.dropParentId = null;
+          this.dropIndex = undefined;
+          this.currentVpId = hit?.vpId ?? null;
+          dropLineOps.hide();
+          parentHighlightOps.hide();
+          toolbarGhostOps.show({
+            item: this.item,
+            screenPos: mouseScreen,
+            vpId: hit?.vpId ?? null,
+            canvasPos: null,
+          });
+          trace.fn('toolbar-drag:gallery-target-blocked', {
+            galleryId: gallery.id,
+            reason: 'instance-owned',
+          });
+          return {
+            snap: null,
+            dropTarget: null,
+            highlightParentId: null,
+            axisLock: null,
+          };
+        }
+
+        const vpId = hit?.vpId ?? '';
+        const canvasPos = screenToCanvas(
+          mouseScreen.x,
+          mouseScreen.y,
+          context.transform,
+          context.containerRect,
+        );
+        this.isOverCanvas = true;
+        this.galleryDropTargetId = gallery.id;
+        this.dropParentId = gallery.id;
+        this.dropIndex = undefined;
+        this.currentVpId = hit?.vpId ?? null;
+        dropLineOps.hide();
+        parentHighlightOps.show({ parentId: gallery.id, vpId });
+        toolbarGhostOps.show({
+          item: this.item,
+          screenPos: mouseScreen,
+          vpId: hit?.vpId ?? null,
+          canvasPos,
+        });
+        trace.fn('toolbar-drag:gallery-target', {
+          galleryId: gallery.id,
+          mediaCount: this.item.galleryMedia.length,
+          vpId: hit?.vpId ?? null,
+        });
+        return {
+          snap: null,
+          dropTarget: null,
+          highlightParentId: gallery.id,
+          highlightVpId: hit?.vpId ?? undefined,
+          axisLock: null,
+        };
+      }
+    }
 
     if (hit) {
       // Phase 3: Over a viewport — find drop target
@@ -385,6 +472,49 @@ export class ToolbarDragStrategy implements DragStrategy {
     // installed code components, lowercase tags (`'div'`, `'p'`, …), and unknown
     // PascalCase tags (user-created components — those are already in
     // ProjectFS by definition).
+    if (this.galleryDropTargetId && this.item.galleryMedia?.length) {
+      const gallery = context.nodes.get(this.galleryDropTargetId);
+      if (!gallery || !isGalleryNode(gallery)) {
+        trace.action('toolbar-drag:gallery-drop-cancelled', { reason: 'target-missing' });
+        this.reset();
+        return [];
+      }
+
+      const plan = buildGalleryMediaAddPlan({
+        gallery,
+        nodes: context.nodes,
+        media: this.item.galleryMedia,
+      });
+      if (plan.itemNodes.length === 0) {
+        trace.action('toolbar-drag:gallery-drop-cancelled', { reason: 'empty-media' });
+        this.reset();
+        return [];
+      }
+      if (plan.missingSourceRatios > 0) {
+        trace.action('toolbar-drag:gallery-drop-cancelled', {
+          reason: 'missing-source-ratio',
+          galleryId: gallery.id,
+          missing: plan.missingSourceRatios,
+        });
+        this.reset();
+        return [];
+      }
+
+      queueMutations(plan.mutations);
+      flushNow();
+      getDefaultStore().set(selectedIdsAtom, [gallery.id]);
+      getCanvasBridge().repositionOverlays?.();
+      trace.action('toolbar-drag:gallery-drop', {
+        galleryId: gallery.id,
+        mediaCount: plan.itemNodes.length,
+        view: plan.view,
+        frameSizing: plan.frameSizing,
+        vpId: this.currentVpId,
+      });
+      this.reset();
+      return [];
+    }
+
     installBuiltInCodeComponent(projectFS, this.item.elementType);
 
     // CDN-linked component drop: ensure the URL `import` line exists
@@ -807,6 +937,7 @@ export class ToolbarDragStrategy implements DragStrategy {
   private reset(): void {
     this.item = null;
     this.currentVpId = null;
+    this.galleryDropTargetId = null;
     this.dropParentId = null;
     this.dropIndex = undefined;
     this.isOverCanvas = false;

@@ -8,6 +8,11 @@ import { getCollectionSchema } from '@/code/project/cms-ops';
 import type { NewNodeDescriptor } from '@/shared/types';
 import { galleryAriaLabel, getGalleryRootPatch } from '@/code/gallery/gallery-views';
 
+export interface ToolbarGalleryMediaAsset {
+  url: string;
+  sourceRatio?: number | null;
+}
+
 export interface ToolbarItem {
   /** Insert panel item ID (e.g. 'frame', 'image') */
   id: string;
@@ -29,6 +34,10 @@ export interface ToolbarItem {
   children?: () => NewNodeDescriptor[];
   /** Ghost overlay dimensions during drag (px) */
   ghostSize: { width: number; height: number };
+  /** Optional semantic image payload. Normal toolbar drops ignore this;
+   * dropping over an existing Gallery appends through Gallery's canonical
+   * add planner instead of nesting a new element. */
+  galleryMedia?: readonly ToolbarGalleryMediaAsset[];
   /** When set, this drag inserts a CDN-linked component. The strategy
    *  ensures the URL `import` line exists on the active page on drop
    *  so the inserted JSX tag (`elementType` is the slug / component

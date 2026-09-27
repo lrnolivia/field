@@ -1,5 +1,7 @@
 # field handoff kit contract
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 This contract governs field assignment packaging, coordination, validation, QA evidence, and closeout.
 
 ## 1. Assignment versus infrastructure

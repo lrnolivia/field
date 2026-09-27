@@ -1,13 +1,19 @@
-import { ToolInput, ToolRow, ToolSection, ToolSelect } from '@/editor/controls';
+import { ToolButton, ToolInput, ToolRow, ToolSection, ToolSelect } from '@/editor/controls';
 import { GALLERY_VIEWS, type GalleryViewId } from '@/code/gallery/gallery-views';
+import type { GalleryFrameSizing } from '@/code/gallery/gallery-frame-sizing';
 
 interface GalleryViewSectionProps {
   currentView: GalleryViewId;
   styles: Record<string, string>;
   stripHeight: string;
+  frameSizing: GalleryFrameSizing;
+  frameSizingBusy: boolean;
   onViewChange: (view: GalleryViewId) => void;
+  onFrameSizingChange: (value: GalleryFrameSizing) => void;
   onRootStyleChange: (property: string, value: string) => void;
   onAllItemStyleChange: (styles: Record<string, string>) => void;
+  onShuffleNatural: () => void;
+  canShuffleNatural: boolean;
 }
 
 function px(value: string, fallback: number): string {
@@ -24,9 +30,14 @@ export default function GalleryViewSection({
   currentView,
   styles,
   stripHeight,
+  frameSizing,
+  frameSizingBusy,
   onViewChange,
+  onFrameSizingChange,
   onRootStyleChange,
   onAllItemStyleChange,
+  onShuffleNatural,
+  canShuffleNatural,
 }: GalleryViewSectionProps) {
   return (
     <ToolSection title="View" collapsible>
@@ -34,6 +45,7 @@ export default function GalleryViewSection({
         <ToolSelect
           ariaLabel="Gallery view"
           value={currentView}
+          disabled={frameSizingBusy}
           onChange={(value) => onViewChange(value as GalleryViewId)}
           options={GALLERY_VIEWS.map((view) => ({
             value: view.id,
@@ -42,6 +54,23 @@ export default function GalleryViewSection({
           }))}
         />
       </ToolRow>
+
+      <ToolRow label="Frame">
+        <ToolSelect
+          ariaLabel="Gallery frame sizing"
+          value={frameSizing}
+          disabled={frameSizingBusy}
+          onChange={(value) => onFrameSizingChange(value as GalleryFrameSizing)}
+          options={[
+            { value: 'composed', label: 'Composed' },
+            { value: 'source', label: 'Source ratio' },
+          ]}
+        />
+      </ToolRow>
+
+      <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
+        Frame changes geometry only; image fit stays independent.
+      </div>
 
       {(currentView === 'grid' || currentView === 'natural') && (
         <ToolRow label="Gap">
@@ -53,6 +82,17 @@ export default function GalleryViewSection({
             ariaLabel="Gallery gap"
           />
         </ToolRow>
+      )}
+
+      {currentView === 'natural' && (
+        <>
+          <ToolRow label="Composition">
+            <ToolButton onClick={onShuffleNatural} disabled={!canShuffleNatural}>Shuffle</ToolButton>
+          </ToolRow>
+          <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
+            Rearranges visual roles without changing media or reading order.
+          </div>
+        </>
       )}
 
       {currentView === 'grid' && (
@@ -91,7 +131,7 @@ export default function GalleryViewSection({
             />
           </ToolRow>
           <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-            Horizontal image strips expand on hover. Height can vary by breakpoint.
+            Height follows the active breakpoint; hover expands width.
           </div>
         </>
       )}
@@ -121,13 +161,10 @@ export default function GalleryViewSection({
 
       {currentView === 'carousel' && (
         <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-          Native scroll-snap carousel with source-backed previous/next controls. Order and counters follow Gallery content.
+          Scroll-snap carousel; controls and counters follow media order.
         </div>
       )}
 
-      <div className="text-[10px] leading-snug text-[var(--text-disabled)]">
-        Layout settings use field's responsive overrides. View identity stays shared across breakpoints.
-      </div>
     </ToolSection>
   );
 }

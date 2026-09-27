@@ -240,6 +240,21 @@ export class PostMessageBridge implements CanvasBridge {
     this.remote?.patchStyles(nodeId, vpPrefix, styles, important);
   }
 
+  setSelectionColorLocateHighlight(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void {
+    this.remote?.setSelectionColorLocateHighlight(nodeId, vpPrefix, luminousRgb, contrastTone, mode, revision);
+  }
+
+  clearSelectionColorLocateHighlights(): void {
+    this.remote?.clearSelectionColorLocateHighlights();
+  }
+
   previewPatchStyles(nodeId: string, vpPrefix: string, styles: Record<string, string>): void {
     this.remote?.previewPatchStyles(nodeId, vpPrefix, styles);
   }
@@ -323,6 +338,10 @@ export class PostMessageBridge implements CanvasBridge {
 
   reparentLive(nodeId: string, vpPrefix: string, newParentId: string | null, index: number, styles: Record<string, string>): void {
     this.remote?.reparentLive(nodeId, vpPrefix, newParentId, index, styles);
+  }
+
+  scrollElementBy(nodeId: string, vpPrefix: string, dx: number, dy: number): void {
+    this.remote?.scrollElementBy(nodeId, vpPrefix, dx, dy);
   }
 
   /** Fire-and-forget batch style patch. */

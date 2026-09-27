@@ -66,6 +66,17 @@ export interface CanvasBridge {
 
   /** Patch inline styles on a canvas element. 60fps safe. */
   patchStyles(nodeId: string, vpPrefix: string, styles: Record<string, string>, important?: boolean): void;
+  /** Transient Selection-colors locate cue rendered on the actual sandbox DOM node. */
+  setSelectionColorLocateHighlight?(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void;
+  clearSelectionColorLocateHighlights?(): void;
+
 
   /** Motion-preview !important patch that snapshots each key's PRIOR inline
    *  value sandbox-side on first write — so the paired restore can put back
@@ -146,6 +157,11 @@ export interface CanvasBridge {
    *  preview / runtime font loads. NullBridge is a no-op. */
   loadFontInIframe(fontUrl: string): void;
 
+  /** Scroll a real canvas element by CSS pixels. Used by nested scrollable
+   *  design primitives during pointer drags (e.g. Gallery Strip/Carousel edge
+   *  auto-scroll). Optional: PostMessageBridge only. */
+  scrollElementBy?(nodeId: string, vpPrefix: string, dx: number, dy: number): void;
+
   /** Shift the CACHED rects of the given node ids by a screen-space delta
    *  and drop their stale corners entries — the parent-side heal for a
    *  rigid subtree move whose descendants' cache entries would otherwise
@@ -175,6 +191,8 @@ class NullBridge implements CanvasBridge {
   getContainerRect(): DOMRect | null { return null; }
   getElementIdsAtPoint(): string[] { return []; }
   patchStyles(): void {}
+  setSelectionColorLocateHighlight(): void {}
+  clearSelectionColorLocateHighlights(): void {}
   patchAttrsAndStyles(): void {}
   setInnerHTML(): void {}
   setAttribute(): void {}
@@ -182,6 +200,7 @@ class NullBridge implements CanvasBridge {
   removeCSS(): void {}
   getIframeDocument(): Document | null { return null; }
   loadFontInIframe(): void {}
+  scrollElementBy(): void {}
 }
 
 // ─── Singleton ─────────────────────────────────────────────────────────────
