@@ -185,6 +185,27 @@ export default function GalleryCropOverlay({
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : null;
       const interactiveTarget = target?.closest('button, input, select, textarea, [contenteditable="true"]');
+
+      if (event.key === 'Tab') {
+        const overlay = overlayRef.current;
+        if (!overlay) return;
+        const focusable = [
+          overlay,
+          ...Array.from(overlay.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+          )).filter((element) => element !== overlay),
+        ];
+        if (focusable.length === 0) return;
+
+        const activeIndex = focusable.indexOf(document.activeElement as HTMLElement);
+        const nextIndex = event.shiftKey
+          ? activeIndex <= 0 ? focusable.length - 1 : activeIndex - 1
+          : activeIndex < 0 || activeIndex === focusable.length - 1 ? 0 : activeIndex + 1;
+        event.preventDefault();
+        focusable[nextIndex]?.focus({ preventScroll: true });
+        return;
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         cancel();
@@ -241,6 +262,7 @@ export default function GalleryCropOverlay({
       data-gallery-crop-overlay
       data-field-no-canvas-input="true"
       role="dialog"
+      aria-modal="true"
       aria-label="Reposition gallery image"
       aria-describedby="gallery-reposition-help"
       tabIndex={0}
