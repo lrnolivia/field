@@ -2,14 +2,14 @@
 // Replaces scattered button class patterns across the builder.
 // Uses CSS variables for theming consistency.
 
-import { forwardRef } from 'react';
-import { motion, type HTMLMotionProps } from 'motion/react';
+import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { motion } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-type ButtonProps = HTMLMotionProps<'button'> & {
+type ButtonProps = ComponentPropsWithoutRef<typeof motion.button> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;

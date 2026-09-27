@@ -2,8 +2,8 @@
 // FIGUI3_SIDEBAR_ADD_ACTION_20260925
 // Used in: Pages +, Components +, Presets +, etc.
 
-import { forwardRef } from 'react';
-import { motion, type HTMLMotionProps } from 'motion/react';
+import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { motion } from 'motion/react';
 import {
   addGlyphVariants,
   fieldMotion,
@@ -11,7 +11,9 @@ import {
   useFieldReducedMotion,
 } from '@/editor/motion';
 
-const AddButton = forwardRef<HTMLButtonElement, HTMLMotionProps<'button'>>(
+type AddButtonProps = ComponentPropsWithoutRef<typeof motion.button>;
+
+const AddButton = forwardRef<HTMLButtonElement, AddButtonProps>(
   function AddButton({ className = '', disabled, ...props }, ref) {
     const reducedMotion = useFieldReducedMotion();
     const interactive = !disabled && !reducedMotion;
