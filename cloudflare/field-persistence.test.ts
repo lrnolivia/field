@@ -243,6 +243,13 @@ test('static main/canvas/preview routing and security headers remain intact', as
   assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
   assert.equal(res.headers.get('Origin-Agent-Cluster'), '?1');
 
+  res = await worker.fetch(new Request('https://field-inspector-provenance-write-targets.canvas-preview.loew.fi/'), env);
+  assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/index.html');
+  assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
+  assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+  assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
+  assert.equal(res.headers.get('Origin-Agent-Cluster'), '?1');
+
   res = await worker.fetch(new Request('https://0c044bbe-field.canvas-preview.loew.fi/assets/canvas.js'), env);
   assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/assets/canvas.js');
   assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
