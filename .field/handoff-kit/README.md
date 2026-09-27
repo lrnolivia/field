@@ -2,7 +2,7 @@
 
 Canonical repository-owned process infrastructure for field execution work.
 
-Version: `2026-09-26.3`
+Version: `2026-09-26.4`
 
 ## Two execution lanes
 
@@ -92,7 +92,9 @@ QA evidence is assignment-specific and exact-SHA grounded.
 
 A successful build is not automatically runtime QA.
 
-For web-visible field work, use the current Firecrawl protocol where it can prove the acceptance criteria. For non-web work, use the environment-specific harness defined by the assignment.
+For web-visible field work, use the exact PR-head Cloudflare Preview and browser-driven QA as the canonical runtime verification path. The browser should interact with the real rendered site when the acceptance criteria require it; screenshots, visible state, semantic/runtime observations, and interaction results are evidence. Use `/builder/noauth` when authentication is not under test.
+
+Do not use production to validate an unmerged branch. A head-SHA change invalidates prior runtime evidence. For non-web work, use the environment-specific harness defined by the assignment.
 
 ## Updating this kit
 

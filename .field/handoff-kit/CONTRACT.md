@@ -121,7 +121,11 @@ Standing coordination roles and pre-activation/planned assignments may have `bra
 
 The actual environment where the implementation is exercised.
 
-For web work this may be an assignment Preview. For native/system work use the assignment's environment-specific QA harness.
+For web-visible field work, the canonical runtime path is the exact PR head SHA → its Cloudflare branch Preview → browser-driven QA against that Preview. Use `/builder/noauth` by default when authentication is not itself under test. The browser capability may navigate, click, type, inspect rendered state, and capture screenshots/evidence as required by the acceptance criteria.
+
+Do not use production to claim an unmerged branch was runtime-tested. A successful build is not runtime QA. When the PR head changes, previous browser QA is stale until rerun against the new Preview.
+
+For native/system work use the assignment's environment-specific QA harness.
 
 The QA plane is evidence, not source/control state.
 
@@ -169,7 +173,7 @@ approved_shared:
 protected:
   - <path-or-pattern>
 qa:
-  firecrawl: true | false
+  browser_preview: true | false
   authenticated: true | false
 ---
 ```

@@ -231,6 +231,32 @@ test('static main/canvas/preview routing and security headers remain intact', as
 
   res = await worker.fetch(new Request('https://canvas.field.loew.fi/'), env);
   assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/index.html');
+  assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
+  assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+  assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
+  assert.equal(res.headers.get('Origin-Agent-Cluster'), '?1');
+
+  res = await worker.fetch(new Request('https://field-field-motion-semantic-controls.canvas-preview.loew.fi/'), env);
+  assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/index.html');
+  assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
+  assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+  assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
+  assert.equal(res.headers.get('Origin-Agent-Cluster'), '?1');
+
+  res = await worker.fetch(new Request('https://0c044bbe-field.canvas-preview.loew.fi/assets/canvas.js'), env);
+  assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/assets/canvas.js');
+  assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+  assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
+
+  res = await worker.fetch(new Request('https://canvas.field-field-preview-canvas-host-routing.field-preview.loew.fi/'), env);
+  assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/index.html');
+  assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
+  assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
+  assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
+  assert.equal(res.headers.get('Origin-Agent-Cluster'), '?1');
+
+  res = await worker.fetch(new Request('https://canvas.7ac76031.field-preview.loew.fi/assets/canvas.js'), env);
+  assert.equal(assets.calls[assets.calls.length - 1], '/sandbox/assets/canvas.js');
   assert.equal(res.headers.get('Cross-Origin-Opener-Policy'), 'same-origin');
   assert.equal(res.headers.get('Cross-Origin-Embedder-Policy'), 'credentialless');
 
