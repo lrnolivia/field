@@ -84,16 +84,28 @@ export default function ReshadersMeshFlowLayer(){
       }}/>}
       )}
     </div>
-    <div data-figma-noise />
+    <div data-figma-noise>
+      <img src="/field-brand/loading/figma-noise-1.png" alt="" data-noise-frame="1" />
+      <img src="/field-brand/loading/figma-noise-2.png" alt="" data-noise-frame="2" />
+      <img src="/field-brand/loading/figma-noise-3.png" alt="" data-noise-frame="3" />
+      <img src="/field-brand/loading/figma-noise-4.png" alt="" data-noise-frame="4" />
+    </div>
     <style>{`
-      [data-figma-loading-frame] [data-figma-noise]{position:absolute;inset:0;pointer-events:none;opacity:.92;mix-blend-mode:soft-light;background-size:148px 148px;animation:field-noise 400ms steps(1,end) infinite}
-      @keyframes field-noise{
-        0%,24.99%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='11' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-        25%,49.99%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='29' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-        50%,74.99%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='47' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-        75%,100%{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.84' numOctaves='4' seed='71' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+      [data-figma-loading-frame] [data-figma-noise]{
+        position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
       }
-      @media(prefers-reduced-motion:reduce){[data-figma-loading-frame] [data-figma-noise]{animation:none}}
+      [data-figma-loading-frame] [data-noise-frame]{
+        position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
+        opacity:0;animation:field-noise-frame 400ms steps(1,end) infinite;
+      }
+      [data-figma-loading-frame] [data-noise-frame="2"]{animation-delay:-300ms}
+      [data-figma-loading-frame] [data-noise-frame="3"]{animation-delay:-200ms}
+      [data-figma-loading-frame] [data-noise-frame="4"]{animation-delay:-100ms}
+      @keyframes field-noise-frame{0%,24.99%{opacity:1}25%,100%{opacity:0}}
+      @media(prefers-reduced-motion:reduce){
+        [data-figma-loading-frame] [data-noise-frame]{animation:none;opacity:0}
+        [data-figma-loading-frame] [data-noise-frame="1"]{opacity:1}
+      }
     `}</style>
   </div>;
 }
