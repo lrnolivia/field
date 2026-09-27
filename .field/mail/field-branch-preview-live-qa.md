@@ -1,34 +1,55 @@
 # field-branch-preview-live-qa mailbox
 
-to: successor Contract Worker
-type: ready-for-activation
+to: Night Shift Manager / successor Contract Worker
+type: ready-for-review
 
-Contract Worker coordination v2 is merged and canonical on `main` at:
+PR #15 now has a real, isolated Worker Preview for the exact assignment head.
 
-`fea8f3c29dba1c88de79b5eaa996e4f0bb0d209e`
+## Current implementation
 
-Before implementation, refresh current ownership and resolve exact implementation paths. Then create the assignment branch and Draft PR.
+- branch: `field/field-branch-preview-live-qa`
+- PR: #15
+- tested head: `9863bd5412096b0893d794ce083169bedcce0cb2`
+- tested main: `afe03bed68ad2bc346c7c9b1b239ef93dcf983c3`
+- implementation diff at tested head: `wrangler.jsonc`
+- Cloudflare build ID: `c9b29684-0b1c-401b-871d-a0b93ef05a4a`
+- Preview URL: `https://field-field-branch-preview-live-qa-field.lrnoliv.workers.dev`
 
-First investigation: inspect the current Cloudflare/GitHub deployment path and explain exactly why PR #2 branch builds failed before changing configuration.
+## What changed
 
-Core requirement: Contract Worker browser QA must run against the actual assignment branch Preview, not `main`.
+`wrangler.jsonc` now defines a Worker `previews` block with:
 
-## 2026-09-27 Dashboard dependency evidence
+- Preview Access verifier vars
+- `FIELD_PROJECTS` bound to non-production `field-projects-preview`
+- `FIELD_PROJECT_EVENTS` repeated under `previews.durable_objects.bindings`
+- production `field-projects`, top-level Durable Object binding, and migrations left intact
 
-The Dashboard lane has now isolated the shared branch-Preview failure without changing Preview-owned configuration.
+## What was tested
 
-Observed across open Dashboard PRs #5, #8, #10, #11, #13, and #14:
-- each exact head has one completed Workers Builds: field failure
-- each also has a duplicate check for the same external Build ID stuck in_progress
-- Dashboard-focused component tests / strict TypeScript evidence remains green in the originating assignments
+- Cloudflare Workers Build succeeded for exact head `9863bd5412096b0893d794ce083169bedcce0cb2`.
+- `npm run build` succeeded in Cloudflare.
+- `npx wrangler preview` succeeded.
+- Cloudflare posted the Preview URL automatically to PR #15.
+- Direct Cloudflare account inspection confirms both `field-projects` and `field-projects-preview` exist as distinct R2 buckets.
+- Cloudflare documentation confirms Worker Previews receive isolated Durable Object namespaces/storage; the env binding is correctly repeated under `previews.durable_objects`.
+- Read-only Composio Browser Tool QA loaded `/builder/noauth` on the exact Preview with no auth gate and a rendered field builder UI.
 
-Direct Cloudflare log inspection of the newest failures proves the current first divergence:
-- PR #13 build f97b1538-783f-49a8-974d-661d7b400c73
-- PR #14 build 5cc408f0-4241-497b-9063-a3fb455493a4
-- npm run build completes successfully
-- deploy command is npx wrangler preview
-- Wrangler 4.141.0 then errors: Your Wrangler configuration needs a previews block to run this command.
-- the suggested Preview configuration requires Preview-safe FIELD_ACCESS_TEAM_DOMAIN, FIELD_ACCESS_AUD, an isolated FIELD_PROJECTS R2 binding, and Durable Object Preview isolation
+## Capability note
 
-Treat this as BLOCKED/UNVERIFIED — HARNESS until this assignment implements and validates the Preview path. Do not route the failure back into Dashboard product code.
+Composio Firecrawl is not currently connected. Do not treat that as a product or harness blocker when another permitted capability proves the same acceptance criterion. Browser Tool supplied the independent runtime evidence in this run. If a future acceptance criterion specifically requires Firecrawl output, authorize that toolkit and rerun only that evidence packet.
 
+## Remaining unverified
+
+- authenticated Preview routes
+- a deliberate Preview data mutation/write test (not required to prove the configured isolation and avoided to keep QA non-destructive)
+
+## Merge readiness
+
+No known Preview infrastructure blocker remains on the tested SHA.
+
+Before merge, apply the normal exact-SHA gate:
+- if branch head changes, the build/runtime QA above is stale
+- if relevant main infrastructure changes, reconcile and rerun affected QA
+- keep production deployment as a separate post-merge truth check
+
+The assignment record still contains older activation metadata; Night Shift Manager should reconcile manager-owned assignment metadata to PR #15 when it next refreshes the control plane.
