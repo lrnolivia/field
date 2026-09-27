@@ -512,3 +512,45 @@ Runtime evidence:
 - inspector and bottom toolbar remained rendered and responsive
 
 The earlier Gallery branch-preview failures are historical evidence only. The current exact head has a successful Worker Preview build and successful immutable Canvas/editor runtime smoke.
+
+
+## 2026-09-27 merged to main for live QA
+
+User explicitly authorized pushing Gallery to main for live QA.
+
+Merge sequence:
+- latest main advanced after the first green Gallery build, causing a real PR conflict
+- exact overlap was limited to four shared Canvas bridge files:
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/sandbox-api.ts
+  - src/canvas/canvas-bridge.ts
+- a true three-way merge against common base 4b368eefdb75707efc3a6f94c759cccac8a78e90 preserved Gallery scrollElementBy support together with newer Selection/Group bridge APIs
+- conflict-resolved two-parent Gallery head: d256a74b1bab779c7dd10e69df4e8a3532898505
+- PR #3 became mergeable/clean
+- PR #3 merged to main as a7f56e9749050222bb6f1936c396c70e246fffbb
+- PR #3 is closed/merged
+
+Production evidence:
+- current-main descendant 024d594b07d6ad6e04c61383778de621f170471f includes Gallery merge a7f56e9
+- Workers Builds: field check 108572463858 completed success with zero annotations
+- Cloudflare build ID 18e0fe5c-9c4f-4b53-a864-de9aad1f177f
+- Cloudflare version ID d24549a6-77c0-4a50-a81e-ee4e87e9f6bc
+
+Live deployment fingerprint:
+- field.loew.fi/builder/noauth moved from old assets/index-C76GRGSL.js to assets/index-BfIQ_mva.js
+- new production bundle contains Create Gallery
+- new production bundle contains Reset pan / zoom / rotate
+- new production bundle contains gallery-drag:swap-commit
+- new production bundle contains Gallery creation steps
+- canvas.field.loew.fi serves Canvas Sandbox with sandbox-root/content-root
+
+Live UI source truth:
+- Gallery insertion is left-rail Insert → Elements → Basic, immediately after Image
+- Gallery Insert card is drag-only and carries data-toolbar-item=gallery
+- Resources → Media gallery is the asset panel and is not the Gallery insert affordance
+
+Automation limitation:
+- connected Browser Tool repeatedly replaced the required native toolbar drag with JavaScript-synthesized pointer events
+- those attempts are not accepted as native drag QA evidence
+- production deployment is proven; remaining assignment work is live interaction QA with real pointer/trackpad input plus any resulting regression fixes

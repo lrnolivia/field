@@ -3,12 +3,12 @@
 ```yaml
 assignment: native-gallery-qol-creation-flow
 source_worker: field Gallery Worker
-tested_head_sha: 15bb742b8db7bf090482a6fd4fd1f1a7cfb88f5d
-tested_main_sha: f394090180284f3a70bdf8dd6b280f692d96d0dc
+tested_head_sha: d256a74b1bab779c7dd10e69df4e8a3532898505
+tested_main_sha: 024d594b07d6ad6e04c61383778de621f170471f
 environment: existing Gallery baseline; GitHub/Cloudflare deployment evidence; live no-auth human smoke; Firecrawl access smoke
-build: workers-preview-pass
+build: production-pass
 tests: baseline-pass
-runtime_qa: canvas-preview-pass
+runtime_qa: live-production-partial
 new_tranche_implementation: implemented
 ```
 
@@ -496,3 +496,51 @@ Current functional tranche at this head also contains:
 - guard against mutating instance-owned Gallery content
 
 Remaining validation is product-interaction QA (Gallery creation/edit/swap/drop/Reposition/undo across the live editor) plus any contract-required human trackpad gesture pass; Canvas Preview infrastructure itself is no longer a blocker.
+
+
+## 2026-09-27 production merge + live bundle QA
+
+Merge:
+- final conflict-resolved PR head: d256a74b1bab779c7dd10e69df4e8a3532898505
+- merged PR #3 commit on main: a7f56e9749050222bb6f1936c396c70e246fffbb
+- PR #3 closed/merged successfully
+
+Manual merge integrity:
+- current main had advanced with Selection/Group work after Gallery's previous sync
+- exact path intersection was four Canvas bridge files
+- bridge-host.ts, sandbox-api.ts, and canvas-bridge.ts three-way merged automatically
+- bridge-sandbox.ts had one import-block conflict only
+- resolution kept both Gallery findElByNodeId nested-scroll support and Selection color-locate imports/APIs
+- merge commit had both Gallery and then-current main as parents, so newer main history was preserved rather than overwritten
+
+Production build:
+- tested production descendant: 024d594b07d6ad6e04c61383778de621f170471f
+- direct parent chain contains Gallery merge a7f56e9749050222bb6f1936c396c70e246fffbb
+- Workers Builds: field check 108572463858
+- conclusion: success
+- annotations: 0
+- Cloudflare build ID: 18e0fe5c-9c4f-4b53-a864-de9aad1f177f
+- version ID: d24549a6-77c0-4a50-a81e-ee4e87e9f6bc
+
+Live production:
+- https://field.loew.fi/builder/noauth
+- fresh bundle: assets/index-BfIQ_mva.js
+- previous bundle observed before propagation: assets/index-C76GRGSL.js
+- new bundle contains:
+  - Create Gallery
+  - Reset pan / zoom / rotate
+  - gallery-drag:swap-commit
+  - Gallery creation steps
+- https://canvas.field.loew.fi serves Canvas Sandbox
+- standalone Canvas has sandbox-root/content-root and no actual routing/runtime error; empty content-root is expected without parent bridge
+
+Live insertion path:
+- left rail Insert button: data-left-menu-item=insert / data-tutorial=insert-button
+- Insert → Elements → Basic → Gallery
+- Gallery card: data-toolbar-item=gallery
+- Gallery card is intentionally pointer-drag only; source starts startToolbarDrag() in onPointerDown
+
+Browser automation caveat:
+- Browser Tool found the correct Gallery card but repeatedly substituted JS PointerEvent/MouseEvent synthesis for the requested native pointer drag
+- no wizard failure is recorded from those synthetic attempts
+- native creation/swap/drop/Reposition gesture QA remains to be performed with actual user input or a browser connector exposing genuine mouse drag
