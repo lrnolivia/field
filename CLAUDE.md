@@ -1,177 +1,129 @@
-# Revyme - Architecture & Contribution Guide
+# field — architecture & execution guide
 
-Written for AI coding agents, and equally useful as a human orientation doc. Read this before
-your first change; it explains the shape of the system and the rules that hold everywhere.
+field is the product. Revyme is the technical origin.
 
-Roughly 1,100 source files and 500 test files. You will not read them all - but almost
-everything follows the one loop described below, so understanding it once generalises.
+Start with `README.md` for product/runtime orientation.
 
----
+For any execution chat, also read:
 
-## What Revyme is
+- `.field/handoff-kit/CHAT_BOOTSTRAP.md`
+- `.field/handoff-kit/CONTRACT.md`
+- the current assignment/control records for your execution lane
 
-A visual website builder whose document format is **real Next.js/React source code**. There is
-no scene graph, no proprietary save file. When you drag a box on the canvas, the app rewrites
-the project's `.tsx` file; when the file changes, the canvas re-renders from it.
+## Product principles
 
-That single decision explains most of the architecture. The source is the truth, so every
-feature has to survive a round trip: something must be able to *write* it into JSX, *parse* it
-back out, and *render* it faithfully - three times, in three different places.
+- the website is the real artifact
+- source remains first-class
+- Preview is runtime truth
+- Design, source, Preview, and production should remain aligned
+- parity bugs should be traced to the first point of divergence
+- deterministic concepts should be modeled explicitly
+- AI is for ambiguity, translation, cleanup, inference, and higher-level reasoning — not as a substitute for a proper document model
 
----
+field is evolving from a customized Revyme foundation into a professional visual web design environment. Preserve real upstream/compatibility identifiers when they still represent actual runtime or dependency contracts.
 
-## The core loop
+## Execution lanes
 
-Everything is one cycle. Learn it and the codebase stops being surprising.
+### Codex/local lane
 
-```
-                 ┌──────────────────────────────────────────┐
-                 │   ProjectFS - the project's .tsx files   │
-                 └──────────────────────────────────────────┘
-                        │                          ▲
-              parse     │                          │  generate
-    code/parsing/       ▼                          │  code/generation/
-              ┌───────────────────┐        ┌──────────────────────┐
-              │  CanvasNode tree  │        │   mutation queue     │
-              │  (id → node map)  │        │  code/mutation/      │
-              └───────────────────┘        └──────────────────────┘
-                        │                          ▲
-               render   │                          │  queueMutation()
-      canvas/Renderer   ▼                          │
-              ┌──────────────────────────────────────────────┐
-              │   canvas iframe - real DOM, real CSS         │
-              │   editor/ panels read + write through it     │
-              └──────────────────────────────────────────────┘
-```
+Use the current PJM / Master / Codex Worker contracts. Do not silently replace that hierarchy with Contract Worker rules.
 
-**Read path.** `code/parsing/parser.ts` walks the JSX with Babel and produces a flat
-`Map<id, CanvasNode>`. `canvas/Renderer.ts` turns that into DOM inside a sandboxed iframe.
-Nodes are identified by a `data-id` attribute that lives in the user's source.
+### Contract Worker / Night Shift lane
 
-**Write path.** UI never edits the DOM as the source of truth. It calls
-`queueMutation({ type, nodeId, … })`; the queue batches, then runs a **generator** - a pure
-`(code, …args) => code` string/AST transform in `code/generation/` - and writes the result back
-to ProjectFS. The file change re-triggers the read path.
+Use the repo-hosted handoff kit.
 
-**The rule that follows:** if you find yourself mutating canvas DOM to make a feature work, you
-are working against the grain. Write the code change; let the loop render it.
+Contract Workers and the Night Shift Manager use **Composio exclusively for all GitHub reads and writes**. The built-in ChatGPT GitHub connector is prohibited for this lane.
 
----
+Live cross-chat coordination is on:
 
-## The subsystems
+`field/control`
 
-| Area | Files | Owns |
-|---|---|---|
-| `src/editor/` | 363 | Every panel, tool and control in the UI chrome |
-| `src/code/` | 286 | Parse, generate, mutate, and validate source code |
-| `src/canvas/` | 228 | Rendering, selection, drag, resize, the iframe bridge |
-| `src/shared/` | 45 | Pure utilities usable from any bundle |
-| `src/plugins/` | 38 | Third-party plugin SDK + sandboxed host |
-| `src/canvas-sandbox/` | 28 | The code that runs *inside* the canvas iframe |
-| `src/ai/` | 17 | AI page/component agents and the MCP server bridge |
+Canonical records:
 
-Within `src/code/`, the parts you will touch most:
+`.field/assignments/assignment-<id>.md`
+`.field/mail/<id>.md`
+`.field/qa/<id>.md`
 
-- **`generation/`** (57) - one module per feature area, all pure `(code) => code`
-- **`project/`** (92) - ProjectFS, pages, CMS, templates, deployment metadata
-- **`stores/`** (37) - Jotai atoms; cross-layer UI state
-- **`oracle/`** (16) - the rule engine that gates AI-written files (see below)
-- **`parsing/`** (14) - JSX → `CanvasNode`
+Implementation belongs on `field/<id>` with one Draft PR unless the assignment is explicitly a standing/planning role.
 
-Within `src/canvas/`: `drag/` (87) and `selection/` (35) are the two heavyweights.
+## Artificial blockers
 
----
+Do not stop merely because our own workflow is broken.
 
-## Five invariants
+If stale coordination, metadata, instructions, deterministic tooling, or QA harness behavior blocks the assignment and the repair is bounded, safe, and within current authority, fix it, validate it, record it, and continue.
 
-These hold across the whole codebase. Breaking one produces bugs that look like something else
-entirely, which is why they are worth memorising.
+Do not cross another active assignment's ownership, weaken Git safety, change product direction, or bypass authorization to clear a blocker.
 
-### 1. The canvas is an iframe - never touch its DOM directly
+## Runtime architecture
 
-Canvas content renders in a sandboxed iframe. The parent frame must not call
-`getBoundingClientRect()` or `getComputedStyle()` on canvas elements. Go through the bridge:
+Local development exposes three coordinated surfaces:
 
-```ts
-findNodeRect(nodeId, vpId)              // reads from a synced rect cache
-findNodeComputedStyle(nodeId, vpId, p)  // reads from a prefetched style cache
-patchNodeStyles(contentEl, nodeId, vpPrefix, styles)
-```
+- editor — port 3333
+- Canvas runtime — port 5174
+- Preview runtime — port 5175
 
-`canvas/node-ops.ts` is the front door; `canvas/canvas-bridge.ts` is the transport. The caches
-(`rectCache`, `computedCache`, `cornersCache`) exist so drag and resize can run at 60fps without
-a round trip per frame.
+Production:
 
-### 2. Never write ProjectFS directly
+- editor — https://field.loew.fi
+- Canvas — https://canvas.field.loew.fi
+- Preview — https://preview.field.loew.fi
 
-`modifyProjectFile(path, code => next)` flushes pending mutations, reads fresh, writes, re-syncs.
-A raw `readFile → modify → writeFile` silently discards anything still queued. Read-only
-`readFile` for parsing or display is fine.
+Canvas and Preview intentionally run on separate origins. Treat Preview behavior as runtime truth when design/source/runtime disagree.
 
-### 3. Empty string means *delete this property*
+## Development
 
-Passing `''` as a style value removes the property everywhere - generator, node cache and DOM.
-`{ border: '1px solid red', borderTopWidth: '' }` means "set border, remove borderTopWidth".
-This is load-bearing; several systems rely on it to clear inherited values.
+Requires Node 22+.
 
-### 4. One node, many viewports
+Install:
 
-A page renders once per breakpoint. Responsive overrides live as `@media` rules in the source and
-are transformed to `@container` at canvas render time. Most write paths therefore need to know
-*which* viewport they are writing for - that is what the `vpId` / `vpPrefix` arguments are.
+`npm ci`
 
-### 5. Anything the published site needs lives in `@revyme/runtime`
+Run the complete local environment:
 
-Codegen does not run at publish time; the user's `.tsx` ships verbatim. So a feature that must
-*do* something in the browser (cursors, split-text animations, responsive props) ships as a
-component in the separate `@revyme/runtime` npm package, and the generator emits an import for
-it. Adding an export there has a checklist - see the package's own README.
+`npm run dev`
 
----
+Build all production surfaces:
 
-## The oracle
+`npm run build:all`
 
-`src/code/oracle/` gates every file written by an AI agent or the MCP server before it reaches
-the project. Each rule encodes something the builder cannot resolve: an element without a
-`data-id`, a computed text expression the text tool can't edit, an animation shape the panel
-can't read back.
+Unit tests:
 
-Rules are tiered - tier 3 blocks (the file would crash or fail to parse), tiers 1-2 are
-correctness and dialect violations. When you add a codegen feature, ask whether a *hand-written*
-version of it could be malformed; if so, it needs a rule, or AI-authored pages will drift from
-what the editor can edit.
+`npm run test:run`
 
----
+Lint:
 
-## Contributing rules
+`npm run lint`
 
-**Tests.** Every module needs tests. `npx vitest run`. Note that vitest does not typecheck -
-`npx tsc --noEmit` catches a whole class of error the suite structurally cannot.
+End-to-end tests:
 
-**Debug traces.** Every file includes `trace.action` / `trace.fn` / `trace.dom` / `trace.error`
-for significant operations - state changes, DOM updates, lifecycle events, atom updates. Add
-traces; do not remove them. Diagnosing a canvas bug usually means reading a trace, not a stack.
+`npm run e2e`
 
-**Don't reinvent shared helpers.** Before writing a utility, grep `src/shared/` and
-`src/canvas/node-ops.ts`. Common ones: `css-utils` (camelCase↔kebab, style parsing),
-`position-utils` (pin/inset conversion, px resolution), `flex-helpers`, `gradient-utils`,
-`id-utils` (`generateNodeId`), `ast-utils` (`parseJSX`, `findFirstElementByDataId`). In the UI:
-`ControlActionRow`, `RemoveButton`, `ColorSwatch`, `ToolPopup`, `Modal`.
+Additional supported scripts are defined in `package.json`.
 
-**Match the file you are in.** Comment density, naming and idiom vary by area; follow the
-surrounding code rather than importing a house style.
+## Change discipline
 
----
+Before editing:
 
-## Where to start reading
+- refresh current Git truth
+- inspect current ownership
+- read the relevant assignment and dependency mail
+- preserve unrelated work
+- keep changes inside assigned paths
+- understand existing source/document/history/runtime contracts before replacing them
 
-| To understand… | Read |
-|---|---|
-| how source becomes a canvas | `code/parsing/parser.ts` → `canvas/Renderer.ts` |
-| how an edit becomes source | `code/mutation/mutation-queue.ts` → any `code/generation/generator-*.ts` |
-| how a panel writes a style | `editor/controls/ControlProvider.tsx` |
-| how the iframe boundary works | `canvas/canvas-bridge.ts` + `canvas-sandbox/protocol.ts` |
-| how AI output is validated | `code/oracle/check-file.ts` |
+Before merge:
 
-The most instructive single file is `code/generation/generator-crud.ts` - it is the smallest
-complete example of the write path, and every other generator follows its shape.
+- run assignment-required focused tests
+- run static/type/build checks that apply
+- perform required runtime QA
+- record exact tested branch/main SHAs
+- reconcile moving main
+- re-check ownership and PR state
+
+A successful build is not automatically runtime QA.
+
+## Compatibility and attribution
+
+Some Revyme-prefixed dependencies, environment names, storage keys, protocol identifiers, or compatibility structures remain intentionally present. Do not mechanically rename them because the product is now field.
+
+`LICENSE` and `NOTICE` are authoritative for licensing and attribution.

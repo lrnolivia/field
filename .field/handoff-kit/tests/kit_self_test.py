@@ -11,6 +11,7 @@ required = [
     "templates/assignment.md", "templates/assignment-unique-name.md",
     "templates/package-README.md", "templates/apply.mjs",
     "tests/contract_worker_v2_test.py",
+    "CURRENT_WORKER_SELF_REGISTRATION.md",
 ]
 for rel in required:
     p = ROOT / rel
@@ -18,7 +19,7 @@ for rel in required:
 
 manifest = json.loads((ROOT / "manifest.json").read_text())
 version = (ROOT / "VERSION").read_text().strip()
-assert manifest["version"] == version == "2026-09-26.2"
+assert manifest["version"] == version == "2026-09-26.3"
 assert manifest["repository"] == "lrnolivia/field"
 assert manifest["control_branch"] == "field/control"
 assert manifest["legacy_tracker"] == "tracker.md"
@@ -67,5 +68,15 @@ with tempfile.TemporaryDirectory(prefix="field handoff kit ") as td:
     shutil.copytree(ROOT, copied)
     json.loads((copied / "manifest.json").read_text())
     subprocess.run(["python3", str(copied / "tests/contract_worker_v2_test.py")], check=True)
+
+
+blocker_docs = [
+    (ROOT / "CONTRACT.md").read_text(),
+    (ROOT / "ASSIGNMENT_AUTHORING.md").read_text(),
+    (ROOT / "CHAT_BOOTSTRAP.md").read_text(),
+    (ROOT / "templates/assignment-unique-name.md").read_text(),
+]
+assert all("artificial blocker" in text.lower() for text in blocker_docs)
+assert manifest["current_worker_self_registration"].endswith("CURRENT_WORKER_SELF_REGISTRATION.md")
 
 print("field handoff kit self-test: PASS")

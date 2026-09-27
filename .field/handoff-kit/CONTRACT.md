@@ -310,6 +310,43 @@ Before publishing coordination-kit changes:
 
 For product/runtime work, add assignment-specific tests/build/QA.
 
+
+## Artificial blocker repair doctrine
+
+A Contract Worker must distinguish a **real blocker** from an **artificial blocker created by our own workflow, coordination, tooling, harness, metadata, or stale instructions**.
+
+Examples of artificial blockers include:
+
+- stale or contradictory handoff-kit instructions
+- missing or stale control-plane records
+- incorrect branch / PR metadata
+- an obsolete baseline or assignment status
+- a missing mailbox / QA record that the current contract requires
+- a deterministic Composio/tooling mistake that can be corrected safely
+- a QA harness defect that prevents otherwise-valid acceptance evidence
+- a process rule that conflicts with the current canonical contract
+
+When a Contract Worker discovers an artificial blocker, the default behavior is:
+
+1. verify that it is actually artificial using current Git/runtime truth
+2. fix it immediately when the repair is bounded, safe, and within the Worker's ownership/authority
+3. validate the repair
+4. record the repair in the Worker's mailbox/QA or assignment history as appropriate
+5. continue the original assignment without waiting for user confirmation
+
+Do **not** turn a repairable workflow defect into a reason to stop work.
+
+If the repair requires a path owned by another active assignment, changes product direction, requires credentials/authorization the worker does not have, or would violate a safety/merge boundary:
+
+- do not trespass on ownership
+- register or request a bounded repair assignment / ownership reconciliation
+- continue any independent work that remains possible
+- report the genuine dependency precisely
+
+A Contract Worker may expand effort to repair the road it is currently traveling; it may not use this doctrine as permission to redesign unrelated systems.
+
+The Night Shift Manager is responsible for noticing repeated artificial blockers and promoting durable fixes into the handoff kit so later workers do not hit the same failure again.
+
 ## 15. Closeout and continuity
 
 A completion report distinguishes:

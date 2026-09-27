@@ -7,7 +7,7 @@ status: active
 branch: field/<unique-name>
 pr: null
 base: <main-sha>
-kit: 2026-09-26.2
+kit: 2026-09-26.3
 type: handoff | plan-to-action | repair | follow-up | qa-closeout
 execution_class: contract-worker
 owned:
@@ -96,6 +96,13 @@ Secondary evidence:
 
 Human/authenticated QA:
 - <requirements or none>
+
+
+## Artificial blocker rule
+
+If this assignment is blocked by a defect in field's own coordination, metadata, tooling, instructions, or QA harness, repair that blocker when the repair is bounded and within current ownership/authority. Validate and record the repair, then continue.
+
+Do not use this rule to cross another assignment's ownership or to change product direction. Create/request a separate repair assignment when that is required.
 
 ## Handoff source
 
