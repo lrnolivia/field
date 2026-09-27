@@ -46,3 +46,7 @@ Canvas Preview routing/origin repair is merged and deployed.
 - runtime Preview QA: PASS
 
 Dependent branches must rebuild from repaired `main` before Canvas-dependent QA is current.
+
+## 2026-09-27 merged + verified
+
+PR #19 is merged and deployed. Exact tested branch head: 4fb9352004f879d13f614c295dec71380d57a7f9. Merged main: f394090180284f3a70bdf8dd6b280f692d96d0dc. Preview build 825f96a3-4464-4ca5-ae34-f26c2e9c8a09 passed. Canvas first paint passed at https://field-field-preview-canvas-host-routing.canvas-preview.loew.fi/ with CORP cross-origin, COOP same-origin, COEP credentialless, OAC ?1, and cross-origin isolation true. Post-merge Cloudflare production build e2b050b6-4a4f-403c-a1f7-8b778a6062f0 passed and published Worker version 7a908371-4d49-409a-997a-0f20c0e95d64. Regression tests landed, but this closeout does not claim a fresh Vitest execution.

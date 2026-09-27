@@ -115,3 +115,16 @@ This assignment therefore also owns the minimal deterministic origin resolver an
 - PR #19 merged as `f394090180284f3a70bdf8dd6b280f692d96d0dc`.
 - Main Cloudflare deployment: PASS — Version `7a908371-4d49-409a-997a-0f20c0e95d64`.
 - Ownership released.
+
+## 2026-09-27 closeout
+
+- PR #19 merged to main as f394090180284f3a70bdf8dd6b280f692d96d0dc.
+- Exact runtime-QA head: 4fb9352004f879d13f614c295dec71380d57a7f9.
+- Branch Preview: https://field-field-preview-canvas-host-routing.field-preview.loew.fi/builder/noauth
+- Resolved Canvas origin: https://field-field-preview-canvas-host-routing.canvas-preview.loew.fi/
+- Canvas first paint: PASS.
+- Canvas isolation headers: CORP cross-origin, COOP same-origin, COEP credentialless, OAC ?1; crossOriginIsolated true.
+- No TLS/certificate error, Cloudflare placeholder, 404, or 5xx was observed on the Canvas Preview.
+- Exact Preview build 825f96a3-4464-4ca5-ae34-f26c2e9c8a09 passed npm run build:all and npx wrangler preview.
+- Post-merge production build e2b050b6-4a4f-403c-a1f7-8b778a6062f0 passed and published Worker version 7a908371-4d49-409a-997a-0f20c0e95d64.
+- Regression coverage landed in src/canvas-sandbox/origin.test.ts and cloudflare/field-persistence.test.ts. Vitest was not independently rerun during this closeout.
