@@ -235,6 +235,31 @@ export class ToolbarDragStrategy implements DragStrategy {
         context.nodes,
       );
       if (gallery) {
+        if (isInstanceOwnedNode(gallery.id, gallery as any)) {
+          this.isOverCanvas = false;
+          this.dropParentId = null;
+          this.dropIndex = undefined;
+          this.currentVpId = hit?.vpId ?? null;
+          dropLineOps.hide();
+          parentHighlightOps.hide();
+          toolbarGhostOps.show({
+            item: this.item,
+            screenPos: mouseScreen,
+            vpId: hit?.vpId ?? null,
+            canvasPos: null,
+          });
+          trace.fn('toolbar-drag:gallery-target-blocked', {
+            galleryId: gallery.id,
+            reason: 'instance-owned',
+          });
+          return {
+            snap: null,
+            dropTarget: null,
+            highlightParentId: null,
+            axisLock: null,
+          };
+        }
+
         const vpId = hit?.vpId ?? '';
         const canvasPos = screenToCanvas(
           mouseScreen.x,
