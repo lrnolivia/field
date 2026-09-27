@@ -3,9 +3,9 @@
 ---
 field_assignment: 1
 id: native-scale-visual-metrics-repair
-status: active
+status: ready-for-runtime-closeout
 branch: field/native-scale-visual-metrics-repair
-pr: null
+pr: 9
 base: d9f178361333a2a3bb17be90c0277e4b98708ae4
 kit: 2026-09-26.3
 type: repair
@@ -200,3 +200,29 @@ Human/authenticated QA:
 - branch: `field/native-scale-visual-metrics-repair`
 - activated from current `main` at `d9f178361333a2a3bb17be90c0277e4b98708ae4`
 - current repo-hosted handoff kit adopted: `2026-09-26.3`
+
+
+## Implementation result — 2026-09-26
+
+- repair branch: `field/native-scale-visual-metrics-repair`
+- Draft PR: #9
+- tested repair head: `2980b73c216349f7f42ecea31305bf77bacd99a6`
+- current main reconciled at: `d9f178361333a2a3bb17be90c0277e4b98708ae4`
+- changed paths remain limited to the four owned files
+- repair preserves the existing wrapper-only live preview, then bakes native SVG `viewBox`, inner geometry, and stroke metrics into source space on commit
+- existing CSS `borderRadius` scaling remains in the wrapper style policy and is committed in the same single mutation/history batch
+
+Validation completed on the exact repair head:
+- Scale policy: **11/11 PASS**
+- Scale integration contract: **5/5 PASS**
+- focused strict TypeScript: **PASS**
+- RotateManager regression: **58/58 PASS**
+- official ResizeManager suite: **NOT COMPLETED** — disposable Composio runner was OOM-killed before assertions executed
+
+Infrastructure note:
+- Cloudflare Workers build is currently failing on the repair branch, current `main`, and unrelated PR #8, so the red Cloudflare check is a repo-wide build/preview harness blocker rather than repair-specific evidence.
+
+Next owner:
+- resume `native-scale-tool-qa-closeout` at Packet 1 once an exact repair-lineage runtime is available
+- verify 100×50 / stroke 2 / radius 10 → 200×100 / stroke 4 / radius 20, fixed center, one-step undo/redo
+- keep PR #9 Draft until runtime closeout succeeds
