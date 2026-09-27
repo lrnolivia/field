@@ -43,3 +43,13 @@ Assignment: `field-motion-semantic-controls`
 - Removed direct `HTMLMotionProps` type-export dependency from AddButton/Button; props now derive from `typeof motion.button` through React `ComponentPropsWithoutRef`. Runtime behavior is unchanged.
 - Focused 10/10 source-contract assertions still pass on the hardened head.
 - Workers build still fails with zero annotations, consistent with the already classified branch-preview infrastructure defect.
+
+
+## 2026-09-27 final hardening
+
+- Published final semantic/accessibility hardening at `35e345face8672dc7e8cc12b583f6f4cd80d0f39` on Draft PR #12.
+- Source-contract assertions against the exact head: 13/13 PASS; no conflict markers.
+- Moving-main reconciliation against `afe03bed68ad2bc346c7c9b1b239ef93dcf983c3`: no owned-path overlap; intervening main changes are docs plus `tracker.md` only.
+- Scale completion does not conflict with this assignment and no Scale paths were touched.
+- Cloudflare Workers branch build for the exact head completed FAILURE with zero annotations, consistent with the known shared branch-preview infrastructure defect already recorded on this assignment.
+- Runtime Preview/UI feel/reduced-motion QA remains BLOCKED — ENVIRONMENT. PR #12 stays Draft and unmerged rather than bypassing the merge gate.

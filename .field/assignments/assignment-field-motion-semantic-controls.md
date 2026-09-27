@@ -210,3 +210,20 @@ Human/authenticated QA:
 - record QA against exact tested branch/main SHAs
 - merge only after the current merge gate passes
 - separate structural/canvas/popover follow-up work gets a new unique assignment
+
+
+## 2026-09-27 final semantic hardening
+
+- Final hardened implementation head: `35e345face8672dc7e8cc12b583f6f4cd80d0f39`.
+- Final hardening commit: `Harden field.MOTION control semantics`.
+- Hardened nine already-owned files only; PR #12 remains exactly 16 assignment-owned changed paths total.
+- `RemoveButton` is now a real named keyboard-operable button with local glyph motion and a larger effective pointer area without moving layout geometry.
+- `ToolSwitch` now exposes switch semantics with `aria-checked`, a fallback accessible name, focus-visible treatment, and reduced-motion-safe track/thumb behavior.
+- `ToolPlusMinus` now has explicit button types, accessible increment/decrement names, focus-visible treatment, and decorative glyph semantics.
+- `SpacingControl` mode controls are keyboard reachable and expose pressed state; side labels are programmatically associated; Enter/Escape no longer fall through into a duplicate/stale blur commit.
+- `ColorInput` swatch-only mode now names the picker and keeps the hit target fixed while an inner swatch surface moves; clear/remove actions are sibling real buttons rather than nested interactive elements.
+- AddButton/Button/ToolButton received explicit button semantics and loading/focus/reduced-motion hardening without changing visual geometry.
+- Deterministic final-head source assertions: 13/13 PASS; conflict-marker scan: PASS.
+- Moving-main reconciliation to `afe03bed68ad2bc346c7c9b1b239ef93dcf983c3`: five changed paths since assignment base, all docs/coordination (`LOEW_THEME.md`, three FigUI handoff docs, `tracker.md`); zero overlap with the 16 motion-owned source paths.
+- Exact-head Cloudflare Workers check still fails with zero annotations, matching the already documented shared branch-preview/deployment infrastructure failure class.
+- Runtime Preview QA and subjective human feel/reduced-motion verification remain blocked by that infrastructure. Do not mark this assignment complete or merge PR #12 until the runtime merge gate can be satisfied.
