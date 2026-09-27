@@ -2,7 +2,21 @@
 
 Canonical repository-owned process infrastructure for field execution work.
 
-Version: `2026-09-26.4`
+Version: `2026-09-27.1`
+
+## Canonical process source
+
+The handoff kit is authoritative only at:
+
+```text
+main:.field/handoff-kit/**
+```
+
+Copies on `field/control` or implementation branches are compatibility mirrors only. They may lag and must never override the current `main` kit.
+
+Before planning or implementation, resolve the kit from current `main`. If a branch-local `.field/handoff-kit/VERSION` differs from `main`, classify it as `STALE_HANDOFF_KIT`, use the `main` copy, and do not copy stale rules forward.
+
+Cross-chat shared-repair continuity lives at `field/control:.field/shared-repairs.json`. Rehydration must read that ledger in addition to assignment/mail/QA records.
 
 ## Two execution lanes
 

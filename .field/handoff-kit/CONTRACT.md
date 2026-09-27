@@ -83,6 +83,22 @@ Stop. Do not fall back to the built-in GitHub connector.
 
 This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate Codex lane.
 
+## Canonical process source and shared-repair baseline
+
+The process authority for this kit is always `main:.field/handoff-kit/**`.
+
+A copy of `.field/handoff-kit/**` on `field/control` or an implementation branch is a compatibility mirror, not process authority. A stale mirror must be ignored in favor of current `main`; it must never silently downgrade a worker's rules.
+
+Shared infrastructure repairs that must propagate across active work are recorded machine-readably at:
+
+```text
+field/control:.field/shared-repairs.json
+```
+
+Before activation, runtime QA, and merge, evaluate every applicable repair whose record has `status: resolved` and `mandatory_baseline: true`. The repair's `canonical_repair_sha` must be an ancestor of the implementation head.
+
+A missing required repair is `STALE_BASELINE — RECONCILE REQUIRED`. Browser/runtime QA should not run against that stale head. Canonical propagation is baseline convergence through current `main`; workers must not independently recreate the fix or use cherry-pick as the normal propagation mechanism.
+
 ## 5. Three coordination planes
 
 ### Control plane
