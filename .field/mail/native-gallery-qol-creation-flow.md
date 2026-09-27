@@ -481,3 +481,34 @@ Bounded adaptation authorized from PR #19:
 - src/canvas-sandbox/protocol.ts
 
 The PR #19 handoff-kit documentation edit is intentionally not copied; Gallery records the same runtime preflight evidence in its canonical mailbox/QA.
+
+
+## 2026-09-27 Canvas Preview fix deployed and verified
+
+Final verified Gallery head for this Preview pass:
+- 15bb742b8db7bf090482a6fd4fd1f1a7cfb88f5d — Remove branch-only Preview verification drift
+- parent 1761cf2eac0b560564d55183a435f1047c92c083 — instance-owned Gallery drop guard
+- 99052ed473170d2443f26f615f63d72bca62caa9 — native Media → existing Gallery drop
+- PR #19 runtime fix entered Gallery through merged main commit f394090180284f3a70bdf8dd6b280f692d96d0dc
+
+Why the temporary branch-only verification was removed:
+- PR #19 generic origin/Worker regressions already cover arbitrary branch and immutable Preview prefixes
+- Gallery-specific hostname tests were useful while diagnosing the branch, but keeping product-branch names in shared infrastructure tests would create branch-only drift
+- final Gallery head therefore uses the canonical PR #19 generic runtime/test implementation without Gallery-specific production forks
+
+Deployment evidence:
+- Workers Builds check 108564003826 completed success for the exact head
+- zero annotations
+- immutable deployment id c82825c7
+- outer editor: https://c82825c7.field-preview.loew.fi
+- Canvas sibling: https://c82825c7.canvas-preview.loew.fi
+
+Runtime evidence:
+- direct Canvas host title is Canvas Sandbox
+- DOM contains #sandbox-root and #content-root
+- direct Canvas host no longer renders the Dashboard/Recents application and exposed no console error during browser QA
+- https://c82825c7.field-preview.loew.fi/builder/noauth reached a visible Desktop 1440 frame on first paint
+- no Canvas is taking longer to start, broken-file state, or Retry requirement
+- inspector and bottom toolbar remained rendered and responsive
+
+The earlier Gallery branch-preview failures are historical evidence only. The current exact head has a successful Worker Preview build and successful immutable Canvas/editor runtime smoke.

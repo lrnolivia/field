@@ -3,13 +3,13 @@
 ```yaml
 assignment: native-gallery-qol-creation-flow
 source_worker: field Gallery Worker
-tested_head_sha: 1a84843ad3b24cd8572545cba05409fb48b3715a
-tested_main_sha: 7e585a2fe66e062bae8a46041a6e08901027f9a8
+tested_head_sha: 15bb742b8db7bf090482a6fd4fd1f1a7cfb88f5d
+tested_main_sha: f394090180284f3a70bdf8dd6b280f692d96d0dc
 environment: existing Gallery baseline; GitHub/Cloudflare deployment evidence; live no-auth human smoke; Firecrawl access smoke
-build: baseline-pass
+build: workers-preview-pass
 tests: baseline-pass
-runtime_qa: partial
-new_tranche_implementation: not-started
+runtime_qa: canvas-preview-pass
+new_tranche_implementation: implemented
 ```
 
 ## Existing baseline that actually passed
@@ -443,3 +443,56 @@ UIAudit score remains 17 / 20 — Good:
 - retained role=dialog, linked instructions, Tab focus containment, guarded Enter, Escape cancel, pointer/gesture treatment input, and data-field-no-canvas-input on the edited image overlay
 - semantic result: keyboard focus is contained without falsely declaring all surrounding field UI inert to assistive technology
 - no Workers check existed on the first post-publication read
+
+
+## 2026-09-27 immutable Canvas Preview runtime pass
+
+Exact implementation head:
+- 15bb742b8db7bf090482a6fd4fd1f1a7cfb88f5d
+- main reference containing PR #19 fix: f394090180284f3a70bdf8dd6b280f692d96d0dc
+- Draft PR #3 remained open/draft; no merge performed
+
+Build/deployment:
+- Workers Builds: field check 108564003826
+- conclusion: success
+- annotations: 0
+- immutable Cloudflare Preview deployment: c82825c7
+
+Direct Canvas host:
+- https://c82825c7.canvas-preview.loew.fi/
+- browser title: Canvas Sandbox
+- sandbox DOM: #sandbox-root + #content-root
+- expected blank/transparent sandbox shell when not bridge-driven
+- no Dashboard/Recents UI
+- no console errors or application crash detected
+
+Outer editor:
+- https://c82825c7.field-preview.loew.fi/builder/noauth
+- onboarding dismissed
+- Canvas reached first paint with visible Desktop 1440 frame
+- no broken-file state
+- no Canvas is taking longer to start
+- Retry was not offered/needed
+- right Inspector and bottom Toolbar rendered
+- no fatal runtime error observed
+
+PR #19 adaptation verdict: PASS
+- origin resolver maps branch/immutable .field-preview.loew.fi to sibling .canvas-preview.loew.fi
+- Worker recognizes .canvas-preview.loew.fi as Canvas and routes it to /sandbox
+- Canvas isolation headers remain in the PR #19 Worker path
+- the exact Gallery branch Preview now exercises that architecture successfully
+
+Historical-build note:
+- previous zero-annotation Cloudflare failures recorded earlier in this QA file remain useful history
+- they are superseded for current deployment health by the successful exact-head Worker build and immutable runtime evidence above
+- do not continue classifying Cloudflare Preview as globally broken for this Gallery assignment
+
+Current functional tranche at this head also contains:
+- native image-over-image Gallery identity swap
+- Strip/Carousel Gallery edge auto-scroll bridge
+- Media metadata carried through native toolbar drag
+- deterministic Gallery media-add planner
+- native Media → existing Gallery drop
+- guard against mutating instance-owned Gallery content
+
+Remaining validation is product-interaction QA (Gallery creation/edit/swap/drop/Reposition/undo across the live editor) plus any contract-required human trackpad gesture pass; Canvas Preview infrastructure itself is no longer a blocker.
