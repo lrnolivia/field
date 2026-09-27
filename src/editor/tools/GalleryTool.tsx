@@ -20,8 +20,8 @@ import { useNodesComputed } from '@/code/stores/node-family';
 import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
+import { buildGalleryMediaAddPlan } from '@/code/gallery/gallery-media-add-plan';
 import {
-  buildGalleryItemNode,
   galleryRootAttrs,
   getGalleryCarouselControls,
   getGalleryItems,
@@ -417,34 +417,21 @@ function GalleryToolInner() {
       : unique.map(() => null);
     if (galleryStateRef.current !== stateAtStart) return;
 
-    const mutations: Mutation[] = [];
-    const addedNodes = unique.map((url, offset) => buildGalleryItemNode(
-      url,
-      items.length + offset,
-      currentView,
-      '',
-      naturalSeed,
-      frameSizing,
-      frameSizing === 'source' ? normalizeGallerySourceRatio(measuredRatios[offset]) : null,
-    ));
-    addedNodes.forEach((sourceNode) => {
-      mutations.push({ type: 'addNode', parentId: galleryId, node: sourceNode });
-      if (currentView === 'strip') {
-        mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch(frameSizing) });
-      }
+    const plan = buildGalleryMediaAddPlan({
+      gallery,
+      nodes,
+      media: unique.map((url, index) => ({ url, sourceRatio: measuredRatios[index] })),
     });
-    if (currentView === 'carousel') {
-      const nextItems: GalleryCarouselSyncItem[] = [
-        ...items,
-        ...addedNodes.map((node) => ({ itemId: node.id, controlIds: [] })),
-      ];
-      mutations.push(...buildGalleryCarouselSyncMutations(nextItems));
-    }
-    queueMutations(mutations);
+    queueMutations(plan.mutations);
     flushNow();
-    selectItem(gallerySelectionAfterCreate(addedNodes.map((item) => item.id), selectedItemId));
-    trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length, frameSizing });
-  }, [currentView, frameSizing, galleryId, items, naturalSeed, selectItem, selectedItemId]);
+    selectItem(gallerySelectionAfterCreate(plan.itemNodes.map((item) => item.id), selectedItemId));
+    trace.action('gallery:add-media', {
+      nodeId: galleryId,
+      count: plan.itemNodes.length,
+      frameSizing: plan.frameSizing,
+      view: plan.view,
+    });
+  }, [frameSizing, gallery, galleryId, nodes, selectItem, selectedItemId]);
 
   const replaceMedia = useCallback(async (itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
