@@ -5,7 +5,7 @@ field_assignment: 1
 id: field-motion-semantic-controls
 status: active
 branch: field/field-motion-semantic-controls
-pr: null
+pr: 12
 base: 66a6f90ef9658e5a66409c0ebe48727715b3452b
 kit: 2026-09-26.3
 type: plan-to-action

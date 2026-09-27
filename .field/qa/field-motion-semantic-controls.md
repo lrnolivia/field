@@ -2,8 +2,8 @@
 
 assignment: field-motion-semantic-controls
 branch: field/field-motion-semantic-controls
-pr: null
-tested_head_sha: null
+pr: 12
+tested_head_sha: 3a419be9aa82dd9bc2e5d19959690f33fca066bb
 tested_main_sha: null
 environment: not-yet-run
 build: NOT RUN
@@ -31,3 +31,12 @@ evidence: []
 - Theming: motion feedback must remain token-driven and coherent in light/dark themes.
 - Responsive: preserve existing compact desktop geometry; do not introduce overflow or target drift.
 - Implementation integrity: semantic field.MOTION primitives must replace one-off timing without becoming a generic animation layer or leaking into authored site behavior.
+
+## Branch publication
+
+- exact_head_sha: `3a419be9aa82dd9bc2e5d19959690f33fca066bb`
+- draft_pr: `#12`
+- changed_paths: 16, all inside assignment ownership
+- package_manifest_changes: none
+- moving_main_at_publication: unchanged at `66a6f90ef9658e5a66409c0ebe48727715b3452b`
+- CI: IN PROGRESS

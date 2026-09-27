@@ -19,3 +19,11 @@ Assignment: `field-motion-semantic-controls`
 - Active legacy thumbnail and Scale reservations do not overlap this assignment's owned control paths.
 - Implementation branch `field/field-motion-semantic-controls` created from exact current `main`.
 - UI/UX motion-design and bounded technical UI-audit criteria are now part of the QA gate.
+
+## 2026-09-27 implementation tranche 1
+
+- Branch head: `3a419be9aa82dd9bc2e5d19959690f33fca066bb`.
+- Draft PR: `#12`.
+- Published exactly 16 owned files: canonical `src/editor/motion/**` plus the twelve targeted shared controls.
+- No package manifests, Dashboard structural motion, thumbnail, Scale, canvas, backend, or generated-source paths changed.
+- CI/preview validation is in progress against the exact branch head.
