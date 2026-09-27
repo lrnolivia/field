@@ -16,6 +16,7 @@ owned:
   - src/editor/tools/LayoutTool.tsx
   - src/editor/tools/CursorTool.tsx
   - src/editor/tools/CursorTool/cursor-icons.tsx
+  - src/editor/tools/CursorTool/cursor-picker-grid.tsx
   - src/editor/tools/OverlayTool.tsx
   - src/editor/ui/VariableModal.tsx
   - src/editor/tools/AnimationTool/AddEffectDropdown.tsx
