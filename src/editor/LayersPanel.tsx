@@ -33,6 +33,7 @@ import PanelSearchButton from '@/design-system/PanelSearchButton';
 import { LayerRow, dedupeLayerRows, visibilityToggleTargets, visibleDisplayForUnhide, computeSelectionSets, computeRangeSelection, isNodeUnderOverlay, resolveDisplayForLayer, getEffectiveLayerStyle, childrenInLayerStack, type FlatLayer } from './LayersPanel/rows';
 import { startLayerDrag, vpIdFromLayerId } from './LayersPanel/drag';
 import { filterLayersForSearch } from './LayersPanel/search';
+import { selectionColorLocateAtom } from '@/code/stores/selection-color-locate-store';
 
 export { computeSelectionSets, computeRangeSelection, overlayExpandPath, type FlatLayer } from './LayersPanel/rows';
 
@@ -77,6 +78,8 @@ export default function LayersPanel() {
   const selectedId = useAtomValue(selectedNodeAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const setSelectedIds = useSetAtom(selectedIdsAtom);
+  const locateRequest = useAtomValue(selectionColorLocateAtom);
+  const [locateFlash, setLocateFlash] = useState<{ ids: Set<string>; revision: number } | null>(null);
   // Overlay-edit mode: clicking an overlay row enters it (like the Overlay
   // tool's chip); an overlay's children only show in the tree while its
   // overlay is the one being edited.
@@ -144,6 +147,33 @@ export default function LayersPanel() {
   const activeIdRef = useRef<string | null>(null);
   const activeLayerIdRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (locateRequest?.mode !== 'click') return;
+    const vpId = interactingVpId;
+    const ids = new Set(locateRequest.nodeIds);
+    setLayerSearchQuery('');
+    setLayerSearchOpen(false);
+    const toExpand = new Set<string>([`__vp_${vpId}`]);
+    for (const id of ids) {
+      let parent = nodes.get(id)?.parentId;
+      const visited = new Set<string>();
+      while (parent && !visited.has(parent)) {
+        visited.add(parent);
+        toExpand.add(`${vpId}:${parent}`);
+        parent = nodes.get(parent)?.parentId;
+      }
+    }
+    setExpanded((prev) => new Set([...prev, ...toExpand]));
+    setLocateFlash({ ids, revision: locateRequest.revision });
+    trace.action('layers:locate-color', { count: ids.size, revision: locateRequest.revision });
+    const scrollTimer = setTimeout(() => {
+      const first = locateRequest.nodeIds.find((id) => listRef.current?.querySelector(`[data-layer-id="${CSS.escape(`${vpId}:${id}`)}"]`));
+      if (first) listRef.current?.querySelector(`[data-layer-id="${CSS.escape(`${vpId}:${first}`)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 50);
+    const clearTimer = setTimeout(() => setLocateFlash((current) => current?.revision === locateRequest.revision ? null : current), 1200);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [locateRequest?.revision, interactingVpId, nodes]);
 
   // Find root nodes (no parentId, not style elements)
   const rootNodeIds = useMemo(() => {
@@ -1230,6 +1260,7 @@ export default function LayersPanel() {
               dropDepth={dropIndicator?.layerId === layer.id ? dropIndicator.depth : 0}
               isDragging={!!activeLayerId && activeLayerId === layer.id}
               effectiveHidden={effectiveHidden}
+              locateFlashRevision={locateFlash?.ids.has(layer.nodeId || '') && layer.viewportId === interactingVpId ? locateFlash.revision : undefined}
               onSelect={handleLayerClick}
               onToggleExpand={toggleExpand}
               onDragStart={handleLayerDragStart}
