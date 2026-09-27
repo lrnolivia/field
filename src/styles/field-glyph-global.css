@@ -1,0 +1,100 @@
+/* field.GLYPH universal app-shell fallback.
+ *
+ * Explicit semantic motion always wins. This layer makes every remaining
+ * interactive SVG in the field app shell — including portaled menus, modals,
+ * settings, gallery/CMS tooling, dashboard chrome, and secondary editor UI —
+ * feel alive without adding React hover state or per-icon listeners.
+ *
+ * Performance contract:
+ * - transform/opacity only
+ * - no layout-property animation
+ * - no rAF loops
+ * - no permanent will-change
+ * - no synchronous layout reads
+ *
+ * Canvas and Preview are separate documents and do not load this entrypoint.
+ */
+
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary)
+  svg:not(:where(
+    [data-field-glyph] svg,
+    [data-field-glyph-morph] svg,
+    [data-field-motion] svg,
+    [data-field-motion-part],
+    [data-field-toolbar-glyph] svg
+  )) {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 180ms cubic-bezier(.2, .8, .2, 1),
+    opacity 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-field-glyph-motion='true']
+    :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):hover
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-motion-part],
+      [data-field-toolbar-glyph] svg
+    )) {
+    transform: translateY(-1px) scale(1.08);
+  }
+}
+
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):active
+  svg:not(:where(
+    [data-field-glyph] svg,
+    [data-field-glyph-morph] svg,
+    [data-field-motion] svg,
+    [data-field-motion-part],
+    [data-field-toolbar-glyph] svg
+  )) {
+  transform: translateY(.5px) scale(.82) rotate(-2deg);
+  transition-duration: 90ms;
+}
+
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):focus-visible
+  svg:not(:where(
+    [data-field-glyph] svg,
+    [data-field-glyph-morph] svg,
+    [data-field-motion] svg,
+    [data-field-motion-part],
+    [data-field-toolbar-glyph] svg
+  )) {
+  transform: scale(1.06);
+}
+
+/* Generic selected-state settle for icon buttons that do not yet own a
+ * semantic FieldMorphGlyph. Stateful components with explicit field.GLYPH
+ * markers are excluded above and keep their richer transition. */
+html[data-field-glyph-motion='true']
+  :where(button[aria-pressed='true'], [role='button'][aria-pressed='true'])
+  svg:not(:where(
+    [data-field-glyph] svg,
+    [data-field-glyph-morph] svg,
+    [data-field-motion] svg,
+    [data-field-motion-part],
+    [data-field-toolbar-glyph] svg
+  )) {
+  transform: scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-field-glyph-motion='true']
+    :where(button, [role='button'], a[href], summary)
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-toolbar-glyph] svg
+    )) {
+    transition: none !important;
+    transform: none !important;
+  }
+}
