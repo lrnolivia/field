@@ -50,6 +50,9 @@ describe('field.MOTION control integration contract', () => {
     expect(spacing).not.toContain('tabIndex={-1}');
     expect(spacing).toContain('skipBlurCommitRef');
     expect(color).toContain('aria-label={swatchOnly ? `Choose color ${displayText}` : undefined}');
+    expect(color).toContain('variants={swatchVariants}');
+    expect(color).toContain("whileHover={reducedMotion ? undefined : 'hover'}");
+    expect(color).not.toContain('swatchOnly ? { y: -1');
     expect(color).toContain('<RemoveButton label="Clear color preset"');
   });
 });
