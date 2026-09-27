@@ -1,55 +1,62 @@
 # field-branch-preview-live-qa mailbox
 
 to: Night Shift Manager / successor Contract Worker
-type: ready-for-review
+type: infrastructure-verified
 
-PR #15 now has a real, isolated Worker Preview for the exact assignment head.
+The shared branch Preview infrastructure is now working across the active PR set, not just the dedicated proof branch.
 
-## Current implementation
+## Durable Cloudflare change
 
-- branch: `field/field-branch-preview-live-qa`
-- PR: #15
-- tested head: `9863bd5412096b0893d794ce083169bedcce0cb2`
-- tested main: `afe03bed68ad2bc346c7c9b1b239ef93dcf983c3`
-- implementation diff at tested head: `wrangler.jsonc`
-- Cloudflare build ID: `c9b29684-0b1c-401b-871d-a0b93ef05a4a`
-- Preview URL: `https://field-field-branch-preview-live-qa-field.lrnoliv.workers.dev`
+Created reusable Worker Builds Preview trigger:
 
-## What changed
+- name: `field Preview branches`
+- UUID: `8429ee60-0447-4de3-89e0-248c5fab0e6c`
+- include: all non-production branches via `*`
+- exclude: `main`
+- also exclude: `field/field-branch-preview-live-qa` because that proof branch retains its existing dedicated trigger
+- build: `npm run build`
+- deploy: `npx wrangler preview`
+- caching: enabled
 
-`wrangler.jsonc` now defines a Worker `previews` block with:
+The trigger reuses the existing field Worker tag, GitHub repository connection, and build token.
 
-- Preview Access verifier vars
-- `FIELD_PROJECTS` bound to non-production `field-projects-preview`
-- `FIELD_PROJECT_EVENTS` repeated under `previews.durable_objects.bindings`
-- production `field-projects`, top-level Durable Object binding, and migrations left intact
+## Cross-PR proof
 
-## What was tested
+The eight branches that still showed Cloudflare's `There is nothing here yet` placeholder were reconciled to Preview-enabled main. No merge conflicts occurred.
 
-- Cloudflare Workers Build succeeded for exact head `9863bd5412096b0893d794ce083169bedcce0cb2`.
-- `npm run build` succeeded in Cloudflare.
-- `npx wrangler preview` succeeded.
-- Cloudflare posted the Preview URL automatically to PR #15.
-- Direct Cloudflare account inspection confirms both `field-projects` and `field-projects-preview` exist as distinct R2 buckets.
-- Cloudflare documentation confirms Worker Previews receive isolated Durable Object namespaces/storage; the env binding is correctly repeated under `previews.durable_objects`.
-- Read-only Composio Browser Tool QA loaded `/builder/noauth` on the exact Preview with no auth gate and a rendered field builder UI.
+Fresh Cloudflare checks then went green for PRs:
 
-## Capability note
+- #3
+- #5
+- #8
+- #9
+- #10
+- #11
+- #13
+- #14
 
-Composio Firecrawl is not currently connected. Do not treat that as a product or harness blocker when another permitted capability proves the same acceptance criterion. Browser Tool supplied the independent runtime evidence in this run. If a future acceptance criterion specifically requires Firecrawl output, authorize that toolkit and rerun only that evidence packet.
+Each corresponding branch Preview was opened read-only at `/builder/noauth` and rendered the builder without an auth gate.
 
-## Remaining unverified
+PR #12 was already green and had already passed the same live runtime smoke.
 
-- authenticated Preview routes
-- a deliberate Preview data mutation/write test (not required to prove the configured isolation and avoided to keep QA non-destructive)
+At this checkpoint, all nine open PRs have usable branch Previews.
 
-## Merge readiness
+## Important diagnosis
 
-No known Preview infrastructure blocker remains on the tested SHA.
+The original infrastructure patch in PR #15 fixed `wrangler preview` configuration and storage/state isolation.
 
-Before merge, apply the normal exact-SHA gate:
-- if branch head changes, the build/runtime QA above is stale
-- if relevant main infrastructure changes, reconcile and rerun affected QA
-- keep production deployment as a separate post-merge truth check
+A second infrastructure gap also existed: Cloudflare only had a dedicated build trigger for the proof branch. That was not sufficient as the durable all-PR Preview contract.
 
-The assignment record still contains older activation metadata; Night Shift Manager should reconcile manager-owned assignment metadata to PR #15 when it next refreshes the control plane.
+The reusable non-main Preview trigger closes that gap.
+
+## Remaining non-infrastructure issue
+
+The live builder still displays `Welcome to Revyme` in onboarding. Treat that as stale product identity / content cleanup, not a Preview harness failure.
+
+## Ongoing rule
+
+For visual/runtime PR QA:
+
+- exact branch SHA -> Cloudflare Preview build -> branch Preview URL -> `/builder/noauth` runtime evidence
+- if the branch SHA changes, previous runtime QA is stale
+- do not fall back to production to validate an unverified branch
