@@ -21,14 +21,25 @@ owned:
   - src/editor/ui/ImageSearchModal.tsx
 approved_shared:
   - src/canvas/insertion-bridge.ts
+  - src/canvas/drag/DragCoordinator.ts
+  - src/canvas/drag/DragCoordinator.test.ts
+  - src/canvas/drag/toolbar-item-config.ts
+  - src/canvas/drag/strategies/GalleryDragStrategy.ts
+  - src/canvas/drag/strategies/GalleryDragStrategy.test.ts
+  - src/canvas/drag/strategies/ToolbarDragStrategy.ts
+  - src/canvas/drag/strategies/ToolbarDragStrategy.test.ts
+  - src/canvas/canvas-bridge.ts
+  - src/canvas-sandbox/sandbox-api.ts
+  - src/canvas-sandbox/bridge-host.ts
+  - src/canvas-sandbox/bridge-sandbox.ts
+  - src/canvas-sandbox/gallery-scroll-bridge.test.ts
+  - src/editor/left-toolbar/panels/MediaGalleryPanel.tsx
 protected:
   - src/code/parsing/**
   - src/code/generation/**
   - src/code/groups/**
   - src/code/mutation/**
   - src/code/stores/**
-  - src/canvas/drag/**
-  - src/canvas-sandbox/**
   - src/preview-sandbox/**
   - src/backend/**
   - src/dashboard/**

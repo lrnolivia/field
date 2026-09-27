@@ -423,3 +423,36 @@ The first focus-containment pass temporarily added aria-modal=true. A deeper aud
 - the surrounding canvas intentionally remains navigable by other supported canvas interactions while the overlay tracks bridge rect changes
 - aria-modal would falsely tell assistive technology that all outside content is inert
 - role=dialog, aria-describedby help, focus containment, canvas-input ownership over the edited image, and all keyboard controls remain intact
+
+
+## 2026-09-26 ownership reconciliation — finish native Gallery drag
+
+User explicitly confirmed that Scale is done and asked this Gallery assignment to finish.
+
+Current repo/control reconciliation:
+- legacy tracker still carries the historical native-scale-tool-20260926 reservation for src/canvas/drag/** as active
+- the current Scale follow-up assignment native-scale-visual-metrics-repair owns only src/canvas/scale/** + its integration test and explicitly PROTECTS src/canvas/drag/**
+- Scale repair PR #9 remains draft/open for runtime closeout, so this reconciliation does not pretend that PR merged
+- current main and Gallery branch have zero src/canvas/drag/** drift
+- the remaining Gallery acceptance criteria genuinely require the native drag coordinator; the earlier architecture investigation proved there is no public custom drop-target subscription and Media uses startToolbarDrag rather than HTML5 dataTransfer
+
+This is therefore an explicit bounded shared-overlap reconciliation, not silent acquisition of the old Scale surface.
+
+Approved shared files are limited to:
+- DragCoordinator registry + focused test
+- one new GalleryDragStrategy + focused test
+- ToolbarDragStrategy + focused test
+- ToolbarItem metadata carrier
+- CanvasBridge/SandboxApi/PostMessageBridge/bridge-sandbox for one generic scrollElementBy RPC
+- one focused bridge regression
+- MediaGalleryPanel only to cache thumbnail intrinsic ratios into the existing Gallery drag payload
+
+No other src/canvas/drag/** or src/canvas-sandbox/** path is authorized by this reconciliation.
+
+Purpose:
+1. image-over-image Gallery swap in all five views
+2. Strip/Carousel internal edge auto-scroll
+3. Media-panel native pointer drag directly into an existing Gallery
+4. Source-ratio correctness for direct Media drops using already-loaded thumbnail intrinsic ratios
+
+The assignment's obsolete blanket protected entries for src/canvas/drag/** and src/canvas-sandbox/** are removed because they conflict with these exact approved_shared children. All unlisted files in those subsystems remain outside Gallery authority.
