@@ -167,7 +167,15 @@ function DimensionSizingMenu({
         aria-expanded={open}
       >
         {modeLabel && <span>{modeLabel}</span>}
-        <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m4 6 4 4 4-4" /></svg>
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+        ><path d="m4 6 4 4 4-4" /></svg>
       </button>
       <DropdownMenu
         isOpen={open}

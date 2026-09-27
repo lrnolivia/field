@@ -3,7 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
   WORKSPACE_FLOAT_RADIUS,
@@ -32,7 +32,9 @@ function floatingStyle(side: WorkspaceSideLayout) {
 export default function ChromeIslands() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
-  const layout = deriveWorkspaceLayout(leftOpen, rightOpen);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth });
 
   return (
     <>

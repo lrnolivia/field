@@ -4,7 +4,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { FieldGlyph } from '@/editor/glyph';
+import { FieldGlyph, type FieldGlyphBehavior } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
@@ -82,6 +82,11 @@ interface MenuButtonProps {
   dataTutorial?: string;
 }
 
+const RAIL_GLYPH_BEHAVIOR: Partial<Record<Exclude<LeftPanelId, null>, FieldGlyphBehavior>> = {
+  layers: 'layers', library: 'stack', presets: 'presets', media: 'media',
+  locale: 'globe', cms: 'stack', branches: 'branch',
+};
+
 const MenuButton = React.memo(function MenuButton({
   panelId, isActive, onToggle, title, tooltip, children, disabled, dataTutorial,
 }: MenuButtonProps) {
@@ -112,7 +117,7 @@ const MenuButton = React.memo(function MenuButton({
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       }`}
     >
-      <FieldGlyph behavior="generic">{children}</FieldGlyph>
+      <FieldGlyph behavior={RAIL_GLYPH_BEHAVIOR[panelId] ?? 'generic'}>{children}</FieldGlyph>
     </motion.button>
   );
 });
@@ -353,7 +358,7 @@ export default function LeftMenu() {
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
           }`}
         >
-          <FieldGlyph behavior="generic"><CodeIcon className="w-[18px] h-[18px]" /></FieldGlyph>
+          <FieldGlyph behavior="code"><CodeIcon className="w-[18px] h-[18px]" /></FieldGlyph>
         </motion.button>}
 
       </div>

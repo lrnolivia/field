@@ -424,6 +424,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   // "Layout"; enabling flex/grid transforms that same section into "Auto layout".
   // Leaf/text objects still use standalone Layout sizing.
   const composeSizeIntoAutoLayout = isFrame && canShowContainerLayout && !isMultiSelect;
+  const composePositionIntoLayout = composeSizeIntoAutoLayout && !isOverlayNode;
 
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
@@ -483,6 +484,15 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
 
       {/* ─── Scrollable content ─── */}
       <div className="flex-1 overflow-y-auto scrollbar-hide">
+        {/* Figma UI3 prioritizes instance-specific controls before generic
+            geometry. Keep the component engine unchanged; only move its
+            inspector surface to the top of the Design stack. */}
+        {inspectorMode === 'design' && isComponentInstance && (
+          <div data-inspector-instance-priority>
+            <ComponentPropsTool />
+          </div>
+        )}
+
         {/* Small breathing room above the first section so the header divider
             doesn't kiss the topmost tool's title. Using `mb-1.5` on a spacer
             (rather than `pt-2` on the scroll container) keeps the spacing
@@ -644,14 +654,16 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           </>
         )}
         {!isOverlayNode && (!isMultiSelect ? (
-          <PositionTool
-            nodeId={node.id}
-            styles={s}
-            vpId={vpId}
-            isReplica={isReplica}
-            vpWidth={vpWidth}
-            isTopLevel={!!node.isCanvasNode || !node.parentId}
-          />
+          composePositionIntoLayout ? null : (
+            <PositionTool
+              nodeId={node.id}
+              styles={s}
+              vpId={vpId}
+              isReplica={isReplica}
+              vpWidth={vpWidth}
+              isTopLevel={!!node.isCanvasNode || !node.parentId}
+            />
+          )
         ) : (
           <MultiAlignmentControl vpId={vpId} />
         ))}
@@ -706,6 +718,17 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
             templateRoot={isTemplateRootEdit}
+            positionContent={composePositionIntoLayout ? (
+              <PositionTool
+                bare
+                nodeId={node.id}
+                styles={s}
+                vpId={vpId}
+                isReplica={isReplica}
+                vpWidth={vpWidth}
+                isTopLevel={!!node.isCanvasNode || !node.parentId}
+              />
+            ) : undefined}
             sizeContent={composeSizeIntoAutoLayout ? (
               <SizeTool
                 bare
@@ -753,8 +776,9 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             success/error/disabled) to this instance's variants. Self-gates
             to a multi-variant component instance inside a <form>. */}
         {isComponentInstance && isInsideForm && <FormStateTool />}
-        {/* Component Props */}
-        <ComponentPropsTool />
+        {/* Component Props: instances are prioritized directly below the object
+            header; non-instance component surfaces retain the legacy location. */}
+        {!isComponentInstance && <ComponentPropsTool />}
 
         {/* Icon Set (only for icon-set instances — IconSetTool returns
             null when the selected node isn't pointing at an icons/*.tsx file). */}

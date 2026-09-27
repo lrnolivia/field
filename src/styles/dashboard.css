@@ -767,3 +767,92 @@ body:has(.field-dashboard-page),
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   }
 }
+
+/* field.GLYPH on the dashboard: CSS-only while idle. Only the active
+   control moves; no per-card hover state or permanent compositor layers. */
+.field-dashboard-nav-icon svg,
+.field-dashboard-search svg,
+.field-dashboard-new svg,
+.field-project-star-badge svg,
+.field-project-more-glyph svg {
+  transform-origin: center;
+  transition: transform 200ms cubic-bezier(.2, .8, .2, 1), opacity 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .field-dashboard-nav-row:hover .field-dashboard-nav-icon svg {
+    transform: translateY(-1px) scale(1.13);
+  }
+  .field-dashboard-nav-row[data-view='trash']:hover .field-dashboard-nav-icon svg {
+    transform: translateY(-2px) rotate(-8deg) scale(1.1);
+  }
+  .field-dashboard-nav-row[data-view='starred']:hover .field-dashboard-nav-icon svg {
+    transform: rotate(18deg) scale(1.13);
+  }
+  .field-dashboard-new:hover:not(:disabled) svg {
+    transform: rotate(90deg) scale(1.15);
+  }
+  .field-project-preview:not(:disabled):hover .field-project-star-badge svg {
+    transform: rotate(15deg) scale(1.15);
+  }
+}
+
+.field-dashboard-nav-row[data-active='true'] .field-dashboard-nav-icon svg {
+  transform: scale(1.12);
+}
+.field-dashboard-search:focus-within svg {
+  transform: rotate(-8deg) scale(1.12);
+}
+.field-dashboard-nav-row:active .field-dashboard-nav-icon svg,
+.field-dashboard-new:active:not(:disabled) svg {
+  transform: scale(.82);
+  transition-duration: 90ms;
+}
+
+.field-project-more-glyph {
+  position: relative;
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+}
+.field-project-more-glyph svg {
+  grid-area: 1 / 1;
+}
+.field-project-more-close {
+  opacity: 0;
+  transform: rotate(-90deg) scale(.7);
+}
+.field-project-more[aria-expanded='true'] .field-project-more-glyph svg:first-child {
+  opacity: 0;
+  transform: rotate(90deg) scale(.7);
+}
+.field-project-more[aria-expanded='true'] .field-project-more-close {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .field-project-more:hover:not([aria-expanded='true']) .field-project-more-glyph svg:first-child {
+    transform: scaleX(1.2);
+  }
+}
+.field-project-more:active .field-project-more-glyph {
+  transform: scale(.82);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-dashboard-nav-icon svg,
+  .field-dashboard-search svg,
+  .field-dashboard-new svg,
+  .field-project-star-badge svg,
+  .field-project-more-glyph svg {
+    transition: none;
+  }
+  .field-dashboard-nav-row:hover .field-dashboard-nav-icon svg,
+  .field-dashboard-nav-row[data-active='true'] .field-dashboard-nav-icon svg,
+  .field-dashboard-search:focus-within svg,
+  .field-dashboard-new:hover:not(:disabled) svg,
+  .field-project-preview:not(:disabled):hover .field-project-star-badge svg {
+    transform: none;
+  }
+}

@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import PagesLayersPanel from './panels/PagesLayersPanel';
 import InsertPanel from './panels/insert';
@@ -13,6 +13,7 @@ import LocalePanel from './panels/LocalePanel';
 import CmsPanel from './panels/CmsPanel';
 import BranchesPanel from './panels/BranchesPanel';
 import { trace } from '@/shared/debug-trace';
+import './left-panel-glyphs.css';
 
 function PresetsPanel() {
   return <LibraryPanel mode="presets" />;
@@ -38,10 +39,11 @@ export default function LeftPanel() {
   const activePanel = useAtomValue(leftPanelAtom);
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const PanelComponent = PANEL_MAP[activePanel];
   if (!leftOpen || !PanelComponent) return null;
 
-  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
+  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth });
   trace.fn('LeftPanel.render', { activePanel, presentation: workspace.left.presentation });
 
   return (
@@ -52,7 +54,7 @@ export default function LeftPanel() {
       style={{
         left: workspace.left.inset + LEFT_RAIL_WIDTH,
         top: workspaceBodyTop(workspace.left),
-        width: LEFT_CONTENT_WIDTH,
+        width: workspace.left.width - LEFT_RAIL_WIDTH,
         height: workspaceBodyHeightCss(workspace.left),
         paddingLeft: 6,
         paddingRight: 6,

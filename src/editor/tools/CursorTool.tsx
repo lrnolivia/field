@@ -46,6 +46,7 @@ import { removeComponentCursorProjectWide } from '@/code/features/remove-compone
 import { trace } from '@/shared/debug-trace';
 import { AlignStartIcon, AlignCenterIcon, AlignEndIcon } from '@/shared/icons';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 
 // CURSOR_OPTIONS removed — we now show every CSS cursor in a grid picker
 // (see WebCursorRow / CursorPickerPanel below). The full list lives in
@@ -255,9 +256,7 @@ function CursorAddButton({ nodeId, onPending }: { nodeId: string; onPending: () 
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
         title="Add cursor"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+        <FieldGlyph behavior="plus"><FieldMorphGlyph active={open} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
       </button>
 
       {open && (
@@ -346,9 +345,7 @@ function CursorRemoveButton({
       className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
       title="Remove cursor"
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
+      <FieldGlyph behavior="minus"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14" /></svg></FieldGlyph>
     </button>
   );
 }
