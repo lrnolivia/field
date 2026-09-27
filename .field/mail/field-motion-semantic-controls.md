@@ -67,3 +67,12 @@ Assignment: `field-motion-semantic-controls`
 - Node 22 was available for validation, but fallback full/shallow dependency installs were OOM-killed by the validation sandbox, including a minimal Vitest fixture.
 - Runtime browser QA remains harness-blocked: Firecrawl can no longer attach to the live Preview (internal tool failure); a fallback local Chromium run is blocked by the execution environment administrator.
 - Per the exact-SHA merge gate, do not merge until required runtime interaction QA and remaining assignment-required validation are actually evidenced or explicitly superseded by a current user decision.
+
+
+## 2026-09-27 PR #19 adaptation / Preview trigger status
+
+- Adapted the PR #19 Canvas Preview solution, then normalized it to the exact merged-`main` implementation after PR #19 landed.
+- Merged current `main` into PR #12 at `2244dd653cc442a7c4dfb820b283db00883204e7`; Preview infrastructure dropped out of PR #12's diff and the PR returned to 16 motion-owned files.
+- Added owned motion-contract hardening at `b44bf43a69f2393f21a2bd1073836f2c23ede718` and a runtime-source invariant at `7ef759b94f31fd7779990360a3466a4a4446d844` to provide fresh legitimate push events.
+- Cloudflare has not consumed those repaired/reconciled heads. Its PR deployment comment still identifies `8cdacf9` as the latest successful Preview and only records the superseded `2042958` intermediate failure afterward.
+- Current blocker is therefore the Workers Builds/GitHub push-trigger layer, not Canvas Preview routing logic. Do not use the stale branch alias as current-head QA evidence.

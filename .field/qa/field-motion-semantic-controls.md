@@ -112,3 +112,19 @@ evidence: []
 - human_feel_check: NOT RECORDED — user confirmed Preview availability, not the complete motion acceptance surface
 - product_failure_found: none
 - merge_gate: NOT SATISFIED — current CONTRACT requires the assignment's required validation/QA to actually be satisfied; PR #12 remains Draft/unmerged
+
+
+## 2026-09-27 PR #19 Canvas Preview adaptation
+
+- shared_preview_fix: PASS — PR #19 merged to `main` at `f394090180284f3a70bdf8dd6b280f692d96d0dc`.
+- branch_reconciliation: PASS — PR #12 merged current `main` at `2244dd653cc442a7c4dfb820b283db00883204e7`.
+- exact_changed_path_audit_after_reconciliation: PASS — PR #12 returned to 16 motion-owned files; Cloudflare/Canvas Preview infrastructure files are inherited from `main`, not branch-local diff.
+- canvas_preview_routing_source: PASS — inherited PR #19 implements branch Canvas host classification and deterministic field-preview → canvas-preview origin resolution.
+- additional_motion_contract: PASS — `b44bf43a69f2393f21a2bd1073836f2c23ede718` locks ColorInput motion to inner swatch / fixed hit target.
+- runtime_source_push: `7ef759b94f31fd7779990360a3466a4a4446d844` documents the fixed-target `field.MOTION` invariant in an owned runtime file.
+- cloudflare_last_consumed_branch_head: `8cdacf9748045bec98ac4b118e93670ea5d7208e` (successful Preview deployment).
+- cloudflare_intermediate_failure: `20429589fcc142e248b94946df8a175c085a07c7` — failed build from a transient truncated Worker write; repaired immediately and superseded.
+- cloudflare_current_head_consumption: BLOCKED — Workers Builds has not created a check/deployment for repaired/reconciled heads through `7ef759b94f31fd7779990360a3466a4a4446d844`.
+- branch_alias_runtime_truth: STALE — aliases still serve the `8cdacf9` deployment, so they must not be used as evidence for the current PR head.
+- blocker_classification: INFRASTRUCTURE / DEPLOYMENT TRIGGER — Canvas routing source is repaired via merged PR #19; remaining divergence is Cloudflare GitHub integration not consuming the current branch push.
+- merge_gate: NOT SATISFIED — do not claim current-head runtime QA or merge PR #12 until a Preview deployment exists for the exact current head (or a later reconciled head).
