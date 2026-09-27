@@ -398,7 +398,7 @@ Accessibility / interaction hardening:
 - toolbar controls now meet the 24px compact-control minimum target
 - toolbar controls have explicit focus-visible states and titles
 - visible Cancel was added alongside Done; Escape still cancels
-- Reposition is marked modal and Tab / Shift+Tab are contained inside the exclusive edit surface
+- Tab / Shift+Tab are contained inside the active Reposition edit controls so keyboard focus cannot leak into unrelated editor controls
 - focus wraps deterministically between the overlay and enabled toolbar controls, preventing keyboard interaction from leaking into the underlying editor mid-edit
 
 Visual / implementation hardening:
@@ -412,3 +412,14 @@ Performance note:
 - the overlay continues to poll bridge.getRect on requestAnimationFrame while Reposition is active
 - this was not changed during UI audit because it intentionally tracks canvas pan/zoom/reflow and the bridge returns the canvas rect seam; no verified event/subscription replacement was established
 - do not remove or throttle it speculatively without parity evidence
+
+
+### Reposition dialog semantic correction
+
+Follow-up commit: 9890dad1996f6bb651f308d851066941658d258e
+
+The first focus-containment pass temporarily added aria-modal=true. A deeper audit corrected that one attribute:
+- Reposition is focus-contained for keyboard editing
+- the surrounding canvas intentionally remains navigable by other supported canvas interactions while the overlay tracks bridge rect changes
+- aria-modal would falsely tell assistive technology that all outside content is inert
+- role=dialog, aria-describedby help, focus containment, canvas-input ownership over the edited image, and all keyboard controls remain intact

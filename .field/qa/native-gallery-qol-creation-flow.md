@@ -414,7 +414,7 @@ Fix commit 7d8f03b02edf:
 
 Focus-containment follow-up 539ce12b9a63:
 - exact scope: src/editor/gallery/GalleryCropOverlay.tsx only; 22 additions / 0 deletions
-- aria-modal=true
+- keyboard focus containment across the active Reposition controls
 - Tab and Shift+Tab cycle within overlay + enabled controls
 - forward/backward wrapping is explicit
 - existing Escape cancel and guarded Enter commit semantics remain intact
@@ -426,3 +426,20 @@ UIAudit score remains 17 / 20 — Good:
 - Performance remains 4/4 at source level; the active-only rect polling is deliberate and not a verified thrash defect
 - Responsive 3/4 and Theming 3/4 remain limited by unavailable live rendering / token contrast verification
 - Implementation Integrity remains 4/4
+
+
+### Cloudflare follow-up for Reposition focus trap 539ce12b9a63
+
+- Workers Builds check 108528933960 completed with failure and zero annotations
+- classification: established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Reposition focus-containment product failure
+
+
+### Reposition dialog semantic correction 9890dad1996f
+
+- exact implementation SHA: 9890dad1996f6bb651f308d851066941658d258e
+- parent SHA: 539ce12b9a6369e80618fda28c0e2e68b7d3bff0
+- exact scope: src/editor/gallery/GalleryCropOverlay.tsx only; 0 additions / 1 deletion
+- removed aria-modal=true after verifying that Reposition intentionally continues tracking an otherwise navigable canvas
+- retained role=dialog, linked instructions, Tab focus containment, guarded Enter, Escape cancel, pointer/gesture treatment input, and data-field-no-canvas-input on the edited image overlay
+- semantic result: keyboard focus is contained without falsely declaring all surrounding field UI inert to assistive technology
+- no Workers check existed on the first post-publication read
