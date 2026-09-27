@@ -607,7 +607,7 @@ function CanvasReadyShellOverlay({
     if (painted) {
       trace.action('project-loader:canvas-painted', {});
       // Minimum visibility is measured from mount, never added to a slow load.
-      const wait = Math.max(0, 600 - (performance.now() - startedAt.current));
+      const wait = Math.max(0, 850 - (performance.now() - startedAt.current));
       const timer = window.setTimeout(() => setPhase('exit'), wait);
       return () => window.clearTimeout(timer);
     }
@@ -625,7 +625,7 @@ function CanvasReadyShellOverlay({
     const timer = window.setTimeout(() => {
       setPhase('done');
       readyCallback.current?.();
-    }, 320);
+    }, 360);
     return () => window.clearTimeout(timer);
   }, [phase]);
 
