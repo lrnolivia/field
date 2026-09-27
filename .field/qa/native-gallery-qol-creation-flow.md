@@ -262,7 +262,7 @@ Do not use this packet as evidence that Gallery regressed.
 
 - exact implementation SHA: 54d1c62ea9e8a272ff446cff7940360e3047eda0
 - parent SHA: 221364a5324ea1967dd13a730c633e06e91b4c20
-- exact commit scope: 3 Gallery-owned files; 18 additions / 4 deletions
+- exact commit scope: 3 Gallery-owned files; 22 additions / 4 deletions
 - paths:
   - src/editor/gallery/gallery-selection.ts
   - src/editor/gallery/gallery-selection.test.ts
@@ -273,3 +273,46 @@ Do not use this packet as evidence that Gallery regressed.
 - Workers Builds check 108515085392 completed failure with zero annotations
 - classification: the established pre-existing Workers build-lane infrastructure failure, not product-failure evidence
 - runtime/Preview behavior remains pending
+
+
+## 2026-09-26 branch validation — Replace preservation 7eee0dd4b229
+
+- exact implementation SHA: 7eee0dd4b2292af13b3dce0118ada796760ed740
+- parent SHA: 54d1c62ea9e8a272ff446cff7940360e3047eda0
+- exact commit scope: 3 Gallery-owned files; 208 additions / 28 deletions
+- pure replacement planner constrains mutation to src plus frame-owned intrinsic-ratio geometry
+- same real image node ID is preserved
+- focused regression source proves authored objectFit, objectPosition, transformOrigin, zoom, rotation, and composed transform survive replacement
+- replacement still commits one mutation batch + one flush
+- authored tests were not executed in this environment
+- Workers Builds check 108515656778 completed failure with zero annotations
+- classification: established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Replace product failure
+- exact dependency-tree Vitest / TypeScript / build:all remain unverified
+
+
+## 2026-09-26 validation note — native media drag blocker
+
+- MediaGalleryPanel source explicitly documents no HTML5 dataTransfer path
+- multi-selected images build a canonical Gallery ToolbarItem and enter startToolbarDrag after the 5px pointer threshold
+- toolbar-drag-bridge exposes no public drop-target registration/subscription API
+- active legacy Scale ownership still covers src/canvas/drag/**
+- direct existing-Gallery media drop and image-to-image canvas swap are therefore architecture/ownership blocked, not omitted because of an unknown implementation path
+
+
+## 2026-09-26 branch validation — treatment Inspector 25a379f1d32b
+
+- exact implementation SHA: 25a379f1d32bc22f13248dac0346e0b0a6d425c9
+- parent SHA: 7eee0dd4b2292af13b3dce0118ada796760ed740
+- exact commit scope: 4 Gallery-owned files; 45 additions / 2 deletions
+- structural checks passed for:
+  - canonical neutral treatment helper
+  - focal/zoom/rotation Inspector readout
+  - truthful Center position-only label
+  - separate full pan/zoom/rotate reset
+  - one explicit flush for full treatment reset
+  - Fit excluded from neutral treatment patch
+- focused regression source asserts the neutral patch and absence of objectFit
+- authored tests are present but were not executed in this environment
+- Draft PR #3 is open/draft and points to this SHA
+- Workers Builds check 108516328315 was still in progress on the first post-publication read; final classification must be recorded after completion
+- runtime/Preview QA remains pending

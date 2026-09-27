@@ -297,3 +297,51 @@ Selection continuity now follows newly created real media identity:
 - empty create sets preserve the current selection
 - behavior is centralized in gallerySelectionAfterCreate and remains editor-only
 - source order, source identity, and history grouping are unchanged
+
+
+## 2026-09-26 implementation block — deterministic Replace preservation
+
+Implementation commit: 7eee0dd4b2292af13b3dce0118ada796760ed740
+
+Replace treatment preservation is now explicit architecture instead of an incidental consequence of mutating the same image node:
+- gallery-replacement-plan owns the permitted replacement patch surface
+- image identity is retained; only src is replaced on the real image node
+- when intrinsic-ratio state is relevant, only item/frame-owned ratio geometry is refreshed
+- Carousel Source-ratio replacement may update width/height/aspectRatio because those are frame-owned image geometry
+- objectFit, objectPosition, transformOrigin, zoom, rotation, and composed transform are outside the replacement plan and therefore preserved
+- replacement remains one queued source mutation set + one flush
+- selection identity remains the same item
+- focused regression source explicitly composes replacement frame patches over authored treatment and proves focal/fit/zoom/rotation survive
+
+Commit scope: 3 Gallery-owned files; 208 additions / 28 deletions.
+
+
+## 2026-09-26 architecture blocker — direct media drop and canvas swap
+
+The remaining direct-drop / canvas image-swap work was re-investigated after the owned Gallery QoL tranches landed.
+
+Current facts:
+- active legacy native-scale-tool-20260926 still owns src/canvas/drag/**
+- MediaGalleryPanel deliberately does NOT use HTML5 dataTransfer; it starts the native pointer-based startToolbarDrag pipeline
+- toolbar-drag-bridge exposes start/update/end/cancel into DragCoordinator but no public custom drop-target subscription API
+- Gallery Inspector therefore cannot consume the Media drag payload through a local onDrop handler
+- implementing image-over-image canvas swap or existing-Gallery pointer drop correctly still requires a Gallery-aware branch/strategy in the generic drag coordinator surface
+
+Decision:
+- do not create a parallel Gallery-only drag system
+- do not fall back to DOM-only or HTML5-drop behavior that would diverge from native field insertion semantics
+- keep these two capabilities blocked until src/canvas/drag/** ownership is released or explicitly shared
+
+
+## 2026-09-26 implementation block — visible media treatment reset
+
+Implementation commit: 25a379f1d32bc22f13248dac0346e0b0a6d425c9
+
+Image treatment is now visible and explicitly resettable from the normal Inspector:
+- the Image section readout shows focal position · zoom percent · rotation degrees
+- the former generic Reset position button is labeled Center, matching its actual position-only behavior
+- a separate Reset pan / zoom / rotate action restores centered focal, 100% zoom, and 0° rotation
+- neutralGalleryMediaTreatmentPatch is the canonical domain helper for that reset
+- the full reset is one source patch + one explicit flush
+- image Fit is deliberately not part of treatment reset and remains authored
+- focused regression source asserts the neutral treatment patch and confirms objectFit is absent
