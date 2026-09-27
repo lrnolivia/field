@@ -226,9 +226,13 @@ export default function EditorEntranceCoordinator() {
             return;
           }
 
-          const profile = editorSpringProfile(target.role);
+          const profile = editorSpringProfile(
+            target.role,
+            target.phase,
+            useDashboardHandoffTiming,
+          );
           const animation = target.element.animate(
-            editorSpringKeyframes(target.role, distances[target.role]),
+            editorSpringKeyframes(target.role, distances[target.role], profile),
             {
               duration: profile.durationMs,
               easing: 'linear',
@@ -388,11 +392,11 @@ export default function EditorEntranceCoordinator() {
       const previous = lastDashboardState;
       lastDashboardState = state;
 
-      // Dashboard and editor now overlap their ownership handoff instead of
-      // exposing a bare intermediate Canvas. As Dashboard starts leaving,
-      // prepare editor chrome offscreen and begin its entrance after two paints
-      // while the Dashboard slabs are still moving above it. The hidden state
-      // remains a fallback boundary, not the normal start signal.
+      // Dashboard -> editor is a staged ownership handoff, not the direct-load
+      // entrance replayed over moving Dashboard slabs. Start the choreography
+      // clock as Dashboard leaves, but per-surface delays let each Dashboard
+      // slab vacate before its editor counterpart answers from the same edge.
+      // The hidden state remains a fallback boundary, not the normal start signal.
       if (state === 'hiding' && previous !== 'hiding') {
         beginNewRevealCycle();
         dashboardHandoffEntrance = true;
