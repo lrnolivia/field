@@ -1,6 +1,6 @@
 {
   "name": "field-handoff-kit",
-  "version": "2026-09-26.3",
+  "version": "2026-09-26.4",
   "repository": "lrnolivia/field",
   "default_branch": "main",
   "control_branch": "field/control",
@@ -29,5 +29,11 @@
     "shell": "macOS Bash 3.2 compatible",
     "package_contract": "zip name == top-level folder name; install-build-commit-push.sh at package root"
   },
-  "current_worker_self_registration": ".field/handoff-kit/CURRENT_WORKER_SELF_REGISTRATION.md"
+  "current_worker_self_registration": ".field/handoff-kit/CURRENT_WORKER_SELF_REGISTRATION.md",
+  "runtime_qa": {
+    "web_visible": "pr-preview-browser",
+    "protocol": ".field/handoff-kit/qa/BROWSER_PREVIEW_QA_PROTOCOL.md",
+    "default_entrypoint": "/builder/noauth",
+    "exact_sha_required": true
+  }
 }
