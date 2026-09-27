@@ -224,6 +224,8 @@ export interface SandboxApi {
    *  keystroke. The async removeNode code mutation makes it permanent. */
   removeElement(nodeId: string): void | Promise<void>;
   reparentLive(nodeId: string, vpPrefix: string, newParentId: string | null, index: number, styles: Record<string, string>): void | Promise<void>;
+  /** Scroll a rendered node by CSS pixels inside its own overflow box. */
+  scrollElementBy(nodeId: string, vpPrefix: string, dx: number, dy: number): void | Promise<void>;
   setInnerHTML(nodeId: string, vpPrefix: string, html: string): void | Promise<void>;
   setAttribute(
     nodeId: string,

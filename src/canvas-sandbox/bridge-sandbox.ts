@@ -65,6 +65,7 @@ import {
   getTransformedCorners, getBBox, captureElement,
 } from './sandbox/read-handlers';
 import { bakeGroupResize, clearGroupResizeBake, liveRefitGroup } from './sandbox/group-resize';
+import { findElByNodeId } from './sandbox-dom-utils';
 import {
   removeElement, reparentLive, createPlaceholder, movePlaceholder, patchPlaceholderStyles,
   swapTwoElements, removePlaceholders, getPlaceholderRect, liftNode, restoreNode, commitMergedOrder,
@@ -560,6 +561,11 @@ const api: SandboxApi = {
   // ─── Drag placeholders + imperative lift/restore/reparent — sandbox/placeholders.ts ─
   removeElement,
   reparentLive,
+  scrollElementBy(nodeId: string, vpPrefix: string, dx: number, dy: number): void {
+    if (!contentRoot || (!dx && !dy)) return;
+    const element = findElByNodeId<HTMLElement>(contentRoot, vpPrefix, nodeId);
+    element?.scrollBy({ left: dx, top: dy, behavior: 'auto' });
+  },
   createPlaceholder,
   movePlaceholder,
   patchPlaceholderStyles,
