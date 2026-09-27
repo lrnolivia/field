@@ -11,6 +11,9 @@
 // same one everywhere, so a user learns it once.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
+import { useFieldReducedMotion } from '@/editor/motion';
 import type React from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { AgentBlock, AgentTurnImage } from '@/code/stores/agent-chat-store';
@@ -112,15 +115,18 @@ function ThoughtBlock({ text, live }: { text: string; live?: boolean }) {
           uppercase box. Reasoning is an aside the reader can open, and giving
           it a container made the least important thing in the turn look like
           the most important. */}
-      <button
+      <motion.button
         type="button"
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-baseline gap-1.5 text-left text-[12px] leading-relaxed text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]"
       >
         {live && <BusyDots />}
         <span>Thought</span>
-        <span className="text-[10px] text-[var(--text-disabled)]">{open ? '▾' : '▸'}</span>
-      </button>
+        <FieldGlyph behavior="chevron"><FieldMorphGlyph active={open} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={2} spring="snappy" /></FieldGlyph>
+      </motion.button>
       {open && (
         <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-[var(--text-secondary)]">
           {text}
@@ -188,15 +194,18 @@ function ImageStrip({ images, onRemove }: { images: readonly (AgentTurnImage & {
             className="h-full w-full cut-corners border border-[var(--border-default)] object-cover"
           />
           {onRemove && (
-            <button
+            <motion.button
               type="button"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
               title="Remove image"
               aria-label="Remove image"
               onClick={() => onRemove(i)}
               className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-panel)] text-[11px] leading-none text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
             >
-              &times;
-            </button>
+              <FieldGlyph behavior="generic">&times;</FieldGlyph>
+            </motion.button>
           )}
         </div>
       ))}
@@ -205,10 +214,24 @@ function ImageStrip({ images, onRemove }: { images: readonly (AgentTurnImage & {
 }
 
 function CheckIcon() {
+  const reducedMotion = useFieldReducedMotion();
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-tertiary)]">
+    <motion.svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-[var(--text-tertiary)]"
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.72, rotate: -12 }}
+      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+      transition={{ duration: reducedMotion ? 0 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+    >
       <polyline points="20 6 9 17 4 12" />
-    </svg>
+    </motion.svg>
   );
 }
 
@@ -262,30 +285,32 @@ function ChatSwitcher({ activeId, title, disabled, onPick, onNew, onDelete }: {
   return (
     <div className="px-2 pt-2">
       <div ref={rowRef} className="flex items-center gap-1.5">
-        <button
+        <motion.button
           type="button"
           disabled={disabled}
+          initial="rest"
+          whileHover={!disabled ? 'hover' : undefined}
+          whileTap={!disabled ? 'tap' : undefined}
           title={disabled ? 'Available when the agent has finished' : 'Switch chat'}
           onClick={() => setOpen((v) => !v)}
           className="flex h-7 min-w-0 flex-1 items-center justify-between gap-2 px-[var(--control-pad-x)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] cut-corners cut-border transition-colors focus:outline-none focus-visible:border-[var(--control-border-hover)] focus-visible:[--cut-border-color:var(--control-border-hover)] disabled:opacity-40 disabled:cursor-default"
         >
           <span className="truncate">{title}</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-tertiary)]">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <button
+          <FieldGlyph behavior="chevron"><FieldMorphGlyph active={open} from={glyphIcons.chevronDown} to={glyphIcons.chevronUp} size={10} strokeWidth={2.5} spring="snappy" /></FieldGlyph>
+        </motion.button>
+        <motion.button
           type="button"
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           title="New chat"
           aria-label="New chat"
           disabled={disabled || !activeId}
           onClick={onNew}
           className="flex h-7 w-7 shrink-0 items-center justify-center cut-corners cut-border bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] text-[var(--text-secondary)] transition-colors enabled:hover:border-[var(--control-border-hover)] enabled:hover:[--cut-border-color:var(--control-border-hover)] enabled:hover:text-[var(--text-primary)] focus:outline-none disabled:opacity-40 disabled:cursor-default"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+          <FieldGlyph behavior="plus"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg></FieldGlyph>
+        </motion.button>
       </div>
       <DropdownMenu
         isOpen={open}
@@ -940,21 +965,25 @@ export default function AgentChat() {
                 and while a run is live the same circle in red with a square:
                 stop. One spot, one shape, the meaning in the colour. */}
             {status === 'running' ? (
-              <button
+              <motion.button
                 type="button"
+                initial="rest"
+                whileHover="hover"
+                whileTap="tap"
                 onClick={stop}
                 title="Stop the run"
                 aria-label="Stop"
                 data-testid="agent-stop"
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent-danger,#dc2626)] text-white transition-[filter] hover:brightness-110"
               >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style={{ pointerEvents: 'none' }}>
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                </svg>
-              </button>
+                <FieldGlyph behavior="generic"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style={{ pointerEvents: 'none' }}><rect x="4" y="4" width="16" height="16" rx="2" /></svg></FieldGlyph>
+              </motion.button>
             ) : (
-              <button
+              <motion.button
                 type="button"
+                initial="rest"
+                whileHover={configured && (input.trim() || attachments.length > 0) ? 'hover' : undefined}
+                whileTap={configured && (input.trim() || attachments.length > 0) ? 'tap' : undefined}
                 onClick={() => void send()}
                 disabled={!configured || (!input.trim() && attachments.length === 0)}
                 title="Send"
@@ -962,10 +991,8 @@ export default function AgentChat() {
                 data-testid="agent-send"
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors enabled:bg-[var(--accent)] enabled:text-[var(--accent-fg)] enabled:hover:brightness-110 disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" style={{ pointerEvents: 'none' }}>
-                  <path fill="currentColor" d="M19.5 2.001a3.5 3.5 0 0 1 3.03 5.249l-7.5 12.99a3.5 3.5 0 0 1-6.411-.842l-1.5-5.595l8.77-5.064a1 1 0 0 0-1-1.732L6.12 12.07L2.026 7.975A3.5 3.5 0 0 1 4.5 2z" />
-                </svg>
-              </button>
+                <FieldGlyph behavior="generic"><svg width="12" height="12" viewBox="0 0 24 24" style={{ pointerEvents: 'none' }}><path fill="currentColor" d="M19.5 2.001a3.5 3.5 0 0 1 3.03 5.249l-7.5 12.99a3.5 3.5 0 0 1-6.411-.842l-1.5-5.595l8.77-5.064a1 1 0 0 0-1-1.732L6.12 12.07L2.026 7.975A3.5 3.5 0 0 1 4.5 2z" /></svg></FieldGlyph>
+              </motion.button>
             )}
           </div>
         </div>

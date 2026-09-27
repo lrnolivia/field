@@ -2,6 +2,8 @@
 // Create/configure overlays on selected element, or show overlay-specific controls.
 
 import { useCallback, useState, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAtomValue, useAtom } from 'jotai';
 import { LocalizeGate } from '@/editor/controls/localize-gate';
 import { ToolSection, ToolSelect, ToolSegmentedControl, ToolInput, ToolDivider, ControlLabel, ControlActionRow, RemoveButton, ColorInput } from '../controls';
@@ -237,10 +239,10 @@ export default function OverlayTool() {
 // a lighter pass of the same colour rather than a different one.
 const OverlayPillIcon = (
   <span className="flex h-5 w-5 shrink-0 items-center justify-center cut-corners cut-sm bg-[var(--accent)]">
-    <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+    <FieldGlyph behavior="generic"><svg width="11" height="11" viewBox="0 0 14 14" fill="none">
       <rect x="2" y="2" width="8" height="8" rx="1.5" fill="var(--accent-fg)" fillOpacity="0.55" />
       <rect x="5" y="5" width="8" height="8" rx="1.5" fill="var(--accent-fg)" />
-    </svg>
+    </svg></FieldGlyph>
   </span>
 );
 
@@ -554,16 +556,17 @@ function OverlayAddButton({ nodeId, onCreated }: { nodeId: string; onCreated?: (
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <motion.button
         ref={btnRef}
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         onClick={() => (skipChooser ? handleCreate('relative') : setOpen(!open))}
         className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
         title={skipChooser ? 'Add dropdown' : 'Add overlay'}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
+        <FieldGlyph behavior="plus"><FieldMorphGlyph active={!skipChooser && open} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
+      </motion.button>
 
       {open && (
         <>
@@ -635,23 +638,18 @@ function OverlayAppearRows({ overlayId, overlayConfig }: { overlayId: string; ov
           <svg className="absolute pointer-events-none" style={{ left: 1, top: -38, width: 10, height: 40, overflow: 'visible' }}>
             <path d="M 0,37 Q 0,31 6,29 L 11,29" fill="none" stroke={stroke} strokeWidth="1" />
           </svg>
-          <button
+          <motion.button
             type="button"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             onClick={toggleLink}
             className={`p-0.5 hover:bg-[var(--bg-hover)] cut-corners transition-colors absolute z-10 pointer-events-auto cursor-pointer ${linked ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}
             style={{ left: -7, top: 2 }}
             title={linked ? 'Exit linked to Enter — unlink to edit separately' : 'Exit unlinked — link to match Enter'}
           >
-            {linked ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" />
-              </svg>
-            )}
-          </button>
+            <FieldGlyph behavior="lock"><FieldMorphGlyph active={linked} from={glyphIcons.unlock} to={glyphIcons.lock} size={12} strokeWidth={2} /></FieldGlyph>
+          </motion.button>
           <svg className="absolute pointer-events-none" style={{ left: 1, top: 19, width: 10, height: 40, overflow: 'visible' }}>
             <path d="M 0,3 Q 0,8 6,11 L 11,11" fill="none" stroke={stroke} strokeWidth="1" />
           </svg>
