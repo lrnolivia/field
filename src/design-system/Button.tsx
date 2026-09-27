@@ -2,17 +2,19 @@
 // Replaces scattered button class patterns across the builder.
 // Uses CSS variables for theming consistency.
 
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { motion } from 'motion/react';
+import { buttonContentVariants, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = ComponentPropsWithoutRef<typeof motion.button> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   icon?: React.ReactNode;
-}
+};
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: 'h-[30px] px-2 text-xs',
@@ -27,7 +29,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   danger: 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300',
 };
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   variant = 'secondary',
   size = 'md',
   loading = false,
@@ -35,12 +37,23 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
   disabled,
   className = '',
+  type = 'button',
   ...props
-}, ref) => {
+}, ref) {
+  const reducedMotion = useFieldReducedMotion();
+  const blocked = Boolean(disabled || loading);
+
   return (
-    <button
+    <motion.button
       ref={ref}
-      disabled={disabled || loading}
+      type={type}
+      aria-busy={loading || undefined}
+      disabled={blocked}
+      initial="rest"
+      whileHover={!blocked && !reducedMotion ? 'hover' : undefined}
+      whileTap={!blocked && !reducedMotion ? 'tap' : undefined}
+      transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
+      data-field-motion="button-press"
       className={`
         inline-flex items-center justify-center gap-1.5 font-medium
         cut-corners transition-colors cursor-pointer border-none select-none
@@ -51,13 +64,19 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       `.trim()}
       {...props}
     >
-      {loading ? (
-        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
-        </svg>
-      ) : icon}
-      {children}
-    </button>
+      <motion.span
+        className="inline-flex min-w-0 items-center justify-center gap-1.5"
+        variants={buttonContentVariants}
+        transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
+      >
+        {loading ? (
+          <svg aria-hidden="true" className="animate-spin motion-reduce:animate-none w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
+          </svg>
+        ) : icon}
+        {children}
+      </motion.span>
+    </motion.button>
   );
 });
 

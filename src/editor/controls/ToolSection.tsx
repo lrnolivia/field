@@ -4,6 +4,8 @@
 // When hasContent=false (or collapsed): no bottom margin, no separator.
 
 import React, { useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { trace } from '@/shared/debug-trace';
 
 interface Props {
@@ -27,6 +29,7 @@ interface Props {
 
 export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true, renderWhenEmpty = false, bare = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const reducedMotion = useFieldReducedMotion();
   const actionRef = useRef<HTMLSpanElement>(null);
 
   // Right-click anywhere on the title row opens the SAME menu the `+` (or
@@ -97,14 +100,22 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
         </button>
         <span ref={actionRef} className="flex items-center">{action}</span>
       </div>
-      {isOpen && showContent && (
-        <div
-          data-inspector-section-content
-          className="flex flex-col px-2.5 pb-1 gap-[var(--control-gap)]"
-        >
-          {children}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {showContent && (
+          <motion.div
+            key="content"
+            data-inspector-section-content
+            data-field-motion="section-content"
+            initial={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
+            animate={reducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
+            transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
+            className="flex flex-col px-2.5 pb-1 gap-[var(--control-gap)] overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
