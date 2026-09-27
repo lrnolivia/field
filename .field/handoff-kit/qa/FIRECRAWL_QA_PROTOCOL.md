@@ -1,126 +1,75 @@
 # Firecrawl QA — small-packet protocol
 
-Use small isolated Firecrawl QA packets instead of one long browser session attempting the full acceptance matrix.
+Use small isolated Firecrawl QA packets instead of one long browser session attempting the full acceptance surface.
 
-## Default packet
+## Correct runtime target
 
-One behavior family or about 1–3 closely related assertions.
+The tested URL must correspond to the code whose SHA will be recorded in the QA record.
 
-1. Open `https://field.loew.fi/builder/noauth`.
-2. Wait for the editor to settle.
-3. If **Welcome to Revyme** appears, dismiss it with **Don't show again**. It intercepts pointer events and can create false failures. Long term, `/builder/noauth` should suppress onboarding automatically.
-4. Build the smallest deterministic fixture directly in field.
-5. Capture a pre-operation snapshot from the canvas iframe using DOM/computed geometry, not screenshots alone.
-6. Perform one focused interaction through the real field UI/shortcut whenever practical.
-7. Capture the post-operation snapshot and calculate explicit deltas/assertions.
-8. Exercise undo/redo in the same packet when history is relevant.
-9. Classify as `PASS`, `FAIL — FIELD`, or `BLOCKED/UNVERIFIED — HARNESS`.
-10. Stop the Firecrawl session immediately after the packet. Start fresh for unrelated work.
+For Contract Worker branch work, use a branch Preview that corresponds to the assignment branch / PR head when one exists.
 
-Reuse the same `scrapeId` only for immediate follow-up assertions on the same fixture.
+Do not use production https://field.loew.fi/builder/noauth to claim that an unmerged branch head was runtime-tested.
 
-## Preferred evidence
+Use production /builder/noauth only for explicit post-merge/production QA, or when the recorded tested SHA is the deployed production commit.
 
-Prefer numerical/semantic evidence:
+If branch Preview is required but unavailable, classify branch runtime QA as BLOCKED/UNVERIFIED — HARNESS unless the assignment explicitly permits post-merge production QA instead.
 
-- node IDs
-- parent IDs
-- direct-child order
-- `data-field-group` and other semantic markers
-- authored `style`
-- relevant computed styles
-- computed `transform`
-- `getBoundingClientRect()`
-- explicit before/after deltas
+A successful CI build is not a substitute for runtime QA.
 
-Example:
+## Packet sequence
 
-```text
-child world delta:
-dx = 0
-dy = 0
-dw = 0
-dh = 0
+One packet should test one behavior family or roughly 1–3 related assertions.
 
-Group vs painted-child union:
-dx = 0
-dy = 0
-dw = 0.0068px
-dh = 0.0039px
-```
+1. Open the exact runtime target.
+2. Wait for the app to settle.
+3. Dismiss the legacy Welcome to Revyme onboarding with Don't show again when it appears.
+4. Build the smallest fixture that proves the behavior.
+5. Capture pre-operation state.
+6. Perform one real user interaction.
+7. Capture post-operation state.
+8. Calculate explicit assertions/deltas.
+9. Exercise undo/redo/history when relevant.
+10. Classify the packet.
+11. Stop the session before unrelated QA.
 
-Treat tiny subpixel browser rounding separately from meaningful geometry drift.
+Reuse the same scrape/session identifier only for immediate same-fixture follow-ups.
 
-## Group / reparent / transform checks
+## Evidence hierarchy
 
-For Group tests, derive the painted union from child `getBoundingClientRect()` values and compare the Group wrapper with that union. For nested Groups, verify every affected ancestor independently. For reparenting, compare every moved node's world-space geometry before and after.
+Prefer semantic/numerical evidence over screenshot-only evidence: routes, DOM identity/parentage, data-id, data-field-group, authored/computed styles, bounding rectangles, transforms, order, and runtime errors when available.
 
-For transformed objects, do not judge correctness from `left` / `top` alone. Compare painted world geometry, computed transform, and semantic parentage/order. Retaining `rotate(35deg)` while jumping 14 px is still a field failure.
+Screenshots are supporting optical evidence, not the only proof of structural correctness.
 
-## Design ↔ Preview parity packets
+For Group behavior validate painted union and expected hierarchy. For nested grouping verify ancestors and world-space preservation. For transformed objects compare world geometry plus transform semantics, not just local left/top.
 
-When the change affects runtime parity, inspect both Design and Preview runtimes, including `canvas.field.loew.fi` and `preview.field.loew.fi` where applicable.
+For Design ↔ Preview parity compare relevant identities, semantics, authored/computed styles, and geometry.
 
-Compare IDs, semantic markers, parent/order, authored styles, relevant computed geometry, transforms, and node existence.
+## Clipboard workaround
 
-Preview is runtime truth.
+When clipboard behavior must be tested:
 
-## Clipboard testing
+1. perform real Ctrl/Cmd+C so field populates its internal clipboard
+2. grant browser clipboard permission when the harness supports it
+3. write a harmless marker such as revyme-node:qa
+4. perform real Ctrl/Cmd+V
 
-For deterministic `Ctrl+C` / `Ctrl+V`:
+Do not replace the product interaction with direct state mutation.
 
-1. let field perform real `Ctrl+C` so its internal `revyme_clipboard` path is populated
-2. grant `clipboard-read` / `clipboard-write`
-3. write a harmless marker such as `revyme-node:qa` to `navigator.clipboard`
-4. invoke real `Ctrl+V`
+## Auth boundary
 
-Do not classify browser clipboard restrictions as field defects.
+/builder/noauth is disposable/in-memory QA. It does not prove authenticated persistence, R2 persistence, account metadata, ETag conflict behavior, multi-session auth behavior, or protected dashboard/API behavior.
 
-## Session examples
+Use AUTHENTICATED_QA.md for requirements noauth cannot prove.
 
-Good:
+Access bypasses must remain narrow. Do not widen a QA bypass to the entire site or /api/*.
 
-```text
-Group child resize
-→ wrapper refit
-→ sibling stationary
-→ undo
-→ stop
-```
+## Classification
 
-Good:
+Use:
+PASS
+FAIL — FIELD
+BLOCKED/UNVERIFIED — HARNESS
+BLOCKED — ENVIRONMENT
+NOT RUN
 
-```text
-rotated child
-→ Ungroup
-→ world-space transform comparison
-→ stop
-```
-
-Avoid giant sessions spanning unrelated subsystems.
-
-## Security / infrastructure
-
-The QA bypass is intentionally narrow:
-
-```text
-field.loew.fi/builder/noauth
-field.loew.fi/assets/*
-```
-
-The normal dashboard and API remain protected.
-
-Do not widen the bypass to:
-
-```text
-field.loew.fi/*
-/api/*
-```
-
-`/builder/noauth` is disposable and in-memory; refresh resets it.
-
-It does not prove authenticated project persistence, R2 durability, reload persistence, dashboard identity, multi-browser stale-revision behavior, or Access policy behavior. Mark those unavailable in the noauth harness and use authenticated/staging/manual verification.
-
-## Reporting
-
-After each packet, report only what passed, what failed, exact reproduction/evidence, and any harness limitation. Prefer one consolidated defect when multiple failures share one architectural cause.
+A harness limitation is not a field product failure.

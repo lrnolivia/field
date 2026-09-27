@@ -1,17 +1,11 @@
 # Authenticated / human QA
 
-Use authenticated/staging verification for:
+Use authenticated/staging verification for requirements that disposable /builder/noauth cannot prove.
 
-- Cloudflare Access authentication/re-authentication
-- dashboard project list/account identity
-- R2 persistence
-- reload durability
-- cross-browser project persistence
-- metadata persistence
-- ETag/stale-revision conflicts
-- multi-session conflict recovery
-- protected API routing
+Examples include Cloudflare Access authentication/re-authentication, dashboard project listing/rename/star/trash/restore, R2 persistence, real account metadata, authenticated API behavior, ETag/stale-session conflict behavior, multi-browser or multi-session persistence, and production-only integration behavior.
 
-Use human visual QA when acceptance depends on optical judgment that DOM/geometry evidence cannot adequately prove, including exact Figma-like density, animation feel, drag feel, and subtle visual polish.
+Record the exact tested branch/main/deployed SHA when knowable, environment/URL, non-secret auth context, steps, expected result, actual result, and PASS / FAIL / BLOCKED / NOT RUN.
 
-Record human verification as a distinct evidence class.
+Do not place secrets, cookies, tokens, or private credentials in QA records.
+
+Authenticated/human QA is separate evidence. It does not make stale branch QA current and does not permit claiming an untested SHA was validated.
