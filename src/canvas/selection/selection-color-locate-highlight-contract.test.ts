@@ -11,19 +11,17 @@ describe('Selection color locate geometry contract', () => {
     expect(source).toContain('setSelectionColorLocateHighlight');
   });
 
-  it('builds a true alpha-edge keyline from the rendered object silhouette', () => {
-    expect(sandbox).toContain('operator="erode" radius="1.5"');
-    expect(sandbox).toContain('operator="dilate" radius="1"');
+  it('uses a 1px WHITE inner alpha-edge in overlay mode and no outer edge stroke', () => {
+    expect(sandbox).toContain('operator="erode" radius="1"');
+    expect(sandbox).toContain('flood-color="#ffffff"');
     expect(sandbox).toContain('mode="overlay"');
-    expect(sandbox).toContain('flood-opacity="0.96"');
-    expect(sandbox).toContain('flood-opacity="0.82"');
+    expect(sandbox).not.toContain('operator="dilate"');
   });
 
-  it('keeps the luminous stack tight and stronger than the old subtle recipe', () => {
-    expect(sandbox).toContain('drop-shadow(0 0 0.45px');
-    expect(sandbox).toContain('drop-shadow(0 0 1.25px');
-    expect(sandbox).toContain('drop-shadow(0 0 2.35px');
-    expect(sandbox).toContain('1.00 * strength');
-    expect(sandbox).toContain('0.88 * strength');
+  it('orders the three glow layers front 0.5x, middle 1x, back 1.5x', () => {
+    expect(sandbox).toContain('const frontRadius = originalRadius * 0.5');
+    expect(sandbox).toContain('const backRadius = originalRadius * 1.5');
+    expect(sandbox).toContain('0.92 * strength');
+    expect(sandbox).toContain('0.56 * strength');
   });
 });
