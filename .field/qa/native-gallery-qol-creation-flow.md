@@ -316,3 +316,11 @@ Do not use this packet as evidence that Gallery regressed.
 - Draft PR #3 is open/draft and points to this SHA
 - Workers Builds check 108516328315 was still in progress on the first post-publication read; final classification must be recorded after completion
 - runtime/Preview QA remains pending
+
+
+### Cloudflare follow-up for treatment Inspector 25a379f1d32b
+
+- Workers Builds: field check-run 108516421661 completed with failure at 2026-09-27T00:23:05Z
+- zero annotations were reported
+- classification: the established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a treatment-Inspector product failure
+- this does not substitute for exact dependency-tree Vitest / TypeScript / build:all, which remain unverified here
