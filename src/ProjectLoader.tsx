@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
+import ProjectLoadingVeil from './loading/ProjectLoadingVeil';
 import RemixWorkspacePicker from './RemixWorkspacePicker';
 import { remixTemplate, remixTemplateShare } from '@/backend/revyme-backend';
 import { backend } from './backend';
@@ -639,11 +640,11 @@ function CanvasReadyShellOverlay({
   );
 }
 
-// ─── Loading shell ──────────────────────────────────────────────────────────
-// Simulated editor chrome (header + icon rail + left panel + right panel at
-// their real widths/colors, empty with pulsing placeholders) around a center
-// spinner — the builder visibly "is there" while the project loads, instead
-// of a bare Loading… label.
+// ─── Loading veil ───────────────────────────────────────────────────────────
+//
+// Loading is intentionally NOT a preview of final editor geometry. The real
+// chrome gets its own entrance once Canvas has painted; this veil protects that
+// reveal while preserving the same status/error semantics.
 
 function BuilderLoadingShell({
   status = 'Opening project',
@@ -654,150 +655,11 @@ function BuilderLoadingShell({
   detail?: string;
   recoverable?: boolean;
 }) {
-  const surface = 'var(--bg-surface, #16161d)';
-  const border = '1px solid var(--border-light, rgba(255,255,255,0.08))';
-  // Placeholder chips take the cut classes, not radii — the shell must preview
-  // the exact chrome language the loaded editor draws (cut-corners default for
-  // 28px+ chips, cut-sm for the 12px text lines). Circles stay circles.
-  const ph = (w: number | string, h: number): React.CSSProperties => ({
-    width: w, height: h,
-    background: 'linear-gradient(145deg, color-mix(in srgb, var(--bg-hover) 95%, white 5%), color-mix(in srgb, var(--bg-hover) 76%, black 24%))',
-  });
-  const sep: React.CSSProperties = { width: 1, height: 26, background: 'var(--border-light, rgba(255,255,255,0.08))', margin: '0 4px' };
   return (
-    <div
-      data-builder-loading-shell
-      style={{ position: 'fixed', inset: 0, background: 'var(--bg-canvas, #1a1a2e)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}
-    >
-      <style>{`
-        [data-builder-loading-shell] [data-skeleton] { position: relative; overflow: hidden; isolation: isolate; box-shadow: inset 0 1px color-mix(in srgb, white 14%, transparent), inset 0 -1px color-mix(in srgb, black 15%, transparent); }
-        [data-builder-loading-shell] [data-skeleton]::before { content: ''; position: absolute; inset: -120% -180%; background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.045) 42%, rgba(255,255,255,.32) 49%, rgba(255,255,255,.11) 52%, rgba(255,255,255,.42) 54%, rgba(255,255,255,.045) 59%, transparent 69%); transform: translateX(-55%); animation: field-shell-specular 2.85s cubic-bezier(.45,0,.55,1) infinite; }
-        [data-builder-loading-shell] [data-skeleton]::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .12; mix-blend-mode: soft-light; background-size: 96px 96px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.73' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E"); }
-        @keyframes field-shell-specular { 0% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
-        @media (prefers-reduced-motion: reduce) {
-          [data-builder-loading-shell] [data-skeleton]::before { animation: none !important; transform: translateX(0); }
-          [data-builder-loading-shell] * { transition-duration: 0.01ms !important; }
-        }
-      `}</style>
-
-      {/* Left slab — 308px full height, bottom-right cut, mirroring the
-          ChromeIslands docked island. Header, icon rail and panel are drawn
-          INSIDE it so the outer silhouette matches the loaded chrome. */}
-      <div className="cut-br cut-lg" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 308, background: surface, borderRight: border }}>
-        {/* Header row — field identity is visible during project hydration */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 52, borderBottom: border, display: 'flex', alignItems: 'center' }}>
-          <div style={{ width: 51, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span
-              aria-hidden
-              className="block w-[26px] h-[26px] bg-center bg-contain bg-no-repeat"
-              style={{ backgroundImage: 'var(--field-app-icon)' }}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12 }}>
-            <div data-skeleton className="cut-corners cut-sm" style={ph(90, 12)} />
-            <div data-skeleton className="cut-corners cut-sm" style={ph(44, 12)} />
-          </div>
-        </div>
-
-        {/* Icon rail — w-52, px-10 py-16, 32px buttons gap-8; bottom: 20px rule,
-            28px + circle, 28px avatar circle (CollaboratorsSection geometry). */}
-        <div style={{ position: 'absolute', top: 52, bottom: 0, left: 0, width: 52, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '16px 10px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-              <div key={i} data-skeleton className="cut-corners" style={{ ...ph(32, 32), animationDelay: `${i * 80}ms` }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 20, height: 1, background: 'var(--border-light, rgba(255,255,255,0.08))' }} />
-            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '200ms' }} />
-            <div data-skeleton style={{ ...ph(28, 28), borderRadius: 14, animationDelay: '300ms' }} />
-          </div>
-        </div>
-      </div>
-
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        style={{
-          position: 'absolute',
-          left: 308,
-          right: 260,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-          padding: 24,
-          textAlign: 'center',
-          pointerEvents: 'auto',
-        }}
-      >
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary, #f5f5f5)' }}>{status}</div>
-        {detail && (
-          <div style={{ maxWidth: 360, fontSize: 12, lineHeight: 1.5, color: 'var(--text-secondary, #9b9ba7)' }}>{detail}</div>
-        )}
-        {recoverable && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              style={{
-                height: 28, padding: '0 10px', borderRadius: 6,
-                border: '1px solid var(--control-border, rgba(255,255,255,0.12))',
-                background: 'var(--bg-hover, rgba(255,255,255,0.06))',
-                color: 'var(--text-primary, #f5f5f5)', fontSize: 12,
-              }}
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              onClick={() => window.location.assign('/')}
-              style={{
-                height: 28, padding: '0 10px', borderRadius: 6,
-                border: '1px solid transparent', background: 'transparent',
-                color: 'var(--text-secondary, #9b9ba7)', fontSize: 12,
-              }}
-            >
-              Back to projects
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom toolbar — docked flush to the bottom like the real bar, with
-          the same cut-lg backdrop signature (no boxShadow: clip-path clips it). */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)' }}>
-        <div className="cut-corners cut-lg cut-border" style={{
-          display: 'flex', alignItems: 'center', gap: 2,
-          background: surface, border,
-          padding: '6px 8px',
-          ['--cut-border-color' as string]: 'var(--border-light)',
-        }}>
-          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32) }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '90ms' }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '180ms' }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '270ms' }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(48, 32), animationDelay: '360ms' }} />
-          <div style={sep} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(52, 32), animationDelay: '450ms' }} />
-          <div style={sep} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(64, 32), animationDelay: '540ms' }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(56, 32), animationDelay: '630ms' }} />
-          <div style={sep} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '720ms' }} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(34, 32), animationDelay: '810ms' }} />
-          <div style={sep} />
-          <div data-skeleton className="cut-corners" style={{ ...ph(72, 32), animationDelay: '900ms' }} />
-        </div>
-      </div>
-
-      {/* Right chrome — header slab with the top-left cut + body slab below,
-          mirroring the two ChromeIslands pieces. */}
-      <div className="cut-tl cut-lg" style={{ position: 'absolute', top: 0, right: 0, width: 260, height: 52, background: surface, borderBottom: border, borderLeft: border }} />
-      <div style={{ position: 'absolute', top: 52, bottom: 0, right: 0, width: 260, background: surface, borderLeft: border }} />
-    </div>
+    <ProjectLoadingVeil
+      status={status}
+      detail={detail}
+      recoverable={recoverable}
+    />
   );
 }
