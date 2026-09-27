@@ -45,6 +45,7 @@ import {
   GALLERY_IMAGE_ROTATION_STYLE_PROPERTY,
   GALLERY_IMAGE_ZOOM_STYLE_PROPERTY,
   galleryMediaTreatmentPatch,
+  neutralGalleryMediaTreatmentPatch,
   parseGalleryRotation,
   parseGalleryZoom,
   type GalleryMediaTreatment,
@@ -750,6 +751,12 @@ function GalleryToolInner() {
     updateImageStyle('objectPosition', '50% 50%');
   }, [selectedItem, updateImageStyle]);
 
+  const resetMediaTreatment = useCallback(() => {
+    if (!selectedItem) return;
+    patchAndQueue(selectedItem.imageId, neutralGalleryMediaTreatmentPatch(), true);
+    flushNow();
+  }, [patchAndQueue, selectedItem]);
+
   const commitMediaTreatment = useCallback((treatment: GalleryMediaTreatment) => {
     if (!selectedItem) return;
     patchAndQueue(
@@ -856,10 +863,13 @@ function GalleryToolInner() {
           alt={selectedItem.alt}
           fit={effectiveFit}
           objectPosition={effectiveCropPosition}
+          zoom={effectiveZoom}
+          rotation={effectiveRotation}
           onAltChange={updateAlt}
           onFitChange={(value) => updateImageStyle('objectFit', value)}
           onReposition={() => setCropImageId(selectedItem.imageId)}
           onResetPosition={resetCrop}
+          onResetTreatment={resetMediaTreatment}
           />
         </>
       )}

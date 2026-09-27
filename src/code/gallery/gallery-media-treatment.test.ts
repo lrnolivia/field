@@ -5,6 +5,7 @@ import {
   GALLERY_IMAGE_ZOOM_STYLE_PROPERTY,
   clampGalleryZoom,
   galleryMediaTreatmentPatch,
+  neutralGalleryMediaTreatmentPatch,
   normalizeGalleryRotation,
   parseGalleryRotation,
   parseGalleryZoom,
@@ -19,6 +20,18 @@ describe('Gallery media treatment', () => {
     expect(normalizeGalleryRotation(-195)).toBe(165);
     expect(parseGalleryZoom('1.75')).toBe(1.75);
     expect(parseGalleryRotation('-22.5deg')).toBe(-22.5);
+  });
+
+  it('resets authored treatment without touching image fit', () => {
+    const patch = neutralGalleryMediaTreatmentPatch();
+    expect(patch).toEqual({
+      objectPosition: '50% 50%',
+      transformOrigin: '50% 50%',
+      [GALLERY_IMAGE_ZOOM_STYLE_PROPERTY]: '1',
+      [GALLERY_IMAGE_ROTATION_STYLE_PROPERTY]: '0deg',
+      transform: GALLERY_IMAGE_TRANSFORM_VALUE,
+    });
+    expect(patch).not.toHaveProperty('objectFit');
   });
 
   it('serializes focal, zoom, and rotation as one source-backed image treatment', () => {

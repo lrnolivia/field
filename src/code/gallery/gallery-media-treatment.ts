@@ -61,3 +61,8 @@ export function galleryMediaTreatmentPatch(
     transform: GALLERY_IMAGE_TRANSFORM_VALUE,
   };
 }
+
+export function neutralGalleryMediaTreatmentPatch(): Record<string, string> {
+  return galleryMediaTreatmentPatch('50% 50%', 1, 0);
+}
+
