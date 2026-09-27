@@ -3,7 +3,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
@@ -85,9 +86,12 @@ const MenuButton = React.memo(function MenuButton({
   panelId, isActive, onToggle, title, tooltip, children, disabled, dataTutorial,
 }: MenuButtonProps) {
   return (
-    <button
+    <motion.button
       disabled={disabled}
       data-tutorial={dataTutorial}
+      initial="rest"
+      whileHover={!disabled ? 'hover' : undefined}
+      whileTap={!disabled ? 'tap' : undefined}
       onClick={disabled ? undefined : (e) => {
         onToggle(panelId);
         tooltip.onClick(panelId);
@@ -108,8 +112,8 @@ const MenuButton = React.memo(function MenuButton({
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       }`}
     >
-      {children}
-    </button>
+      <FieldGlyph behavior="generic">{children}</FieldGlyph>
+    </motion.button>
   );
 });
 
@@ -261,8 +265,11 @@ export default function LeftMenu() {
         </AnimatePresence>
 
         {/* Insert — accent (Minimal UI: was hardcoded green) */}
-        <button
+        <motion.button
           data-left-menu-item="insert"
+          initial="rest"
+          whileHover={!isViewer ? 'hover' : undefined}
+          whileTap={!isViewer ? 'tap' : undefined}
           data-tutorial="insert-button"
           disabled={isViewer}
           onClick={isViewer ? undefined : (e) => { togglePanel('insert'); handleClick('insert'); e.currentTarget.blur(); }}
@@ -276,8 +283,8 @@ export default function LeftMenu() {
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
           }`}
         >
-          <InsertPlusIcon className="w-4 h-4" />
-        </button>
+          <FieldGlyph behavior="plus"><InsertPlusIcon className="w-4 h-4" /></FieldGlyph>
+        </motion.button>
 
         {/* Pages & Layers — one persistent document panel. Pages stays above
             the layer tree, so the rail item opens/collapses the document pane
@@ -330,8 +337,11 @@ export default function LeftMenu() {
             entirely on a closed-source template remix: the template author
             chose not to expose the source, so the affordance doesn't render
             (matching the marketplace "Closed source" option). */}
-        {!isClosedSource && <button
+        {!isClosedSource && <motion.button
           disabled={isViewerRole}
+          initial="rest"
+          whileHover={!isViewerRole ? 'hover' : undefined}
+          whileTap={!isViewerRole ? 'tap' : undefined}
           onClick={isViewerRole ? undefined : (e) => { setCodeOpen(v => !v); handleClick('code'); e.currentTarget.blur(); }}
           onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('code', 'Code', e.currentTarget)}
           onMouseLeave={isViewerRole ? undefined : handleLeave}
@@ -343,8 +353,8 @@ export default function LeftMenu() {
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
           }`}
         >
-          <CodeIcon className="w-[18px] h-[18px]" />
-        </button>}
+          <FieldGlyph behavior="generic"><CodeIcon className="w-[18px] h-[18px]" /></FieldGlyph>
+        </motion.button>}
 
       </div>
 
