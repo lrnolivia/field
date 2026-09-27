@@ -1,5 +1,7 @@
 # Composio GitHub transport contract
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 ## Purpose
 
 Composio is the exclusive GitHub transport for field Contract Workers and the Night Shift Manager.

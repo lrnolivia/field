@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { buildGalleryItemNode, galleryItemUrls, getGalleryItems, getGalleryView, isGalleryNode } from './gallery-model';
 import { GALLERY_VIEW_STYLE_PROPERTY } from './gallery-views';
+import { GALLERY_SOURCE_RATIO_STYLE_PROPERTY } from './gallery-frame-sizing';
 
 function node(partial: Partial<CanvasNode> & Pick<CanvasNode, 'id'>): CanvasNode {
   const { id, ...rest } = partial;
@@ -36,7 +37,32 @@ describe('Gallery semantic model', () => {
       type: 'img',
       name: 'Gallery Image',
       attrs: { src: '/photo.jpg', alt: 'A portrait' },
-      styles: { objectFit: 'cover', objectPosition: '50% 50%' },
+      styles: {
+        objectFit: 'cover',
+        objectPosition: '50% 50%',
+        transformOrigin: '50% 50%',
+        '--field-gallery-zoom': '1',
+        '--field-gallery-rotation': '0deg',
+      },
+    });
+  });
+
+  it('builds source-ratio items with persisted intrinsic frame metadata', () => {
+    const item = buildGalleryItemNode('/photo.jpg', 0, 'grid', '', 0, 'source', 1.5);
+    expect(item.styles).toMatchObject({
+      [GALLERY_SOURCE_RATIO_STYLE_PROPERTY]: '1.5',
+      aspectRatio: '1.5 / 1',
+      alignSelf: 'start',
+    });
+    expect(item.children?.[0]?.styles).toMatchObject({ objectFit: 'cover' });
+  });
+
+  it('builds new Natural items against the persisted composition seed', () => {
+    const item = buildGalleryItemNode('/photo.jpg', 0, 'natural', '', 1);
+    expect(item.styles).toMatchObject({
+      gridColumn: '4',
+      gridRow: '1 / span 2',
+      aspectRatio: '1 / 2',
     });
   });
 

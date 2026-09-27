@@ -1,5 +1,7 @@
 # field handoff kit
 
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+
 Canonical repository-owned process infrastructure for field execution work.
 
 Version: `2026-09-26.4`
