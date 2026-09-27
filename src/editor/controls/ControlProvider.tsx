@@ -67,6 +67,7 @@ import { collectionSchemasAtom, collectionDataAtom } from '@/code/stores/cms-sto
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { trace } from '@/shared/debug-trace';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
+import { resolveInspectorProperty, type InspectorPropertyResolution } from '@/editor/inspector/provenance/resolve-property';
 
 // One shared reference for "this selection has no styles" — see `baseStyles`.
 const EMPTY_STYLES: Record<string, string> = {};
@@ -108,6 +109,8 @@ export interface ControlContextValue {
 
   /** Detect the source of a style value: 'inline', 'prop' (variable), or 'token' */
   getValueSource: (property: string) => { source: ValueSource; ref: string | null };
+  /** Read provenance and the existing write destination for an Inspector property. */
+  resolveProperty: (property: string) => InspectorPropertyResolution;
   /**
    * Extract an inline value into a component prop (create variable).
    * `clearLonghands` is for compound atoms (e.g. Border) that produce per-side
@@ -1367,6 +1370,29 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     };
   }, [selectedId, node, cmsListAncestor, collectionSchemas, collectionData, cmsPageMeta, isComponentFile, isComponentVariantViewport, activeComponentVariant]);
 
+  const resolutionCache = useMemo(() => new Map<string, InspectorPropertyResolution>(),
+    [node, styles, overrides, isReplica, vpWidth, isComponentFile, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, cmsBindingCtx, getValueSource]);
+  const resolveProperty = useCallback((property: string) => {
+    const cached = resolutionCache.get(property);
+    if (cached) return cached;
+    const resolved = resolveInspectorProperty({
+      property,
+      node,
+      effectiveValue: styles[property],
+      overrides,
+      isReplica,
+      viewportWidth: vpWidth,
+      isComponentFile,
+      variant: isComponentFile ? activeComponentVariant ?? 'default' : null,
+      locale: isDefaultLocale ? null : 'active',
+      localeValue: isDefaultLocale || !selectedId ? undefined : localeOverrides.get(selectedId)?.styles?.[property],
+      cmsField: cmsBindingCtx?.getBindingForProperty(property),
+      valueSource: getValueSource(property),
+    });
+    resolutionCache.set(property, resolved);
+    return resolved;
+  }, [resolutionCache, node, styles, overrides, isReplica, vpWidth, isComponentFile, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, cmsBindingCtx, getValueSource]);
+
   const value: ControlContextValue = {
     nodeId: selectedId,
     node,
@@ -1382,6 +1408,7 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     hasOverride,
     getOverrides,
     getValueSource,
+    resolveProperty,
     createVariable,
     removeVariable,
     cmsBinding: cmsBindingCtx,
@@ -1418,6 +1445,7 @@ const FALLBACK_CONTEXT: ControlContextValue = {
   hasOverride: () => false,
   getOverrides: () => [],
   getValueSource: () => ({ source: 'inline' as ValueSource, ref: null }),
+  resolveProperty: (property) => resolveInspectorProperty({ property, node: null, effectiveValue: undefined }),
   createVariable: () => {},
   removeVariable: () => {},
   cmsBinding: null,

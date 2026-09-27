@@ -20,6 +20,7 @@ import { getScrollBoundProps } from '@/editor/hooks/useScrollBoundProps';
 import { UnifiedControlContext } from './useControlContext';
 import { useControlOptional } from '../ControlProvider';
 import type { ControlMode, ControlBinding, UnifiedControlProviderProps, UnifiedControlContextValue } from './types';
+import { resolveInspectorProperty } from '@/editor/inspector/provenance/resolve-property';
 import type { ScrollAnimData } from '@/code/parsing/scroll-parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
@@ -514,14 +515,31 @@ export function UnifiedControlProvider({
 
   // All properties for the current context (use outer styles for map-aware values)
   const allProps = isDirect ? nodeStyles : (stopProps ?? {});
+  const propertyResolution = useMemo(() => {
+    if (mode !== 'direct') return null;
+    if (outerControl) return outerControl.resolveProperty(property);
+    return resolveInspectorProperty({
+      property,
+      node,
+      effectiveValue: nodeStyles[property],
+      overrides,
+      isReplica,
+      viewportWidth: vpWidth,
+      variant: isComponentVariantViewport ? activeComponentVariant : null,
+      isComponentFile: isComponentVariantViewport,
+      locale: isDefaultLocale ? null : 'active',
+      localeValue: isDefaultLocale || !selectedId ? undefined : localeOverrides.get(selectedId)?.styles?.[property],
+      valueSource,
+    });
+  }, [mode, outerControl?.resolveProperty, property, node, nodeStyles, overrides, isReplica, vpWidth, isComponentVariantViewport, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, valueSource.source, valueSource.ref]);
 
   const ctx: UnifiedControlContextValue = useMemo(() => ({
     value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive,
-    property, mode, binding, hideLabel,
+    property, mode, propertyResolution, binding, hideLabel,
     nodeId, node, allProps,
     hasOverride, getOverrides,
     hasVariable, variableRef, createVariable, removeVariable,
-  }), [value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive, property, mode, binding, hideLabel, nodeId, node, allProps,
+  }), [value, onChange, onChangeMultiple, onChangeLive, onChangeMultipleLive, property, mode, propertyResolution, binding, hideLabel, nodeId, node, allProps,
        hasOverride, getOverrides, hasVariable, variableRef, createVariable, removeVariable]);
 
   return (
