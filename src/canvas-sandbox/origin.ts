@@ -1,6 +1,8 @@
 // origin.ts — deterministic Canvas sandbox origin resolution.
 // Keep environment hostname semantics out of the larger iframe protocol surface.
 
+// Cloudflare branch + immutable Previews use sibling hosts with the same prefix:
+// <name>.field-preview.loew.fi ↔ <name>.canvas-preview.loew.fi.
 const FIELD_PREVIEW_HOST_SUFFIX = '.field-preview.loew.fi';
 const CANVAS_PREVIEW_HOST_SUFFIX = '.canvas-preview.loew.fi';
 const PRODUCTION_CANVAS_HOST = 'canvas.field.loew.fi';
