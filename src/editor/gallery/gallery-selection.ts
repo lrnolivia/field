@@ -17,6 +17,13 @@ export function resolveGalleryItemSelection(
   return itemIds[0] ?? null;
 }
 
+export function gallerySelectionAfterCreate(
+  createdItemIds: readonly string[],
+  currentItemId: string | null,
+): string | null {
+  return createdItemIds[0] ?? currentItemId;
+}
+
 export function gallerySelectionAfterRemove(
   itemIds: readonly string[],
   removedItemId: string,

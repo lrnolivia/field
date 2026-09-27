@@ -11,6 +11,7 @@ import GalleryCreationWizard from '../gallery/GalleryCreationWizard';
 import type { GalleryWizardConfig } from '../gallery/gallery-wizard-model';
 import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
 import {
+  gallerySelectionAfterCreate,
   gallerySelectionAfterRemove,
   rememberGalleryItemSelection,
   resolveGalleryItemSelection,
@@ -337,7 +338,7 @@ function GalleryToolInner() {
 
       queueMutations(mutations);
       flushNow();
-      selectItem(plan.itemNodes[0]?.id ?? null);
+      selectItem(gallerySelectionAfterCreate(plan.itemNodes.map((item) => item.id), selectedItemId));
       setCreationWizardOpen(false);
       completeGalleryCreationSession(galleryId);
       trace.action('gallery:wizard-finish', {
@@ -357,7 +358,7 @@ function GalleryToolInner() {
     } finally {
       setCreationWizardBusy(false);
     }
-  }, [bridge, creationWizardBusy, gallery, galleryId, items.length, prefix, selectItem]);
+  }, [bridge, creationWizardBusy, gallery, galleryId, items.length, prefix, selectItem, selectedItemId]);
 
   const cancelCreationWizard = useCallback(() => {
     if (creationWizardBusy || !hasGalleryCreationSession(galleryId)) return;
@@ -514,8 +515,9 @@ function GalleryToolInner() {
     }
     queueMutations(mutations);
     flushNow();
+    selectItem(gallerySelectionAfterCreate(addedNodes.map((item) => item.id), selectedItemId));
     trace.action('gallery:add-media', { nodeId: galleryId, count: unique.length, frameSizing });
-  }, [currentView, frameSizing, galleryId, items, naturalSeed]);
+  }, [currentView, frameSizing, galleryId, items, naturalSeed, selectItem, selectedItemId]);
 
   const replaceMedia = useCallback(async (itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
@@ -613,8 +615,9 @@ function GalleryToolInner() {
     }
     queueMutations(mutations);
     flushNow();
+    selectItem(gallerySelectionAfterCreate([duplicate.id], selectedItemId));
     trace.action('gallery:duplicate-media', { nodeId: galleryId, itemId, duplicateId: duplicate.id, frameSizing });
-  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);
+  }, [bridge, currentView, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides, selectItem, selectedItemId]);
 
   const removeItem = useCallback((itemId: string) => {
     const remaining = items.filter((item) => item.itemId !== itemId);

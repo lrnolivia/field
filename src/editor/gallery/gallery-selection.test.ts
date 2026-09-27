@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  gallerySelectionAfterCreate,
   gallerySelectionAfterRemove,
   rememberGalleryItemSelection,
   resolveGalleryItemSelection,
@@ -18,6 +19,13 @@ describe('Gallery selection continuity', () => {
     rememberGalleryItemSelection('gallery-b', 'stale');
     expect(resolveGalleryItemSelection('gallery-b', ['item-c', 'item-a'], 'item-a')).toBe('item-a');
     expect(resolveGalleryItemSelection('gallery-b', ['item-c', 'item-a'], null)).toBe('item-c');
+  });
+
+  it('follows newly created media identity while preserving current selection on an empty create', () => {
+    expect(gallerySelectionAfterCreate(['new-a', 'new-b'], 'old')).toBe('new-a');
+    expect(gallerySelectionAfterCreate(['duplicate'], 'source')).toBe('duplicate');
+    expect(gallerySelectionAfterCreate([], 'old')).toBe('old');
+    expect(gallerySelectionAfterCreate([], null)).toBeNull();
   });
 
   it('chooses the next adjacent item after selected removal, then previous at the end', () => {
