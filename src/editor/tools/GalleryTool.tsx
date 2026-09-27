@@ -7,6 +7,8 @@ import GalleryCropOverlay from '../gallery/GalleryCropOverlay';
 import GalleryContentSection, { type GalleryContentItem } from '../gallery/GalleryContentSection';
 import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
+import GalleryCreationWizard from '../gallery/GalleryCreationWizard';
+import type { GalleryWizardConfig } from '../gallery/gallery-wizard-model';
 import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
 import {
   gallerySelectionAfterRemove,
@@ -14,6 +16,7 @@ import {
   resolveGalleryItemSelection,
 } from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
+import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import {
   buildGalleryCarouselControlNodes,
   buildGalleryItemNode,
@@ -206,6 +209,9 @@ function GalleryToolInner() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [cropImageId, setCropImageId] = useState<string | null>(null);
   const [frameSizingBusy, setFrameSizingBusy] = useState(false);
+  const [creationWizardOpen, setCreationWizardOpen] = useState(false);
+  const [creationWizardBusy, setCreationWizardBusy] = useState(false);
+  const [creationWizardError, setCreationWizardError] = useState<string | null>(null);
   const responsiveOverrides = useAtomValue(containerOverridesAtom);
 
   const items = useNodesComputed((nodes) => {
@@ -269,10 +275,114 @@ function GalleryToolInner() {
   const prefix = getViewportPrefix(vpId);
   const bridge = getCanvasBridge();
 
+  useEffect(() => {
+    if (items.length !== 0) return;
+    if (!claimGalleryCreationSession(galleryId)) return;
+    setCreationWizardError(null);
+    setCreationWizardOpen(true);
+  }, [galleryId, items.length]);
+
   const selectItem = useCallback((itemId: string | null) => {
     setSelectedItemId(itemId);
     rememberGalleryItemSelection(galleryId, itemId);
   }, [galleryId]);
+
+  const finishCreationWizard = useCallback(async (config: GalleryWizardConfig) => {
+    if (creationWizardBusy || items.length !== 0 || !hasGalleryCreationSession(galleryId)) return;
+    const stateAtStart = galleryStateRef.current;
+    setCreationWizardBusy(true);
+    setCreationWizardError(null);
+
+    try {
+      const measuredRatios = config.frameSizing === 'source'
+        ? await Promise.all(config.mediaUrls.map((url) => measureGallerySourceRatio(url)))
+        : config.mediaUrls.map(() => null);
+
+      if (!hasGalleryCreationSession(galleryId) || galleryStateRef.current !== stateAtStart) {
+        setCreationWizardError('Gallery changed while media was loading. Review setup and try again.');
+        return;
+      }
+      if (config.frameSizing === 'source' && measuredRatios.some((ratio) => ratio === null)) {
+        setCreationWizardError('Could not read one or more image dimensions. Try again or use Composed frame sizing.');
+        return;
+      }
+
+      const wizardSeed = config.view === 'natural' ? normalizeGalleryNaturalSeed(config.naturalSeed) : 0;
+      const rootPatch = {
+        ...getGalleryRootPatch(config.view),
+        [GALLERY_FRAME_SIZING_STYLE_PROPERTY]: config.frameSizing,
+        [GALLERY_NATURAL_SEED_STYLE_PROPERTY]: String(wizardSeed),
+        minHeight: '',
+      };
+      const rootAttrs: Record<string, string> = {
+        ...galleryRootAttrs(config.view, gallery.attrs?.['aria-label']),
+        'aria-roledescription': config.view === 'carousel' ? 'carousel' : '',
+      };
+
+      bridge.patchStyles(galleryId, prefix, rootPatch);
+      bridge.setAttribute(galleryId, prefix, 'aria-label', rootAttrs['aria-label']);
+      bridge.setAttribute(galleryId, prefix, 'aria-roledescription', rootAttrs['aria-roledescription']);
+
+      const addedNodes = config.mediaUrls.map((url, index) => {
+        const ratio = config.frameSizing === 'source' ? normalizeGallerySourceRatio(measuredRatios[index]) : null;
+        const sourceNode = buildGalleryItemNode(url, index, config.view, '', wizardSeed, config.frameSizing, ratio);
+        const imageNode = sourceNode.children?.find((child) => child.type.replace(/^motion\./, '') === 'img');
+        if (imageNode) imageNode.styles = { ...imageNode.styles, objectFit: config.fit };
+        return sourceNode;
+      });
+
+      const mutations: Mutation[] = [
+        { type: 'updateStyles', nodeId: galleryId, styles: rootPatch },
+        { type: 'updateHtmlAttrs', nodeId: galleryId, attrs: rootAttrs },
+        ...addedNodes.map((sourceNode) => ({ type: 'addNode' as const, parentId: galleryId, node: sourceNode })),
+      ];
+
+      if (config.view === 'strip') {
+        addedNodes.forEach((sourceNode) => {
+          mutations.push({ type: 'updateCssHover', nodeId: sourceNode.id, styles: getGalleryStripHoverPatch(config.frameSizing) });
+        });
+      }
+      if (config.view === 'carousel') {
+        mutations.push(...buildGalleryCarouselSyncMutations(
+          addedNodes.map((sourceNode) => ({ itemId: sourceNode.id, controlIds: [] })),
+        ));
+      }
+
+      queueMutations(mutations);
+      flushNow();
+      selectItem(addedNodes[0]?.id ?? null);
+      setCreationWizardOpen(false);
+      completeGalleryCreationSession(galleryId);
+      trace.action('gallery:wizard-finish', {
+        nodeId: galleryId,
+        items: addedNodes.length,
+        view: config.view,
+        frameSizing: config.frameSizing,
+        fit: config.fit,
+        naturalSeed: wizardSeed,
+      });
+    } catch (error) {
+      setCreationWizardError(error instanceof Error ? error.message : 'Could not create Gallery.');
+      trace.error('gallery:wizard-finish-failed', {
+        nodeId: galleryId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setCreationWizardBusy(false);
+    }
+  }, [bridge, creationWizardBusy, gallery, galleryId, items.length, prefix, selectItem]);
+
+  const cancelCreationWizard = useCallback(() => {
+    if (creationWizardBusy || !hasGalleryCreationSession(galleryId)) return;
+    bridge.removeElement?.(galleryId);
+    queueMutation({ type: 'removeNode', nodeId: galleryId });
+    flushNow();
+    rememberGalleryItemSelection(galleryId, null);
+    setCreationWizardOpen(false);
+    setCreationWizardError(null);
+    completeGalleryCreationSession(galleryId);
+    trace.action('gallery:wizard-cancel', { nodeId: galleryId });
+  }, [bridge, creationWizardBusy, galleryId]);
 
   const patchAndQueue = useCallback((targetId: string, patch: Record<string, string>, responsive = true) => {
     bridge.patchStyles(targetId, prefix, patch);
@@ -707,6 +817,15 @@ function GalleryToolInner() {
 
   return (
     <>
+      {creationWizardOpen ? (
+        <GalleryCreationWizard
+          busy={creationWizardBusy}
+          error={creationWizardError}
+          onFinish={(config) => { void finishCreationWizard(config); }}
+          onCancel={cancelCreationWizard}
+        />
+      ) : (
+        <>
       <GalleryContentSection
         items={items}
         selectedItemId={selectedItemId}
@@ -747,6 +866,9 @@ function GalleryToolInner() {
           onReposition={() => setCropImageId(selectedItem.imageId)}
           onResetPosition={resetCrop}
           />
+        </>
+      )}
+
         </>
       )}
 
