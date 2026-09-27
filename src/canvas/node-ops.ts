@@ -1831,6 +1831,43 @@ function ensureMasterInstanceSizeOverride(instanceId: string): void {
   });
 }
 
+function refitNativeGroupAfterGeometryWrite(args: {
+  id: string;
+  styles: Record<string, string>;
+  contentEl: HTMLElement;
+  viewportPrefix?: string;
+  skipGroupRefit?: boolean;
+  isComponentFile: boolean;
+  isPrimary: boolean;
+}): void {
+  if (args.skipGroupRefit
+      || args.isComponentFile
+      || !args.isPrimary
+      || !touchesNativeGroupGeometry(args.styles)) return;
+
+  const changed = getNodeFromCache(args.id);
+  const parent = changed?.parentId ? getNodeFromCache(changed.parentId) : null;
+  if (!parent?.isGroup) return;
+
+  const plan = planNativeGroupRefitChain(args.id, getCachedNodesMap());
+  if (!plan || plan.patches.length === 0) return;
+
+  trace.action('nodeOps:native-group-refit', {
+    changedNodeId: args.id,
+    groupIds: plan.groupIds,
+    patchCount: plan.patches.length,
+  });
+  for (const patch of plan.patches) {
+    updateNodeStyles({
+      id: patch.nodeId,
+      styles: patch.styles,
+      contentEl: args.contentEl,
+      viewportPrefix: args.viewportPrefix,
+      skipGroupRefit: true,
+    });
+  }
+}
+
 export function updateNodeStyles(options: {
   id: string;
   styles: Record<string, string>;
@@ -2855,42 +2892,18 @@ export function updateNodeStyles(options: {
   }
 
   // ── Native Group derived-bounds refit ────────────────────────────────────
-  // Phase B1: canonical absolute/pixel Groups on the primary PAGE surface.
-  //
-  // Ordinary drag + resize commits already converge here. Run the refit AFTER
-  // the user's own style mutation has been routed/queued so any local child
-  // rebase is later in the same mutation batch and therefore wins without a
-  // second render/undo step.
-  //
-  // Component variants / page replicas / flow-positioned Groups are left to
-  // later Phase B slices; the pure planner deliberately returns null for
-  // geometry it cannot preserve exactly.
-  if (!options.skipGroupRefit
-      && !isComponentFile
-      && isPrimary
-      && touchesNativeGroupGeometry(styles)) {
-    const changed = getNodeFromCache(id);
-    const parent = changed?.parentId ? getNodeFromCache(changed.parentId) : null;
-    if (parent?.isGroup) {
-      const plan = planNativeGroupRefitChain(id, getCachedNodesMap());
-      if (plan && plan.patches.length > 0) {
-        trace.action('nodeOps:native-group-refit', {
-          changedNodeId: id,
-          groupIds: plan.groupIds,
-          patchCount: plan.patches.length,
-        });
-        for (const patch of plan.patches) {
-          updateNodeStyles({
-            id: patch.nodeId,
-            styles: patch.styles,
-            contentEl,
-            viewportPrefix: options.viewportPrefix,
-            skipGroupRefit: true,
-          });
-        }
-      }
-    }
-  }
+  // Inspector/style edits and direct drag position commits converge on this
+  // helper so derived Group bounds are repaired at the first geometry write.
+  refitNativeGroupAfterGeometryWrite({
+    id,
+    styles,
+    contentEl,
+    viewportPrefix: options.viewportPrefix,
+    skipGroupRefit: options.skipGroupRefit,
+    isComponentFile,
+    isPrimary,
+  });
+
 }
 
 /** THE canonical "a Reset Override just happened — make the canvas match the
@@ -2996,6 +3009,14 @@ export function commitDragPosition(id: string, styles: Record<string, string>, c
     // Update node cache synchronously so next drag reads correct startLeft/startTop
     updateNodeInCache(id, posStyles);
     queueMutation({ type: 'updateStyles', nodeId: id, styles: posStyles });
+    refitNativeGroupAfterGeometryWrite({
+      id,
+      styles: posStyles,
+      contentEl,
+      viewportPrefix: vpPrefix,
+      isComponentFile: isComponentFilePath(_activeFilePath),
+      isPrimary: isPrimaryViewport(_interactingVpId),
+    });
     // SOLO replica drag commit: ALSO clear the same position keys
     // from the solo vp's @container rule. Same rationale as the
     // matching block in `updateNodeStyles` — without this, any
