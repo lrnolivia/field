@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { selectedIdsAtom, nodesAtom, updatingFromCanvasAtom, componentToolRevealAtom } from '@/code/stores/store';
 import { useNodesComputed } from '@/code/stores/node-family';
@@ -27,16 +29,19 @@ function IconButton({ title, onClick, children, active = false, disabled = false
   disabled?: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       title={title}
       aria-label={title}
       disabled={disabled}
+      initial="rest"
+      whileHover={!disabled ? 'hover' : undefined}
+      whileTap={!disabled ? 'tap' : undefined}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       className={`h-7 w-7 shrink-0 flex items-center justify-center rounded-[7px] transition-colors disabled:opacity-30 disabled:cursor-default ${active ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
     >
-      {children}
-    </button>
+      <FieldGlyph behavior="generic">{children}</FieldGlyph>
+    </motion.button>
   );
 }
 
@@ -174,15 +179,20 @@ export default function InspectorObjectHeader({
       <div className="min-h-9 px-3 flex items-center gap-1">
         <div className="min-w-0 flex-1 flex items-center gap-1.5">
           {componentFile ? (
-            <button
+            <motion.button
               type="button"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
               onClick={() => setMenuOpen((v) => !v)}
               className="min-w-0 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-primary)] hover:text-[var(--text-primary)]"
               aria-expanded={menuOpen}
             >
               <span className="truncate">{semanticTitle}</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden><path d="M2.3 3.7 5 6.3l2.7-2.6" /></svg>
-            </button>
+              <FieldGlyph behavior="chevron">
+                <FieldMorphGlyph active={menuOpen} from={glyphIcons.chevronDown} to={glyphIcons.chevronUp} size={10} strokeWidth={1.2} spring="snappy" />
+              </FieldGlyph>
+            </motion.button>
           ) : (
             <div className="min-w-0 text-[13px] font-semibold text-[var(--text-primary)] truncate">{semanticTitle}</div>
           )}
@@ -204,18 +214,23 @@ export default function InspectorObjectHeader({
           </IconButton>
         )}
         {hasMenu && (
-          <button
+          <motion.button
             ref={menuButtonRef}
             type="button"
             data-inspector-header-overflow
-            title="More actions"
-            aria-label="More actions"
+            title={menuOpen ? 'Close actions' : 'More actions'}
+            aria-label={menuOpen ? 'Close actions' : 'More actions'}
             aria-expanded={menuOpen}
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
             className={`h-7 w-7 shrink-0 flex items-center justify-center rounded-[7px] transition-colors ${menuOpen ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
           >
-            <OverflowIcon />
-          </button>
+            <FieldGlyph behavior="ellipsis">
+              <FieldMorphGlyph active={menuOpen} from={glyphIcons.ellipsis} to={glyphIcons.close} size={15} strokeWidth={1.4} turn={90} />
+            </FieldGlyph>
+          </motion.button>
         )}
       </div>
 
