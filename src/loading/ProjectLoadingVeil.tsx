@@ -33,12 +33,15 @@ export default function ProjectLoadingVeil({
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        isolation: 'isolate',
         background: 'transparent',
         fontFamily: 'var(--loew-ui-font, Inter, sans-serif)',
       }}
     >
       <style>{`
+        [data-project-loading-veil] { opacity: 1; transition: opacity 320ms ease; }
+        [data-canvas-loading-phase="enter"] [data-project-loading-veil] { opacity: 0; }
+        [data-canvas-loading-phase="exit"] [data-project-loading-veil] { opacity: 0; }
+
         [data-project-loading-veil] [data-loading-backdrop] {
           position: absolute;
           inset: 0;
@@ -110,6 +113,24 @@ export default function ProjectLoadingVeil({
           filter: drop-shadow(0 4px 24px rgba(255,255,255,.18));
         }
 
+        [data-canvas-loading-phase="waiting"] [data-loading-logo] {
+          animation: field-loading-mark-in 300ms cubic-bezier(.18, .85, .26, 1) both;
+        }
+        [data-canvas-loading-phase="exit"] [data-loading-logo] {
+          animation: field-loading-mark-out 220ms ease-in both;
+        }
+        [data-canvas-loading-phase="enter"] [data-loading-logo] { opacity: 0; }
+
+        @keyframes field-loading-mark-in {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(.82); }
+          70% { opacity: 1; transform: translate(-50%, -50%) scale(1.025); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes field-loading-mark-out {
+          from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          to { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        }
+
         [data-project-loading-veil] [data-loading-status-panel] {
           position: absolute;
           left: 50%;
@@ -160,6 +181,7 @@ export default function ProjectLoadingVeil({
         }
 
         @media (prefers-reduced-motion: reduce) {
+          [data-canvas-loading-phase] [data-loading-logo] { animation: none !important; transform: translate(-50%, -50%) !important; }
           [data-project-loading-veil] [data-loading-logo-bloom] {
             animation: none !important;
             opacity: .50;

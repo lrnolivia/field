@@ -2,7 +2,7 @@
 // Runs before <App /> is shown: loads user + project from backend,
 // hydrates ProjectFS, and redirects to sign-in if unauthenticated (cloud).
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
@@ -595,41 +595,48 @@ function CanvasReadyShellOverlay({
   painted: boolean;
   onReady?: () => void;
 }) {
-  const [phase, setPhase] = useState<'waiting' | 'fading' | 'done'>('waiting');
+  const [phase, setPhase] = useState<'enter' | 'waiting' | 'exit' | 'done'>('enter');
   const [delayed, setDelayed] = useState(false);
+  const startedAt = useRef(performance.now());
+  const readyCallback = useRef(onReady);
+  readyCallback.current = onReady;
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setPhase('waiting'));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     if (phase !== 'waiting') return;
-
     if (painted) {
       trace.action('project-loader:canvas-painted', {});
-      const raf = requestAnimationFrame(() => setPhase('fading'));
-      return () => cancelAnimationFrame(raf);
+      // Minimum visibility is measured from mount, never added to a slow load.
+      const wait = Math.max(0, 600 - (performance.now() - startedAt.current));
+      const timer = window.setTimeout(() => setPhase('exit'), wait);
+      return () => window.clearTimeout(timer);
     }
-
-    const timeout = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setDelayed(true);
       trace.action('project-loader:canvas-delayed', {});
     }, 4000);
-    trace.action('project-loader:shell-overlay-waiting', {});
-    return () => clearTimeout(timeout);
+    return () => window.clearTimeout(timer);
   }, [painted, phase]);
 
   useEffect(() => {
-    if (phase !== 'fading') return;
-    trace.action('project-loader:shell-overlay-fade', {});
-    const t = setTimeout(() => {
+    if (phase !== 'exit') return;
+    trace.action('project-loader:veil-exit', {});
+    const timer = window.setTimeout(() => {
       setPhase('done');
-      onReady?.();
-    }, 280);
-    return () => clearTimeout(t);
-  }, [onReady, phase]);
+      readyCallback.current?.();
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   if (phase === 'done') return null;
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: phase === 'fading' ? 'none' : 'auto',
-      opacity: phase === 'fading' ? 0 : 1, transition: 'opacity 260ms ease',
+    <div data-canvas-loading-phase={phase} style={{
+      position: 'fixed', inset: 0, zIndex: 100000,
+      pointerEvents: phase === 'exit' ? 'none' : 'auto',
     }}>
       <BuilderLoadingShell
         status={delayed ? 'Canvas is taking longer to start' : 'Starting canvas'}
