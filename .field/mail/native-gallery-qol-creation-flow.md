@@ -345,3 +345,37 @@ Image treatment is now visible and explicitly resettable from the normal Inspect
 - the full reset is one source patch + one explicit flush
 - image Fit is deliberately not part of treatment reset and remains authored
 - focused regression source asserts the neutral treatment patch and confirms objectFit is absent
+
+
+## 2026-09-26 UI/UX + UIAudit pass — Gallery Inspector
+
+Implementation commits:
+- 0e2cbf7ef0674452ce9a46dd8971e566d707b485 — Polish Gallery Inspector accessibility and hierarchy
+- 2e5e527fbf5055e8a344cc3ffb7e66e9450e770d — Harden Gallery wizard semantics
+
+The Gallery Inspector received a bounded professional-tool polish pass using the UI UX Designer hierarchy/component guidance plus the UIAudit technical workflow.
+
+Design/hierarchy changes:
+- creation wizard header no longer repeats Media → Layout → Behavior above the same three step controls
+- compact Step N / 3 status carries progress while the step buttons carry only the actual labels
+- Image treatment state is aligned into the shared ToolRow grid under Transform instead of floating outside Inspector alignment
+- View helper copy was shortened and moved adjacent to the Frame control it explains
+- Natural / Strip / Carousel helper copy was tightened without changing behavior
+- raw Unicode arrows / close / drag glyphs in Gallery surfaces were replaced with authored SVGs matching field's neutral icon language
+
+Accessibility/interaction changes:
+- 20px icon controls in Gallery Content were raised to the WCAG 2.2 AA 24px minimum target
+- icon-only actions have explicit accessible names and visible focus states
+- selected Gallery media exposes aria-current
+- creation wizard exposes aria-current=step
+- Gallery preview has a named image role while child thumbnails remain decorative
+- wizard now exposes a named section, real heading, live step status, navigation landmark, and semantic selected-media list/listitems
+- Center action now has explicit accessible labeling
+- treatment readout has a descriptive accessible label for position / zoom / rotation
+- all raw Gallery buttons in the audited surfaces retain type=button
+- target files use field theme tokens; no hard-coded color literals were introduced
+
+Product discipline:
+- this pass preserved compact Figma-class desktop-tool density rather than inflating every target to mobile-style 44px
+- 24px was treated as the WCAG minimum for compact icon controls; 44px remains a recommendation for touch-heavy contexts, not a reason to turn field into tablet UI
+- no generic SaaS cards, decorative gradients, glass, oversized radii, or redundant onboarding chrome were added

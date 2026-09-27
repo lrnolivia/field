@@ -324,3 +324,60 @@ Do not use this packet as evidence that Gallery regressed.
 - zero annotations were reported
 - classification: the established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a treatment-Inspector product failure
 - this does not substitute for exact dependency-tree Vitest / TypeScript / build:all, which remain unverified here
+
+
+## 2026-09-26 source-level UIAudit — Gallery Inspector
+
+Audited target:
+- src/editor/gallery/GalleryContentSection.tsx
+- src/editor/gallery/GalleryViewSection.tsx
+- src/editor/gallery/GalleryImageSection.tsx
+- src/editor/gallery/GalleryCreationWizard.tsx
+- shared ToolButton / ToolRow source was inspected for context but not modified because those files are outside this Gallery assignment
+
+Implementation Integrity Verdict: PASS
+- Gallery UI remains product-specific and coherent with field's existing ToolSection / ToolRow / ToolSelect system
+- no new generic card system or parallel design language
+- authored SVG action icons replace Unicode glyph shortcuts
+- tokenized chrome remains intact
+
+Audit Health Score (source-verifiable only):
+- Accessibility: 3 / 4
+  - verified: native buttons typed; icon-only controls labeled; visible focus states; 20px targets removed; Gallery selection/step/media-list semantics improved
+  - withheld point: live contrast, screen-reader traversal, and end-to-end keyboard behavior require runtime / assistive-tech testing
+- Performance: 4 / 4
+  - audited surfaces contain no layout read/write loops or expensive animation; wizard preview is bounded to at most six media items
+- Responsive Design: 3 / 4
+  - no fixed outer wizard/panel width added and controls remain shrinkable
+  - withheld point: narrow Inspector, 200% text/zoom, and real breakpoint rendering remain unverified without the live harness
+- Theming: 3 / 4
+  - audited Gallery files use field CSS variables and contain no hard-coded color literals
+  - withheld point: GitHub code search did not surface the token definitions, so numerical contrast and dark-theme token resolution were not fabricated
+- Implementation Integrity: 4 / 4
+  - strong shared inspector alignment, field-specific behavior, no Unicode icon shortcuts, no decorative UI drift
+
+Total: 17 / 20 — Good
+
+Verified source fixes in 0e2cbf7ef067:
+- exact scope: 4 Gallery-owned UI files; 90 additions / 36 deletions
+- removed remaining 20px icon targets from audited Gallery Content controls
+- replaced Unicode drag/remove/move action glyphs with SVGs
+- added explicit focus-visible states to raw Gallery action buttons
+- exposed current item / current wizard step semantics
+- aligned treatment state into ToolRow
+- reduced redundant wizard and View copy
+- no hard-coded color literals in the four target files
+
+Semantic follow-up in 2e5e527fbf50:
+- exact scope: GalleryCreationWizard.tsx only; 7 additions / 7 deletions
+- named section + h3 heading
+- aria-live step status
+- navigation role for setup steps
+- semantic selected-media list/listitems
+
+Build signal:
+- Workers Builds check 108526838295 for 0e2cbf7ef067 completed failure with zero annotations
+- classification: established pre-existing Cloudflare/build-lane infrastructure failure, not evidence of a Gallery UI regression
+- 2e5e527fbf50 had no check-run yet on the first post-publication read
+- exact repo dependency-tree Vitest / TypeScript / build:all remain unverified in this environment
+- live contrast, dark theme, narrow Inspector, 200% zoom, screen-reader, and runtime keyboard QA remain pending
