@@ -490,7 +490,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {inspectorMode === 'design' && isComponentInstance && (
           <div data-inspector-instance-priority>
             <ComponentPropsTool />
-            <ToolDivider />
           </div>
         )}
 
