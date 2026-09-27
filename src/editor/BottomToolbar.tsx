@@ -112,15 +112,21 @@ function DropdownDivider() {
 function ChangingToolIcon({ iconKey, children }: { iconKey: string; children: React.ReactNode }) {
   const reducedMotion = useFieldReducedMotion();
   return (
-    <span data-field-toolbar-glyph="tool-switch" className="relative inline-flex w-4 h-4 items-center justify-center">
-      <AnimatePresence initial={false} mode="popLayout">
+    <span
+      data-field-toolbar-glyph="tool-switch"
+      aria-hidden="true"
+      className="relative grid h-4 w-4 shrink-0 place-items-center overflow-visible"
+      style={{ width: 16, height: 16, flex: '0 0 16px' }}
+    >
+      <AnimatePresence initial={false} mode="sync">
         <motion.span
           key={iconKey}
-          className="absolute inset-0 inline-flex items-center justify-center"
-          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: -35, scale: .72 }}
+          layout={false}
+          className="absolute inset-0 flex h-4 w-4 items-center justify-center"
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: -28, scale: .78 }}
           animate={{ opacity: 1, rotate: 0, scale: 1 }}
-          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: 35, scale: .72 }}
-          transition={{ duration: reducedMotion ? 0 : .22, ease: [.2, .8, .2, 1] }}
+          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: 28, scale: .78 }}
+          transition={{ duration: reducedMotion ? 0 : .2, ease: [.2, .8, .2, 1] }}
         >
           {children}
         </motion.span>
