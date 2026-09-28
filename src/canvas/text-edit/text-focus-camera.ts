@@ -36,11 +36,14 @@ export class TextFocusCamera {
       const current = transformManager.getTransform();
       const canvasX = (rect.left + rect.width / 2 - current.x) / current.scale;
       const canvasY = (rect.top + rect.height / 2 - current.y) / current.scale;
-      const maxForWidth = (window.innerWidth * 0.55) / (rect.width / current.scale);
-      const scale = Math.max(current.scale, Math.min(2.8, current.scale * 1.85, maxForWidth));
+      const maxForWidth = (window.innerWidth * 0.72) / (rect.width / current.scale);
+      // A wide text box used to cap the target at the current zoom, so typing
+      // looked like a sudden pan with no focus change. Permit a modest minimum
+      // zoom even when the box itself is wider than the viewing strip.
+      const scale = Math.min(3, Math.max(current.scale * 1.32, Math.min(current.scale * 2.05, maxForWidth)));
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
-      animateCanvasTo(centerX - canvasX * scale, centerY - canvasY * scale, scale, 720, { focus: true });
+      animateCanvasTo(centerX - canvasX * scale, centerY - canvasY * scale, scale, 540, { focus: true });
     };
     this.pendingFrame = requestAnimationFrame(() => focus(0));
   }
@@ -54,7 +57,7 @@ export class TextFocusCamera {
     const shouldRestore = restore && original && !this.interrupted;
     this.original = null;
     if (shouldRestore) {
-      animateCanvasTo(original.x, original.y, original.scale, 620, { focus: true });
+      animateCanvasTo(original.x, original.y, original.scale, 480, { focus: true });
     }
   }
 

@@ -8,6 +8,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
+import { backend } from '@/backend';
+import { getProjectId } from '@/backend/project-id';
 
 // Pixabay video search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/pixabay`) so Revyme's key stays server-side and out of the
@@ -68,6 +70,8 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const loadingMoreRef = useRef(false); // sync guard against concurrent page fetches
   const pageRef = useRef(1);            // sync last-fetched page
@@ -160,7 +164,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
   };
 
   const content = (
-      <div className={`p-4 space-y-3 ${compact ? 'min-h-0' : 'min-h-[500px]'}`}>
+      <div className="space-y-3 p-4">
         {/* Header: tabs + search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
@@ -251,23 +255,30 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
 
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
-          <div className={`flex flex-col gap-4 ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}>
+          <div className="flex flex-col gap-4">
             {/* Upload drop zone */}
-            <label className="flex-shrink-0 h-32 cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 hover:bg-[var(--bg-hover)] cursor-pointer transition-colors">
+            <label className={`flex-shrink-0 h-36 cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span className="text-xs text-[var(--text-secondary)]">Upload video file</span>
-              <input type="file" accept="video/*" className="hidden" onChange={(e) => {
-                const file = e.target.files?.[0];
+              <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : 'Choose a video to add to this project'}</span>
+              <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                const input = e.currentTarget;
+                const file = input.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') handleSelect(reader.result);
-                };
-                reader.readAsDataURL(file);
+                setUploading(true);
+                setUploadError(null);
+                try {
+                  handleSelect(await backend.uploadAsset(getProjectId(), file));
+                } catch (error) {
+                  setUploadError(error instanceof Error ? error.message : 'Video upload failed');
+                } finally {
+                  input.value = '';
+                  setUploading(false);
+                }
               }} />
             </label>
+            {uploadError && <p role="alert" className="text-xs text-[var(--text-danger)]">{uploadError}</p>}
 
             {/* URL paste */}
             <div className="flex items-center gap-2">
@@ -305,5 +316,5 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
       </div>
   );
   if (!isOpen) return null;
-  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={896}>{content}</Modal>;
+  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
 }
