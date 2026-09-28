@@ -169,7 +169,7 @@ export default function InspectorObjectHeader({
       className="relative shrink-0 border-b border-[var(--border-light)]"
       title={sourceTitle || semanticTitle}
     >
-      <div className="min-h-9 px-3 flex items-center gap-1">
+      <div className="min-h-10 px-[var(--panel-inset)] flex items-center gap-1">
         <div className="min-w-0 flex-1 flex items-center gap-1.5">
           {componentFile ? (
             <motion.button
@@ -228,7 +228,7 @@ export default function InspectorObjectHeader({
       </div>
 
       {!!componentFile && (
-        <div className="px-3 pb-2 flex items-center">
+        <div className="px-[var(--panel-inset)] pb-2 flex items-center">
           <motion.button
             type="button"
             data-inspector-component-source

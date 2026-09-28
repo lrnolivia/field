@@ -4,13 +4,15 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
-describe('FigUI3 structural parity with field-native workspace decisions', () => {
-  it('keeps the user-approved floating single-pane and full-collapse workspace model', () => {
+describe('FigUI3 structural parity with explicit workspace modes', () => {
+  it('keeps floating, docked, and collapsed as distinct user actions', () => {
     const layout = read('src/editor/workspace-layout.ts');
     const restore = read('src/editor/WorkspaceRestoreBar.tsx');
-    expect(layout).toContain('SETTLED FIELD-NATIVE DIVERGENCE');
+    const floating = read('src/editor/FloatingLeftPanelHost.tsx');
+    expect(layout).toContain('Pane presentation is explicit');
     expect(layout).toContain("presentation: 'floating'");
     expect(restore).toContain('data-workspace-left-restore');
+    expect(floating).toContain('Resize floating left panel');
   });
 
   it('persists independently resizable left and right pane widths', () => {

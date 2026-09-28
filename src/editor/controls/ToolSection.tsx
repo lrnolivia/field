@@ -72,7 +72,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           surface for existing tools while exposing one Figma-shaped DOM grammar. */}
       <div
         data-inspector-section-header
-        className={`${showContent ? 'mb-px' : 'mb-0'} min-h-6 px-2.5 flex items-center justify-between py-0.5`}
+        className={`${showContent ? 'mb-1' : 'mb-0'} min-h-10 px-[var(--panel-inset)] flex items-center justify-between py-1`}
         onContextMenu={onHeaderContextMenu}
       >
         <button
@@ -123,7 +123,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
             animate={reducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1, y: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
             transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
-            className="flex flex-col px-2.5 pb-1 gap-[var(--control-gap)] overflow-hidden"
+            className="flex flex-col px-[var(--panel-inset)] pb-3 gap-2 overflow-hidden"
           >
             {children}
           </motion.div>

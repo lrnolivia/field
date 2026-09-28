@@ -7,14 +7,17 @@ export const leftPaneOpenAtom = atomWithStorage('revyme:prefs:leftPaneOpen', tru
 export const rightPaneOpenAtom = atomWithStorage('revyme:prefs:rightPaneOpen', true, undefined, { getOnInit: true });
 export const rightPaneDetachedAtom = atomWithStorage('field:prefs:rightPaneDetached', false, undefined, { getOnInit: true });
 export const rightPaneDragOffsetAtom = atom({ x: 0, y: 0 });
+export const rightFloatingHeightAtom = atomWithStorage('field:prefs:rightFloatingHeight', 680, undefined, { getOnInit: true });
+export const leftCollapsedWidthAtom = atomWithStorage('field:prefs:leftCollapsedWidth', 52, undefined, { getOnInit: true });
+export const rightCollapsedWidthAtom = atomWithStorage('field:prefs:rightCollapsedWidth', 60, undefined, { getOnInit: true });
 
 export const LEFT_RAIL_WIDTH = 52;
 export const DEFAULT_LEFT_CONTENT_WIDTH = 256;
-export const DEFAULT_RIGHT_PANE_WIDTH = 260;
+export const DEFAULT_RIGHT_PANE_WIDTH = 328;
 export const MIN_LEFT_CONTENT_WIDTH = 220;
 export const MAX_LEFT_CONTENT_WIDTH = 420;
-export const MIN_RIGHT_PANE_WIDTH = 240;
-export const MAX_RIGHT_PANE_WIDTH = 420;
+export const MIN_RIGHT_PANE_WIDTH = 300;
+export const MAX_RIGHT_PANE_WIDTH = 480;
 
 export function clampLeftContentWidth(width: number): number {
   return Math.min(MAX_LEFT_CONTENT_WIDTH, Math.max(MIN_LEFT_CONTENT_WIDTH, Math.round(width)));
@@ -32,7 +35,7 @@ export const leftContentWidthAtom = atomWithStorage(
 );
 
 export const rightPaneWidthAtom = atomWithStorage(
-  'field:prefs:rightPaneWidth',
+  'field:prefs:rightPaneWidth:v2',
   DEFAULT_RIGHT_PANE_WIDTH,
   undefined,
   { getOnInit: true },

@@ -95,6 +95,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   // render; the ref guards the prop-sync effect from clobbering localValue.
   const [chevronDragging, setChevronDragging] = useState(false);
   const chevronDraggingRef = useRef(false);
+  const touchScrubRef = useRef<{ pointerId: number; x: number; y: number; start: number; moved: boolean } | null>(null);
   // After a chevron drag with a live (DOM-only) scrub, the COMMIT is async (code write → reparse → re-render,
   // ~0.1s). Hold the scrubbed `localValue` on screen through that gap — else on mouseup the field snaps back to
   // the stale `value` prop for a frame, then jumps to the committed value (the user-reported 255→280 flash).
@@ -245,6 +246,44 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
 
   const isAutoOrFill = value === 'auto' || value === 'fill';
 
+  const beginTouchScrub = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (event.pointerType !== 'touch' || !isNumeric || !parsed || effectiveDisabled) return;
+    touchScrubRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, start: parsed.num, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveTouchScrub = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const touch = touchScrubRef.current;
+    if (!touch || touch.pointerId !== event.pointerId) return;
+    const dx = event.clientX - touch.x;
+    const dy = event.clientY - touch.y;
+    if (!touch.moved && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    if (!touch.moved) {
+      touch.moved = true;
+      chevronDraggingRef.current = true;
+      setChevronDragging(true);
+      setCanvasInteracting(true);
+      inputRef.current?.blur();
+    }
+    event.preventDefault();
+    const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
+    currentValueRef.current = clampNum(touch.start + Math.round(travel / 6) * step);
+    applyValue(currentValueRef.current, true);
+  };
+  const endTouchScrub = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const touch = touchScrubRef.current;
+    if (!touch || touch.pointerId !== event.pointerId) return;
+    touchScrubRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (!touch.moved) { inputRef.current?.focus(); return; }
+    event.preventDefault();
+    chevronDraggingRef.current = false;
+    setChevronDragging(false);
+    setCanvasInteracting(false);
+    const finalValue = `${Math.round(currentValueRef.current * 100) / 100}${unit}`;
+    if (onCommit) { setHoldLocal(true); onCommit(finalValue); }
+    else onChange(finalValue);
+  };
+
   return (
     <div className={`relative group w-full ${effectiveDisabled ? 'opacity-40 pointer-events-none' : ''} ${className || ''}`}>
       <input
@@ -282,10 +321,13 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
         style={alwaysShowStepper ? { paddingRight: '20px' } : undefined}
         className={`w-full h-[var(--control-height)] px-[var(--control-pad-x)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] ${isAutoOrFill ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'} cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
       />
+      {isNumeric && <span aria-hidden data-touch-scrub="number" title="Slide to adjust"
+        onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-1/2 touch-none [@media(pointer:coarse)]:block [@media(pointer:coarse)]:pointer-events-auto" />}
       {/* Chevron label — shown when not hovering/focused, hidden when chevrons appear */}
       {chevronLabel && isNumeric && (
         <div className={`absolute right-2.5 inset-y-0 flex items-center pointer-events-none ${isFocused ? 'hidden' : 'group-hover:hidden'}`}>
-          <span className="text-[9px] text-[var(--text-secondary)] font-medium">{chevronLabel}</span>
+          <span className="text-[10px] text-[var(--text-secondary)] font-medium">{chevronLabel}</span>
         </div>
       )}
       {/* Chevrons — visible on hover or focus */}

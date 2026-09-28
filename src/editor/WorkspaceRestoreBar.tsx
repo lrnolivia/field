@@ -1,4 +1,4 @@
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
@@ -10,20 +10,21 @@ import { trace } from '@/shared/debug-trace';
 export default function WorkspaceRestoreBar() {
   const [leftOpen, setLeftOpen] = useAtom(leftPaneOpenAtom);
   const [detached, setDetached] = useAtom(detachedLeftPanelAtom);
+  const activePanel = useAtomValue(leftPanelAtom);
   const setLeftPanel = useSetAtom(leftPanelAtom);
   return (
     <div
       data-workspace-left-restore
-      data-visible={leftOpen ? 'false' : 'true'}
-      aria-hidden={leftOpen ? true : undefined}
-      inert={leftOpen}
+      data-visible={!leftOpen && !detached ? 'true' : 'false'}
+      aria-hidden={leftOpen || !!detached ? true : undefined}
+      inert={leftOpen || !!detached}
       className="fixed z-[9999] flex h-11 items-center overflow-hidden"
       style={{
         left: WORKSPACE_FLOAT_INSET,
         top: WORKSPACE_FLOAT_INSET,
         width: 264,
         borderRadius: WORKSPACE_FLOAT_RADIUS,
-        opacity: leftOpen ? 0 : 1,
+        opacity: leftOpen || detached ? 0 : 1,
       }}
     >
       <div className="flex h-full w-10 shrink-0 items-center justify-center">
@@ -33,6 +34,11 @@ export default function WorkspaceRestoreBar() {
       <div className="flex min-w-0 flex-1 items-center px-2">
         <ProjectChip />
       </div>
+      <button type="button" aria-label="Float left pane" title="Float panel"
+        onClick={() => setDetached({ panelId: activePanel === 'vibe' ? 'layers' : activePanel, expanded: true })}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
+        <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2" y="3" width="9" height="9" rx="1" /><path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" /></svg>
+      </button>
       <button
         type="button"
         aria-label="Expand left workspace"

@@ -37,6 +37,7 @@ import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
 import ToolbarPanelHost from './editor/ToolbarPanelHost';
 import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
+import { detachedLeftPanelAtom } from './editor/detached-left-panel-store';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -50,7 +51,7 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
@@ -83,12 +84,18 @@ interface AppProps {
 export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
+  const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
+  const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
+  const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
+  const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached,
+    leftCollapsedWidth: !leftPaneOpen && !leftDetached ? leftCollapsedWidth + 8 : 0,
+    rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
   const cameraInsets = workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
 
@@ -315,13 +322,28 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               right: workspaceLayout.right.inset,
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
-              height: workspaceBodyHeightCss(workspaceLayout.right),
+              height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 32) : workspaceBodyHeightCss(workspaceLayout.right),
               transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
             }}
           >
             <RightSidebar />
+            {rightDetached && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                const startY = event.clientY;
+                const startHeight = rightFloatingHeight;
+                document.documentElement.dataset.workspaceResizing = 'true';
+                const move = (next: PointerEvent) => setRightFloatingHeight(Math.max(320, Math.min(window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 8, startHeight + next.clientY - startY)));
+                const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); delete document.documentElement.dataset.workspaceResizing; };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', stop, { once: true });
+                window.addEventListener('pointercancel', stop, { once: true });
+              }}
+              className="absolute bottom-0 left-0 z-10 h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
+              <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M2 5 11 14M2 10l4 4" stroke="currentColor" fill="none" /></svg>
+            </button>}
           </div>
         )}
         {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,

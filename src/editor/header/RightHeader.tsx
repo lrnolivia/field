@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, useAtomValue, useAtom } from 'jotai';
-import { exportDropdownOpenAtom } from '@/code/stores/editor-store';
+import { exportDropdownOpenAtom, inspectorModeAtom } from '@/code/stores/editor-store';
 import { PlayIcon } from '@/shared/icons';
 import { trace } from '@/shared/debug-trace';
 import ConfirmDialog from '@/design-system/ConfirmDialog';
@@ -28,9 +28,12 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
+import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
+import { transformManager } from '@/canvas/transform/TransformManager';
+import { zoomTo100 } from '@/canvas/transform/CameraCommands';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -44,10 +47,15 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const isClosedSource = useIsClosedSource();
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const setInspectorMode = useSetAtom(inspectorModeAtom);
   const [rightDetached, setRightDetached] = useAtom(rightPaneDetachedAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
   const selectedCount = useAtomValue(selectedIdsAtom).length;
+  const [compactZoom, setCompactZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
+  useEffect(() => transformManager.subscribe(() => setCompactZoom(Math.round(transformManager.getTransform().scale * 100))), []);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
+  const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
@@ -254,11 +262,15 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     const startX = event.clientX;
     const startY = event.clientY;
     const startOffset = rightDragOffset;
+    let dragged = false;
+    let latestX = startOffset.x;
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       const baseLeft = window.innerWidth - 24 - rightPaneWidth;
       const x = Math.max(8 - baseLeft, Math.min(window.innerWidth - 8 - rightPaneWidth - baseLeft, startOffset.x + next.clientX - startX));
-      const y = Math.max(-62, Math.min(window.innerHeight - 170, startOffset.y + next.clientY - startY));
+      latestX = x;
+      if (Math.abs(next.clientX - startX) + Math.abs(next.clientY - startY) > 8) dragged = true;
+      const y = Math.max(-62, Math.min(window.innerHeight - 70 - Math.min(rightFloatingHeight, window.innerHeight - 90) - 8, startOffset.y + next.clientY - startY));
       setRightDragOffset({ x, y });
     };
     const stop = () => {
@@ -266,6 +278,10 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
       delete document.documentElement.dataset.workspaceResizing;
+      if (dragged && latestX >= -12 && latestX > startOffset.x + 8) {
+        setRightDetached(false);
+        setRightDragOffset({ x: 0, y: 0 });
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });
@@ -289,7 +305,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <button type="button" data-field-right-pane-collapse aria-label="Collapse properties pane"
-            title="Collapse properties pane" onClick={() => setRightPaneOpen(false)}
+            title="Collapse properties pane" onClick={() => { setRightDetached(false); setRightDragOffset({ x: 0, y: 0 }); setRightPaneOpen(false); }}
             className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
             <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
               <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
@@ -374,21 +390,27 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         </div>
       )}
       {!rightPaneOpen && !previewMode && (
-        <div data-workspace-right-toggle data-visible="true"
-          className="fixed right-2 top-2 z-[9999] flex h-11 w-[264px] items-center gap-2 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 shadow-[var(--shadow-lg)]">
-          <button type="button" aria-label="Expand properties pane" title="Expand properties pane"
+        <div data-workspace-right-toggle data-visible="true" data-workspace-mode="collapsed"
+          className="fixed bottom-2 right-2 top-2 z-[9999] flex flex-col items-center gap-2 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 shadow-[var(--shadow-lg)]"
+          style={{ width: rightCollapsedWidth }}>
+          <button type="button" aria-label="Dock properties pane" title="Dock Inspector"
             onClick={() => setRightPaneOpen(true)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
             <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
               <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
             </svg>
           </button>
-          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] bg-[var(--bg-hover)] text-[11px] font-semibold text-[var(--text-secondary)]">D</span>
-          <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--text-primary)]">Design</span>
-          {selectedCount > 0 && <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-tertiary)]">{selectedCount} selected</span>}
+          <span aria-hidden className="my-1 h-px w-8 bg-[var(--border-light)]" />
+          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
+          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+          {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
+          <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
+            className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
+          <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
+          <div className="flex-1" />
           <button type="button" aria-label="Detach properties pane" title="Detach properties pane"
             onClick={() => { setRightDetached(true); setRightPaneOpen(true); setRightDragOffset({ x: 0, y: 0 }); }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
             <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2" y="3" width="9" height="9" rx="1" /><path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" /></svg>
           </button>
         </div>

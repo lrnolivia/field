@@ -38,37 +38,20 @@ export interface WorkspacePaneWidths {
   leftContentWidth?: number;
   rightPaneWidth?: number;
   rightDetached?: boolean;
+  leftCollapsedWidth?: number;
+  rightCollapsedWidth?: number;
 }
-function side(
-  open: boolean,
-  oppositeOpen: boolean,
-  width: number,
-): WorkspaceSideLayout {
+function side(open: boolean, width: number): WorkspaceSideLayout {
   if (!open) {
     return { presentation: 'hidden', inset: 0, top: 0, bottom: 0, width };
   }
-  if (oppositeOpen) {
-    return { presentation: 'docked', inset: 0, top: 0, bottom: 0, width };
-  }
-  return {
-    presentation: 'floating',
-    inset: WORKSPACE_FLOAT_INSET,
-    top: WORKSPACE_FLOAT_INSET,
-    bottom: WORKSPACE_FLOAT_INSET,
-    width,
-  };
+  return { presentation: 'docked', inset: 0, top: 0, bottom: 0, width };
 }
 
 /**
  * Deterministic workspace presentation contract:
- * - two panes => docked workspace
- * - one pane  => floating workspace
- * - zero panes => canvas workspace
- *
- * SETTLED FIELD-NATIVE DIVERGENCE (user-approved 2026-09-27):
- * preserve the one-pane floating treatment and the full left-workspace
- * collapse/restore flow. FigUI3 parity work must not "correct" either into
- * Figma's always-docked / rail-preserving model.
+ * Pane presentation is explicit: closing the opposite side does not
+ * silently turn a docked pane into a floating pane.
  *
  * Floating chrome does not shrink the physical canvas. `cameraInsets`
  * describes only the safe rectangle used by automatic fit/center commands.
@@ -82,18 +65,18 @@ export function deriveWorkspaceLayout(
 ): WorkspaceLayout {
   const leftContentWidth = clampLeftContentWidth(widths.leftContentWidth ?? DEFAULT_LEFT_CONTENT_WIDTH);
   const rightPaneWidth = clampRightPaneWidth(widths.rightPaneWidth ?? DEFAULT_RIGHT_PANE_WIDTH);
-  const left = side(leftOpen, rightOpen, LEFT_RAIL_WIDTH + leftContentWidth);
+  const left = side(leftOpen, LEFT_RAIL_WIDTH + leftContentWidth);
   const right = rightOpen && widths.rightDetached
     ? { presentation: 'floating' as const, inset: 24, top: 70, bottom: 24, width: rightPaneWidth }
-    : side(rightOpen, leftOpen, rightPaneWidth);
+    : side(rightOpen, rightPaneWidth);
 
   return {
     left,
     right,
     cameraInsets: {
-      left: leftOpen ? left.width + left.inset : 0,
+      left: leftOpen ? left.width + left.inset : widths.leftCollapsedWidth ?? 0,
       top: 0,
-      right: rightOpen && !widths.rightDetached ? right.width + right.inset : 0,
+      right: rightOpen && !widths.rightDetached ? right.width + right.inset : !rightOpen ? widths.rightCollapsedWidth ?? 0 : 0,
       // Local overlays (bottom toolbar / restore controls) do not consume an
       // entire viewport edge. Full-height side chrome is the only scalar-safe
       // geometry represented by CameraCommands today.

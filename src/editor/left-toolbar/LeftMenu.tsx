@@ -7,14 +7,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FieldGlyph, type FieldGlyphBehavior } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
 import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
 import { agentStatusAtom } from '@/code/stores/agent-chat-store';
-import { ChatImageIcon } from '@/shared/icons';
+import { ChatImageIcon, SettingsConnectAiIcon } from '@/shared/icons';
 import {
   FigmaPlusIcon as InsertPlusIcon,
   FigmaCmsIcon as CmsIcon,
@@ -126,6 +127,9 @@ const MenuButton = React.memo(function MenuButton({
 export default function LeftMenu() {
   const [activePanel, togglePanel] = useAtom(togglePanelAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const leftDetached = useAtomValue(detachedLeftPanelAtom);
+  const collapsedWidth = useAtomValue(leftCollapsedWidthAtom);
+  const railVisible = leftPaneOpen || !leftDetached;
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
@@ -212,13 +216,14 @@ export default function LeftMenu() {
   return (
     <div
       data-left-menu-rail
-      data-visible={leftPaneOpen ? 'true' : 'false'}
-      aria-hidden={leftPaneOpen ? undefined : true}
-      inert={!leftPaneOpen}
+      data-visible={railVisible ? 'true' : 'false'}
+      data-workspace-mode={leftPaneOpen ? 'docked' : leftDetached ? 'floating' : 'collapsed'}
+      aria-hidden={railVisible ? undefined : true}
+      inert={!railVisible}
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: workspace.left.inset, top: workspaceBodyTop(workspace.left), height: workspaceBodyHeightCss(workspace.left), willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
+      style={{ left: leftPaneOpen ? workspace.left.inset : 8, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : 52, width: leftPaneOpen ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : 'calc(100vh - 60px)', willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
@@ -240,16 +245,14 @@ export default function LeftMenu() {
               transition={{ type: 'spring', bounce: 0.2, duration: 0.28 }}
               className="flex flex-col items-center gap-2 overflow-hidden"
             >
-              {/* WHILE THE AGENT WORKS the icon says so from any panel: one
-                  light travelling the cut outline, a grid flashing inside, the
-                  letters glitching (`.vibe-working` in globals.css). The ring
-                  lives on a wrapper because the button's own clip-path would
-                  cut it. */}
+              {/* The provider-neutral AI glyph sits inside the existing agent
+                  activity ring; the motion still reports a running turn. */}
               <div className={`vibe-ring relative w-8 h-8 rounded-[6px] ${agentRunning ? 'vibe-working' : ''}`} data-testid="vibe-button" data-working={agentRunning || undefined}>
                 <button
+                  aria-label="AI assistant"
                   disabled={isViewerRole}
                   onClick={isViewerRole ? undefined : (e) => { togglePanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
-                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'Vibe AI', e.currentTarget)}
+                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'AI assistant', e.currentTarget)}
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
                   className={`vibe-face absolute inset-0 rounded-[6px] flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
@@ -259,7 +262,7 @@ export default function LeftMenu() {
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  <span className="vibe-text relative">VIBE</span>
+                  <span className="vibe-text relative"><FieldGlyph behavior="generic"><SettingsConnectAiIcon size={17} /></FieldGlyph></span>
                 </button>
               </div>
 

@@ -646,7 +646,11 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
       style={{
         position: 'fixed',
-        left: '-10000px',
+        // Keep the iframe in the browser's composited viewport. Chromium
+        // throttles SVG-to-canvas rasterization in far-offscreen frames; that
+        // made every html-to-image attempt hit the 9s watchdog on hosted Field.
+        // A near-transparent, negative-stack iframe remains non-interactive.
+        left: 0,
         top: 0,
         width: 1440,
         height: 900,
