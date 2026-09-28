@@ -18,7 +18,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
+import { setWorkspaceModeAtom } from '@/editor/workspace-mode-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -249,9 +249,8 @@ export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
+  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const activeLeftPanel = useAtomValue(leftPanelAtom);
-  const setDetachedLeftPanel = useSetAtom(detachedLeftPanelAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
   trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
@@ -327,8 +326,7 @@ export default function LeftHeader() {
           title="Detach panel"
           data-field-pane-detach
           onClick={() => {
-            setDetachedLeftPanel({ panelId: activeLeftPanel, expanded: true });
-            setLeftPaneOpen(false);
+            setWorkspaceMode('floating');
             trace.action('left-header:detach-pane', { panel: activeLeftPanel });
           }}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
@@ -347,7 +345,7 @@ export default function LeftHeader() {
           title="Collapse left pane"
           onClick={() => {
             trace.action('left-header:collapse-pane');
-            setLeftPaneOpen(false);
+            setWorkspaceMode('compact');
           }}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)] focus-visible:outline-none"
           data-field-pane-collapse

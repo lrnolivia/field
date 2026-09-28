@@ -391,6 +391,14 @@ export default function FieldShell() {
     maybeRevealProject(id);
   }, [maybeRevealProject]);
 
+  const onProjectOpenFailure = useCallback((id: string) => {
+    if (builderIdRef.current !== id) return;
+    openingOriginRef.current = undefined;
+    revealHeldRef.current = false;
+    revealRequestedRef.current = false;
+    void hideDashboardLayer(false);
+  }, [hideDashboardLayer]);
+
   return (
     <div className="field-shell" data-dashboard-state={dashboardState}>
       <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
@@ -412,6 +420,7 @@ export default function FieldShell() {
           <ProjectLoader
             key={builderId}
             onCanvasReady={() => onCanvasReady(builderId)}
+            onOpenFailure={() => onProjectOpenFailure(builderId)}
           />
         ) : (
           <div className="field-shell-empty-canvas" aria-hidden="true" />

@@ -247,7 +247,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const isAutoOrFill = value === 'auto' || value === 'fill';
 
   const beginTouchScrub = (event: React.PointerEvent<HTMLSpanElement>) => {
-    if (event.pointerType !== 'touch' || !isNumeric || !parsed || effectiveDisabled) return;
+    if (!isNumeric || !parsed || effectiveDisabled || event.button !== 0) return;
     touchScrubRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, start: parsed.num, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -265,6 +265,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
       inputRef.current?.blur();
     }
     event.preventDefault();
+    document.body.style.cursor = Math.abs(dx) >= Math.abs(dy) ? 'ew-resize' : 'ns-resize';
     const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
     currentValueRef.current = clampNum(touch.start + Math.round(travel / 6) * step);
     applyValue(currentValueRef.current, true);
@@ -273,6 +274,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
     const touch = touchScrubRef.current;
     if (!touch || touch.pointerId !== event.pointerId) return;
     touchScrubRef.current = null;
+    document.body.style.cursor = '';
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!touch.moved) { inputRef.current?.focus(); return; }
     event.preventDefault();
@@ -323,7 +325,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
       />
       {isNumeric && <span aria-hidden data-touch-scrub="number" title="Slide to adjust"
         onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-1/2 touch-none [@media(pointer:coarse)]:block [@media(pointer:coarse)]:pointer-events-auto" />}
+        className="absolute inset-y-0 right-0 z-10 block w-1/2 cursor-ew-resize touch-none" />}
       {/* Chevron label — shown when not hovering/focused, hidden when chevrons appear */}
       {chevronLabel && isNumeric && (
         <div className={`absolute right-2.5 inset-y-0 flex items-center pointer-events-none ${isFocused ? 'hidden' : 'group-hover:hidden'}`}>
@@ -335,7 +337,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
         // inset-y-[3px], not inset-y-0: shrinking the stack pulls the two
         // chevrons ~3px closer together, keeping the down chevron clear of
         // the field's bottom-right cut.
-        <div className={`absolute right-1 inset-y-[3px] w-3 ${alwaysShowStepper || isFocused ? 'flex' : 'hidden group-hover:flex'} flex-col`}>
+        <div className={`absolute right-1 inset-y-[3px] z-20 w-3 ${alwaysShowStepper || isFocused ? 'flex' : 'hidden group-hover:flex'} flex-col`}>
           <motion.button
             tabIndex={-1}
             type="button"

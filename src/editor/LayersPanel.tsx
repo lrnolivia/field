@@ -1023,6 +1023,13 @@ export default function LayersPanel() {
   }, [displayLayers, selectedLayerId, selectedIds, nodes, handleSelect, setSelectedIds, setInteractingVpId]);
 
   // Wrap onSelect to detect double-clicks
+  const focusLayer = useCallback((layerId: string, nodeId: string) => {
+    const content = getContentRoot();
+    if (!content) return;
+    handleSelect(layerId, nodeId);
+    panToNode(content, `${getViewportPrefix(vpIdFromLayerId(layerId) || 'desktop')}${nodeId}`, true);
+  }, [handleSelect]);
+
   const handleLayerClick = useCallback((layerId: string, nodeId: string, e?: React.MouseEvent) => {
     const node = nodes.get(nodeId);
 
@@ -1050,15 +1057,13 @@ export default function LayersPanel() {
     lastLayerClickRef.current = { time: now, layerId };
 
     if (isDouble && nodeId) {
-      handleSelect(layerId, nodeId);
-      const content = getContentRoot();
-      if (content) panToNode(content, `${getViewportPrefix(vpIdFromLayerId(layerId) || 'desktop')}${nodeId}`, true);
+      focusLayer(layerId, nodeId);
       return;
     }
 
     // Single click → select
     handleSelect(layerId, nodeId);
-  }, [handleSelect, handleRangeSelect, nodes]);
+  }, [handleSelect, handleRangeSelect, focusLayer, nodes]);
 
   const handleDoubleClickLayout = useCallback((node: CanvasNode) => {
     if (node.fromLayout) {
@@ -1263,6 +1268,7 @@ export default function LayersPanel() {
               effectiveHidden={effectiveHidden}
               locateFlashRevision={locateFlash?.ids.has(layer.nodeId || '') && layer.viewportId === interactingVpId ? locateFlash.revision : undefined}
               onSelect={handleLayerClick}
+              onFocus={focusLayer}
               onToggleExpand={toggleExpand}
               onDragStart={handleLayerDragStart}
               onContextMenu={handleContextMenu}

@@ -40,6 +40,10 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<RevymeUser | null>(null);
 
+  useEffect(() => {
+    if (!active) setOpeningProjectId(null);
+  }, [active]);
+
   const visibleProjects = useMemo(
     () => selectFieldProjects(projects, view, query),
     [projects, query, view],

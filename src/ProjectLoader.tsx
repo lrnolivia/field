@@ -43,9 +43,10 @@ import { openPluginIdAtom } from '@/plugins/registry';
 
 interface ProjectLoaderProps {
   onCanvasReady?: () => void;
+  onOpenFailure?: () => void;
 }
 
-export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}) {
+export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectLoaderProps = {}) {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canvasPainted, setCanvasPainted] = useState(false);
@@ -54,6 +55,8 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
   const [editorInteractive, setEditorInteractive] = useState(false);
   const onCanvasReadyRef = useRef(onCanvasReady);
   onCanvasReadyRef.current = onCanvasReady;
+  const onOpenFailureRef = useRef(onOpenFailure);
+  onOpenFailureRef.current = onOpenFailure;
   // When set, a `?remix=` load is paused on the workspace picker — the
   // remix only runs once the user chooses a workspace (see below).
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
@@ -556,10 +559,15 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
     if (!ready || canvasPainted) return;
     const timeout = window.setTimeout(() => {
       setCanvasStalled(true);
+      onOpenFailureRef.current?.();
       trace.action('project-loader:canvas-delayed', {});
     }, 10000);
     return () => window.clearTimeout(timeout);
   }, [ready, canvasPainted]);
+
+  useEffect(() => {
+    if (loadError) onOpenFailureRef.current?.();
+  }, [loadError]);
 
   useEffect(() => {
     if (!canvasPainted) return;

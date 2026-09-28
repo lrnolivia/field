@@ -4,7 +4,6 @@
 
 import { useAtomValue } from 'jotai';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
-import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import {
   deriveWorkspaceLayout,
   WORKSPACE_FLOAT_INSET,
@@ -12,6 +11,7 @@ import {
   WORKSPACE_FLOAT_SHADOW,
   type WorkspaceSideLayout,
 } from './workspace-layout';
+import { leftRailVisibleAtom, workspaceModeAtom } from './workspace-mode-store';
 
 const SURFACE = {
   background: 'var(--bg-panel)',
@@ -33,7 +33,8 @@ function floatingStyle(side: WorkspaceSideLayout) {
 
 export default function ChromeIslands() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
-  const leftDetached = useAtomValue(detachedLeftPanelAtom);
+  const mode = useAtomValue(workspaceModeAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
@@ -48,12 +49,12 @@ export default function ChromeIslands() {
       <div
         aria-hidden
         data-workspace-island="left"
-        data-visible={leftOpen || !leftDetached ? 'true' : 'false'}
+        data-visible={mode === 'floating' && !railVisible ? 'false' : 'true'}
         className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
         style={{
           left: leftOpen ? layout.left.inset : WORKSPACE_FLOAT_INSET,
           top: leftOpen ? layout.left.top : WORKSPACE_FLOAT_INSET,
-          width: leftOpen ? layout.left.width : leftDetached ? 0 : leftCollapsedWidth,
+          width: leftOpen ? layout.left.width : leftCollapsedWidth,
           height: leftOpen ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 'calc(100vh - 16px)',
           ...SURFACE,
           ...(leftOpen ? floatingStyle(layout.left) : {
@@ -61,10 +62,11 @@ export default function ChromeIslands() {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
+          opacity: mode === 'floating' && !railVisible ? 0 : 1,
         }}
       />
 
-      {!leftOpen && !leftDetached && <div aria-hidden data-workspace-left-title-surface
+      {!leftOpen && <div aria-hidden data-workspace-left-title-surface
         className="pointer-events-none fixed left-2 top-2 z-[4999] h-11 w-[264px] rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]" />}
 
       {rightOpen && (

@@ -90,6 +90,25 @@ export class CullingController {
 
   onTransform(x: number, y: number, scale: number): void {
     this.t = { x, y, scale };
+    // A trackpad can move a previously culled artboard into view long before
+    // the idle evaluation runs. Restore only roots that now intersect the
+    // actual screen; keep offscreen culling and its cheap gesture path.
+    if (scale > 0 && this.culled.size > 0) {
+      const visible = {
+        left: -x / scale, top: -y / scale,
+        right: (window.innerWidth - x) / scale,
+        bottom: (window.innerHeight - y) / scale,
+      };
+      let restored = 0;
+      for (const [el, meta] of this.culled) {
+        const b = meta.box;
+        if (b.left + b.width <= visible.left || b.left >= visible.right
+          || b.top + b.height <= visible.top || b.top >= visible.bottom) continue;
+        this.restore(el);
+        restored++;
+      }
+      if (restored) this.onChange?.(0, restored);
+    }
     this.schedule(IDLE_MS);
   }
 

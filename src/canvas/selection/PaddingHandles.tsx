@@ -208,6 +208,10 @@ export default function PaddingHandles({ nodeId, vpId, onInteracting }: Props) {
   // zoom ≠ 100% the handle drifts toward the element centre and the hover band is
   // drawn taller than the real padding region (bleeding over the content).
   const padCss = getPaddingBands(computedStyles);
+  // The canvas should stay quiet until this frame actually has padding.
+  // Zero-value padding remains editable in the inspector, but showing four
+  // handles around every new layout frame makes selection feel noisy.
+  if (padCss.top <= 0 && padCss.right <= 0 && padCss.bottom <= 0 && padCss.left <= 0) return null;
   const contentBounds = {
     top: padCss.top * scale,
     bottom: padCss.bottom * scale,

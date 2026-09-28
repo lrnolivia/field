@@ -13,6 +13,7 @@ import LocalePanel from './panels/LocalePanel';
 import CmsPanel from './panels/CmsPanel';
 import BranchesPanel from './panels/BranchesPanel';
 import { trace } from '@/shared/debug-trace';
+import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
 import './left-panel-glyphs.css';
 
 function PresetsPanel() {
@@ -38,6 +39,7 @@ export const PANEL_MAP: Record<string, React.ComponentType> = {
 export default function LeftPanel() {
   const activePanel = useAtomValue(leftPanelAtom);
   const leftOpen = useAtomValue(leftPaneOpenAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const PanelComponent = PANEL_MAP[activePanel];
@@ -55,9 +57,9 @@ export default function LeftPanel() {
       data-tutorial="left-panel"
       className="fixed z-[5000] flex flex-col overflow-hidden"
       style={{
-        left: workspace.left.inset + LEFT_RAIL_WIDTH,
+        left: workspace.left.inset + (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         top: workspaceBodyTop(workspace.left),
-        width: workspace.left.width - LEFT_RAIL_WIDTH,
+        width: workspace.left.width - (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         height: workspaceBodyHeightCss(workspace.left),
         paddingLeft: 6,
         paddingRight: 6,

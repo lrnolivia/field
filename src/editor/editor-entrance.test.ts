@@ -80,7 +80,7 @@ describe('editor chrome choreography', () => {
       (element.hasAttribute('data-workspace-left-restore') ? 'left-restore' : undefined) ??
       (element.hasAttribute('data-workspace-right-toggle') ? 'right-toggle' : undefined) ??
       element.id,
-    )).toEqual(['left', 'left-restore', 'right-toggle', 'bottom-toolbar-container']);
+    )).toEqual(['left-restore', 'right-toggle', 'bottom-toolbar-container']);
     expect(targets.filter(({ phase }) => phase === 'late-chrome')).toHaveLength(2);
   });
 

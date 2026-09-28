@@ -6,9 +6,10 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { FieldGlyph, type FieldGlyphBehavior } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { togglePanelAtom, leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
+import { leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
+import { dockedRailCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
@@ -125,11 +126,16 @@ const MenuButton = React.memo(function MenuButton({
 // ─── LeftMenu ───────────────────────────────────────────────────────────────
 
 export default function LeftMenu() {
-  const [activePanel, togglePanel] = useAtom(togglePanelAtom);
+  const activePanel = useAtomValue(leftPanelAtom);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const [dockedRailCollapsed, setDockedRailCollapsed] = useAtom(dockedRailCollapsedAtom);
+  const setRailRevealed = useSetAtom(railRevealedAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const leftDetached = useAtomValue(detachedLeftPanelAtom);
+  const setLeftDetached = useSetAtom(detachedLeftPanelAtom);
   const collapsedWidth = useAtomValue(leftCollapsedWidthAtom);
-  const railVisible = leftPaneOpen || !leftDetached;
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
@@ -159,6 +165,20 @@ export default function LeftMenu() {
   const cmsEditorOpen = useAtomValue(cmsEditorOpenAtom);
   const inOverlay = componentEditorOpen || pluginEditorOpen || cmsEditorOpen;
   const setLeftPanel = useSetAtom(leftPanelAtom);
+  const openRailPanel = useCallback((id: Exclude<LeftPanelId, null>) => {
+    if (workspaceMode === 'docked' && activePanel === id) {
+      setDockedRailCollapsed(true);
+      setRailRevealed(false);
+      return;
+    }
+    setLeftPanel(id);
+    if (workspaceMode === 'floating' && id !== 'vibe') {
+      setLeftDetached({ panelId: id, expanded: true });
+      setRailRevealed(false);
+    } else {
+      setWorkspaceMode('docked');
+    }
+  }, [activePanel, setDockedRailCollapsed, setLeftDetached, setLeftPanel, setRailRevealed, setWorkspaceMode, workspaceMode]);
   useEffect(() => {
     if (inOverlay && activePanel === 'vibe') setLeftPanel(DEFAULT_LEFT_PANEL);
   }, [inOverlay, activePanel, setLeftPanel]);
@@ -213,20 +233,41 @@ export default function LeftMenu() {
     suppressedKey,
   };
 
+  const railCanHide = workspaceMode === 'floating' || (workspaceMode === 'docked' && dockedRailCollapsed);
   return (
+    <>
+    {railCanHide && <button type="button" data-left-rail-handle
+      aria-label={railVisible ? 'Hide left toolbar' : 'Reveal left toolbar'}
+      title={railVisible ? 'Hide toolbar' : 'Reveal toolbar'}
+      onPointerEnter={() => setRailRevealed(true)}
+      onClick={() => setRailRevealed(true)}
+      className="fixed left-0 top-[72px] z-[10002] flex h-12 w-3 items-center justify-center rounded-r-[5px] border border-l-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width] hover:w-5"
+    ><svg aria-hidden viewBox="0 0 8 16" width="7" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><path d={railVisible ? 'm5 3-3 5 3 5' : 'm2 3 3 5-3 5'} /></svg></button>}
     <div
       data-left-menu-rail
       data-visible={railVisible ? 'true' : 'false'}
       data-workspace-mode={leftPaneOpen ? 'docked' : leftDetached ? 'floating' : 'collapsed'}
-      aria-hidden={railVisible ? undefined : true}
+      aria-hidden={!railVisible}
       inert={!railVisible}
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
       style={{ left: leftPaneOpen ? workspace.left.inset : 8, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : 52, width: leftPaneOpen ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : 'calc(100vh - 60px)', willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
+      onPointerLeave={railCanHide ? () => setRailRevealed(false) : undefined}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
+
+      {workspaceMode === 'docked' && !dockedRailCollapsed && <button type="button"
+        aria-label="Compact left toolbar" title="Compact left toolbar"
+        onClick={() => { setDockedRailCollapsed(true); setRailRevealed(false); }}
+        className="absolute bottom-3 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+      ><svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2v12M11 4 7 8l4 4" /></svg></button>}
+      {workspaceMode === 'docked' && dockedRailCollapsed && railVisible && <button type="button"
+        aria-label="Keep left toolbar visible" title="Keep toolbar visible"
+        onClick={() => { setDockedRailCollapsed(false); setRailRevealed(false); }}
+        className="absolute bottom-3 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+      ><svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2v12M6 4l4 4-4 4" /></svg></button>}
 
       {/* Top section */}
       <div className="flex items-center flex-col gap-2 relative z-10">
@@ -251,7 +292,7 @@ export default function LeftMenu() {
                 <button
                   aria-label="AI assistant"
                   disabled={isViewerRole}
-                  onClick={isViewerRole ? undefined : (e) => { togglePanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
+                  onClick={isViewerRole ? undefined : (e) => { openRailPanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
                   onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'AI assistant', e.currentTarget)}
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
                   className={`vibe-face absolute inset-0 rounded-[6px] flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
@@ -280,13 +321,13 @@ export default function LeftMenu() {
           whileTap={!isViewer ? 'tap' : undefined}
           data-tutorial="insert-button"
           disabled={isViewer}
-          onClick={isViewer ? undefined : (e) => { togglePanel('insert'); handleClick('insert'); e.currentTarget.blur(); }}
+          onClick={isViewer ? undefined : (e) => { openRailPanel('insert'); handleClick('insert'); e.currentTarget.blur(); }}
           onMouseEnter={isViewer ? undefined : (e) => handleEnter('insert', 'Insert', e.currentTarget)}
           onMouseLeave={isViewer ? undefined : handleLeave}
           className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
             isViewer
               ? 'text-[var(--text-secondary)] opacity-40 cursor-not-allowed'
-              : leftPaneOpen && activePanel === 'insert'
+              : activePanel === 'insert'
                 ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
           }`}
@@ -298,7 +339,7 @@ export default function LeftMenu() {
             the layer tree, so the rail item opens/collapses the document pane
             without introducing a second navigation mode. Both legacy panel ids
             still count as active for restored state compatibility. */}
-        <MenuButton panelId="layers" isActive={leftPaneOpen && (activePanel === 'pages-layers' || activePanel === 'layers')} onToggle={togglePanel} title="Pages & Layers" tooltip={tooltipHandlers} dataTutorial="layers-button">
+        <MenuButton panelId="layers" isActive={activePanel === 'pages-layers' || activePanel === 'layers'} onToggle={openRailPanel} title="Pages & Layers" tooltip={tooltipHandlers} dataTutorial="layers-button">
           <LayersIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -306,25 +347,25 @@ export default function LeftMenu() {
             insert surface (pick a thing, drop it on the canvas) rather than a
             way of navigating the current document. Enabled for viewers; the
             panel itself gates which sections they can click into. */}
-        <MenuButton panelId="library" isActive={leftPaneOpen && activePanel === 'library'} onToggle={togglePanel} title="Library" tooltip={tooltipHandlers} dataTutorial="library-button">
+        <MenuButton panelId="library" isActive={activePanel === 'library'} onToggle={openRailPanel} title="Library" tooltip={tooltipHandlers} dataTutorial="library-button">
           <LibraryStackIcon className="w-[18px] h-[18px]" size={18} />
         </MenuButton>
 
 
         {/* Presets */}
-        <MenuButton panelId="presets" isActive={leftPaneOpen && activePanel === 'presets'} onToggle={togglePanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
+        <MenuButton panelId="presets" isActive={activePanel === 'presets'} onToggle={openRailPanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className="w-[18px] h-[18px]">
             <path fill="currentColor" d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 2 2a2 2 0 0 0 2-2c0-1.33-2-3.5-2-3.5M5.21 10L10 5.21L14.79 10m1.77-1.06L7.62 0L6.21 1.41l2.38 2.38l-5.15 5.15c-.59.56-.59 1.53 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.59.59-1.56 0-2.12" />
           </svg>
         </MenuButton>
 
         {/* Media Gallery */}
-        <MenuButton panelId="media" isActive={leftPaneOpen && activePanel === 'media'} onToggle={togglePanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
+        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
           <ChatImageIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
         {/* CMS */}
-        <MenuButton panelId="cms" isActive={leftPaneOpen && activePanel === 'cms'} onToggle={togglePanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
+        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
           <CmsIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -332,7 +373,7 @@ export default function LeftMenu() {
         {/* Branches keys on the ROLE: while an agent run holds the branch the
             panel is where you see which one is in use (switching is refused
             with the reason until the run finishes). */}
-        <MenuButton panelId="branches" isActive={leftPaneOpen && activePanel === 'branches'} onToggle={togglePanel} title="Branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
+        <MenuButton panelId="branches" isActive={activePanel === 'branches'} onToggle={openRailPanel} title="Branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
           <BranchIcon size={18} />
         </MenuButton>
 
@@ -402,5 +443,6 @@ export default function LeftMenu() {
         document.body,
       )}
     </div>
+    </>
   );
 }

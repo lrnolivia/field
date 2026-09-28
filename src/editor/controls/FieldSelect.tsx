@@ -245,7 +245,7 @@ export default function FieldSelect({
   };
 
   const beginTouchScrub = (event: ReactPointerEvent<HTMLSpanElement>) => {
-    if (event.pointerType !== 'touch' || disabled) return;
+    if (disabled || event.button !== 0) return;
     const enabled = options.map((option, index) => !option.disabled ? index : -1).filter(index => index >= 0);
     if (enabled.length < 2) return;
     const initialIndex = enabled.includes(selectedIndex) ? selectedIndex : enabled[0];
@@ -260,6 +260,7 @@ export default function FieldSelect({
     if (!scrub.moved && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
     scrub.moved = true;
     event.preventDefault();
+    document.body.style.cursor = Math.abs(dx) >= Math.abs(dy) ? 'ew-resize' : 'ns-resize';
     const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
     const enabled = options.map((option, index) => !option.disabled ? index : -1).filter(index => index >= 0);
     const ordinal = enabled.indexOf(scrub.initialIndex);
@@ -271,6 +272,7 @@ export default function FieldSelect({
     const scrub = touchScrubRef.current;
     if (!scrub || scrub.pointerId !== event.pointerId) return;
     touchScrubRef.current = null;
+    document.body.style.cursor = '';
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!scrub.moved) return; // A tap on the arrow still opens the list.
     event.preventDefault();
@@ -352,7 +354,7 @@ export default function FieldSelect({
         </svg></FieldGlyph>
         <span aria-hidden data-touch-scrub="select" title="Slide to choose"
           onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
-          className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 touch-none [@media(pointer:coarse)]:block [@media(pointer:coarse)]:pointer-events-auto" />
+          className="absolute inset-y-0 right-0 block w-1/2 cursor-ew-resize touch-none" />
       </button>
 
       {isOpen && position && createPortal(

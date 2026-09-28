@@ -1,6 +1,5 @@
 // WorkspacePaneResizeHandles.tsx — persisted professional-tool pane resizing.
-// The handles resize the live pane geometry only; field's intentional
-// single-pane-floating / two-pane-docked presentation remains untouched.
+// The handles resize live geometry across the three workspace modes.
 
 import { useAtom, useAtomValue } from 'jotai';
 import type { PointerEvent as ReactPointerEvent } from 'react';
@@ -18,8 +17,8 @@ import {
   clampRightPaneWidth,
 } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
+import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
 import { trace } from '@/shared/debug-trace';
-import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 
 interface Props {
   hidden?: boolean;
@@ -27,7 +26,7 @@ interface Props {
 
 export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
-  const leftDetached = useAtomValue(detachedLeftPanelAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
@@ -115,7 +114,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border-focus)] opacity-0 transition-opacity group-hover:opacity-100" />
         </button>
       )}
-      {!leftOpen && !leftDetached && <button type="button" data-workspace-resize="left-collapsed"
+      {!leftOpen && railVisible && <button type="button" data-workspace-resize="left-collapsed"
         aria-label="Resize collapsed left toolbar" title="Resize collapsed toolbar" onPointerDown={(event) => beginCompactResize('left', event)}
         className="fixed top-[52px] z-[10000] h-[calc(100vh-60px)] w-2 cursor-col-resize touch-none bg-transparent"
         style={{ left: leftCollapsedWidth + 4 }} />}

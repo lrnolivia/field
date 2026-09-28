@@ -52,6 +52,18 @@ describe('CullingController', () => {
     expect(container.querySelector('[data-culling-placeholder="float-1"]')).toBeNull();
   });
 
+  it('restores a culled artboard as soon as a trackpad pan brings it onscreen', () => {
+    const c = new CullingController(container);
+    const artboard = makeRoot(container, 'desktop', { left: 1600, top: 0, width: 800, height: 600 }, true);
+    c.onTransform(0, 0, 1);
+    c.evaluate();
+    expect(artboard.style.display).toBe('none');
+
+    c.onTransform(-1100, 0, 1);
+    expect(artboard.style.display).not.toBe('none');
+    expect(container.querySelector('[data-culling-placeholder="desktop"]')).toBeNull();
+  });
+
   it('accounts for zoom — a root outside the shrunken visible rect at high scale is culled', () => {
     const c = new CullingController(container);
     const root = makeRoot(container, 'tablet', { left: 1600, top: 0, width: 768, height: 900 }, true);

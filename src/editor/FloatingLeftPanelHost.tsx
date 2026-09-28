@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, leftContentWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
+import { leftContentWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
+import { setWorkspaceModeAtom } from './workspace-mode-store';
 
 const PANEL_TITLES: Record<string, string> = {
   insert: 'Insert', layers: 'Pages / Layers', 'pages-layers': 'Pages / Layers',
@@ -14,20 +15,20 @@ const PANEL_TITLES: Record<string, string> = {
 
 /** The same panel component serves the dock and the floating shell. */
 export default function FloatingLeftPanelHost() {
-  const [detached, setDetached] = useAtom(detachedLeftPanelAtom);
+  const detached = useAtomValue(detachedLeftPanelAtom);
   const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftOpen = useSetAtom(leftPaneOpenAtom);
+  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [contentWidth, setContentWidth] = useAtom(leftContentWidthAtom);
-  const [position, setPosition] = useState({ x: 24, y: 70 });
+  const [position, setPosition] = useState({ x: 76, y: 70 });
   const [size, setSize] = useState({ width: contentWidth, height: 680 });
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setPosition({ x: 24, y: 70 });
+    setPosition({ x: 76, y: 70 });
     setSize({ width: contentWidth, height: Math.min(680, window.innerHeight - 90) });
     // A resize should never reset the size; this runs only on panel identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detached?.panelId]);
+  }, [Boolean(detached)]);
   if (!detached) return null;
   const Panel = PANEL_MAP[detached.panelId];
   if (!Panel) return null;
@@ -36,13 +37,11 @@ export default function FloatingLeftPanelHost() {
   const dock = () => {
     setContentWidth(clampLeftContentWidth(size.width));
     setLeftPanel(detached.panelId);
-    setLeftOpen(true);
-    setDetached(null);
+    setWorkspaceMode('docked');
   };
   const collapse = () => {
     setLeftPanel(detached.panelId);
-    setDetached(null);
-    setLeftOpen(false);
+    setWorkspaceMode('compact');
   };
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
@@ -98,12 +97,12 @@ export default function FloatingLeftPanelHost() {
         className="flex h-11 shrink-0 cursor-move select-none items-center gap-2 border-b border-[var(--border-light)] px-3">
         <span className="h-4 w-4 rounded-[3px] border border-[var(--text-tertiary)] opacity-60" aria-hidden />
         <span className="min-w-0 flex-1 truncate text-xs font-semibold">{title}</span>
-        <button type="button" aria-label="Collapse left pane"
-          title="Collapse to edge"
+        <button type="button" aria-label="Compact workspace"
+          title="Compact workspace"
           onClick={collapse}
           className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] hover:bg-[var(--button-secondary-bg)]">
           <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="1.5" y="2" width="13" height="12" rx="1" /><path d="M5.5 2v12" />
+            <path d="M3 2v12M12 4 8 8l4 4" />
           </svg>
         </button>
         <button type="button" aria-label="Dock panel in left sidebar" title="Dock in sidebar" onClick={dock}

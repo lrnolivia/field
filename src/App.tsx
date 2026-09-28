@@ -55,6 +55,7 @@ import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWid
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
@@ -256,6 +257,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
+      <WorkspaceModeCoordinator />
       <ChromeIslands />
       <WorkspacePaneResizeHandles hidden={previewMode} />
       <PageAppearanceBridge />

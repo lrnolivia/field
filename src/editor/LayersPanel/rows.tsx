@@ -623,7 +623,7 @@ export function computeSelectionSets(
 export const LayerRow = React.memo(function LayerRow({
   layer, isSelected, isChildOfSelected, hasHighlightedChildren, isLastHighlightedChild,
   isDragOver, dropPosition, dropDepth, isDragging, effectiveHidden, locateFlashRevision,
-  onSelect, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
+  onSelect, onFocus, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
   isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection,
 }: {
   layer: FlatLayer;
@@ -650,6 +650,7 @@ export const LayerRow = React.memo(function LayerRow({
   effectiveHidden: boolean;
   locateFlashRevision?: number;
   onSelect: (layerId: string, nodeId: string, e?: React.MouseEvent) => void;
+  onFocus: (layerId: string, nodeId: string) => void;
   onToggleExpand: (id: string) => void;
   onDragStart: (e: React.MouseEvent, layerId: string, nodeId: string) => void;
   onContextMenu: (e: React.MouseEvent, nodeId: string | null) => void;
@@ -795,6 +796,7 @@ export const LayerRow = React.memo(function LayerRow({
         onDoubleClick={() => {
           if (isViewer) return;
           if (node.fromLayout) onDoubleClickLayout(node);
+          else if (isVpHeader) onFocus(id, layer.isVariantHeader ? node.children[0] || 'root' : 'root');
         }}
         className={rowClass}
         style={s}
@@ -970,7 +972,7 @@ export const LayerRow = React.memo(function LayerRow({
         {/* Spacer to push actions to the right */}
         <div className="flex-1" />
 
-        {/* Lock & Visibility actions — visible on hover, always visible when hidden/locked */}
+        {/* Focus, lock and visibility actions — visible on hover, stateful actions remain visible. */}
         {!isViewer && !isVpHeader && layer.nodeId && (() => {
           // Use the row-level `effectiveHidden` from the resolver (which
           // already cascades base + default-variant + per-variant + @media
@@ -989,6 +991,19 @@ export const LayerRow = React.memo(function LayerRow({
           const onColor = isSelected ? 'var(--text-primary)' : 'var(--text-secondary)';
           return (
             <div className="flex items-center gap-0.5 shrink-0 sticky right-1.5 z-10">
+              <button
+                type="button"
+                draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onFocus(id, layer.nodeId!); }}
+                className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${hoverOnly}`}
+                title="Zoom to layer"
+                aria-label="Zoom to layer"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" aria-hidden>
+                  <circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.15" /><circle cx="8" cy="8" r=".65" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
               <motion.button
                 draggable={false}
                 initial="rest"

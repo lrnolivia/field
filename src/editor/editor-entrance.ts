@@ -49,8 +49,9 @@ export const DIRECT_LOAD_FAILSAFE_MS = 4400;
  */
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
   { selector: '[data-workspace-island="left"][data-visible="true"]', role: 'left', phase: 'left-surface' },
-  { selector: '[data-workspace-island="left"][data-visible="false"]', role: 'left', phase: 'left-surface' },
   { selector: '[data-left-menu-rail][data-visible="true"]', role: 'left', phase: 'left-rail' },
+  { selector: '[data-floating-left-panel]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-left-rail-handle]', role: 'left', phase: 'late-chrome' },
   { selector: '[data-editor-panel="left-primary"][data-visible="true"]', role: 'left', phase: 'left-surface' },
   { selector: '[data-workspace-left-header][data-visible="true"]', role: 'left', phase: 'late-chrome' },
   { selector: '[data-workspace-left-restore][data-visible="true"]', role: 'left', phase: 'late-chrome' },
