@@ -10,26 +10,12 @@ export class TextFocusCamera {
   private original: Transform | null = null;
   private interrupted = false;
   private pendingFrame = 0;
-  private blurTimer = 0;
-  private iframe: HTMLIFrameElement | null = null;
 
   constructor(private readonly getIframe: () => HTMLIFrameElement | null) {}
 
   private interrupt = () => {
     this.interrupted = true;
   };
-
-  private blurPulse(): void {
-    const iframe = this.getIframe();
-    if (!iframe || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this.iframe = iframe;
-    window.clearTimeout(this.blurTimer);
-    iframe.style.transition = 'filter 260ms ease-out';
-    iframe.style.filter = 'blur(3px)';
-    this.blurTimer = window.setTimeout(() => {
-      iframe.style.filter = '';
-    }, 35);
-  }
 
   begin(nodeId: string, vpId: string): void {
     this.end(false);
@@ -41,6 +27,7 @@ export class TextFocusCamera {
     // A newly inserted text node can take a render frame to acquire a rect.
     const focus = (attempt: number) => {
       if (!this.original || this.interrupted) return;
+      if (!this.getIframe()) return;
       const rect = findNodeRect(stripGhostSuffix(nodeId), vpId);
       if (!rect || rect.width <= 0 || rect.height <= 0) {
         if (attempt < 8) this.pendingFrame = requestAnimationFrame(() => focus(attempt + 1));
@@ -50,11 +37,10 @@ export class TextFocusCamera {
       const canvasX = (rect.left + rect.width / 2 - current.x) / current.scale;
       const canvasY = (rect.top + rect.height / 2 - current.y) / current.scale;
       const maxForWidth = (window.innerWidth * 0.55) / (rect.width / current.scale);
-      const scale = Math.max(current.scale, Math.min(2.4, current.scale * 1.55, maxForWidth));
+      const scale = Math.max(current.scale, Math.min(2.8, current.scale * 1.85, maxForWidth));
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
-      this.blurPulse();
-      animateCanvasTo(centerX - canvasX * scale, centerY - canvasY * scale, scale, 420);
+      animateCanvasTo(centerX - canvasX * scale, centerY - canvasY * scale, scale, 720, { focus: true });
     };
     this.pendingFrame = requestAnimationFrame(() => focus(0));
   }
@@ -68,17 +54,11 @@ export class TextFocusCamera {
     const shouldRestore = restore && original && !this.interrupted;
     this.original = null;
     if (shouldRestore) {
-      this.blurPulse();
-      animateCanvasTo(original.x, original.y, original.scale, 420);
+      animateCanvasTo(original.x, original.y, original.scale, 620, { focus: true });
     }
   }
 
   dispose(): void {
     this.end(false);
-    window.clearTimeout(this.blurTimer);
-    if (this.iframe) {
-      this.iframe.style.filter = '';
-      this.iframe.style.transition = '';
-    }
   }
 }

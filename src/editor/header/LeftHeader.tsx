@@ -327,11 +327,11 @@ export default function LeftHeader() {
           title="Detach panel"
           data-field-pane-detach
           onClick={() => {
-            setDetachedLeftPanel({ panelId: activeLeftPanel, expanded: false });
+            setDetachedLeftPanel({ panelId: activeLeftPanel, expanded: true });
             setLeftPaneOpen(false);
             trace.action('left-header:detach-pane', { panel: activeLeftPanel });
           }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
         >
           <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" width="15" height="15">
             <rect x="2" y="3" width="9" height="9" rx="1" />
@@ -349,7 +349,7 @@ export default function LeftHeader() {
             trace.action('left-header:collapse-pane');
             setLeftPaneOpen(false);
           }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)] focus-visible:outline-none"
           data-field-pane-collapse
         >
           <FieldGlyph behavior="generic"><svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">

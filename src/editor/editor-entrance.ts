@@ -4,7 +4,8 @@ export type EditorEntrancePhase =
   | 'left-surface'
   | 'left-rail'
   | 'right-surface'
-  | 'right-content';
+  | 'right-content'
+  | 'late-chrome';
 export type FieldDashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
 export interface EditorEntranceTargetSpec {
@@ -51,11 +52,13 @@ export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Obje
   { selector: '[data-workspace-island="left"][data-visible="false"]', role: 'left', phase: 'left-surface' },
   { selector: '[data-left-menu-rail][data-visible="true"]', role: 'left', phase: 'left-rail' },
   { selector: '[data-editor-panel="left-primary"][data-visible="true"]', role: 'left', phase: 'left-surface' },
-  { selector: '[data-workspace-left-restore][data-visible="true"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-workspace-left-header][data-visible="true"]', role: 'left', phase: 'late-chrome' },
+  { selector: '[data-workspace-left-restore][data-visible="true"]', role: 'left', phase: 'late-chrome' },
 
   { selector: '[data-workspace-island="right"]', role: 'right', phase: 'right-surface' },
   { selector: '[data-workspace-right-body]', role: 'right', phase: 'right-content' },
-  { selector: '[data-workspace-right-toggle][data-visible="true"]', role: 'right', phase: 'right-surface' },
+  { selector: '[data-workspace-right-header]', role: 'right', phase: 'late-chrome' },
+  { selector: '[data-workspace-right-toggle][data-visible="true"]', role: 'right', phase: 'late-chrome' },
 
   { selector: '#bottom-toolbar-container', role: 'bottom', phase: 'default' },
 ]);
@@ -127,6 +130,8 @@ export const EDITOR_EXIT_EASING = 'cubic-bezier(.42, 0, .78, .28)';
  * - bottom toolbar begins near the inspector spring, but not on the same beat
  */
 export const EDITOR_LEFT_RAIL_STAGGER_MS = 72;
+export const EDITOR_DIRECT_LATE_CHROME_DELAY_MS = 300;
+export const EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS = 410;
 
 export const EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS = EDITOR_EXIT_SIDE_DURATION_MS;
 export const EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS =
@@ -159,6 +164,11 @@ export function editorEntranceDelay(
   phase: EditorEntrancePhase = 'default',
   dashboardHandoff = false,
 ): number {
+  if (phase === 'late-chrome') {
+    return dashboardHandoff
+      ? EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS
+      : EDITOR_DIRECT_LATE_CHROME_DELAY_MS;
+  }
   const directLoadDelay = phase === 'left-rail'
     ? EDITOR_LEFT_RAIL_STAGGER_MS
     : role === 'bottom'
@@ -284,6 +294,7 @@ export function editorSpringKeyframes(
   role: EditorEntranceRole,
   startDistancePx: number,
   profile: Readonly<EditorSpringProfile> = editorSpringProfile(role),
+  phase: EditorEntrancePhase = 'default',
 ): Keyframe[] {
   const durationSeconds = profile.durationMs / 1000;
   const frames: Keyframe[] = [];
@@ -293,7 +304,9 @@ export function editorSpringKeyframes(
     const time = durationSeconds * offset;
     const unit = index === profile.samples - 1 ? 0 : springDisplacement(time, profile);
     const px = startDistancePx * unit;
-    const opacity = Math.min(1, Math.max(0.96, 1 - Math.max(0, unit) * 0.04));
+    const opacity = phase === 'late-chrome'
+      ? Math.min(1, offset / 0.58)
+      : Math.min(1, Math.max(0.96, 1 - Math.max(0, unit) * 0.04));
 
     frames.push({
       offset,

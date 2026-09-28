@@ -1,9 +1,12 @@
 // Persist workspace visibility and pane widths independently of the selected panel/tool.
 // field workspace chrome: visibility derives docked / floating / hidden presentation.
 import { atomWithStorage } from 'jotai/utils';
+import { atom } from 'jotai';
 
 export const leftPaneOpenAtom = atomWithStorage('revyme:prefs:leftPaneOpen', true, undefined, { getOnInit: true });
 export const rightPaneOpenAtom = atomWithStorage('revyme:prefs:rightPaneOpen', true, undefined, { getOnInit: true });
+export const rightPaneDetachedAtom = atomWithStorage('field:prefs:rightPaneDetached', false, undefined, { getOnInit: true });
+export const rightPaneDragOffsetAtom = atom({ x: 0, y: 0 });
 
 export const LEFT_RAIL_WIDTH = 52;
 export const DEFAULT_LEFT_CONTENT_WIDTH = 256;

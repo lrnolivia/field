@@ -6,6 +6,46 @@
   transition: transform 190ms cubic-bezier(.2, .8, .2, 1), opacity 150ms ease;
 }
 
+@keyframes field-toolbar-peek-wiggle {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(4px); }
+  65% { transform: translateY(-2px); }
+}
+
+.field-toolbar-panel-peek { animation: field-toolbar-peek-wiggle 700ms 430ms ease-in-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .field-toolbar-panel-peek { animation: none; }
+}
+
+/* The toolbar-wide button and SVG rules are sized for tool buttons. Menus
+   need their own card geometry and must contain the larger Insert previews. */
+#bottom-toolbar-container [data-toolbar-menu-tile] {
+  height: 96px;
+  min-height: 96px;
+}
+
+#bottom-toolbar-container [data-toolbar-menu-tile-icon] svg {
+  width: 32px;
+  height: 32px;
+}
+
+#bottom-toolbar-container [data-toolbar-menu-tile-icon] > :not(svg) {
+  max-width: 64px;
+  max-height: 48px;
+}
+
+#bottom-toolbar-container [data-field-toolbar-glyph="menu"] svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+#bottom-toolbar-container [data-field-toolbar-glyph="menu"] > :not(svg) {
+  max-width: 16px;
+  max-height: 16px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover > [data-field-toolbar-glyph] {
     transform: translateY(-1.5px) scale(1.12);

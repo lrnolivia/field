@@ -10,7 +10,7 @@
 // actual deploy + drives a fake-monotonic progress bar inside the
 // dropdown so the 25 s deploy doesn't feel dead.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, useAtomValue, useAtom } from 'jotai';
 import { exportDropdownOpenAtom } from '@/code/stores/editor-store';
@@ -18,7 +18,7 @@ import { PlayIcon } from '@/shared/icons';
 import { trace } from '@/shared/debug-trace';
 import ConfirmDialog from '@/design-system/ConfirmDialog';
 import { settingsOverlayOpenAtom, settingsSectionAtom, websiteMetaAtom } from '@/code/stores/website-settings-store';
-import { isComponentFileAtom } from '@/code/stores/store';
+import { isComponentFileAtom, selectedIdsAtom } from '@/code/stores/store';
 import { LiveDropdown } from './LiveDropdown';
 import { ExportDropdown, type ExportFormat } from './ExportDropdown';
 import ExportConfirmModal, { TRANSFORMATIVE_FORMATS } from '../ui/ExportConfirmModal';
@@ -28,7 +28,7 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 
@@ -43,9 +43,12 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const isViewer = useIsViewer();
   const isClosedSource = useIsClosedSource();
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
-  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const [rightDetached, setRightDetached] = useAtom(rightPaneDetachedAtom);
+  const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
+  const selectedCount = useAtomValue(selectedIdsAtom).length;
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth });
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
@@ -245,6 +248,30 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     trace.action('header:live-toggle');
   }, []);
 
+  const beginRightDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!rightDetached || event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startOffset = rightDragOffset;
+    document.documentElement.dataset.workspaceResizing = 'true';
+    const move = (next: PointerEvent) => {
+      const baseLeft = window.innerWidth - 24 - rightPaneWidth;
+      const x = Math.max(8 - baseLeft, Math.min(window.innerWidth - 8 - rightPaneWidth - baseLeft, startOffset.x + next.clientX - startX));
+      const y = Math.max(-62, Math.min(window.innerHeight - 170, startOffset.y + next.clientY - startY));
+      setRightDragOffset({ x, y });
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      delete document.documentElement.dataset.workspaceResizing;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop, { once: true });
+    window.addEventListener('pointercancel', stop, { once: true });
+  };
+
   return (
     <>
       {rightPaneOpen && (
@@ -256,8 +283,27 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             top: workspace.right.top,
             right: workspace.right.inset,
             isolation: 'isolate',
+            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
           }}
         >
+          {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
+            aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
+          <button type="button" data-field-right-pane-collapse aria-label="Collapse properties pane"
+            title="Collapse properties pane" onClick={() => setRightPaneOpen(false)}
+            className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
+            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
+            </svg>
+          </button>
+          <button type="button" data-field-right-pane-detach
+            aria-label={rightDetached ? 'Dock properties pane' : 'Detach properties pane'}
+            title={rightDetached ? 'Dock properties pane' : 'Detach properties pane'}
+            onClick={() => { setRightDetached(!rightDetached); setRightDragOffset({ x: 0, y: 0 }); }}
+            className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <rect x="2" y="3" width="9" height="9" rx="1" /><path d={rightDetached ? 'M8 2h5v5M13 2 8 7' : 'M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5'} />
+            </svg>
+          </button>
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
@@ -325,6 +371,26 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
               }}
             />
           </div>
+        </div>
+      )}
+      {!rightPaneOpen && !previewMode && (
+        <div data-workspace-right-toggle data-visible="true"
+          className="fixed right-2 top-2 z-[9999] flex h-11 w-[264px] items-center gap-2 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 shadow-[var(--shadow-lg)]">
+          <button type="button" aria-label="Expand properties pane" title="Expand properties pane"
+            onClick={() => setRightPaneOpen(true)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
+            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
+            </svg>
+          </button>
+          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] bg-[var(--bg-hover)] text-[11px] font-semibold text-[var(--text-secondary)]">D</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--text-primary)]">Design</span>
+          {selectedCount > 0 && <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-tertiary)]">{selectedCount} selected</span>}
+          <button type="button" aria-label="Detach properties pane" title="Detach properties pane"
+            onClick={() => { setRightDetached(true); setRightPaneOpen(true); setRightDragOffset({ x: 0, y: 0 }); }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+            <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2" y="3" width="9" height="9" rx="1" /><path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" /></svg>
+          </button>
         </div>
       )}
 

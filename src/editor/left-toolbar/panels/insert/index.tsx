@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { trace } from '@/shared/debug-trace';
 import { CATEGORIES, CREATIVE_CATEGORIES, type InsertCategory, type InsertItem } from '@/shared/insert-items/element-data';
@@ -454,6 +455,18 @@ export default function InsertOverlay() {
   trace.fn('InsertOverlay.render');
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [floatingInsertRect, setFloatingInsertRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const rect = document.querySelector('[data-floating-left-panel="insert"]')?.getBoundingClientRect() ?? null;
+      setFloatingInsertRect((previous) => previous?.left === rect?.left && previous?.top === rect?.top
+        && previous?.width === rect?.width && previous?.height === rect?.height ? previous : rect);
+    };
+    update();
+    window.addEventListener('pointermove', update);
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('pointermove', update); window.removeEventListener('resize', update); };
+  }, []);
   const setToolbarPanel = useSetAtom(toolbarPanelAtom);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -652,6 +665,10 @@ export default function InsertOverlay() {
   const activeCategoryData = activeCategory
     ? [...renderedCategories, ...CREATIVE_CATEGORIES, ...cmsCategories].find(c => c.id === activeCategory) ?? null
     : null;
+  const secondaryOpensLeft = !!floatingInsertRect && floatingInsertRect.right + SECONDARY_WIDTH + 8 > window.innerWidth;
+  const secondaryLeft = floatingInsertRect
+    ? secondaryOpensLeft ? Math.max(8, floatingInsertRect.left - SECONDARY_WIDTH) : floatingInsertRect.right
+    : MENU_WIDTH + SIDEBAR_WIDTH;
 
   // Sidebar category rows — the Insert / CMS / Creative groups below render
   // the exact same row markup, so they share this one helper.
@@ -772,7 +789,7 @@ export default function InsertOverlay() {
           search-only when nothing is hovered, hover-only when search
           is empty. Clearing both → portal closes. */}
       {(activeCategoryData || searchActive) && createPortal(
-        <div
+        <motion.div
           data-editor-panel="left-secondary"
           // z-[9999] is one above the bottom toolbar (z-[9998] in
           // editor/BottomToolbar.tsx). The old z-[5000] meant the
@@ -780,12 +797,16 @@ export default function InsertOverlay() {
           // — annoying when scanning shape / layout tiles that sit low
           // in the panel. Now the secondary sidebar covers the toolbar
           // along its full height while open.
-          className="fixed z-[9999] bg-[var(--bg-surface)] border-r border-[var(--border-light)] flex flex-col shadow-2xl"
+          className={`fixed bg-[var(--bg-surface)] border border-[var(--border-light)] flex min-h-0 flex-col overflow-hidden shadow-2xl ${floatingInsertRect ? 'z-[11001] rounded-r-[9px]' : 'z-[9999]'}`}
+          initial={{ opacity: 0, x: -14, scaleX: 0.96 }}
+          animate={{ opacity: 1, x: 0, scaleX: 1 }}
+          transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
           style={{
-            left: MENU_WIDTH + SIDEBAR_WIDTH,
-            top: 0,
-            width: SECONDARY_WIDTH,
-            height: '100vh',
+            left: secondaryLeft,
+            top: floatingInsertRect ? floatingInsertRect.top + 44 : 0,
+            width: Math.min(SECONDARY_WIDTH, window.innerWidth - secondaryLeft - 8),
+            height: floatingInsertRect ? Math.max(100, floatingInsertRect.height - 44) : '100vh',
+            transformOrigin: secondaryOpensLeft ? 'right center' : 'left center',
           }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
@@ -798,7 +819,7 @@ export default function InsertOverlay() {
               groups={searchResults}
             />
           )}
-        </div>,
+        </motion.div>,
         document.body,
       )}
     </div>

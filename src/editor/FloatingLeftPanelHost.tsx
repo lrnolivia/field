@@ -67,19 +67,17 @@ export default function FloatingLeftPanelHost() {
         <button type="button" aria-label={detached.expanded ? 'Collapse floating panel' : 'Expand floating panel'}
           title={detached.expanded ? 'Collapse' : 'Expand'}
           onClick={() => setDetached({ ...detached, expanded: !detached.expanded })}
-          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] hover:bg-[var(--button-secondary-bg)]">
           <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <path d={detached.expanded ? 'm5 7 3 3 3-3' : 'm5 9 3-3 3 3'} />
           </svg>
         </button>
         <button type="button" aria-label="Dock panel in left sidebar" title="Dock in sidebar" onClick={dock}
-          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
           <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2">
             <rect x="1.5" y="2" width="13" height="12" rx="1" /><path d="M5.5 2v12" />
           </svg>
         </button>
-        <button type="button" aria-label="Close floating panel" title="Close" onClick={() => setDetached(null)}
-          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">×</button>
       </div>
       {detached.expanded && <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>}
     </div>, document.body,

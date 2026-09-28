@@ -1,6 +1,7 @@
 export interface FieldProjectNavigationOptions {
   holdReveal?: boolean;
   replace?: boolean;
+  origin?: { x: number; y: number; width: number; height: number; thumbnail: string | null };
 }
 
 export interface FieldDashboardNavigationOptions {

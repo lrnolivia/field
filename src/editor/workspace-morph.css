@@ -1,4 +1,26 @@
 /* Collapse/restore uses the same restrained spatial grammar as chrome entry. */
+/* Keep header controls, including the logo, out of the very first editor frame.
+   The entrance coordinator takes ownership before the first painted frame. */
+html:not([data-editor-entrance-state]) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore][data-visible='true'],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle][data-visible='true']
+) {
+  opacity: 0;
+}
+
+/* The normal pane opacity transition must not interpolate the coordinator's
+   initial hidden state; that was exposing the header before its late beat. */
+html:is(:not([data-editor-entrance-state]), [data-editor-entrance-state='prepared'], [data-editor-entrance-state='waiting-canvas']) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle]
+) {
+  transition: none;
+}
+
 [data-workspace-island],
 [data-workspace-right-header],
 [data-workspace-right-body],
@@ -41,6 +63,10 @@ html[data-workspace-resizing='true'] :is(
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-editor-entrance-state]) :is(
+    [data-workspace-left-header], [data-workspace-left-restore][data-visible='true'],
+    [data-workspace-right-header], [data-workspace-right-toggle][data-visible='true']
+  ) { opacity: revert; }
   :is(
     [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
     [data-workspace-right-toggle], [data-workspace-left-header], [data-left-menu-rail],

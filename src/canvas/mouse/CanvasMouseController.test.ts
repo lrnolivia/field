@@ -22,6 +22,7 @@ vi.mock('@/shared/constants', async (importOriginal) => {
 
 // node-ops redirect helpers
 vi.mock('@/canvas/node-ops', () => ({
+  getContentRoot: vi.fn(() => document.createElement('div')),
   redirectToComponentInstance: vi.fn((id: string) => id),
   redirectToCollectionTemplate: vi.fn(() => null),
   redirectToFitTextWrapper: vi.fn(() => null),
@@ -45,6 +46,7 @@ vi.mock('@/shared/ghost-id', () => ({
 }));
 
 vi.mock('@/canvas/transform', () => ({
+  panToNode: vi.fn(),
   handleHandToolDown: vi.fn(() => false),
   handleHandToolMove: vi.fn(() => false),
   handleHandToolUp: vi.fn(),

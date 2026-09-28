@@ -55,11 +55,13 @@ export interface InsertCategory {
 // ─── Elements Category ─────────────────────────────────────────────────────
 
 const BASIC_ITEMS: InsertItem[] = [
+  { id: 'frame', name: 'Frame', iconKey: 'frame' },
+  { id: 'text', name: 'Text', iconKey: 'text' },
   { id: 'button', name: 'Button', iconKey: 'button' },
+  { id: 'image', name: 'Image', iconKey: 'image' },
 ];
 
 const MEDIA_ITEMS: InsertItem[] = [
-  { id: 'image', name: 'Image', iconKey: 'image' },
   { id: 'gallery', name: 'Gallery', iconKey: 'image' },
   { id: 'video', name: 'Video', iconKey: 'video' },
   { id: 'audio', name: 'Audio', iconKey: 'audio' },
@@ -81,7 +83,6 @@ const CARD_ITEMS: InsertItem[] = [
 ];
 
 const LAYOUT_ITEMS: InsertItem[] = [
-  { id: 'frame', name: 'Frame', iconKey: 'frame' },
   { id: 'column', name: 'Column', iconKey: 'column' },
   { id: 'row', name: 'Row', iconKey: 'row' },
   // Split Top removed — compound recipe (2-row with nested 2-col below)

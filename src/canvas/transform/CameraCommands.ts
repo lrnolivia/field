@@ -86,7 +86,7 @@ export function zoomTo100(): void {
   const { centerX, centerY } = getAvailableArea();
   const target = computeZoomTransform(t, 1, centerX, centerY);
   trace.fn('camera.zoomTo100');
-  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100);
+  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100, { focus: true });
 }
 
 /** Zoom to a specific scale, anchored at viewport center. Animated. */
@@ -96,7 +96,7 @@ export function zoomToScale(scale: number): void {
   const { centerX, centerY } = getAvailableArea();
   const target = computeZoomTransform(t, clamped, centerX, centerY);
   trace.fn('camera.zoomToScale', { scale: clamped });
-  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100);
+  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100, { focus: true });
 }
 
 // ─── Fit Commands ───────────────────────────────────────────────────────────
@@ -242,7 +242,7 @@ export function zoomToFitSelection(
 /**
  * Pan to center on a specific node. Keeps current zoom. Animated.
  */
-export function panToNode(_contentEl: HTMLElement, nodeId: string): void {
+export function panToNode(_contentEl: HTMLElement, nodeId: string, quickFocus = false): void {
   trace.fn('camera.panToNode', { nodeId });
   // `nodeId` is the data-node-id (already viewport-prefixed). Resolve via
   // bridge.getRect() — that path runs toParentSpace + adjustForTransformDelta
@@ -277,10 +277,11 @@ export function panToNode(_contentEl: HTMLElement, nodeId: string): void {
   const canvasCenterY = c.top + c.height / 2;
 
   const { centerX, centerY } = getAvailableArea();
-  const x = centerX - canvasCenterX * t.scale;
-  const y = centerY - canvasCenterY * t.scale;
+  const targetScale = quickFocus ? Math.min(2.5, t.scale * 1.28) : t.scale;
+  const x = centerX - canvasCenterX * targetScale;
+  const y = centerY - canvasCenterY * targetScale;
 
-  animateCanvasTo(x, y, t.scale, ANIM_PAN_TO_NODE);
+  animateCanvasTo(x, y, targetScale, quickFocus ? 280 : ANIM_PAN_TO_NODE, { focus: quickFocus });
 }
 
 /**
@@ -496,6 +497,6 @@ function fitBoundsInView(
   if (duration <= 0) {
     moveCanvasTo(x, y, targetScale);
   } else {
-    animateCanvasTo(x, y, targetScale, duration);
+    animateCanvasTo(x, y, targetScale, duration, { focus: true });
   }
 }

@@ -154,6 +154,7 @@ export default function ProjectCard(props: Props) {
     >
       <button
         className="field-project-preview"
+        data-project-id={project.id}
         type="button"
         onClick={trashed ? undefined : props.onOpen}
         disabled={trashed}

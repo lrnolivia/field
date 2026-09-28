@@ -34,6 +34,7 @@ interface ImageSearchModalProps {
   /** Existing consumers stay single-select by default. Gallery opts into multiple. */
   selectionMode?: 'single' | 'multiple';
   onSelectMany?: (urls: string[]) => void;
+  compact?: boolean;
 }
 
 interface UnsplashImage {
@@ -57,7 +58,7 @@ interface Asset3D {
 
 type Tab = 'unsplash' | 'upload' | 'create' | '3d';
 
-export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany }: ImageSearchModalProps) {
+export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false }: ImageSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnsplashImage[]>([]);
@@ -279,11 +280,10 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
     }
   };
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Media" width={896}>
-      <div className="p-4 space-y-3 min-h-[500px]">
+  const content = (
+      <div className={`p-4 space-y-3 ${compact ? 'min-h-0' : 'min-h-[500px]'}`}>
         {/* Header: tabs + search */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             {/* Tabs */}
             {([...((HAS_UNSPLASH ? ['unsplash', 'upload', 'create'] : ['upload', 'create']) as Tab[]), ...(isAdmin ? ['3d' as Tab] : [])]).map(t => (
@@ -332,7 +332,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
 
         {/* ─── Unsplash Tab ─── */}
         {tab === 'unsplash' && (
-          <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+          <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-3 max-h-[260px] min-h-[180px]' : 'grid-cols-6 max-h-[500px] min-h-[400px]'}`}>
             {loading && Array.from({ length: 24 }).map((_, i) => (
               <div key={i} className="aspect-square cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
             ))}
@@ -371,7 +371,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+            <div className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-3 max-h-[260px] min-h-[180px]' : 'grid-cols-6 max-h-[500px] min-h-[400px]'}`}>
               {/* Upload drop zone — routes through `backend.uploadAsset`
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
@@ -508,6 +508,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
           </div>
         )}
       </div>
-    </Modal>
   );
+  if (!isOpen) return null;
+  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Media" width={896}>{content}</Modal>;
 }

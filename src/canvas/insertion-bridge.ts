@@ -123,6 +123,9 @@ export function insertNodes(nodes: ClipboardNode[], opts: InsertOptions = {}): s
   if (_refs && result.createdIds.length > 0) {
     _refs.setSelectedIds(result.createdIds);
   }
+  if (result.createdIds.length > 0) {
+    window.dispatchEvent(new CustomEvent('field:insert-complete', { detail: { ids: result.createdIds } }));
+  }
   trace.action('insertion-bridge:insert', {
     count: result.createdIds.length,
     rule: result.message,

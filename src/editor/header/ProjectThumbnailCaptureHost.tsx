@@ -32,7 +32,7 @@ import { shouldScheduleThumbnailCapture } from './project-thumbnail-capture-stat
 
 const UPDATE_BATCH_MS = 140;
 const CAPTURE_AFTER_SAVE_MS = 120;
-const CAPTURE_WATCHDOG_MS = 5000;
+const CAPTURE_WATCHDOG_MS = 12000;
 const READY_PROBE_MS = 250;
 const STANDBY_IDLE_MS = 8000;
 const DESTROY_IDLE_MS = 90000;
@@ -345,7 +345,9 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       })
       .catch((error) => {
         if (cancelled) return;
-        setNeedsInitialCapture(false);
+        // A failed freshness probe must not strand a missing dashboard card.
+        // Capture can still upload once the editor has a saved first paint.
+        setNeedsInitialCapture(true);
         trace.error('dashboard-thumbnail:freshness-failed', { projectId, error: String(error) });
       });
     return () => { cancelled = true; };

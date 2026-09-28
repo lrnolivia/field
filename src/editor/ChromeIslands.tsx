@@ -3,7 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
   WORKSPACE_FLOAT_INSET,
@@ -33,9 +33,11 @@ function floatingStyle(side: WorkspaceSideLayout) {
 export default function ChromeIslands() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const rightDetached = useAtomValue(rightPaneDetachedAtom);
+  const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth });
+  const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
 
   return (
     <>
@@ -68,6 +70,7 @@ export default function ChromeIslands() {
             top: layout.right.top,
             width: layout.right.width,
             height: `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),
           }}

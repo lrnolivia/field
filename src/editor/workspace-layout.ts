@@ -37,6 +37,7 @@ export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
 export interface WorkspacePaneWidths {
   leftContentWidth?: number;
   rightPaneWidth?: number;
+  rightDetached?: boolean;
 }
 function side(
   open: boolean,
@@ -82,7 +83,9 @@ export function deriveWorkspaceLayout(
   const leftContentWidth = clampLeftContentWidth(widths.leftContentWidth ?? DEFAULT_LEFT_CONTENT_WIDTH);
   const rightPaneWidth = clampRightPaneWidth(widths.rightPaneWidth ?? DEFAULT_RIGHT_PANE_WIDTH);
   const left = side(leftOpen, rightOpen, LEFT_RAIL_WIDTH + leftContentWidth);
-  const right = side(rightOpen, leftOpen, rightPaneWidth);
+  const right = rightOpen && widths.rightDetached
+    ? { presentation: 'floating' as const, inset: 24, top: 70, bottom: 24, width: rightPaneWidth }
+    : side(rightOpen, leftOpen, rightPaneWidth);
 
   return {
     left,
@@ -90,7 +93,7 @@ export function deriveWorkspaceLayout(
     cameraInsets: {
       left: leftOpen ? left.width + left.inset : 0,
       top: 0,
-      right: rightOpen ? right.width + right.inset : 0,
+      right: rightOpen && !widths.rightDetached ? right.width + right.inset : 0,
       // Local overlays (bottom toolbar / restore controls) do not consume an
       // entire viewport edge. Full-height side chrome is the only scalar-safe
       // geometry represented by CameraCommands today.

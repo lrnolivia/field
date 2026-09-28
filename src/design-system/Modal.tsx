@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FIELD_SURFACE_Z } from '@/shared/field-surface-elevation';
+import ModalCloseButton from './ModalCloseButton';
 
 interface ModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/25"
             style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             onClick={dismissible ? onClose : undefined}
           />
@@ -95,7 +96,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="relative cut-corners cut-lg shadow-2xl overflow-hidden bg-[var(--bg-surface)] flex flex-col max-h-[80vh]"
-            style={{ width }}
+            style={{ width: `min(${width}px, calc(100vw - 32px))` }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -104,14 +105,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
               <div className="flex items-center gap-1">
                 {headerAction}
                 {!hideClose && dismissible && (
-                  <button
-                    onClick={onClose}
-                    className="p-1 hover:bg-[var(--bg-hover)] cut-corners transition-colors cursor-pointer"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                  <ModalCloseButton onClick={onClose} />
                 )}
               </div>
             </div>

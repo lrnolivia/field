@@ -169,6 +169,12 @@ const TOOLBAR_ITEMS: Record<string, ToolbarItem> = {
     defaultStyles: { width: '200px', height: '200px', backgroundColor: '#ffffff' },
     ghostSize: { width: 200, height: 200 },
   },
+  text: {
+    id: 'text', elementType: 'span', name: 'Text',
+    defaultStyles: { display: 'inline-block', fontSize: '16px', lineHeight: '1.4', color: '#111111' },
+    textContent: 'Text',
+    ghostSize: { width: 48, height: 24 },
+  },
   column: {
     id: 'column', elementType: 'div',
     defaultStyles: { display: 'flex', flexDirection: 'column', gap: '8px', width: '100px', height: '250px', padding: '16px', backgroundColor: '#d5d5d5' },

@@ -54,7 +54,7 @@ function prepareEntranceTarget(
   element.style.translate = role === 'bottom'
     ? `0 ${startDistancePx}px`
     : `${startDistancePx}px 0`;
-  element.style.opacity = '0.96';
+  element.style.opacity = prepared.phase === 'late-chrome' ? '0' : '0.96';
   element.style.pointerEvents = 'none';
   element.style.willChange = prepared.previous.willChange
     ? `${prepared.previous.willChange}, translate, opacity`
@@ -232,7 +232,7 @@ export default function EditorEntranceCoordinator() {
             useDashboardHandoffTiming,
           );
           const animation = target.element.animate(
-            editorSpringKeyframes(target.role, distances[target.role], profile),
+            editorSpringKeyframes(target.role, distances[target.role], profile, target.phase),
             {
               duration: profile.durationMs,
               easing: 'linear',

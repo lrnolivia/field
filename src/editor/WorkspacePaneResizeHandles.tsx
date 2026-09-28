@@ -7,6 +7,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
   leftPaneOpenAtom,
   rightPaneOpenAtom,
+  rightPaneDetachedAtom,
   leftContentWidthAtom,
   rightPaneWidthAtom,
   clampLeftContentWidth,
@@ -22,6 +23,7 @@ interface Props {
 export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const [leftContentWidth, setLeftContentWidth] = useAtom(leftContentWidthAtom);
   const [rightPaneWidth, setRightPaneWidth] = useAtom(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth });
@@ -82,7 +84,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border-focus)] opacity-0 transition-opacity group-hover:opacity-100" />
         </button>
       )}
-      {rightOpen && (
+      {rightOpen && !rightDetached && (
         <button
           type="button"
           data-workspace-resize="right"

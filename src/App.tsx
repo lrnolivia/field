@@ -50,7 +50,7 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
@@ -83,10 +83,12 @@ interface AppProps {
 export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const rightDetached = useAtomValue(rightPaneDetachedAtom);
+  const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth });
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
   const cameraInsets = workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
 
@@ -314,6 +316,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
               height: workspaceBodyHeightCss(workspaceLayout.right),
+              transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
             }}
@@ -321,25 +324,6 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             <RightSidebar />
           </div>
         )}
-        {!previewMode && <button
-          type="button"
-          data-workspace-right-toggle
-          data-visible={rightPaneOpen ? 'false' : 'true'}
-          aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
-          title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
-          onClick={() => setRightPaneOpen(v => !v)}
-          className="fixed z-[5001] w-6 h-6 flex items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-          style={{
-            top: rightPaneOpen ? workspaceLayout.right.top + 60 : 12,
-            right: rightPaneOpen ? workspaceLayout.right.inset + workspaceLayout.right.width + 8 : 8,
-          }}
-        >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="14" height="14">
-            <rect x="1.5" y="2" width="13" height="12" rx="1" />
-            <path d="M10.5 2v12" />
-            <path d={rightPaneOpen ? 'm6.5 6 2 2-2 2' : 'm8.5 6-2 2 2 2'} />
-          </svg>
-        </button>}
         {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,
             design components and icon sets alike: the surface tells it what
             a bare request is about (an icon set: icons in the set). */}

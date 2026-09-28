@@ -15,6 +15,8 @@ import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { activeLocaleAtom, isDefaultLocaleAtom } from '@/code/stores/locale-store';
 import { getContentRoot, updateNodeStyles, setStyleContext, isPrimaryViewport, flushAndForceStructuralRender, redirectToFitTextWrapper } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
+import { panToNode } from '@/canvas/transform';
+import { getViewportPrefix } from '@/canvas/node-ops';
 import { renameVariant } from '@/code/variants/variant-ops';
 import { toggleLock } from '@/canvas/commands';
 import { queueMutation } from '@/code/mutation/mutation-queue';
@@ -1047,17 +1049,16 @@ export default function LayersPanel() {
     const isDouble = now - last.time < 350 && last.layerId === layerId;
     lastLayerClickRef.current = { time: now, layerId };
 
-    // Viewers get single-click select only — double-click rename is an
-    // edit affordance, so the double-click branch is skipped entirely.
-    if (isDouble && nodeId && !isViewer) {
-      // Double click → start rename (use layerId so only THIS viewport's row shows input)
-      setRenamingId(layerId);
+    if (isDouble && nodeId) {
+      handleSelect(layerId, nodeId);
+      const content = getContentRoot();
+      if (content) panToNode(content, `${getViewportPrefix(vpIdFromLayerId(layerId) || 'desktop')}${nodeId}`, true);
       return;
     }
 
     // Single click → select
     handleSelect(layerId, nodeId);
-  }, [handleSelect, handleRangeSelect, setRenamingId, nodes, isViewer]);
+  }, [handleSelect, handleRangeSelect, nodes]);
 
   const handleDoubleClickLayout = useCallback((node: CanvasNode) => {
     if (node.fromLayout) {

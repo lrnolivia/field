@@ -4,6 +4,8 @@ import {
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
   DIRECT_LOAD_CHROME_STAGGER_MS,
+  EDITOR_DIRECT_LATE_CHROME_DELAY_MS,
+  EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS,
   EDITOR_BOTTOM_DELAY_MS,
   EDITOR_BOTTOM_SPRING,
   EDITOR_CHROME_EXIT_REQUEST_EVENT,
@@ -37,8 +39,10 @@ describe('editor chrome choreography', () => {
       <div data-workspace-island="left" data-visible="true"></div>
       <div data-left-menu-rail data-visible="true"></div>
       <div data-editor-panel="left-primary" data-visible="true"></div>
+      <div data-workspace-left-header data-visible="true"></div>
       <div data-workspace-island="right"></div>
       <div data-workspace-right-body></div>
+      <div data-workspace-right-header></div>
       <div id="bottom-toolbar-container"></div>
       <div data-canvas-root></div>
     `;
@@ -48,8 +52,10 @@ describe('editor chrome choreography', () => {
       { role: 'left', phase: 'left-surface' },
       { role: 'left', phase: 'left-rail' },
       { role: 'left', phase: 'left-surface' },
+      { role: 'left', phase: 'late-chrome' },
       { role: 'right', phase: 'right-surface' },
       { role: 'right', phase: 'right-content' },
+      { role: 'right', phase: 'late-chrome' },
       { role: 'bottom', phase: 'default' },
     ]);
     expect(targets.some(({ element }) => element.dataset.workspaceIsland === 'left')).toBe(true);
@@ -75,6 +81,17 @@ describe('editor chrome choreography', () => {
       (element.hasAttribute('data-workspace-right-toggle') ? 'right-toggle' : undefined) ??
       element.id,
     )).toEqual(['left', 'left-restore', 'right-toggle', 'bottom-toolbar-container']);
+    expect(targets.filter(({ phase }) => phase === 'late-chrome')).toHaveLength(2);
+  });
+
+  it('reveals header controls and logo after the panel surfaces', () => {
+    expect(editorEntranceDelay('left', 'late-chrome')).toBe(EDITOR_DIRECT_LATE_CHROME_DELAY_MS);
+    expect(editorEntranceDelay('right', 'late-chrome', true)).toBe(EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS);
+    expect(EDITOR_DIRECT_LATE_CHROME_DELAY_MS).toBeGreaterThan(editorEntranceDelay('left', 'left-rail'));
+    expect(EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS).toBeGreaterThan(editorEntranceDelay('right', 'right-content', true));
+    const frames = editorSpringKeyframes('left', -320, EDITOR_SIDE_SPRING, 'late-chrome');
+    expect(frames[0].opacity).toBe(0);
+    expect(frames[frames.length - 1]?.opacity).toBe(1);
   });
 
   it('uses one shared travel distance for every surface in the same pane', () => {

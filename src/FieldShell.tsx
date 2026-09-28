@@ -99,6 +99,39 @@ export default function FieldShell() {
   const dashboardLayerRef = useRef<HTMLDivElement>(null);
   const dashboardAnimationsRef = useRef<Array<{ element: HTMLElement; animation: Animation }>>([]);
   const dashboardMotionEpochRef = useRef(0);
+  const openingOriginRef = useRef<FieldProjectNavigationOptions['origin']>(undefined);
+  const openingOverlayRef = useRef<HTMLElement | null>(null);
+
+  const animateThumbnailToCanvas = useCallback(() => {
+    const origin = openingOriginRef.current;
+    openingOriginRef.current = undefined;
+    openingOverlayRef.current?.remove();
+    openingOverlayRef.current = null;
+    if (!origin || !origin.thumbnail || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'field-project-opening-overlay';
+    overlay.style.backgroundImage = `url(${JSON.stringify(origin.thumbnail)})`;
+    overlay.style.left = `${origin.x}px`;
+    overlay.style.top = `${origin.y}px`;
+    overlay.style.width = `${origin.width}px`;
+    overlay.style.height = `${origin.height}px`;
+    document.body.append(overlay);
+    openingOverlayRef.current = overlay;
+    const dx = -origin.x;
+    const dy = -origin.y;
+    const scaleX = window.innerWidth / Math.max(1, origin.width);
+    const scaleY = window.innerHeight / Math.max(1, origin.height);
+    const animation = overlay.animate([
+      { offset: 0, transform: 'translate3d(0,0,0) scale(1,1)', opacity: 1, filter: 'blur(0px)' },
+      { offset: .48, transform: `translate3d(${dx * .55}px,${dy * .55}px,0) scale(${1 + (scaleX - 1) * .55},${1 + (scaleY - 1) * .55})`, opacity: .94, filter: 'blur(9px)' },
+      { offset: 1, transform: `translate3d(${dx}px,${dy}px,0) scale(${scaleX},${scaleY})`, opacity: 0, filter: 'blur(22px)' },
+    ], { duration: 480, easing: 'cubic-bezier(.22,.68,.22,1)', fill: 'forwards' });
+    void animation.finished.catch(() => undefined).then(() => {
+      overlay.remove();
+      if (openingOverlayRef.current === overlay) openingOverlayRef.current = null;
+    });
+  }, []);
 
   const setDashboardLayerState = useCallback((state: DashboardLayerState) => {
     dashboardStateRef.current = state;
@@ -201,8 +234,9 @@ export default function FieldShell() {
   const maybeRevealProject = useCallback((id: string) => {
     if (builderReadyIdRef.current !== id) return;
     if (!revealRequestedRef.current || revealHeldRef.current) return;
+    animateThumbnailToCanvas();
     void hideDashboardLayer();
-  }, [hideDashboardLayer]);
+  }, [animateThumbnailToCanvas, hideDashboardLayer]);
 
   const openProject = useCallback(async (
     id: string,
@@ -215,6 +249,7 @@ export default function FieldShell() {
 
     revealHeldRef.current = Boolean(options.holdReveal);
     revealRequestedRef.current = !options.holdReveal;
+    openingOriginRef.current = options.origin;
 
     if (current !== projectId) {
       void showDashboardLayer();
@@ -247,6 +282,9 @@ export default function FieldShell() {
   ): Promise<void> => {
     revealHeldRef.current = false;
     revealRequestedRef.current = false;
+    openingOriginRef.current = undefined;
+    openingOverlayRef.current?.remove();
+    openingOverlayRef.current = null;
 
     let editorExitPromise: Promise<void> | null = null;
     if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
@@ -318,7 +356,10 @@ export default function FieldShell() {
     return () => builderLayer.removeAttribute('inert');
   }, [dashboardState]);
 
-  useEffect(() => () => cancelDashboardMotion(false), [cancelDashboardMotion]);
+  useEffect(() => () => {
+    cancelDashboardMotion(false);
+    openingOverlayRef.current?.remove();
+  }, [cancelDashboardMotion]);
 
   const onCanvasReady = useCallback((id: string) => {
     if (builderIdRef.current !== id) return;

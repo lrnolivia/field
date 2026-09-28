@@ -1672,6 +1672,7 @@ function CollectionFieldIcon() {
 export const ELEMENT_ICON_MAP: Record<string, React.FC> = {
   // Basic
   frame: FrameIcon,
+  text: () => <svg viewBox="0 0 24 24" className="h-8 w-8 text-[var(--text-secondary)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 5h16M12 5v14M8 19h8" /></svg>,
   sectionBlueprint: SectionBlueprintIcon,
   column: ColumnIcon,
   row: RowIcon,

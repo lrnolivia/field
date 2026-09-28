@@ -12,6 +12,19 @@
   inset: 0;
 }
 
+.field-project-opening-overlay {
+  position: fixed;
+  z-index: 150001;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: top left;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-tertiary);
+  background-size: cover;
+  background-position: top center;
+  will-change: transform, filter, opacity;
+}
+
 .field-shell-builder {
   z-index: 0;
 }
