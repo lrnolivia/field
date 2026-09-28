@@ -1,9 +1,10 @@
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from './detached-left-panel-store';
-import { dockedRailCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceModeAtom } from './workspace-mode-store';
+import { compactPanelOpenAtom, dockedRailCollapsedAtom, floatingInspectorVisibleAtom, floatingLeftHiddenAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { selectedIdsAtom } from '@/code/stores/store';
 
 describe('workspace mode', () => {
   it('moves both sides together through docked, floating, and compact', () => {
@@ -30,11 +31,19 @@ describe('workspace mode', () => {
     expect(store.get(detachedLeftPanelAtom)).toBeNull();
   });
 
-  it('hides the floating rail and keeps docked rail compaction independent', () => {
+  it('keeps the floating rail persistent until auto-hide and compact reveal click', () => {
     const store = createStore();
     store.set(setWorkspaceModeAtom, 'floating');
+    expect(store.get(leftRailVisibleAtom)).toBe(true);
+    store.set(floatingLeftHiddenAtom, true);
+    expect(store.get(leftRailVisibleAtom)).toBe(false);
+    store.set(workspaceAutoHideAtom, false);
+    expect(store.get(leftRailVisibleAtom)).toBe(true);
+    store.set(workspaceAutoHideAtom, true);
+    store.set(setWorkspaceModeAtom, 'compact');
     expect(store.get(leftRailVisibleAtom)).toBe(false);
     store.set(railRevealedAtom, true);
+    store.set(compactPanelOpenAtom, true);
     expect(store.get(leftRailVisibleAtom)).toBe(true);
     store.set(setWorkspaceModeAtom, 'docked');
     expect(store.get(leftRailVisibleAtom)).toBe(true);
@@ -43,6 +52,28 @@ describe('workspace mode', () => {
     expect(store.get(rightPaneOpenAtom)).toBe(true);
     store.set(railRevealedAtom, true);
     expect(store.get(leftRailVisibleAtom)).toBe(true);
+  });
+
+  it('auto-shows the floating inspector for a selection', () => {
+    const store = createStore();
+    store.set(setWorkspaceModeAtom, 'floating');
+    expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
+    store.set(selectedIdsAtom, ['shape-1']);
+    expect(store.get(floatingInspectorVisibleAtom)).toBe(true);
+    store.set(selectedIdsAtom, []);
+    expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
+  });
+
+  it('reveals the Inspector temporarily without leaving Compact mode', () => {
+    const store = createStore();
+    store.set(setWorkspaceModeAtom, 'compact');
+    store.set(compactInspectorOpenAtom, true);
+    expect(store.get(workspaceModeAtom)).toBe('compact');
+    expect(store.get(leftPaneOpenAtom)).toBe(false);
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
+    expect(store.get(rightPaneDetachedAtom)).toBe(true);
+    store.set(compactInspectorOpenAtom, false);
+    expect(store.get(rightPaneOpenAtom)).toBe(false);
   });
 
   it('cannot restore contradictory legacy pane flags', () => {

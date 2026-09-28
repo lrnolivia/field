@@ -4,7 +4,7 @@
 import { keyboard } from './KeyboardManager';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import {
-  setSpaceBarDown,
+  setSpaceBarDown, panToNode,
   zoomIn, zoomOut, zoomTo100, zoomToFit, zoomToFitSelection,
 } from './transform';
 import { cancelFrameCreation } from './creators/FrameCreator';
@@ -14,7 +14,7 @@ import {
   deleteNode, toggleLock, toggleVisibility, wrapInFrame, wrapInLayout, unfoldChildren,
   groupSelection, ungroupSelection, duplicateSelection,
 } from './commands';
-import { getContentRoot } from './node-ops';
+import { getContentRoot, getViewportPrefix } from './node-ops';
 import { getCanvasBridge } from './canvas-bridge';
 import { undo, redo } from '../code/mutation/history';
 import { copyNodes } from '../code/features/paste-engine';
@@ -45,6 +45,7 @@ import { createAndOpenProject } from '../editor/header/menu-builders';
 import { nudgeSelection, flushPendingNudge, type NudgeDirection } from './arrow-nudge';
 import { selectAllPageNodeIds } from './selection/select-all';
 import { interactingViewportIdAtom } from '../code/stores/viewport-store';
+import { hoveredNodeIdAtom, hoveredViewportIdAtom } from '../code/stores/store';
 
 
 export interface ShortcutRefs {
@@ -200,6 +201,17 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     const el = contentRef.current; if (el) zoomToFitSelection(el, selectedIdRef.current ? [selectedIdRef.current] : []);
   }}));
   cleanups.push(keyboard.register({ key: ['3', '#'], shift: true, label: 'Zoom to 100%', category: 'zoom', handler: () => zoomTo100() }));
+  cleanups.push(keyboard.register({ key: 'c', label: 'Center focused object', category: 'zoom', handler: () => {
+    const content = contentRef.current;
+    if (!content) return;
+    const store = getDefaultStore();
+    const selected = selectedIdRef.current;
+    const hovered = store.get(hoveredNodeIdAtom);
+    const id = selected || hovered;
+    if (!id) return;
+    const vpId = selected ? store.get(interactingViewportIdAtom) : store.get(hoveredViewportIdAtom);
+    panToNode(content, `${getViewportPrefix(vpId)}${id}`, true);
+  }}));
 
   // ─── Project lifecycle ───────────────────────────────────────────
   // Ctrl+Alt+N matches the File → New project menu shortcut. Goes

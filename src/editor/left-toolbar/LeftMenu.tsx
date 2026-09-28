@@ -7,9 +7,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FieldGlyph, type FieldGlyphBehavior } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom, floatingLeftHeightAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
-import { dockedRailCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { compactPanelOpenAtom, dockedRailCollapsedAtom, floatingLeftHiddenAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
@@ -128,14 +128,18 @@ const MenuButton = React.memo(function MenuButton({
 export default function LeftMenu() {
   const activePanel = useAtomValue(leftPanelAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
+  const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const [dockedRailCollapsed, setDockedRailCollapsed] = useAtom(dockedRailCollapsedAtom);
   const setRailRevealed = useSetAtom(railRevealedAtom);
+  const setFloatingLeftHidden = useSetAtom(floatingLeftHiddenAtom);
+  const setCompactPanelOpen = useSetAtom(compactPanelOpenAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const setLeftDetached = useSetAtom(detachedLeftPanelAtom);
   const collapsedWidth = useAtomValue(leftCollapsedWidthAtom);
+  const floatingLeftHeight = useAtomValue(floatingLeftHeightAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
@@ -166,19 +170,18 @@ export default function LeftMenu() {
   const inOverlay = componentEditorOpen || pluginEditorOpen || cmsEditorOpen;
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const openRailPanel = useCallback((id: Exclude<LeftPanelId, null>) => {
-    if (workspaceMode === 'docked' && activePanel === id) {
-      setDockedRailCollapsed(true);
-      setRailRevealed(false);
-      return;
-    }
+    if (workspaceMode === 'docked' && activePanel === id) return;
     setLeftPanel(id);
-    if (workspaceMode === 'floating' && id !== 'vibe') {
+    if (workspaceMode === 'compact' && id !== 'vibe') {
+      setCompactPanelOpen(true);
+      setRailRevealed(true);
+    } else if (workspaceMode === 'floating' && id !== 'vibe') {
       setLeftDetached({ panelId: id, expanded: true });
-      setRailRevealed(false);
-    } else {
+      setFloatingLeftHidden(false);
+    } else if (workspaceMode !== 'docked') {
       setWorkspaceMode('docked');
     }
-  }, [activePanel, setDockedRailCollapsed, setLeftDetached, setLeftPanel, setRailRevealed, setWorkspaceMode, workspaceMode]);
+  }, [activePanel, setCompactPanelOpen, setFloatingLeftHidden, setLeftDetached, setLeftPanel, setRailRevealed, setWorkspaceMode, workspaceMode]);
   useEffect(() => {
     if (inOverlay && activePanel === 'vibe') setLeftPanel(DEFAULT_LEFT_PANEL);
   }, [inOverlay, activePanel, setLeftPanel]);
@@ -233,15 +236,29 @@ export default function LeftMenu() {
     suppressedKey,
   };
 
-  const railCanHide = workspaceMode === 'floating' || (workspaceMode === 'docked' && dockedRailCollapsed);
+  const railCanHide = workspaceMode === 'compact' || (workspaceMode === 'floating' && autoHide) || (workspaceMode === 'docked' && dockedRailCollapsed);
+  const railBottom = 60 + Math.min(floatingLeftHeight, window.innerHeight - 68);
   return (
     <>
     {railCanHide && <button type="button" data-left-rail-handle
       aria-label={railVisible ? 'Hide left toolbar' : 'Reveal left toolbar'}
       title={railVisible ? 'Hide toolbar' : 'Reveal toolbar'}
-      onPointerEnter={() => setRailRevealed(true)}
-      onClick={() => setRailRevealed(true)}
-      className="fixed left-0 top-[72px] z-[10002] flex h-12 w-3 items-center justify-center rounded-r-[5px] border border-l-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width] hover:w-5"
+      onPointerEnter={workspaceMode === 'docked' ? () => setRailRevealed(true) : undefined}
+      onClick={() => {
+        if (workspaceMode === 'floating') setFloatingLeftHidden(railVisible);
+        else if (workspaceMode === 'compact') {
+          setRailRevealed(!railVisible);
+          setCompactPanelOpen(!railVisible);
+        } else {
+          setRailRevealed(true);
+        }
+      }}
+      className={`fixed z-[10002] flex items-center justify-center border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,left] ${railVisible ? 'h-7 w-7 rounded-[5px] hover:bg-[var(--bg-hover)]' : 'h-10 w-3 rounded-r-[5px] border-l-0 hover:w-5'}`}
+      style={{
+        left: railVisible ? (leftPaneOpen ? workspace.left.inset : 8) + (leftPaneOpen ? 52 : collapsedWidth) / 2 - 14 : 0,
+        top: leftPaneOpen ? undefined : railBottom - (railVisible ? 68 : 74),
+        bottom: leftPaneOpen ? (railVisible ? 40 : 48) : undefined,
+      }}
     ><svg aria-hidden viewBox="0 0 8 16" width="7" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><path d={railVisible ? 'm5 3-3 5 3 5' : 'm2 3 3 5-3 5'} /></svg></button>}
     <div
       data-left-menu-rail
@@ -252,8 +269,8 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: leftPaneOpen ? workspace.left.inset : 8, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : 52, width: leftPaneOpen ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : 'calc(100vh - 60px)', willChange: 'transform', isolation: 'isolate', paddingTop: 10 }}
-      onPointerLeave={railCanHide ? () => setRailRevealed(false) : undefined}
+      style={{ left: leftPaneOpen ? workspace.left.inset : 8, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : 60, width: leftPaneOpen ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : Math.min(floatingLeftHeight, window.innerHeight - 68), willChange: 'transform', isolation: 'isolate', paddingTop: 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease' }}
+      onPointerLeave={workspaceMode === 'docked' && railCanHide ? () => setRailRevealed(false) : undefined}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
@@ -261,12 +278,12 @@ export default function LeftMenu() {
       {workspaceMode === 'docked' && !dockedRailCollapsed && <button type="button"
         aria-label="Compact left toolbar" title="Compact left toolbar"
         onClick={() => { setDockedRailCollapsed(true); setRailRevealed(false); }}
-        className="absolute bottom-3 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        className="absolute bottom-20 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
       ><svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2v12M11 4 7 8l4 4" /></svg></button>}
       {workspaceMode === 'docked' && dockedRailCollapsed && railVisible && <button type="button"
         aria-label="Keep left toolbar visible" title="Keep toolbar visible"
         onClick={() => { setDockedRailCollapsed(false); setRailRevealed(false); }}
-        className="absolute bottom-3 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        className="absolute bottom-20 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
       ><svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2v12M6 4l4 4-4 4" /></svg></button>}
 
       {/* Top section */}

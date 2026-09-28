@@ -6,6 +6,8 @@ import { nextFrames } from '@/shared/dom-utils';
 import { getCanvasRenderer } from './CanvasRenderer';
 import { finishPendingRestore } from '@/code/mutation/history';
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
+import { workspaceAutoHideAtom, workspaceModeAtom, floatingLeftHiddenAtom, railRevealedAtom, compactPanelOpenAtom, floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom } from '@/editor/workspace-mode-store';
+import { compactInspectorOpenAtom } from '@/code/stores/workspace-panels-store';
 import { codeAtom, nodesAtom, selectedNodeAtom, selectedIdsAtom, hoveredIdAtom, hoveredNodeIdAtom, hoveredViewportIdAtom, canvasInteractingAtom, mapItemIndexAtom, updatingFromCanvasAtom, marqueeViewportSpreadAtom, getNodesSnapshot, getCachedNodesMap } from '../code/stores/store';
 import type { CanvasNode } from '../code/parsing/parser';
 import { activeFilePathAtom, componentBreadcrumbAtom, isComponentFilePath, isIconSetFilePath } from '../code/project/active-file-store';
@@ -1306,7 +1308,21 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       // canvas viewport so cursors stay aligned with what each user
       // is actually editing.
       data-canvas-root=""
-      onMouseDown={e => mouseControllerRef.current?.handleMouseDown(e.nativeEvent)}
+      onMouseDown={e => {
+        if (jotaiStore.get(workspaceAutoHideAtom)) {
+          const mode = jotaiStore.get(workspaceModeAtom);
+          if (mode === 'floating') {
+            jotaiStore.set(floatingLeftHiddenAtom, true);
+            jotaiStore.set(floatingInspectorRevealedAtom, false);
+            jotaiStore.set(floatingInspectorSuppressedAtom, false);
+          } else if (mode === 'compact') {
+            jotaiStore.set(railRevealedAtom, false);
+            jotaiStore.set(compactPanelOpenAtom, false);
+            jotaiStore.set(compactInspectorOpenAtom, false);
+          }
+        }
+        mouseControllerRef.current?.handleMouseDown(e.nativeEvent);
+      }}
       onMouseMove={e => mouseControllerRef.current?.handleMouseMove(e.nativeEvent)}
       onMouseUp={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}
       onMouseLeave={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}

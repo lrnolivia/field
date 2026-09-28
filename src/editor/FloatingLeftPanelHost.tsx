@@ -1,82 +1,40 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftContentWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
-import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
+import { leftContentWidthAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
-import { setWorkspaceModeAtom } from './workspace-mode-store';
+import { compactPanelOpenAtom, floatingLeftHiddenAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 
-const PANEL_TITLES: Record<string, string> = {
-  insert: 'Insert', layers: 'Pages / Layers', 'pages-layers': 'Pages / Layers',
-  library: 'Library', presets: 'Styles', media: 'Media', locale: 'Localization',
-  cms: 'CMS', branches: 'Branches',
-};
-
-/** The same panel component serves the dock and the floating shell. */
+/** Content half of the floating left island. The icon rail sits flush to its
+ * left; both live below the stationary project pill. */
 export default function FloatingLeftPanelHost() {
-  const detached = useAtomValue(detachedLeftPanelAtom);
-  const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
+  const mode = useAtomValue(workspaceModeAtom);
+  const hidden = useAtomValue(floatingLeftHiddenAtom);
+  const autoHide = useAtomValue(workspaceAutoHideAtom);
+  const compactOpen = useAtomValue(compactPanelOpenAtom);
+  const panelId = useAtomValue(leftPanelAtom);
   const [contentWidth, setContentWidth] = useAtom(leftContentWidthAtom);
-  const [position, setPosition] = useState({ x: 76, y: 70 });
-  const [size, setSize] = useState({ width: contentWidth, height: 680 });
-  const shellRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useAtom(floatingLeftHeightAtom);
+  const railWidth = useAtomValue(leftCollapsedWidthAtom);
+  const Panel = PANEL_MAP[panelId];
+  const visible = (mode === 'floating' && (!autoHide || !hidden)) || (mode === 'compact' && compactOpen);
 
   useEffect(() => {
-    setPosition({ x: 76, y: 70 });
-    setSize({ width: contentWidth, height: Math.min(680, window.innerHeight - 90) });
-    // A resize should never reset the size; this runs only on panel identity change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(detached)]);
-  if (!detached) return null;
-  const Panel = PANEL_MAP[detached.panelId];
-  if (!Panel) return null;
-  const title = PANEL_TITLES[detached.panelId] ?? detached.panelId;
+    setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - 68)));
+  }, [mode]);
 
-  const dock = () => {
-    setContentWidth(clampLeftContentWidth(size.width));
-    setLeftPanel(detached.panelId);
-    setWorkspaceMode('docked');
-  };
-  const collapse = () => {
-    setLeftPanel(detached.panelId);
-    setWorkspaceMode('compact');
-  };
-  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
-    const rect = shellRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    event.preventDefault();
-    const offsetX = event.clientX - rect.left;
-    const offsetY = event.clientY - rect.top;
-    let nextX = rect.left;
-    const onMove = (move: PointerEvent) => {
-      nextX = Math.max(0, Math.min(window.innerWidth - rect.width - 8, move.clientX - offsetX));
-      setPosition({
-        x: nextX,
-        y: Math.max(8, Math.min(window.innerHeight - rect.height - 8, move.clientY - offsetY)),
-      });
-    };
-    const stop = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', stop);
-      window.removeEventListener('pointercancel', stop);
-      if (nextX <= 36 && nextX < rect.left - 8) dock();
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', stop);
-    window.addEventListener('pointercancel', stop);
-  };
+  if (!Panel || (mode !== 'floating' && mode !== 'compact')) return null;
+
   const beginResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    const start = { x: event.clientX, y: event.clientY, ...size };
+    const start = { x: event.clientX, y: event.clientY, width: contentWidth, height };
     document.documentElement.dataset.workspaceResizing = 'true';
-    const move = (next: PointerEvent) => setSize({
-      width: Math.max(220, Math.min(520, window.innerWidth - position.x - 8, start.width + next.clientX - start.x)),
-      height: Math.max(280, Math.min(window.innerHeight - position.y - 8, start.height + next.clientY - start.y)),
-    });
+    const move = (next: PointerEvent) => {
+      setContentWidth(clampLeftContentWidth(start.width + next.clientX - start.x));
+      setHeight(Math.max(280, Math.min(window.innerHeight - 68, start.height + next.clientY - start.y)));
+    };
     const stop = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
@@ -89,29 +47,11 @@ export default function FloatingLeftPanelHost() {
   };
 
   return createPortal(
-    <div ref={shellRef} data-floating-left-panel={detached.panelId}
-      data-workspace-mode="floating"
-      className="fixed z-[11000] flex flex-col overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)]"
-      style={{ left: position.x, top: position.y, width: size.width, height: size.height }}>
-      <div onPointerDown={beginDrag}
-        className="flex h-11 shrink-0 cursor-move select-none items-center gap-2 border-b border-[var(--border-light)] px-3">
-        <span className="h-4 w-4 rounded-[3px] border border-[var(--text-tertiary)] opacity-60" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold">{title}</span>
-        <button type="button" aria-label="Compact workspace"
-          title="Compact workspace"
-          onClick={collapse}
-          className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] hover:bg-[var(--button-secondary-bg)]">
-          <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 2v12M12 4 8 8l4 4" />
-          </svg>
-        </button>
-        <button type="button" aria-label="Dock panel in left sidebar" title="Dock in sidebar" onClick={dock}
-          className="flex h-7 w-7 items-center justify-center rounded-[5px] border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-          <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2">
-            <rect x="1.5" y="2" width="13" height="12" rx="1" /><path d="M5.5 2v12" />
-          </svg>
-        </button>
-      </div>
+    <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
+      aria-hidden={!visible} inert={!visible}
+      className="fixed z-[5001] flex flex-col overflow-hidden rounded-r-[9px] border border-l-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] transition-[transform,opacity] duration-[260ms] ease-out"
+      style={{ left: 8 + railWidth, top: 60, width: contentWidth, height: Math.min(height, window.innerHeight - 68),
+        opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
       <button type="button" aria-label="Resize floating left panel" title="Resize panel" onPointerDown={beginResize}
         className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none text-[var(--text-tertiary)]">

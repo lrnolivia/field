@@ -55,7 +55,7 @@ import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWid
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
-import { workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
@@ -87,6 +87,7 @@ interface AppProps {
 export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
   const workspaceMode = useAtomValue(workspaceModeAtom);
+  const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
@@ -328,6 +329,9 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
         {!previewMode && rightPaneOpen && (
           <div
             data-workspace-right-body
+            data-visible={floatingInspectorVisible ? 'true' : 'false'}
+            aria-hidden={!floatingInspectorVisible}
+            inert={!floatingInspectorVisible}
             className="fixed z-[5000] overflow-hidden"
             style={{
               right: workspaceLayout.right.inset,
@@ -337,6 +341,9 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              opacity: floatingInspectorVisible ? 1 : 0,
+              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+              transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
             <RightSidebar />

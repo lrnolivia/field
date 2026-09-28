@@ -17,8 +17,8 @@ import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
-import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { setWorkspaceModeAtom } from '@/editor/workspace-mode-store';
+import WorkspaceAutoHideButton from '@/editor/WorkspaceAutoHideButton';
+import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -249,8 +249,6 @@ export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
-  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
-  const activeLeftPanel = useAtomValue(leftPanelAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
   trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
@@ -320,41 +318,8 @@ export default function LeftHeader() {
           )}
         </div>
 
-        {activeLeftPanel !== 'vibe' && <button
-          type="button"
-          aria-label={`Detach ${activeLeftPanel === 'layers' || activeLeftPanel === 'pages-layers' ? 'Pages and Layers' : activeLeftPanel} panel`}
-          title="Detach panel"
-          data-field-pane-detach
-          onClick={() => {
-            setWorkspaceMode('floating');
-            trace.action('left-header:detach-pane', { panel: activeLeftPanel });
-          }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-transparent bg-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" width="15" height="15">
-            <rect x="2" y="3" width="9" height="9" rx="1" />
-            <path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" />
-          </svg>
-        </button>}
-        <motion.button
-          type="button"
-          initial="rest"
-          whileHover="hover"
-          whileTap="tap"
-          aria-label="Collapse left pane"
-          title="Collapse left pane"
-          onClick={() => {
-            trace.action('left-header:collapse-pane');
-            setWorkspaceMode('compact');
-          }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)] focus-visible:outline-none"
-          data-field-pane-collapse
-        >
-          <FieldGlyph behavior="generic"><svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">
-            <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
-            <path d="M5.25 2.25v11.5" />
-          </svg></FieldGlyph>
-        </motion.button>
+        <WorkspaceAutoHideButton />
+        <WorkspaceModeButton />
       </div>
 
     </div>

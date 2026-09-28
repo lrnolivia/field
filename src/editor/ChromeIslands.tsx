@@ -3,7 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
   WORKSPACE_FLOAT_INSET,
@@ -11,7 +11,7 @@ import {
   WORKSPACE_FLOAT_SHADOW,
   type WorkspaceSideLayout,
 } from './workspace-layout';
-import { leftRailVisibleAtom, workspaceModeAtom } from './workspace-mode-store';
+import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from './workspace-mode-store';
 
 const SURFACE = {
   background: 'var(--bg-panel)',
@@ -39,6 +39,8 @@ export default function ChromeIslands() {
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
+  const floatingLeftHeight = useAtomValue(floatingLeftHeightAtom);
+  const inspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
@@ -49,25 +51,27 @@ export default function ChromeIslands() {
       <div
         aria-hidden
         data-workspace-island="left"
-        data-visible={mode === 'floating' && !railVisible ? 'false' : 'true'}
+        data-visible={leftOpen || railVisible ? 'true' : 'false'}
         className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
         style={{
           left: leftOpen ? layout.left.inset : WORKSPACE_FLOAT_INSET,
-          top: leftOpen ? layout.left.top : WORKSPACE_FLOAT_INSET,
+          top: leftOpen ? layout.left.top : 60,
           width: leftOpen ? layout.left.width : leftCollapsedWidth,
-          height: leftOpen ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 'calc(100vh - 16px)',
+          height: leftOpen ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : Math.min(floatingLeftHeight, window.innerHeight - 68),
           ...SURFACE,
           ...(leftOpen ? floatingStyle(layout.left) : {
             border: '1px solid var(--border-light)',
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
-          opacity: mode === 'floating' && !railVisible ? 0 : 1,
+          opacity: leftOpen || railVisible ? 1 : 0,
+          transform: !leftOpen && !railVisible ? 'translateX(-18px)' : undefined,
+          transition: 'transform 260ms ease, opacity 260ms ease',
         }}
       />
 
       {!leftOpen && <div aria-hidden data-workspace-left-title-surface
-        className="pointer-events-none fixed left-2 top-2 z-[4999] h-11 w-[264px] rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]" />}
+        className="pointer-events-none fixed left-2 top-2 z-[4999] h-11 w-[312px] rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]" />}
 
       {rightOpen && (
         <div
@@ -82,6 +86,10 @@ export default function ChromeIslands() {
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),
+            opacity: inspectorVisible ? 1 : 0,
+            pointerEvents: 'none',
+            translate: rightDetached && !inspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+            transition: 'translate 260ms ease, opacity 260ms ease',
           }}
         />
       )}

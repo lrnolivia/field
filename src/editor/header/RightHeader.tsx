@@ -28,13 +28,13 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
-import { setWorkspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom, floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -50,6 +50,12 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const setInspectorMode = useSetAtom(inspectorModeAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
+  const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
+  const setFloatingInspectorRevealed = useSetAtom(floatingInspectorRevealedAtom);
+  const setFloatingInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
+  const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
   const selectedCount = useAtomValue(selectedIdsAtom).length;
@@ -294,6 +300,9 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       {rightPaneOpen && (
         <div
           data-workspace-right-header
+          data-visible={floatingInspectorVisible ? 'true' : 'false'}
+          aria-hidden={!floatingInspectorVisible}
+          inert={!floatingInspectorVisible}
           className="fixed z-[9999] flex h-[52px] items-center px-2"
           style={{
             width: workspace.right.width,
@@ -301,26 +310,13 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             right: workspace.right.inset,
             isolation: 'isolate',
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+            opacity: floatingInspectorVisible ? 1 : 0,
+            translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+            transition: 'translate 260ms ease, opacity 260ms ease',
           }}
         >
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
-          <button type="button" data-field-right-pane-collapse aria-label="Compact workspace"
-            title="Compact workspace" onClick={() => setWorkspaceMode('compact')}
-            className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
-            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
-            </svg>
-          </button>
-          <button type="button" data-field-right-pane-detach
-            aria-label={rightDetached ? 'Dock properties pane' : 'Detach properties pane'}
-            title={rightDetached ? 'Dock properties pane' : 'Detach properties pane'}
-            onClick={() => setWorkspaceMode(rightDetached ? 'docked' : 'floating')}
-            className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-transparent text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-              <rect x="2" y="3" width="9" height="9" rx="1" /><path d={rightDetached ? 'M8 2h5v5M13 2 8 7' : 'M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5'} />
-            </svg>
-          </button>
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
@@ -390,30 +386,31 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           </div>
         </div>
       )}
+      {rightPaneOpen && rightDetached && (autoHide || workspaceMode === 'compact') && !previewMode && (
+        <button type="button" data-floating-inspector-handle
+          aria-label={floatingInspectorVisible ? 'Hide Inspector' : 'Reveal Inspector'}
+          title={floatingInspectorVisible ? 'Hide Inspector' : 'Reveal Inspector'}
+          onClick={() => {
+            if (workspaceMode === 'compact') { setCompactInspectorOpen(false); return; }
+            setFloatingInspectorSuppressed(floatingInspectorVisible);
+            setFloatingInspectorRevealed(!floatingInspectorVisible);
+          }}
+          className={`fixed z-[10002] flex items-center justify-center border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,right] ${floatingInspectorVisible ? 'h-7 w-7 rounded-[5px] hover:bg-[var(--bg-hover)]' : 'h-10 w-3 rounded-l-[5px] border-r-0 hover:w-5'}`}
+          style={{
+            right: floatingInspectorVisible ? workspace.right.inset + 8 - rightDragOffset.x : 0,
+            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - (floatingInspectorVisible ? 68 : 74) + (floatingInspectorVisible ? rightDragOffset.y : 0),
+          }}>‹</button>
+      )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible="true" data-workspace-mode="collapsed"
           className="fixed bottom-2 right-2 top-2 z-[9999] flex flex-col items-center gap-2 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 shadow-[var(--shadow-lg)]"
           style={{ width: rightCollapsedWidth }}>
-          <button type="button" aria-label="Dock properties pane" title="Dock Inspector"
-            onClick={() => setWorkspaceMode('docked')}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors hover:bg-[var(--button-secondary-bg)]">
-            <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" /><path d="M10.5 2.25v11.5" />
-            </svg>
-          </button>
-          <span aria-hidden className="my-1 h-px w-8 bg-[var(--border-light)]" />
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setWorkspaceMode('docked'); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setWorkspaceMode('docked'); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
+          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
-          <CollapsedSelectionColors onOpen={() => setWorkspaceMode('docked')} />
-          <div className="flex-1" />
-          <button type="button" aria-label="Detach properties pane" title="Detach properties pane"
-            onClick={() => setWorkspaceMode('floating')}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-            <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2" y="3" width="9" height="9" rx="1" /><path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" /></svg>
-          </button>
+          <CollapsedSelectionColors onOpen={() => setCompactInspectorOpen(true)} />
         </div>
       )}
 
