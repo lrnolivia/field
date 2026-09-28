@@ -12,10 +12,13 @@ export class TextFocusCamera {
   private interrupted = false;
   private pendingFrame = 0;
 
-  constructor(private readonly getIframe: () => HTMLIFrameElement | null) {}
+  constructor(
+    private readonly getIframe: () => HTMLIFrameElement | null,
+    private readonly isCanvasWheel: (event: WheelEvent) => boolean,
+  ) {}
 
-  private interrupt = () => {
-    this.interrupted = true;
+  private interrupt = (event: WheelEvent) => {
+    if (this.isCanvasWheel(event)) this.interrupted = true;
   };
 
   begin(nodeId: string, vpId: string): void {

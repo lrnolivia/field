@@ -638,4 +638,22 @@ describe('CanvasMouseController — canonical hierarchy selection', () => {
     expect(store.get(activeContainerIdAtom)).toBe('frame');
     expect(store.get(selectedIdsAtom)).toEqual(['inner']);
   });
+
+  test('double click on text enters editing even when its frame is selected', () => {
+    const { controller, store, opts } = makeController();
+    store.set(nodesAtom, new Map([
+      ['frame', { id: 'frame', parentId: null, type: 'div', children: ['text'], styles: {}, attrs: {} }],
+      ['text', { id: 'text', parentId: 'frame', type: 'p', children: [], styles: {}, attrs: {}, textContent: 'Hello' }],
+    ]) as never);
+    store.set(selectedIdsAtom, ['frame']);
+    vi.mocked(redirectToComponentInstance).mockImplementation(((id: string) => id) as never);
+    vi.mocked(redirectLayoutNodeToViewport).mockReturnValue(null);
+    vi.mocked(redirectToFitTextWrapper).mockReturnValue(null);
+    (controller as any).lastClick = { nodeId: 'text', vpId: 'desktop', time: Date.now() - 120, x: 100, y: 100 };
+
+    controller.handleNodeMouseDown('text', makeMouseEvent(), 'desktop');
+
+    expect(opts.startTextEdit).toHaveBeenCalledWith('text', null, '', 'desktop');
+    expect(store.get(activeContainerIdAtom)).toBeNull();
+  });
 });

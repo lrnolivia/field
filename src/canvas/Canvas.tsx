@@ -54,7 +54,7 @@ import { applyDetailPageBindings } from '@/code/features/cms-page-bindings';
 import { openCmsEditorAtom } from '@/code/stores/cms-editor-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { SANDBOX_ORIGIN } from '@/canvas-sandbox/protocol';
-import type { SnapGuide, SpacingGuide } from '@/shared/types';
+import type { SnapGuide } from '@/shared/types';
 import { DEFAULT_VIEWPORT_WIDTH } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
@@ -101,7 +101,7 @@ import { useMutationQueueLifecycle } from './hooks/useMutationQueueLifecycle';
 import { useActiveViewports } from './hooks/useActiveViewports';
 import { useLocaleOverrides } from './hooks/useLocaleOverrides';
 import { RendererSyncHost } from './hooks/useRendererSync';
-import { useCanvasTransform } from './hooks/useCanvasTransform';
+import { shouldRouteCanvasWheel, useCanvasTransform } from './hooks/useCanvasTransform';
 import { useSandboxBridge } from './hooks/useSandboxBridge';
 import { CanvasMouseController } from './mouse/CanvasMouseController';
 import { CanvasTextEditController } from './text-edit/CanvasTextEditController';
@@ -959,11 +959,17 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       renderer,
       getInteractingVpId: () => interactingVpIdRef.current || 'desktop',
     });
-    const focusCamera = new TextFocusCamera(() => iframeRef.current);
+    const focusCamera = new TextFocusCamera(
+      () => iframeRef.current,
+      (event) => {
+        const container = containerRef.current;
+        return !!container && shouldRouteCanvasWheel(event.target, event.clientX, event.clientY, container);
+      },
+    );
     const unsubscribeFocus = jotaiStore.sub(isTextEditingAtom, () => {
       if (jotaiStore.get(isTextEditingAtom)) {
         const id = controller.getEditingNodeId();
-        if (id) focusCamera.begin(id, interactingVpIdRef.current || 'desktop');
+        if (id) focusCamera.begin(id, controller.getEditingVpId());
       } else {
         focusCamera.end();
       }

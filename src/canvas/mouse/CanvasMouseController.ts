@@ -144,6 +144,7 @@ import { DOUBLE_CLICK_THRESHOLD, ZERO_WIDTH_SPACE } from '@/shared/constants';
 // a double-click. OS-level dbl-click typically allows ~4 px of jitter; we
 // use 5 to be slightly more forgiving for trackpad users.
 const DOUBLE_CLICK_MAX_DIST = 5;
+const TEXT_TYPES = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button']);
 
 type JotaiStore = ReturnType<typeof useStore>;
 
@@ -1032,11 +1033,18 @@ export class CanvasMouseController {
       const currentSelectedIds = this.store.get(selectedIdsAtom);
       const currentSelectedId = currentSelectedIds[0];
       const currentSelNode = currentSelectedId ? this.store.get(nodesAtom).get(currentSelectedId) : null;
+      const deepHitNode = this.store.get(nodesAtom).get(nodeId);
+      const directTextHit = !!deepHitNode
+        && deepHitNode.children.length === 0
+        && !deepHitNode.componentInstanceId
+        && !!(deepHitNode.textContent?.trim() || deepHitNode.hasMixedContent
+          || TEXT_TYPES.has(deepHitNode.type));
       if (
         currentSelectedId &&
         currentSelectedId !== nodeId &&
         currentSelNode &&
-        (currentSelNode.children?.length ?? 0) > 0
+        (currentSelNode.children?.length ?? 0) > 0 &&
+        !directTextHit
       ) {
         this.store.set(activeContainerIdAtom, currentSelectedId);
         const innerHit = redirectToTopLevelChild(nodeId, currentSelectedId, this.store.get(nodesAtom));
@@ -1595,7 +1603,6 @@ export class CanvasMouseController {
       // 2026-08-07 — the gate passed on the frame's WHITESPACE-only JSX text,
       // hence also the trim). Rich-text runs carry no data-id, so genuine
       // text nodes always have zero children and keep working.
-      const TEXT_TYPES = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button']);
       const node = this.store.get(nodesAtom).get(nodeId);
       if (node && node.children.length === 0
           && (node.textContent?.trim() || node.hasMixedContent || TEXT_TYPES.has(node.type))) {
