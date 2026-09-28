@@ -80,7 +80,7 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple, fullWidth = false 
       {!fullWidth && <ControlLabel label="Padding" property="padding" plain cell />}
       <div className="min-w-0">
       {!expanded ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full">
+        <div className={fullWidth ? 'field-inspector-field-grid w-full' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full'}>
           <ToolInput value={display(sides[1])} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} chevronLabel="↔" ariaLabel="Horizontal padding" />
           <ToolInput value={display(sides[0])} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} chevronLabel="↕" ariaLabel="Vertical padding" />
           <button type="button" onClick={() => setExpandedByUser(true)}
@@ -93,10 +93,17 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple, fullWidth = false 
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_28px] gap-1 items-center w-full">
-          {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
-            <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
-          ))}
+        <div className={fullWidth ? 'field-inspector-field-grid w-full' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full'}>
+          <div className="grid min-w-0 grid-cols-2 gap-1">
+            {(['T', 'R'] as const).map((label, index) => (
+              <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
+            ))}
+          </div>
+          <div className="grid min-w-0 grid-cols-2 gap-1">
+            {(['B', 'L'] as const).map((label, index) => (
+              <ToolInput key={label} value={display(sides[index + 2])} onChange={(v) => apply(setPaddingSide(sides, index + 2, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
+            ))}
+          </div>
           <button type="button" disabled={!axisCompatible} onClick={() => setExpandedByUser(false)}
             className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
             title={axisCompatible ? 'Show horizontal and vertical padding' : 'Match opposite sides to show paired padding'}
@@ -1355,8 +1362,8 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
   const gapValue = String(parseFloat(styles.gap || '0') || 0);
 
   const alignmentMatrix = !hasGrid ? (
-    <div data-auto-layout-alignment className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 items-start">
-      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-full h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+    <div data-auto-layout-alignment className="field-inspector-pair !items-start">
+      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-full aspect-[4/3] max-h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
         {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
           (['flex-start', 'center', 'flex-end'] as const).map(x => (
             <button

@@ -1743,9 +1743,10 @@ if (heightIsAuto) {
 
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      <div data-layout-size-pair className={`grid ${canMakeSquare ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px_24px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px]'} gap-1 items-center`}>
+      <div data-layout-size-pair className="field-inspector-field-grid">
         {primaryWidthControl}
         {primaryHeightControl}
+        <div className="flex min-w-0 items-center justify-end gap-1">
         {shouldShowAspectLock ? (
           <button
             type="button"
@@ -1759,7 +1760,7 @@ if (heightIsAuto) {
               <path d="M5.5 5.5h-2v2M10.5 10.5h2v-2M6 10l4-4" />
             </svg>
           </button>
-        ) : <span />}
+        ) : null}
         {canMakeSquare && (
           <button type="button" data-make-square onClick={makeSquare}
             className="h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
@@ -1767,6 +1768,7 @@ if (heightIsAuto) {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25"><rect x="3" y="3" width="10" height="10" rx="1" /><path d="M6 8h4" /></svg>
           </button>
         )}
+        </div>
       </div>
 
       {showClipContent && !deferClipContent && (

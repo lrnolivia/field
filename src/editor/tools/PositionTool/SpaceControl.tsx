@@ -69,7 +69,7 @@ export default function SpaceControl({ left, top, nodeId, vpId, onUpdate }: Prop
   const yVal = parseFloat(livePos?.y ?? '') || restRect?.top || parseFloat(top) || 0;
 
   return (
-    <div data-position-xy className="grid grid-cols-2 gap-1 w-full">
+    <div data-position-xy className="field-inspector-pair w-full">
       <ToolInput value={String(Math.round(xVal))} onChange={(v) => onUpdate('left', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="X" ariaLabel="X position" />
       <ToolInput value={String(Math.round(yVal))} onChange={(v) => onUpdate('top', `${parseFloat(v) || 0}px`)} step={1} chevronLabel="Y" ariaLabel="Y position" />
     </div>

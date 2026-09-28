@@ -350,6 +350,24 @@ select {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--selection) 9%, transparent), inset 0 0 12px color-mix(in srgb, var(--selection) 12%, transparent);
   animation: field-text-hover-gloss 1.4s ease-in-out both;
 }
+
+/* Inspector property rows share columns. The last track reserves a stable
+ * action lane; the two value tracks divide the remaining resizable width. */
+.field-inspector-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--control-gap, 8px);
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 52px;
+  gap: var(--control-gap, 8px);
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid > * { min-width: 0; }
 @keyframes field-text-hover-gloss {
   0% { opacity: 0; background-position: 100% 0; }
   18% { opacity: 1; }

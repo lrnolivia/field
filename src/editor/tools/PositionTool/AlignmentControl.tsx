@@ -101,7 +101,7 @@ const BUTTONS: { dir: AlignDirection; Icon: React.FC<{ className?: string }>; ti
 export function AlignmentButtons({ enabled, onAlign }: { enabled: boolean; onAlign: (dir: AlignDirection) => void }) {
   const groups = [BUTTONS.slice(0, 3), BUTTONS.slice(3, 6)];
   return (
-    <div data-position-alignment-groups className="grid grid-cols-2 gap-2 w-full">
+    <div data-position-alignment-groups className="field-inspector-pair w-full">
       {groups.map((group, groupIndex) => (
         <div
           key={groupIndex}
