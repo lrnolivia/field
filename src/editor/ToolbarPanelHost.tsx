@@ -43,7 +43,7 @@ export default function ToolbarPanelHost() {
 
   if (!panel) return null;
   const category = panel.kind === 'insert'
-    ? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
+    ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
     : null;
   const title = panel.kind === 'library' ? LIBRARY_TITLES[panel.section]
     : panel.kind === 'media-gallery' ? 'Media Gallery'

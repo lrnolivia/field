@@ -36,6 +36,7 @@ import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
 import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
 import ToolbarPanelHost from './editor/ToolbarPanelHost';
+import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -285,6 +286,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           prominent ones are individually disabled in viewer mode. */}
       <LeftMenu />
       <LeftPanel />
+      {!previewMode && <FloatingLeftPanelHost />}
 
       {/* Main — offset ONLY by the 52px icon rail: the canvas runs FULL-BLEED
           under both side panels (the right sidebar pulls itself over it with

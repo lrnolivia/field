@@ -21,6 +21,7 @@ import { SHADER_THUMBS } from '@/shared/insert-items/shader-thumb-map';
 import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 
 const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;
 
@@ -36,8 +37,8 @@ function ChevronRight({ className }: { className?: string }) {
 
 // ─── Insert Category Row (uses design system SidebarRow + chevron) ─────────
 
-function InsertCategoryRow({ iconKey, label, isActive, onMouseEnter }: {
-  iconKey: string; label: string; isActive: boolean; onMouseEnter: () => void;
+function InsertCategoryRow({ iconKey, label, isActive, onMouseEnter, onClick }: {
+  iconKey: string; label: string; isActive: boolean; onMouseEnter: () => void; onClick: () => void;
 }) {
   const IconComponent = CATEGORY_ICON_MAP[iconKey];
   return (
@@ -49,6 +50,14 @@ function InsertCategoryRow({ iconKey, label, isActive, onMouseEnter }: {
       iconColor="inherit"
       right={<ChevronRight className={`transition-all duration-150 ${isActive ? 'text-[var(--text-primary)] translate-x-0.5' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-hover:translate-x-0.5'}`} />}
       onMouseEnter={onMouseEnter}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onClick();
+      }}
       style={{ cursor: 'pointer' }}
     />
   );
@@ -445,6 +454,7 @@ export default function InsertOverlay() {
   trace.fn('InsertOverlay.render');
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const setToolbarPanel = useSetAtom(toolbarPanelAtom);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Search ──────────────────────────────────────────────────────────────
@@ -652,6 +662,10 @@ export default function InsertOverlay() {
       label={cat.label}
       isActive={activeCategory === cat.id}
       onMouseEnter={() => handleCategoryHover(cat.id)}
+      onClick={() => {
+        setActiveCategory(null);
+        setToolbarPanel({ kind: 'insert', category: cat.id, categoryData: cat });
+      }}
     />
   ));
 

@@ -22,7 +22,7 @@ function LibraryOnlyPanel() {
   return <LibraryPanel mode="library" />;
 }
 
-const PANEL_MAP: Record<string, React.ComponentType> = {
+export const PANEL_MAP: Record<string, React.ComponentType> = {
   insert: InsertPanel,
   'pages-layers': PagesLayersPanel,
   layers: PagesLayersPanel,

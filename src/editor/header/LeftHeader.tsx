@@ -17,6 +17,8 @@ import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -248,6 +250,8 @@ export default function LeftHeader() {
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
+  const activeLeftPanel = useAtomValue(leftPanelAtom);
+  const setDetachedLeftPanel = useSetAtom(detachedLeftPanelAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
   trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
@@ -317,6 +321,23 @@ export default function LeftHeader() {
           )}
         </div>
 
+        {activeLeftPanel !== 'vibe' && <button
+          type="button"
+          aria-label={`Detach ${activeLeftPanel === 'layers' || activeLeftPanel === 'pages-layers' ? 'Pages and Layers' : activeLeftPanel} panel`}
+          title="Detach panel"
+          data-field-pane-detach
+          onClick={() => {
+            setDetachedLeftPanel({ panelId: activeLeftPanel, expanded: false });
+            setLeftPaneOpen(false);
+            trace.action('left-header:detach-pane', { panel: activeLeftPanel });
+          }}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        >
+          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" width="15" height="15">
+            <rect x="2" y="3" width="9" height="9" rx="1" />
+            <path d="M8 1.75h5.25a1 1 0 0 1 1 1V8M9.25 6.75l5-5" />
+          </svg>
+        </button>}
         <motion.button
           type="button"
           initial="rest"

@@ -1,5 +1,7 @@
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { LogoButton } from '@/editor/header/LeftHeader';
 import ProjectChip from '@/editor/header/ProjectChip';
 import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_RADIUS } from '@/editor/workspace-layout';
@@ -7,6 +9,8 @@ import { trace } from '@/shared/debug-trace';
 
 export default function WorkspaceRestoreBar() {
   const [leftOpen, setLeftOpen] = useAtom(leftPaneOpenAtom);
+  const [detached, setDetached] = useAtom(detachedLeftPanelAtom);
+  const setLeftPanel = useSetAtom(leftPanelAtom);
   return (
     <div
       data-workspace-left-restore
@@ -35,6 +39,10 @@ export default function WorkspaceRestoreBar() {
         title="Expand left workspace"
         onClick={() => {
           trace.action('workspace:left-restore');
+          if (detached) {
+            setLeftPanel(detached.panelId);
+            setDetached(null);
+          }
           setLeftOpen(true);
         }}
         className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
