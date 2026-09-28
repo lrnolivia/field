@@ -20,6 +20,7 @@ import { getScrollBoundProps } from '@/editor/hooks/useScrollBoundProps';
 import { UnifiedControlContext } from './useControlContext';
 import { useControlOptional } from '../ControlProvider';
 import type { ControlMode, ControlBinding, UnifiedControlProviderProps, UnifiedControlContextValue } from './types';
+import { mergeResponsiveStyleValues } from '../responsive-style-values';
 import type { ScrollAnimData } from '@/code/parsing/scroll-parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
@@ -207,15 +208,7 @@ export function UnifiedControlProvider({
       // Per-viewport style-VARIABLE values: the inline `__mq` ternary can't evaluate per replica
       // tile, so surface the resolved value for THIS tile (cascade: smallest breakpoint whose
       // max-width covers vpWidth) — keeps the Fill swatch in sync with the per-viewport pill.
-      if (isReplica && vpWidth && node?.responsiveStyleValues) {
-        for (const [p, byW] of Object.entries(node.responsiveStyleValues)) {
-          const widths = Object.keys(byW).map(Number).sort((a, b) => a - b);
-          for (const b of widths) {
-            const min = node.responsiveStyleBands?.[p]?.[b] ?? 0;
-            if (vpWidth <= b && vpWidth >= min) { result = { ...result, [p]: byW[b] }; break; }
-          }
-        }
-      }
+      if (isReplica && vpWidth) result = mergeResponsiveStyleValues(result, node, vpWidth);
       // Responsive overrides: merge @media values for the current viewport width (these win — an
       // explicit literal override beats a cascaded variable value).
       if (isReplica && selectedId && vpWidth) {

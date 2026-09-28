@@ -68,6 +68,7 @@ import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { trace } from '@/shared/debug-trace';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
 import { resolvePropertyResolution, type InspectorPropertyResolution } from '@/editor/inspector/provenance';
+import { mergeResponsiveStyleValues, responsiveStyleValuesAtWidth } from './responsive-style-values';
 
 // One shared reference for "this selection has no styles" — see `baseStyles`.
 const EMPTY_STYLES: Record<string, string> = {};
@@ -253,6 +254,11 @@ export function ControlProvider({ children }: { children: ReactNode }) {
         result = { ...result, ...override.styles };
       }
     }
+
+    // Inline __mq branches are parsed into per-tile literals. Apply them
+    // before @media, which has higher paint precedence. The unified provider
+    // normally reads this effective map, so both control systems must agree.
+    if (isReplica && vpWidth) result = mergeResponsiveStyleValues(result, node, vpWidth);
 
     // Responsive overrides: merge @media values for the current viewport width
     if (isReplica && selectedId && vpWidth) {
@@ -594,6 +600,7 @@ export function ControlProvider({ children }: { children: ReactNode }) {
           if (vpWidth <= b && vpWidth >= min) return true;
         }
       }
+      if (property in (responsiveStyleValuesAtWidth(node, vpWidth) ?? {})) return true;
     }
     // Primary is the source of truth — its values aren't overrides of
     // anything, so the label never goes blue. Replicas only light up when
