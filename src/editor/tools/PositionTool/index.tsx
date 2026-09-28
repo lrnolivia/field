@@ -268,7 +268,16 @@ export default function PositionTool({ nodeId: nodeIdProp, styles: stylesProp, v
   if (isTopLevel) {
     return (
       <>
-        <ToolSection title="Position" bare={bare}>
+        <ToolSection title="Position" bare={bare} action={<ConstraintsAction
+          nodeId={nodeId}
+          vpId={vpId}
+          position={position}
+          styles={styles}
+          showPins={false}
+          onUpdate={updateStyle}
+          onUpdateMultiple={updateMultipleStyles}
+        />}>
+          <AlignmentButtons enabled={false} onAlign={() => {}} />
           <SpaceControl
             left={styles.left || '0px'}
             top={styles.top || '0px'}

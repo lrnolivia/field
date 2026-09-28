@@ -424,7 +424,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   // "Layout"; enabling flex/grid transforms that same section into "Auto layout".
   // Leaf/text objects still use standalone Layout sizing.
   const composeSizeIntoAutoLayout = isFrame && canShowContainerLayout && !isMultiSelect;
-  const composePositionIntoLayout = composeSizeIntoAutoLayout && !isOverlayNode;
 
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
@@ -654,16 +653,14 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           </>
         )}
         {!isOverlayNode && (!isMultiSelect ? (
-          composePositionIntoLayout ? null : (
-            <PositionTool
-              nodeId={node.id}
-              styles={s}
-              vpId={vpId}
-              isReplica={isReplica}
-              vpWidth={vpWidth}
-              isTopLevel={!!node.isCanvasNode || !node.parentId}
-            />
-          )
+          <PositionTool
+            nodeId={node.id}
+            styles={s}
+            vpId={vpId}
+            isReplica={isReplica}
+            vpWidth={vpWidth}
+            isTopLevel={!!node.isCanvasNode || !node.parentId}
+          />
         ) : (
           <MultiAlignmentControl vpId={vpId} />
         ))}
@@ -719,17 +716,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             onUpdateMultiple={updateMultipleStyles}
             showPaddingWithoutLayout={isFrame}
             templateRoot={isTemplateRootEdit}
-            positionContent={composePositionIntoLayout ? (
-              <PositionTool
-                bare
-                nodeId={node.id}
-                styles={s}
-                vpId={vpId}
-                isReplica={isReplica}
-                vpWidth={vpWidth}
-                isTopLevel={!!node.isCanvasNode || !node.parentId}
-              />
-            ) : undefined}
             sizeContent={composeSizeIntoAutoLayout ? (
               <SizeTool
                 bare

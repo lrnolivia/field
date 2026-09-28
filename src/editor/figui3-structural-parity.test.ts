@@ -34,16 +34,15 @@ describe('FigUI3 structural parity with explicit workspace modes', () => {
     expect(inspector).toContain('!isComponentInstance && <ComponentPropsTool />');
   });
 
-  it('composes frame Position and Size into the canonical Layout section', () => {
+  it('keeps frame Position separate while composing Size into Layout', () => {
     const inspector = read('src/editor/PropertiesPanel.tsx');
     const layout = read('src/editor/tools/LayoutTool.tsx');
     const position = read('src/editor/tools/PositionTool/index.tsx');
-    expect(inspector).toContain('composePositionIntoLayout');
-    expect(inspector).toContain('positionContent={composePositionIntoLayout');
-    expect(layout).toContain('positionContent?: ReactNode');
-    expect(layout).toContain('{positionContent}');
+    expect(inspector).not.toContain('positionContent=');
+    expect(layout).toContain('sizeContent?: ReactNode');
+    expect(layout).toContain('{sizeContent}');
     expect(position).toContain('bare?: boolean');
-    expect(position).toContain('data-layout-position-inline-header');
+    expect(position).toContain('title="Position"');
   });
 
   it('uses rounded FigUI3 chrome for mode tabs and the Actions palette', () => {

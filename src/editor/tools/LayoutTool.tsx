@@ -53,8 +53,6 @@ interface Props {
    *  Align (cross-axis) + Gap + Padding only — no Type/Direction/Wrap/Justify
    *  and no +/- remove. */
   templateRoot?: boolean;
-  /** Position controls composed into the canonical Layout section. */
-  positionContent?: ReactNode;
   /** Mature size/clipping controls composed into the canonical Layout section.
    *  Keeps the engines split while matching Figma's one-panel model. */
   sizeContent?: ReactNode;
@@ -62,9 +60,10 @@ interface Props {
   showPaddingWithoutLayout?: boolean;
 }
 
-function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
+function AutoLayoutPaddingControl({ styles, onUpdateMultiple, fullWidth = false }: {
   styles: Record<string, string>;
   onUpdateMultiple: (styles: Record<string, string>) => void;
+  fullWidth?: boolean;
 }) {
   const sides = readPaddingSides(styles);
   const axisCompatible = paddingAxisCompatible(sides);
@@ -77,8 +76,8 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
   };
 
   return (
-    <div data-auto-layout-padding className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full">
-      <ControlLabel label="Padding" property="padding" plain cell />
+    <div data-auto-layout-padding className={fullWidth ? 'w-full' : 'grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full'}>
+      {!fullWidth && <ControlLabel label="Padding" property="padding" plain cell />}
       <div className="min-w-0">
       {!expanded ? (
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full">
@@ -899,10 +898,9 @@ export default function LayoutTool(props: Props) {
   if (isGalleryViewId(galleryView)) {
     return (
       <>
-        {(props.positionContent || props.sizeContent) && (
+        {props.sizeContent && (
           <>
             <ToolSection title="Layout" collapsible>
-              {props.positionContent}
               {props.sizeContent}
             </ToolSection>
             <ToolDivider />
@@ -915,7 +913,7 @@ export default function LayoutTool(props: Props) {
   return <StandardLayoutTool {...props} />;
 }
 
-function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, positionContent, sizeContent, showPaddingWithoutLayout = false }: Props) {
+function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent, showPaddingWithoutLayout = false }: Props) {
   // useControl gives us the variable-binding helpers (`getValueSource`,
   // `removeVariable`) the Direction + Wrap rows need to surface the
   // purple variable pill — these rows are rendered as custom segmented
@@ -1352,11 +1350,13 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   const [distributionOpen, setDistributionOpen] = useState(false);
   const distributionRef = useRef<HTMLButtonElement>(null);
+  const gapMenuRef = useRef<HTMLButtonElement>(null);
+  const [distributionAnchor, setDistributionAnchor] = useState<'button' | 'gap'>('button');
   const gapValue = String(parseFloat(styles.gap || '0') || 0);
 
   const alignmentMatrix = !hasGrid ? (
-    <div data-auto-layout-alignment className="grid grid-cols-[112px_minmax(0,1fr)] gap-2 items-start">
-      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-[112px] h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+    <div data-auto-layout-alignment className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 items-start">
+      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-full h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
         {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
           (['flex-start', 'center', 'flex-end'] as const).map(x => (
             <button
@@ -1377,7 +1377,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
       <div className="flex flex-col gap-2 min-w-0">
         <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] overflow-hidden">
           <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Gap">
-            ↔
+            <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M3 3h10M3 13h10M8 5v6m-2-2 2 2 2-2" /></svg>
           </span>
           <ToolInput
             value={gapValue}
@@ -1385,13 +1385,15 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
             min={0}
             className="border-0"
           />
-          <span className="text-[var(--text-secondary)] text-[10px]">⌄</span>
+          <button ref={gapMenuRef} type="button" aria-label="Gap distribution options" title="Gap distribution options"
+            onClick={() => { setDistributionAnchor('gap'); setDistributionOpen(true); }}
+            className="h-[var(--control-height)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">⌄</button>
         </div>
 
         <button
           ref={distributionRef}
           type="button"
-          onClick={() => setDistributionOpen(true)}
+          onClick={() => { setDistributionAnchor('button'); setDistributionOpen(true); }}
           className="h-[var(--control-height)] w-full flex items-center justify-center gap-2 rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
           title="Advanced auto layout alignment"
         >
@@ -1407,7 +1409,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
           isOpen={distributionOpen}
           onClose={() => setDistributionOpen(false)}
           title="Auto layout"
-          anchorRef={distributionRef}
+          anchorRef={distributionAnchor === 'gap' ? gapMenuRef : distributionRef}
           width={260}
         >
           <div className="flex flex-col gap-2">
@@ -1469,7 +1471,6 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
       <>
         <ToolSection title="Auto layout" collapsible>
           <div className="flex flex-col gap-2">
-            {positionContent}
             {sizeContent}
             {/* Align — a flex COLUMN's cross axis is horizontal: left / center
                 / right. Writes `alignItems`. */}
@@ -1489,7 +1490,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
             {/* Gap */}
             <StyleField property="gap" label="Gap" />
             {/* Padding (T/R/B/L with the global ↔ individual toggle) */}
-            <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+            <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
           </div>
         </ToolSection>
         <ToolDivider />
@@ -1499,9 +1500,8 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   return (
     <>
-      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || showPaddingWithoutLayout || !!sizeContent || !!positionContent} action={toggleAction}>
-        {positionContent}
-        {sizeContent}
+      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || showPaddingWithoutLayout || !!sizeContent} action={toggleAction}>
+        {!hasLayout && sizeContent}
         {!hasLayout && showPaddingWithoutLayout && (
           <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
         )}
@@ -1515,6 +1515,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
                 onClick: () => handleAutoLayoutMode(button.id),
               }))}
             />
+            {sizeContent}
 
             {/* Preserve existing variable bindings while the visible layout
                 controls move to the Figma motif. */}
@@ -1555,12 +1556,12 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
                 <GridLayoutControls styles={styles} onUpdateMultiple={onUpdateMultiple} />
                 {/* Padding — same as the flex branch: a grid container has an
                     inner content box, so Padding lives in Layout (design-tool parity). */}
-                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
               </>
             ) : (
               <>
                 {alignmentMatrix}
-                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
               </>
             )}
 
