@@ -20,7 +20,7 @@ export default function DashboardHeader({ view, count, creating, onCreate }: Pro
     <header className="field-dashboard-header">
       <div className="field-dashboard-heading-wrap">
         <h1>{titles[view]}</h1>
-        <span>{count}</span>
+        <span aria-label={`${count} ${count === 1 ? 'project' : 'projects'}`}>{count}</span>
       </div>
       {view !== 'trash' && (
         <button className="field-dashboard-new" type="button" onClick={onCreate} disabled={creating}>
