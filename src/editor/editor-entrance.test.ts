@@ -191,12 +191,12 @@ describe('editor chrome choreography', () => {
     const right = editorExitKeyframes('right', 276);
     const bottom = editorExitKeyframes('bottom', 90);
 
-    expect(left).toEqual([
-      { offset: 0, translate: '0px 0', opacity: 1 },
-      { offset: 1, translate: '-328px 0', opacity: 1 },
-    ]);
-    expect(right[1].translate).toBe('276px 0');
-    expect(bottom[1].translate).toBe('0 90px');
+    expect(left[0]).toMatchObject({ offset: 0, translate: '0px 0', opacity: 1, filter: 'none' });
+    expect(left[1].filter).toBe('url(#field-motion-blur-horizontal)');
+    expect(left[2]).toMatchObject({ offset: 1, translate: '-328px 0', opacity: 1, filter: 'none' });
+    expect(right[2].translate).toBe('276px 0');
+    expect(bottom[1].filter).toBe('url(#field-motion-blur-vertical)');
+    expect(bottom[2].translate).toBe('0 90px');
     expect(EDITOR_EXIT_SIDE_DURATION_MS).toBe(220);
     expect(EDITOR_EXIT_BOTTOM_DURATION_MS).toBe(190);
     expect(editorExitDelay('bottom')).toBe(0);

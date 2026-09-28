@@ -74,6 +74,7 @@ export function dashboardEntranceKeyframes(
     frames.push({
       offset,
       transform: `translate3d(${fromX * unit}px, 0, 0)`,
+      filter: offset > 0.04 && offset < 0.4 ? 'url(#field-motion-blur-horizontal)' : 'none',
     });
   }
 
@@ -83,8 +84,9 @@ export function dashboardEntranceKeyframes(
 /** Major Dashboard slabs leave decisively; playfulness belongs to small UI. */
 export function dashboardExitKeyframes(fromX: number, toX: number): Keyframe[] {
   return [
-    { offset: 0, transform: `translate3d(${fromX}px, 0, 0)` },
-    { offset: 1, transform: `translate3d(${toX}px, 0, 0)` },
+    { offset: 0, transform: `translate3d(${fromX}px, 0, 0)`, filter: 'none' },
+    { offset: .48, transform: `translate3d(${fromX + (toX - fromX) * .45}px, 0, 0)`, filter: 'url(#field-motion-blur-horizontal)' },
+    { offset: 1, transform: `translate3d(${toX}px, 0, 0)`, filter: 'none' },
   ];
 }
 

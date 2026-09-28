@@ -26,6 +26,7 @@ type PreparedTarget = EditorEntranceTarget & {
   previous: {
     translate: string;
     opacity: string;
+    filter: string;
     pointerEvents: string;
     willChange: string;
   };
@@ -38,6 +39,7 @@ function captureTarget(target: EditorEntranceTarget): PreparedTarget {
     previous: {
       translate: element.style.translate,
       opacity: element.style.opacity,
+      filter: element.style.filter,
       pointerEvents: element.style.pointerEvents,
       willChange: element.style.willChange,
     },
@@ -55,6 +57,7 @@ function prepareEntranceTarget(
     ? `0 ${startDistancePx}px`
     : `${startDistancePx}px 0`;
   element.style.opacity = prepared.phase === 'late-chrome' ? '0' : '0.96';
+  element.style.filter = 'none';
   element.style.pointerEvents = 'none';
   element.style.willChange = prepared.previous.willChange
     ? `${prepared.previous.willChange}, translate, opacity`
@@ -76,6 +79,7 @@ function prepareExitTarget(target: EditorEntranceTarget): PreparedTarget {
 function restoreTarget(target: PreparedTarget): void {
   target.element.style.translate = target.previous.translate;
   target.element.style.opacity = target.previous.opacity;
+  target.element.style.filter = target.previous.filter;
   target.element.style.pointerEvents = target.previous.pointerEvents;
   target.element.style.willChange = target.previous.willChange;
 }

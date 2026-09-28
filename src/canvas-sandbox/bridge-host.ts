@@ -690,6 +690,11 @@ export class PostMessageBridge implements CanvasBridge {
     return (await this.remote.captureElement(nodeId, vpPrefix, opts)) ?? null;
   }
 
+  async captureCanvasViewport(): Promise<string | null> {
+    if (!this.remote) return null;
+    return (await this.remote.captureCanvasViewport()) ?? null;
+  }
+
   // ─── CanvasBridge Interface (sync, served from caches) ────────────────
 
   /** Get the iframe's screen offset for translating between coordinate spaces. */

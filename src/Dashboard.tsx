@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [openingProjectId, setOpeningProjectId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<FieldProjectMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<RevymeUser | null>(null);
@@ -110,6 +111,7 @@ export default function Dashboard() {
   const openProject = (project: FieldProjectMeta) => {
     setError(null);
     setOpenMenuId(null);
+    setOpeningProjectId(project.id);
     const preview = [...document.querySelectorAll<HTMLElement>('.field-project-preview')]
       .find((element) => element.dataset.projectId === project.id);
     const rect = preview?.getBoundingClientRect();
@@ -120,6 +122,7 @@ export default function Dashboard() {
         thumbnail: image?.complete && image.naturalWidth ? image.currentSrc : null,
       } : undefined,
     }).catch((cause) => {
+      setOpeningProjectId(null);
       setError(cause instanceof Error ? cause.message : String(cause));
     });
   };
@@ -150,7 +153,14 @@ export default function Dashboard() {
       if (name !== project.name) {
         project = await renameFieldProject(project.id, name);
       }
-      await backend.saveProject(project.id, createNewProjectData(DEFAULT_NEW_PROJECT_SETTINGS));
+      try {
+        await backend.saveProject(project.id, createNewProjectData(DEFAULT_NEW_PROJECT_SETTINGS));
+      } catch (cause) {
+        // The editor can seed a just-created project whose snapshot is missing.
+        // A starter-save error must not strand the user on the Dashboard with
+        // a new card that appears to do nothing.
+        console.warn('[field-dashboard] starter save deferred to editor', cause);
+      }
       replaceProject(project);
       await openFieldProject(project.id);
     } catch (cause) {
@@ -212,6 +222,7 @@ export default function Dashboard() {
               projects={visibleProjects}
               refreshingProjectIds={refreshingProjectIds}
               openMenuId={openMenuId}
+              openingProjectId={openingProjectId}
               onOpenMenuId={setOpenMenuId}
               onOpen={openProject}
               onRename={(project) => {

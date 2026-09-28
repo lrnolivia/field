@@ -14,6 +14,7 @@ import {
 } from './color-utils';
 import { clamp } from '@/canvas/canvas-math';
 import { ColorSwatch } from '@/editor/controls/ColorSwatch';
+import { pickCanvasPixel } from './canvas-eyedropper';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
   const [alphaInput, setAlphaInput] = useState('');
   // Copy feedback — the copy icon morphs to a checkmark for 1s after a copy.
   const [copied, setCopied] = useState(false);
+  const [eyedropperError, setEyedropperError] = useState<string | null>(null);
 
   // Track whether we're currently dragging (suppress external value sync)
   const isDragging = useRef(false);
@@ -389,18 +391,19 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
   // ─── Eyedropper ──────────────────────────────────────────────────────────
 
   const handleEyedropper = useCallback(async () => {
-    if (typeof window === 'undefined' || !('EyeDropper' in window)) return;
+    setEyedropperError(null);
     try {
-      const dropper = new (window as any).EyeDropper();
-      const result = await dropper.open();
-      trace.action('color-picker:eyedropper', { color: result.sRGBHex });
-      const rgb = hexToRgb(result.sRGBHex);
+      const color = await pickCanvasPixel();
+      if (!color) return;
+      trace.action('color-picker:eyedropper', { color });
+      const rgb = hexToRgb(color);
       const newHsv = rgbToHsv(rgb);
       setHsv(newHsv);
       setAlpha(1);
       emitColor(newHsv, 1);
     } catch (err) {
       trace.error('color-picker:eyedropper-failed', { error: String(err) });
+      setEyedropperError(err instanceof Error ? err.message : 'Could not sample the canvas.');
     }
   }, [emitColor]);
 
@@ -574,12 +577,11 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         )}
 
         {/* Eyedropper */}
-        {'EyeDropper' in (typeof window !== 'undefined' ? window : {}) && (
-          <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="Pick color from screen">
-            <EyedropperIcon />
-          </button>
-        )}
+        <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="Pick a canvas pixel" aria-label="Pick a canvas pixel">
+          <EyedropperIcon />
+        </button>
       </div>
+      {eyedropperError && <div role="status" className="mt-1.5 text-[11px] text-[var(--text-secondary)]">{eyedropperError}</div>}
 
       {/* ── 5. Color preset list + Create button ──────────────────────────── */}
       {(onCreatePreset || (colorPresets && colorPresets.length > 0)) && (

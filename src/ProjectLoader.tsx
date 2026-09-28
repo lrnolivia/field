@@ -565,6 +565,15 @@ export default function ProjectLoader({ onCanvasReady }: ProjectLoaderProps = {}
     if (!canvasPainted) return;
     trace.action('project-loader:canvas-painted', {});
     onCanvasReadyRef.current?.();
+    // Dashboard navigation owns its own visual handoff. Its slabs slide away
+    // (or its clicked thumbnail grows into place) to reveal an already sharp
+    // canvas; the direct-load blur/pop is reserved for opening the editor URL.
+    const dashboardState = document.querySelector<HTMLElement>('.field-shell')?.dataset.dashboardState;
+    if (dashboardState && dashboardState !== 'hidden') {
+      setCanvasRevealPhase('settled');
+      setEditorInteractive(true);
+      return;
+    }
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       setCanvasRevealPhase('settled');
       setEditorInteractive(true);

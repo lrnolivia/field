@@ -80,10 +80,10 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
   it('moves slabs fully offscreen and exits without a reverse spring', () => {
     expect(dashboardPanelOffscreenX('sidebar', 216)).toBe(-232);
     expect(dashboardPanelOffscreenX('main', 1200)).toBe(1216);
-    expect(dashboardExitKeyframes(0, -232)).toEqual([
-      { offset: 0, transform: 'translate3d(0px, 0, 0)' },
-      { offset: 1, transform: 'translate3d(-232px, 0, 0)' },
-    ]);
+    const exit = dashboardExitKeyframes(0, -232);
+    expect(exit[0]).toMatchObject({ offset: 0, transform: 'translate3d(0px, 0, 0)', filter: 'none' });
+    expect(exit[1].filter).toBe('url(#field-motion-blur-horizontal)');
+    expect(exit[2]).toMatchObject({ offset: 1, transform: 'translate3d(-232px, 0, 0)', filter: 'none' });
   });
 
   it('removes CSS-timed motion and lets real WAAPI completion own shell state', () => {

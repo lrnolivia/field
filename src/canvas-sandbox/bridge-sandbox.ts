@@ -62,7 +62,7 @@ import {
 } from './sandbox/style-handlers';
 import {
   getRect, getChildRects, getComputedValues, getContainerRect, getElementIdsAtPoint,
-  getTransformedCorners, getBBox, captureElement,
+  getTransformedCorners, getBBox, captureElement, captureCanvasViewport,
 } from './sandbox/read-handlers';
 import { bakeGroupResize, clearGroupResizeBake, liveRefitGroup } from './sandbox/group-resize';
 import { findElByNodeId } from './sandbox-dom-utils';
@@ -616,4 +616,5 @@ const api: SandboxApi = {
 
   // ─── Element capture — sandbox/read-handlers.ts ────────────────────────
   captureElement,
+  captureCanvasViewport,
 };

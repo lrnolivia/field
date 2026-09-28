@@ -98,6 +98,7 @@ export default function FieldShell() {
   const builderLayerRef = useRef<HTMLDivElement>(null);
   const dashboardLayerRef = useRef<HTMLDivElement>(null);
   const dashboardAnimationsRef = useRef<Array<{ element: HTMLElement; animation: Animation }>>([]);
+  const dashboardLayerAnimationRef = useRef<Animation | null>(null);
   const dashboardMotionEpochRef = useRef(0);
   const openingOriginRef = useRef<FieldProjectNavigationOptions['origin']>(undefined);
   const openingOverlayRef = useRef<HTMLElement | null>(null);
@@ -140,6 +141,8 @@ export default function FieldShell() {
 
   const cancelDashboardMotion = useCallback((preserveVisual = true) => {
     dashboardMotionEpochRef.current += 1;
+    dashboardLayerAnimationRef.current?.cancel();
+    dashboardLayerAnimationRef.current = null;
     for (const { element, animation } of dashboardAnimationsRef.current) {
       if (preserveVisual) {
         const current = window.getComputedStyle(element).transform;
@@ -161,6 +164,7 @@ export default function FieldShell() {
 
   const animateDashboardLayer = useCallback(async (
     direction: DashboardMotionDirection,
+    thumbnailOpen = false,
   ): Promise<void> => {
     const currentState = dashboardStateRef.current;
     if (direction === 'show' && currentState === 'visible') return;
@@ -179,6 +183,20 @@ export default function FieldShell() {
     if (reducedMotion || !canAnimate) {
       clearDashboardInlineTransforms(layer);
       setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+      return;
+    }
+
+    if (direction === 'hide' && thumbnailOpen && layer) {
+      const animation = layer.animate([
+        { opacity: 1, filter: 'blur(0px)' },
+        { opacity: 0, filter: 'blur(14px)' },
+      ], { duration: 340, easing: 'cubic-bezier(.32,0,.6,1)', fill: 'both' });
+      dashboardLayerAnimationRef.current = animation;
+      await animation.finished.catch(() => undefined);
+      if (dashboardMotionEpochRef.current !== epoch) return;
+      setDashboardLayerState('hidden');
+      animation.cancel();
+      dashboardLayerAnimationRef.current = null;
       return;
     }
 
@@ -229,13 +247,14 @@ export default function FieldShell() {
   }, [cancelDashboardMotion, clearDashboardInlineTransforms, setDashboardLayerState]);
 
   const showDashboardLayer = useCallback(() => animateDashboardLayer('show'), [animateDashboardLayer]);
-  const hideDashboardLayer = useCallback(() => animateDashboardLayer('hide'), [animateDashboardLayer]);
+  const hideDashboardLayer = useCallback((thumbnailOpen = false) => animateDashboardLayer('hide', thumbnailOpen), [animateDashboardLayer]);
 
   const maybeRevealProject = useCallback((id: string) => {
     if (builderReadyIdRef.current !== id) return;
     if (!revealRequestedRef.current || revealHeldRef.current) return;
+    const thumbnailOpen = Boolean(openingOriginRef.current?.thumbnail);
     animateThumbnailToCanvas();
-    void hideDashboardLayer();
+    void hideDashboardLayer(thumbnailOpen);
   }, [animateThumbnailToCanvas, hideDashboardLayer]);
 
   const openProject = useCallback(async (
@@ -370,6 +389,16 @@ export default function FieldShell() {
 
   return (
     <div className="field-shell" data-dashboard-state={dashboardState}>
+      <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
+        <defs>
+          <filter id="field-motion-blur-horizontal" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4.5 0" />
+          </filter>
+          <filter id="field-motion-blur-vertical" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="0 4" />
+          </filter>
+        </defs>
+      </svg>
       <div
         ref={builderLayerRef}
         className="field-shell-builder"

@@ -9,6 +9,7 @@ import SkeletonSurface from './SkeletonSurface';
 type Props = {
   project: FieldProjectMeta;
   refreshing?: boolean;
+  opening?: boolean;
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
   onOpen: () => void;
@@ -151,6 +152,7 @@ export default function ProjectCard(props: Props) {
       className="field-project-card"
       aria-busy={props.refreshing || undefined}
       data-refreshing={props.refreshing ? 'true' : undefined}
+      data-opening={props.opening ? 'true' : undefined}
     >
       <button
         className="field-project-preview"

@@ -292,6 +292,20 @@ body:has(.field-dashboard-page),
   box-shadow: 0 0 0 1px var(--control-border-hover);
 }
 
+.field-project-card[data-opening='true'] .field-project-preview {
+  border-color: var(--border-focus);
+  animation: field-project-opening-pulse .82s ease-in-out infinite;
+}
+
+@keyframes field-project-opening-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--border-focus), 0 0 0 0 color-mix(in srgb, var(--border-focus) 28%, transparent); }
+  50% { box-shadow: 0 0 0 1px var(--border-focus), 0 0 0 7px color-mix(in srgb, var(--border-focus) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-project-card[data-opening='true'] .field-project-preview { animation: none; }
+}
+
 .field-project-preview:not(:disabled):focus-visible,
 .field-project-name:not(:disabled):focus-visible,
 .field-project-more:focus-visible,

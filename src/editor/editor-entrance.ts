@@ -314,6 +314,9 @@ export function editorSpringKeyframes(
         ? `${px}px 0`
         : `0 ${px}px`,
       opacity,
+      filter: offset > 0.04 && offset < 0.39
+        ? `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`
+        : 'none',
     });
   }
 
@@ -329,6 +332,15 @@ export function editorExitKeyframes(
       offset: 0,
       translate: role === 'bottom' ? '0 0px' : '0px 0',
       opacity: 1,
+      filter: 'none',
+    },
+    {
+      offset: 0.48,
+      translate: role === 'bottom'
+        ? `0 ${exitDistancePx * .45}px`
+        : `${exitDistancePx * .45}px 0`,
+      opacity: 1,
+      filter: `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`,
     },
     {
       offset: 1,
@@ -336,6 +348,7 @@ export function editorExitKeyframes(
         ? `0 ${exitDistancePx}px`
         : `${exitDistancePx}px 0`,
       opacity: 1,
+      filter: 'none',
     },
   ];
 }

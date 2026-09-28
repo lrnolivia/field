@@ -490,6 +490,7 @@ export interface SandboxApi {
     vpPrefix: string,
     opts: { format: 'png' | 'jpeg' | 'svg'; pixelRatio: number; backgroundColor?: string },
   ): Promise<string | null>;
+  captureCanvasViewport(): Promise<string | null>;
 }
 
 export type TextEditCommand =
