@@ -14,7 +14,6 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { selectionColorLocateAtom, locateSelectionColor } from '@/code/stores/selection-color-locate-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { setWorkspaceModeAtom } from '@/editor/workspace-mode-store';
 import { useNodesComputed } from '@/code/stores/node-family';
 import { ColorSwatch, ToolSection, ToolDivider } from '../controls';
 import ToolPopup from '../ui/ToolPopup';
@@ -115,7 +114,6 @@ function SelectionColorRow({
   const [hoverActive, setHoverActive] = useState(false);
   const setLocate = useSetAtom(selectionColorLocateAtom);
   const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRevision = useRef<number | null>(null);
@@ -156,7 +154,6 @@ function SelectionColorRow({
     activeRevision.current = request.revision;
     setLocate(request);
     setLeftPanel('layers');
-    setWorkspaceMode('docked');
     trace.action('selection-color:locate-click', { color: group.value, count: group.nodeIds.length });
     clickTimer.current = setTimeout(() => {
       setLocate((current) => current?.revision === request.revision ? null : current);

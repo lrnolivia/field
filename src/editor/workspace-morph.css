@@ -79,3 +79,21 @@ html[data-workspace-resizing='true'] :is(
     [data-editor-panel='left-primary'], [data-workspace-left-restore]
   ) { transition: none; }
 }
+
+
+/* Floating title pill -> Compact Docked handoff.
+   The field mark contracts/spins back toward the rail while document identity
+   stays continuous and becomes the compact pill's primary icon. */
+[data-workspace-left-restore] [data-workspace-restore-logo],
+[data-workspace-left-restore] [data-workspace-restore-divider],
+[data-workspace-left-restore] [data-workspace-restore-title],
+[data-project-chip-icon] {
+  will-change: transform, opacity, width, height;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-workspace-left-restore] [data-workspace-restore-logo],
+  [data-workspace-left-restore] [data-workspace-restore-divider],
+  [data-workspace-left-restore] [data-workspace-restore-title],
+  [data-project-chip-icon] { transition: none !important; }
+}
