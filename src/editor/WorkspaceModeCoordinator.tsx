@@ -21,6 +21,7 @@ export default function WorkspaceModeCoordinator() {
   const compactDockedLeftOpen = useAtomValue(compactDockedLeftOpenAtom);
   const compactDockedInspectorOpen = useAtomValue(compactDockedInspectorOpenAtom);
   const compactInspectorOpen = useAtomValue(compactInspectorOpenAtom);
+  const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
@@ -121,7 +122,7 @@ export default function WorkspaceModeCoordinator() {
       return !!el.closest('.ProseMirror, .monaco-editor, [data-code-editor], [data-modal-root], [role="dialog"], [role="menu"], [role="listbox"], select');
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       if (previewMode || selectedIds.length > 0 || shapeEditingId || groupEditingId) return;
       if (document.querySelector('[data-modal-root]') || isTypingOrUsingControl(event.target)) return;
