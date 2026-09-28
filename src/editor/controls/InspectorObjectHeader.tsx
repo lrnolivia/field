@@ -11,6 +11,24 @@ import { suppressSelectionOverlayAtom } from '@/code/stores/editor-store';
 import { enterComponentFile } from '@/canvas/component-navigation';
 import { useControlOptional } from './ControlProvider';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
+import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
+
+const FRAME_PRESETS = [
+  { label: 'iPhone 17', width: 402, height: 874 },
+  { label: 'iPhone 16', width: 393, height: 852 },
+  { label: 'iPhone 16 Plus', width: 430, height: 932 },
+  { label: 'Android Compact', width: 412, height: 917 },
+  { label: 'Android Medium', width: 700, height: 840 },
+  { label: 'iPad mini 8.3', width: 744, height: 1133 },
+  { label: 'iPad Pro 11', width: 834, height: 1194 },
+  { label: 'iPad Pro 12.9', width: 1024, height: 1366 },
+  { label: 'MacBook Air', width: 1280, height: 832 },
+  { label: 'MacBook Pro 14', width: 1512, height: 982 },
+  { label: 'Desktop', width: 1440, height: 1024 },
+  { label: 'TV', width: 1280, height: 720 },
+  { label: 'Slide 16:9', width: 1920, height: 1080 },
+  { label: 'Slide 4:3', width: 1024, height: 768 },
+] as const;
 
 interface InspectorObjectHeaderProps {
   title: string;
@@ -94,7 +112,9 @@ export default function InspectorObjectHeader({
   sourceTitle,
 }: InspectorObjectHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [frameMenuOpen, setFrameMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const frameButtonRef = useRef<HTMLButtonElement>(null);
   const store = useStore();
   const activeFile = useAtomValue(activeFilePathAtom);
   const setActiveFile = useSetAtom(activeFilePathAtom);
@@ -108,6 +128,24 @@ export default function InspectorObjectHeader({
   const isGallery = !isMultiSelect && isGalleryViewId(control?.styles?.[GALLERY_VIEW_STYLE_PROPERTY]);
   const semanticTitle = isGallery ? 'Gallery' : title;
   const semanticKind = isGallery ? 'Gallery' : kind;
+  const isFrame = semanticKind === 'Frame' && !isMultiSelect && !componentFile;
+  const canResizeFrame = isFrame && !!control?.nodeId && control.nodeId !== 'root' && control.nodeId !== 'layout::root';
+  const frameMenuItems: DropdownMenuEntry[] = [
+    { id: 'frame-type', label: 'Frame', trailingIcon: <span aria-label="Selected">✓</span>, onClick: () => setFrameMenuOpen(false) },
+    { id: 'section-type', label: 'Section', disabled: true, title: 'Section conversion is not available yet', onClick: () => {} },
+    { id: 'group-type', label: 'Group', disabled: true, title: 'Group conversion is not available here yet', onClick: () => {} },
+    { type: 'separator' },
+    ...FRAME_PRESETS.map((preset) => ({
+      id: `frame-preset-${preset.label}`,
+      label: `${preset.label}     ${preset.width} × ${preset.height}`,
+      disabled: !canResizeFrame,
+      title: canResizeFrame ? undefined : 'This frame size is managed by its viewport',
+      onClick: () => {
+        control?.updateMultipleStyles({ width: `${preset.width}px`, height: `${preset.height}px` });
+        setFrameMenuOpen(false);
+      },
+    })),
+  ];
 
   const matchingIds = useNodesComputed((nodes) => {
     if (!componentFile || isMultiSelect) return [] as string[];
@@ -171,7 +209,20 @@ export default function InspectorObjectHeader({
     >
       <div className="min-h-10 px-[var(--panel-inset)] flex items-center gap-1">
         <div className="min-w-0 flex-1 flex items-center gap-1.5">
-          {componentFile ? (
+          {isFrame ? (
+            <>
+              <button ref={frameButtonRef} type="button" data-inspector-frame-menu-trigger
+                aria-label="Frame type and size" aria-haspopup="menu" aria-expanded={frameMenuOpen}
+                onClick={() => setFrameMenuOpen((value) => !value)}
+                className="min-w-0 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-primary)] hover:text-[var(--accent)]">
+                <span className="truncate">{semanticTitle}</span>
+                <FieldGlyph behavior="chevron"><FieldMorphGlyph active={frameMenuOpen} from={glyphIcons.chevronDown} to={glyphIcons.chevronUp} size={10} strokeWidth={1.2} spring="snappy" /></FieldGlyph>
+              </button>
+              <DropdownMenu isOpen={frameMenuOpen} onClose={() => setFrameMenuOpen(false)}
+                anchorRef={frameButtonRef} position="bottom-left" minWidth={225} hoverStyle="subtle"
+                items={frameMenuItems} density="compact" preferredFocusItemId="frame-type" />
+            </>
+          ) : componentFile ? (
             <motion.button
               type="button"
               initial="rest"

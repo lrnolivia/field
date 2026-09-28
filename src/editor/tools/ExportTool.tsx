@@ -13,6 +13,7 @@ import { exportSectionOpenAtom } from '@/code/stores/editor-store';
 import { getViewportPrefix } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { trace } from '@/shared/debug-trace';
+import ToolPopup from '../ui/ToolPopup';
 
 /** `captureElement` lives on PostMessageBridge but isn't in the base
  *  `CanvasBridge` interface — same pattern as the shape-edit RPC methods.
@@ -26,19 +27,62 @@ type BridgeWithCapture = {
 };
 
 const SCALE_OPTIONS = [
+  { value: '0.5', label: '0.5x' },
   { value: '1', label: '1x' },
   { value: '2', label: '2x' },
   { value: '3', label: '3x' },
+  { value: '4', label: '4x' },
 ];
 
 const FORMAT_OPTIONS = [
   { value: 'png', label: 'PNG' },
   { value: 'jpg', label: 'JPG' },
   { value: 'svg', label: 'SVG' },
+  { value: 'pdf', label: 'PDF', disabled: true },
 ];
 
 type ExportConfiguration = { id: number; scale: string; format: string; suffix: string };
 let nextExportId = 1;
+
+function ExportConfigurationRow({ configuration, onChange, onRemove }: {
+  configuration: ExportConfiguration;
+  onChange: (patch: Partial<ExportConfiguration>) => void;
+  onRemove: () => void;
+}) {
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsRef = useRef<HTMLButtonElement>(null);
+  return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px_24px] items-center gap-1.5 w-full" data-export-configuration>
+    <ToolSelect ariaLabel="Export scale" value={configuration.scale} onChange={(scale) => onChange({ scale })} options={SCALE_OPTIONS} />
+    <ToolSelect ariaLabel="Export format" value={configuration.format} onChange={(format) => onChange({ format })} options={FORMAT_OPTIONS} />
+    <button ref={optionsRef} type="button" title="Export options" aria-label="Export options"
+      aria-haspopup="dialog" aria-expanded={optionsOpen} onClick={() => setOptionsOpen(true)}
+      className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">···</button>
+    <button type="button" title="Remove export setting" aria-label="Remove export setting" onClick={onRemove}
+      className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">−</button>
+    <ToolPopup isOpen={optionsOpen} onClose={() => setOptionsOpen(false)} title="Export" anchorRef={optionsRef} width={260}>
+      <div className="flex flex-col gap-3 text-xs">
+        <label className="flex items-center justify-between gap-3 text-[var(--text-secondary)]">
+          Suffix
+          <input aria-label="Export filename suffix" value={configuration.suffix}
+            onChange={(event) => onChange({ suffix: event.target.value })}
+            className="h-[var(--control-height)] min-w-0 w-28 rounded-[var(--control-radius)] bg-[var(--control-bg)] px-2 text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-[var(--accent)]" />
+        </label>
+        <label className="flex items-center justify-between gap-3 text-[var(--text-disabled)]" title="Color profile selection is not available in the current export engine">
+          Color profile <select disabled aria-label="Color profile (unavailable)" className="w-28 rounded bg-[var(--control-bg)] px-2 py-1"><option>sRGB</option></select>
+        </label>
+        <label className="flex items-center justify-between gap-3 text-[var(--text-disabled)]" title="Resampling selection is not available in the current export engine">
+          Image resampling <select disabled aria-label="Image resampling (unavailable)" className="w-28 rounded bg-[var(--control-bg)] px-2 py-1"><option>Detailed</option></select>
+        </label>
+        <label className="flex items-center gap-2 text-[var(--text-secondary)]" title="The export captures the selected layer only">
+          <input type="checkbox" checked disabled /> Ignore overlapping layers
+        </label>
+        <label className="flex items-center gap-2 text-[var(--text-disabled)]" title="Bounding box adjustment is not available in the current export engine">
+          <input type="checkbox" disabled /> Include bounding box
+        </label>
+      </div>
+    </ToolPopup>
+  </div>;
+}
 
 export default function ExportTool() {
   const { node, nodeId, vpId } = useControl();
@@ -46,8 +90,6 @@ export default function ExportTool() {
   // independent export configuration as in the design panel.
   const [open, setOpen] = useAtom(exportSectionOpenAtom);
   const [configurationsByNode, setConfigurationsByNode] = useState<Record<string, ExportConfiguration[]>>({});
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [suffixDraft, setSuffixDraft] = useState('');
   const [exporting, setExporting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -139,7 +181,7 @@ export default function ExportTool() {
         const captureFormat: 'png' | 'jpeg' | 'svg' = format === 'jpg' ? 'jpeg' : (format as 'png' | 'svg');
         const dataUrl = await bridge.captureElement(nodeId, getViewportPrefix(vpId), {
           format: captureFormat,
-          pixelRatio: parseInt(scale, 10),
+          pixelRatio: parseFloat(scale),
           backgroundColor: captureFormat === 'jpeg' ? '#ffffff' : undefined,
         });
         if (!dataUrl) {
@@ -183,21 +225,10 @@ export default function ExportTool() {
 
   return (
     <ToolSection key={`${configurationKey}:${configurations.length}`} title="Export" collapsible action={addBtn} hasContent={open && configurations.length > 0}>
-      {configurations.map((configuration) => (
-        <div key={configuration.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px_24px] items-center gap-1.5 w-full" data-export-configuration>
-          <ToolSelect value={configuration.scale} onChange={(scale) => updateConfiguration(configuration.id, { scale })} options={SCALE_OPTIONS} />
-          <ToolSelect value={configuration.format} onChange={(format) => updateConfiguration(configuration.id, { format })} options={FORMAT_OPTIONS} />
-          <button type="button" title="Export options" aria-label="Export options" onClick={() => { setEditingId(configuration.id); setSuffixDraft(configuration.suffix); }} className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">···</button>
-          <button type="button" title="Remove export setting" aria-label="Remove export setting" onClick={() => setConfigurations((current) => current.filter((entry) => entry.id !== configuration.id))} className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">−</button>
-        </div>
-      ))}
-      {editingId !== null && (
-        <div className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-secondary)] p-2 flex items-center gap-2 text-xs" data-export-options>
-          <label htmlFor="export-suffix" className="text-[var(--text-secondary)]">Suffix</label>
-          <input id="export-suffix" value={suffixDraft} onChange={(event) => setSuffixDraft(event.target.value)} className="min-w-0 flex-1 bg-[var(--bg-hover)] rounded px-2 py-1 text-[var(--text-primary)]" />
-          <button type="button" onClick={() => { updateConfiguration(editingId, { suffix: suffixDraft }); setEditingId(null); }} className="text-[var(--accent)]">Done</button>
-        </div>
-      )}
+      {configurations.map((configuration) => <ExportConfigurationRow key={configuration.id}
+        configuration={configuration}
+        onChange={(patch) => updateConfiguration(configuration.id, patch)}
+        onRemove={() => setConfigurations((current) => current.filter((entry) => entry.id !== configuration.id))} />)}
 
       {/* Preview toggle */}
       <button
