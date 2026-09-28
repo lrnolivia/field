@@ -82,7 +82,7 @@ export default function ProjectChip() {
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] overflow-hidden" title={fullTitle}>
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] overflow-hidden" aria-label={fullTitle}>
         <div className="flex min-w-0 items-center">
           <button
             ref={triggerRef}

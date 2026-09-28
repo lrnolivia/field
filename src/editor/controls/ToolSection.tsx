@@ -6,7 +6,6 @@
 import React, { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
-import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { trace } from '@/shared/debug-trace';
 
 interface Props {
@@ -39,7 +38,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
   // its items (user request 2026-09-09). No action → the native menu is left
   // alone.
   const onHeaderContextMenu = (e: React.MouseEvent) => {
-    const btn = actionRef.current?.querySelector('button');
+    const btn = actionRef.current?.querySelector('button:not(:disabled)');
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
@@ -95,20 +94,8 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           // Sentence case in the default UI stack (the display-font experiment
           // was retired 2026-08-20) — same face as the row labels, one size up
           // and semibold so the heading role still reads.
-          className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left inline-flex items-center gap-1.5 ${collapsible && hasContent ? 'cursor-pointer' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
+          className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left inline-flex items-center gap-1.5 transition-colors ${collapsible && hasContent ? 'cursor-pointer hover:text-[var(--accent)]' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
         >
-          {collapsible && hasContent && (
-            <FieldGlyph behavior="chevron">
-              <FieldMorphGlyph
-                active={isOpen}
-                from={glyphIcons.chevronRight}
-                to={glyphIcons.chevronDown}
-                size={9}
-                strokeWidth={1.8}
-                spring="snappy"
-              />
-            </FieldGlyph>
-          )}
           <span>{title}</span>
         </button>
         <span ref={actionRef} className="flex items-center">{action}</span>

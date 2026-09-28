@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
-import { ToolSection, ToolSelect, ControlLabel } from '../controls';
+import { ToolSection, ToolSelect } from '../controls';
 import { useControl } from '../controls/ControlProvider';
 import { exportSectionOpenAtom } from '@/code/stores/editor-store';
 import { getViewportPrefix } from '@/canvas/node-ops';
@@ -37,19 +37,35 @@ const FORMAT_OPTIONS = [
   { value: 'svg', label: 'SVG' },
 ];
 
+type ExportConfiguration = { id: number; scale: string; format: string; suffix: string };
+let nextExportId = 1;
+
 export default function ExportTool() {
   const { node, nodeId, vpId } = useControl();
-  // Section expansion is GLOBAL (exportSectionOpenAtom) — the + opens Export
-  // for every selection, the − closes it everywhere. Mirrors AnchorTool's
-  // +/− affordance but with shared (not per-node) state, per design.
+  // Keep the established global expansion signal; each plus click now adds an
+  // independent export configuration as in the design panel.
   const [open, setOpen] = useAtom(exportSectionOpenAtom);
-  const [scale, setScale] = useState('1');
-  const [format, setFormat] = useState('png');
+  const [configurationsByNode, setConfigurationsByNode] = useState<Record<string, ExportConfiguration[]>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [suffixDraft, setSuffixDraft] = useState('');
   const [exporting, setExporting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const nodeName = node?.name || node?.type || 'element';
+  const configurationKey = nodeId || '';
+  const configurations = configurationsByNode[configurationKey] || [];
+  const setConfigurations = (update: (current: ExportConfiguration[]) => ExportConfiguration[]) => {
+    setConfigurationsByNode((current) => ({ ...current, [configurationKey]: update(current[configurationKey] || []) }));
+  };
+  const firstConfiguration = configurations[0];
+  const addConfiguration = () => {
+    setConfigurations((current) => [...current, { id: nextExportId++, scale: '1', format: 'png', suffix: '' }]);
+    setOpen(true);
+  };
+  const updateConfiguration = (id: number, patch: Partial<ExportConfiguration>) => {
+    setConfigurations((current) => current.map((entry) => entry.id === id ? { ...entry, ...patch } : entry));
+  };
 
   // Auto-generate the preview shortly after the selection settles. The
   // capture itself runs OFF the parent's main thread (inside the sandbox
@@ -68,7 +84,7 @@ export default function ExportTool() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     // `open` gate: no bridge captures while the section is collapsed.
-    if (!nodeId || !showPreview || !open) return;
+    if (!nodeId || !showPreview || !open || !firstConfiguration) return;
     cancelledRef.current = false;
 
     // Debounce 600ms after selection settles, then capture via the bridge.
@@ -103,7 +119,7 @@ export default function ExportTool() {
       cancelledRef.current = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [nodeId, vpId, showPreview, open]);
+  }, [nodeId, vpId, showPreview, open, firstConfiguration?.id]);
 
   const handleExport = useCallback(async () => {
     if (!nodeId) return;
@@ -115,100 +131,73 @@ export default function ExportTool() {
     }
 
     setExporting(true);
-    trace.action('export-tool:start', { nodeId, format, scale, nodeName });
+    trace.action('export-tool:start', { nodeId, configurations: configurations.length, nodeName });
 
     try {
-      // `format` state is 'png' | 'jpg' | 'svg'; html-to-image's JPEG
-      // export is `toJpeg`, so normalize 'jpg' → 'jpeg' for the bridge.
-      const captureFormat: 'png' | 'jpeg' | 'svg' = format === 'jpg' ? 'jpeg' : (format as 'png' | 'svg');
-      const dataUrl = await bridge.captureElement(nodeId, getViewportPrefix(vpId), {
-        format: captureFormat,
-        pixelRatio: parseInt(scale, 10),
-        // JPEG has no alpha channel — give it a white backdrop instead of black.
-        backgroundColor: captureFormat === 'jpeg' ? '#ffffff' : undefined,
-      });
-
-      if (!dataUrl) {
-        trace.error('export-tool:element-not-found', { nodeId, vpId });
-        return;
+      for (const configuration of configurations) {
+        const { format, scale, suffix } = configuration;
+        const captureFormat: 'png' | 'jpeg' | 'svg' = format === 'jpg' ? 'jpeg' : (format as 'png' | 'svg');
+        const dataUrl = await bridge.captureElement(nodeId, getViewportPrefix(vpId), {
+          format: captureFormat,
+          pixelRatio: parseInt(scale, 10),
+          backgroundColor: captureFormat === 'jpeg' ? '#ffffff' : undefined,
+        });
+        if (!dataUrl) {
+          trace.error('export-tool:element-not-found', { nodeId, vpId });
+          continue;
+        }
+        if (configuration.id === firstConfiguration?.id) setPreview(dataUrl);
+        const link = document.createElement('a');
+        link.download = `${nodeName}${suffix || (scale === '1' ? '' : `@${scale}x`)}.${format}`;
+        link.href = dataUrl;
+        link.click();
+        trace.action('export-tool:success', { nodeId, format, scale, nodeName });
       }
-
-      // Set preview
-      setPreview(dataUrl);
-
-      // Trigger download
-      const link = document.createElement('a');
-      link.download = `${nodeName}@${scale}x.${format}`;
-      link.href = dataUrl;
-      link.click();
-
-      trace.action('export-tool:success', { nodeId, format, scale, nodeName });
     } catch (err) {
       trace.error('export-tool:failed', {
-        nodeId, format, scale,
+        nodeId, configurations: configurations.length,
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setExporting(false);
     }
-  }, [nodeId, vpId, format, scale, nodeName]);
+  }, [nodeId, vpId, configurations, firstConfiguration?.id, nodeName]);
 
-  trace.fn('ExportTool:render', { nodeId, format, scale, exporting, open });
+  trace.fn('ExportTool:render', { nodeId, configurations: configurations.length, exporting, open });
 
   // Same +/− affordance as AnchorTool / AccessibilityTool. The oversized
   // `pl-[80px] -ml-[80px]` hit area mirrors AnchorTool's toggle button.
-  const toggleBtn = (
+  const addBtn = (
     <button
       onClick={(e) => {
         e.stopPropagation();
-        trace.action('export-tool:toggle-section', { open: !open });
-        setOpen(!open);
+        addConfiguration();
       }}
-      className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
+      title="Add export setting"
+      aria-label="Add export setting"
+      className="flex h-7 w-7 items-center justify-center rounded-[6px] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]"
     >
-      {open ? (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="transition-opacity group-hover:opacity-80">
-          <path d="M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      ) : (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="transition-opacity group-hover:opacity-80">
-          <path d="M6 2V10M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      )}
+      <svg width="14" height="14" viewBox="0 0 12 12" fill="none"><path d="M6 2V10M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
     </button>
   );
 
   return (
-    <ToolSection title="Export" collapsible action={toggleBtn} hasContent={open}>
-      {/* Scale */}
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Scale" property="__export-scale" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSelect
-            value={scale}
-            onChange={(val) => {
-              trace.action('export-tool:scale-change', { from: scale, to: val });
-              setScale(val);
-            }}
-            options={SCALE_OPTIONS}
-          />
+    <ToolSection key={`${configurationKey}:${configurations.length}`} title="Export" collapsible action={addBtn} hasContent={open && configurations.length > 0}>
+      {configurations.map((configuration) => (
+        <div key={configuration.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px_24px] items-center gap-1.5 w-full" data-export-configuration>
+          <ToolSelect value={configuration.scale} onChange={(scale) => updateConfiguration(configuration.id, { scale })} options={SCALE_OPTIONS} />
+          <ToolSelect value={configuration.format} onChange={(format) => updateConfiguration(configuration.id, { format })} options={FORMAT_OPTIONS} />
+          <button type="button" title="Export options" aria-label="Export options" onClick={() => { setEditingId(configuration.id); setSuffixDraft(configuration.suffix); }} className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">···</button>
+          <button type="button" title="Remove export setting" aria-label="Remove export setting" onClick={() => setConfigurations((current) => current.filter((entry) => entry.id !== configuration.id))} className="h-6 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]">−</button>
         </div>
-      </div>
-
-      {/* Format */}
-      <div className="flex items-center justify-between w-full">
-        <ControlLabel label="Format" property="__export-format" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSelect
-            value={format}
-            onChange={(val) => {
-              trace.action('export-tool:format-change', { from: format, to: val });
-              setFormat(val);
-            }}
-            options={FORMAT_OPTIONS}
-          />
+      ))}
+      {editingId !== null && (
+        <div className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-secondary)] p-2 flex items-center gap-2 text-xs" data-export-options>
+          <label htmlFor="export-suffix" className="text-[var(--text-secondary)]">Suffix</label>
+          <input id="export-suffix" value={suffixDraft} onChange={(event) => setSuffixDraft(event.target.value)} className="min-w-0 flex-1 bg-[var(--bg-hover)] rounded px-2 py-1 text-[var(--text-primary)]" />
+          <button type="button" onClick={() => { updateConfiguration(editingId, { suffix: suffixDraft }); setEditingId(null); }} className="text-[var(--accent)]">Done</button>
         </div>
-      </div>
+      )}
 
       {/* Preview toggle */}
       <button

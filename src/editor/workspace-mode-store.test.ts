@@ -44,4 +44,15 @@ describe('workspace mode', () => {
     store.set(railRevealedAtom, true);
     expect(store.get(leftRailVisibleAtom)).toBe(true);
   });
+
+  it('cannot restore contradictory legacy pane flags', () => {
+    const store = createStore();
+    store.set(setWorkspaceModeAtom, 'floating');
+    store.set(leftPaneOpenAtom, true);
+    expect(store.get(workspaceModeAtom)).toBe('docked');
+    expect(store.get(rightPaneDetachedAtom)).toBe(false);
+    store.set(rightPaneOpenAtom, false);
+    expect(store.get(workspaceModeAtom)).toBe('compact');
+    expect(store.get(leftPaneOpenAtom)).toBe(false);
+  });
 });

@@ -1050,6 +1050,9 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
       if (styles.width === 'auto') next.width = `${Math.round(computed.width)}px`;
       if (styles.height === 'auto') next.height = `${Math.round(computed.height)}px`;
       onUpdateMultiple(next);
+      if (node?.attrs?.['data-initial-aspect-lock'] === 'true') {
+        queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { 'data-initial-aspect-lock': '' } });
+      }
       trace.action('size:aspect-lock-off', { nodeId, ...next });
       return;
     }
@@ -1073,7 +1076,17 @@ export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId,
     else next.height = 'auto';
     onUpdateMultiple(next);
     trace.action('size:aspect-lock-on', { nodeId, ratio: arValue, ...next });
-  }, [isAspectRatioLocked, computed.width, computed.height, styles.width, styles.height, nodeId, onUpdateMultiple]);
+  }, [isAspectRatioLocked, computed.width, computed.height, styles.width, styles.height, nodeId, node?.attrs, onUpdateMultiple]);
+
+  const canMakeSquare = shouldShowAspectLock && node?.type === 'svg' && !isVectorSet;
+  const makeSquare = useCallback(() => {
+    const size = Math.round(Math.max(computed.width, computed.height));
+    if (!(size > 0)) return;
+    onUpdateMultiple({ width: `${size}px`, height: `${size}px`, aspectRatio: '1 / 1' });
+    if (node?.attrs?.['data-initial-aspect-lock'] === 'true') {
+      queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { 'data-initial-aspect-lock': '' } });
+    }
+  }, [computed.width, computed.height, node?.attrs, nodeId, onUpdateMultiple]);
 
   // ─── Width change handler ─────────────────────────────────────────────
   // TRANSFORMED absolute element: a typed px size behaves like the resize
@@ -1730,7 +1743,7 @@ if (heightIsAuto) {
 
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      <div data-layout-size-pair className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px] gap-1 items-center">
+      <div data-layout-size-pair className={`grid ${canMakeSquare ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px_24px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24px]'} gap-1 items-center`}>
         {primaryWidthControl}
         {primaryHeightControl}
         {shouldShowAspectLock ? (
@@ -1747,6 +1760,13 @@ if (heightIsAuto) {
             </svg>
           </button>
         ) : <span />}
+        {canMakeSquare && (
+          <button type="button" data-make-square onClick={makeSquare}
+            className="h-[var(--control-height)] w-6 flex items-center justify-center rounded-[var(--control-radius)] border border-[var(--control-border)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            title="Make 1:1 square" aria-label="Make 1:1 square">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25"><rect x="3" y="3" width="10" height="10" rx="1" /><path d="M6 8h4" /></svg>
+          </button>
+        )}
       </div>
 
       {showClipContent && !deferClipContent && (

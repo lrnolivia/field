@@ -185,6 +185,7 @@ function createSvgNode(
   // wrapper's current width/height — same UX as the reference / Figma.
   svg.setAttribute('viewBox', `0 0 ${Math.round(width)} ${Math.round(height)}`);
   svg.setAttribute('preserveAspectRatio', 'none');
+  if (styles.aspectRatio === '1 / 1') svg.setAttribute('data-initial-aspect-lock', 'true');
 
   for (const [key, value] of Object.entries(styles)) {
     try { (svg.style as any)[key] = value; } catch { /* skip */ }
@@ -415,6 +416,9 @@ export function startShapeCreation(
         left: `${Math.round(left)}px`,
         top: `${Math.round(top)}px`,
       };
+      // A Shift-drawn square starts ratio-locked. The first hand resize
+      // releases this provisional lock; the inspector can also unlock it.
+      if (shiftHeld && shapeMode !== 'shape-line') styles.aspectRatio = '1 / 1';
 
       const innerJSX = innerShapeJSX(shapeMode, roundedWidth, roundedHeight);
       // Wrapper attrs that make the shape stretch on parent resize. Mirrors
@@ -424,6 +428,7 @@ export function startShapeCreation(
       const wrapperAttrs: Record<string, string> = {
         viewBox: `0 0 ${roundedWidth} ${roundedHeight}`,
         preserveAspectRatio: 'none',
+        ...(shiftHeld && shapeMode !== 'shape-line' ? { 'data-initial-aspect-lock': 'true' } : {}),
       };
 
       if (isCanvasNode) {

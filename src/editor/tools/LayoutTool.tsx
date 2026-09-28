@@ -25,7 +25,6 @@ import { isPrimaryViewport } from '@/canvas/node-ops';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { isFitSize } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
-import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import GalleryTool from './GalleryTool';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 import { parseVarRef } from '@/shared/css-utils';
@@ -1437,15 +1436,29 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
     </div>
   ) : null;
 
-  // +/- action button for the section title row
+  // Layout uses explicit actions. Resize-to-fit needs a measured child-bounds
+  // operation, so keep its Figma-shaped control visible but disabled until that
+  // engine exists. The auto layout action below is wired to the existing
+  // position-preserving add/remove command.
   const toggleAction = (
-    <button
-      onClick={handleToggleLayout}
-      className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
-      title={hasLayout ? 'Remove Layout' : 'Add Layout'}
-    >
-      <FieldGlyph behavior={hasLayout ? 'minus' : 'plus'}><FieldMorphGlyph active={hasLayout} from={glyphIcons.plus} to={glyphIcons.minus} size={14} strokeWidth={2} turn={90} /></FieldGlyph>
-    </button>
+    <div className="flex items-center gap-1">
+      <button type="button" disabled title="Resize to fit is not available yet" aria-label="Resize to fit (unavailable)"
+        className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-disabled)] cursor-not-allowed">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
+          <path d="M5 1.5v3.5H1.5M11 1.5v3.5h3.5M5 14.5V11H1.5M11 14.5V11h3.5" />
+          <path d="m5 5-3-3m9 3 3-3M5 11l-3 3m9-3 3 3" />
+        </svg>
+      </button>
+      <button type="button" onClick={handleToggleLayout}
+        title={hasLayout ? 'Remove auto layout' : 'Add auto layout'}
+        aria-label={hasLayout ? 'Remove auto layout' : 'Add auto layout'}
+        className={`flex h-7 w-7 items-center justify-center rounded-[5px] transition-colors hover:bg-[var(--bg-hover)] ${hasLayout ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="2" y="2.5" width="4" height="4" rx=".7" /><rect x="2" y="9.5" width="4" height="4" rx=".7" />
+          <path d="M9.5 3h4M11.5 1v4M9.5 11.5h4M11.5 9.5v4" />
+        </svg>
+      </button>
+    </div>
   );
 
   // ── Template root: a Template is ALWAYS a flex column; its layout can't be

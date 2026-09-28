@@ -3,9 +3,22 @@
 import { atomWithStorage } from 'jotai/utils';
 import { atom } from 'jotai';
 
-export const leftPaneOpenAtom = atomWithStorage('revyme:prefs:leftPaneOpen', true, undefined, { getOnInit: true });
-export const rightPaneOpenAtom = atomWithStorage('revyme:prefs:rightPaneOpen', true, undefined, { getOnInit: true });
-export const rightPaneDetachedAtom = atomWithStorage('field:prefs:rightPaneDetached', false, undefined, { getOnInit: true });
+// The mode is the only persisted presentation state. Deriving the legacy pane
+// flags prevents impossible combinations during restore or rapid transitions.
+export type WorkspaceMode = 'docked' | 'floating' | 'compact';
+export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
+export const leftPaneOpenAtom = atom(
+  (get) => get(workspaceModeAtom) === 'docked',
+  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+);
+export const rightPaneOpenAtom = atom(
+  (get) => get(workspaceModeAtom) !== 'compact',
+  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+);
+export const rightPaneDetachedAtom = atom(
+  (get) => get(workspaceModeAtom) === 'floating',
+  (_get, set, detached: boolean) => set(workspaceModeAtom, detached ? 'floating' : 'docked'),
+);
 export const rightPaneDragOffsetAtom = atom({ x: 0, y: 0 });
 export const rightFloatingHeightAtom = atomWithStorage('field:prefs:rightFloatingHeight', 680, undefined, { getOnInit: true });
 export const leftCollapsedWidthAtom = atomWithStorage('field:prefs:leftCollapsedWidth', 52, undefined, { getOnInit: true });

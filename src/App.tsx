@@ -54,6 +54,8 @@ import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme'
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
+import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
+import { workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
@@ -84,6 +86,7 @@ interface AppProps {
 
 export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
   const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
@@ -99,6 +102,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
     rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
   const cameraInsets = workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+  const previousMode = useRef(workspaceMode);
 
   useEffect(() => {
     const root = editorRootRef.current;
@@ -120,13 +124,18 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       // Preserve zoom while moving the page with the center of the new camera-safe
       // rectangle. Floating panes overlay the physical canvas; only automatic
       // fit/center operations consume these safe insets.
-      transformManager.pan(
-        (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2,
-        (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2,
-      );
+      const dx = (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2;
+      const dy = (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2;
+      if (previousMode.current !== workspaceMode) {
+        const current = transformManager.getTransform();
+        animateCanvasTo(current.x + dx, current.y + dy, current.scale, 340);
+      } else {
+        transformManager.pan(dx, dy);
+      }
     }
     previousInsets.current = { ...cameraInsets };
-  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom]);
+    previousMode.current = workspaceMode;
+  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom, workspaceMode]);
   // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
   // keyboard shortcut can both flip it without prop-drilling. The
   // right-header Preview button still drives the same atom via the

@@ -946,12 +946,12 @@ function startRotatedSvgShapeResize(args: RotatedSvgResizeArgs): void {
       }
     }
 
-    const W = Math.max(MIN_SIZE, w);
-    // Shift — aspect-ratio lock on a corner drag (frame parity). Width drives
-    // height, mirroring the shared `applyAspectRatioLock`. The opposite-corner
-    // pin below re-anchors left/top FROM the locked dims, so no extra top
-    // compensation is needed here.
-    const H = lockedShiftHeight(W, Math.max(MIN_SIZE, h), e.shiftKey, curXHandle, curYHandle, shiftRatio);
+    let W = Math.max(MIN_SIZE, w);
+    let H = Math.max(MIN_SIZE, h);
+    if (e.shiftKey && shiftRatio > 0) {
+      if (curYHandle && !curXHandle) W = H * shiftRatio;
+      else H = W / shiftRatio;
+    }
 
     // Geometry scale: original viewBox space → the new W×H box. viewBox is
     // set to "0 0 W H" so viewBoxToBox is uniform 1:1 → no skew.
@@ -1285,10 +1285,12 @@ function startRotatedSvgGroupResize(args: RotatedGroupResizeArgs): void {
         curDirection = updateDirectionAfterCrossing(curXHandle ?? zc.xHandle, curYHandle ?? zc.yHandle, curDirection);
       }
     }
-    const W = Math.max(MIN_SIZE, w);
-    // Shift — corner aspect lock, width drives height (frame parity). The
-    // centre-pivot pin below re-anchors from the locked dims.
-    const H = lockedShiftHeight(W, Math.max(MIN_SIZE, h), e.shiftKey, curXHandle, curYHandle, shiftRatio);
+    let W = Math.max(MIN_SIZE, w);
+    let H = Math.max(MIN_SIZE, h);
+    if (e.shiftKey && shiftRatio > 0) {
+      if (curYHandle && !curXHandle) W = H * shiftRatio;
+      else H = W / shiftRatio;
+    }
 
     // Pin the opposite corner about the box CENTRE (the group rotates about its
     // centre). Identical math to the rotated-shape pin, pivot fraction = 0.5.
@@ -2251,20 +2253,13 @@ export function startResize(
       deltaX, deltaY, xHandle, yHandle, isInLayout,
     );
 
-    // Aspect ratio lock. A VECTOR SET is ALWAYS locked (any handle, intrinsic
-    // ratio) — the reference behaviour. Otherwise Shift on a corner locks to the current
-    // ratio. `aspectRatio` == startWidth/startHeight (the vector's intrinsic ratio
-    // when undistorted), so the lock keeps it proportional on every resize.
-    if (isVectorSet || hasPersistentAspectLock) {
-      // Persistent lock = proportional resize from corners OR edges.
+    // Shift preserves the starting ratio from every handle, including edges.
+    // Vector sets and explicitly locked objects preserve it without Shift.
+    if (isVectorSet || hasPersistentAspectLock || e.shiftKey) {
       const locked = applyVectorAspectLock(newWidth, newHeight, curWidth, curHeight, curLeft, curTop, aspectRatio, xHandle, yHandle, isInLayout);
       newWidth = locked.width;
       newHeight = locked.height;
       newLeft = locked.left;
-      newTop = locked.top;
-    } else if (e.shiftKey && isCorner) {
-      const locked = applyAspectRatioLock(newWidth, newHeight, curHeight, curTop, aspectRatio, yHandle, isInLayout);
-      newHeight = locked.height;
       newTop = locked.top;
     }
 
@@ -3011,6 +3006,10 @@ export function startResize(
       // "all variant tiles jump to the primary's position" glitch is prevented at the correct
       // layer: `updateNodeStyles`'s component-primary fan-out no longer mirrors POSITION keys to
       // sibling variant tiles (each variant owns its own position — see node-ops.ts).
+      if (nodeAttrs['data-initial-aspect-lock'] === 'true') {
+        finalStyles.aspectRatio = '';
+        queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { 'data-initial-aspect-lock': '' } });
+      }
       updateNodeStyles({ id: nodeId, styles: finalStyles, contentEl });
     }
     styleHelperOps.hide();

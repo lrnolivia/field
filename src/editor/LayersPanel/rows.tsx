@@ -849,11 +849,11 @@ export const LayerRow = React.memo(function LayerRow({
             line; as you scroll right the clamp relaxes and each cluster
             "dominoes" back to its true indent. `sticky` doesn't engage for a
             mid-row flex item here, hence the explicit transform. The constant
-            = px-2(16) + lock/eye reserve(56) + cluster width(~42) + this row's
+            = px-2(16) + target/lock/eye reserve(74) + cluster width(~42) + this row's
             indent(12 + depth*20). */}
         <div
           className="flex items-center gap-1 shrink-0 relative z-10"
-          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${58 + depth * 16}px)))` }}
+          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${76 + depth * 16}px)))` }}
         >
         {hasChildren ? (
           <motion.button
@@ -961,7 +961,7 @@ export const LayerRow = React.memo(function LayerRow({
               // Updates on horizontal scroll purely via the CSS vars → the name
               // expands as you scroll right and never overflows the edge.
               maxWidth: textIndent != null
-                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 48)}px)`
+                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 68)}px)`
                 : undefined,
             }}
           >

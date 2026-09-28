@@ -11,11 +11,12 @@
 // static/relative flow children, left/top is a no-op (or an unexpected offset),
 // so we gray the icons out rather than silently doing nothing.
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { ToolSection, ToolDivider } from '../../controls';
 import { AlignmentButtons } from './AlignmentControl';
-import { calculateMultiAlign, type AlignRect } from './multi-align';
+import { calculateDistributeSpacing, calculateMultiAlign, type AlignRect, type AlignDelta } from './multi-align';
+import ToolPopup from '../../ui/ToolPopup';
 import type { AlignDirection } from '@/shared/pin-utils';
 import {
   getContentRoot,
@@ -33,6 +34,8 @@ interface Props {
 
 export default function MultiAlignmentControl({ vpId }: Props) {
   const selectedIds = useAtomValue(selectedIdsAtom);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
 
   // Enabled only when every selected node is absolutely / fixed positioned.
   // `position` resolves to a real value through the bridge computed cache.
@@ -44,7 +47,7 @@ export default function MultiAlignmentControl({ vpId }: Props) {
     });
   }, [selectedIds, vpId]);
 
-  const handleAlign = useCallback((dir: AlignDirection) => {
+  const applyPositionDeltas = useCallback((calculate: (rects: AlignRect[]) => Map<string, AlignDelta>, action: string) => {
     if (!enabled) return;
     const contentEl = getContentRoot();
     if (!contentEl) return;
@@ -61,8 +64,8 @@ export default function MultiAlignmentControl({ vpId }: Props) {
     }
     if (rects.length < 2) return;
 
-    const deltas = calculateMultiAlign(dir, rects);
-    trace.action('multi-align:apply', { dir, count: rects.length });
+    const deltas = calculate(rects);
+    trace.action('multi-align:apply', { action, count: rects.length });
 
     for (const id of selectedIds) {
       const d = deltas.get(id);
@@ -88,9 +91,31 @@ export default function MultiAlignmentControl({ vpId }: Props) {
     }
   }, [enabled, selectedIds, vpId]);
 
+  const handleAlign = useCallback((dir: AlignDirection) => {
+    applyPositionDeltas((rects) => calculateMultiAlign(dir, rects), dir);
+  }, [applyPositionDeltas]);
+
+  const handleDistribute = (axis: 'horizontal' | 'vertical') => {
+    applyPositionDeltas((rects) => calculateDistributeSpacing(axis, rects), `distribute-${axis}`);
+    setMoreOpen(false);
+  };
+
   return (
     <>
-      <ToolSection title="Position">
+      <ToolSection title="Position" action={<>
+        <button ref={moreRef} type="button" title="More position actions" aria-label="More position actions"
+          onClick={() => setMoreOpen((value) => !value)}
+          className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4" /><rect x="6" y="6" width="4" height="4" rx=".7" /></svg>
+        </button>
+        <ToolPopup isOpen={moreOpen} onClose={() => setMoreOpen(false)} anchorRef={moreRef} title="More position actions" width={260}>
+          <div className="flex flex-col p-1.5 text-xs">
+            <button type="button" disabled title="Tidy up is not available yet" className="rounded px-2 py-2 text-left text-[var(--text-disabled)] cursor-not-allowed">Tidy up</button>
+            <button type="button" disabled={!enabled || selectedIds.length < 3} onClick={() => handleDistribute('vertical')} className="rounded px-2 py-2 text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed">Distribute vertical spacing</button>
+            <button type="button" disabled={!enabled || selectedIds.length < 3} onClick={() => handleDistribute('horizontal')} className="rounded px-2 py-2 text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed">Distribute horizontal spacing</button>
+          </div>
+        </ToolPopup>
+      </>}>
         <AlignmentButtons enabled={enabled} onAlign={handleAlign} />
       </ToolSection>
       <ToolDivider />
