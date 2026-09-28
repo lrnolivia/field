@@ -374,6 +374,43 @@ describe('CanvasMouseController — multi-select descendants', () => {
   });
 });
 
+describe('CanvasMouseController — Shift selection gesture', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(redirectLayoutNodeToViewport).mockReturnValue(null);
+    vi.mocked(redirectToComponentInstance).mockImplementation((id: string) => id);
+    vi.mocked(redirectToFitTextWrapper).mockReturnValue(null);
+    vi.mocked(redirectToTopLevelChild).mockImplementation((id: string) => id);
+  });
+
+  function selectedPair() {
+    const result = makeController();
+    result.store.set(nodesAtom, new Map([
+      ['a', { id: 'a', parentId: null, children: [], styles: {}, attrs: {}, isCanvasNode: true }],
+      ['b', { id: 'b', parentId: null, children: [], styles: {}, attrs: {}, isCanvasNode: true }],
+    ]) as never);
+    result.store.set(selectedIdsAtom, ['a', 'b']);
+    return result;
+  }
+
+  test('Shift-click removes an already selected layer on mouseup', () => {
+    const { controller, store } = selectedPair();
+    controller.handleNodeMouseDown('a', makeMouseEvent({ shiftKey: true }), 'desktop');
+    expect(store.get(selectedIdsAtom)).toEqual(['a', 'b']);
+    expect((controller as any).pendingShiftRemove).toBe('a');
+    controller.handleMouseUp(makeMouseEvent({ shiftKey: true }));
+    expect(store.get(selectedIdsAtom)).toEqual(['b']);
+  });
+
+  test('Shift-drag keeps the pressed layer in the moved selection', () => {
+    const { controller, store, opts } = selectedPair();
+    controller.handleNodeMouseDown('a', makeMouseEvent({ shiftKey: true }), 'desktop');
+    opts.dragCoordinatorRef.current.isDragging = true;
+    controller.handleMouseUp(makeMouseEvent({ shiftKey: true }));
+    expect(store.get(selectedIdsAtom)).toEqual(['a', 'b']);
+  });
+});
+
 
 // ─── FIT text double-click (bug-hunt #12 side-find, 2026-09-07) ─────────────
 // A FIT wrapper is an <svg> around <foreignObject> → <p>. Double-clicking it

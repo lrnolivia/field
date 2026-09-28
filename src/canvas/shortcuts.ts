@@ -140,7 +140,7 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   }}));
 
   // ─── General ─────────────────────────────────────────────────────
-  cleanups.push(keyboard.register({ key: 'escape', label: 'Escape / Select Parent', category: 'general', handler: () => {
+  cleanups.push(keyboard.register({ key: 'escape', label: 'Escape / Deselect', category: 'general', handler: () => {
     // Exit shape edit mode first (highest priority after text edit)
     const store = getDefaultStore();
     const shapeEditId = store.get(shapeEditingIdAtom);
@@ -161,34 +161,12 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
       setSelectedIds([groupEditId]);
       return;
     }
-    // Pop the Figma-style nested-selection container by ONE level. Double-click
-    // on a frame with children sets that frame as the active container; Escape
-    // walks back out — same UX as
-    // group-edit's exit, just at the page-tree scope. Sets activeContainer
-    // to the popped frame's parent (or null if it was top-level), and
-    // selects the popped frame so the user keeps a visible selection
-    // rather than blanking the canvas.
-    const activeContainer = store.get(activeContainerIdAtom);
-    if (activeContainer) {
-      const popped = nodesRef.current.get(activeContainer);
-      const parentId = popped?.parentId ?? null;
-      const newContainer = parentId === 'root' ? null : parentId;
-      store.set(activeContainerIdAtom, newContainer);
-      setSelectedIds([activeContainer]);
-      trace.action('canvas:hierarchy-pop-esc', {
-        from: activeContainer, to: newContainer,
-      });
-      return;
-    }
     if (editingNodeIdRef.current) { commitTextEdit(); return; }
     if (toolModeRef.current !== 'select') { setToolMode('select'); return; }
     cancelFrameCreation();
-    // Select parent first; if no parent, deselect
-    const sel = selectedIdRef.current;
-    if (sel) {
-      const parentId = selectParent(sel, nodesRef.current);
-      if (parentId) { setSelectedIds([parentId]); return; }
-    }
+    // Figma's normal canvas Escape clears the selection. Parent navigation
+    // has its own Shift+Enter shortcut; retain group/shape edit exits above.
+    store.set(activeContainerIdAtom, null);
     setSelectedIds([]);
   }}));
 
@@ -287,16 +265,23 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     if (prev) setSelectedIds([prev]);
   }}));
 
-  cleanups.push(keyboard.register({ key: 'enter', label: 'Select children', category: 'selection', handler: () => {
-    // Select ALL direct children from all selected nodes (like old builder)
-    const ids = selectedIdsRef.current;
-    if (ids.length === 0) return;
-    const allChildren: string[] = [];
-    for (const id of ids) {
-      const children = selectChildren(id, nodesRef.current);
-      allChildren.push(...children);
-    }
-    if (allChildren.length > 0) setSelectedIds(allChildren);
+  cleanups.push(keyboard.register({ key: 'enter', label: 'Select child', category: 'selection', handler: () => {
+    const id = selectedIdRef.current;
+    if (!id) return;
+    const child = selectChildren(id, nodesRef.current)[0];
+    if (!child) return;
+    getDefaultStore().set(activeContainerIdAtom, id);
+    setSelectedIds([child]);
+  }}));
+
+  cleanups.push(keyboard.register({ key: 'enter', shift: true, label: 'Select parent', category: 'selection', handler: () => {
+    const id = selectedIdRef.current;
+    if (!id) return;
+    const parentId = selectParent(id, nodesRef.current);
+    if (!parentId) return;
+    const grandparentId = selectParent(parentId, nodesRef.current);
+    getDefaultStore().set(activeContainerIdAtom, grandparentId && grandparentId !== 'root' ? grandparentId : null);
+    setSelectedIds([parentId]);
   }}));
 
   // ─── Replica Selection ───────────────────────────────────────

@@ -6,6 +6,9 @@ import LibraryPanel from '@/editor/left-toolbar/panels/LibraryPanel';
 import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 import { SecondaryPanelContent } from '@/editor/left-toolbar/panels/insert';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
+import ImageSearchModal from '@/editor/ui/ImageSearchModal';
+import VideoSearchModal from '@/editor/ui/VideoSearchModal';
+import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 
 const LIBRARY_TITLES = {
   components: 'Components', vectors: 'Vectors', templates: 'Templates',
@@ -19,7 +22,7 @@ export default function ToolbarPanelHost() {
 
   useEffect(() => { setPosition(null); }, [panel]);
   useEffect(() => {
-    if (!panel) return;
+    if (!panel || panel.kind === 'media-picker') return;
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -42,6 +45,15 @@ export default function ToolbarPanelHost() {
   }, [panel, setPanel]);
 
   if (!panel) return null;
+  if (panel.kind === 'media-picker') {
+    const onSelect = (url: string) => {
+      insertToolbarItemAtVisibleCenter(panel.media, undefined, { src: url });
+      setPanel(null);
+    };
+    return panel.media === 'image'
+      ? <ImageSearchModal isOpen onClose={() => setPanel(null)} onSelect={onSelect} />
+      : <VideoSearchModal isOpen onClose={() => setPanel(null)} onSelect={onSelect} />;
+  }
   const category = panel.kind === 'insert'
     ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
     : null;

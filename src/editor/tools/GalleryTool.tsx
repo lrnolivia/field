@@ -8,6 +8,7 @@ import GalleryContentSection, { type GalleryContentItem } from '../gallery/Galle
 import GalleryViewSection from '../gallery/GalleryViewSection';
 import GalleryImageSection from '../gallery/GalleryImageSection';
 import GalleryCreationWizard from '../gallery/GalleryCreationWizard';
+import Modal from '@/design-system/Modal';
 import type { GalleryWizardConfig } from '../gallery/gallery-wizard-model';
 import { buildGalleryDuplicateItemNode, galleryAdjacentItemId } from '../gallery/content-operations';
 import {
@@ -732,12 +733,14 @@ function GalleryToolInner() {
   return (
     <>
       {creationWizardOpen ? (
-        <GalleryCreationWizard
-          busy={creationWizardBusy}
-          error={creationWizardError}
-          onFinish={(config) => { void finishCreationWizard(config); }}
-          onCancel={cancelCreationWizard}
-        />
+        <Modal isOpen onClose={cancelCreationWizard} title="Create Gallery" width={440}>
+          <GalleryCreationWizard
+            busy={creationWizardBusy}
+            error={creationWizardError}
+            onFinish={(config) => { void finishCreationWizard(config); }}
+            onCancel={cancelCreationWizard}
+          />
+        </Modal>
       ) : (
         <>
       <GalleryContentSection

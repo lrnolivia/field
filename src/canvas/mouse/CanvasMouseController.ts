@@ -198,6 +198,9 @@ export class CanvasMouseController {
    *  to the ancestor (group drag); if the pointer never moves, mouseup selects
    *  this child instead. Null when the press wasn't that case. */
   private pendingMultiSelectChild: string | null = null;
+  /** A selected layer pressed with Shift stays in the drag group until we know
+   *  whether this was a click (remove it) or a drag (move the group). */
+  private pendingShiftRemove: string | null = null;
   ghostClickHandled = false;
 
   // Cleanup functions for event listeners
@@ -338,6 +341,7 @@ export class CanvasMouseController {
       handleSpacePanUp();
       this.emptyCanvasClick = false;
       this.pendingMultiSelectChild = null;
+      this.pendingShiftRemove = null;
       this.opts.setPanCursor(false);
     };
 
@@ -573,6 +577,11 @@ export class CanvasMouseController {
       this.store.set(selectedIdsAtom, [childId]);
     }
     this.pendingMultiSelectChild = null;
+    if (this.pendingShiftRemove && !didActuallyDrag) {
+      const selected = this.store.get(selectedIdsAtom);
+      this.store.set(selectedIdsAtom, selected.filter(id => id !== this.pendingShiftRemove));
+    }
+    this.pendingShiftRemove = null;
 
     this.emptyCanvasClick = false;
   }
@@ -590,6 +599,7 @@ export class CanvasMouseController {
   handleNodeMouseDown(nodeId: string, e: MouseEvent, vpIdOverride?: string): void {
     // The authoritative node event wins over any provisional background click.
     this.emptyCanvasClick = false;
+    this.pendingShiftRemove = null;
 
     // Space and explicit Hand own the gesture even when the pointer is over a
     // node. Route through the normal canvas handler before selection/drag logic.
@@ -1575,9 +1585,9 @@ export class CanvasMouseController {
       // Shift+Click: toggle in multi-select.
       const currentIds = this.store.get(selectedIdsAtom);
       if (currentIds.includes(redirected)) {
-        const newIds = currentIds.filter(id => id !== redirected);
-        trace.action('canvas:shift-click-remove', { nodeId: redirected, newCount: newIds.length });
-        this.store.set(selectedIdsAtom, newIds);
+        // Keep it selected for a possible Shift-drag. A no-movement mouseup
+        // completes the toggle; a real drag keeps the whole group intact.
+        this.pendingShiftRemove = redirected;
       } else {
         const newIds = [redirected, ...currentIds];
         trace.action('canvas:shift-click-add', { nodeId: redirected, newCount: newIds.length });

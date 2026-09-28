@@ -428,6 +428,12 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
 function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<MenuView>('list');
+  const setPanel = useSetAtom(toolbarPanelAtom);
+  const chooseMedia = (id: string) => {
+    setOpen(false);
+    if (id === 'image' || id === 'video') setPanel({ kind: 'media-picker', media: id });
+    else insertToolbarItemAtVisibleCenter(id);
+  };
   useClickOutside(ref, open, () => setOpen(false));
   const mediaItems = CATEGORIES.find((category) => category.id === 'elements')
     ?.sections.find((section) => section.id === 'media')?.items ?? [];
@@ -455,11 +461,11 @@ function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boole
           {view === 'icons' ? <div className="grid grid-cols-3 gap-1.5 p-1">{mediaItems.map((item) => {
             const Icon = ELEMENT_ICON_MAP[item.iconKey];
             return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : null}
-              onClick={() => { insertToolbarItemAtVisibleCenter(item.id); setOpen(false); }} />;
+              onClick={() => chooseMedia(item.id)} />;
           })}</div> : mediaItems.map((item) => {
             const Icon = ELEMENT_ICON_MAP[item.iconKey];
             return <MenuItem key={item.id} label={item.name} icon={Icon ? <Icon /> : undefined}
-              onClick={() => { insertToolbarItemAtVisibleCenter(item.id); setOpen(false); }} />;
+              onClick={() => chooseMedia(item.id)} />;
           })}
         </DropdownContainer>
       )}

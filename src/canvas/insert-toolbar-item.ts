@@ -88,7 +88,7 @@ export function toolbarItemToClipboardNodes(item: ToolbarItem): ClipboardNode[] 
 }
 
 /** Click a catalogue tile to place it at the visible canvas center. */
-export function insertToolbarItemAtVisibleCenter(itemId: string, sectionBlueprintId?: string): string[] {
+export function insertToolbarItemAtVisibleCenter(itemId: string, sectionBlueprintId?: string, attrs?: Record<string, string>): string[] {
   if (sectionBlueprintId) {
     const created = insertSectionBlueprint(sectionBlueprintId);
     playInsertionPop(created);
@@ -105,7 +105,9 @@ export function insertToolbarItemAtVisibleCenter(itemId: string, sectionBlueprin
     return [];
   }
   if (item.cdnUrl) ensureCdnImport(item.elementType, item.cdnUrl);
-  const created = insertNodes(toolbarItemToClipboardNodes(item), { ignoreSelection: true });
+  const nodes = toolbarItemToClipboardNodes(item);
+  if (attrs && nodes[0]) nodes[0].attrs = { ...nodes[0].attrs, ...attrs };
+  const created = insertNodes(nodes, { ignoreSelection: true });
   playInsertionPop(created);
   trace.action('insert-panel:click-insert', { itemId, created });
   return created;

@@ -103,6 +103,7 @@ import { useCanvasTransform } from './hooks/useCanvasTransform';
 import { useSandboxBridge } from './hooks/useSandboxBridge';
 import { CanvasMouseController } from './mouse/CanvasMouseController';
 import { CanvasTextEditController } from './text-edit/CanvasTextEditController';
+import { TextFocusCamera } from './text-edit/text-focus-camera';
 import { CanvasDragOrchestrator } from './drag/CanvasDragOrchestrator';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCanvasCommandsBridge } from './hooks/useCanvasCommandsBridge';
@@ -956,9 +957,20 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       renderer,
       getInteractingVpId: () => interactingVpIdRef.current || 'desktop',
     });
+    const focusCamera = new TextFocusCamera(() => iframeRef.current);
+    const unsubscribeFocus = jotaiStore.sub(isTextEditingAtom, () => {
+      if (jotaiStore.get(isTextEditingAtom)) {
+        const id = controller.getEditingNodeId();
+        if (id) focusCamera.begin(id, interactingVpIdRef.current || 'desktop');
+      } else {
+        focusCamera.end();
+      }
+    });
     textEditControllerRef.current = controller;
     trace.action('canvas:text-edit-controller-created', {});
     return () => {
+      unsubscribeFocus();
+      focusCamera.dispose();
       if (textEditControllerRef.current) {
         textEditControllerRef.current.dispose();
         textEditControllerRef.current = null;
