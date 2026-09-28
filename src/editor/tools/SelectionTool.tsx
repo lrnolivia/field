@@ -23,6 +23,8 @@ import { toHexDisplay } from '../ui/color-utils';
 import PresetPicker from '../ui/PresetPicker';
 import { updateNodeStyles, getContentRoot, parseRectCacheKey } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
+import { transformManager, zoomToFitNodes } from '@/canvas/transform';
+import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
 import {
@@ -32,6 +34,29 @@ import {
 } from '../selection-colors';
 
 const SELECTION_COLOR_VISIBLE_LIMIT = 10;
+
+let locateCameraRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+let locateCameraRestoreTransform: { x: number; y: number; scale: number } | null = null;
+
+function temporarilyFocusSelectionColorNodes(nodeIds: string[]): void {
+  const contentEl = getContentRoot();
+  if (!contentEl || nodeIds.length === 0) return;
+
+  // Preserve the camera from BEFORE the first locate in a run. Clicking another
+  // color while focus is active retargets the temporary zoom but still returns
+  // to the user's original view instead of nesting temporary cameras.
+  locateCameraRestoreTransform ??= { ...transformManager.getTransform() };
+  if (locateCameraRestoreTimer) clearTimeout(locateCameraRestoreTimer);
+
+  zoomToFitNodes(contentEl, nodeIds, false, 72, 0.88);
+  locateCameraRestoreTimer = setTimeout(() => {
+    const restore = locateCameraRestoreTransform;
+    locateCameraRestoreTimer = null;
+    locateCameraRestoreTransform = null;
+    if (!restore) return;
+    animateCanvasTo(restore.x, restore.y, restore.scale, 240, { focus: true });
+  }, 2200);
+}
 
 function writeReplacementStyles(stylesByNode: Map<string, Record<string, string>>): void {
   const contentEl = getContentRoot();
@@ -154,6 +179,7 @@ function SelectionColorRow({
     activeRevision.current = request.revision;
     setLocate(request);
     setLeftPanel('layers');
+    temporarilyFocusSelectionColorNodes(group.nodeIds);
     trace.action('selection-color:locate-click', { color: group.value, count: group.nodeIds.length });
     clickTimer.current = setTimeout(() => {
       setLocate((current) => current?.revision === request.revision ? null : current);
