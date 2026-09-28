@@ -5,8 +5,8 @@ import { stripGhostSuffix } from '@/shared/ghost-id';
 import type { Transform } from '@/shared/types';
 import { getPaddedCanvasFocusArea } from '../transform/CameraCommands';
 
-/** A temporary camera focus for typing. Any intentional canvas interaction
- *  makes the new view the user's view, so ending the edit will not undo it. */
+/** A temporary camera focus for typing. Canvas zoom/pan gestures keep the new
+ * view; clicking away to finish editing restores the view from before typing. */
 export class TextFocusCamera {
   private original: Transform | null = null;
   private interrupted = false;
@@ -22,9 +22,7 @@ export class TextFocusCamera {
     this.end(false);
     this.interrupted = false;
     this.original = transformManager.getTransform();
-    window.addEventListener('pointerdown', this.interrupt, true);
     window.addEventListener('wheel', this.interrupt, true);
-    document.addEventListener('field:sandbox-mousedown', this.interrupt, true);
     // A newly inserted text node can take a render frame to acquire a rect.
     const focus = (attempt: number) => {
       if (!this.original || this.interrupted) return;
@@ -49,9 +47,7 @@ export class TextFocusCamera {
 
   end(restore = true): void {
     cancelAnimationFrame(this.pendingFrame);
-    window.removeEventListener('pointerdown', this.interrupt, true);
     window.removeEventListener('wheel', this.interrupt, true);
-    document.removeEventListener('field:sandbox-mousedown', this.interrupt, true);
     const original = this.original;
     const shouldRestore = restore && original && !this.interrupted;
     this.original = null;

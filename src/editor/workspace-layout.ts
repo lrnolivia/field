@@ -30,6 +30,8 @@ export interface WorkspaceLayout {
 }
 
 export const WORKSPACE_FLOAT_INSET = 8;
+/** Clear gap below the stationary document pill for detached left chrome. */
+export const WORKSPACE_FLOAT_LEFT_TOP = 72;
 export const WORKSPACE_HEADER_HEIGHT = 52;
 export const WORKSPACE_FLOAT_RADIUS = 8;
 export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
@@ -67,7 +69,7 @@ export function deriveWorkspaceLayout(
   const rightPaneWidth = clampRightPaneWidth(widths.rightPaneWidth ?? DEFAULT_RIGHT_PANE_WIDTH);
   const left = side(leftOpen, LEFT_RAIL_WIDTH + leftContentWidth);
   const right = rightOpen && widths.rightDetached
-    ? { presentation: 'floating' as const, inset: 24, top: 70, bottom: 24, width: rightPaneWidth }
+    ? { presentation: 'floating' as const, inset: 24, top: 8, bottom: 24, width: rightPaneWidth }
     : side(rightOpen, rightPaneWidth);
 
   return {

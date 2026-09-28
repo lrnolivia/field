@@ -17,7 +17,6 @@ import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
-import WorkspaceAutoHideButton from '@/editor/WorkspaceAutoHideButton';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
@@ -318,7 +317,6 @@ export default function LeftHeader() {
           )}
         </div>
 
-        <WorkspaceAutoHideButton />
         <WorkspaceModeButton />
       </div>
 

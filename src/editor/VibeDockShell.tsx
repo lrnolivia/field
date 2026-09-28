@@ -5,6 +5,7 @@ import { useAtomValue } from 'jotai';
 import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { trace } from '@/shared/debug-trace';
+import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
 
 interface Props {
   headerAccessory?: ReactNode;
@@ -25,11 +26,12 @@ function DetachIcon() {
 
 export default function VibeDockShell({ headerAccessory, contextLabel, onDetach, children }: Props) {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
   trace.fn('VibeDockShell.render', { contextLabel, presentation: workspace.left.presentation });
 
-  if (!leftOpen) return null;
+  if (!leftOpen || !railVisible) return null;
 
   const surfaceLabel = contextLabel
     ? contextLabel.replace(/^\//, '') || 'Home'

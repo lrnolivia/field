@@ -94,6 +94,7 @@ textarea {
   --bg-surface: #ffffff;
   --bg-toolbar: #fafafa;
   --bg-panel: #f7f7f7;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 94%, black);
   --bg-hover: #eaeaea;
   --bg-active: #e1e1e1;
   --bg-tertiary: #f0f0f0;
@@ -143,6 +144,7 @@ textarea {
   --bg-surface: #242424;
   --bg-toolbar: #242424;
   --bg-panel: #242424;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 82%, black);
   --bg-hover: #2f2f2f;
   --bg-active: #373737;
   --bg-tertiary: #2a2a2a;
@@ -333,6 +335,29 @@ select {
 [data-left-menu-rail] .vibe-face {
   font-size: 8.5px;
   letter-spacing: 0.02em;
+}
+
+/* Text edit target preview: the shimmer is visual only; canvas clicks still
+ * hit the original text through this pointer-transparent layer. */
+.field-text-hover-gloss {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--selection) 58%, transparent);
+  border-radius: 4px;
+  background: linear-gradient(115deg, transparent 10%, color-mix(in srgb, var(--selection) 12%, transparent) 42%, color-mix(in srgb, white 26%, transparent) 52%, transparent 78%);
+  background-size: 220% 100%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--selection) 9%, transparent), inset 0 0 12px color-mix(in srgb, var(--selection) 12%, transparent);
+  animation: field-text-hover-gloss 1.4s ease-in-out both;
+}
+@keyframes field-text-hover-gloss {
+  0% { opacity: 0; background-position: 100% 0; }
+  18% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .field-text-hover-gloss { animation: none; background: color-mix(in srgb, var(--selection) 10%, transparent); }
 }
 
 /* Bottom tool strip: smaller AND floating off the screen edge. */

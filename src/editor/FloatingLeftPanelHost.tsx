@@ -4,13 +4,15 @@ import { useAtom, useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { leftContentWidthAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
-import { compactPanelOpenAtom, floatingLeftHiddenAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { WORKSPACE_FLOAT_LEFT_TOP } from './workspace-layout';
 
 /** Content half of the floating left island. The icon rail sits flush to its
  * left; both live below the stationary project pill. */
 export default function FloatingLeftPanelHost() {
   const mode = useAtomValue(workspaceModeAtom);
   const hidden = useAtomValue(floatingLeftHiddenAtom);
+  const collapsed = useAtomValue(floatingPanelCollapsedAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const compactOpen = useAtomValue(compactPanelOpenAtom);
   const panelId = useAtomValue(leftPanelAtom);
@@ -18,10 +20,10 @@ export default function FloatingLeftPanelHost() {
   const [height, setHeight] = useAtom(floatingLeftHeightAtom);
   const railWidth = useAtomValue(leftCollapsedWidthAtom);
   const Panel = PANEL_MAP[panelId];
-  const visible = (mode === 'floating' && (!autoHide || !hidden)) || (mode === 'compact' && compactOpen);
+  const visible = (mode === 'floating' && (!autoHide || !hidden) && !collapsed) || (mode === 'compact' && compactOpen);
 
   useEffect(() => {
-    setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - 68)));
+    setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8)));
   }, [mode]);
 
   if (!Panel || (mode !== 'floating' && mode !== 'compact')) return null;
@@ -33,7 +35,7 @@ export default function FloatingLeftPanelHost() {
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       setContentWidth(clampLeftContentWidth(start.width + next.clientX - start.x));
-      setHeight(Math.max(280, Math.min(window.innerHeight - 68, start.height + next.clientY - start.y)));
+      setHeight(Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8, start.height + next.clientY - start.y)));
     };
     const stop = () => {
       window.removeEventListener('pointermove', move);
@@ -49,8 +51,8 @@ export default function FloatingLeftPanelHost() {
   return createPortal(
     <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
       aria-hidden={!visible} inert={!visible}
-      className="fixed z-[5001] flex flex-col overflow-hidden rounded-r-[9px] border border-l-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] transition-[transform,opacity] duration-[260ms] ease-out"
-      style={{ left: 8 + railWidth, top: 60, width: contentWidth, height: Math.min(height, window.innerHeight - 68),
+      className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
+      style={{ left: 8 + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8),
         opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
       <button type="button" aria-label="Resize floating left panel" title="Resize panel" onPointerDown={beginResize}

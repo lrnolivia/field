@@ -28,13 +28,14 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { compactDockedInspectorOpenAtom, compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
 import { floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom, floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import WorkspaceAutoHideButton from '@/editor/WorkspaceAutoHideButton';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const setFloatingInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
+  const setCompactDockedInspectorOpen = useSetAtom(compactDockedInspectorOpenAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
@@ -278,7 +280,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       const x = Math.max(8 - baseLeft, Math.min(window.innerWidth - 8 - rightPaneWidth - baseLeft, startOffset.x + next.clientX - startX));
       latestX = x;
       if (Math.abs(next.clientX - startX) + Math.abs(next.clientY - startY) > 8) dragged = true;
-      const y = Math.max(-62, Math.min(window.innerHeight - 70 - Math.min(rightFloatingHeight, window.innerHeight - 90) - 8, startOffset.y + next.clientY - startY));
+      const y = Math.max(-workspace.right.top, Math.min(window.innerHeight - workspace.right.top - Math.min(rightFloatingHeight, window.innerHeight - 90) - 8, startOffset.y + next.clientY - startY));
       setRightDragOffset({ x, y });
     };
     const stop = () => {
@@ -386,31 +388,45 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           </div>
         </div>
       )}
-      {rightPaneOpen && rightDetached && (autoHide || workspaceMode === 'compact') && !previewMode && (
+      {rightPaneOpen && rightDetached && workspaceMode === 'floating' && floatingInspectorVisible && !previewMode && (
+        <div className="fixed z-[10002]" style={{
+          right: workspace.right.inset + 12 - rightDragOffset.x,
+          top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y,
+        }}><WorkspaceAutoHideButton side="right" /></div>
+      )}
+      {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
+        <button type="button" aria-label="Close compact Inspector" title="Close Inspector"
+          onClick={() => setCompactInspectorOpen(false)}
+          className="fixed z-[10002] flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
+            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y }}>×</button>
+      )}
+      {rightPaneOpen && rightDetached && (autoHide || workspaceMode === 'compact') && !floatingInspectorVisible && !previewMode && (
         <button type="button" data-floating-inspector-handle
-          aria-label={floatingInspectorVisible ? 'Hide Inspector' : 'Reveal Inspector'}
-          title={floatingInspectorVisible ? 'Hide Inspector' : 'Reveal Inspector'}
+          aria-label="Reveal Inspector"
+          title="Reveal Inspector"
           onClick={() => {
-            if (workspaceMode === 'compact') { setCompactInspectorOpen(false); return; }
-            setFloatingInspectorSuppressed(floatingInspectorVisible);
-            setFloatingInspectorRevealed(!floatingInspectorVisible);
+            if (workspaceMode === 'compact') { setCompactInspectorOpen(true); return; }
+            setFloatingInspectorSuppressed(false);
+            setFloatingInspectorRevealed(true);
           }}
-          className={`fixed z-[10002] flex items-center justify-center border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,right] ${floatingInspectorVisible ? 'h-7 w-7 rounded-[5px] hover:bg-[var(--bg-hover)]' : 'h-10 w-3 rounded-l-[5px] border-r-0 hover:w-5'}`}
+          className="fixed z-[10002] flex h-10 w-3 items-center justify-center rounded-l-[5px] border border-r-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,right] hover:w-5"
           style={{
-            right: floatingInspectorVisible ? workspace.right.inset + 8 - rightDragOffset.x : 0,
-            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - (floatingInspectorVisible ? 68 : 74) + (floatingInspectorVisible ? rightDragOffset.y : 0),
+            right: 0,
+            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 74,
           }}>‹</button>
       )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible="true" data-workspace-mode="collapsed"
-          className="fixed bottom-2 right-2 top-2 z-[9999] flex flex-col items-center gap-2 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 shadow-[var(--shadow-lg)]"
-          style={{ width: rightCollapsedWidth }}>
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+          className={`fixed z-[9999] flex flex-col items-center gap-2 border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 ${workspaceMode === 'compact-docked' ? 'inset-y-0 right-0' : 'bottom-2 right-2 top-2 rounded-[8px] shadow-[var(--shadow-lg)]'}`}
+          style={{ width: workspaceMode === 'compact-docked' ? 60 : rightCollapsedWidth }}
+          onPointerEnter={workspaceMode === 'compact-docked' ? () => setCompactDockedInspectorOpen(true) : undefined}>
+          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
+          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
-          <CollapsedSelectionColors onOpen={() => setCompactInspectorOpen(true)} />
+          <CollapsedSelectionColors onOpen={() => { if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} />
         </div>
       )}
 

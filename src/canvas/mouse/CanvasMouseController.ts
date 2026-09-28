@@ -215,6 +215,60 @@ export class CanvasMouseController {
   // redirect at the same spot (temporary deep-select preview without moving).
   private lastHoverClientX = 0;
   private lastHoverClientY = 0;
+  private glossCandidate: string | null = null;
+  private glossDelay: number | undefined;
+  private glossExpiry: number | undefined;
+  private glossElement: HTMLDivElement | null = null;
+
+  /** A quiet preview for editable text inside the current selection. */
+  private updateTextGloss(clientX: number, clientY: number): void {
+    const hit = getNodeHitsAtPoint(clientX, clientY)[0];
+    const nodeId = hit ? stripGhostSuffix(hit.id) : null;
+    const nodes = this.store.get(nodesAtom);
+    const node = nodeId ? nodes.get(nodeId) : null;
+    const selected = this.store.get(selectedIdsAtom);
+    let ancestor: string | null | undefined = nodeId;
+    let insideSelection = false;
+    while (ancestor) {
+      if (selected.includes(ancestor)) { insideSelection = true; break; }
+      ancestor = nodes.get(ancestor)?.parentId;
+    }
+    const editable = node && node.children.length === 0
+      && (node.textContent?.trim() || node.hasMixedContent || ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button'].includes(node.type))
+      && node.binding?.property !== 'text' && !node.textVariable;
+    const candidate = insideSelection && editable && hit ? `${hit.vpPrefix}|${hit.id}` : null;
+    if (candidate !== this.glossCandidate) {
+      this.clearTextGloss();
+      this.glossCandidate = candidate;
+    }
+    if (!candidate || this.glossElement) return;
+    window.clearTimeout(this.glossDelay);
+    this.glossDelay = window.setTimeout(() => {
+      const rect = findNodeRect(hit!.id, vpIdFromPrefix(hit!.vpPrefix));
+      if (!rect || rect.width <= 0 || rect.height <= 0 || this.glossCandidate !== candidate) return;
+      const gloss = document.createElement('div');
+      gloss.className = 'field-text-hover-gloss';
+      gloss.setAttribute('aria-hidden', 'true');
+      Object.assign(gloss.style, {
+        left: `${rect.left - 3}px`, top: `${rect.top - 3}px`,
+        width: `${rect.width + 6}px`, height: `${rect.height + 6}px`,
+      });
+      document.body.appendChild(gloss);
+      this.glossElement = gloss;
+      this.glossExpiry = window.setTimeout(() => {
+        gloss.remove();
+        if (this.glossElement === gloss) this.glossElement = null;
+      }, 2100);
+    }, 1100);
+  }
+
+  clearTextGloss(): void {
+    window.clearTimeout(this.glossDelay);
+    window.clearTimeout(this.glossExpiry);
+    this.glossElement?.remove();
+    this.glossElement = null;
+    this.glossCandidate = null;
+  }
 
   constructor(opts: CanvasMouseControllerOpts) {
     this.opts = opts;
@@ -536,6 +590,7 @@ export class CanvasMouseController {
     // (temporary deepest-hit preview without moving).
     this.lastHoverClientX = e.clientX;
     this.lastHoverClientY = e.clientY;
+    this.updateTextGloss(e.clientX, e.clientY);
     this.updateHover(e.clientX, e.clientY, e.ctrlKey || e.metaKey);
   }
 
@@ -597,6 +652,7 @@ export class CanvasMouseController {
 
   /** Shared node mousedown handler — used by ALL elements (Renderer-created and imperative-created). */
   handleNodeMouseDown(nodeId: string, e: MouseEvent, vpIdOverride?: string): void {
+    this.clearTextGloss();
     // The authoritative node event wins over any provisional background click.
     this.emptyCanvasClick = false;
     this.pendingShiftRemove = null;
@@ -1842,6 +1898,7 @@ export class CanvasMouseController {
   }
 
   dispose(): void {
+    this.clearTextGloss();
     this._removeReplicaListener?.();
     this._removeSetInteractingVpListener?.();
     this._removeGhostDomListener?.();

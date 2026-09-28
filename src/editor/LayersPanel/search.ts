@@ -4,19 +4,21 @@
 
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { FlatLayer } from './rows';
+import { getLayerDisplayName } from './layer-name';
 
 export function filterLayersForSearch(
   layers: FlatLayer[],
   layerSearchActive: boolean,
   layerSearchQuery: string,
   nodes: Map<string, CanvasNode>,
+  showTextContent = true,
 ): FlatLayer[] {
     if (!layerSearchActive) return layers;
     const q = layerSearchQuery.trim().toLowerCase();
     const ancestorIds = new Set<string>();
     for (const l of layers) {
       if (!l.nodeId) continue;
-      const haystack = `${l.node.name || ''} ${l.node.type || ''}`.toLowerCase();
+      const haystack = `${getLayerDisplayName(l.node, showTextContent)} ${l.node.name || ''} ${l.node.type || ''}`.toLowerCase();
       if (!haystack.includes(q)) continue;
       ancestorIds.add(l.nodeId);
       // Walk up via parentId in the node map. Stops at the root (no

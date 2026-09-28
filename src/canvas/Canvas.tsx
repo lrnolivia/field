@@ -994,6 +994,15 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     editingNodeIdRef.current = nodeId;
   }, []);
 
+  useEffect(() => {
+    const editFromLayer = (event: Event) => {
+      const { nodeId, vpId } = (event as CustomEvent<{ nodeId: string; vpId: string }>).detail;
+      startTextEdit(nodeId, null, '', vpId);
+    };
+    window.addEventListener('field:start-text-edit', editFromLayer);
+    return () => window.removeEventListener('field:start-text-edit', editFromLayer);
+  }, [startTextEdit]);
+
   const commitTextEdit = useCallback(async () => {
     await textEditControllerRef.current?.commitEdit();
     editingNodeIdRef.current = textEditControllerRef.current?.getEditingNodeId() ?? null;
@@ -1325,7 +1334,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       }}
       onMouseMove={e => mouseControllerRef.current?.handleMouseMove(e.nativeEvent)}
       onMouseUp={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}
-      onMouseLeave={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}
+      onMouseLeave={e => { mouseControllerRef.current?.clearTextGloss(); mouseControllerRef.current?.handleMouseUp(e.nativeEvent); }}
       onDragStart={(e) => e.preventDefault()}
       onContextMenu={(e) => {
         e.preventDefault();

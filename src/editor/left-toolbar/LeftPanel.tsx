@@ -51,9 +51,9 @@ export default function LeftPanel() {
   return (
     <div
       data-editor-panel="left-primary"
-      data-visible={leftOpen ? 'true' : 'false'}
-      aria-hidden={leftOpen ? undefined : true}
-      inert={!leftOpen}
+      data-visible={leftOpen && railVisible ? 'true' : 'false'}
+      aria-hidden={leftOpen && railVisible ? undefined : true}
+      inert={!leftOpen || !railVisible}
       data-tutorial="left-panel"
       className="fixed z-[5000] flex flex-col overflow-hidden"
       style={{
@@ -66,6 +66,10 @@ export default function LeftPanel() {
         boxSizing: 'border-box',
         willChange: 'transform',
         isolation: 'isolate',
+        opacity: leftOpen && railVisible ? 1 : 0,
+        pointerEvents: leftOpen && railVisible ? 'auto' : 'none',
+        transform: leftOpen && railVisible ? 'translateX(0)' : 'translateX(-18px)',
+        transition: 'opacity 260ms ease, transform 260ms ease',
       }}
     >
       <PanelComponent />

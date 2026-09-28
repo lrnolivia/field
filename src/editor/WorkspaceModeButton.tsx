@@ -1,41 +1,56 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import DropdownMenu from '@/design-system/DropdownMenu';
-import { setWorkspaceModeAtom, workspaceModeAtom } from './workspace-mode-store';
+import { setWorkspaceModeAtom, workspaceModeAtom, type WorkspaceMode } from './workspace-mode-store';
 
-/** One mode selector in the document pill replaces separate pane mode buttons. */
+const modes: { id: WorkspaceMode; label: string }[] = [
+  { id: 'docked', label: 'Default' },
+  { id: 'floating', label: 'Floating' },
+  { id: 'compact', label: 'Compact' },
+  { id: 'compact-docked', label: 'Compact Docked' },
+];
+
+function LayoutGlyph({ mode }: { mode: WorkspaceMode }) {
+  return <svg aria-hidden viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+    {mode === 'docked' && <><rect x="1.5" y="2" width="15" height="14" rx="2" /><path d="M5.5 2v14M12.5 2v14" /></>}
+    {mode === 'floating' && <><rect x="1.5" y="2" width="15" height="14" rx="2" /><rect x="4" y="5" width="4" height="8" rx=".8" /><rect x="10" y="5" width="4" height="8" rx=".8" /></>}
+    {mode === 'compact' && <><rect x="1.5" y="2" width="15" height="14" rx="2" /><path d="M5 5v8M13 5v8" /><path d="m7 7 2 2-2 2m4-4-2 2 2 2" /></>}
+    {mode === 'compact-docked' && <><path d="M1.5 2h15v14h-15zM5 2v14M13 2v14" /><path d="m7 7 2 2-2 2m4-4-2 2 2 2" /></>}
+  </svg>;
+}
+
+/** The title pill's single layout control unfolds into the mode choices. */
 export default function WorkspaceModeButton() {
   const mode = useAtomValue(workspaceModeAtom);
   const setMode = useSetAtom(setWorkspaceModeAtom);
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => setOpen(false), [mode]);
-  const modes = [
-    { id: 'docked', label: 'Default', description: 'Panels docked' },
-    { id: 'floating', label: 'Floating', description: 'Floating panels' },
-    { id: 'compact', label: 'Compact', description: 'Panels tucked away' },
-  ] as const;
+  const [expanded, setExpanded] = useState(false);
+  const groupRef = useRef<HTMLDivElement>(null);
 
-  return <>
-    <button ref={anchorRef} type="button" data-workspace-mode-trigger
-      aria-label={`Workspace layout: ${mode}. Change layout`}
-      aria-haspopup="menu" aria-expanded={open} title="Workspace layout"
-      onClick={() => setOpen((value) => !value)}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
-      <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1.5" y="2" width="13" height="12" rx="1.5" />
-        <path d="M5 2v12M11 2v12" />
-        {mode === 'floating' && <path d="M7 5h2v6H7z" />}
-      </svg>
+  return <div ref={groupRef} data-workspace-layout-control data-expanded={expanded}
+    role="group" aria-label="Workspace layout"
+    onPointerEnter={() => setExpanded(true)} onPointerLeave={() => setExpanded(false)}
+    onFocusCapture={() => setExpanded(true)}
+    onBlurCapture={(event) => {
+      if (!groupRef.current?.contains(event.relatedTarget as Node | null)) setExpanded(false);
+    }}
+    className="flex h-7 shrink-0 items-center overflow-hidden rounded-[5px] transition-[width] duration-300 ease-out"
+    style={{ width: expanded ? 156 : 32 }}>
+    <button type="button" data-workspace-mode-trigger
+      aria-label={`Layout: ${modes.find(item => item.id === mode)?.label}. Show layouts`}
+      aria-expanded={expanded} title="Workspace layout"
+      onClick={() => setExpanded(value => !value)}
+      className="flex h-7 w-8 shrink-0 items-center justify-center gap-0.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+      <LayoutGlyph mode={mode} />
+      <svg aria-hidden viewBox="0 0 8 8" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="m1 3 3 3 3-3" /></svg>
     </button>
-    <DropdownMenu isOpen={open} onClose={() => setOpen(false)} anchorRef={anchorRef}
-      position="bottom-right" minWidth={190} hoverStyle="subtle" density="compact"
-      preferredFocusItemId={mode}
-      items={modes.map((item) => ({
-        id: item.id,
-        label: `${item.label} · ${item.description}`,
-        trailingIcon: mode === item.id ? <span aria-label="Selected">✓</span> : undefined,
-        onClick: () => { setMode(item.id); setOpen(false); },
-      }))} />
-  </>;
+    <div className="flex shrink-0 items-center gap-0.5 pl-0.5" aria-hidden={!expanded}>
+      {modes.map(item => <button key={item.id} type="button"
+        tabIndex={expanded ? 0 : -1} aria-label={`${item.label} layout`} aria-pressed={mode === item.id}
+        title={item.label} onClick={() => { setMode(item.id); setExpanded(false); }}
+        className={`flex h-7 w-7 items-center justify-center rounded-[4px] transition-colors ${mode === item.id
+          ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}>
+        <LayoutGlyph mode={item.id} />
+      </button>)}
+    </div>
+  </div>;
 }

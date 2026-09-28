@@ -16,6 +16,7 @@ import { deriveLayerPreview } from './LayerPreview';
 import { FigmaColumnsIcon, FigmaGridIcon, FigmaPathIcon, FigmaRowsIcon, FigmaTextIcon } from '@/shared/loew-figma-icons';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import { getLayerDisplayName } from './layer-name';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -624,11 +625,12 @@ export const LayerRow = React.memo(function LayerRow({
   layer, isSelected, isChildOfSelected, hasHighlightedChildren, isLastHighlightedChild,
   isDragOver, dropPosition, dropDepth, isDragging, effectiveHidden, locateFlashRevision,
   onSelect, onFocus, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
-  isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection,
+  isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection, showTextContent,
 }: {
   layer: FlatLayer;
   isSelected: boolean;
   isComponentMode: boolean;
+  showTextContent: boolean;
   /** The row's RESOLVED `display` for its own viewport/variant (from
    *  resolveDisplayForLayer, computed once by the panel and shared with the eye
    *  state). Drives the frame glyph: flex / grid frames get their own icon. */
@@ -694,7 +696,7 @@ export const LayerRow = React.memo(function LayerRow({
     if (!scroll) return;
     const indent = el.getBoundingClientRect().left - scroll.getBoundingClientRect().left - 8 + scroll.scrollLeft;
     setTextIndent(indent);
-  }, [depth, hasChildren, isExpanded, node.name, node.type, layer.viewportWidth, layer.isVariantHeader]);
+  }, [depth, hasChildren, isExpanded, node.name, node.type, node.textContent, layer.viewportWidth, layer.isVariantHeader]);
 
   // Figma UI3 density: one 24px row, compact 16px hierarchy steps, and
   // no vertical padding inflation from previews or action chrome.
@@ -936,7 +938,7 @@ export const LayerRow = React.memo(function LayerRow({
          *  that doesn't exist for the synthetic header row. */}
         {isRenaming ? (
           <RenameInput
-            initialName={node.name || node.type}
+            initialName={getLayerDisplayName(node, showTextContent)}
             onCommit={(name) => {
               if (layer.isVariantHeader && layer.viewportId) {
                 onVariantRenameCommit(layer.viewportId, name);
@@ -965,7 +967,7 @@ export const LayerRow = React.memo(function LayerRow({
                 : undefined,
             }}
           >
-            {node.isChildrenSlot ? '{children}' : (node.name || node.type)}
+            {node.isChildrenSlot ? '{children}' : getLayerDisplayName(node, showTextContent)}
           </span>
         )}
 

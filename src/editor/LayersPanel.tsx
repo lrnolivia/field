@@ -28,6 +28,7 @@ import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import SectionLabel from '@/design-system/SectionLabel';
 import SearchBar from '@/design-system/SearchBar';
 import PanelSearchButton from '@/design-system/PanelSearchButton';
+import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 
 // Row components + pure helpers, the drag-reorder handler, and the search filter
 // live in LayersPanel/ (Phase 7 god-file split, item 7.7). computeSelectionSets +
@@ -38,6 +39,13 @@ import { filterLayersForSearch } from './LayersPanel/search';
 import { selectionColorLocateAtom } from '@/code/stores/selection-color-locate-store';
 
 export { computeSelectionSets, computeRangeSelection, overlayExpandPath, type FlatLayer } from './LayersPanel/rows';
+
+const TEXT_NAME_PREF_KEY = 'field:layers:show-text-content';
+
+function initialTextNamePreference(): boolean {
+  try { return window.localStorage.getItem(TEXT_NAME_PREF_KEY) !== 'false'; }
+  catch { return true; }
+}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -115,6 +123,13 @@ export default function LayersPanel() {
   // to the `expanded` set during search.
   const [layerSearchQuery, setLayerSearchQuery] = useState('');
   const [layerSearchOpen, setLayerSearchOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsRef = useRef<HTMLButtonElement>(null);
+  const [showTextContent, setShowTextContent] = useState(initialTextNamePreference);
+  useEffect(() => {
+    try { window.localStorage.setItem(TEXT_NAME_PREF_KEY, String(showTextContent)); }
+    catch { /* Preference is optional when storage is unavailable. */ }
+  }, [showTextContent]);
   const layerSearchActive = layerSearchQuery.trim().length > 0;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
@@ -601,8 +616,8 @@ export default function LayersPanel() {
   // while searching, so even matches behind a closed parent end up in
   // `layers` to be filtered here.
   const displayLayers = useMemo(
-    () => filterLayersForSearch(layers, layerSearchActive, layerSearchQuery, nodes),
-    [layers, layerSearchActive, layerSearchQuery, nodes],
+    () => filterLayersForSearch(layers, layerSearchActive, layerSearchQuery, nodes, showTextContent),
+    [layers, layerSearchActive, layerSearchQuery, nodes, showTextContent],
   );
 
   // Drive the per-row selection/hover background so it stays inset from BOTH
@@ -765,6 +780,24 @@ export default function LayersPanel() {
       return new Set();
     });
   }, []);
+
+  const expandAllLayers = useCallback(() => {
+    const ids = new Set<string>(['root']);
+    for (const viewport of viewports) ids.add(`__vp_${viewport.id}`);
+    for (const node of nodes.values()) {
+      for (const viewport of viewports) ids.add(`${viewport.id}:${node.id}`);
+    }
+    setExpanded(ids);
+  }, [nodes, viewports]);
+
+  const layerOptions: DropdownMenuEntry[] = [
+    { id: 'expand-all', label: 'Expand all layers', onClick: expandAllLayers },
+    { id: 'collapse-all', label: 'Collapse all layers', onClick: collapseAllLayers },
+    { type: 'separator' },
+    { id: 'text-content-names', label: 'Use text as layer name',
+      trailingIcon: showTextContent ? <span aria-hidden>✓</span> : undefined,
+      onClick: () => setShowTextContent(value => !value) },
+  ];
 
   const handleSelect = useCallback((layerId: string, nodeId: string, additive = false) => {
     // Mark that this selection came from a layer click — skip canvas→layers sync
@@ -1027,8 +1060,16 @@ export default function LayersPanel() {
     const content = getContentRoot();
     if (!content) return;
     handleSelect(layerId, nodeId);
+    const node = nodes.get(nodeId);
+    const editableText = node && node.children.length === 0
+      && (node.textContent?.trim() || node.hasMixedContent || ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button'].includes(node.type))
+      && node.binding?.property !== 'text' && !node.textVariable;
+    if (editableText) {
+      window.dispatchEvent(new CustomEvent('field:start-text-edit', { detail: { nodeId, vpId: vpIdFromLayerId(layerId) || 'desktop' } }));
+      return;
+    }
     panToNode(content, `${getViewportPrefix(vpIdFromLayerId(layerId) || 'desktop')}${nodeId}`, true);
-  }, [handleSelect]);
+  }, [handleSelect, nodes]);
 
   const handleLayerClick = useCallback((layerId: string, nodeId: string, e?: React.MouseEvent) => {
     const node = nodes.get(nodeId);
@@ -1153,6 +1194,16 @@ export default function LayersPanel() {
                 <path d="m11 5 1.75-1.75L14.5 5M14.5 11l-1.75 1.75L11 11" />
               </svg>
             </button>
+            <button ref={optionsRef} type="button" className="field-layer-tree-action"
+              aria-label="Layer options" title="Layer options" aria-haspopup="menu"
+              aria-expanded={optionsOpen} onClick={() => setOptionsOpen(value => !value)}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                <circle cx="3" cy="8" r="1" /><circle cx="8" cy="8" r="1" /><circle cx="13" cy="8" r="1" />
+              </svg>
+            </button>
+            <DropdownMenu isOpen={optionsOpen} onClose={() => setOptionsOpen(false)}
+              anchorRef={optionsRef} position="bottom-right" minWidth={205}
+              hoverStyle="subtle" density="compact" items={layerOptions} />
           </div>
         }
       >
@@ -1279,6 +1330,7 @@ export default function LayersPanel() {
               onVariantRenameCommit={handleVariantRenameCommit}
               onDoubleClickLayout={handleDoubleClickLayout}
               isComponentMode={isCompLikeMode}
+              showTextContent={showTextContent}
             />
           );
         })}

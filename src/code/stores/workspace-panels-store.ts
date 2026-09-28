@@ -5,16 +5,21 @@ import { atom } from 'jotai';
 
 // The mode is the only persisted presentation state. Deriving the legacy pane
 // flags prevents impossible combinations during restore or rapid transitions.
-export type WorkspaceMode = 'docked' | 'floating' | 'compact';
+export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked';
 export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
 /** Temporary Inspector reveal in Compact; never changes the workspace mode. */
 export const compactInspectorOpenAtom = atom(false);
+/** Temporary full-size pane reveals in Compact Docked. */
+export const compactDockedLeftOpenAtom = atom(false);
+export const compactDockedInspectorOpenAtom = atom(false);
 export const leftPaneOpenAtom = atom(
-  (get) => get(workspaceModeAtom) === 'docked',
+  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedLeftOpenAtom)),
   (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
 );
 export const rightPaneOpenAtom = atom(
-  (get) => get(workspaceModeAtom) !== 'compact' || get(compactInspectorOpenAtom),
+  (get) => get(workspaceModeAtom) === 'docked' || get(workspaceModeAtom) === 'floating'
+    || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom))
+    || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedInspectorOpenAtom)),
   (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
 );
 export const rightPaneDetachedAtom = atom(

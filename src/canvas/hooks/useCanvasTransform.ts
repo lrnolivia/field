@@ -71,6 +71,16 @@ export function shouldRouteCanvasWheel(
   if (isCanvasWheelBlocked(target)) return false;
   if (el && container.contains(el)) return true;
   if (isCanvasChromeWheel(target, container)) return true;
+  // Coordinates alone cannot claim a gesture: floating panels sit directly
+  // over the full-bleed canvas. Only a retargeted ancestor of the canvas may
+  // use this fallback; a panel, menu, or other sibling owns its own wheel.
+  if (el && !el.contains(container)) return false;
+  // Safari may retarget to an ancestor even while a floating panel occupies
+  // that point. Hit-test the pointer so the panel still gets the gesture.
+  if (el?.contains(container)) {
+    const hit = el.ownerDocument.elementFromPoint?.(clientX, clientY);
+    if (hit && !container.contains(hit) && !isCanvasChromeWheel(hit, container)) return false;
+  }
   return clientX >= rect.left
     && clientX <= rect.right
     && clientY >= rect.top

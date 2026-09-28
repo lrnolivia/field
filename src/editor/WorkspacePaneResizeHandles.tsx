@@ -17,7 +17,7 @@ import {
   clampRightPaneWidth,
 } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
-import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
+import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { trace } from '@/shared/debug-trace';
 
 interface Props {
@@ -27,6 +27,7 @@ interface Props {
 export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
+  const mode = useAtomValue(workspaceModeAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
@@ -97,7 +98,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
 
   return (
     <>
-      {leftOpen && (
+      {leftOpen && railVisible && (
         <button
           type="button"
           data-workspace-resize="left"
@@ -114,7 +115,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border-focus)] opacity-0 transition-opacity group-hover:opacity-100" />
         </button>
       )}
-      {!leftOpen && railVisible && <button type="button" data-workspace-resize="left-collapsed"
+      {!leftOpen && railVisible && mode !== 'compact-docked' && <button type="button" data-workspace-resize="left-collapsed"
         aria-label="Resize collapsed left toolbar" title="Resize collapsed toolbar" onPointerDown={(event) => beginCompactResize('left', event)}
         className="fixed top-[52px] z-[10000] h-[calc(100vh-60px)] w-2 cursor-col-resize touch-none bg-transparent"
         style={{ left: leftCollapsedWidth + 4 }} />}

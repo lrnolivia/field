@@ -50,9 +50,29 @@ describe('shouldRouteCanvasWheel', () => {
 
   it('routes by coordinates when Safari retargets the wheel outside the canvas', () => {
     const container = document.createElement('div');
-    const outside = document.createElement('div');
-    document.body.appendChild(outside);
-    expect(shouldRouteCanvasWheel(outside, 350, 240, container, rect)).toBe(true);
+    const ancestor = document.createElement('div');
+    ancestor.appendChild(container);
+    document.body.appendChild(ancestor);
+    expect(shouldRouteCanvasWheel(ancestor, 350, 240, container, rect)).toBe(true);
+  });
+
+  it('leaves gestures to a panel overlapping the full-bleed canvas', () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    document.body.append(container, panel);
+    expect(shouldRouteCanvasWheel(panel, 350, 240, container, rect)).toBe(false);
+  });
+
+  it('hit-tests chrome when Safari retargets the gesture to the app root', () => {
+    const root = document.createElement('div');
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    root.append(container, panel);
+    document.body.appendChild(root);
+    const original = document.elementFromPoint;
+    document.elementFromPoint = () => panel;
+    try { expect(shouldRouteCanvasWheel(root, 350, 240, container, rect)).toBe(false); }
+    finally { document.elementFromPoint = original; }
   });
 
   it('ignores an unmarked wheel outside the canvas bounds', () => {
