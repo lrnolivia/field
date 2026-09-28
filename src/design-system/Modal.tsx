@@ -5,7 +5,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FIELD_SURFACE_Z } from '@/shared/field-surface-elevation';
 import ModalCloseButton from './ModalCloseButton';
@@ -29,6 +29,7 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, width = 384, headerAction, hideClose, dismissible = true }: ModalProps) {
+  const reducedMotion = Boolean(useReducedMotion());
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -80,21 +81,20 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
               blurs whatever is painted behind it). Inline `backdropFilter` so it can't be missed by a
               Tailwind purge. Clicking it closes the modal. */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={reducedMotion ? false : { opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, backdropFilter: 'blur(0px)' }}
+            transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
             className="absolute inset-0 bg-black/25"
-            style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             onClick={dismissible ? onClose : undefined}
           />
 
           {/* Panel */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.97, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 3 }}
+            transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
             className="relative cut-corners cut-lg shadow-2xl overflow-hidden bg-[var(--bg-surface)] flex flex-col max-h-[80vh]"
             style={{ width: `min(${width}px, calc(100vw - 32px))` }}
             onClick={(e) => e.stopPropagation()}

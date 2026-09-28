@@ -270,14 +270,14 @@ export default function ToolbarPanelHost() {
   };
 
   return createPortal(
-    <div className={`fixed inset-0 z-[15000] transition-[background-color,backdrop-filter] duration-300 ${peeked ? 'bg-transparent' : 'bg-black/25'}`}
+    <div className={`field-toolbar-panel-backdrop fixed inset-0 z-[15000] transition-[background-color,backdrop-filter] duration-300 ${peeked ? 'bg-transparent' : 'bg-black/25'}`}
       data-modal-root={peeked ? undefined : ''} data-toolbar-panel-backdrop
       style={{ backdropFilter: peeked ? 'blur(0px)' : 'blur(4px)', WebkitBackdropFilter: peeked ? 'blur(0px)' : 'blur(4px)', pointerEvents: peeked ? 'none' : 'auto' }}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !peeked) peekAtTop(); }}>
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal={!peeked} aria-label={title}
         data-toolbar-panel={panel.kind}
         data-peeked={peeked ? 'true' : 'false'}
-        className="fixed flex flex-col overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] outline-none transition-[top,left] duration-[420ms] ease-[cubic-bezier(.2,.8,.2,1)]"
+        className="field-toolbar-panel-surface fixed flex flex-col overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] outline-none transition-[top,left] duration-[420ms] ease-[cubic-bezier(.2,.8,.2,1)]"
         style={{
           width: `min(${size.width}px, calc(100vw - 32px))`,
           height: `min(${size.height}px, calc(100vh - 32px))`,
