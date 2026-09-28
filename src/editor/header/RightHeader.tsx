@@ -28,7 +28,7 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { compactDockedInspectorOpenAtom, compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { compactDockedInspectorOpenAtom, compactInspectorOpenAtom, floatingInspectorExpandedAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
@@ -56,6 +56,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const setFloatingInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
+  const setFloatingInspectorExpanded = useSetAtom(floatingInspectorExpandedAtom);
   const setCompactDockedInspectorOpen = useSetAtom(compactDockedInspectorOpenAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
@@ -320,6 +321,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
+          {workspaceMode === 'floating' && <WorkspaceAutoHideButton side="right" />}
           <div className="flex-1" />
 
           <button
@@ -388,12 +390,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           </div>
         </div>
       )}
-      {rightPaneOpen && rightDetached && workspaceMode === 'floating' && floatingInspectorVisible && !previewMode && (
-        <div className="fixed z-[10002]" style={{
-          right: workspace.right.inset + 12 - rightDragOffset.x,
-          top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y,
-        }}><WorkspaceAutoHideButton side="right" /></div>
-      )}
       {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
         <button type="button" aria-label="Close compact Inspector" title="Close Inspector"
           onClick={() => setCompactInspectorOpen(false)}
@@ -417,10 +413,12 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           }}>‹</button>
       )}
       {!rightPaneOpen && !previewMode && (
-        <div data-workspace-right-toggle data-visible="true" data-workspace-mode="collapsed"
+        <div data-workspace-right-toggle data-visible={workspaceMode === 'floating' && !floatingInspectorVisible ? 'false' : 'true'} data-workspace-mode="collapsed"
           className={`fixed z-[9999] flex flex-col items-center gap-2 border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 ${workspaceMode === 'compact-docked' ? 'inset-y-0 right-0' : 'bottom-2 right-2 top-2 rounded-[8px] shadow-[var(--shadow-lg)]'}`}
-          style={{ width: workspaceMode === 'compact-docked' ? 60 : rightCollapsedWidth }}
-          onPointerEnter={workspaceMode === 'compact-docked' ? () => setCompactDockedInspectorOpen(true) : undefined}>
+          style={{ width: workspaceMode === 'compact-docked' ? 60 : rightCollapsedWidth,
+            ...(workspaceMode === 'floating' ? { top: 12, right: 12, bottom: 'auto', height: Math.min(rightFloatingHeight, window.innerHeight - 24), opacity: floatingInspectorVisible ? 1 : 0, pointerEvents: floatingInspectorVisible ? 'auto' : 'none', transition: 'opacity 260ms ease' } : {}) }}
+          onPointerEnter={workspaceMode === 'compact-docked' ? () => setCompactDockedInspectorOpen(true) : workspaceMode === 'floating' ? () => setFloatingInspectorExpanded(true) : undefined}>
+          {workspaceMode === 'floating' && <WorkspaceAutoHideButton side="right" />}
           <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
           <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}

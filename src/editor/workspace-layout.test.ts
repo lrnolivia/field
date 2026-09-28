@@ -69,7 +69,7 @@ describe('deriveWorkspaceLayout', () => {
     const layout = deriveWorkspaceLayout(true, true, { rightDetached: true });
     expect(layout.left.presentation).toBe('docked');
     expect(layout.right.presentation).toBe('floating');
-    expect(layout.right.inset).toBe(24);
+    expect(layout.right.inset).toBe(12);
     expect(layout.cameraInsets.right).toBe(0);
   });
 

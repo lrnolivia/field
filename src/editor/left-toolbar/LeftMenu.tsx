@@ -10,7 +10,7 @@ import { leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId
 import { compactDockedLeftOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom, floatingLeftHeightAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { compactPanelOpenAtom, dockedRailCollapsedAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
-import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
+import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop, WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
@@ -27,7 +27,7 @@ import {
 } from '@/shared/loew-figma-icons';
 import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { useIsClosedSource } from '@/code/stores/closed-source-store';
-import WorkspaceAutoHideButton from '@/editor/WorkspaceAutoHideButton';
+import WorkspaceAutoHideButton, { AutoHideEyeIcon } from '@/editor/WorkspaceAutoHideButton';
 
 // ─── Code Icon ──────────────────────────────────────────────────────────────
 
@@ -184,7 +184,12 @@ export default function LeftMenu() {
   const inOverlay = componentEditorOpen || pluginEditorOpen || cmsEditorOpen;
   const setLeftPanel = useSetAtom(leftPanelAtom);
   const openRailPanel = useCallback((id: Exclude<LeftPanelId, null>) => {
-    if (workspaceMode === 'docked' && activePanel === id) return;
+    if (activePanel === id && id !== 'vibe') {
+      if (workspaceMode === 'floating') { setFloatingPanelCollapsed(!floatingPanelCollapsed); return; }
+      if (workspaceMode === 'compact') { setCompactPanelOpen(!compactPanelOpen); return; }
+      if (workspaceMode === 'compact-docked') { setCompactDockedLeftOpen(!leftPaneOpen); return; }
+      if (workspaceMode === 'docked') { setLeftPanel(null); return; }
+    }
     setLeftPanel(id);
     if (workspaceMode === 'compact' && id !== 'vibe') {
       setCompactPanelOpen(true);
@@ -198,7 +203,7 @@ export default function LeftMenu() {
     } else if (workspaceMode !== 'docked') {
       setWorkspaceMode('docked');
     }
-  }, [activePanel, setCompactPanelOpen, setCompactDockedLeftOpen, setFloatingLeftHidden, setFloatingPanelCollapsed, setLeftDetached, setLeftPanel, setRailRevealed, setWorkspaceMode, workspaceMode]);
+  }, [activePanel, compactPanelOpen, floatingPanelCollapsed, leftPaneOpen, setCompactPanelOpen, setCompactDockedLeftOpen, setFloatingLeftHidden, setFloatingPanelCollapsed, setLeftDetached, setLeftPanel, setRailRevealed, setWorkspaceMode, workspaceMode]);
   useEffect(() => {
     if (inOverlay && activePanel === 'vibe') setLeftPanel(DEFAULT_LEFT_PANEL);
   }, [inOverlay, activePanel, setLeftPanel]);
@@ -254,7 +259,7 @@ export default function LeftMenu() {
   };
 
   const railCanHide = (workspaceMode === 'floating' && autoHide) || (workspaceMode === 'docked' && dockedRailCollapsed);
-  const railBottom = WORKSPACE_FLOAT_LEFT_TOP + Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8);
+  const railBottom = WORKSPACE_FLOAT_LEFT_TOP + Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET);
   return (
     <>
     {railCanHide && !railVisible && <button type="button" data-left-rail-handle
@@ -281,17 +286,17 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: leftPaneOpen || workspaceMode === 'compact-docked' ? workspace.left.inset : 8, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : workspaceMode === 'compact-docked' ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: leftPaneOpen || workspaceMode === 'compact-docked' ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : workspaceMode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderBottomLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderTopRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: workspaceMode === 'compact-docked' && !leftPaneOpen ? 70 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
+      style={{ left: leftPaneOpen || workspaceMode === 'compact-docked' ? workspace.left.inset : WORKSPACE_FLOAT_INSET, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : workspaceMode === 'compact-docked' ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: leftPaneOpen || workspaceMode === 'compact-docked' ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : workspaceMode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderBottomLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderTopRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: workspaceMode === 'compact-docked' && !leftPaneOpen ? 70 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
 
       {workspaceMode === 'docked' && railVisible && <button type="button"
-        aria-label={dockedRailCollapsed ? 'Turn off toolbar auto-hide' : 'Auto-hide left toolbar'}
-        title={dockedRailCollapsed ? 'Keep toolbar visible' : 'Auto-hide toolbar'}
+        aria-label="Auto-hide panels" aria-pressed={dockedRailCollapsed}
+        title={dockedRailCollapsed ? 'Auto-hide on' : 'Auto-hide off'}
         onClick={() => { setDockedRailCollapsed(!dockedRailCollapsed); setRailRevealed(false); }}
         className="absolute bottom-20 z-10 flex h-7 w-7 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-      ><svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2v12M11 4 7 8l4 4" /></svg></button>}
+      ><AutoHideEyeIcon enabled={dockedRailCollapsed} /></button>}
       {workspaceMode === 'floating' && railVisible && <WorkspaceAutoHideButton side="left" className="absolute bottom-20" />}
       {workspaceMode === 'floating' && railVisible && <button type="button"
         aria-label={floatingPanelCollapsed ? 'Expand left panel' : 'Collapse left panel'}

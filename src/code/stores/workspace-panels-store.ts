@@ -2,6 +2,7 @@
 // field workspace chrome: visibility derives docked / floating / hidden presentation.
 import { atomWithStorage } from 'jotai/utils';
 import { atom } from 'jotai';
+import { selectedIdsAtom } from './store';
 
 // The mode is the only persisted presentation state. Deriving the legacy pane
 // flags prevents impossible combinations during restore or rapid transitions.
@@ -9,6 +10,8 @@ export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked'
 export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
 /** Temporary Inspector reveal in Compact; never changes the workspace mode. */
 export const compactInspectorOpenAtom = atom(false);
+/** Hover expands the floating Inspector; selection keeps it expanded. */
+export const floatingInspectorExpandedAtom = atom(false);
 /** Temporary full-size pane reveals in Compact Docked. */
 export const compactDockedLeftOpenAtom = atom(false);
 export const compactDockedInspectorOpenAtom = atom(false);
@@ -17,7 +20,7 @@ export const leftPaneOpenAtom = atom(
   (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
 );
 export const rightPaneOpenAtom = atom(
-  (get) => get(workspaceModeAtom) === 'docked' || get(workspaceModeAtom) === 'floating'
+  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'floating' && (get(floatingInspectorExpandedAtom) || get(selectedIdsAtom).length > 0))
     || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom))
     || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedInspectorOpenAtom)),
   (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),

@@ -1,5 +1,5 @@
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import { LogoButton } from '@/editor/header/LeftHeader';
 import ProjectChip from '@/editor/header/ProjectChip';
 import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_RADIUS } from '@/editor/workspace-layout';
@@ -9,6 +9,7 @@ import { workspaceModeAtom } from './workspace-mode-store';
 export default function WorkspaceRestoreBar() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const mode = useAtomValue(workspaceModeAtom);
+  const contentWidth = useAtomValue(leftContentWidthAtom);
   return (
     <div
       data-workspace-left-restore
@@ -17,9 +18,9 @@ export default function WorkspaceRestoreBar() {
       inert={leftOpen}
       className="fixed z-[9999] flex h-11 items-center overflow-hidden"
       style={{
-        left: mode === 'compact-docked' ? 60 : WORKSPACE_FLOAT_INSET,
+        left: mode === 'compact-docked' ? 60 + WORKSPACE_FLOAT_INSET : WORKSPACE_FLOAT_INSET,
         top: WORKSPACE_FLOAT_INSET,
-        width: 312,
+        width: LEFT_RAIL_WIDTH + contentWidth,
         borderRadius: WORKSPACE_FLOAT_RADIUS,
         opacity: leftOpen ? 0 : 1,
       }}

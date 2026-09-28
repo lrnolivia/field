@@ -101,7 +101,13 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached,
     leftCollapsedWidth: !leftPaneOpen && !leftDetached ? leftCollapsedWidth + 8 : 0,
     rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
-  const cameraInsets = workspaceLayout.cameraInsets;
+  // Expanding a compact pane is a reveal over the canvas. Keep the camera's
+  // safe area constant so hover never pans the user's current view.
+  const cameraInsets = workspaceMode === 'compact-docked'
+    ? { left: 60, right: 60, top: 0, bottom: 0 }
+    : workspaceMode === 'floating'
+      ? { left: 0, right: 0, top: 0, bottom: 0 }
+      : workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   const previousMode = useRef(workspaceMode);
 
@@ -337,7 +343,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               right: workspaceLayout.right.inset,
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
-              height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 32) : workspaceBodyHeightCss(workspaceLayout.right),
+              height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 12 - 52) : workspaceBodyHeightCss(workspaceLayout.right),
               transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,

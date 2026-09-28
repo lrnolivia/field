@@ -368,6 +368,20 @@ select {
   min-width: 0;
 }
 .field-inspector-field-grid > * { min-width: 0; }
+.field-alignment-matrix { transition: border-color 160ms ease; }
+.field-alignment-matrix:hover { border-color: var(--accent); }
+.field-alignment-dot,
+.field-alignment-glyph { transition: opacity 150ms ease, transform 150ms ease; }
+.field-alignment-glyph { left: 50%; top: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+.field-alignment-cell:hover .field-alignment-dot,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-dot { opacity: 0; }
+.field-alignment-cell:hover .field-alignment-glyph,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-glyph { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .field-alignment-matrix,
+  .field-alignment-dot,
+  .field-alignment-glyph { transition: none; }
+}
 @keyframes field-text-hover-gloss {
   0% { opacity: 0; background-position: 100% 0; }
   18% { opacity: 1; }

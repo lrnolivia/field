@@ -9,7 +9,7 @@ import { useAtomValue, useSetAtom, useAtom } from 'jotai';
 import { overlayEditingIdAtom } from '@/code/stores/overlay-store';
 import { nodesAtom, selectedNodeAtom, selectedIdsAtom, layerDropTargetAtom, nodeTreeStructureVersionAtom, getCachedNodesMap } from '@/code/stores/store';
 import { activeFilePathAtom, isComponentFilePath, isComponentLikeFilePath, isIconSetFilePath, getLayoutForPage, getLayoutClientPath } from '@/code/project/active-file-store';
-import { flushNow } from '@/code/mutation/mutation-queue';
+import { flushNow, queueMutations } from '@/code/mutation/mutation-queue';
 import { visibleViewportsAtom, interactingViewportIdAtom, viewportsConfigAtom, viewportWidthsAtom } from '@/code/stores/viewport-store';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { activeLocaleAtom, isDefaultLocaleAtom } from '@/code/stores/locale-store';
@@ -37,6 +37,8 @@ import { LayerRow, dedupeLayerRows, visibilityToggleTargets, visibleDisplayForUn
 import { startLayerDrag, vpIdFromLayerId } from './LayersPanel/drag';
 import { filterLayersForSearch } from './LayersPanel/search';
 import { selectionColorLocateAtom } from '@/code/stores/selection-color-locate-store';
+import { getLayerDisplayName, isGeneratedTextName } from './LayersPanel/layer-name';
+import { isTextTag } from '@/shared/constants';
 
 export { computeSelectionSets, computeRangeSelection, overlayExpandPath, type FlatLayer } from './LayersPanel/rows';
 
@@ -790,10 +792,29 @@ export default function LayersPanel() {
     setExpanded(ids);
   }, [nodes, viewports]);
 
+  const autoRenameTextLayers = useCallback(() => {
+    if (isViewer) return;
+    const renames = Array.from(nodes.values()).flatMap(node => {
+      if (!isTextTag(node.type) || !isGeneratedTextName(node)) return [];
+      const name = getLayerDisplayName(node);
+      return name && name !== (node.name || node.type)
+        ? [{ type: 'renameNode' as const, nodeId: node.id, name }]
+        : [];
+    });
+    if (!renames.length) return;
+    queueMutations(renames);
+    const content = getContentRoot();
+    for (const { nodeId, name } of renames) {
+      content?.querySelectorAll(`[data-id="${CSS.escape(nodeId)}"]`).forEach(el => el.setAttribute('data-name', name));
+    }
+    trace.action('layers:auto-rename-text', { count: renames.length });
+  }, [isViewer, nodes]);
+
   const layerOptions: DropdownMenuEntry[] = [
     { id: 'expand-all', label: 'Expand all layers', onClick: expandAllLayers },
     { id: 'collapse-all', label: 'Collapse all layers', onClick: collapseAllLayers },
     { type: 'separator' },
+    { id: 'auto-rename-text', label: 'Auto-rename text layers', onClick: autoRenameTextLayers },
     { id: 'text-content-names', label: 'Use text as layer name',
       trailingIcon: showTextContent ? <span aria-hidden>✓</span> : undefined,
       onClick: () => setShowTextContent(value => !value) },
@@ -1011,7 +1032,6 @@ export default function LayersPanel() {
 
   // Inline rename
   // Double-click detection (ref lives in parent — survives child re-renders)
-  const lastLayerClickRef = useRef<{ time: number; layerId: string }>({ time: 0, layerId: '' });
 
   // Use LOCAL state for rename to avoid cross-component re-render cascades
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -1057,8 +1077,6 @@ export default function LayersPanel() {
 
   // Wrap onSelect to detect double-clicks
   const focusLayer = useCallback((layerId: string, nodeId: string) => {
-    const content = getContentRoot();
-    if (!content) return;
     handleSelect(layerId, nodeId);
     const node = nodes.get(nodeId);
     const editableText = node && node.children.length === 0
@@ -1068,6 +1086,8 @@ export default function LayersPanel() {
       window.dispatchEvent(new CustomEvent('field:start-text-edit', { detail: { nodeId, vpId: vpIdFromLayerId(layerId) || 'desktop' } }));
       return;
     }
+    const content = getContentRoot();
+    if (!content) return;
     panToNode(content, `${getViewportPrefix(vpIdFromLayerId(layerId) || 'desktop')}${nodeId}`, true);
   }, [handleSelect, nodes]);
 
@@ -1082,29 +1102,18 @@ export default function LayersPanel() {
     const isToggle = !!e && (e.metaKey || e.ctrlKey);
     const isRange = !!e && e.shiftKey && !isToggle;
     if (isRange) {
-      lastLayerClickRef.current = { time: Date.now(), layerId };
       handleRangeSelect(layerId, nodeId);
       return;
     }
     if (isToggle) {
-      lastLayerClickRef.current = { time: Date.now(), layerId };
       handleSelect(layerId, nodeId, true);
       return;
     }
 
-    const now = Date.now();
-    const last = lastLayerClickRef.current;
-    const isDouble = now - last.time < 350 && last.layerId === layerId;
-    lastLayerClickRef.current = { time: now, layerId };
-
-    if (isDouble && nodeId) {
-      focusLayer(layerId, nodeId);
-      return;
-    }
-
-    // Single click → select
+    // The browser's dblclick event handles text edit. A timing heuristic here
+    // missed native double-clicks when the layer tree rendered between clicks.
     handleSelect(layerId, nodeId);
-  }, [handleSelect, handleRangeSelect, focusLayer, nodes]);
+  }, [handleSelect, handleRangeSelect, nodes]);
 
   const handleDoubleClickLayout = useCallback((node: CanvasNode) => {
     if (node.fromLayout) {
@@ -1194,6 +1203,13 @@ export default function LayersPanel() {
                 <path d="m11 5 1.75-1.75L14.5 5M14.5 11l-1.75 1.75L11 11" />
               </svg>
             </button>
+            {!isViewer && <button type="button" className="field-layer-tree-action"
+              aria-label="Auto-rename text layers" title="Auto-rename text layers"
+              onClick={autoRenameTextLayers}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 12.5 10.8 4.7M9.2 3.1l3.7 3.7M12.8 1.5v2M11.8 2.5h2M3 2v2M2 3h2M13 11v2M12 12h2" />
+              </svg>
+            </button>}
             <button ref={optionsRef} type="button" className="field-layer-tree-action"
               aria-label="Layer options" title="Layer options" aria-haspopup="menu"
               aria-expanded={optionsOpen} onClick={() => setOptionsOpen(value => !value)}>

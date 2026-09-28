@@ -14,7 +14,7 @@ describe('workspace mode', () => {
     store.set(setWorkspaceModeAtom, 'floating');
     expect(store.get(workspaceModeAtom)).toBe('floating');
     expect(store.get(leftPaneOpenAtom)).toBe(false);
-    expect(store.get(rightPaneOpenAtom)).toBe(true);
+    expect(store.get(rightPaneOpenAtom)).toBe(false);
     expect(store.get(rightPaneDetachedAtom)).toBe(true);
     expect(store.get(detachedLeftPanelAtom)?.panelId).toBe('layers');
 
@@ -35,7 +35,8 @@ describe('workspace mode', () => {
     const store = createStore();
     store.set(setWorkspaceModeAtom, 'floating');
     expect(store.get(leftRailVisibleAtom)).toBe(true);
-    expect(store.get(workspaceAutoHideAtom)).toBe(true);
+    expect(store.get(workspaceAutoHideAtom)).toBe(false);
+    store.set(workspaceAutoHideAtom, true);
     store.set(floatingPanelCollapsedAtom, true);
     expect(store.get(leftRailVisibleAtom)).toBe(true);
     store.set(floatingLeftHiddenAtom, true);
@@ -64,6 +65,7 @@ describe('workspace mode', () => {
     store.set(setWorkspaceModeAtom, 'floating');
     expect(store.get(floatingEntranceAtom)).toBe(true);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(true);
+    store.set(workspaceAutoHideAtom, true);
     store.set(floatingInspectorRevealedAtom, false);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
     store.set(selectedIdsAtom, ['shape-1']);

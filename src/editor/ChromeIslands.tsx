@@ -65,7 +65,7 @@ export default function ChromeIslands() {
             : mode === 'compact-docked' ? 52
             : leftCollapsedWidth + ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)
               ? leftContentWidth : 0),
-          height: leftOpen ? railVisible ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 52 : mode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - 8),
+          height: leftOpen ? railVisible ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 52 : mode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
           ...(leftOpen || mode === 'compact-docked' ? floatingStyle(layout.left) : {
             border: '1px solid var(--border-light)',
@@ -79,8 +79,8 @@ export default function ChromeIslands() {
       />
 
       {!leftOpen && <div aria-hidden data-workspace-left-title-surface
-        className="pointer-events-none fixed top-2 z-[4999] h-11 w-[312px] rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]"
-        style={{ left: mode === 'compact-docked' ? 60 : 8 }} />}
+        className="pointer-events-none fixed z-[4999] h-11 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]"
+        style={{ left: mode === 'compact-docked' ? 60 + WORKSPACE_FLOAT_INSET : WORKSPACE_FLOAT_INSET, top: WORKSPACE_FLOAT_INSET, width: 52 + leftContentWidth }} />}
 
       {rightOpen && (
         <div

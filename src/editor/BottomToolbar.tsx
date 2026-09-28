@@ -513,7 +513,7 @@ function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boole
   return (
     <div className="relative" ref={ref}>
       <SplitButton active={false} open={open} icon={<MediaIcon className="w-4 h-4" size={16} />}
-        onClick={() => setOpen(!open)} onChevronClick={() => setOpen(!open)} title="Media" dataTool="media" />
+        onClick={() => { setOpen(false); setPanel({ kind: 'media-picker', media: 'image' }); }} onChevronClick={() => setOpen(!open)} title="Media" dataTool="media" />
       {open && (
         <DropdownContainer wide={view === 'icons'}>
           <MenuViewToggle view={view} onChange={setView} />

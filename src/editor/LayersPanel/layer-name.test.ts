@@ -11,6 +11,7 @@ describe('getLayerDisplayName', () => {
   it('follows plain text content for default text labels', () => {
     expect(getLayerDisplayName(textNode())).toBe('A better heading');
     expect(getLayerDisplayName(textNode({ name: 'Heading', textContent: 'Line one\n  line two' }))).toBe('Line one line two');
+    expect(getLayerDisplayName(textNode({ name: 'p', textContent: 'hi!' }))).toBe('hi!');
   });
 
   it('preserves custom names and non-text layer names', () => {

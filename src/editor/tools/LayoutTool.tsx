@@ -1363,19 +1363,28 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   const alignmentMatrix = !hasGrid ? (
     <div data-auto-layout-alignment className="field-inspector-pair !items-start">
-      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-full aspect-[4/3] max-h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+      <div className="field-alignment-matrix grid grid-cols-3 grid-rows-3 gap-0.5 w-full aspect-[4/3] max-h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
         {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
           (['flex-start', 'center', 'flex-end'] as const).map(x => (
             <button
               key={`${x}-${y}`}
               type="button"
-              title={`Align ${x} / ${y}`}
-              aria-label={`Align ${x} / ${y}`}
+              title={`Align ${y === 'flex-start' ? 'top' : y === 'flex-end' ? 'bottom' : 'middle'} ${x === 'flex-start' ? 'left' : x === 'flex-end' ? 'right' : 'center'}`}
+              aria-label={`Align ${y === 'flex-start' ? 'top' : y === 'flex-end' ? 'bottom' : 'middle'} ${x === 'flex-start' ? 'left' : x === 'flex-end' ? 'right' : 'center'}`}
               aria-pressed={matrixX === x && matrixY === y}
               onClick={() => setAlignmentCell(x, y)}
-              className="flex items-center justify-center rounded-sm hover:bg-[var(--bg-hover)]"
+              className="field-alignment-cell relative flex items-center justify-center rounded-sm hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)]"
             >
-              <span className={`w-1 h-1 rounded-full ${matrixX === x && matrixY === y ? 'bg-[var(--accent-text)] scale-150' : 'bg-[var(--text-disabled)]'}`} />
+              <span className="field-alignment-dot h-1 w-1 rounded-full bg-[var(--text-disabled)]" aria-hidden />
+              <svg className={`field-alignment-glyph absolute h-6 w-6 ${matrixX === x && matrixY === y ? 'text-[var(--accent-text)]' : 'text-[var(--text-primary)]'}`}
+                viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                {[8, 13, 10].map((height, index) => (
+                  <rect key={index}
+                    x={(x === 'flex-start' ? 2.5 : x === 'center' ? 7 : 11.5) + index * 4}
+                    y={y === 'flex-start' ? 2.5 : y === 'center' ? (24 - height) / 2 : 21.5 - height}
+                    width="2.5" height={height} rx="0.6" />
+                ))}
+              </svg>
             </button>
           )),
         )}

@@ -799,6 +799,7 @@ export const LayerRow = React.memo(function LayerRow({
           if (isViewer) return;
           if (node.fromLayout) onDoubleClickLayout(node);
           else if (isVpHeader) onFocus(id, layer.isVariantHeader ? node.children[0] || 'root' : 'root');
+          else if (layer.nodeId) onFocus(id, layer.nodeId);
         }}
         className={rowClass}
         style={s}
