@@ -39,22 +39,30 @@ export function collectPreviewProjectPayload(locale: string): PreviewProjectPayl
   // background thumbnails too, so queued canvas work never produces a stale card.
   flushNow();
 
-  const files: Array<[string, string]> = [];
-  let globalsCssContent = '';
+  const files: Record<string, string> = {};
   for (const path of projectFS.listFiles()) {
     let content = projectFS.readFile(path);
     if (content === null) continue;
-    if (path === 'app/globals.css') {
-      content = migrateLegacyDarkBlock(content);
-      globalsCssContent = content;
-    }
-    files.push([path, content]);
+    files[path] = content;
   }
 
-  const tokens = extractPreviewTokenCss(globalsCssContent);
+  return buildPreviewProjectPayloadFromFiles(files, locale, canvasThemeMode());
+}
+
+/** Dashboard repairs read a saved snapshot without loading it into the open editor. */
+export function buildPreviewProjectPayloadFromFiles(
+  sourceFiles: Record<string, string>,
+  locale: string,
+  theme: string,
+): PreviewProjectPayload {
+  const files = Object.entries(sourceFiles).map(([path, content]): [string, string] => [
+    path,
+    path === 'app/globals.css' ? migrateLegacyDarkBlock(content) : content,
+  ]);
+  const tokens = extractPreviewTokenCss(files.find(([path]) => path === 'app/globals.css')?.[1] ?? '');
   return {
     files,
-    theme: canvasThemeMode(),
+    theme,
     locale,
     tokensCss: tokens.css,
     tokenBlockCount: tokens.count,

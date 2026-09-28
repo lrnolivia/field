@@ -982,6 +982,7 @@ function thumbnailResponseHeaders(object, projectUpdatedAt, versioned) {
     "Content-Type": object?.httpMetadata?.contentType ?? "image/webp",
     ...(object?.httpEtag ? { ETag: object.httpEtag } : {}),
     ...(thumbnailUpdatedAt ? { "X-Field-Thumbnail-Updated-At": thumbnailUpdatedAt } : {}),
+    ...(object?.customMetadata?.renderer ? { "X-Field-Thumbnail-Renderer": object.customMetadata.renderer } : {}),
     ...(projectUpdatedAt ? { "X-Field-Project-Updated-At": projectUpdatedAt } : {}),
     "Cache-Control": versioned
       ? "private, max-age=31536000, immutable"
@@ -1204,6 +1205,7 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         }
         const stored = await env.FIELD_PROJECTS.put(fieldProjectThumbnailKey(route.id), bytes, {
           httpMetadata: { contentType },
+          customMetadata: { renderer: "preview-viewport-20260927" },
         });
         // Best-effort cleanup of the assignment-era reserved legacy key.
         await env.FIELD_PROJECTS.delete(fieldProjectLegacyThumbnailKey(route.id));
@@ -1302,6 +1304,7 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
           httpMetadata: {
             contentType: thumbnailResult.object.httpMetadata?.contentType ?? (thumbnailResult.legacy ? "image/webp" : "image/jpeg"),
           },
+          ...(thumbnailResult.object.customMetadata ? { customMetadata: thumbnailResult.object.customMetadata } : {}),
         });
       }
       await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(storedMeta), {

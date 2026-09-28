@@ -1,3 +1,5 @@
+import { fieldProjectUrl } from '@/field-shell-route';
+
 export interface FieldProjectNavigationOptions {
   holdReveal?: boolean;
   replace?: boolean;
@@ -34,7 +36,7 @@ export async function openFieldProject(
     return;
   }
   if (typeof window !== 'undefined') {
-    const url = `/builder/${encodeURIComponent(projectId)}`;
+    const url = fieldProjectUrl(projectId);
     if (options.replace) window.location.replace(url);
     else window.location.assign(url);
   }

@@ -11,7 +11,7 @@ import {
   type FieldProjectNavigationOptions,
 } from '@/backend/field-navigation';
 import { setFieldProjectIdOverride } from '@/backend/project-id';
-import { fieldBuilderProjectId, fieldPathIsDashboard } from './field-shell-route';
+import { fieldBuilderProjectId, fieldPathIsDashboard, fieldProjectUrl } from './field-shell-route';
 import { trace } from '@/shared/debug-trace';
 import { requestEditorChromeExit } from '@/editor/editor-entrance';
 import {
@@ -30,10 +30,6 @@ import {
 } from './field-shell-motion';
 
 type DashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
-
-function projectUrl(id: string): string {
-  return `/builder/${encodeURIComponent(id)}`;
-}
 
 function waitForSaveToSettle(timeoutMs = 12000): Promise<SaveStatus> {
   const store = getDefaultStore();
@@ -79,6 +75,14 @@ async function ensureCurrentProjectSavedBeforeSwitch(): Promise<void> {
 }
 
 export default function FieldShell() {
+  // /dashboard remains a convenient direct entry, while / is the single
+  // browser-visible home for the ambient dashboard layer.
+  if (window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard/') {
+    window.history.replaceState({ fieldSurface: 'dashboard' }, '', '/');
+  } else if (window.location.pathname.startsWith('/builder/')) {
+    const legacyId = fieldBuilderProjectId(window.location.pathname);
+    if (legacyId) window.history.replaceState({ fieldSurface: 'builder', projectId: legacyId }, '', fieldProjectUrl(legacyId) + window.location.search + window.location.hash);
+  }
   const initialProjectIdRef = useRef<string | null>(fieldBuilderProjectId(window.location.pathname));
   const didSeedProjectIdRef = useRef(false);
   if (!didSeedProjectIdRef.current) {
@@ -286,7 +290,7 @@ export default function FieldShell() {
       setFieldProjectIdOverride(projectId);
     }
 
-    const nextUrl = projectUrl(projectId);
+    const nextUrl = fieldProjectUrl(projectId);
     if (options.replace) {
       window.history.replaceState({ fieldSurface: 'builder', projectId }, '', nextUrl);
     } else if (window.location.pathname !== nextUrl) {
@@ -421,7 +425,7 @@ export default function FieldShell() {
         aria-hidden={dashboardState === 'hidden' ? 'true' : undefined}
         style={{ visibility: dashboardState === 'hidden' ? 'hidden' : 'visible' }}
       >
-        <Dashboard />
+        <Dashboard active={dashboardState === 'visible'} />
       </div>
     </div>
   );

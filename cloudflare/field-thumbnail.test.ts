@@ -7,6 +7,7 @@ type Stored = {
   etag: string;
   uploaded: Date;
   httpMetadata?: { contentType?: string };
+  customMetadata?: Record<string, string>;
 };
 
 class MockR2 {
@@ -21,6 +22,7 @@ class MockR2 {
       httpEtag: row.etag,
       uploaded: row.uploaded,
       httpMetadata: row.httpMetadata,
+      customMetadata: row.customMetadata,
       text: async () => new TextDecoder().decode(row.bytes),
       arrayBuffer: async () => row.bytes.buffer.slice(
         row.bytes.byteOffset,
@@ -32,7 +34,7 @@ class MockR2 {
   async put(
     key: string,
     body: string | ArrayBuffer | ArrayBufferView,
-    options: { onlyIf?: Headers; httpMetadata?: { contentType?: string } } = {},
+    options: { onlyIf?: Headers; httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> } = {},
   ) {
     const current = this.objects.get(key);
     const ifMatch = options.onlyIf?.get('If-Match');
@@ -47,7 +49,7 @@ class MockR2 {
 
     const etag = `"r${++this.serial}"`;
     const uploaded = new Date(`2026-09-25T${String(this.serial).padStart(2, '0')}:00:00.000Z`);
-    const row = { bytes, etag, uploaded, httpMetadata: options.httpMetadata };
+    const row = { bytes, etag, uploaded, httpMetadata: options.httpMetadata, customMetadata: options.customMetadata };
     this.objects.set(key, row);
     return { httpEtag: etag, uploaded, httpMetadata: options.httpMetadata };
   }
@@ -133,6 +135,7 @@ test('thumbnail PUT stores raw image bytes and GET/HEAD expose version clocks', 
   );
   assert.equal(head?.status, 200);
   assert.equal(head?.headers.get('Content-Type'), 'image/jpeg');
+  assert.equal(head?.headers.get('X-Field-Thumbnail-Renderer'), 'preview-viewport-20260927');
   assert.equal(head?.headers.get('Cache-Control'), 'private, max-age=31536000, immutable');
   assert.ok(head?.headers.get('X-Field-Thumbnail-Updated-At'));
 

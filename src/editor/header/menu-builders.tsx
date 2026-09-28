@@ -105,7 +105,7 @@ export function createAndOpenProject(): void {
         ? crypto.randomUUID()
         : `proj-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     trace.action('menu:file-new-project:navigate', { id, mode: 'local' });
-    tab.location.href = `/builder/${id}`;
+    tab.location.href = `/work/${id}`;
     return;
   }
 

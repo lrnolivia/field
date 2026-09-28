@@ -118,6 +118,6 @@ describe('createAndOpenProject — local mode', () => {
 
     createAndOpenProject();
     expect(backendMock.createWebsite).not.toHaveBeenCalled();
-    expect(tab.location.href).toMatch(/^\/builder\/[a-z0-9-]+$/i);
+    expect(tab.location.href).toMatch(/^\/work\/[a-z0-9-]+$/i);
   });
 });

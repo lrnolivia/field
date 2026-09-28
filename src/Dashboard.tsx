@@ -17,6 +17,7 @@ import {
 import DashboardHeader from '@/dashboard/DashboardHeader';
 import DashboardSidebar from '@/dashboard/DashboardSidebar';
 import DashboardLoadingGrid from '@/dashboard/DashboardLoadingGrid';
+import DashboardThumbnailBackfill from '@/dashboard/DashboardThumbnailBackfill';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
@@ -25,7 +26,7 @@ import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects
 import { createDashboardLoadingController } from '@/dashboard/dashboard-loading';
 import { bindDashboardProjectEvents, createDashboardProjectRefreshController } from '@/dashboard/dashboard-realtime';
 
-export default function Dashboard() {
+export default function Dashboard({ active = true }: { active?: boolean }) {
   const [projects, setProjects] = useState<FieldProjectMeta[]>([]);
   const [view, setView] = useState<DashboardView>('recents');
   const [query, setQuery] = useState('');
@@ -253,6 +254,15 @@ export default function Dashboard() {
           });
         }}
       />
+
+      {active && !loading && projects.length > 0 && (
+        <DashboardThumbnailBackfill
+          projects={projects}
+          onReady={(projectId, url) => setProjects((current) => current.map((project) =>
+            project.id === projectId ? { ...project, thumbnail: url } : project
+          ))}
+        />
+      )}
 
     </div>
   );
