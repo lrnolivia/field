@@ -31,10 +31,15 @@ export const floatingPanelCollapsedAtom = atom(true);
 export const compactPanelOpenAtom = atom(false);
 export const floatingInspectorRevealedAtom = atom(false);
 export const floatingInspectorSuppressedAtom = atom(false);
-export const floatingInspectorVisibleAtom = atom((get) =>
-  get(workspaceModeAtom) !== 'floating' || !get(workspaceAutoHideAtom)
-  || (!get(floatingInspectorSuppressedAtom)
-    && (get(selectedIdsAtom).length > 0 || get(floatingInspectorRevealedAtom))));
+export const floatingInspectorVisibleAtom = atom((get) => {
+  const mode = get(workspaceModeAtom);
+  const autoHide = get(workspaceAutoHideAtom);
+  if ((mode === 'docked' || mode === 'floating') && autoHide) {
+    return !get(floatingInspectorSuppressedAtom)
+      && (get(selectedIdsAtom).length > 0 || get(floatingInspectorRevealedAtom));
+  }
+  return true;
+});
 export const leftRailVisibleAtom = atom((get) => {
   const mode = get(workspaceModeAtom);
   if (mode === 'compact' || mode === 'compact-docked') return true;
@@ -48,8 +53,6 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
   const floatingPanel = panel === 'vibe' ? 'layers' : panel;
   if (mode === 'floating' && panel === 'vibe') set(leftPanelAtom, floatingPanel);
   set(workspaceModeAtom, mode);
-  if (mode === 'floating' && previousMode !== 'floating') set(workspaceAutoHideAtom, false);
-  if (mode === 'compact' || mode === 'compact-docked') set(workspaceAutoHideAtom, false);
   set(floatingEntranceAtom, mode === 'floating' && previousMode !== 'floating');
   set(railRevealedAtom, false);
   set(floatingLeftHiddenAtom, false);

@@ -11,9 +11,10 @@ export function AutoHideEyeIcon({ enabled }: { enabled: boolean }) {
 export default function WorkspaceAutoHideButton({ side = 'left', className = '' }: { side?: 'left' | 'right'; className?: string }) {
   const [enabled, setEnabled] = useAtom(workspaceAutoHideAtom);
   const entrance = useAtomValue(floatingEntranceAtom);
+  const label = side === 'right' ? 'Auto-hide Inspector' : 'Auto-hide panels';
   return <div className={`z-10 ${className || 'relative'}`}>
-    <button type="button" data-workspace-autohide data-side={side} aria-label="Auto-hide panels"
-      aria-pressed={enabled} title={enabled ? 'Auto-hide on' : 'Auto-hide off'}
+    <button type="button" data-workspace-autohide data-side={side} aria-label={label}
+      aria-pressed={enabled} title={`${label}: ${enabled ? 'on' : 'off'}`}
       onClick={() => setEnabled(!enabled)}
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] transition-colors hover:bg-[var(--bg-hover)] ${enabled ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'} ${entrance ? 'animate-pulse ring-1 ring-[var(--accent)]' : ''}`}>
       <AutoHideEyeIcon enabled={enabled} />
