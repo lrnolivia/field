@@ -828,7 +828,9 @@ html.theme-transition *::after {
 /* Floating Insert and Library surfaces enter after their canvas scrim, then
    retain the existing top-edge peek choreography. */
 .field-toolbar-panel-backdrop {
-  animation: field-toolbar-panel-backdrop-enter 220ms cubic-bezier(.2,.8,.2,1) both;
+  /* Do not retain the final keyframe: the top-edge peek must later remove
+     its scrim and blur through the panel's inline transition. */
+  animation: field-toolbar-panel-backdrop-enter 220ms cubic-bezier(.2,.8,.2,1) backwards;
 }
 
 .field-toolbar-panel-surface {
