@@ -35,8 +35,8 @@ describe('editor chrome choreography', () => {
   it('targets physical panel shells together with their content and excludes Canvas', () => {
     document.body.innerHTML = `
       <div data-workspace-island="left" data-visible="true"></div>
-      <div data-left-menu-rail></div>
-      <div data-editor-panel="left-primary"></div>
+      <div data-left-menu-rail data-visible="true"></div>
+      <div data-editor-panel="left-primary" data-visible="true"></div>
       <div data-workspace-island="right"></div>
       <div data-workspace-right-body></div>
       <div id="bottom-toolbar-container"></div>
@@ -57,11 +57,31 @@ describe('editor chrome choreography', () => {
     expect(targets.some(({ element }) => element.hasAttribute('data-canvas-root'))).toBe(false);
   });
 
+  it('enters only the chrome visible in a saved collapsed workspace', () => {
+    document.body.innerHTML = `
+      <div data-workspace-island="left" data-visible="false"></div>
+      <div data-workspace-left-restore data-visible="true"></div>
+      <div data-left-menu-rail data-visible="false"></div>
+      <div data-editor-panel="left-primary" data-visible="false"></div>
+      <div data-workspace-left-header data-visible="false"></div>
+      <div data-workspace-right-toggle data-visible="true"></div>
+      <div id="bottom-toolbar-container"></div>
+    `;
+
+    const targets = collectEditorEntranceTargets(document);
+    expect(targets.map(({ element }) =>
+      element.dataset.workspaceIsland ??
+      (element.hasAttribute('data-workspace-left-restore') ? 'left-restore' : undefined) ??
+      (element.hasAttribute('data-workspace-right-toggle') ? 'right-toggle' : undefined) ??
+      element.id,
+    )).toEqual(['left', 'left-restore', 'right-toggle', 'bottom-toolbar-container']);
+  });
+
   it('uses one shared travel distance for every surface in the same pane', () => {
     document.body.innerHTML = `
       <div data-workspace-island="left" data-visible="true"></div>
-      <div data-left-menu-rail></div>
-      <div data-editor-panel="left-primary"></div>
+      <div data-left-menu-rail data-visible="true"></div>
+      <div data-editor-panel="left-primary" data-visible="true"></div>
       <div data-workspace-island="right"></div>
       <div data-workspace-right-body></div>
       <div id="bottom-toolbar-container"></div>

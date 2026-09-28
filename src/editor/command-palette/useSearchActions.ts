@@ -62,7 +62,7 @@ import {
 import { createAndOpenProject, menuNewPage } from '@/editor/header/menu-builders';
 import { exportProject } from '@/editor/header/export-project';
 import { previewModeAtom, shortcutsModalOpenAtom } from '@/code/stores/editor-store';
-import { settingsOverlayOpenAtom } from '@/code/stores/website-settings-store';
+import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { shareAsTemplate } from '@/backend/revyme-backend';
 import { projectFS } from '@/code/project/project-fs';
@@ -239,6 +239,10 @@ function executeCommand(commandId: string): void {
       menuNewPage();
       break;
     case 'site-settings':
+      store.set(settingsOverlayOpenAtom, true);
+      break;
+    case 'localization-settings':
+      store.set(settingsSectionAtom, 'localization');
       store.set(settingsOverlayOpenAtom, true);
       break;
     case 'export-code':

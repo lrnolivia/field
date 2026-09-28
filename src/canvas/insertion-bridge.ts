@@ -59,6 +59,8 @@ function getCanvasContainerSize(): { width: number; height: number } | null {
 }
 
 export interface InsertOptions {
+  /** Toolbar click inserts at the visible center, regardless of selection. */
+  ignoreSelection?: boolean;
   /** Force the new node to drop into this parent at this index. Used
    *  when the call site already knows the target (template drop on a
    *  specific frame, etc.). Leave undefined for selection-based
@@ -87,7 +89,7 @@ export function insertNodes(nodes: ClipboardNode[], opts: InsertOptions = {}): s
     nodes,
   };
 
-  const selectedIds = store.get(selectedIdsAtom);
+  const selectedIds = opts.ignoreSelection ? [] : store.get(selectedIdsAtom);
   const liveNodes = store.get(nodesAtom);
   const interactingVpId = store.get(interactingViewportIdAtom);
   const viewportWidths = store.get(viewportWidthsAtom);

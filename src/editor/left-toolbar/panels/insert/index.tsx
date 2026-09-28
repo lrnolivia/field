@@ -15,32 +15,14 @@ import SectionLabel from '@/design-system/SectionLabel';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
 import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { blueprintToToolbarItem } from '@/canvas/section-insert';
+import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { SECTION_THUMBS } from '@/shared/insert-items/section-thumb-map';
 import { SHADER_THUMBS } from '@/shared/insert-items/shader-thumb-map';
 import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 
-const GALLERY_INSERT_ITEM: InsertItem = {
-  id: 'gallery',
-  name: 'Gallery',
-  iconKey: 'image',
-};
-
-// Keep the shared Insert registry untouched while Gallery's assignment owns
-// this integration surface. Gallery is injected immediately after Image in
-// Elements → Basic and therefore uses the exact same drag/insertion path.
-const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES.map((category) =>
-  category.id !== 'elements' ? category : {
-    ...category,
-    sections: category.sections.map((section) =>
-      section.id !== 'basic' ? section : {
-        ...section,
-        items: section.items.flatMap((item) => item.id === 'image' ? [item, GALLERY_INSERT_ITEM] : [item]),
-      },
-    ),
-  },
-);
+const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;
 
 // ─── Chevron Right ─────────────────────────────────────────────────────────
 
@@ -119,6 +101,7 @@ import { isPreviewIcon, hexToRgba } from '@/shared/insert-items/icon-style-utils
  * the label doesn't disappear into the panel background.
  */
 function GradientCard({ item }: { item: InsertItem }) {
+  const insertHandlers = useInsertCard(item);
   const IconComponent = ELEMENT_ICON_MAP[item.iconKey];
   const colors = item.gradientColors || ['#444', '#333'];
   const accent = colors[0];
@@ -146,20 +129,10 @@ function GradientCard({ item }: { item: InsertItem }) {
   })();
   const labelColor = isNeutralAccent ? 'var(--text-primary)' : accent;
 
-  // Drag wiring — same as GridCard. Without this, integration / brand cards
-  // (YouTube, Spotify, Calendly etc.) render visually but pointerdown does
-  // nothing, so the user can't drop them onto the canvas.
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const config = getToolbarItemConfig(item.id);
-    if (!config) return;
-    e.preventDefault();
-    trace.action('insert-panel:drag-start', { itemId: item.id });
-    startToolbarDrag(config, e.nativeEvent);
-  }, [item.id]);
-
   return (
     <div
-      onPointerDown={handlePointerDown}
+      data-toolbar-item={item.id}
+      {...insertHandlers}
       className="flex flex-col items-center gap-2 p-4 cut-corners cursor-pointer transition-all group hover:scale-[1.03]"
       style={bgStyle}
     >
@@ -206,19 +179,48 @@ interface GridCardProps {
   item: InsertItem;
 }
 
-function GridCard({ item }: GridCardProps) {
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    // Sections-library cards build their ToolbarItem from the blueprint
-    // source (fresh ids per drag); everything else looks up the static
-    // catalogue. Either way it's the same native toolbar drag.
-    const config = item.sectionBlueprintId
-      ? blueprintToToolbarItem(item.sectionBlueprintId)
-      : getToolbarItemConfig(item.id);
-    if (!config) return; // not a draggable item (code components, cards — V2)
-    e.preventDefault();
-    trace.action('insert-panel:drag-start', { itemId: item.id });
-    startToolbarDrag(config, e.nativeEvent);
+function useInsertCard(item: InsertItem) {
+  const lastDragAt = useRef(0);
+  const onPointerDown = useCallback((event: React.PointerEvent) => {
+    if (event.button !== 0) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const onMove = (move: PointerEvent) => {
+      if (Math.hypot(move.clientX - startX, move.clientY - startY) < 5) return;
+      cleanup();
+      const config = item.sectionBlueprintId
+        ? blueprintToToolbarItem(item.sectionBlueprintId)
+        : getToolbarItemConfig(item.id);
+      if (!config) return;
+      lastDragAt.current = Date.now();
+      move.preventDefault();
+      trace.action('insert-panel:drag-start', { itemId: item.id });
+      startToolbarDrag(config, move);
+    };
+    const cleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', cleanup);
+      window.removeEventListener('pointercancel', cleanup);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', cleanup);
+    window.addEventListener('pointercancel', cleanup);
   }, [item.id, item.sectionBlueprintId]);
+  const onClick = useCallback(() => {
+    if (Date.now() - lastDragAt.current < 400) return;
+    insertToolbarItemAtVisibleCenter(item.id, item.sectionBlueprintId);
+  }, [item.id, item.sectionBlueprintId]);
+  const onKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onClick();
+  }, [onClick]);
+  return { onPointerDown, onClick, onKeyDown, role: 'button' as const, tabIndex: 0,
+    'aria-label': `Insert ${item.name} at canvas center` };
+}
+
+function GridCard({ item }: GridCardProps) {
+  const insertHandlers = useInsertCard(item);
 
   // Items with gradientColors get a gradient background card
   if (item.gradientColors && item.gradientColors.length > 0) {
@@ -233,7 +235,7 @@ function GridCard({ item }: GridCardProps) {
     return (
       <div
         data-toolbar-item={item.id}
-        onPointerDown={handlePointerDown}
+        {...insertHandlers}
         className="flex flex-col cut-corners bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cursor-grab transition-all group overflow-hidden"
       >
         <div className="w-full overflow-hidden">
@@ -264,7 +266,7 @@ function GridCard({ item }: GridCardProps) {
     return (
       <div
         data-toolbar-item={item.id}
-        onPointerDown={handlePointerDown}
+        {...insertHandlers}
         className="flex flex-col cut-corners bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cursor-grab transition-all group overflow-hidden"
       >
         <div className="w-full overflow-hidden">
@@ -297,7 +299,7 @@ function GridCard({ item }: GridCardProps) {
   return (
     <div
       data-toolbar-item={item.id}
-      onPointerDown={handlePointerDown}
+      {...insertHandlers}
       // Theme-mirrored subtle fill so each element reads as a distinct
       // tile in both modes — `bg-white/[0.06]` only lifted off the dark
       // panel; on the light panel it was invisible.
@@ -319,9 +321,10 @@ function GridCard({ item }: GridCardProps) {
 
 interface SecondaryPanelContentProps {
   category: InsertCategory;
+  sectionId?: string;
 }
 
-function SecondaryPanelContent({ category }: SecondaryPanelContentProps) {
+export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelContentProps) {
   trace.fn('InsertOverlay:SecondaryPanelContent.render', { category: category.id });
 
   // Lets the "Create Collection" empty-state button switch the sidebar
@@ -352,7 +355,11 @@ function SecondaryPanelContent({ category }: SecondaryPanelContentProps) {
     );
   }
 
-  if (category.sections.length === 0) {
+  const sections = sectionId
+    ? category.sections.filter((section) => section.id === sectionId)
+    : category.sections;
+
+  if (sections.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <span className="text-xs text-[var(--text-tertiary)]">Coming soon</span>
@@ -365,7 +372,7 @@ function SecondaryPanelContent({ category }: SecondaryPanelContentProps) {
   // "Collections" grid. The "Create Collection" button jumps the user
   // straight to the CMS panel (via `leftPanelAtom`) — saves them the
   // sidebar-navigation step they'd otherwise have to do.
-  const totalItems = category.sections.reduce((n, s) => n + s.items.length, 0);
+  const totalItems = sections.reduce((n, s) => n + s.items.length, 0);
   if (category.id === 'cms-collections' && totalItems === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
@@ -403,7 +410,7 @@ function SecondaryPanelContent({ category }: SecondaryPanelContentProps) {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-hide">
-      {category.sections.map(section => (
+      {sections.map(section => (
         <div key={section.id}>
           {/* Section labels render in Title Case (e.g. "Forms") — no
               uppercase/letter-spacing transforms. The category-level

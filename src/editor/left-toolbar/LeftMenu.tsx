@@ -17,7 +17,6 @@ import { agentStatusAtom } from '@/code/stores/agent-chat-store';
 import { ChatImageIcon } from '@/shared/icons';
 import {
   FigmaPlusIcon as InsertPlusIcon,
-  FigmaGlobeIcon as GlobeInternationalIcon,
   FigmaCmsIcon as CmsIcon,
   FigmaLibraryIcon as LibraryStackIcon,
   FigmaBranchIcon as BranchIcon,
@@ -319,11 +318,6 @@ export default function LeftMenu() {
         {/* Media Gallery */}
         <MenuButton panelId="media" isActive={leftPaneOpen && activePanel === 'media'} onToggle={togglePanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
           <ChatImageIcon className="w-[18px] h-[18px]" />
-        </MenuButton>
-
-        {/* Localization */}
-        <MenuButton panelId="locale" isActive={leftPaneOpen && activePanel === 'locale'} onToggle={togglePanel} title="Localization" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="locale-button">
-          <GlobeInternationalIcon className="w-[18px] h-[18px]" size={18} />
         </MenuButton>
 
         {/* CMS */}

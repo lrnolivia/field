@@ -69,10 +69,12 @@ import { TemplatesSection } from './sections/TemplatesSection';
 import { CodeOverridesSection } from './sections/CodeOverridesSection';
 import { VectorsSection } from './sections/VectorsSection';
 import { ComponentsSection } from './sections/ComponentsSection';
+import { libraryFocusAtom } from '@/editor/library-focus-store';
+import type { LibrarySection } from '@/editor/library-focus-store';
 
 // ─── LibraryPanel ───────────────────────────────────────────────────────────
 
-export default function LibraryPanel({ mode = 'all' }: { mode?: 'all' | 'library' | 'presets' }) {
+export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'all' | 'library' | 'presets'; focusSection?: LibrarySection }) {
   const [activeFile, setActiveFile] = useAtom(activeFilePathAtom);
   const setSelectedIds = useSetAtom(selectedIdsAtom);
   const setUpdatingFromCanvas = useSetAtom(updatingFromCanvasAtom);
@@ -124,6 +126,16 @@ export default function LibraryPanel({ mode = 'all' }: { mode?: 'all' | 'library
   }, []);
 
   const editAnchorRef = useRef<HTMLDivElement>(null);
+  const libraryFocus = useAtomValue(libraryFocusAtom);
+
+  useEffect(() => {
+    if (!libraryFocus || mode === 'presets') return;
+    const frame = requestAnimationFrame(() => {
+      editAnchorRef.current?.querySelector(`[data-library-section="${libraryFocus.section}"]`)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [libraryFocus, mode]);
 
   trace.fn('LibraryPanel.render', { tokenCount: tokens.length, editingName });
 
@@ -566,7 +578,7 @@ export default function LibraryPanel({ mode = 'all' }: { mode?: 'all' | 'library
       <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" ref={editAnchorRef}>
         {mode !== 'presets' && <>{/* Components Section — unified list with + dropdown */}
-        <ComponentsSection
+        {(!focusSection || focusSection === 'components') && <div data-library-section="components"><ComponentsSection
           componentFiles={filteredComponentFiles}
           codeComponentFiles={filteredCodeComponentFiles}
           activeFile={activeFile}
@@ -576,21 +588,21 @@ export default function LibraryPanel({ mode = 'all' }: { mode?: 'all' | 'library
           onCreateCodeComponent={createNewCodeComponent}
           onDeleteComponent={handleDeleteComponent}
           onBulkDeleteComponent={performDeleteLibraryFile}
-        />
+        /></div>}
 
         {/* Vectors Section — top-level sibling of Components and Templates,
             owns icon-set files (`icons/{Pascal}.tsx` with `@iconSet`). */}
-        <VectorsSection
+        {(!focusSection || focusSection === 'vectors') && <div data-library-section="vectors"><VectorsSection
           iconSetFiles={filteredIconSetFiles}
           activeFile={activeFile}
           onSwitchToIconSet={switchToIconSet}
           onCreateIconSet={createIconSet}
           onDeleteIconSet={handleDeleteIconSet}
           onBulkDeleteIconSet={performDeleteLibraryFile}
-        />
+        /></div>}
 
         {/* Templates Section — standard page templates */}
-        <TemplatesSection
+        {(!focusSection || focusSection === 'templates') && <div data-library-section="templates"><TemplatesSection
           activeFile={activeFile}
           searchQuery={searchQuery}
           onEditTemplate={(clientPath) => {
@@ -616,14 +628,14 @@ export default function LibraryPanel({ mode = 'all' }: { mode?: 'all' | 'library
             );
             setBreadcrumb([]);
           }}
-        />
+        /></div>}
 
         {/* Code Overrides — overrides/*.tsx files, their exports and usages */}
-        <CodeOverridesSection searchQuery={searchQuery} />
+        {(!focusSection || focusSection === 'code-overrides') && <div data-library-section="code-overrides"><CodeOverridesSection searchQuery={searchQuery} /></div>}
 
         {/* Plugins Section — installed/dev-URL plugins. Pass 1
             scope: list installed + add dev URL. */}
-        <PluginsSection searchQuery={searchQuery} />
+        {(!focusSection || focusSection === 'plugins') && <div data-library-section="plugins"><PluginsSection searchQuery={searchQuery} /></div>}
         </>}
 
         {mode !== 'library' && <>

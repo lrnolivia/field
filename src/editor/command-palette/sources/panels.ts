@@ -45,8 +45,10 @@ export const panelsSource: SearchSource = () =>
     // the two rows.
     id: `tab:${tab.id}:${tab.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
     name: tab.name,
-    category: 'tabs' as const,
+    category: tab.id === 'locale' ? 'commands' as const : 'tabs' as const,
     keywords: [...tab.keywords, 'tab', 'panel', 'sidebar'],
     icon: tab.icon ?? null,
-    action: { type: 'open-left-panel' as const, panelId: tab.id },
+    action: tab.id === 'locale'
+      ? { type: 'execute-command' as const, commandId: 'localization-settings' }
+      : { type: 'open-left-panel' as const, panelId: tab.id },
   }));

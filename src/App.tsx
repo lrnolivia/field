@@ -35,6 +35,7 @@ import PluginRuntimeWindow from './plugins/PluginRuntimeWindow';
 import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
 import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
+import ToolbarPanelHost from './editor/ToolbarPanelHost';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -321,6 +322,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
         {!previewMode && <button
           type="button"
           data-workspace-right-toggle
+          data-visible={rightPaneOpen ? 'false' : 'true'}
           aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
           onClick={() => setRightPaneOpen(v => !v)}
@@ -387,6 +389,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           marketplace plugins (and later commands/blocks/templates).
           Portal-mounted so it escapes any overflow/transform ancestors. */}
       <CommandPalette />
+      <ToolbarPanelHost />
       {/* "Start from a template" prompt — brand-new cloud websites only
           (ProjectLoader arms it when the site loads with zero files).
           Offers free marketplace templates; closing keeps the blank

@@ -48,11 +48,14 @@ export const DIRECT_LOAD_FAILSAFE_MS = 4400;
  */
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
   { selector: '[data-workspace-island="left"][data-visible="true"]', role: 'left', phase: 'left-surface' },
-  { selector: '[data-left-menu-rail]', role: 'left', phase: 'left-rail' },
-  { selector: '[data-editor-panel="left-primary"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-workspace-island="left"][data-visible="false"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-left-menu-rail][data-visible="true"]', role: 'left', phase: 'left-rail' },
+  { selector: '[data-editor-panel="left-primary"][data-visible="true"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-workspace-left-restore][data-visible="true"]', role: 'left', phase: 'left-surface' },
 
   { selector: '[data-workspace-island="right"]', role: 'right', phase: 'right-surface' },
   { selector: '[data-workspace-right-body]', role: 'right', phase: 'right-content' },
+  { selector: '[data-workspace-right-toggle][data-visible="true"]', role: 'right', phase: 'right-surface' },
 
   { selector: '#bottom-toolbar-container', role: 'bottom', phase: 'default' },
 ]);

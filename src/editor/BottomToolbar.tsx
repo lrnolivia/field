@@ -37,8 +37,11 @@ import {
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
-import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { CATEGORIES } from '@/shared/insert-items/element-data';
+import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
+import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
+import type { LibrarySection } from '@/editor/library-focus-store';
+import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 import './bottom-toolbar-glyphs.css';
 
 // ─── Menu affordance ───────────────────────────────────────────────────────
@@ -91,12 +94,30 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   );
 }
 
-function DropdownContainer({ children }: { children: React.ReactNode }) {
+function DropdownContainer({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[200px] rounded-[10px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100]">
+    <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 max-h-[70vh] overflow-y-auto rounded-[10px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100] ${wide ? 'w-[330px]' : 'min-w-[200px]'}`}>
       {children}
     </div>
   );
+}
+
+type MenuView = 'list' | 'icons';
+function MenuViewToggle({ view, onChange }: { view: MenuView; onChange: (view: MenuView) => void }) {
+  return <div className="flex items-center justify-end gap-0.5 border-b border-[var(--border-light)] px-1 py-1" aria-label="Menu view">
+    <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => onChange('list')}
+      className={`flex h-6 w-6 items-center justify-center rounded-[4px] text-xs ${view === 'list' ? 'bg-[var(--bg-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>☰</button>
+    <button type="button" aria-label="Icon view" aria-pressed={view === 'icons'} onClick={() => onChange('icons')}
+      className={`flex h-6 w-6 items-center justify-center rounded-[4px] text-xs ${view === 'icons' ? 'bg-[var(--bg-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>▦</button>
+  </div>;
+}
+
+function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+  return <button type="button" onClick={onClick}
+    className="flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-[6px] bg-[var(--button-secondary-bg)] px-1 py-2 text-center text-[11px] text-[var(--text-secondary)] hover:bg-[var(--button-secondary-hover)] hover:text-[var(--text-primary)]">
+    <span className="flex h-9 w-9 items-center justify-center [&>svg]:h-8 [&>svg]:w-8">{icon}</span>
+    <span>{label}</span>
+  </button>;
 }
 
 function DropdownDivider() {
@@ -252,16 +273,22 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
 
 function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode; onSelect: () => void; open: boolean; setOpen: (open: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
+  const [view, setView] = useState<MenuView>('list');
+  const setToolbarPanel = useSetAtom(toolbarPanelAtom);
   useClickOutside(ref, open, () => setOpen(false));
+  const elementSections = CATEGORIES.find((category) => category.id === 'elements')?.sections ?? [];
+  const layoutItems = elementSections.find((section) => section.id === 'layouts')?.items.filter((item) =>
+    item.id === 'column' || item.id === 'row' || item.id.startsWith('layout-')) ?? [];
+  const insert = (id: string) => {
+    insertToolbarItemAtVisibleCenter(id);
+    setOpen(false);
+  };
 
   const openSectionLibrary = useCallback(() => {
-    setLeftPanel('insert');
-    setLeftPaneOpen(true);
+    setToolbarPanel({ kind: 'insert', category: 'elements', section: 'layouts' });
     setOpen(false);
     trace.action('toolbar:section-library');
-  }, [setLeftPanel, setLeftPaneOpen]);
+  }, [setToolbarPanel, setOpen]);
 
   return (
     <div className="relative" ref={ref} data-tutorial="frame-tool">
@@ -275,8 +302,23 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
         dataTool="frame"
       />
       {open && (
-        <DropdownContainer>
-          <MenuItem label="Frame" shortcut="F" active={toolMode === 'frame'} icon={<FrameToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect(); setOpen(false); }} />
+        <DropdownContainer wide={view === 'icons'}>
+          <MenuViewToggle view={view} onChange={setView} />
+          {view === 'list' ? <>
+            <MenuItem label="Frame" shortcut="F" active={toolMode === 'frame'} icon={<FrameToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect(); setOpen(false); }} />
+            <DropdownDivider />
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Layouts</div>
+            {layoutItems.map((item) => {
+              const Icon = ELEMENT_ICON_MAP[item.iconKey];
+              return <MenuItem key={item.id} label={item.name} icon={Icon ? <Icon /> : undefined} onClick={() => insert(item.id)} />;
+            })}
+          </> : <div className="grid grid-cols-3 gap-1.5 p-1">
+            <MenuTile label="Frame" icon={<FrameToolbarIcon />} onClick={() => { onSelect(); setOpen(false); }} />
+            {layoutItems.map((item) => {
+              const Icon = ELEMENT_ICON_MAP[item.iconKey];
+              return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : null} onClick={() => insert(item.id)} />;
+            })}
+          </div>}
           <DropdownDivider />
           <MenuItem label="Section library…" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={openSectionLibrary} />
         </DropdownContainer>
@@ -287,20 +329,21 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
 
 // ─── Shape Dropdown ─────────────────────────────────────────────────────────
 
-type ShapeToolChoice = 'media' | 'rectangle' | 'line' | 'ellipse' | 'triangle';
+type ShapeToolChoice = 'rectangle' | 'line' | 'ellipse' | 'triangle';
 
 function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
   toolMode: ToolMode;
-  onSelect: (shape: Exclude<ShapeToolChoice, 'media'>) => void;
+  onSelect: (shape: ShapeToolChoice) => void;
   open: boolean; setOpen: (open: boolean) => void;
 }) {
-  // The icon reflects the selected drawing tool. Image/video opens a browser
-  // and never replaces the drawing-tool icon or claims an active tool state.
+  // The icon reflects the selected drawing tool, even after another tool runs.
   const [lastChoice, setLastChoice] = useState<ShapeToolChoice>('rectangle');
+  const [view, setView] = useState<MenuView>('list');
   const ref = useRef<HTMLDivElement>(null);
-  const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   useClickOutside(ref, open, () => setOpen(false));
+  const elementSections = CATEGORIES.find((category) => category.id === 'elements')?.sections ?? [];
+  const otherElements = elementSections.filter((section) =>
+    section.id === 'basic' || section.id === 'typography' || section.id === 'shapes');
 
   useEffect(() => {
     if (toolMode === 'shape-rect') setLastChoice('rectangle');
@@ -314,7 +357,6 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
     ? (toolMode === 'shape-rect' ? 'rectangle' : toolMode === 'shape-line' ? 'line' : toolMode === 'shape-ellipse' ? 'ellipse' : 'triangle')
     : lastChoice;
   const choiceIcons: Record<ShapeToolChoice, React.ReactNode> = {
-    media: <MediaIcon className="w-4 h-4" size={16} />,
     rectangle: <ShapeSquareIcon className="w-4 h-4" size={16} />,
     ellipse: <ShapeCircleIcon className="w-4 h-4" size={16} />,
     triangle: <ShapeTriangleIcon className="w-4 h-4" size={16} />,
@@ -322,16 +364,20 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
   };
 
   const choose = (choice: ShapeToolChoice) => {
-    if (choice === 'media') {
-      setLeftPanel('media');
-      setLeftPaneOpen(true);
-      trace.action('toolbar:media-open', { source: 'shape-family' });
-    } else {
-      setLastChoice(choice);
-      onSelect(choice);
-    }
+    setLastChoice(choice);
+    onSelect(choice);
     setOpen(false);
   };
+  const insert = (id: string) => {
+    insertToolbarItemAtVisibleCenter(id);
+    setOpen(false);
+  };
+  const shapeChoices: { id: ShapeToolChoice; label: string; shortcut?: string }[] = [
+    { id: 'rectangle', label: 'Rectangle', shortcut: 'R' },
+    { id: 'line', label: 'Line', shortcut: 'L' },
+    { id: 'ellipse', label: 'Ellipse', shortcut: 'O' },
+    { id: 'triangle', label: 'Triangle', shortcut: 'Shift+T' },
+  ];
 
   return (
     <div className="relative" ref={ref} data-tutorial="shape-tool">
@@ -346,13 +392,75 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
         dataTool="shape"
       />
       {open && (
-        <DropdownContainer>
-          <MenuItem label="Image/video…" shortcut="⇧⌘K" icon={<MediaIcon className="w-4 h-4" size={16} />} onClick={() => choose('media')} />
-          <DropdownDivider />
-          <MenuItem label="Rectangle" shortcut="R" active={toolMode === 'shape-rect'} icon={<ShapeSquareIcon className="w-4 h-4" size={16} />} onClick={() => choose('rectangle')} />
-          <MenuItem label="Line" shortcut="L" active={toolMode === 'shape-line'} icon={<LineToolbarIcon className="w-4 h-4" />} onClick={() => choose('line')} />
-          <MenuItem label="Ellipse" shortcut="O" active={toolMode === 'shape-ellipse'} icon={<ShapeCircleIcon className="w-4 h-4" size={16} />} onClick={() => choose('ellipse')} />
-          <MenuItem label="Triangle" shortcut="Shift+T" active={toolMode === 'shape-triangle'} icon={<ShapeTriangleIcon className="w-4 h-4" size={16} />} onClick={() => choose('triangle')} />
+        <DropdownContainer wide={view === 'icons'}>
+          <MenuViewToggle view={view} onChange={setView} />
+          {view === 'list' ? <>
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Shapes</div>
+            {shapeChoices.map((choice) => <MenuItem key={choice.id} label={choice.label} shortcut={choice.shortcut}
+              active={activeShape && currentChoice === choice.id} icon={choiceIcons[choice.id]}
+              onClick={() => choose(choice.id)} />)}
+            {otherElements.map((section) => <React.Fragment key={section.id}>
+              <DropdownDivider />
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-tertiary)]">{section.label}</div>
+              {section.items.map((item) => {
+                const Icon = ELEMENT_ICON_MAP[item.iconKey];
+                return <MenuItem key={item.id} label={item.name} icon={Icon ? <Icon /> : undefined}
+                  onClick={() => insert(item.id)} />;
+              })}
+            </React.Fragment>)}
+          </> : <div className="grid grid-cols-3 gap-1.5 p-1">
+            {shapeChoices.map((choice) => <MenuTile key={choice.id} label={choice.label} icon={choiceIcons[choice.id]}
+              onClick={() => choose(choice.id)} />)}
+            {otherElements.flatMap((section) => section.items).map((item) => {
+              const Icon = ELEMENT_ICON_MAP[item.iconKey];
+              return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : null}
+                onClick={() => insert(item.id)} />;
+            })}
+          </div>}
+        </DropdownContainer>
+      )}
+    </div>
+  );
+}
+
+// ─── Media menu ─────────────────────────────────────────────────────────────
+
+function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<MenuView>('list');
+  useClickOutside(ref, open, () => setOpen(false));
+  const mediaItems = CATEGORIES.find((category) => category.id === 'elements')
+    ?.sections.find((section) => section.id === 'media')?.items ?? [];
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        title="Media"
+        aria-label="Media"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-toolbar-tool="media"
+        onClick={() => setOpen(!open)}
+        className={`flex h-[36px] w-[36px] items-center justify-center rounded-[6px] border-none transition-colors ${open
+          ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}
+      >
+        <span data-field-toolbar-glyph="media" className="inline-flex items-center justify-center">
+          <MediaIcon className="w-4 h-4" size={16} />
+        </span>
+      </button>
+      {open && (
+        <DropdownContainer wide={view === 'icons'}>
+          <MenuViewToggle view={view} onChange={setView} />
+          {view === 'icons' ? <div className="grid grid-cols-3 gap-1.5 p-1">{mediaItems.map((item) => {
+            const Icon = ELEMENT_ICON_MAP[item.iconKey];
+            return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : null}
+              onClick={() => { insertToolbarItemAtVisibleCenter(item.id); setOpen(false); }} />;
+          })}</div> : mediaItems.map((item) => {
+            const Icon = ELEMENT_ICON_MAP[item.iconKey];
+            return <MenuItem key={item.id} label={item.name} icon={Icon ? <Icon /> : undefined}
+              onClick={() => { insertToolbarItemAtVisibleCenter(item.id); setOpen(false); }} />;
+          })}
         </DropdownContainer>
       )}
     </div>
@@ -434,21 +542,37 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
   );
 }
 
-// ─── Resources ──────────────────────────────────────────────────────────────
+// ─── Library ────────────────────────────────────────────────────────────────
 
-function ResourcesButton() {
-  const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  const openLibrary = useCallback(() => {
-    setLeftPanel('library');
-    setLeftPaneOpen(true);
-    trace.action('toolbar:resources-open', { panel: 'library' });
-  }, [setLeftPanel, setLeftPaneOpen]);
+function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+  const setToolbarPanel = useSetAtom(toolbarPanelAtom);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, open, () => setOpen(false));
+  const openLibrary = useCallback((section: LibrarySection) => {
+    setToolbarPanel({ kind: 'library', section });
+    setOpen(false);
+    trace.action('toolbar:library-open', { section });
+  }, [setToolbarPanel, setOpen]);
 
   return (
-    <ToolButton onClick={openLibrary} title="Resources" dataTool="resources">
-      <ResourcesIcon className="w-4 h-4" size={16} />
-    </ToolButton>
+    <div className="relative" ref={ref}>
+      <button type="button" title="Library" aria-label="Library" aria-haspopup="menu"
+        aria-expanded={open} data-toolbar-tool="library" onClick={() => setOpen(!open)}
+        className={`flex h-[36px] w-[36px] items-center justify-center rounded-[6px] border-none transition-colors ${open
+          ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}>
+        <span data-field-toolbar-glyph="library" className="inline-flex items-center justify-center">
+          <ResourcesIcon className="w-4 h-4" size={16} />
+        </span>
+      </button>
+      {open && <DropdownContainer>
+        <MenuItem label="Components" onClick={() => openLibrary('components')} />
+        <MenuItem label="Vectors" onClick={() => openLibrary('vectors')} />
+        <MenuItem label="Templates" onClick={() => openLibrary('templates')} />
+        <MenuItem label="Code Overrides" onClick={() => openLibrary('code-overrides')} />
+        <MenuItem label="Plugins" onClick={() => openLibrary('plugins')} />
+      </DropdownContainer>}
+    </div>
   );
 }
 
@@ -456,8 +580,8 @@ function ResourcesButton() {
 
 export default function BottomToolbar() {
   const [toolMode, setToolMode] = useAtom(toolModeAtom);
-  const [openMenu, setOpenMenu] = useState<'cursor' | 'frame' | 'shape' | 'pen' | null>(null);
-  const menuProps = (menu: 'cursor' | 'frame' | 'shape' | 'pen') => ({
+  const [openMenu, setOpenMenu] = useState<'cursor' | 'frame' | 'shape' | 'media' | 'library' | 'pen' | null>(null);
+  const menuProps = (menu: 'cursor' | 'frame' | 'shape' | 'media' | 'library' | 'pen') => ({
     open: openMenu === menu,
     setOpen: (open: boolean) => setOpenMenu(open ? menu : null),
   });
@@ -609,7 +733,13 @@ export default function BottomToolbar() {
 
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
-                <ResourcesButton />
+                <MediaDropdown {...menuProps('media')} />
+              </CreatorGate>
+            )}
+
+            {!isContainerSetMaster && (
+              <CreatorGate locked={creatorLocked}>
+                <LibraryDropdown {...menuProps('library')} />
               </CreatorGate>
             )}
 
