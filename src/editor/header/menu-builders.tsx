@@ -37,7 +37,6 @@ import { toast } from 'sonner';
 import type { AutoPanSpeed } from '@/code/stores/user-preferences-store';
 import { previewModeAtom, shortcutsModalOpenAtom, exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import { paletteOpenAtom } from '@/code/stores/palette-store';
-import { startOnboarding } from '@/editor/onboarding';
 import { BUILDER_THEMES } from '@/shared/builder-themes';
 
 type TabId = 'file' | 'edit' | 'insert' | 'view';
@@ -106,7 +105,7 @@ export function createAndOpenProject(): void {
         ? crypto.randomUUID()
         : `proj-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     trace.action('menu:file-new-project:navigate', { id, mode: 'local' });
-    tab.location.href = `/builder/${id}`;
+    tab.location.href = `/work/${id}`;
     return;
   }
 
@@ -496,7 +495,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
     id: 'insert',
     label: 'Insert',
     // Mirrors the bottom toolbar exactly: Frame, Text, Layout (rows /
-    // columns / grids), the four shape primitives, then Sketch. Each
+    // columns / grids), the native shape primitives, then Pen and Pencil. Each
     // item just sets `toolModeAtom` — the same atom the bottom-toolbar
     // buttons + the F / T / Shift+R / R / O / Shift+T / P / K shortcuts
     // already drive. Items + shortcuts are kept in lockstep with
@@ -510,12 +509,13 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       { id: 'insert-layout-columns', label: 'Columns', shortcut: 'Shift+C', onClick: () => menuSetTool('layout-columns') },
       { id: 'insert-layout-grids', label: 'Grids', shortcut: 'Shift+G', onClick: () => menuSetTool('layout-grids') },
       { type: 'separator' },
-      { id: 'insert-shape-rect', label: 'Square', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
-      { id: 'insert-shape-ellipse', label: 'Circle', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
+      { id: 'insert-shape-rect', label: 'Rectangle', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
+      { id: 'insert-shape-ellipse', label: 'Ellipse', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
       { id: 'insert-shape-triangle', label: 'Triangle', shortcut: 'Shift+T', onClick: () => menuSetTool('shape-triangle') },
-      { id: 'insert-shape-path', label: 'Path', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
+      { id: 'insert-shape-line', label: 'Line', shortcut: 'L', onClick: () => menuSetTool('shape-line') },
+      { id: 'insert-shape-path', label: 'Pen', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
       { type: 'separator' },
-      { id: 'insert-sketch', label: 'Sketch', shortcut: 'K', onClick: () => menuSetTool('sketch') },
+      { id: 'insert-sketch', label: 'Pencil', shortcut: 'Shift+P', onClick: () => menuSetTool('sketch') },
     ],
   },
   {
@@ -571,11 +571,6 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
         },
       },
       { type: 'separator' },
-      // Launch tutorial — re-runs the first-run onboarding tour on demand.
-      // `startOnboarding()` dispatches the window event the mounted
-      // OnboardingTutorial listens for; it just re-shows the tour as a
-      // one-off and does NOT clear the localStorage completion flag.
-      { id: 'help-tutorial', label: 'Launch tutorial', onClick: () => { trace.action('menu:view-launch-tutorial'); startOnboarding(); } },
     ],
   },
   ];

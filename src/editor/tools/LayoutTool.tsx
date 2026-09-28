@@ -28,7 +28,7 @@ import { trace } from '@/shared/debug-trace';
 import GalleryTool from './GalleryTool';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
 import { parseVarRef } from '@/shared/css-utils';
-import { collapsePaddingToAxes, paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
+import { paddingAxisCompatible, readPaddingSides, setPaddingAxis, setPaddingSide } from './layout-padding';
 import { parseAutoTrack, formatAutoTrack,
   type TrackList, type Track, type TrackUnit,
   TRACK_UNIT_OPTIONS,
@@ -53,14 +53,17 @@ interface Props {
    *  Align (cross-axis) + Gap + Padding only — no Type/Direction/Wrap/Justify
    *  and no +/- remove. */
   templateRoot?: boolean;
-  /** Mature size/clipping controls composed into an ACTIVE Auto layout
-   *  section. Keeps the engine split while matching Figma's one-panel model. */
+  /** Mature size/clipping controls composed into the canonical Layout section.
+   *  Keeps the engines split while matching Figma's one-panel model. */
   sizeContent?: ReactNode;
+  /** Plain frames still have meaningful CSS padding before auto layout is added. */
+  showPaddingWithoutLayout?: boolean;
 }
 
-function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
+function AutoLayoutPaddingControl({ styles, onUpdateMultiple, fullWidth = false }: {
   styles: Record<string, string>;
   onUpdateMultiple: (styles: Record<string, string>) => void;
+  fullWidth?: boolean;
 }) {
   const sides = readPaddingSides(styles);
   const axisCompatible = paddingAxisCompatible(sides);
@@ -73,11 +76,11 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
   };
 
   return (
-    <div data-auto-layout-padding className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full">
-      <ControlLabel label="Padding" property="padding" plain cell />
+    <div data-auto-layout-padding className={fullWidth ? 'w-full' : 'grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full'}>
+      {!fullWidth && <ControlLabel label="Padding" property="padding" plain cell />}
       <div className="min-w-0">
       {!expanded ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full">
+        <div className={fullWidth ? 'field-inspector-field-grid w-full' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full'}>
           <ToolInput value={display(sides[1])} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} chevronLabel="↔" ariaLabel="Horizontal padding" />
           <ToolInput value={display(sides[0])} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} chevronLabel="↕" ariaLabel="Vertical padding" />
           <button type="button" onClick={() => setExpandedByUser(true)}
@@ -90,13 +93,21 @@ function AutoLayoutPaddingControl({ styles, onUpdateMultiple }: {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(4,minmax(0,1fr))_28px] gap-1 items-center w-full">
-          {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
-            <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
-          ))}
-          <button type="button" onClick={() => { apply(collapsePaddingToAxes(sides)); setExpandedByUser(false); }}
-            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            title="Use horizontal and vertical padding" aria-label="Use horizontal and vertical padding">
+        <div className={fullWidth ? 'field-inspector-field-grid w-full' : 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-1 items-center w-full'}>
+          <div className="grid min-w-0 grid-cols-2 gap-1">
+            {(['T', 'R'] as const).map((label, index) => (
+              <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
+            ))}
+          </div>
+          <div className="grid min-w-0 grid-cols-2 gap-1">
+            {(['B', 'L'] as const).map((label, index) => (
+              <ToolInput key={label} value={display(sides[index + 2])} onChange={(v) => apply(setPaddingSide(sides, index + 2, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
+            ))}
+          </div>
+          <button type="button" disabled={!axisCompatible} onClick={() => setExpandedByUser(false)}
+            className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] bg-[var(--bg-selected)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
+            title={axisCompatible ? 'Show horizontal and vertical padding' : 'Match opposite sides to show paired padding'}
+            aria-label="Show horizontal and vertical padding">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
               <path d="M2 5h12M2 11h12M5 2v12M11 2v12" />
             </svg>
@@ -896,7 +907,7 @@ export default function LayoutTool(props: Props) {
       <>
         {props.sizeContent && (
           <>
-            <ToolSection title="Size" collapsible>
+            <ToolSection title="Layout" collapsible>
               {props.sizeContent}
             </ToolSection>
             <ToolDivider />
@@ -909,7 +920,7 @@ export default function LayoutTool(props: Props) {
   return <StandardLayoutTool {...props} />;
 }
 
-function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent }: Props) {
+function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templateRoot, sizeContent, showPaddingWithoutLayout = false }: Props) {
   // useControl gives us the variable-binding helpers (`getValueSource`,
   // `removeVariable`) the Direction + Wrap rows need to surface the
   // purple variable pill — these rows are rendered as custom segmented
@@ -1346,23 +1357,34 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   const [distributionOpen, setDistributionOpen] = useState(false);
   const distributionRef = useRef<HTMLButtonElement>(null);
+  const gapMenuRef = useRef<HTMLButtonElement>(null);
+  const [distributionAnchor, setDistributionAnchor] = useState<'button' | 'gap'>('button');
   const gapValue = String(parseFloat(styles.gap || '0') || 0);
 
   const alignmentMatrix = !hasGrid ? (
-    <div data-auto-layout-alignment className="grid grid-cols-[112px_minmax(0,1fr)] gap-2 items-start">
-      <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-[112px] h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
+    <div data-auto-layout-alignment className="field-inspector-pair !items-start">
+      <div className="field-alignment-matrix grid grid-cols-3 grid-rows-3 gap-0.5 w-full aspect-[4/3] max-h-[112px] rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] p-2">
         {(['flex-start', 'center', 'flex-end'] as const).flatMap(y =>
           (['flex-start', 'center', 'flex-end'] as const).map(x => (
             <button
               key={`${x}-${y}`}
               type="button"
-              title={`Align ${x} / ${y}`}
-              aria-label={`Align ${x} / ${y}`}
+              title={`Align ${y === 'flex-start' ? 'top' : y === 'flex-end' ? 'bottom' : 'middle'} ${x === 'flex-start' ? 'left' : x === 'flex-end' ? 'right' : 'center'}`}
+              aria-label={`Align ${y === 'flex-start' ? 'top' : y === 'flex-end' ? 'bottom' : 'middle'} ${x === 'flex-start' ? 'left' : x === 'flex-end' ? 'right' : 'center'}`}
               aria-pressed={matrixX === x && matrixY === y}
               onClick={() => setAlignmentCell(x, y)}
-              className="flex items-center justify-center rounded-sm hover:bg-[var(--bg-hover)]"
+              className="field-alignment-cell relative flex items-center justify-center rounded-sm hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)]"
             >
-              <span className={`w-1 h-1 rounded-full ${matrixX === x && matrixY === y ? 'bg-[var(--accent-text)] scale-150' : 'bg-[var(--text-disabled)]'}`} />
+              <span className="field-alignment-dot h-1 w-1 rounded-full bg-[var(--text-disabled)]" aria-hidden />
+              <svg className={`field-alignment-glyph absolute h-6 w-6 ${matrixX === x && matrixY === y ? 'text-[var(--accent-text)]' : 'text-[var(--text-primary)]'}`}
+                viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                {[8, 13, 10].map((height, index) => (
+                  <rect key={index}
+                    x={(x === 'flex-start' ? 2.5 : x === 'center' ? 7 : 11.5) + index * 4}
+                    y={y === 'flex-start' ? 2.5 : y === 'center' ? (24 - height) / 2 : 21.5 - height}
+                    width="2.5" height={height} rx="0.6" />
+                ))}
+              </svg>
             </button>
           )),
         )}
@@ -1371,7 +1393,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
       <div className="flex flex-col gap-2 min-w-0">
         <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] overflow-hidden">
           <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Gap">
-            ↔
+            <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M3 3h10M3 13h10M8 5v6m-2-2 2 2 2-2" /></svg>
           </span>
           <ToolInput
             value={gapValue}
@@ -1379,13 +1401,15 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
             min={0}
             className="border-0"
           />
-          <span className="text-[var(--text-secondary)] text-[10px]">⌄</span>
+          <button ref={gapMenuRef} type="button" aria-label="Gap distribution options" title="Gap distribution options"
+            onClick={() => { setDistributionAnchor('gap'); setDistributionOpen(true); }}
+            className="h-[var(--control-height)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">⌄</button>
         </div>
 
         <button
           ref={distributionRef}
           type="button"
-          onClick={() => setDistributionOpen(true)}
+          onClick={() => { setDistributionAnchor('button'); setDistributionOpen(true); }}
           className="h-[var(--control-height)] w-full flex items-center justify-center gap-2 rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
           title="Advanced auto layout alignment"
         >
@@ -1401,7 +1425,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
           isOpen={distributionOpen}
           onClose={() => setDistributionOpen(false)}
           title="Auto layout"
-          anchorRef={distributionRef}
+          anchorRef={distributionAnchor === 'gap' ? gapMenuRef : distributionRef}
           width={260}
         >
           <div className="flex flex-col gap-2">
@@ -1430,21 +1454,29 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
     </div>
   ) : null;
 
-  // +/- action button for the section title row
+  // Layout uses explicit actions. Resize-to-fit needs a measured child-bounds
+  // operation, so keep its Figma-shaped control visible but disabled until that
+  // engine exists. The auto layout action below is wired to the existing
+  // position-preserving add/remove command.
   const toggleAction = (
-    <button
-      onClick={handleToggleLayout}
-      className="flex items-center justify-end pl-[80px] -ml-[80px] cursor-pointer group text-[var(--text-primary)]"
-      title={hasLayout ? 'Remove Layout' : 'Add Layout'}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-opacity group-hover:opacity-80">
-        {hasLayout ? (
-          <line x1="5" y1="12" x2="19" y2="12" />
-        ) : (
-          <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>
-        )}
-      </svg>
-    </button>
+    <div className="flex items-center gap-1">
+      <button type="button" disabled title="Resize to fit is not available yet" aria-label="Resize to fit (unavailable)"
+        className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-disabled)] cursor-not-allowed">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
+          <path d="M5 1.5v3.5H1.5M11 1.5v3.5h3.5M5 14.5V11H1.5M11 14.5V11h3.5" />
+          <path d="m5 5-3-3m9 3 3-3M5 11l-3 3m9-3 3 3" />
+        </svg>
+      </button>
+      <button type="button" onClick={handleToggleLayout}
+        title={hasLayout ? 'Remove auto layout' : 'Add auto layout'}
+        aria-label={hasLayout ? 'Remove auto layout' : 'Add auto layout'}
+        className={`flex h-7 w-7 items-center justify-center rounded-[5px] transition-colors hover:bg-[var(--bg-hover)] ${hasLayout ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="2" y="2.5" width="4" height="4" rx=".7" /><rect x="2" y="9.5" width="4" height="4" rx=".7" />
+          <path d="M9.5 3h4M11.5 1v4M9.5 11.5h4M11.5 9.5v4" />
+        </svg>
+      </button>
+    </div>
   );
 
   // ── Template root: a Template is ALWAYS a flex column; its layout can't be
@@ -1474,7 +1506,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
             {/* Gap */}
             <StyleField property="gap" label="Gap" />
             {/* Padding (T/R/B/L with the global ↔ individual toggle) */}
-            <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+            <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
           </div>
         </ToolSection>
         <ToolDivider />
@@ -1484,8 +1516,11 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
   return (
     <>
-      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || !!sizeContent} action={toggleAction}>
+      <ToolSection title={hasLayout ? "Auto layout" : "Layout"} collapsible hasContent={hasLayout || showPaddingWithoutLayout || !!sizeContent} action={toggleAction}>
         {!hasLayout && sizeContent}
+        {!hasLayout && showPaddingWithoutLayout && (
+          <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+        )}
         {hasLayout && (
           <div className="flex flex-col gap-2">
             <InspectorIconButtonGroup
@@ -1496,6 +1531,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
                 onClick: () => handleAutoLayoutMode(button.id),
               }))}
             />
+            {sizeContent}
 
             {/* Preserve existing variable bindings while the visible layout
                 controls move to the Figma motif. */}
@@ -1531,19 +1567,17 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
               );
             })()}
 
-            {sizeContent}
-
             {hasGrid ? (
               <>
                 <GridLayoutControls styles={styles} onUpdateMultiple={onUpdateMultiple} />
                 {/* Padding — same as the flex branch: a grid container has an
                     inner content box, so Padding lives in Layout (design-tool parity). */}
-                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
               </>
             ) : (
               <>
                 {alignmentMatrix}
-                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />
+                <AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} fullWidth />
               </>
             )}
 

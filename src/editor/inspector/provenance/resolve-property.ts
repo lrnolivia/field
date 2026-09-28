@@ -1,158 +1,293 @@
-import type { CanvasNode } from '@/code/parsing/parser';
-import type { ContainerOverrideMap } from '@/code/stores/container-query-store';
-import { getOverridesAtWidth, hasOverrideAtWidth } from '@/code/stores/container-query-store';
+import type {
+  InspectorPropertyResolution,
+  InspectorPropertyResolutionFacts,
+  InspectorReadSource,
+  InspectorResetAction,
+  InspectorSourceScope,
+  InspectorWriteTarget,
+} from './types';
 
-export type InspectorReadSource =
-  | 'local' | 'responsive' | 'component-variant' | 'conditional-variant'
-  | 'component-instance' | 'variable' | 'preset' | 'cms' | 'locale'
-  | 'inherited' | 'computed-only' | 'animation-bound';
-
-export type InspectorWriteTarget =
-  | 'node-base-style' | 'responsive-band' | 'component-variant-style'
-  | 'component-variant-conditional' | 'component-instance-override'
-  | 'variable-binding' | 'preset-binding' | 'cms-binding'
-  | 'locale-override' | 'read-only';
-
-export interface InspectorPropertyResolution {
-  property: string;
-  read: { value: string; source: InspectorReadSource; inherited: boolean; mixed: boolean; detail?: string };
-  write: { target: InspectorWriteTarget; editable: boolean; reason?: string; detail?: string };
-  reset: { target: InspectorWriteTarget; detail?: string } | null;
-  binding: { kind: 'variable' | 'preset' | 'cms'; ref: string } | null;
+export function presetRefFromValue(value: string): string | null {
+  const match = value.trim().match(/^var\(\s*--([^) ,]+)\s*(?:,[^)]+)?\)$/);
+  return match?.[1] ?? null;
 }
 
-export interface PropertyResolutionInput {
-  property: string;
-  node: CanvasNode | null;
-  /** The provider's already merged value is authoritative; this resolver does not rebuild its cascade. */
-  effectiveValue: string | undefined;
-  computedValue?: string;
-  overrides?: ContainerOverrideMap;
-  isReplica?: boolean;
-  viewportWidth?: number;
-  isComponentFile?: boolean;
-  variant?: string | null;
-  locale?: string | null;
-  localeValue?: string;
-  cmsField?: string | null;
-  animationOwner?: string | null;
-  /** Existing getValueSource result, which already accounts for variable detach/override rules. */
-  valueSource?: { source: 'inline' | 'prop' | 'token'; ref: string | null };
+/** Short provenance hint for a property label without exposing mutation internals. */
+export function inspectorPropertyTooltip(resolution: InspectorPropertyResolution): string | undefined {
+  const { source, inherited } = resolution.read;
+  const label = (() => {
+    switch (source.kind) {
+      case 'responsive': return `Responsive ${source.maxWidth ?? ''}`.trim();
+      case 'component-variant': return `Component variant ${source.variant}`;
+      case 'conditional-variant': return `Variant condition ${source.variant}`;
+      case 'component-instance': return 'Component instance';
+      case 'variable': return `Variable ${source.ref}`;
+      case 'preset': return `Preset ${source.ref}`;
+      case 'cms': return `CMS field ${source.ref ?? ''}`.trim();
+      case 'locale': return `Locale ${source.locale ?? ''}`.trim();
+      case 'animation-bound': return `Animation ${source.ref}`;
+      case 'computed-only': return 'Computed CSS';
+      default: return undefined;
+    }
+  })();
+  if (!label) return undefined;
+  if (!resolution.write.editable) return `${label} · ${resolution.write.reason ?? 'Read only'}`;
+  return inherited ? `${label} · Inherited here` : label;
 }
 
-function bandEntry<T>(values: Record<number, T> | undefined | null, floors: Record<number, number> | undefined | null, width: number): { width: number; value: T } | null {
-  if (!values) return null;
-  for (const max of Object.keys(values).map(Number).sort((a, b) => a - b)) {
-    if (width <= max && width >= (floors?.[max] ?? 0)) return { width: max, value: values[max] };
-  }
-  return null;
+function currentScope(facts: InspectorPropertyResolutionFacts): InspectorSourceScope {
+  if (facts.componentVariant?.active) return { kind: 'component-variant', variant: facts.componentVariant.variant };
+  if (facts.responsive?.active) return { kind: 'responsive', maxWidth: facts.responsive.maxWidth };
+  if (facts.locale?.active) return { kind: 'locale', locale: facts.locale.locale };
+  if (facts.componentInstance?.active) return { kind: 'component-instance', instanceId: facts.componentInstance.instanceId };
+  return { kind: 'base' };
 }
 
-/** Describe the current provider value and the existing mutation route without writing source. */
-export function resolveInspectorProperty(input: PropertyResolutionInput): InspectorPropertyResolution {
-  const { property, node } = input;
-  const authoredValue = input.effectiveValue;
-  const value = authoredValue ?? input.computedValue ?? '';
-  const make = (
-    source: InspectorReadSource, target: InspectorWriteTarget, detail?: string,
-    binding: InspectorPropertyResolution['binding'] = null,
-    reset: InspectorPropertyResolution['reset'] = null,
-    reason?: string,
-  ): InspectorPropertyResolution => ({
-    property,
-    read: { value, source, inherited: source === 'inherited', mixed: false, ...(detail ? { detail } : {}) },
-    write: { target, editable: target !== 'read-only' && target !== 'variable-binding' && target !== 'preset-binding' && target !== 'cms-binding', ...(detail ? { detail } : {}), ...(reason ? { reason } : {}) },
+function result(
+  facts: InspectorPropertyResolutionFacts,
+  source: InspectorReadSource,
+  target: InspectorWriteTarget,
+  reset: InspectorResetAction | null,
+  binding: InspectorPropertyResolution['binding'],
+  value = facts.effectiveValue,
+  inherited = false,
+  editable = facts.editable !== false && target.kind !== 'read-only',
+  reason?: string,
+): InspectorPropertyResolution {
+  return {
+    property: facts.property,
+    read: { value, source, inherited, mixed: false },
+    write: {
+      target,
+      editable,
+      ...(reason ? { reason } : {}),
+    },
     reset,
     binding,
-  });
+  };
+}
 
-  if (!node) return make('computed-only', 'read-only', undefined, null, null, 'Selection has no resolved node');
-  if (input.animationOwner) return make('animation-bound', 'read-only', input.animationOwner, null, null, 'Edit the animation that owns this property');
+export function resolvePropertyResolution(
+  facts: InspectorPropertyResolutionFacts,
+): InspectorPropertyResolution {
+  const scope = currentScope(facts);
 
-  const variant = input.isComponentFile ? input.variant : null;
-  const variantStyle = variant ? node.motionVariants?.[variant] : undefined;
-  const conditional = variant ? node.conditionalStyles?.[property] : undefined;
-  const variantCms = variant && variant !== 'default' ? node.variantBindings?.style?.[variant]?.[property] : undefined;
-  const responsive = input.isReplica && input.viewportWidth
-    ? bandEntry(node.responsiveStyleValues?.[property], node.responsiveStyleBands?.[property], input.viewportWidth)
-    : null;
-  const mediaValue = input.isReplica && input.viewportWidth && input.overrides
-    ? getOverridesAtWidth(input.overrides, node.id, input.viewportWidth).get(property)
-    : undefined;
-  const localeOwns = input.localeValue !== undefined;
-  const variable = input.valueSource?.source === 'prop' && input.valueSource.ref;
-  const preset = input.valueSource?.source === 'token' && input.valueSource.ref;
-
-  // A binding is still the owner when the provider displays its resolved literal.
-  // Explicit variant/media literals detach a base binding on just that scope.
-  if (variantCms && 'field' in variantCms) return make('cms', 'cms-binding', variantCms.field, { kind: 'cms', ref: variantCms.field }, { target: 'cms-binding', detail: variant ?? undefined });
-  if (input.cmsField && !variantCms) return make('cms', 'cms-binding', input.cmsField, { kind: 'cms', ref: input.cmsField }, null);
-  if (variable) return make('variable', 'variable-binding', variable, { kind: 'variable', ref: variable }, null);
-  if (preset) return make('preset', 'preset-binding', preset, { kind: 'preset', ref: preset }, null);
-
-  if (variantCms && 'value' in variantCms) return make('cms', 'component-variant-style', variant ?? undefined, null, { target: 'component-variant-style', detail: variant ?? undefined });
-  if (conditional && variant && variant in conditional) return make('conditional-variant', 'component-variant-conditional', variant, null, { target: 'component-variant-conditional', detail: variant });
-  if (variantStyle && property in variantStyle) return make('component-variant', 'component-variant-style', variant!, null, variant !== 'default' ? { target: 'component-variant-style', detail: variant! } : null);
-  if (mediaValue !== undefined || responsive) {
-    const ownsBand = !!responsive || !!(input.overrides && input.viewportWidth && hasOverrideAtWidth(input.overrides, node.id, property, input.viewportWidth));
-    const resolved = make('responsive', 'responsive-band', String(input.viewportWidth), null,
-      ownsBand ? { target: 'responsive-band', detail: String(input.viewportWidth) } : null);
-    resolved.read.inherited = !ownsBand;
-    return resolved;
+  if (facts.animationBoundBy) {
+    const reason = 'Controlled by ' + facts.animationBoundBy + '.';
+    return result(
+      facts,
+      { kind: 'animation-bound', ref: facts.animationBoundBy },
+      { kind: 'read-only', reason },
+      null,
+      { kind: 'animation', ref: facts.animationBoundBy },
+      facts.effectiveValue,
+      false,
+      false,
+      reason,
+    );
   }
-  if (localeOwns) return make('locale', 'locale-override', input.locale ?? undefined, null, { target: 'locale-override', detail: input.locale ?? undefined });
 
-  // An instance's resolved style may originate in its master. Do not claim it is locally authored.
-  if (node.componentInstanceId || node.isComponentInstance) {
-    return make('component-instance', 'component-instance-override', node.componentInstanceId ?? node.id);
+  if (facts.variableRef) {
+    const reason = 'Value is variable-bound. Detach or edit the variable explicitly.';
+    return result(
+      facts,
+      { kind: 'variable', ref: facts.variableRef, scope },
+      { kind: 'variable-binding', ref: facts.variableRef, scope },
+      { kind: 'detach-variable', ref: facts.variableRef },
+      { kind: 'variable', ref: facts.variableRef },
+      facts.effectiveValue,
+      false,
+      false,
+      reason,
+    );
   }
-  if (variant && variant !== 'default') {
-    if (property in (node.motionVariants?.default ?? {})) {
-      const resolved = make('component-variant', 'component-variant-style', 'default');
-      resolved.read.inherited = true;
-      return resolved;
+
+  const presetRef = facts.presetRef ?? presetRefFromValue(facts.effectiveValue);
+  if (presetRef) {
+    const reason = 'Value is preset-bound. Detach or edit the preset explicitly.';
+    return result(
+      facts,
+      { kind: 'preset', ref: presetRef, scope },
+      { kind: 'preset-binding', ref: presetRef, scope },
+      { kind: 'detach-preset', ref: presetRef },
+      { kind: 'preset', ref: presetRef },
+      facts.effectiveValue,
+      false,
+      false,
+      reason,
+    );
+  }
+
+  if (facts.cms?.active) {
+    const cmsScope: InspectorSourceScope = facts.cms.variantOverride && facts.cms.variant
+      ? { kind: 'component-variant', variant: facts.cms.variant }
+      : scope;
+    const reset: InspectorResetAction = facts.cms.variantOverride && facts.cms.variant
+      ? { kind: 'remove-cms-variant-override', variant: facts.cms.variant }
+      : { kind: 'unbind-cms', ref: facts.cms.ref };
+    const reason = 'Value is CMS-bound. Unbind or edit the CMS binding explicitly.';
+    return result(
+      facts,
+      { kind: 'cms', ref: facts.cms.ref, scope: cmsScope },
+      { kind: 'cms-binding', ref: facts.cms.ref, scope: cmsScope },
+      reset,
+      { kind: 'cms', ref: facts.cms.ref },
+      facts.effectiveValue,
+      false,
+      false,
+      reason,
+    );
+  }
+
+  if (facts.componentVariant?.active && facts.componentVariant.hasOwnValue) {
+    const variant = facts.componentVariant.variant;
+    if (facts.componentVariant.conditional) {
+      return result(
+        facts,
+        { kind: 'conditional-variant', variant },
+        { kind: 'component-variant-conditional', nodeId: facts.nodeId ?? null, variant },
+        { kind: 'remove-component-variant-override', variant },
+        null,
+      );
     }
-    return make('inherited', 'component-variant-style', variant);
+    return result(
+      facts,
+      { kind: 'component-variant', variant },
+      { kind: 'component-variant-style', nodeId: facts.nodeId ?? null, variant },
+      { kind: 'remove-component-variant-override', variant },
+      null,
+    );
   }
-  if (input.isReplica && input.viewportWidth) return make('inherited', 'responsive-band', String(input.viewportWidth));
-  if (authoredValue !== undefined && property in node.styles) return make('local', 'node-base-style');
-  if (authoredValue !== undefined && property in (node.motionVariants?.default ?? {})) return make('component-variant', 'component-variant-style', 'default');
-  if (authoredValue !== undefined) return make('inherited', 'read-only', undefined, null, null, 'Authored source for the effective value is unresolved');
-  if (input.computedValue !== undefined) return make('computed-only', 'read-only', undefined, null, null, 'Computed CSS has no resolved authored owner');
-  return make('local', 'node-base-style'); // empty field: creating a new local property is intentional
-}
 
-export function resolveMultiSelection(property: string, members: InspectorPropertyResolution[]): InspectorPropertyResolution {
-  if (members.length === 0) return resolveInspectorProperty({ property, node: null, effectiveValue: undefined });
-  const first = members[0];
-  const mixed = members.some(member => member.read.value !== first.read.value);
-  const compatible = members.every(member => member.write.editable && member.write.target === first.write.target && member.write.detail === first.write.detail);
-  return {
-    property,
-    read: { ...first.read, value: mixed ? '' : first.read.value, mixed },
-    write: compatible ? first.write : { target: 'read-only', editable: false, reason: 'Selection has incompatible or read-only write targets' },
-    reset: compatible && members.every(member => member.reset?.target === first.reset?.target) ? first.reset : null,
-    binding: members.every(member => member.binding?.kind === first.binding?.kind && member.binding?.ref === first.binding?.ref) ? first.binding : null,
-  };
-}
+  if (facts.responsive?.active) {
+    const target: InspectorWriteTarget = {
+      kind: 'responsive-band',
+      nodeId: facts.nodeId ?? null,
+      maxWidth: facts.responsive.maxWidth,
+    };
+    if (facts.responsive.hasOwnValue) {
+      return result(
+        facts,
+        { kind: 'responsive', maxWidth: facts.responsive.maxWidth },
+        target,
+        { kind: 'remove-responsive-override', maxWidth: facts.responsive.maxWidth },
+        null,
+      );
+    }
+    return result(
+      facts,
+      { kind: 'inherited', from: 'base' },
+      target,
+      null,
+      null,
+      facts.effectiveValue,
+      true,
+    );
+  }
 
-/** Small, explicit hover explanation for existing Inspector labels. */
-export function inspectorPropertyTooltip(resolution: InspectorPropertyResolution): string | undefined {
-  const { read, write } = resolution;
-  const owner: Partial<Record<InspectorReadSource, string>> = {
-    responsive: `Responsive ${read.detail ?? ''}`.trim(),
-    'component-variant': `Component variant ${read.detail ?? ''}`.trim(),
-    'conditional-variant': `Variant condition ${read.detail ?? ''}`.trim(),
-    'component-instance': 'Component instance',
-    variable: `Variable ${read.detail ?? ''}`.trim(),
-    preset: `Preset ${read.detail ?? ''}`.trim(),
-    cms: `CMS field ${read.detail ?? ''}`.trim(),
-    locale: `Locale ${read.detail ?? ''}`.trim(),
-    'animation-bound': `Animation ${read.detail ?? ''}`.trim(),
-    'computed-only': 'Computed CSS',
-  };
-  const label = owner[read.source];
-  if (!label) return undefined;
-  if (!write.editable) return `${label} · ${write.reason ?? 'Use the binding control to edit'}`;
-  return read.inherited ? `${label} · Inherited here` : label;
+  if (facts.componentVariant?.active && !facts.componentVariant.hasOwnValue) {
+    const variant = facts.componentVariant.variant;
+    const target: InspectorWriteTarget = facts.componentVariant.conditional
+      ? { kind: 'component-variant-conditional', nodeId: facts.nodeId ?? null, variant }
+      : { kind: 'component-variant-style', nodeId: facts.nodeId ?? null, variant };
+    return result(
+      facts,
+      { kind: 'inherited', from: 'component-default' },
+      target,
+      null,
+      null,
+      facts.effectiveValue,
+      true,
+    );
+  }
+
+  if (facts.locale?.active) {
+    return result(
+      facts,
+      { kind: 'locale', locale: facts.locale.locale },
+      { kind: 'locale-override', nodeId: facts.nodeId ?? null, locale: facts.locale.locale },
+      { kind: 'remove-locale-override', locale: facts.locale.locale },
+      null,
+    );
+  }
+
+  if (facts.componentInstance?.active) {
+    const target: InspectorWriteTarget = {
+      kind: 'component-instance-override',
+      nodeId: facts.nodeId ?? null,
+      instanceId: facts.componentInstance.instanceId,
+    };
+    if (facts.componentInstance.hasOwnValue) {
+      return result(
+        facts,
+        {
+          kind: 'component-instance',
+          instanceId: facts.componentInstance.instanceId,
+          inheritedFromMaster: false,
+        },
+        target,
+        { kind: 'remove-instance-override', instanceId: facts.componentInstance.instanceId },
+        null,
+      );
+    }
+    return result(
+      facts,
+      { kind: 'inherited', from: 'component-master' },
+      target,
+      null,
+      null,
+      facts.effectiveValue,
+      true,
+    );
+  }
+
+  if (facts.hasAuthoredBase) {
+    return result(
+      facts,
+      { kind: 'local' },
+      { kind: 'node-base-style', nodeId: facts.nodeId ?? null },
+      null,
+      null,
+      facts.baseValue ?? facts.effectiveValue,
+    );
+  }
+
+  if (facts.inheritedValue != null) {
+    const reason = 'Rendered value is inherited and its authored owner is outside the selected node.';
+    return result(
+      facts,
+      { kind: 'inherited', from: facts.inheritedFrom ?? null },
+      { kind: 'read-only', reason },
+      null,
+      null,
+      facts.inheritedValue,
+      true,
+      false,
+      reason,
+    );
+  }
+
+  if (facts.computedValue != null) {
+    const reason = facts.computedReason
+      ?? 'Rendered value is computed, but field cannot identify a deterministic authored owner.';
+    return result(
+      facts,
+      { kind: 'computed-only', reason },
+      { kind: 'read-only', reason },
+      null,
+      null,
+      facts.computedValue,
+      false,
+      false,
+      reason,
+    );
+  }
+
+  return result(
+    facts,
+    { kind: 'local' },
+    { kind: 'node-base-style', nodeId: facts.nodeId ?? null },
+    null,
+    null,
+  );
 }

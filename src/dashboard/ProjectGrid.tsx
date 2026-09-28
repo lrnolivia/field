@@ -5,6 +5,7 @@ type Props = {
   projects: FieldProjectMeta[];
   refreshingProjectIds: Set<string>;
   openMenuId: string | null;
+  openingProjectId: string | null;
   onOpenMenuId: (id: string | null) => void;
   onOpen: (project: FieldProjectMeta) => void;
   onRename: (project: FieldProjectMeta) => void;
@@ -15,7 +16,7 @@ type Props = {
   onPermanentDelete: (project: FieldProjectMeta) => void;
 };
 
-export default function ProjectGrid({ projects, refreshingProjectIds, openMenuId, onOpenMenuId, ...actions }: Props) {
+export default function ProjectGrid({ projects, refreshingProjectIds, openMenuId, openingProjectId, onOpenMenuId, ...actions }: Props) {
   return (
     <div className="field-project-grid">
       {projects.map((project) => (
@@ -23,6 +24,7 @@ export default function ProjectGrid({ projects, refreshingProjectIds, openMenuId
           key={project.id}
           project={project}
           refreshing={refreshingProjectIds.has(project.id)}
+          opening={openingProjectId === project.id}
           menuOpen={openMenuId === project.id}
           onMenuOpenChange={(open) => onOpenMenuId(open ? project.id : null)}
           onOpen={() => actions.onOpen(project)}

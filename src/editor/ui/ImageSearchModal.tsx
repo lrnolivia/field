@@ -34,6 +34,7 @@ interface ImageSearchModalProps {
   /** Existing consumers stay single-select by default. Gallery opts into multiple. */
   selectionMode?: 'single' | 'multiple';
   onSelectMany?: (urls: string[]) => void;
+  compact?: boolean;
 }
 
 interface UnsplashImage {
@@ -57,7 +58,7 @@ interface Asset3D {
 
 type Tab = 'unsplash' | 'upload' | 'create' | '3d';
 
-export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany }: ImageSearchModalProps) {
+export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false }: ImageSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnsplashImage[]>([]);
@@ -279,11 +280,10 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
     }
   };
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Media" width={896}>
-      <div className="p-4 space-y-3 min-h-[500px]">
+  const content = (
+      <div className="space-y-3 p-4">
         {/* Header: tabs + search */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             {/* Tabs */}
             {([...((HAS_UNSPLASH ? ['unsplash', 'upload', 'create'] : ['upload', 'create']) as Tab[]), ...(isAdmin ? ['3d' as Tab] : [])]).map(t => (
@@ -332,7 +332,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
 
         {/* ─── Unsplash Tab ─── */}
         {tab === 'unsplash' && (
-          <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+          <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-3 max-h-[260px] min-h-[180px]' : 'grid-cols-6 max-h-[500px] min-h-[400px]'}`}>
             {loading && Array.from({ length: 24 }).map((_, i) => (
               <div key={i} className="aspect-square cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
             ))}
@@ -371,16 +371,16 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+            <div className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
               {/* Upload drop zone — routes through `backend.uploadAsset`
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
                   gallery alongside every other upload. */}
-              <label className={`aspect-square cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)] cursor-pointer'}`}>
+              <label className={`${uploads.length === 0 ? 'col-span-3 h-36' : 'aspect-square'} cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)] cursor-pointer'}`}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : 'Upload'}</span>
+                <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : uploads.length === 0 ? 'Choose images to add to this project' : 'Upload'}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -508,6 +508,8 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
           </div>
         )}
       </div>
-    </Modal>
   );
+  if (!isOpen) return null;
+  const modalWidth = tab === 'upload' && uploads.length === 0 ? 520 : tab === 'create' ? 560 : 800;
+  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
 }

@@ -6,6 +6,7 @@ import { transformManager } from './TransformManager';
 import { trace } from '@/shared/debug-trace';
 import { getDefaultStore } from 'jotai';
 import { useSmoothZoomAtom } from '@/code/stores/user-preferences-store';
+import { interpolateZoom } from 'd3-interpolate';
 
 /** Ease-out cubic: fast start, smooth deceleration */
 function easeOutCubic(t: number): number {
@@ -13,11 +14,14 @@ function easeOutCubic(t: number): number {
 }
 
 let animationFrameId: number | null = null;
+let blurAnimation: Animation | null = null;
 const onAnimStart: (() => void) | null = null;
 const onAnimEnd: (() => void) | null = null;
 
 /** Cancel any running animation */
 function cancelAnimation(): void {
+  blurAnimation?.cancel();
+  blurAnimation = null;
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
@@ -43,6 +47,7 @@ export function animateCanvasTo(
   targetY: number,
   targetScale: number,
   duration: number = 300,
+  options: { focus?: boolean } = {},
 ): void {
   cancelAnimation();
 
@@ -52,7 +57,7 @@ export function animateCanvasTo(
   // in the codebase. Single chokepoint — every camera command
   // (`zoomIn`/`zoomOut`/`zoomTo100`/`zoomToFit`/`panToNode`/etc.) goes
   // through this function, so flipping the pref controls all of them.
-  if (!getDefaultStore().get(useSmoothZoomAtom)) {
+  if (!options.focus && !getDefaultStore().get(useSmoothZoomAtom)) {
     moveCanvasTo(targetX, targetY, targetScale);
     return;
   }
@@ -63,17 +68,32 @@ export function animateCanvasTo(
 
   const start = transformManager.getTransform();
   const startTime = performance.now();
+  const anchorX = window.innerWidth / 2;
+  const anchorY = window.innerHeight / 2;
+  const viewportWidth = Math.max(1, window.innerWidth);
+  const focusPath = options.focus ? interpolateZoom(
+    [(anchorX - start.x) / start.scale, (anchorY - start.y) / start.scale, viewportWidth / start.scale],
+    [(anchorX - targetX) / targetScale, (anchorY - targetY) / targetScale, viewportWidth / targetScale],
+  ) : null;
+  if (focusPath && !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)) {
+    const iframe = document.querySelector<HTMLIFrameElement>('[data-canvas-iframe]');
+    blurAnimation = iframe?.animate([
+      { filter: 'blur(0px)', offset: 0 },
+      { filter: `blur(${duration < 350 ? 2.2 : 3.5}px)`, offset: 0.43 },
+      { filter: 'blur(0px)', offset: 1 },
+    ], { duration, easing: 'ease-in-out' }) ?? null;
+  }
 
   const animate = (currentTime: number) => {
     if (animationFrameId === null) return; // cancelled
 
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const eased = easeOutCubic(progress);
-
-    const currentX = start.x + (targetX - start.x) * eased;
-    const currentY = start.y + (targetY - start.y) * eased;
-    const currentScale = start.scale + (targetScale - start.scale) * eased;
+    const eased = focusPath ? progress * progress * (3 - 2 * progress) : easeOutCubic(progress);
+    const view = focusPath?.(eased);
+    const currentScale = view ? viewportWidth / view[2] : start.scale + (targetScale - start.scale) * eased;
+    const currentX = view ? anchorX - view[0] * currentScale : start.x + (targetX - start.x) * eased;
+    const currentY = view ? anchorY - view[1] * currentScale : start.y + (targetY - start.y) * eased;
 
     transformManager.setTransform({ x: currentX, y: currentY, scale: currentScale });
 

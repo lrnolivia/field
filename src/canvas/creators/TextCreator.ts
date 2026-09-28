@@ -36,8 +36,9 @@ const MIN_DRAW_SIZE = 5;
 // from when text creation was a distinct visual flow.
 const PREVIEW_BORDER = SELECTION_COLOR;
 const PREVIEW_FILL = 'rgba(59, 130, 246, 0.1)';
-// Zero-width space so the element has height before user types
-const ZERO_WIDTH_SPACE = '\u200B';
+// Figma's new text layer starts with replaceable selected copy. The editor
+// opens with `autofocus: 'all'`, so the first keystroke replaces this word.
+const INITIAL_TEXT = 'Text';
 
 export interface TextCreatorCallbacks {
   getContainerRect: () => DOMRect;
@@ -319,7 +320,7 @@ export function startTextCreation(
 
         const nodeEl = createNode({
           id: nodeId, type: 'p', name: 'Text', styles,
-          textContent: ZERO_WIDTH_SPACE,
+          textContent: INITIAL_TEXT,
           parentEl: contentEl, parentId: 'root',
           isCanvasNode: true, contentEl,
           onMouseDown: callbacks.onNodeMouseDown,
@@ -377,7 +378,7 @@ export function startTextCreation(
 
         const nodeEl = createNode({
           id: nodeId, type: 'p', name: 'Text', styles,
-          textContent: ZERO_WIDTH_SPACE,
+          textContent: INITIAL_TEXT,
           parentEl: contentEl, parentId, index: insertIndex,
           onMouseDown: callbacks.onNodeMouseDown,
         });

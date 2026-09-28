@@ -8,6 +8,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
+import { backend } from '@/backend';
+import { getProjectId } from '@/backend/project-id';
 
 // Pixabay video search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/pixabay`) so Revyme's key stays server-side and out of the
@@ -28,6 +30,7 @@ interface VideoSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (url: string) => void;
+  compact?: boolean;
 }
 
 interface PixabayVideoSize {
@@ -59,7 +62,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSearchModalProps) {
+export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = false }: VideoSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_PIXABAY ? 'pixabay' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PixabayVideo[]>([]);
@@ -67,6 +70,8 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const loadingMoreRef = useRef(false); // sync guard against concurrent page fetches
   const pageRef = useRef(1);            // sync last-fetched page
@@ -158,11 +163,10 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
     }
   };
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Video" width={896}>
-      <div className="p-4 space-y-3 min-h-[500px]">
+  const content = (
+      <div className="space-y-3 p-4">
         {/* Header: tabs + search */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             {((HAS_PIXABAY ? ['pixabay', 'upload', 'create'] : ['upload', 'create']) as Tab[]).map(t => (
               <button
@@ -195,7 +199,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
 
         {/* ─── Pixabay Tab ─── */}
         {tab === 'pixabay' && (
-          <div ref={pixabayGridRef} onScroll={onPixabayScroll} className="grid grid-cols-4 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+          <div ref={pixabayGridRef} onScroll={onPixabayScroll} className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-2 max-h-[260px] min-h-[180px]' : 'grid-cols-4 max-h-[500px] min-h-[400px]'}`}>
             {loading && Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="aspect-video cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
             ))}
@@ -251,23 +255,30 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
 
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
-          <div className="flex flex-col gap-4 min-h-[400px]">
+          <div className="flex flex-col gap-4">
             {/* Upload drop zone */}
-            <label className="flex-shrink-0 h-32 cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 hover:bg-[var(--bg-hover)] cursor-pointer transition-colors">
+            <label className={`flex-shrink-0 h-36 cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span className="text-xs text-[var(--text-secondary)]">Upload video file</span>
-              <input type="file" accept="video/*" className="hidden" onChange={(e) => {
-                const file = e.target.files?.[0];
+              <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : 'Choose a video to add to this project'}</span>
+              <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                const input = e.currentTarget;
+                const file = input.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') handleSelect(reader.result);
-                };
-                reader.readAsDataURL(file);
+                setUploading(true);
+                setUploadError(null);
+                try {
+                  handleSelect(await backend.uploadAsset(getProjectId(), file));
+                } catch (error) {
+                  setUploadError(error instanceof Error ? error.message : 'Video upload failed');
+                } finally {
+                  input.value = '';
+                  setUploading(false);
+                }
               }} />
             </label>
+            {uploadError && <p role="alert" className="text-xs text-[var(--text-danger)]">{uploadError}</p>}
 
             {/* URL paste */}
             <div className="flex items-center gap-2">
@@ -293,7 +304,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
 
         {/* ─── Create Tab (AI placeholder) ─── */}
         {tab === 'create' && (
-          <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <div className={`flex flex-col items-center justify-center gap-4 ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-tertiary)]">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
@@ -303,6 +314,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect }: VideoSea
           </div>
         )}
       </div>
-    </Modal>
   );
+  if (!isOpen) return null;
+  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
 }

@@ -47,6 +47,13 @@ interface UploadedFile {
  *  Same value LibraryPanel uses (`LIBRARY_DRAG_THRESHOLD_PX`). */
 const MEDIA_DRAG_THRESHOLD_PX = 5;
 
+const mediaImageRatioCache = new Map<string, number>();
+
+function rememberMediaImageRatio(url: string, image: HTMLImageElement): void {
+  if (image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+  mediaImageRatioCache.set(url, image.naturalWidth / image.naturalHeight);
+}
+
 /** Shared drag logic for media tiles. Mirrors LibraryPanel's
  *  `useComponentDrag` exactly — kicks off `startToolbarDrag` once the
  *  cursor moves more than `MEDIA_DRAG_THRESHOLD_PX` from the
@@ -92,6 +99,7 @@ function useMediaDrag(url: string, kind: 'image' | 'video') {
         // transparent". Dropping with no fill respects the image's alpha.
       },
       ghostSize: { width: ghostW, height: ghostH },
+      galleryMedia: [{ url, sourceRatio: mediaImageRatioCache.get(url) ?? null }],
     } : {
       id: `media-video:${url}`,
       elementType: 'video',
@@ -157,7 +165,9 @@ function useGallerySelectionDrag(urls: readonly string[]) {
       if (dx * dx + dy * dy < MEDIA_DRAG_THRESHOLD_PX * MEDIA_DRAG_THRESHOLD_PX) return;
       dragStarted = true;
       cleanup();
-      const item = buildGalleryMediaToolbarItem(snapshot);
+      const item = buildGalleryMediaToolbarItem(
+        snapshot.map((url) => ({ url, sourceRatio: mediaImageRatioCache.get(url) ?? null })),
+      );
       trace.action('media-panel:gallery-drag-start', { count: snapshot.length });
       startToolbarDrag(item, startEvent);
     };
@@ -218,7 +228,14 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
       title="Drag to canvas"
     >
       {kind === 'image' ? (
-        <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" loading="lazy" draggable={false} />
+        <img
+          src={url}
+          alt=""
+          className="w-full h-full object-cover pointer-events-none"
+          loading="lazy"
+          draggable={false}
+          onLoad={(event) => rememberMediaImageRatio(url, event.currentTarget)}
+        />
       ) : (
         <video src={url} className="w-full h-full object-cover pointer-events-none" muted />
       )}

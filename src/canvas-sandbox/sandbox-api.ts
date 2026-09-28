@@ -160,6 +160,15 @@ export interface SandboxApi {
     important: boolean,
   ): void | Promise<void>;
   patchMultipleStyles(updates: PatchUpdate[]): void | Promise<void>;
+  setSelectionColorLocateHighlight(
+    nodeId: string,
+    vpPrefix: string,
+    luminousRgb: [number, number, number],
+    contrastTone: 'white' | 'black',
+    mode: 'hover' | 'click',
+    revision: number,
+  ): void | Promise<void>;
+  clearSelectionColorLocateHighlights(): void | Promise<void>;
   /** Motion-preview !important patch that SNAPSHOTS each key's prior inline
    *  value on first write, so previewRestoreStyles can put back exactly what
    *  the DOM had (a runtime animation's `opacity: 1` lives inline, not in
@@ -224,6 +233,8 @@ export interface SandboxApi {
    *  keystroke. The async removeNode code mutation makes it permanent. */
   removeElement(nodeId: string): void | Promise<void>;
   reparentLive(nodeId: string, vpPrefix: string, newParentId: string | null, index: number, styles: Record<string, string>): void | Promise<void>;
+  /** Scroll a rendered node by CSS pixels inside its own overflow box. */
+  scrollElementBy(nodeId: string, vpPrefix: string, dx: number, dy: number): void | Promise<void>;
   setInnerHTML(nodeId: string, vpPrefix: string, html: string): void | Promise<void>;
   setAttribute(
     nodeId: string,
@@ -479,6 +490,7 @@ export interface SandboxApi {
     vpPrefix: string,
     opts: { format: 'png' | 'jpeg' | 'svg'; pixelRatio: number; backgroundColor?: string },
   ): Promise<string | null>;
+  captureCanvasViewport(): Promise<string | null>;
 }
 
 export type TextEditCommand =

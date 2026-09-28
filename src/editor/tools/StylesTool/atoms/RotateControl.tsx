@@ -318,7 +318,7 @@ function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
 
   if (compact) {
     return (
-      <div data-position-transform-row className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 w-full">
+      <div data-position-transform-row className="field-inspector-pair w-full">
         <ToolInput
           value={String(Math.round(shownNum * 10) / 10)}
           onChange={writeRaw}

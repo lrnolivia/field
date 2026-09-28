@@ -1,9 +1,17 @@
 export type EditorEntranceRole = 'left' | 'right' | 'bottom';
+export type EditorEntrancePhase =
+  | 'default'
+  | 'left-surface'
+  | 'left-rail'
+  | 'right-surface'
+  | 'right-content'
+  | 'late-chrome';
 export type FieldDashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
 
 export interface EditorEntranceTargetSpec {
   selector: string;
   role: EditorEntranceRole;
+  phase: EditorEntrancePhase;
 }
 
 export interface EditorSpringProfile {
@@ -17,6 +25,7 @@ export interface EditorSpringProfile {
 export interface EditorEntranceTarget {
   element: HTMLElement;
   role: EditorEntranceRole;
+  phase: EditorEntrancePhase;
 }
 
 export interface EditorChromeExitRequestDetail {
@@ -28,11 +37,10 @@ export const DIRECT_LOAD_RENDER_EVENT = 'revyme:render-complete';
 export const EDITOR_CHROME_EXIT_REQUEST_EVENT = 'field:editor-chrome-exit-request';
 
 /**
- * ProjectLoader keeps a loading-shell overlay mounted for ~280ms after the
- * first Canvas render completes. The entrance must begin after that overlay
- * clears or a hard refresh animates invisibly underneath it.
+ * Let the canvas reveal lead direct-load chrome by one short beat. The canvas
+ * is visible from its first painted frame; no loading layer covers this handoff.
  */
-export const DIRECT_LOAD_SHELL_CLEAR_MS = 310;
+export const DIRECT_LOAD_CHROME_STAGGER_MS = 110;
 export const DIRECT_LOAD_FAILSAFE_MS = 4400;
 
 /**
@@ -40,14 +48,20 @@ export const DIRECT_LOAD_FAILSAFE_MS = 4400;
  * The canvas itself is deliberately absent.
  */
 export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Object.freeze([
-  { selector: '[data-workspace-island="left"]', role: 'left' },
-  { selector: '[data-left-menu-rail]', role: 'left' },
-  { selector: '[data-editor-panel="left-primary"]', role: 'left' },
+  { selector: '[data-workspace-island="left"][data-visible="true"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-left-menu-rail][data-visible="true"]', role: 'left', phase: 'left-rail' },
+  { selector: '[data-floating-left-panel]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-left-rail-handle]', role: 'left', phase: 'late-chrome' },
+  { selector: '[data-editor-panel="left-primary"][data-visible="true"]', role: 'left', phase: 'left-surface' },
+  { selector: '[data-workspace-left-header][data-visible="true"]', role: 'left', phase: 'late-chrome' },
+  { selector: '[data-workspace-left-restore][data-visible="true"]', role: 'left', phase: 'late-chrome' },
 
-  { selector: '[data-workspace-island="right"]', role: 'right' },
-  { selector: '[data-workspace-right-body]', role: 'right' },
+  { selector: '[data-workspace-island="right"]', role: 'right', phase: 'right-surface' },
+  { selector: '[data-workspace-right-body]', role: 'right', phase: 'right-content' },
+  { selector: '[data-workspace-right-header]', role: 'right', phase: 'late-chrome' },
+  { selector: '[data-workspace-right-toggle][data-visible="true"]', role: 'right', phase: 'late-chrome' },
 
-  { selector: '#bottom-toolbar-container', role: 'bottom' },
+  { selector: '#bottom-toolbar-container', role: 'bottom', phase: 'default' },
 ]);
 
 /**
@@ -64,6 +78,19 @@ export const EDITOR_SIDE_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
 });
 
 /**
+ * Dashboard -> editor gives the inspector backing surface one visible inertia
+ * beat. This is intentionally under-damped, but calmer than the bottom toolbar:
+ * the panel crosses home once, then settles while its content follows.
+ */
+export const EDITOR_DASHBOARD_RIGHT_SURFACE_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
+  stiffness: 420,
+  damping: 24,
+  mass: 0.9,
+  durationMs: 480,
+  samples: 40,
+});
+
+/**
  * The bottom toolbar is the one playful beat. It is intentionally
  * under-damped so the whole floating island rises past home and settles.
  */
@@ -77,6 +104,7 @@ export const EDITOR_BOTTOM_SPRING: Readonly<EditorSpringProfile> = Object.freeze
 
 export const EDITOR_BOTTOM_DELAY_MS = 42;
 
+
 /**
  * Leaving for Dashboard is not a reversed spring. Structural chrome accelerates
  * cleanly away, making room for Dashboard's own incoming split-slide.
@@ -87,12 +115,75 @@ export const EDITOR_EXIT_SIDE_DELAY_MS = 18;
 export const EDITOR_EXIT_BOTTOM_DELAY_MS = 0;
 export const EDITOR_EXIT_EASING = 'cubic-bezier(.42, 0, .78, .28)';
 
-export function editorSpringProfile(role: EditorEntranceRole): Readonly<EditorSpringProfile> {
+/**
+ * Entrance choreography is intentionally mode-sensitive.
+ *
+ * Direct load / refresh:
+ * - left backing + Layers/content surface lead
+ * - narrow left rail follows
+ * - the accepted inspector and bottom-toolbar timing stays intact
+ *
+ * Dashboard -> editor:
+ * - Dashboard sidebar vacates before the left surface returns
+ * - Dashboard main vacates to the right, then the inspector backing surface
+ *   answers from that same edge with a restrained inertia spring
+ * - inspector content follows after the surface is legible
+ * - bottom toolbar begins near the inspector spring, but not on the same beat
+ */
+export const EDITOR_LEFT_RAIL_STAGGER_MS = 72;
+export const EDITOR_DIRECT_LATE_CHROME_DELAY_MS = 300;
+export const EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS = 410;
+
+export const EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS = EDITOR_EXIT_SIDE_DURATION_MS;
+export const EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS =
+  EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS + EDITOR_LEFT_RAIL_STAGGER_MS;
+
+// Dashboard main exits 18ms after its sidebar, then uses the same 220ms side exit.
+export const EDITOR_DASHBOARD_RIGHT_SURFACE_DELAY_MS = EDITOR_EXIT_SIDE_DURATION_MS + 18;
+export const EDITOR_DASHBOARD_RIGHT_CONTENT_STAGGER_MS = 92;
+export const EDITOR_DASHBOARD_RIGHT_CONTENT_DELAY_MS =
+  EDITOR_DASHBOARD_RIGHT_SURFACE_DELAY_MS + EDITOR_DASHBOARD_RIGHT_CONTENT_STAGGER_MS;
+
+// Let the inspector establish its spring before the playful bottom island joins.
+export const EDITOR_DASHBOARD_BOTTOM_STAGGER_MS = 54;
+export const EDITOR_DASHBOARD_BOTTOM_DELAY_MS =
+  EDITOR_DASHBOARD_RIGHT_SURFACE_DELAY_MS + EDITOR_DASHBOARD_BOTTOM_STAGGER_MS;
+
+export function editorSpringProfile(
+  role: EditorEntranceRole,
+  phase: EditorEntrancePhase = 'default',
+  dashboardHandoff = false,
+): Readonly<EditorSpringProfile> {
+  if (dashboardHandoff && phase === 'right-surface') {
+    return EDITOR_DASHBOARD_RIGHT_SURFACE_SPRING;
+  }
   return role === 'bottom' ? EDITOR_BOTTOM_SPRING : EDITOR_SIDE_SPRING;
 }
 
-export function editorEntranceDelay(role: EditorEntranceRole): number {
-  return role === 'bottom' ? EDITOR_BOTTOM_DELAY_MS : 0;
+export function editorEntranceDelay(
+  role: EditorEntranceRole,
+  phase: EditorEntrancePhase = 'default',
+  dashboardHandoff = false,
+): number {
+  if (phase === 'late-chrome') {
+    return dashboardHandoff
+      ? EDITOR_DASHBOARD_LATE_CHROME_DELAY_MS
+      : EDITOR_DIRECT_LATE_CHROME_DELAY_MS;
+  }
+  const directLoadDelay = phase === 'left-rail'
+    ? EDITOR_LEFT_RAIL_STAGGER_MS
+    : role === 'bottom'
+      ? EDITOR_BOTTOM_DELAY_MS
+      : 0;
+
+  if (!dashboardHandoff) return directLoadDelay;
+
+  if (phase === 'left-surface') return EDITOR_DASHBOARD_LEFT_SURFACE_DELAY_MS;
+  if (phase === 'left-rail') return EDITOR_DASHBOARD_LEFT_RAIL_DELAY_MS;
+  if (phase === 'right-surface') return EDITOR_DASHBOARD_RIGHT_SURFACE_DELAY_MS;
+  if (phase === 'right-content') return EDITOR_DASHBOARD_RIGHT_CONTENT_DELAY_MS;
+  if (role === 'bottom') return EDITOR_DASHBOARD_BOTTOM_DELAY_MS;
+  return directLoadDelay;
 }
 
 export function editorExitDuration(role: EditorEntranceRole): number {
@@ -121,7 +212,7 @@ export function collectEditorEntranceTargets(root: ParentNode): EditorEntranceTa
     for (const node of root.querySelectorAll<HTMLElement>(spec.selector)) {
       if (seen.has(node)) continue;
       seen.add(node);
-      targets.push({ element: node, role: spec.role });
+      targets.push({ element: node, role: spec.role, phase: spec.phase });
     }
   }
 
@@ -203,8 +294,9 @@ export function springDisplacement(
 export function editorSpringKeyframes(
   role: EditorEntranceRole,
   startDistancePx: number,
+  profile: Readonly<EditorSpringProfile> = editorSpringProfile(role),
+  phase: EditorEntrancePhase = 'default',
 ): Keyframe[] {
-  const profile = editorSpringProfile(role);
   const durationSeconds = profile.durationMs / 1000;
   const frames: Keyframe[] = [];
 
@@ -213,7 +305,9 @@ export function editorSpringKeyframes(
     const time = durationSeconds * offset;
     const unit = index === profile.samples - 1 ? 0 : springDisplacement(time, profile);
     const px = startDistancePx * unit;
-    const opacity = Math.min(1, Math.max(0.96, 1 - Math.max(0, unit) * 0.04));
+    const opacity = phase === 'late-chrome'
+      ? Math.min(1, offset / 0.58)
+      : Math.min(1, Math.max(0.96, 1 - Math.max(0, unit) * 0.04));
 
     frames.push({
       offset,
@@ -221,6 +315,9 @@ export function editorSpringKeyframes(
         ? `${px}px 0`
         : `0 ${px}px`,
       opacity,
+      filter: offset > 0.04 && offset < 0.39
+        ? `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`
+        : 'none',
     });
   }
 
@@ -236,6 +333,15 @@ export function editorExitKeyframes(
       offset: 0,
       translate: role === 'bottom' ? '0 0px' : '0px 0',
       opacity: 1,
+      filter: 'none',
+    },
+    {
+      offset: 0.48,
+      translate: role === 'bottom'
+        ? `0 ${exitDistancePx * .45}px`
+        : `${exitDistancePx * .45}px 0`,
+      opacity: 1,
+      filter: `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`,
     },
     {
       offset: 1,
@@ -243,6 +349,7 @@ export function editorExitKeyframes(
         ? `0 ${exitDistancePx}px`
         : `${exitDistancePx}px 0`,
       opacity: 1,
+      filter: 'none',
     },
   ];
 }

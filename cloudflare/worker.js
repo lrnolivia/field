@@ -1,5 +1,7 @@
 const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
+const CANVAS_PREVIEW_HOST_SUFFIX = ".canvas-preview.loew.fi";
+const FIELD_PREVIEW_HOST_SUFFIX = ".field-preview.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
@@ -13,8 +15,16 @@ const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
 const PROJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const jwksCache = new Map();
 
+function isCanvasHost(hostname) {
+  return (
+    hostname === CANVAS_HOST ||
+    hostname.endsWith(CANVAS_PREVIEW_HOST_SUFFIX) ||
+    (hostname.startsWith("canvas.") && hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX))
+  );
+}
+
 function assetPathForHost(hostname, pathname) {
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     return "/sandbox" + (pathname === "/" ? "/index.html" : pathname);
   }
 
@@ -26,7 +36,7 @@ function assetPathForHost(hostname, pathname) {
 }
 
 function indexPathForHost(hostname) {
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     return "/sandbox/index.html";
   }
 
@@ -40,7 +50,7 @@ function indexPathForHost(hostname) {
 function applyRevymeHeaders(response, hostname) {
   const headers = new Headers(response.headers);
 
-  if (hostname === CANVAS_HOST) {
+  if (isCanvasHost(hostname)) {
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Embedder-Policy", "credentialless");
@@ -972,6 +982,7 @@ function thumbnailResponseHeaders(object, projectUpdatedAt, versioned) {
     "Content-Type": object?.httpMetadata?.contentType ?? "image/webp",
     ...(object?.httpEtag ? { ETag: object.httpEtag } : {}),
     ...(thumbnailUpdatedAt ? { "X-Field-Thumbnail-Updated-At": thumbnailUpdatedAt } : {}),
+    ...(object?.customMetadata?.renderer ? { "X-Field-Thumbnail-Renderer": object.customMetadata.renderer } : {}),
     ...(projectUpdatedAt ? { "X-Field-Project-Updated-At": projectUpdatedAt } : {}),
     "Cache-Control": versioned
       ? "private, max-age=31536000, immutable"
@@ -1194,6 +1205,7 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
         }
         const stored = await env.FIELD_PROJECTS.put(fieldProjectThumbnailKey(route.id), bytes, {
           httpMetadata: { contentType },
+          customMetadata: { renderer: "preview-viewport-20260927" },
         });
         // Best-effort cleanup of the assignment-era reserved legacy key.
         await env.FIELD_PROJECTS.delete(fieldProjectLegacyThumbnailKey(route.id));
@@ -1292,6 +1304,7 @@ async function handleFieldDashboardRequest(request, env, accessVerifier = verify
           httpMetadata: {
             contentType: thumbnailResult.object.httpMetadata?.contentType ?? (thumbnailResult.legacy ? "image/webp" : "image/jpeg"),
           },
+          ...(thumbnailResult.object.customMetadata ? { customMetadata: thumbnailResult.object.customMetadata } : {}),
         });
       }
       await env.FIELD_PROJECTS.put(`projects/${id}/meta.json`, JSON.stringify(storedMeta), {

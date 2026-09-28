@@ -1,5 +1,5 @@
 // LeftHeader.tsx — Top-left header bar above the left panel.
-// 52 px height, spans menu + panel width (308 px). Two slots:
+// 52 px height, spans the rail + the user's resizable panel width. Two slots:
 //   1. field icon (left) — opens an account/menubar dropdown
 //   2. Project name chip (right) — shows the website title, opens
 //      a project-scoped menu (rename, site settings, dashboard)
@@ -12,9 +12,12 @@
 // and are consumed verbatim by the logo dropdown.
 
 import { useRef, useState, useMemo } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_WORKSPACE_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
+import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -211,17 +214,20 @@ export function LogoButton() {
 
   return (
     <>
-      <button
+      <motion.button
         ref={ref}
         type="button"
+        initial="rest"
+        whileHover="hover"
+        whileTap="tap"
         aria-label="Open menu"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex items-center justify-center w-8 h-8 cut-corners cursor-pointer border-none bg-transparent hover:bg-white/[0.10] transition-colors"
       >
-        <FieldIcon />
-      </button>
+        <FieldGlyph behavior="generic"><FieldIcon /></FieldGlyph>
+      </motion.button>
       <DropdownMenu
         isOpen={open}
         onClose={() => setOpen(false)}
@@ -242,18 +248,22 @@ export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
-  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
   trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
 
   return (
     <>
-      {leftPaneOpen && <div
+      <div
+      data-workspace-left-header
+      data-visible={leftPaneOpen ? 'true' : 'false'}
+      aria-hidden={leftPaneOpen ? undefined : true}
+      inert={!leftPaneOpen}
       className="h-[52px] border-b border-[var(--border-light)] fixed top-0 left-0 z-[9999] flex"
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: LEFT_WORKSPACE_WIDTH, left: workspace.left.inset, top: workspace.left.top }}
+      style={{ width: workspace.left.width, left: workspace.left.inset, top: workspace.left.top }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
@@ -285,7 +295,7 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      {leftPaneOpen && <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
+      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
         <div className="flex-1 min-w-0 flex items-center">
           {previewMode ? (
             <Button
@@ -307,25 +317,10 @@ export default function LeftHeader() {
           )}
         </div>
 
-        <button
-          type="button"
-          aria-label="Collapse left pane"
-          title="Collapse left pane"
-          onClick={() => {
-            trace.action('left-header:collapse-pane');
-            setLeftPaneOpen(false);
-          }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border-none bg-transparent text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none"
-          data-field-pane-collapse
-        >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="15" height="15">
-            <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1" />
-            <path d="M5.25 2.25v11.5" />
-          </svg>
-        </button>
-      </div>}
+        <WorkspaceModeButton />
+      </div>
 
-    </div>}
+    </div>
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).

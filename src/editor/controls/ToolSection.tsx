@@ -4,6 +4,8 @@
 // When hasContent=false (or collapsed): no bottom margin, no separator.
 
 import React, { useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { trace } from '@/shared/debug-trace';
 
 interface Props {
@@ -27,6 +29,7 @@ interface Props {
 
 export default function ToolSection({ title, children, defaultOpen = true, collapsible = true, action, hasContent = true, renderWhenEmpty = false, bare = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const reducedMotion = useFieldReducedMotion();
   const actionRef = useRef<HTMLSpanElement>(null);
 
   // Right-click anywhere on the title row opens the SAME menu the `+` (or
@@ -35,7 +38,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
   // its items (user request 2026-09-09). No action → the native menu is left
   // alone.
   const onHeaderContextMenu = (e: React.MouseEvent) => {
-    const btn = actionRef.current?.querySelector('button');
+    const btn = actionRef.current?.querySelector('button:not(:disabled)');
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
@@ -68,7 +71,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           surface for existing tools while exposing one Figma-shaped DOM grammar. */}
       <div
         data-inspector-section-header
-        className={`${showContent ? 'mb-px' : 'mb-0'} min-h-6 px-2.5 flex items-center justify-between py-0.5`}
+        className={`${showContent ? 'mb-1' : 'mb-0'} min-h-10 px-[var(--panel-inset)] flex items-center justify-between py-1`}
         onContextMenu={onHeaderContextMenu}
       >
         <button
@@ -91,20 +94,28 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           // Sentence case in the default UI stack (the display-font experiment
           // was retired 2026-08-20) — same face as the row labels, one size up
           // and semibold so the heading role still reads.
-          className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left ${collapsible && hasContent ? 'cursor-pointer' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
+          className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left inline-flex items-center gap-1.5 transition-colors ${collapsible && hasContent ? 'cursor-pointer hover:text-[var(--accent)]' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
         >
-          {title}
+          <span>{title}</span>
         </button>
         <span ref={actionRef} className="flex items-center">{action}</span>
       </div>
-      {isOpen && showContent && (
-        <div
-          data-inspector-section-content
-          className="flex flex-col px-2.5 pb-1 gap-[var(--control-gap)]"
-        >
-          {children}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {showContent && (
+          <motion.div
+            key="content"
+            data-inspector-section-content
+            data-field-motion="section-content"
+            initial={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
+            animate={reducedMotion ? { opacity: 1 } : { height: 'auto', opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0.45, y: -8 }}
+            transition={fieldSpatialTransition(reducedMotion, fieldMotion.disclosure)}
+            className="flex flex-col px-[var(--panel-inset)] pb-3 gap-2 overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

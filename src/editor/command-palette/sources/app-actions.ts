@@ -78,11 +78,6 @@ const ACTIONS: Array<{
     keywords: ['keyboard', 'shortcuts', 'keys', 'hotkeys', 'bindings'],
     featured: true,
   },
-  {
-    id: 'launch-tutorial',
-    name: 'Launch Tutorial',
-    keywords: ['tutorial', 'onboarding', 'tour', 'walkthrough', 'getting started'],
-  },
   // ─ Account ─
   {
     id: 'go-dashboard',

@@ -9,6 +9,7 @@ import SkeletonSurface from './SkeletonSurface';
 type Props = {
   project: FieldProjectMeta;
   refreshing?: boolean;
+  opening?: boolean;
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
   onOpen: () => void;
@@ -151,9 +152,11 @@ export default function ProjectCard(props: Props) {
       className="field-project-card"
       aria-busy={props.refreshing || undefined}
       data-refreshing={props.refreshing ? 'true' : undefined}
+      data-opening={props.opening ? 'true' : undefined}
     >
       <button
         className="field-project-preview"
+        data-project-id={project.id}
         type="button"
         onClick={trashed ? undefined : props.onOpen}
         disabled={trashed}
@@ -179,7 +182,10 @@ export default function ProjectCard(props: Props) {
             props.onMenuOpenChange(!props.menuOpen);
           }}
         >
-          <FigmaMoreIcon size={14} />
+          <span className="field-project-more-glyph" aria-hidden="true">
+            <FigmaMoreIcon size={14} />
+            <svg className="field-project-more-close" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3.5 3.5l9 9m0-9-9 9" /></svg>
+          </span>
         </button>
         <ProjectCardMenu
           project={project}

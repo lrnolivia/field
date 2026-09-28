@@ -14,7 +14,6 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { selectionColorLocateAtom, locateSelectionColor } from '@/code/stores/selection-color-locate-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { useNodesComputed } from '@/code/stores/node-family';
 import { ColorSwatch, ToolSection, ToolDivider } from '../controls';
 import ToolPopup from '../ui/ToolPopup';
@@ -24,6 +23,8 @@ import { toHexDisplay } from '../ui/color-utils';
 import PresetPicker from '../ui/PresetPicker';
 import { updateNodeStyles, getContentRoot, parseRectCacheKey } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
+import { transformManager, zoomToFitNodes } from '@/canvas/transform';
+import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
 import {
@@ -33,6 +34,29 @@ import {
 } from '../selection-colors';
 
 const SELECTION_COLOR_VISIBLE_LIMIT = 10;
+
+let locateCameraRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+let locateCameraRestoreTransform: { x: number; y: number; scale: number } | null = null;
+
+function temporarilyFocusSelectionColorNodes(nodeIds: string[]): void {
+  const contentEl = getContentRoot();
+  if (!contentEl || nodeIds.length === 0) return;
+
+  // Preserve the camera from BEFORE the first locate in a run. Clicking another
+  // color while focus is active retargets the temporary zoom but still returns
+  // to the user's original view instead of nesting temporary cameras.
+  locateCameraRestoreTransform ??= { ...transformManager.getTransform() };
+  if (locateCameraRestoreTimer) clearTimeout(locateCameraRestoreTimer);
+
+  zoomToFitNodes(contentEl, nodeIds, false, 72, 0.88);
+  locateCameraRestoreTimer = setTimeout(() => {
+    const restore = locateCameraRestoreTransform;
+    locateCameraRestoreTimer = null;
+    locateCameraRestoreTransform = null;
+    if (!restore) return;
+    animateCanvasTo(restore.x, restore.y, restore.scale, 240, { focus: true });
+  }, 2200);
+}
 
 function writeReplacementStyles(stylesByNode: Map<string, Record<string, string>>): void {
   const contentEl = getContentRoot();
@@ -115,7 +139,6 @@ function SelectionColorRow({
   const [hoverActive, setHoverActive] = useState(false);
   const setLocate = useSetAtom(selectionColorLocateAtom);
   const setLeftPanel = useSetAtom(leftPanelAtom);
-  const setLeftPaneOpen = useSetAtom(leftPaneOpenAtom);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRevision = useRef<number | null>(null);
@@ -156,7 +179,7 @@ function SelectionColorRow({
     activeRevision.current = request.revision;
     setLocate(request);
     setLeftPanel('layers');
-    setLeftPaneOpen(true);
+    temporarilyFocusSelectionColorNodes(group.nodeIds);
     trace.action('selection-color:locate-click', { color: group.value, count: group.nodeIds.length });
     clickTimer.current = setTimeout(() => {
       setLocate((current) => current?.revision === request.revision ? null : current);
@@ -292,6 +315,7 @@ function SelectionColorRow({
 
 export default function SelectionTool() {
   const selectedIds = useAtomValue(selectedIdsAtom);
+  const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const selectionData = useNodesComputed(
@@ -316,8 +340,18 @@ export default function SelectionTool() {
 
   return (
     <>
-      <ToolSection title="Selection colors" collapsible={false}>
-        <div data-selection-colors-figui3 className="flex flex-col gap-1">
+      <div data-inspector-section="selection-colors" data-inspector-section-title="Selection colors" data-selection-colors-figui3>
+        <button type="button" aria-expanded={expanded} aria-label={`Selection colors, ${groups.length} colors`}
+          onClick={() => setExpanded(value => !value)}
+          className="flex h-10 w-full items-center justify-between gap-2 px-[var(--panel-inset)] text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+          <span>Selection colors</span>
+          <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
+            {groups.slice(0, 3).map(group => <span key={group.value}
+              className="h-4 w-4 rounded-[4px] border border-[var(--border-light)]" style={{ background: group.value }} />)}
+            {groups.length > 3 && <span className="text-xs font-normal text-[var(--text-secondary)]">+{groups.length - 3}</span>}
+          </span>
+        </button>
+        {expanded && <div className="flex flex-col gap-2 px-[var(--panel-inset)] pb-3 pt-1">
           {visibleGroups.map((group) => <SelectionColorRow key={group.value} group={group} />)}
 
           {hasOverflow && (
@@ -335,8 +369,8 @@ export default function SelectionTool() {
               </span>
             </button>
           )}
-        </div>
-      </ToolSection>
+        </div>}
+      </div>
       <ToolDivider />
     </>
   );

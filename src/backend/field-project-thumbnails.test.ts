@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  FIELD_THUMBNAIL_RENDERER,
   getFieldProjectThumbnailState,
   thumbnailDataUrlToBlob,
   uploadFieldProjectThumbnail,
@@ -37,6 +38,20 @@ describe('field project thumbnail API client', () => {
     await expect(getFieldProjectThumbnailState('abc', stale)).resolves.toMatchObject({
       exists: true,
       stale: true,
+    });
+
+    const current = vi.fn(async () => new Response(null, {
+      status: 200,
+      headers: {
+        'X-Field-Project-Updated-At': '2026-09-25T02:00:00Z',
+        'X-Field-Thumbnail-Updated-At': '2026-09-25T03:00:00Z',
+        'X-Field-Thumbnail-Renderer': FIELD_THUMBNAIL_RENDERER,
+      },
+    })) as unknown as typeof fetch;
+    await expect(getFieldProjectThumbnailState('abc', current)).resolves.toMatchObject({
+      exists: true,
+      stale: false,
+      renderer: FIELD_THUMBNAIL_RENDERER,
     });
   });
 

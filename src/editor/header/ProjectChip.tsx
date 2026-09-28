@@ -19,7 +19,22 @@ import { getProjectId } from '@/backend/project-id';
 import { showFieldDashboard } from '@/backend/field-navigation';
 import { getHeaderPageLabel } from './project-chip-label';
 
-export default function ProjectChip() {
+function DocumentIdentityIcon({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      data-project-chip-icon
+      className={`inline-flex shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-[width,height,transform,opacity] duration-300 ease-out ${compact ? 'h-6 w-6' : 'h-3.5 w-3.5'}`}
+    >
+      <svg viewBox="0 0 16 16" width={compact ? 15 : 10} height={compact ? 15 : 10} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 1.75h5l3 3v9.5H4z" />
+        <path d="M9 1.75v3h3" />
+      </svg>
+    </span>
+  );
+}
+
+export default function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } = {}) {
   const name = useAtomValue(projectNameAtom);
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
@@ -82,7 +97,7 @@ export default function ProjectChip() {
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] overflow-hidden" title={fullTitle}>
+      <div data-project-chip data-compact-identity={compactIdentity ? 'true' : 'false'} className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] overflow-hidden" aria-label={fullTitle}>
         <div className="flex min-w-0 items-center">
           <button
             ref={triggerRef}
@@ -99,9 +114,10 @@ export default function ProjectChip() {
               }
               setMenuOpen(v => !v);
             }}
-            className="group flex min-w-0 max-w-full items-center gap-1 rounded-[4px] border-none bg-transparent px-0 py-[2px] text-left text-xs font-semibold leading-none text-[var(--text-primary)] outline-none transition-colors"
+            className="group flex min-w-0 max-w-full items-center gap-1.5 rounded-[4px] border-none bg-transparent px-0 py-[2px] text-left text-xs font-semibold leading-none text-[var(--text-primary)] outline-none transition-colors"
             data-field-project-title
           >
+            <DocumentIdentityIcon compact={compactIdentity} />
             <span className="min-w-0 truncate">{displayName}</span>
             <FigmaChevronDownIcon
               size={11}

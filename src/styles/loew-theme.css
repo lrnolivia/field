@@ -94,6 +94,7 @@ textarea {
   --bg-surface: #ffffff;
   --bg-toolbar: #fafafa;
   --bg-panel: #f7f7f7;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 94%, black);
   --bg-hover: #eaeaea;
   --bg-active: #e1e1e1;
   --bg-tertiary: #f0f0f0;
@@ -143,6 +144,7 @@ textarea {
   --bg-surface: #242424;
   --bg-toolbar: #242424;
   --bg-panel: #242424;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 82%, black);
   --bg-hover: #2f2f2f;
   --bg-active: #373737;
   --bg-tertiary: #2a2a2a;
@@ -247,6 +249,21 @@ textarea {
   border-radius: 0;
 }
 
+/* Figma Inspector inputs share one inset, fill, radius, and value scale.
+   The floating Inspector reuses this same component tree and tokens. */
+[data-properties-panel] {
+  --control-pad-x: 8px;
+  --control-radius: 6px;
+  --cut-round: 6px;
+  --field-row-height: 24px;
+}
+
+.dark [data-properties-panel] {
+  --grid-line: #383838;
+  --control-bg: #383838;
+  --control-bg-hover: #414141;
+}
+
 /* -------------------------------------------------------------------------- */
 /* 5. Density                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -318,6 +335,61 @@ select {
 [data-left-menu-rail] .vibe-face {
   font-size: 8.5px;
   letter-spacing: 0.02em;
+}
+
+/* Text edit target preview: the shimmer is visual only; canvas clicks still
+ * hit the original text through this pointer-transparent layer. */
+.field-text-hover-gloss {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--selection) 58%, transparent);
+  border-radius: 4px;
+  background: linear-gradient(115deg, transparent 10%, color-mix(in srgb, var(--selection) 12%, transparent) 42%, color-mix(in srgb, white 26%, transparent) 52%, transparent 78%);
+  background-size: 220% 100%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--selection) 9%, transparent), inset 0 0 12px color-mix(in srgb, var(--selection) 12%, transparent);
+  animation: field-text-hover-gloss 1.4s ease-in-out both;
+}
+
+/* Inspector property rows share columns. The last track reserves a stable
+ * action lane; the two value tracks divide the remaining resizable width. */
+.field-inspector-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--control-gap, 8px);
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 52px;
+  gap: var(--control-gap, 8px);
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid > * { min-width: 0; }
+.field-alignment-matrix { transition: border-color 160ms ease; }
+.field-alignment-matrix:hover { border-color: var(--accent); }
+.field-alignment-dot,
+.field-alignment-glyph { transition: opacity 150ms ease, transform 150ms ease; }
+.field-alignment-glyph { left: 50%; top: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+.field-alignment-cell:hover .field-alignment-dot,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-dot { opacity: 0; }
+.field-alignment-cell:hover .field-alignment-glyph,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-glyph { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .field-alignment-matrix,
+  .field-alignment-dot,
+  .field-alignment-glyph { transition: none; }
+}
+@keyframes field-text-hover-gloss {
+  0% { opacity: 0; background-position: 100% 0; }
+  18% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .field-text-hover-gloss { animation: none; background: color-mix(in srgb, var(--selection) 10%, transparent); }
 }
 
 /* Bottom tool strip: smaller AND floating off the screen edge. */
@@ -426,7 +498,7 @@ select {
   --field-ui-font-size-compact: 10px;
   --field-row-height: 24px;
   --field-menu-row-height: 28px;
-  --panel-inset: 10px;
+  --panel-inset: 16px;
 }
 
 /* Level 2 is the current Light/Dark palette (Default). Levels 1 and 3 only

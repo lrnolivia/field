@@ -3,6 +3,8 @@
 // lifted verbatim from LayersPanel.tsx (Phase 7 god-file split, item 7.7).
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { isTextTag } from '@/shared/constants';
 import { layerAcceptsInsideDrop } from './drag';
@@ -14,6 +16,7 @@ import { deriveLayerPreview } from './LayerPreview';
 import { FigmaColumnsIcon, FigmaGridIcon, FigmaPathIcon, FigmaRowsIcon, FigmaTextIcon } from '@/shared/loew-figma-icons';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import { getLayerDisplayName } from './layer-name';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -621,12 +624,13 @@ export function computeSelectionSets(
 export const LayerRow = React.memo(function LayerRow({
   layer, isSelected, isChildOfSelected, hasHighlightedChildren, isLastHighlightedChild,
   isDragOver, dropPosition, dropDepth, isDragging, effectiveHidden, locateFlashRevision,
-  onSelect, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
-  isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection,
+  onSelect, onFocus, onToggleExpand, onDragStart, onContextMenu, onToggleLock, onToggleVisibility,
+  isRenaming, onRenameCommit, onVariantRenameCommit, onDoubleClickLayout, isComponentMode, nodes, presetTokens, layerDisplay, layerFlexDirection, showTextContent,
 }: {
   layer: FlatLayer;
   isSelected: boolean;
   isComponentMode: boolean;
+  showTextContent: boolean;
   /** The row's RESOLVED `display` for its own viewport/variant (from
    *  resolveDisplayForLayer, computed once by the panel and shared with the eye
    *  state). Drives the frame glyph: flex / grid frames get their own icon. */
@@ -648,6 +652,7 @@ export const LayerRow = React.memo(function LayerRow({
   effectiveHidden: boolean;
   locateFlashRevision?: number;
   onSelect: (layerId: string, nodeId: string, e?: React.MouseEvent) => void;
+  onFocus: (layerId: string, nodeId: string) => void;
   onToggleExpand: (id: string) => void;
   onDragStart: (e: React.MouseEvent, layerId: string, nodeId: string) => void;
   onContextMenu: (e: React.MouseEvent, nodeId: string | null) => void;
@@ -691,7 +696,7 @@ export const LayerRow = React.memo(function LayerRow({
     if (!scroll) return;
     const indent = el.getBoundingClientRect().left - scroll.getBoundingClientRect().left - 8 + scroll.scrollLeft;
     setTextIndent(indent);
-  }, [depth, hasChildren, isExpanded, node.name, node.type, layer.viewportWidth, layer.isVariantHeader]);
+  }, [depth, hasChildren, isExpanded, node.name, node.type, node.textContent, layer.viewportWidth, layer.isVariantHeader]);
 
   // Figma UI3 density: one 24px row, compact 16px hierarchy steps, and
   // no vertical padding inflation from previews or action chrome.
@@ -793,6 +798,8 @@ export const LayerRow = React.memo(function LayerRow({
         onDoubleClick={() => {
           if (isViewer) return;
           if (node.fromLayout) onDoubleClickLayout(node);
+          else if (isVpHeader) onFocus(id, layer.isVariantHeader ? node.children[0] || 'root' : 'root');
+          else if (layer.nodeId) onFocus(id, layer.nodeId);
         }}
         className={rowClass}
         style={s}
@@ -845,25 +852,27 @@ export const LayerRow = React.memo(function LayerRow({
             line; as you scroll right the clamp relaxes and each cluster
             "dominoes" back to its true indent. `sticky` doesn't engage for a
             mid-row flex item here, hence the explicit transform. The constant
-            = px-2(16) + lock/eye reserve(56) + cluster width(~42) + this row's
+            = px-2(16) + target/lock/eye reserve(74) + cluster width(~42) + this row's
             indent(12 + depth*20). */}
         <div
           className="flex items-center gap-1 shrink-0 relative z-10"
-          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${58 + depth * 16}px)))` }}
+          style={{ transform: `translateX(min(0px, calc(var(--layers-sx, 0px) + var(--layers-vw, 9999px) - ${76 + depth * 16}px)))` }}
         >
         {hasChildren ? (
-          <button
+          <motion.button
             draggable={false}
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             onClick={(e) => { e.stopPropagation(); onToggleExpand(id); }}
             className="w-3 h-3 flex items-center justify-center rounded-[3px] shrink-0 transition-colors hover:bg-[var(--bg-active)]"
             style={{ color: isSelected ? selFg : 'var(--text-secondary)' }}
+            aria-label={isExpanded ? 'Collapse layer' : 'Expand layer'}
           >
-            {isExpanded ? (
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m4.75 6.25 3.25 3.25 3.25-3.25" /></svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"><path d="m6.25 4.75 3.25 3.25-3.25 3.25" /></svg>
-            )}
-          </button>
+            <FieldGlyph behavior="chevron">
+              <FieldMorphGlyph active={isExpanded} from={glyphIcons.chevronRight} to={glyphIcons.chevronDown} size={10} strokeWidth={1.25} spring="snappy" />
+            </FieldGlyph>
+          </motion.button>
         ) : (
           <span className="w-3 h-3 shrink-0" aria-hidden="true" />
         )}
@@ -930,7 +939,7 @@ export const LayerRow = React.memo(function LayerRow({
          *  that doesn't exist for the synthetic header row. */}
         {isRenaming ? (
           <RenameInput
-            initialName={node.name || node.type}
+            initialName={getLayerDisplayName(node, showTextContent)}
             onCommit={(name) => {
               if (layer.isVariantHeader && layer.viewportId) {
                 onVariantRenameCommit(layer.viewportId, name);
@@ -955,18 +964,18 @@ export const LayerRow = React.memo(function LayerRow({
               // Updates on horizontal scroll purely via the CSS vars → the name
               // expands as you scroll right and never overflows the edge.
               maxWidth: textIndent != null
-                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 48)}px)`
+                ? `calc(var(--layers-sx, 0px) + var(--layers-vw, 100%) - ${Math.max(0, Math.round(textIndent) + 68)}px)`
                 : undefined,
             }}
           >
-            {node.isChildrenSlot ? '{children}' : (node.name || node.type)}
+            {node.isChildrenSlot ? '{children}' : getLayerDisplayName(node, showTextContent)}
           </span>
         )}
 
         {/* Spacer to push actions to the right */}
         <div className="flex-1" />
 
-        {/* Lock & Visibility actions — visible on hover, always visible when hidden/locked */}
+        {/* Focus, lock and visibility actions — visible on hover, stateful actions remain visible. */}
         {!isViewer && !isVpHeader && layer.nodeId && (() => {
           // Use the row-level `effectiveHidden` from the resolver (which
           // already cascades base + default-variant + per-variant + @media
@@ -986,40 +995,49 @@ export const LayerRow = React.memo(function LayerRow({
           return (
             <div className="flex items-center gap-0.5 shrink-0 sticky right-1.5 z-10">
               <button
+                type="button"
                 draggable={false}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onFocus(id, layer.nodeId!); }}
+                className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${hoverOnly}`}
+                title="Zoom to layer"
+                aria-label="Zoom to layer"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" aria-hidden>
+                  <circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.15" /><circle cx="8" cy="8" r=".65" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+              <motion.button
+                draggable={false}
+                initial="rest"
+                whileHover="hover"
+                whileTap="tap"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleLock(layer.nodeId!); }}
                 className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isLocked ? 'opacity-100' : hoverOnly}`}
                 title={isLocked ? 'Unlock layer' : 'Lock layer'}
+                aria-label={isLocked ? 'Unlock layer' : 'Lock layer'}
                 data-locked={isLocked ? 'true' : undefined}
               >
-                {isLocked ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5" />
-                  </svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="10.5" width="16" height="10" rx="2" /><path d="M7.5 10.5V7a4.5 4.5 0 0 1 8.8-1.3" />
-                  </svg>
-                )}
-              </button>
-              <button
+                <FieldGlyph behavior="lock">
+                  <FieldMorphGlyph active={isLocked} from={glyphIcons.unlock} to={glyphIcons.lock} size={13} strokeWidth={1.5} color={isLocked ? onColor : strokeColor} />
+                </FieldGlyph>
+              </motion.button>
+              <motion.button
                 draggable={false}
+                initial="rest"
+                whileHover="hover"
+                whileTap="tap"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleVisibility(layer.nodeId!, layer.viewportId); }}
                 className={`flex h-[18px] w-[18px] items-center justify-center rounded-[3px] p-0 transition-all hover:bg-[var(--bg-hover)] ${isHidden ? 'opacity-100' : hoverOnly}`}
                 title={isHidden ? 'Show layer' : 'Hide layer'}
+                aria-label={isHidden ? 'Show layer' : 'Hide layer'}
               >
-                {isHidden ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={onColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
+                <FieldGlyph behavior="eye">
+                  <FieldMorphGlyph active={isHidden} from={glyphIcons.eye} to={glyphIcons.eyeOff} size={13} strokeWidth={1.5} color={isHidden ? onColor : strokeColor} />
+                </FieldGlyph>
+              </motion.button>
             </div>
           );
 

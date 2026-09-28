@@ -16,10 +16,10 @@ const canvasSource = fs.readFileSync(
 );
 
 describe('ProjectLoader canvas readiness contract', () => {
-  it('does not convert the four-second delay threshold into Canvas-ready', () => {
-    expect(projectLoaderSource).toContain("setDelayed(true)");
+  it('keeps stalled-canvas recovery separate from Canvas-ready', () => {
+    expect(projectLoaderSource).toContain('setCanvasStalled(true)');
     expect(projectLoaderSource).toContain("project-loader:canvas-delayed");
-    expect(projectLoaderSource).not.toContain("const failsafe = setTimeout(finish, 4000)");
+    expect(projectLoaderSource).toContain('canvasStalled && !canvasPainted');
   });
 
   it('does not mount a failed project as ready', () => {
@@ -30,13 +30,16 @@ describe('ProjectLoader canvas readiness contract', () => {
   it('gates semantic readiness on the Canvas first-paint callback', () => {
     expect(canvasSource).toContain('onFirstCanvasPaint?.()');
     expect(canvasSource).toContain("trace.action('canvas:first-paint'");
-    expect(projectLoaderSource).toContain('painted={canvasPainted}');
+    expect(projectLoaderSource).toContain('if (!canvasPainted) return;');
     expect(projectLoaderSource).toContain('onCanvasFirstPaint={() => setCanvasPainted(true)}');
+    expect(projectLoaderSource).toContain('onCanvasReadyRef.current?.()');
   });
 
-  it('keeps the mounted editor inert until the paint-gated overlay finishes', () => {
+  it('keeps the mounted editor inert until the canvas reveal settles', () => {
     expect(appSource).toContain("root.setAttribute('inert', '')");
     expect(appSource).toContain("root.removeAttribute('inert')");
+    expect(appSource).toContain('data-canvas-reveal-phase={canvasRevealPhase}');
     expect(projectLoaderSource).toContain('setEditorInteractive(true)');
+    expect(projectLoaderSource).not.toContain('ProjectLoadingVeil');
   });
 });

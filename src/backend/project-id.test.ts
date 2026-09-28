@@ -21,5 +21,7 @@ describe('project id runtime override', () => {
   it('falls back to the builder URL when there is no runtime override', () => {
     window.history.replaceState(null, '', '/builder/url-project');
     expect(getProjectId()).toBe('url-project');
+    window.history.replaceState(null, '', '/work/new-project');
+    expect(getProjectId()).toBe('new-project');
   });
 });

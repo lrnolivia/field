@@ -1,0 +1,55 @@
+/* field.GLYPH fallback for editor chrome. Explicit semantic motion wins.
+ * Unmigrated interactive SVGs respond through CSS only: no React hover state,
+ * pointer listeners, rAF loops, or persistent compositor promotion.
+ * Canvas and Preview render in separate documents, outside this editor root.
+ */
+@supports selector(svg:not(button svg)) {
+  [data-editor-interactive="true"]
+    :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href])
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-motion-part],
+      [data-field-toolbar-glyph] svg
+    )) {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 180ms cubic-bezier(.2, .8, .2, 1), opacity 140ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    [data-editor-interactive="true"]
+      :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href]):hover
+      svg:not(:where(
+        [data-field-glyph] svg,
+        [data-field-glyph-morph] svg,
+        [data-field-motion] svg,
+        [data-field-motion-part],
+        [data-field-toolbar-glyph] svg
+      )) {
+      transform: translateY(-1px) scale(1.08);
+    }
+  }
+
+  [data-editor-interactive="true"]
+    :is(button:not(:disabled), [role="button"]:not([aria-disabled="true"]), a[href]):active
+    svg:not(:where(
+      [data-field-glyph] svg,
+      [data-field-glyph-morph] svg,
+      [data-field-motion] svg,
+      [data-field-motion-part],
+      [data-field-toolbar-glyph] svg
+    )) {
+    transform: translateY(.5px) scale(.82) rotate(-2deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-editor-interactive="true"]
+      :is(button, [role="button"], a[href])
+      svg:not(:where([data-field-glyph] svg, [data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-toolbar-glyph] svg)) {
+      transition: none;
+      transform: none;
+    }
+  }
+}

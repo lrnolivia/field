@@ -30,6 +30,7 @@ import { getComponentRootSize } from '@/code/components/component-registry';
 import { projectFS } from '@/code/project/project-fs';
 import type { ClipboardNode, ClipboardData } from '@/code/features/paste-engine/types';
 import { trace } from '@/shared/debug-trace';
+import { isEmptyGalleryInsertionPayload, registerFreshGalleryInsertion } from '@/code/gallery/gallery-creation-session';
 
 export interface InsertionRefs {
   /** Set by Canvas.tsx so insertNodes can re-bind the
@@ -58,6 +59,8 @@ function getCanvasContainerSize(): { width: number; height: number } | null {
 }
 
 export interface InsertOptions {
+  /** Toolbar click inserts at the visible center, regardless of selection. */
+  ignoreSelection?: boolean;
   /** Force the new node to drop into this parent at this index. Used
    *  when the call site already knows the target (template drop on a
    *  specific frame, etc.). Leave undefined for selection-based
@@ -86,7 +89,7 @@ export function insertNodes(nodes: ClipboardNode[], opts: InsertOptions = {}): s
     nodes,
   };
 
-  const selectedIds = store.get(selectedIdsAtom);
+  const selectedIds = opts.ignoreSelection ? [] : store.get(selectedIdsAtom);
   const liveNodes = store.get(nodesAtom);
   const interactingVpId = store.get(interactingViewportIdAtom);
   const viewportWidths = store.get(viewportWidthsAtom);
@@ -114,8 +117,14 @@ export function insertNodes(nodes: ClipboardNode[], opts: InsertOptions = {}): s
     trace.error('insertion-bridge:failed', { message: result.message });
     return [];
   }
+  if (result.createdIds.length === 1 && isEmptyGalleryInsertionPayload(nodes)) {
+    registerFreshGalleryInsertion(result.createdIds[0]);
+  }
   if (_refs && result.createdIds.length > 0) {
     _refs.setSelectedIds(result.createdIds);
+  }
+  if (result.createdIds.length > 0) {
+    window.dispatchEvent(new CustomEvent('field:insert-complete', { detail: { ids: result.createdIds } }));
   }
   trace.action('insertion-bridge:insert', {
     count: result.createdIds.length,

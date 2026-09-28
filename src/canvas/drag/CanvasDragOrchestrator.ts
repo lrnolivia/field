@@ -35,7 +35,7 @@ import { updateIconPosition, updateIconSize } from '@/code/icons/icon-set-ops';
 import { parseIconSetConfig, iconConfigPx } from '@/code/icons/icon-set-config';
 import { projectFS } from '@/code/project/project-fs';
 import { queueMutation, syncQueueCode, flushNow, setDeferNextFanOut } from '@/code/mutation/mutation-queue';
-import { moveNodeInCache, updateNodeInCache, injectNodeIntoCache, getNodeFromCache } from '@/code/stores/store';
+import { moveNodeInCache, updateNodeInCache, injectNodeIntoCache, getNodeFromCache, removeNodeFromCache } from '@/code/stores/store';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { shapeEditCommitPendingAtom } from '@/code/stores/shape-edit-store';
 import { collectionSchemasAtom } from '@/code/stores/cms-store';
@@ -48,11 +48,14 @@ import {
   forceCanvasRender,
   getSvgGroupAncestorChain,
   getViewportPrefix,
+  findNodeRect,
+  findNodeComputedStyles,
   supersedePendingSvgChildAttrTick,
 } from '../node-ops';
 import { moveChildAndRefitGroup, refitGroupChain } from '@/code/svg/refit-group';
 import { svgChildCarrierOrigin, groupChildrenCarryVariantGeometry } from './replica-context';
 import { repositionSignalOps } from './reposition-signal';
+import { planNativeGroupLayersReparent } from '@/code/groups/group-refit';
 import { parentHighlightOps } from '../selection/parent-highlight-store';
 import { setViewportHeadersVisible } from '../ViewportHeaderManager';
 
@@ -660,6 +663,109 @@ export class CanvasDragOrchestrator {
         queueMutation({ type: 'reorder', nodeId: update.nodeId, parentId: update.newParentId, index: update.newIndex });
         requestAnimationFrame(() => { this.opts.renderer.setStructuralPending(false); });
       } else if (update.type === 'move') {
+        const newParentId = update.newParentId ?? null;
+        const draggedBeforeMove = nodes.get(update.nodeId) ?? getNodeFromCache(update.nodeId);
+        const sourceParentBeforeMove = draggedBeforeMove?.parentId
+          ? (nodes.get(draggedBeforeMove.parentId) ?? getNodeFromCache(draggedBeforeMove.parentId))
+          : null;
+        const destinationBeforeMove = newParentId
+          ? (nodes.get(newParentId) ?? getNodeFromCache(newParentId))
+          : null;
+        const touchesNativeGroup = !!sourceParentBeforeMove?.isGroup || !!destinationBeforeMove?.isGroup;
+
+        let moveStyles = update.styles ? { ...update.styles } : {};
+        let nativeGroupPlan: ReturnType<typeof planNativeGroupLayersReparent> = null;
+
+        if (touchesNativeGroup && draggedBeforeMove) {
+          const vpId = this.opts.getInteractingVpId();
+          const draggedWorld = findNodeRect(update.nodeId, vpId);
+          const destinationWorld = newParentId ? findNodeRect(newParentId, vpId) : null;
+          const destinationDisplay = newParentId
+            ? (findNodeComputedStyles(newParentId, vpId, ['display']).display
+              || destinationBeforeMove?.styles?.display
+              || '')
+            : '';
+          const destinationHasLayout = destinationDisplay === 'flex'
+            || destinationDisplay === 'inline-flex'
+            || destinationDisplay === 'grid'
+            || destinationDisplay === 'inline-grid';
+          const preserveDraggedGeometry = !!destinationBeforeMove?.isGroup
+            || (!!newParentId && !destinationHasLayout);
+
+          if (!draggedWorld || (preserveDraggedGeometry && !destinationWorld)) {
+            trace.action('canvas:native-group-reparent-refused', {
+              nodeId: update.nodeId,
+              newParentId,
+              reason: !draggedWorld ? 'missing-dragged-world' : 'missing-destination-world',
+            });
+            forceCanvasRender();
+            continue;
+          }
+
+          const destinationSize = newParentId
+            ? findNodeComputedStyles(newParentId, vpId, ['__offsetWidth', '__offsetHeight'])
+            : {};
+          const localWidth = Number.parseFloat(destinationSize.__offsetWidth ?? '');
+          const localHeight = Number.parseFloat(destinationSize.__offsetHeight ?? '');
+          const destinationLocalSize = Number.isFinite(localWidth) && Number.isFinite(localHeight)
+            && localWidth > 0 && localHeight > 0
+            ? { width: localWidth, height: localHeight }
+            : null;
+
+          const bridge = getCanvasBridge() as any;
+          const vpPrefix = getViewportPrefix(vpId);
+          const readCorners = (id: string) => typeof bridge.getCachedCorners === 'function'
+            ? (bridge.getCachedCorners(id, vpPrefix) ?? null)
+            : null;
+
+          const plannerNodes = new Map(nodes);
+          plannerNodes.set(draggedBeforeMove.id, draggedBeforeMove);
+          if (sourceParentBeforeMove) plannerNodes.set(sourceParentBeforeMove.id, sourceParentBeforeMove);
+          if (destinationBeforeMove) plannerNodes.set(destinationBeforeMove.id, destinationBeforeMove);
+
+          nativeGroupPlan = planNativeGroupLayersReparent({
+            draggedId: update.nodeId,
+            newParentId,
+            nodes: plannerNodes,
+            draggedWorld: {
+              left: draggedWorld.left,
+              top: draggedWorld.top,
+              width: draggedWorld.width,
+              height: draggedWorld.height,
+            },
+            newParentWorld: destinationWorld
+              ? {
+                  left: destinationWorld.left,
+                  top: destinationWorld.top,
+                  width: destinationWorld.width,
+                  height: destinationWorld.height,
+                }
+              : { left: 0, top: 0, width: 0, height: 0 },
+            draggedWorldCorners: readCorners(update.nodeId),
+            newParentWorldCorners: newParentId ? readCorners(newParentId) : null,
+            newParentLocalSize: destinationLocalSize,
+            preserveDraggedGeometry,
+          });
+
+          if (!nativeGroupPlan) {
+            trace.action('canvas:native-group-reparent-refused', {
+              nodeId: update.nodeId,
+              newParentId,
+              reason: 'planner-refused',
+            });
+            forceCanvasRender();
+            continue;
+          }
+
+          moveStyles = { ...moveStyles, ...nativeGroupPlan.moveStyles };
+          trace.action('canvas:native-group-reparent-plan', {
+            nodeId: update.nodeId,
+            newParentId,
+            groupIds: nativeGroupPlan.groupIds,
+            removeGroupIds: nativeGroupPlan.removeGroupIds,
+          });
+        }
+
         // INSTANT REPARENT: move the element in the iframe DOM NOW so it snaps into
         // the layout (or out to canvas) and the siblings re-flow on mouseup, instead
         // of waiting ~0.3s for the `move` mutation to re-parse the big page. The
@@ -667,7 +773,7 @@ export class CanvasDragOrchestrator {
         // mutation below still re-parses + guarantees the code, and the patchStyles
         // stale-element guard reconciles any brief duplicate.
         const liveVpPrefix = getViewportPrefix(this.opts.getInteractingVpId());
-        getCanvasBridge().reparentLive?.(update.nodeId, liveVpPrefix, update.newParentId ?? null, update.newIndex ?? 0, update.styles ?? {});
+        getCanvasBridge().reparentLive?.(update.nodeId, liveVpPrefix, newParentId, update.newIndex ?? 0, moveStyles);
         // Sync the IMPERATIVE NODE CACHE too — this drop-time move (flex/grid
         // slot entry, multi-select reparent) is the one reparent path whose
         // cache sync did NOT happen mid-drag in the strategy. With the drop
@@ -677,11 +783,22 @@ export class CanvasDragOrchestrator {
         // ~0.3s (until the fan-out's parse replaced the map). moveNodeInCache
         // flips parentId/isCanvasNode + bumps the structure version, so the
         // label set is correct on the FIRST post-mouseup render.
-        moveNodeInCache(update.nodeId, update.newParentId ?? null);
-        if (update.styles) updateNodeInCache(update.nodeId, update.styles);
+        moveNodeInCache(update.nodeId, newParentId);
+        if (Object.keys(moveStyles).length > 0) updateNodeInCache(update.nodeId, moveStyles);
         // Move changes parent — DOM must be fully rebuilt (can't patch reparenting)
         this.opts.renderer.setStructuralPending(true);
-        queueMutation({ type: 'move', nodeId: update.nodeId, newParentId: update.newParentId ?? null, styles: update.styles, index: update.newIndex, insertBeforeId: update.insertBeforeId, canvasNode: update.canvasNode });
+        queueMutation({ type: 'move', nodeId: update.nodeId, newParentId, styles: Object.keys(moveStyles).length > 0 ? moveStyles : undefined, index: update.newIndex, insertBeforeId: update.insertBeforeId, canvasNode: update.canvasNode });
+
+        if (nativeGroupPlan) {
+          for (const patch of nativeGroupPlan.patches) {
+            updateNodeInCache(patch.nodeId, patch.styles);
+            queueMutation({ type: 'updateStyles', nodeId: patch.nodeId, styles: patch.styles });
+          }
+          for (const groupId of nativeGroupPlan.removeGroupIds) {
+            removeNodeFromCache(groupId);
+            queueMutation({ type: 'removeNode', nodeId: groupId });
+          }
+        }
         // Same fade as a sibling reorder: a reparent (canvas→section / section→canvas)
         // mounts the selection overlay at the STALE drag spot before the new-slot rect
         // remeasures (async). Pulse so SelectionFade hides → fades in once it settles.
@@ -694,7 +811,7 @@ export class CanvasDragOrchestrator {
         // 2026-06-12: ~292px jump at the enter boundary, display:none after).
         // Moved into the same parent it becomes a regular viewport overlay:
         // the portal system positions it from the trigger again.
-        if (update.newParentId) {
+        if (newParentId) {
           for (const n of nodes.values()) {
             if (!n.isCanvasNode || n.id === update.nodeId) continue;
             const ovAttr = n.attrs?.['data-overlay'];
@@ -703,11 +820,11 @@ export class CanvasDragOrchestrator {
               const cfg = JSON.parse(ovAttr);
               if (cfg?.triggerId === update.nodeId) {
                 queueMutation({
-                  type: 'move', nodeId: n.id, newParentId: update.newParentId,
+                  type: 'move', nodeId: n.id, newParentId,
                   styles: {}, canvasNode: false,
                 });
                 trace.action('canvas:overlay-rehomed-with-trigger', {
-                  overlayId: n.id, triggerId: update.nodeId, newParentId: update.newParentId,
+                  overlayId: n.id, triggerId: update.nodeId, newParentId,
                 });
               }
             } catch { /* unparseable config — leave it */ }

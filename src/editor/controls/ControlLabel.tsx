@@ -132,7 +132,18 @@ function PlainOverrideLabel({ label, subLabel, onReset, cell }: { label: string;
       >
         <span className="text-xs font-medium truncate" style={{ color: accent }}>{label}</span>
         {onReset && (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: accent }}>
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+            style={{ color: accent }}
+          >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         )}
@@ -233,7 +244,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
 
   const {
     nodeId, node, styles, vpId, isReplica, vpWidth,
-    hasOverride, getValueSource, resolveProperty,
+    hasOverride, getValueSource, getPropertyResolution,
     createVariable, removeVariable, updateStyle, updateStyleLive, updateMultipleStyles,
     cmsBinding,
   } = useControl();
@@ -366,7 +377,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
       ? JSON.stringify(node?.motionProps?.transition ?? {})
       : styles[property];
   const valueSource = getValueSource(property);
-  const propertyResolution = unifiedCtx?.propertyResolution ?? resolveProperty(property);
+  const propertyResolution = unifiedCtx?.resolution ?? getPropertyResolution(property);
   const provenanceTooltip = inspectorPropertyTooltip(propertyResolution);
   const hasVar = valueSource.source === 'prop';
   const varRef = valueSource.ref;
@@ -844,8 +855,8 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
       <button
         ref={buttonRef}
         title={provenanceTooltip}
-        data-inspector-source={propertyResolution.read.source}
-        data-inspector-write-target={propertyResolution.write.target}
+        data-inspector-source={propertyResolution.read.source.kind}
+        data-inspector-write-target={propertyResolution.write.target.kind}
         onClick={openMenu}
         // Right-click opens the SAME menu (Copy/Paste Style live here, standard).
         onContextMenu={(e) => { e.preventDefault(); openMenu(); }}

@@ -72,3 +72,23 @@ export function calculateMultiAlign(
 
   return out;
 }
+
+/** Space three or more positioned layers evenly while keeping the outer edges fixed. */
+export function calculateDistributeSpacing(axis: 'horizontal' | 'vertical', rects: AlignRect[]): Map<string, AlignDelta> {
+  const out = new Map<string, AlignDelta>();
+  if (rects.length < 3) return out;
+  const horizontal = axis === 'horizontal';
+  const sorted = [...rects].sort((a, b) => (horizontal ? a.left - b.left : a.top - b.top));
+  const start = horizontal ? sorted[0].left : sorted[0].top;
+  const end = horizontal
+    ? sorted[sorted.length - 1].left + sorted[sorted.length - 1].width
+    : sorted[sorted.length - 1].top + sorted[sorted.length - 1].height;
+  const totalSize = sorted.reduce((sum, rect) => sum + (horizontal ? rect.width : rect.height), 0);
+  const gap = (end - start - totalSize) / (sorted.length - 1);
+  let cursor = start;
+  for (const rect of sorted) {
+    out.set(rect.id, horizontal ? { dx: cursor - rect.left } : { dy: cursor - rect.top });
+    cursor += (horizontal ? rect.width : rect.height) + gap;
+  }
+  return out;
+}

@@ -56,12 +56,15 @@ export interface InsertCategory {
 
 const BASIC_ITEMS: InsertItem[] = [
   { id: 'frame', name: 'Frame', iconKey: 'frame' },
-  { id: 'column', name: 'Column', iconKey: 'column' },
-  { id: 'row', name: 'Row', iconKey: 'row' },
+  { id: 'text', name: 'Text', iconKey: 'text' },
+  { id: 'button', name: 'Button', iconKey: 'button' },
   { id: 'image', name: 'Image', iconKey: 'image' },
+];
+
+const MEDIA_ITEMS: InsertItem[] = [
+  { id: 'gallery', name: 'Gallery', iconKey: 'image' },
   { id: 'video', name: 'Video', iconKey: 'video' },
   { id: 'audio', name: 'Audio', iconKey: 'audio' },
-  { id: 'button', name: 'Button', iconKey: 'button' },
 ];
 
 const TYPOGRAPHY_ITEMS: InsertItem[] = [
@@ -80,6 +83,8 @@ const CARD_ITEMS: InsertItem[] = [
 ];
 
 const LAYOUT_ITEMS: InsertItem[] = [
+  { id: 'column', name: 'Column', iconKey: 'column' },
+  { id: 'row', name: 'Row', iconKey: 'row' },
   // Split Top removed — compound recipe (2-row with nested 2-col below)
   // that the user can build in 2 drops from primitives. The rest are
   // atomic shapes that don't decompose as easily.
@@ -310,11 +315,11 @@ export const CATEGORIES: InsertCategory[] = [
     columns: 3,
     sections: [
       { id: 'basic', label: 'Basic', items: BASIC_ITEMS },
+      { id: 'media', label: 'Media', items: MEDIA_ITEMS },
       { id: 'typography', label: 'Typography', items: TYPOGRAPHY_ITEMS },
       // Cards + Layouts merged — both are pre-arranged structural
-      // templates (a wrapper + child frames). Bare layout primitives
-      // come FIRST so the user grabs the structural shape they need
-      // (2 Row / 3 Col / Grid / Sidebar / Header) before scrolling
+      // templates (a wrapper + child frames). Layout primitives come first
+      // (Frame / Column / Row / 2 Row / Grid) before scrolling
       // to the richer Card recipes (Basic / Horizontal / Pricing /
       // Product / etc.) at the bottom of the section.
       { id: 'layouts', label: 'Layouts', items: [...LAYOUT_ITEMS, ...CARD_ITEMS] },
@@ -439,4 +444,3 @@ export const CREATIVE_CATEGORIES: InsertCategory[] = [
     sections: [{ id: 'cursors', label: 'Cursors', items: CURSORS_ITEMS }],
   },
 ];
-

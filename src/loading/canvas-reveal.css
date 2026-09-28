@@ -1,0 +1,35 @@
+/* Only the editable canvas enters. Inspector, layers, and toolbar keep their
+ * own chrome motion; the canvas returns to untransformed geometry at rest. */
+[data-canvas-reveal-phase='pending'] [data-canvas-root],
+[data-canvas-reveal-phase='entering'] [data-canvas-root] {
+  opacity: 0;
+  filter: blur(18px);
+  transform: scale(.78);
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: opacity, filter, transform;
+}
+
+[data-canvas-reveal-phase='entering'] [data-canvas-root] {
+  animation: field-canvas-reveal 760ms linear both;
+}
+
+@keyframes field-canvas-reveal {
+  0%   { opacity: 0;   filter: blur(18px); transform: scale(.78); }
+  40%  { opacity: .5;  filter: blur(18px); transform: scale(.85); }
+  54%  { opacity: 1;   filter: blur(0);    transform: scale(.85); }
+  60%  { opacity: 1;   filter: blur(0);    transform: scale(.85); }
+  67%  { opacity: 1;   filter: blur(0);    transform: scale(.82); }
+  81%  { opacity: 1;   filter: blur(0);    transform: scale(1.10); }
+  93%  { opacity: 1;   filter: blur(0);    transform: scale(.985); }
+  100% { opacity: 1;   filter: blur(0);    transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-canvas-reveal-phase='entering'] [data-canvas-root] {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

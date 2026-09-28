@@ -27,6 +27,7 @@ import { zoomToFitSelection } from '@/canvas/transform';
 import { openCmsEditorAtom } from '@/code/stores/cms-editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
+import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import { getCollectionSchema } from '@/code/project/cms-ops';
 import { projectFS } from '@/code/project/project-fs';
 import { isCodeComponentSource } from '@/code/oracle/checks/shared';
@@ -267,6 +268,8 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
   const openCms = useSetAtom(openCmsEditorAtom);
   const openCodeEditor = useSetAtom(componentEditorFileAtom);
   const setLeftPanel = useSetAtom(leftPanelAtom);
+  const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
+  const setSettingsSection = useSetAtom(settingsSectionAtom);
   const [hovered, setHovered] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -319,7 +322,7 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
       case 'styles':
         return () => setLeftPanel('presets');
       case 'translations':
-        return () => setLeftPanel('locale');
+        return () => { setSettingsSection('localization'); setSettingsOpen(true); };
       case 'code-component':
         return projectFS.exists(row.path) ? () => openCodeEditor(row.path) : null;
       default:
@@ -327,7 +330,7 @@ export default function ChangesCard({ files, canRevert }: { files: ChangedFile[]
         // failure reports no ids): getting you THERE is still the point.
         return projectFS.exists(openablePath(row.file.path)) ? () => revealFile(row.file) : null;
     }
-  }, [openCms, setLeftPanel, openCodeEditor, revealFile]);
+  }, [openCms, setLeftPanel, setSettingsSection, setSettingsOpen, openCodeEditor, revealFile]);
 
   if (rows.length === 0) return null;
 

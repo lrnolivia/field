@@ -8,7 +8,7 @@ let capturing = false;
 
 const SETTLE_MS = 120;
 const FONT_READY_TIMEOUT_MS = 100;
-const RASTER_TIMEOUT_MS = 2500;
+const RASTER_TIMEOUT_MS = 9000;
 const CAPTURE_MARGIN = 32;
 const THUMB_WIDTH = 640;
 

@@ -365,6 +365,7 @@ export function startFrameCreation(
         left: `${Math.round(left)}px`,
         top: `${Math.round(top)}px`,
       };
+      if (shiftHeld) styles.aspectRatio = '1 / 1';
 
       // Restyle the kept preview to match the final frame so the on-screen
       // placeholder reads as the real node (drops the blue drawing border/tint).
@@ -407,6 +408,7 @@ export function startFrameCreation(
           isCanvasNode: true, contentEl,
           onMouseDown: callbacks.onNodeMouseDown,
         });
+        if (shiftHeld) queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { 'data-initial-aspect-lock': 'true' } });
 
         // Encapsulate any canvas nodes whose bounding box is fully inside the
         // newly-drawn frame: reparent them as absolute children of the frame
@@ -508,6 +510,7 @@ export function startFrameCreation(
           parentEl: contentEl, parentId, index: insertIndex,
           onMouseDown: callbacks.onNodeMouseDown,
         });
+        if (shiftHeld) queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { 'data-initial-aspect-lock': 'true' } });
 
         // Renumber flex `order` so an explicitly-ordered parent places the new
         // node at the DRAWN flow position (no-op when no sibling has `order`).

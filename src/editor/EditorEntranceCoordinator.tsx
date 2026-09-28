@@ -3,7 +3,7 @@ import {
   collectEditorEntranceTargets,
   DIRECT_LOAD_FAILSAFE_MS,
   DIRECT_LOAD_RENDER_EVENT,
-  DIRECT_LOAD_SHELL_CLEAR_MS,
+  DIRECT_LOAD_CHROME_STAGGER_MS,
   EDITOR_CHROME_EXIT_REQUEST_EVENT,
   EDITOR_EXIT_EASING,
   editorEntranceDelay,
@@ -26,6 +26,7 @@ type PreparedTarget = EditorEntranceTarget & {
   previous: {
     translate: string;
     opacity: string;
+    filter: string;
     pointerEvents: string;
     willChange: string;
   };
@@ -38,6 +39,7 @@ function captureTarget(target: EditorEntranceTarget): PreparedTarget {
     previous: {
       translate: element.style.translate,
       opacity: element.style.opacity,
+      filter: element.style.filter,
       pointerEvents: element.style.pointerEvents,
       willChange: element.style.willChange,
     },
@@ -54,7 +56,8 @@ function prepareEntranceTarget(
   element.style.translate = role === 'bottom'
     ? `0 ${startDistancePx}px`
     : `${startDistancePx}px 0`;
-  element.style.opacity = '0.96';
+  element.style.opacity = prepared.phase === 'late-chrome' ? '0' : '0.96';
+  element.style.filter = 'none';
   element.style.pointerEvents = 'none';
   element.style.willChange = prepared.previous.willChange
     ? `${prepared.previous.willChange}, translate, opacity`
@@ -76,6 +79,7 @@ function prepareExitTarget(target: EditorEntranceTarget): PreparedTarget {
 function restoreTarget(target: PreparedTarget): void {
   target.element.style.translate = target.previous.translate;
   target.element.style.opacity = target.previous.opacity;
+  target.element.style.filter = target.previous.filter;
   target.element.style.pointerEvents = target.previous.pointerEvents;
   target.element.style.willChange = target.previous.willChange;
 }
@@ -117,6 +121,7 @@ export default function EditorEntranceCoordinator() {
     let exitPromise: Promise<void> | null = null;
     let resolveExit: (() => void) | null = null;
     let lastDashboardState: FieldDashboardLayerState | null = readFieldDashboardLayerState(document);
+    let dashboardHandoffEntrance = false;
 
     const clearScheduled = () => {
       for (const timer of timers) window.clearTimeout(timer);
@@ -170,8 +175,9 @@ export default function EditorEntranceCoordinator() {
         cycle,
         dashboardState: readFieldDashboardLayerState(document),
         directLoadArmed,
-        targets: prepared.map(({ role, element }) => ({
+        targets: prepared.map(({ role, phase, element }) => ({
           role,
+          phase,
           surface: element.dataset.workspaceIsland ?? element.id ?? element.dataset.editorPanel ?? 'chrome',
         })),
       });
@@ -185,6 +191,7 @@ export default function EditorEntranceCoordinator() {
       running = true;
       root.dataset.editorEntranceState = 'entering';
       const currentCycle = cycle;
+      const useDashboardHandoffTiming = dashboardHandoffEntrance;
       const distances = editorEntranceDistances(
         prepared,
         window.innerWidth,
@@ -208,6 +215,7 @@ export default function EditorEntranceCoordinator() {
           timers = [];
           frames = [];
           running = false;
+          dashboardHandoffEntrance = false;
           root.dataset.editorEntranceState = 'settled';
           trace.action('editor-entrance:settled', { cycle: currentCycle });
         }
@@ -222,9 +230,13 @@ export default function EditorEntranceCoordinator() {
             return;
           }
 
-          const profile = editorSpringProfile(target.role);
+          const profile = editorSpringProfile(
+            target.role,
+            target.phase,
+            useDashboardHandoffTiming,
+          );
           const animation = target.element.animate(
-            editorSpringKeyframes(target.role, distances[target.role]),
+            editorSpringKeyframes(target.role, distances[target.role], profile, target.phase),
             {
               duration: profile.durationMs,
               easing: 'linear',
@@ -240,7 +252,7 @@ export default function EditorEntranceCoordinator() {
             settleOne(target);
           };
           animation.oncancel = () => settleOne(target);
-        }, editorEntranceDelay(target.role));
+        }, editorEntranceDelay(target.role, target.phase, useDashboardHandoffTiming));
 
         timers.push(timer);
       }
@@ -288,8 +300,9 @@ export default function EditorEntranceCoordinator() {
 
       trace.action('editor-entrance:exiting', {
         cycle,
-        targets: prepared.map(({ role, element }) => ({
+        targets: prepared.map(({ role, phase, element }) => ({
           role,
+          phase,
           surface: element.dataset.workspaceIsland ?? element.id ?? element.dataset.editorPanel ?? 'chrome',
         })),
       });
@@ -362,7 +375,7 @@ export default function EditorEntranceCoordinator() {
           renderCompleteSeen,
         });
         runEntranceAfterPaint();
-      }, DIRECT_LOAD_SHELL_CLEAR_MS);
+      }, DIRECT_LOAD_CHROME_STAGGER_MS);
       timers.push(timer);
     };
 
@@ -383,18 +396,20 @@ export default function EditorEntranceCoordinator() {
       const previous = lastDashboardState;
       lastDashboardState = state;
 
-      // Dashboard and editor now overlap their ownership handoff instead of
-      // exposing a bare intermediate Canvas. As Dashboard starts leaving,
-      // prepare editor chrome offscreen and begin its entrance after two paints
-      // while the Dashboard slabs are still moving above it. The hidden state
-      // remains a fallback boundary, not the normal start signal.
+      // Dashboard -> editor is a staged ownership handoff, not the direct-load
+      // entrance replayed over moving Dashboard slabs. Start the choreography
+      // clock as Dashboard leaves, but per-surface delays let each Dashboard
+      // slab vacate before its editor counterpart answers from the same edge.
+      // The hidden state remains a fallback boundary, not the normal start signal.
       if (state === 'hiding' && previous !== 'hiding') {
         beginNewRevealCycle();
+        dashboardHandoffEntrance = true;
         runEntranceAfterPaint();
         return;
       }
 
       if (state === 'hidden' && previous !== 'hidden') {
+        if (!running && !prepared.length) dashboardHandoffEntrance = false;
         directLoadArmed = false;
         directLoadStarted = false;
         if (cycle === 0) cycle = 1;

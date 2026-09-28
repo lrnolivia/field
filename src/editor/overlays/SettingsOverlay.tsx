@@ -10,7 +10,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useAtom } from 'jotai';
-import { SettingsWebsiteIcon, PageHomeIcon, PageDocumentIcon } from '@/shared/icons';
+import { SettingsWebsiteIcon, PageHomeIcon, PageDocumentIcon, GlobeInternationalIcon } from '@/shared/icons';
+import LocalePanel from '@/editor/left-toolbar/panels/LocalePanel';
 import Button from '@/design-system/Button';
 import { LogoButton } from '@/editor/header/LeftHeader';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
@@ -116,7 +117,10 @@ export function buildMenuCategories(
 ): Array<{ title: string; items: MenuItem[] }> {
   // Website is always first in General
   const result: Array<{ title: string; items: MenuItem[] }> = [
-    { title: 'General', items: [{ id: 'website', label: 'Website', icon: SettingsWebsiteIcon }] },
+    { title: 'General', items: [
+      { id: 'website', label: 'Website', icon: SettingsWebsiteIcon },
+      { id: 'localization', label: 'Localization', icon: GlobeInternationalIcon },
+    ] },
   ];
 
   for (const cat of registered) {
@@ -722,6 +726,11 @@ export default function SettingsOverlay() {
   // ─── renderContent ─────────────────────────────────────────────────
 
   const renderContent = () => {
+    if (activeSection === 'localization') {
+      return <div className="h-[min(650px,calc(100vh-190px))] max-w-[520px] overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]">
+        <LocalePanel />
+      </div>;
+    }
     // Website section is inline (uses parent state: websiteSettings atom, mutation queue)
     if (activeSection === 'website') {
       return (

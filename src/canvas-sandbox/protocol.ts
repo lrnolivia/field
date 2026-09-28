@@ -8,6 +8,7 @@
 // — no request/response correlation needed.
 
 import type { CanvasNode } from '@/code/parsing/parser';
+import { resolveSandboxOrigin } from './origin';
 
 // ─── Parent → Sandbox Fast-Path Events ───────────────────────────────────
 //
@@ -299,7 +300,5 @@ export function isSandboxEvent(data: any): data is SandboxEventMessage {
  *  server IP, or a domain without per-environment config. */
 export const SANDBOX_ORIGIN =
   typeof window !== 'undefined'
-    ? window.location.port
-      ? `${window.location.protocol}//${window.location.hostname}:5174`
-      : `${window.location.protocol}//canvas.${window.location.hostname}`
+    ? resolveSandboxOrigin(window.location)
     : 'http://localhost:5174';

@@ -11,7 +11,7 @@ import {
   type FieldProjectNavigationOptions,
 } from '@/backend/field-navigation';
 import { setFieldProjectIdOverride } from '@/backend/project-id';
-import { fieldBuilderProjectId, fieldPathIsDashboard } from './field-shell-route';
+import { fieldBuilderProjectId, fieldPathIsDashboard, fieldProjectUrl } from './field-shell-route';
 import { trace } from '@/shared/debug-trace';
 import { requestEditorChromeExit } from '@/editor/editor-entrance';
 import {
@@ -30,10 +30,6 @@ import {
 } from './field-shell-motion';
 
 type DashboardLayerState = 'visible' | 'showing' | 'hiding' | 'hidden';
-
-function projectUrl(id: string): string {
-  return `/builder/${encodeURIComponent(id)}`;
-}
 
 function waitForSaveToSettle(timeoutMs = 12000): Promise<SaveStatus> {
   const store = getDefaultStore();
@@ -79,6 +75,14 @@ async function ensureCurrentProjectSavedBeforeSwitch(): Promise<void> {
 }
 
 export default function FieldShell() {
+  // /dashboard remains a convenient direct entry, while / is the single
+  // browser-visible home for the ambient dashboard layer.
+  if (window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard/') {
+    window.history.replaceState({ fieldSurface: 'dashboard' }, '', '/');
+  } else if (window.location.pathname.startsWith('/builder/')) {
+    const legacyId = fieldBuilderProjectId(window.location.pathname);
+    if (legacyId) window.history.replaceState({ fieldSurface: 'builder', projectId: legacyId }, '', fieldProjectUrl(legacyId) + window.location.search + window.location.hash);
+  }
   const initialProjectIdRef = useRef<string | null>(fieldBuilderProjectId(window.location.pathname));
   const didSeedProjectIdRef = useRef(false);
   if (!didSeedProjectIdRef.current) {
@@ -98,7 +102,41 @@ export default function FieldShell() {
   const builderLayerRef = useRef<HTMLDivElement>(null);
   const dashboardLayerRef = useRef<HTMLDivElement>(null);
   const dashboardAnimationsRef = useRef<Array<{ element: HTMLElement; animation: Animation }>>([]);
+  const dashboardLayerAnimationRef = useRef<Animation | null>(null);
   const dashboardMotionEpochRef = useRef(0);
+  const openingOriginRef = useRef<FieldProjectNavigationOptions['origin']>(undefined);
+  const openingOverlayRef = useRef<HTMLElement | null>(null);
+
+  const animateThumbnailToCanvas = useCallback(() => {
+    const origin = openingOriginRef.current;
+    openingOriginRef.current = undefined;
+    openingOverlayRef.current?.remove();
+    openingOverlayRef.current = null;
+    if (!origin || !origin.thumbnail || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'field-project-opening-overlay';
+    overlay.style.backgroundImage = `url(${JSON.stringify(origin.thumbnail)})`;
+    overlay.style.left = `${origin.x}px`;
+    overlay.style.top = `${origin.y}px`;
+    overlay.style.width = `${origin.width}px`;
+    overlay.style.height = `${origin.height}px`;
+    document.body.append(overlay);
+    openingOverlayRef.current = overlay;
+    const dx = -origin.x;
+    const dy = -origin.y;
+    const scaleX = window.innerWidth / Math.max(1, origin.width);
+    const scaleY = window.innerHeight / Math.max(1, origin.height);
+    const animation = overlay.animate([
+      { offset: 0, transform: 'translate3d(0,0,0) scale(1,1)', opacity: 1, filter: 'blur(0px)' },
+      { offset: .48, transform: `translate3d(${dx * .55}px,${dy * .55}px,0) scale(${1 + (scaleX - 1) * .55},${1 + (scaleY - 1) * .55})`, opacity: .94, filter: 'blur(9px)' },
+      { offset: 1, transform: `translate3d(${dx}px,${dy}px,0) scale(${scaleX},${scaleY})`, opacity: 0, filter: 'blur(22px)' },
+    ], { duration: 480, easing: 'cubic-bezier(.22,.68,.22,1)', fill: 'forwards' });
+    void animation.finished.catch(() => undefined).then(() => {
+      overlay.remove();
+      if (openingOverlayRef.current === overlay) openingOverlayRef.current = null;
+    });
+  }, []);
 
   const setDashboardLayerState = useCallback((state: DashboardLayerState) => {
     dashboardStateRef.current = state;
@@ -107,6 +145,8 @@ export default function FieldShell() {
 
   const cancelDashboardMotion = useCallback((preserveVisual = true) => {
     dashboardMotionEpochRef.current += 1;
+    dashboardLayerAnimationRef.current?.cancel();
+    dashboardLayerAnimationRef.current = null;
     for (const { element, animation } of dashboardAnimationsRef.current) {
       if (preserveVisual) {
         const current = window.getComputedStyle(element).transform;
@@ -128,6 +168,7 @@ export default function FieldShell() {
 
   const animateDashboardLayer = useCallback(async (
     direction: DashboardMotionDirection,
+    thumbnailOpen = false,
   ): Promise<void> => {
     const currentState = dashboardStateRef.current;
     if (direction === 'show' && currentState === 'visible') return;
@@ -146,6 +187,20 @@ export default function FieldShell() {
     if (reducedMotion || !canAnimate) {
       clearDashboardInlineTransforms(layer);
       setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+      return;
+    }
+
+    if (direction === 'hide' && thumbnailOpen && layer) {
+      const animation = layer.animate([
+        { opacity: 1, filter: 'blur(0px)' },
+        { opacity: 0, filter: 'blur(14px)' },
+      ], { duration: 340, easing: 'cubic-bezier(.32,0,.6,1)', fill: 'both' });
+      dashboardLayerAnimationRef.current = animation;
+      await animation.finished.catch(() => undefined);
+      if (dashboardMotionEpochRef.current !== epoch) return;
+      setDashboardLayerState('hidden');
+      animation.cancel();
+      dashboardLayerAnimationRef.current = null;
       return;
     }
 
@@ -196,13 +251,15 @@ export default function FieldShell() {
   }, [cancelDashboardMotion, clearDashboardInlineTransforms, setDashboardLayerState]);
 
   const showDashboardLayer = useCallback(() => animateDashboardLayer('show'), [animateDashboardLayer]);
-  const hideDashboardLayer = useCallback(() => animateDashboardLayer('hide'), [animateDashboardLayer]);
+  const hideDashboardLayer = useCallback((thumbnailOpen = false) => animateDashboardLayer('hide', thumbnailOpen), [animateDashboardLayer]);
 
   const maybeRevealProject = useCallback((id: string) => {
     if (builderReadyIdRef.current !== id) return;
     if (!revealRequestedRef.current || revealHeldRef.current) return;
-    void hideDashboardLayer();
-  }, [hideDashboardLayer]);
+    const thumbnailOpen = Boolean(openingOriginRef.current?.thumbnail);
+    animateThumbnailToCanvas();
+    void hideDashboardLayer(thumbnailOpen);
+  }, [animateThumbnailToCanvas, hideDashboardLayer]);
 
   const openProject = useCallback(async (
     id: string,
@@ -215,6 +272,7 @@ export default function FieldShell() {
 
     revealHeldRef.current = Boolean(options.holdReveal);
     revealRequestedRef.current = !options.holdReveal;
+    openingOriginRef.current = options.origin;
 
     if (current !== projectId) {
       void showDashboardLayer();
@@ -232,7 +290,7 @@ export default function FieldShell() {
       setFieldProjectIdOverride(projectId);
     }
 
-    const nextUrl = projectUrl(projectId);
+    const nextUrl = fieldProjectUrl(projectId);
     if (options.replace) {
       window.history.replaceState({ fieldSurface: 'builder', projectId }, '', nextUrl);
     } else if (window.location.pathname !== nextUrl) {
@@ -247,6 +305,9 @@ export default function FieldShell() {
   ): Promise<void> => {
     revealHeldRef.current = false;
     revealRequestedRef.current = false;
+    openingOriginRef.current = undefined;
+    openingOverlayRef.current?.remove();
+    openingOverlayRef.current = null;
 
     let editorExitPromise: Promise<void> | null = null;
     if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
@@ -318,7 +379,10 @@ export default function FieldShell() {
     return () => builderLayer.removeAttribute('inert');
   }, [dashboardState]);
 
-  useEffect(() => () => cancelDashboardMotion(false), [cancelDashboardMotion]);
+  useEffect(() => () => {
+    cancelDashboardMotion(false);
+    openingOverlayRef.current?.remove();
+  }, [cancelDashboardMotion]);
 
   const onCanvasReady = useCallback((id: string) => {
     if (builderIdRef.current !== id) return;
@@ -327,8 +391,26 @@ export default function FieldShell() {
     maybeRevealProject(id);
   }, [maybeRevealProject]);
 
+  const onProjectOpenFailure = useCallback((id: string) => {
+    if (builderIdRef.current !== id) return;
+    openingOriginRef.current = undefined;
+    revealHeldRef.current = false;
+    revealRequestedRef.current = false;
+    void hideDashboardLayer(false);
+  }, [hideDashboardLayer]);
+
   return (
     <div className="field-shell" data-dashboard-state={dashboardState}>
+      <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
+        <defs>
+          <filter id="field-motion-blur-horizontal" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4.5 0" />
+          </filter>
+          <filter id="field-motion-blur-vertical" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="0 4" />
+          </filter>
+        </defs>
+      </svg>
       <div
         ref={builderLayerRef}
         className="field-shell-builder"
@@ -338,6 +420,7 @@ export default function FieldShell() {
           <ProjectLoader
             key={builderId}
             onCanvasReady={() => onCanvasReady(builderId)}
+            onOpenFailure={() => onProjectOpenFailure(builderId)}
           />
         ) : (
           <div className="field-shell-empty-canvas" aria-hidden="true" />
@@ -351,7 +434,7 @@ export default function FieldShell() {
         aria-hidden={dashboardState === 'hidden' ? 'true' : undefined}
         style={{ visibility: dashboardState === 'hidden' ? 'hidden' : 'visible' }}
       >
-        <Dashboard />
+        <Dashboard active={dashboardState === 'visible'} />
       </div>
     </div>
   );

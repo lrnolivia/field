@@ -6,6 +6,8 @@ import { nextFrames } from '@/shared/dom-utils';
 import { getCanvasRenderer } from './CanvasRenderer';
 import { finishPendingRestore } from '@/code/mutation/history';
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
+import { workspaceAutoHideAtom, workspaceModeAtom, floatingLeftHiddenAtom, railRevealedAtom, compactPanelOpenAtom, floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom } from '@/editor/workspace-mode-store';
+import { compactInspectorOpenAtom } from '@/code/stores/workspace-panels-store';
 import { codeAtom, nodesAtom, selectedNodeAtom, selectedIdsAtom, hoveredIdAtom, hoveredNodeIdAtom, hoveredViewportIdAtom, canvasInteractingAtom, mapItemIndexAtom, updatingFromCanvasAtom, marqueeViewportSpreadAtom, getNodesSnapshot, getCachedNodesMap } from '../code/stores/store';
 import type { CanvasNode } from '../code/parsing/parser';
 import { activeFilePathAtom, componentBreadcrumbAtom, isComponentFilePath, isIconSetFilePath } from '../code/project/active-file-store';
@@ -103,6 +105,7 @@ import { useCanvasTransform } from './hooks/useCanvasTransform';
 import { useSandboxBridge } from './hooks/useSandboxBridge';
 import { CanvasMouseController } from './mouse/CanvasMouseController';
 import { CanvasTextEditController } from './text-edit/CanvasTextEditController';
+import { TextFocusCamera } from './text-edit/text-focus-camera';
 import { CanvasDragOrchestrator } from './drag/CanvasDragOrchestrator';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCanvasCommandsBridge } from './hooks/useCanvasCommandsBridge';
@@ -956,9 +959,20 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       renderer,
       getInteractingVpId: () => interactingVpIdRef.current || 'desktop',
     });
+    const focusCamera = new TextFocusCamera(() => iframeRef.current);
+    const unsubscribeFocus = jotaiStore.sub(isTextEditingAtom, () => {
+      if (jotaiStore.get(isTextEditingAtom)) {
+        const id = controller.getEditingNodeId();
+        if (id) focusCamera.begin(id, interactingVpIdRef.current || 'desktop');
+      } else {
+        focusCamera.end();
+      }
+    });
     textEditControllerRef.current = controller;
     trace.action('canvas:text-edit-controller-created', {});
     return () => {
+      unsubscribeFocus();
+      focusCamera.dispose();
       if (textEditControllerRef.current) {
         textEditControllerRef.current.dispose();
         textEditControllerRef.current = null;
@@ -979,6 +993,15 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     // Sync proxy ref immediately so keyboard shortcuts / render guard see the update.
     editingNodeIdRef.current = nodeId;
   }, []);
+
+  useEffect(() => {
+    const editFromLayer = (event: Event) => {
+      const { nodeId, vpId } = (event as CustomEvent<{ nodeId: string; vpId: string }>).detail;
+      startTextEdit(nodeId, null, '', vpId);
+    };
+    window.addEventListener('field:start-text-edit', editFromLayer);
+    return () => window.removeEventListener('field:start-text-edit', editFromLayer);
+  }, [startTextEdit]);
 
   const commitTextEdit = useCallback(async () => {
     await textEditControllerRef.current?.commitEdit();
@@ -1294,10 +1317,24 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       // canvas viewport so cursors stay aligned with what each user
       // is actually editing.
       data-canvas-root=""
-      onMouseDown={e => mouseControllerRef.current?.handleMouseDown(e.nativeEvent)}
+      onMouseDown={e => {
+        if (jotaiStore.get(workspaceAutoHideAtom)) {
+          const mode = jotaiStore.get(workspaceModeAtom);
+          if (mode === 'floating') {
+            jotaiStore.set(floatingLeftHiddenAtom, true);
+            jotaiStore.set(floatingInspectorRevealedAtom, false);
+            jotaiStore.set(floatingInspectorSuppressedAtom, false);
+          } else if (mode === 'compact') {
+            jotaiStore.set(railRevealedAtom, false);
+            jotaiStore.set(compactPanelOpenAtom, false);
+            jotaiStore.set(compactInspectorOpenAtom, false);
+          }
+        }
+        mouseControllerRef.current?.handleMouseDown(e.nativeEvent);
+      }}
       onMouseMove={e => mouseControllerRef.current?.handleMouseMove(e.nativeEvent)}
       onMouseUp={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}
-      onMouseLeave={e => mouseControllerRef.current?.handleMouseUp(e.nativeEvent)}
+      onMouseLeave={e => { mouseControllerRef.current?.clearTextGloss(); mouseControllerRef.current?.handleMouseUp(e.nativeEvent); }}
       onDragStart={(e) => e.preventDefault()}
       onContextMenu={(e) => {
         e.preventDefault();

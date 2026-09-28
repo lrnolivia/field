@@ -37,7 +37,7 @@ export function setCanvasInsets(insets: { left: number; top: number; right: numb
   canvasInsets = insets;
 }
 
-function getAvailableArea() {
+export function getAvailableCanvasArea() {
   const w = typeof window !== 'undefined' ? window.innerWidth : 1920;
   const h = typeof window !== 'undefined' ? window.innerHeight : 1080;
   // FULL-BLEED canvas (glass chrome, 2026-08-20): the container's ORIGIN is
@@ -58,6 +58,22 @@ function getAvailableArea() {
   const centerX = canvasInsets.left + width / 2;
   const centerY = canvasInsets.top + height / 2;
   return { width, height, centerX, centerY };
+}
+
+const getAvailableArea = getAvailableCanvasArea;
+
+/** Camera-safe rectangle for a focused item, including floating chrome. */
+export function getPaddedCanvasFocusArea() {
+  const available = getAvailableCanvasArea();
+  const floatingLeft = document.querySelector<HTMLElement>('[data-floating-left-panel]')?.getBoundingClientRect();
+  const rightIsland = document.querySelector<HTMLElement>('[data-workspace-island="right"]')?.getBoundingClientRect();
+  const leftEdge = Math.max(available.centerX - available.width / 2, floatingLeft?.right ?? 0);
+  const rightEdge = Math.min(available.centerX + available.width / 2, rightIsland?.left ?? window.innerWidth);
+  const left = Math.min(leftEdge + 24, window.innerWidth - 184);
+  const right = Math.max(left + 160, rightEdge - 24);
+  const top = 72;
+  const bottom = Math.max(top + 160, window.innerHeight - 96);
+  return { width: right - left, height: bottom - top, centerX: (left + right) / 2, centerY: (top + bottom) / 2 };
 }
 
 // ─── Zoom Commands ──────────────────────────────────────────────────────────
@@ -86,7 +102,7 @@ export function zoomTo100(): void {
   const { centerX, centerY } = getAvailableArea();
   const target = computeZoomTransform(t, 1, centerX, centerY);
   trace.fn('camera.zoomTo100');
-  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100);
+  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100, { focus: true });
 }
 
 /** Zoom to a specific scale, anchored at viewport center. Animated. */
@@ -96,7 +112,7 @@ export function zoomToScale(scale: number): void {
   const { centerX, centerY } = getAvailableArea();
   const target = computeZoomTransform(t, clamped, centerX, centerY);
   trace.fn('camera.zoomToScale', { scale: clamped });
-  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100);
+  animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_TO_100, { focus: true });
 }
 
 // ─── Fit Commands ───────────────────────────────────────────────────────────
@@ -242,7 +258,7 @@ export function zoomToFitSelection(
 /**
  * Pan to center on a specific node. Keeps current zoom. Animated.
  */
-export function panToNode(_contentEl: HTMLElement, nodeId: string): void {
+export function panToNode(_contentEl: HTMLElement, nodeId: string, quickFocus = false): void {
   trace.fn('camera.panToNode', { nodeId });
   // `nodeId` is the data-node-id (already viewport-prefixed). Resolve via
   // bridge.getRect() — that path runs toParentSpace + adjustForTransformDelta
@@ -276,11 +292,23 @@ export function panToNode(_contentEl: HTMLElement, nodeId: string): void {
   const canvasCenterX = c.left + c.width / 2;
   const canvasCenterY = c.top + c.height / 2;
 
-  const { centerX, centerY } = getAvailableArea();
-  const x = centerX - canvasCenterX * t.scale;
-  const y = centerY - canvasCenterY * t.scale;
+  const { centerX, centerY, width, height } = quickFocus ? getPaddedCanvasFocusArea() : getAvailableArea();
+  // Double-click should bring the item into a useful editing size from any
+  // starting zoom. A fixed 1.28× step barely moved a layer when the canvas
+  // was zoomed far out, and repeated double-clicks kept ratcheting forever.
+  const fitScale = Math.min(
+    2.5,
+    (width * 0.72) / Math.max(1, c.width),
+    (height * 0.72) / Math.max(1, c.height),
+  );
+  const targetScale = quickFocus
+    ? Math.max(MIN_SCALE, Math.min(fitScale, Math.max(0.65, t.scale * 1.55)))
+    : t.scale;
+  const x = centerX - canvasCenterX * targetScale;
+  const y = centerY - canvasCenterY * targetScale;
 
-  animateCanvasTo(x, y, t.scale, ANIM_PAN_TO_NODE);
+  const zoomRatio = Math.max(targetScale / t.scale, t.scale / targetScale);
+  animateCanvasTo(x, y, targetScale, quickFocus ? (zoomRatio > 4 ? 253 : 180) : ANIM_PAN_TO_NODE, { focus: quickFocus });
 }
 
 /**
@@ -496,6 +524,6 @@ function fitBoundsInView(
   if (duration <= 0) {
     moveCanvasTo(x, y, targetScale);
   } else {
-    animateCanvasTo(x, y, targetScale, duration);
+    animateCanvasTo(x, y, targetScale, duration, { focus: true });
   }
 }

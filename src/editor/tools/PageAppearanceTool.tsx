@@ -34,10 +34,10 @@ export default function PageAppearanceTool() {
 
   return (
     <div data-page-inspector="" className="w-full">
-      <div className="h-8 px-2.5 border-b border-[var(--border-light)] flex items-center">
+      <div className="h-10 px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center">
         <span className="text-[12px] font-semibold text-[var(--text-primary)]">Page</span>
       </div>
-      <div className="px-2.5 py-2">
+      <div className="px-[var(--panel-inset)] py-3">
         <div className="grid grid-cols-[minmax(0,1fr)_52px_24px_24px] gap-1 items-center">
           <div className="h-[var(--control-height)] min-w-0 overflow-hidden rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)]">
             <ColorInput

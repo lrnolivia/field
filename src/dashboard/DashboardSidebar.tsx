@@ -59,6 +59,7 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
             key={item.id}
             type="button"
             className="field-dashboard-nav-row"
+            data-view={item.id}
             data-active={view === item.id ? 'true' : undefined}
             onClick={() => onViewChange(item.id)}
           >

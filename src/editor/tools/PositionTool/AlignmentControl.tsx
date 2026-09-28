@@ -3,6 +3,8 @@
 // Color: accent blue when enabled, disabled gray when not alignable.
 
 import { useCallback } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, type FieldGlyphBehavior } from '@/editor/glyph';
 import { calculateAlignment, type AlignDirection } from '@/shared/pin-utils';
 import { trace } from '@/shared/debug-trace';
 
@@ -75,6 +77,15 @@ interface Props {
   getParentRect: () => { width: number; height: number } | null;
 }
 
+const ALIGN_BEHAVIOR: Record<AlignDirection, FieldGlyphBehavior> = {
+  left: 'align-left',
+  'center-h': 'align-center-h',
+  right: 'align-right',
+  top: 'align-top',
+  'center-v': 'align-center-v',
+  bottom: 'align-bottom',
+};
+
 const BUTTONS: { dir: AlignDirection; Icon: React.FC<{ className?: string }>; title: string }[] = [
   { dir: 'left', Icon: AlignLeft, title: 'Align Left' },
   { dir: 'center-h', Icon: AlignHCenter, title: 'Center Horizontally' },
@@ -90,16 +101,19 @@ const BUTTONS: { dir: AlignDirection; Icon: React.FC<{ className?: string }>; ti
 export function AlignmentButtons({ enabled, onAlign }: { enabled: boolean; onAlign: (dir: AlignDirection) => void }) {
   const groups = [BUTTONS.slice(0, 3), BUTTONS.slice(3, 6)];
   return (
-    <div data-position-alignment-groups className="grid grid-cols-2 gap-2 w-full">
+    <div data-position-alignment-groups className="field-inspector-pair w-full">
       {groups.map((group, groupIndex) => (
         <div
           key={groupIndex}
           className="grid grid-cols-3 overflow-hidden border border-[var(--control-border)] rounded-[var(--control-radius)] bg-[var(--control-bg)]"
         >
           {group.map(({ dir, Icon, title }, index) => (
-            <button
+            <motion.button
               key={dir}
               type="button"
+              initial="rest"
+              whileHover={enabled ? 'hover' : undefined}
+              whileTap={enabled ? 'tap' : undefined}
               onClick={() => enabled && onAlign(dir)}
               disabled={!enabled}
               title={title}
@@ -108,8 +122,8 @@ export function AlignmentButtons({ enabled, onAlign }: { enabled: boolean; onAli
                 : 'text-[var(--text-disabled)] cursor-not-allowed opacity-40'
               }`}
             >
-              <Icon className="w-4 h-4" />
-            </button>
+              <FieldGlyph behavior={ALIGN_BEHAVIOR[dir]}><Icon className="w-4 h-4" /></FieldGlyph>
+            </motion.button>
           ))}
         </div>
       ))}

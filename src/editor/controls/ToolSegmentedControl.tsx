@@ -2,6 +2,8 @@
 // FIGUI3_CORRECTIVE_SEGMENTED_20260925
 
 import { useRef, useEffect, useLayoutEffect, useState } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { trace } from '@/shared/debug-trace';
 
 interface Option {
@@ -83,14 +85,17 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
         }}
       />
       {options.map(opt => (
-        <button
+        <motion.button
           key={opt.value}
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           onClick={() => { trace.action('tool-segmented:change', { from: value, to: opt.value }); onChange(opt.value); }}
           className={`flex-1 flex items-center justify-center gap-2 text-xs ${py} ${px} cut-corners transition-colors relative z-10 ${value === opt.value ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
         >
-          {opt.icon}
+          {opt.icon && <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>}
           {opt.label && <span>{opt.label}</span>}
-        </button>
+        </motion.button>
       ))}
     </div>
   );

@@ -4,7 +4,7 @@
 import { keyboard } from './KeyboardManager';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import {
-  setSpaceBarDown,
+  setSpaceBarDown, panToNode,
   zoomIn, zoomOut, zoomTo100, zoomToFit, zoomToFitSelection,
 } from './transform';
 import { cancelFrameCreation } from './creators/FrameCreator';
@@ -14,7 +14,7 @@ import {
   deleteNode, toggleLock, toggleVisibility, wrapInFrame, wrapInLayout, unfoldChildren,
   groupSelection, ungroupSelection, duplicateSelection,
 } from './commands';
-import { getContentRoot } from './node-ops';
+import { getContentRoot, getViewportPrefix } from './node-ops';
 import { getCanvasBridge } from './canvas-bridge';
 import { undo, redo } from '../code/mutation/history';
 import { copyNodes } from '../code/features/paste-engine';
@@ -45,6 +45,7 @@ import { createAndOpenProject } from '../editor/header/menu-builders';
 import { nudgeSelection, flushPendingNudge, type NudgeDirection } from './arrow-nudge';
 import { selectAllPageNodeIds } from './selection/select-all';
 import { interactingViewportIdAtom } from '../code/stores/viewport-store';
+import { hoveredNodeIdAtom, hoveredViewportIdAtom } from '../code/stores/store';
 
 
 export interface ShortcutRefs {
@@ -72,8 +73,8 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   const cleanups: (() => void)[] = [];
 
   // Helpers: focused-toolbar masters where most creators are no-ops.
-  //   - Icon-set master: only shape tools (rect / circle / triangle /
-  //     path) apply. Frame / Text / Layout / Sketch keys are
+  //   - Icon-set master: only shape tools (rectangle / line / ellipse / triangle /
+  //     pen path) apply. Frame / Text / Layout / Sketch keys are
   //     swallowed.
   // Gated per-handler so the keyboard binding still exists (avoids
   // "shortcut not registered" surprises in the global help overlay)
@@ -114,7 +115,8 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   //   R           → Square (shape-rect)
   //   O           → Circle (shape-ellipse)
   //   Shift+T     → Triangle (shape-triangle)
-  //   P           → Path (shape-path)
+  //   L           → Line (shape-line)
+  //   P           → Pen (shape-path)
   // Each toggles back to 'select' if its mode is already active so the
   // user can press the same key twice to cancel a half-started draw.
   cleanups.push(keyboard.register({ key: 'r', label: 'Square tool', category: 'tools', handler: () => {
@@ -126,17 +128,20 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   cleanups.push(keyboard.register({ key: 't', shift: true, label: 'Triangle tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'shape-triangle' ? 'select' : 'shape-triangle');
   }}));
-  cleanups.push(keyboard.register({ key: 'p', label: 'Path tool', category: 'tools', handler: () => {
+  cleanups.push(keyboard.register({ key: 'l', label: 'Line tool', category: 'tools', handler: () => {
+    setToolMode(toolModeRef.current === 'shape-line' ? 'select' : 'shape-line');
+  }}));
+  cleanups.push(keyboard.register({ key: 'p', label: 'Pen tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'shape-path' ? 'select' : 'shape-path');
   }}));
-  // Sketch (Pencil) — Shift+P, while P remains the Path/Pen tool.
+  // Pencil/Sketch — Shift+P; line creation uses L and Pen uses P.
   // Enabled on regular pages AND vector-set (icon-set) masters.
   cleanups.push(keyboard.register({ key: 'p', shift: true, label: 'Sketch tool', category: 'tools', handler: () => {
     setToolMode(toolModeRef.current === 'sketch' ? 'select' : 'sketch');
   }}));
 
   // ─── General ─────────────────────────────────────────────────────
-  cleanups.push(keyboard.register({ key: 'escape', label: 'Escape / Select Parent', category: 'general', handler: () => {
+  cleanups.push(keyboard.register({ key: 'escape', label: 'Escape / Deselect', category: 'general', handler: () => {
     // Exit shape edit mode first (highest priority after text edit)
     const store = getDefaultStore();
     const shapeEditId = store.get(shapeEditingIdAtom);
@@ -157,34 +162,12 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
       setSelectedIds([groupEditId]);
       return;
     }
-    // Pop the Figma-style nested-selection container by ONE level. Double-click
-    // on a frame with children sets that frame as the active container; Escape
-    // walks back out — same UX as
-    // group-edit's exit, just at the page-tree scope. Sets activeContainer
-    // to the popped frame's parent (or null if it was top-level), and
-    // selects the popped frame so the user keeps a visible selection
-    // rather than blanking the canvas.
-    const activeContainer = store.get(activeContainerIdAtom);
-    if (activeContainer) {
-      const popped = nodesRef.current.get(activeContainer);
-      const parentId = popped?.parentId ?? null;
-      const newContainer = parentId === 'root' ? null : parentId;
-      store.set(activeContainerIdAtom, newContainer);
-      setSelectedIds([activeContainer]);
-      trace.action('canvas:hierarchy-pop-esc', {
-        from: activeContainer, to: newContainer,
-      });
-      return;
-    }
     if (editingNodeIdRef.current) { commitTextEdit(); return; }
     if (toolModeRef.current !== 'select') { setToolMode('select'); return; }
     cancelFrameCreation();
-    // Select parent first; if no parent, deselect
-    const sel = selectedIdRef.current;
-    if (sel) {
-      const parentId = selectParent(sel, nodesRef.current);
-      if (parentId) { setSelectedIds([parentId]); return; }
-    }
+    // Figma's normal canvas Escape clears the selection. Parent navigation
+    // has its own Shift+Enter shortcut; retain group/shape edit exits above.
+    store.set(activeContainerIdAtom, null);
     setSelectedIds([]);
   }}));
 
@@ -218,6 +201,17 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     const el = contentRef.current; if (el) zoomToFitSelection(el, selectedIdRef.current ? [selectedIdRef.current] : []);
   }}));
   cleanups.push(keyboard.register({ key: ['3', '#'], shift: true, label: 'Zoom to 100%', category: 'zoom', handler: () => zoomTo100() }));
+  cleanups.push(keyboard.register({ key: 'c', label: 'Center focused object', category: 'zoom', handler: () => {
+    const content = contentRef.current;
+    if (!content) return;
+    const store = getDefaultStore();
+    const selected = selectedIdRef.current;
+    const hovered = store.get(hoveredNodeIdAtom);
+    const id = selected || hovered;
+    if (!id) return;
+    const vpId = selected ? store.get(interactingViewportIdAtom) : store.get(hoveredViewportIdAtom);
+    panToNode(content, `${getViewportPrefix(vpId)}${id}`, true);
+  }}));
 
   // ─── Project lifecycle ───────────────────────────────────────────
   // Ctrl+Alt+N matches the File → New project menu shortcut. Goes
@@ -283,16 +277,23 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     if (prev) setSelectedIds([prev]);
   }}));
 
-  cleanups.push(keyboard.register({ key: 'enter', label: 'Select children', category: 'selection', handler: () => {
-    // Select ALL direct children from all selected nodes (like old builder)
-    const ids = selectedIdsRef.current;
-    if (ids.length === 0) return;
-    const allChildren: string[] = [];
-    for (const id of ids) {
-      const children = selectChildren(id, nodesRef.current);
-      allChildren.push(...children);
-    }
-    if (allChildren.length > 0) setSelectedIds(allChildren);
+  cleanups.push(keyboard.register({ key: 'enter', label: 'Select child', category: 'selection', handler: () => {
+    const id = selectedIdRef.current;
+    if (!id) return;
+    const child = selectChildren(id, nodesRef.current)[0];
+    if (!child) return;
+    getDefaultStore().set(activeContainerIdAtom, id);
+    setSelectedIds([child]);
+  }}));
+
+  cleanups.push(keyboard.register({ key: 'enter', shift: true, label: 'Select parent', category: 'selection', handler: () => {
+    const id = selectedIdRef.current;
+    if (!id) return;
+    const parentId = selectParent(id, nodesRef.current);
+    if (!parentId) return;
+    const grandparentId = selectParent(parentId, nodesRef.current);
+    getDefaultStore().set(activeContainerIdAtom, grandparentId && grandparentId !== 'root' ? grandparentId : null);
+    setSelectedIds([parentId]);
   }}));
 
   // ─── Replica Selection ───────────────────────────────────────

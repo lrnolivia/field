@@ -1,92 +1,183 @@
 import { describe, expect, it } from 'vitest';
-import type { CanvasNode } from '@/code/parsing/parser';
-import { inspectorPropertyTooltip, resolveInspectorProperty, resolveMultiSelection, type PropertyResolutionInput } from './resolve-property';
+import { resolveMultiSelection, resolvePropertyResolution } from '.';
 
-const node = (styles: Record<string, string> = {}, extra: Partial<CanvasNode> = {}): CanvasNode => ({
-  id: 'card', styles, motionVariants: null, conditionalStyles: null,
-  componentInstanceId: null, isComponentInstance: false,
-  ...extra,
-} as CanvasNode);
-const input = (extra: Partial<PropertyResolutionInput> = {}): PropertyResolutionInput => ({
-  property: 'backgroundColor', node: node({ backgroundColor: '#fff' }), effectiveValue: '#fff', ...extra,
-});
+const base = {
+  property: 'backgroundColor',
+  effectiveValue: '#111111',
+  nodeId: 'node-1',
+};
 
 describe('Inspector property provenance', () => {
-  it('identifies authored local styles and never mutates the input', () => {
-    const selected = node({ backgroundColor: '#fff' });
-    const before = JSON.stringify(selected);
-    const result = resolveInspectorProperty(input({ node: selected }));
-    expect(result.read.source).toBe('local');
-    expect(result.write).toMatchObject({ target: 'node-base-style', editable: true });
-    expect(JSON.stringify(selected)).toBe(before);
+  it('resolves a local authored style to the base node write target', () => {
+    const r = resolvePropertyResolution({ ...base, hasAuthoredBase: true, baseValue: '#111111' });
+    expect(r.read.source.kind).toBe('local');
+    expect(r.write.target.kind).toBe('node-base-style');
+    expect(r.write.editable).toBe(true);
   });
 
-  it('retains variable and preset identity over a resolved literal', () => {
-    expect(resolveInspectorProperty(input({ valueSource: { source: 'prop', ref: 'brandColor' } })))
-      .toMatchObject({ read: { source: 'variable', value: '#fff' }, write: { target: 'variable-binding', editable: false }, binding: { ref: 'brandColor' } });
-    expect(resolveInspectorProperty(input({ valueSource: { source: 'token', ref: '--brand' } })))
-      .toMatchObject({ read: { source: 'preset' }, write: { target: 'preset-binding', editable: false }, binding: { ref: '--brand' } });
+  it('preserves variable identity even when the displayed value is already resolved', () => {
+    const r = resolvePropertyResolution({ ...base, variableRef: 'brandColor' });
+    expect(r.read.source).toMatchObject({ kind: 'variable', ref: 'brandColor' });
+    expect(r.write.target.kind).toBe('variable-binding');
+    expect(r.write.editable).toBe(false);
+    expect(r.reset).toEqual({ kind: 'detach-variable', ref: 'brandColor' });
   });
 
-  it('marks active responsive values and inherited replica values separately', () => {
-    const selected = node({ backgroundColor: '#fff' }, { responsiveStyleValues: { backgroundColor: { 768: '#333' } }, responsiveStyleBands: { backgroundColor: { 768: 376 } } });
-    expect(resolveInspectorProperty(input({ node: selected, effectiveValue: '#333', isReplica: true, viewportWidth: 768 })))
-      .toMatchObject({ read: { source: 'responsive' }, write: { target: 'responsive-band', editable: true }, reset: { target: 'responsive-band' } });
-    expect(resolveInspectorProperty(input({ node: selected, isReplica: true, viewportWidth: 375 })))
-      .toMatchObject({ read: { source: 'inherited', inherited: true }, write: { target: 'responsive-band' }, reset: null });
+  it('recognizes exact CSS custom-property preset references', () => {
+    const r = resolvePropertyResolution({ ...base, effectiveValue: 'var(--color-brand)' });
+    expect(r.read.source).toMatchObject({ kind: 'preset', ref: 'color-brand' });
+    expect(r.write.target.kind).toBe('preset-binding');
+    expect(r.write.editable).toBe(false);
   });
 
-  it('does not claim a tablet-only override belongs to the mobile band', () => {
-    const overrides = new Map([['card', new Map([[768, new Map([['backgroundColor', '#333']])]])]]);
-    const result = resolveInspectorProperty(input({ overrides, isReplica: true, viewportWidth: 375 }));
-    expect(result.read).toMatchObject({ source: 'inherited', inherited: true });
-    expect(result.write).toMatchObject({ target: 'responsive-band', editable: true });
-    expect(result.reset).toBeNull();
+  it('resolves an active responsive literal override to its band', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      responsive: { active: true, hasOwnValue: true, maxWidth: 768 },
+    });
+    expect(r.read.source).toEqual({ kind: 'responsive', maxWidth: 768 });
+    expect(r.write.target).toMatchObject({ kind: 'responsive-band', maxWidth: 768 });
+    expect(r.reset).toEqual({ kind: 'remove-responsive-override', maxWidth: 768 });
   });
 
-  it('distinguishes default, named, and conditional variants', () => {
-    const selected = node({}, { motionVariants: { default: { backgroundColor: '#fff' }, active: { backgroundColor: '#333' } }, conditionalStyles: { gap: { active: '8px' } } });
-    expect(resolveInspectorProperty(input({ node: selected, isComponentFile: true, variant: 'default' })).read.source).toBe('component-variant');
-    expect(resolveInspectorProperty(input({ node: selected, effectiveValue: '#333', isComponentFile: true, variant: 'active' })))
-      .toMatchObject({ read: { source: 'component-variant' }, reset: { target: 'component-variant-style', detail: 'active' } });
-    expect(resolveInspectorProperty(input({ node: selected, property: 'gap', effectiveValue: '8px', isComponentFile: true, variant: 'active' })))
-      .toMatchObject({ read: { source: 'conditional-variant' }, write: { target: 'component-variant-conditional' } });
+  it('keeps an inherited responsive base local when the band has no own value', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      hasAuthoredBase: true,
+      responsive: { active: false, hasOwnValue: false, maxWidth: 768 },
+    });
+    expect(r.read.source.kind).toBe('local');
+    expect(r.write.target.kind).toBe('node-base-style');
   });
 
-  it('distinguishes instance, locale, and CMS routes', () => {
-    expect(resolveInspectorProperty(input({ node: node({ backgroundColor: '#fff' }, { componentInstanceId: 'instance:child' }) })))
-      .toMatchObject({ read: { source: 'component-instance' }, write: { target: 'component-instance-override' } });
-    expect(resolveInspectorProperty(input({ locale: 'fr', localeValue: '#fff' })))
-      .toMatchObject({ read: { source: 'locale' }, reset: { target: 'locale-override' } });
-    expect(resolveInspectorProperty(input({ cmsField: 'image' })))
-      .toMatchObject({ read: { source: 'cms' }, write: { target: 'cms-binding', editable: false }, binding: { ref: 'image' } });
+  it('keeps replica read truth inherited while routing a new edit to the active responsive band', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      responsive: { active: true, hasOwnValue: false, maxWidth: 768 },
+      hasAuthoredBase: true,
+    });
+    expect(r.read.source).toEqual({ kind: 'inherited', from: 'base' });
+    expect(r.read.inherited).toBe(true);
+    expect(r.write.target).toMatchObject({ kind: 'responsive-band', maxWidth: 768 });
+    expect(r.reset).toBeNull();
   });
 
-  it('fails closed for computed CSS, unresolved effective values, and animation ownership', () => {
-    expect(resolveInspectorProperty(input({ node: node(), effectiveValue: undefined, computedValue: 'red' })))
-      .toMatchObject({ read: { source: 'computed-only' }, write: { target: 'read-only', editable: false } });
-    expect(resolveInspectorProperty(input({ node: node(), effectiveValue: 'red' })))
-      .toMatchObject({ read: { source: 'inherited' }, write: { target: 'read-only', editable: false } });
-    expect(resolveInspectorProperty(input({ animationOwner: 'Hover animation' })))
-      .toMatchObject({ read: { source: 'animation-bound' }, write: { target: 'read-only', editable: false } });
+  it('resolves component variant object ownership', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      componentVariant: { active: true, variant: 'variant-2', hasOwnValue: true, conditional: false },
+    });
+    expect(r.read.source).toEqual({ kind: 'component-variant', variant: 'variant-2' });
+    expect(r.write.target.kind).toBe('component-variant-style');
   });
 
-  it('permits compatible mixed edits and blocks incompatible bulk targets', () => {
-    const local = resolveInspectorProperty(input());
-    const other = resolveInspectorProperty(input({ node: node({ backgroundColor: '#333' }), effectiveValue: '#333' }));
-    expect(resolveMultiSelection('backgroundColor', [local, other]))
-      .toMatchObject({ read: { mixed: true, value: '' }, write: { target: 'node-base-style', editable: true } });
-    const responsive = resolveInspectorProperty(input({ isReplica: true, viewportWidth: 768 }));
-    expect(resolveMultiSelection('backgroundColor', [local, responsive]).write)
-      .toMatchObject({ target: 'read-only', editable: false });
+  it('keeps a non-default variant inherited until the first scoped edit', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      componentVariant: { active: true, variant: 'variant-2', hasOwnValue: false, conditional: false },
+      hasAuthoredBase: true,
+    });
+    expect(r.read.source).toEqual({ kind: 'inherited', from: 'component-default' });
+    expect(r.write.target).toMatchObject({ kind: 'component-variant-style', variant: 'variant-2' });
+    expect(r.reset).toBeNull();
   });
 
-  it('explains confident sources in a small label tooltip', () => {
-    expect(inspectorPropertyTooltip(resolveInspectorProperty(input()))).toBeUndefined();
-    expect(inspectorPropertyTooltip(resolveInspectorProperty(input({ valueSource: { source: 'prop', ref: 'brandColor' } }))))
-      .toContain('Variable brandColor');
-    const responsive = node({ backgroundColor: '#fff' }, { responsiveStyleValues: { backgroundColor: { 768: '#333' } } });
-    expect(inspectorPropertyTooltip(resolveInspectorProperty(input({ node: responsive, effectiveValue: '#333', isReplica: true, viewportWidth: 768 }))))
-      .toContain('Responsive 768');
+  it('distinguishes conditional variant ownership', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      componentVariant: { active: true, variant: 'variant-2', hasOwnValue: true, conditional: true },
+    });
+    expect(r.read.source).toEqual({ kind: 'conditional-variant', variant: 'variant-2' });
+    expect(r.write.target.kind).toBe('component-variant-conditional');
+  });
+
+  it('treats an expanded component child as inherited read truth with an instance override write target', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      componentInstance: { active: true, instanceId: 'card-1', hasOwnValue: false },
+    });
+    expect(r.read.source).toEqual({ kind: 'inherited', from: 'component-master' });
+    expect(r.read.inherited).toBe(true);
+    expect(r.write.target).toMatchObject({ kind: 'component-instance-override', instanceId: 'card-1' });
+    expect(r.write.editable).toBe(true);
+  });
+
+  it('surfaces a literal instance override separately from component inheritance', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      componentInstance: { active: true, instanceId: 'card-1', hasOwnValue: true },
+    });
+    expect(r.read.source).toMatchObject({ kind: 'component-instance', inheritedFromMaster: false });
+    expect(r.reset).toEqual({ kind: 'remove-instance-override', instanceId: 'card-1' });
+  });
+
+  it('resolves locale overrides', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      locale: { active: true, locale: 'fr' },
+    });
+    expect(r.read.source).toEqual({ kind: 'locale', locale: 'fr' });
+    expect(r.write.target.kind).toBe('locale-override');
+  });
+
+  it('resolves CMS bindings without silently enabling literal edits', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      cms: { active: true, ref: 'heroColor' },
+    });
+    expect(r.read.source).toMatchObject({ kind: 'cms', ref: 'heroColor' });
+    expect(r.write.target.kind).toBe('cms-binding');
+    expect(r.write.editable).toBe(false);
+  });
+
+  it('fails closed for inherited values whose authoring owner is outside the selected node', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      effectiveValue: 'rgb(0, 0, 0)',
+      inheritedValue: 'rgb(0, 0, 0)',
+      inheritedFrom: 'parent',
+    });
+    expect(r.read.source.kind).toBe('inherited');
+    expect(r.write.target.kind).toBe('read-only');
+    expect(r.write.editable).toBe(false);
+  });
+
+  it('fails closed for computed-only values', () => {
+    const r = resolvePropertyResolution({
+      ...base,
+      effectiveValue: '16px',
+      computedValue: '16px',
+    });
+    expect(r.read.source.kind).toBe('computed-only');
+    expect(r.write.target.kind).toBe('read-only');
+  });
+
+  it('makes animation-bound properties read-only', () => {
+    const r = resolvePropertyResolution({ ...base, animationBoundBy: 'Scroll Transform' });
+    expect(r.read.source).toEqual({ kind: 'animation-bound', ref: 'Scroll Transform' });
+    expect(r.write.target.kind).toBe('read-only');
+    expect(r.binding).toEqual({ kind: 'animation', ref: 'Scroll Transform' });
+  });
+
+  it('keeps compatible mixed base-style selections editable', () => {
+    const a = resolvePropertyResolution({ ...base, hasAuthoredBase: true, effectiveValue: '#111' });
+    const b = resolvePropertyResolution({ ...base, nodeId: 'node-2', hasAuthoredBase: true, effectiveValue: '#222' });
+    const multi = resolveMultiSelection([a, b]);
+    expect(multi.mixed).toBe(true);
+    expect(multi.editable).toBe(true);
+    expect(multi.targetKind).toBe('node-base-style');
+  });
+
+  it('fails closed for incompatible multi-selection write targets', () => {
+    const a = resolvePropertyResolution({ ...base, hasAuthoredBase: true });
+    const b = resolvePropertyResolution({
+      ...base,
+      nodeId: 'node-2',
+      responsive: { active: true, hasOwnValue: true, maxWidth: 768 },
+    });
+    const multi = resolveMultiSelection([a, b]);
+    expect(multi.editable).toBe(false);
+    expect(multi.targetKind).toBeNull();
+    expect(multi.reason).toContain('incompatible');
   });
 });

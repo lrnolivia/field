@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import PagesLayersPanel from './panels/PagesLayersPanel';
 import InsertPanel from './panels/insert';
@@ -13,6 +13,8 @@ import LocalePanel from './panels/LocalePanel';
 import CmsPanel from './panels/CmsPanel';
 import BranchesPanel from './panels/BranchesPanel';
 import { trace } from '@/shared/debug-trace';
+import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
+import './left-panel-glyphs.css';
 
 function PresetsPanel() {
   return <LibraryPanel mode="presets" />;
@@ -21,7 +23,7 @@ function LibraryOnlyPanel() {
   return <LibraryPanel mode="library" />;
 }
 
-const PANEL_MAP: Record<string, React.ComponentType> = {
+export const PANEL_MAP: Record<string, React.ComponentType> = {
   insert: InsertPanel,
   'pages-layers': PagesLayersPanel,
   layers: PagesLayersPanel,
@@ -37,28 +39,37 @@ const PANEL_MAP: Record<string, React.ComponentType> = {
 export default function LeftPanel() {
   const activePanel = useAtomValue(leftPanelAtom);
   const leftOpen = useAtomValue(leftPaneOpenAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const PanelComponent = PANEL_MAP[activePanel];
-  if (!leftOpen || !PanelComponent) return null;
+  if (!PanelComponent) return null;
 
-  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
+  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth });
   trace.fn('LeftPanel.render', { activePanel, presentation: workspace.left.presentation });
 
   return (
     <div
       data-editor-panel="left-primary"
+      data-visible={leftOpen && railVisible ? 'true' : 'false'}
+      aria-hidden={leftOpen && railVisible ? undefined : true}
+      inert={!leftOpen || !railVisible}
       data-tutorial="left-panel"
       className="fixed z-[5000] flex flex-col overflow-hidden"
       style={{
-        left: workspace.left.inset + LEFT_RAIL_WIDTH,
+        left: workspace.left.inset + (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         top: workspaceBodyTop(workspace.left),
-        width: LEFT_CONTENT_WIDTH,
+        width: workspace.left.width - (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         height: workspaceBodyHeightCss(workspace.left),
         paddingLeft: 6,
         paddingRight: 6,
         boxSizing: 'border-box',
         willChange: 'transform',
         isolation: 'isolate',
+        opacity: leftOpen && railVisible ? 1 : 0,
+        pointerEvents: leftOpen && railVisible ? 'auto' : 'none',
+        transform: leftOpen && railVisible ? 'translateX(0)' : 'translateX(-18px)',
+        transition: 'opacity 260ms ease, transform 260ms ease',
       }}
     >
       <PanelComponent />

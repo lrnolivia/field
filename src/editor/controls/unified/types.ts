@@ -2,7 +2,7 @@
 
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { ReactNode } from 'react';
-import type { InspectorPropertyResolution } from '@/editor/inspector/provenance/resolve-property';
+import type { InspectorPropertyResolution } from '@/editor/inspector/provenance';
 
 /** Control modes determine value routing */
 export type ControlMode =
@@ -48,8 +48,6 @@ export interface UnifiedControlContextValue {
   // Identity
   property: string;
   mode: ControlMode;
-  /** Canonical provenance for direct Inspector controls; null for external editors. */
-  propertyResolution: InspectorPropertyResolution | null;
 
   /** When true, atoms must NOT render their own ControlLabel. Used by the Variable modal's Default
    *  row, where the surrounding FieldRow already labels it "Default" — the atom's internal
@@ -58,6 +56,9 @@ export interface UnifiedControlContextValue {
 
   // Binding detection (computed in 'direct' mode)
   binding: ControlBinding;
+
+  /** Canonical read provenance + write target for the active property. */
+  resolution: InspectorPropertyResolution;
 
   // Node context (available in 'direct' mode)
   nodeId: string | null;

@@ -35,7 +35,9 @@ import PluginRuntimeWindow from './plugins/PluginRuntimeWindow';
 import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
 import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
-import { OnboardingTutorial } from './editor/onboarding';
+import ToolbarPanelHost from './editor/ToolbarPanelHost';
+import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
+import { detachedLeftPanelAtom } from './editor/detached-left-panel-store';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -49,14 +51,20 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
+import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
+import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
+import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
 import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import './loading/canvas-reveal.css';
+import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
 // page open is distracting noise. The animation runs in PREVIEW (and at
@@ -71,16 +79,37 @@ if (CLOUD_ENABLED) initCloudPlugin();
 
 interface AppProps {
   onCanvasFirstPaint?: () => void;
+  onCanvasRevealComplete?: () => void;
+  canvasRevealPhase?: 'pending' | 'entering' | 'settled';
   interactive?: boolean;
 }
 
-export default function App({ onCanvasFirstPaint, interactive = true }: AppProps = {}) {
+export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
-  const cameraInsets = workspaceLayout.cameraInsets;
+  const leftDetached = useAtomValue(detachedLeftPanelAtom);
+  const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const rightDetached = useAtomValue(rightPaneDetachedAtom);
+  const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
+  const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
+  const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
+  const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached,
+    leftCollapsedWidth: !leftPaneOpen && !leftDetached ? leftCollapsedWidth + 8 : 0,
+    rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
+  // Expanding a compact pane is a reveal over the canvas. Keep the camera's
+  // safe area constant so hover never pans the user's current view.
+  const cameraInsets = workspaceMode === 'compact-docked'
+    ? { left: 60, right: 60, top: 0, bottom: 0 }
+    : workspaceMode === 'floating'
+      ? { left: 0, right: 0, top: 0, bottom: 0 }
+      : workspaceLayout.cameraInsets;
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+  const previousMode = useRef(workspaceMode);
 
   useEffect(() => {
     const root = editorRootRef.current;
@@ -102,13 +131,18 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
       // Preserve zoom while moving the page with the center of the new camera-safe
       // rectangle. Floating panes overlay the physical canvas; only automatic
       // fit/center operations consume these safe insets.
-      transformManager.pan(
-        (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2,
-        (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2,
-      );
+      const dx = (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2;
+      const dy = (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2;
+      if (previousMode.current !== workspaceMode) {
+        const current = transformManager.getTransform();
+        animateCanvasTo(current.x + dx, current.y + dy, current.scale, 340);
+      } else {
+        transformManager.pan(dx, dy);
+      }
     }
     previousInsets.current = { ...cameraInsets };
-  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom]);
+    previousMode.current = workspaceMode;
+  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom, workspaceMode]);
   // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
   // keyboard shortcut can both flip it without prop-drilling. The
   // right-header Preview button still drives the same atom via the
@@ -228,11 +262,20 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
       ref={editorRootRef}
       aria-busy={!interactive ? true : undefined}
       data-editor-interactive={interactive ? 'true' : 'false'}
+      data-canvas-reveal-phase={canvasRevealPhase}
+      onAnimationEnd={(event) => {
+        if (event.animationName === 'field-canvas-reveal'
+          && (event.target as HTMLElement).hasAttribute('data-canvas-root')) {
+          onCanvasRevealComplete?.();
+        }
+      }}
       style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
+      <WorkspaceModeCoordinator />
       <ChromeIslands />
+      <WorkspacePaneResizeHandles hidden={previewMode} />
       <PageAppearanceBridge />
       {/* Live-collab broadcast loops + remote cursor overlay. Renders
           inside the provider so its hooks have context; the overlay
@@ -270,6 +313,7 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
           prominent ones are individually disabled in viewer mode. */}
       <LeftMenu />
       <LeftPanel />
+      {!previewMode && <FloatingLeftPanelHost />}
 
       {/* Main — offset ONLY by the 52px icon rail: the canvas runs FULL-BLEED
           under both side panels (the right sidebar pulls itself over it with
@@ -285,42 +329,47 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
         <Canvas onFirstCanvasPaint={onCanvasFirstPaint} />
         {/* Right panel: PropertiesPanel by default, swap for the
             project-wide comments list while comment mode is active.
-            Both panel modes are 260 px wide. Viewer read-only handling lives inside
+            Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
         {!previewMode && rightPaneOpen && (
           <div
             data-workspace-right-body
+            data-visible={floatingInspectorVisible ? 'true' : 'false'}
+            aria-hidden={!floatingInspectorVisible}
+            inert={!floatingInspectorVisible}
             className="fixed z-[5000] overflow-hidden"
             style={{
               right: workspaceLayout.right.inset,
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
-              height: workspaceBodyHeightCss(workspaceLayout.right),
+              height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 12 - 52) : workspaceBodyHeightCss(workspaceLayout.right),
+              transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              opacity: floatingInspectorVisible ? 1 : 0,
+              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+              transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
             <RightSidebar />
+            {rightDetached && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                const startY = event.clientY;
+                const startHeight = rightFloatingHeight;
+                document.documentElement.dataset.workspaceResizing = 'true';
+                const move = (next: PointerEvent) => setRightFloatingHeight(Math.max(320, Math.min(window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 8, startHeight + next.clientY - startY)));
+                const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); delete document.documentElement.dataset.workspaceResizing; };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', stop, { once: true });
+                window.addEventListener('pointercancel', stop, { once: true });
+              }}
+              className="absolute bottom-0 left-0 z-10 h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
+              <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M2 5 11 14M2 10l4 4" stroke="currentColor" fill="none" /></svg>
+            </button>}
           </div>
         )}
-        {!previewMode && <button
-          type="button"
-          aria-label={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
-          title={rightPaneOpen ? 'Collapse properties pane' : 'Expand properties pane'}
-          onClick={() => setRightPaneOpen(v => !v)}
-          className="fixed z-[5001] w-6 h-6 flex items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-          style={{
-            top: rightPaneOpen ? workspaceLayout.right.top + 60 : 12,
-            right: rightPaneOpen ? workspaceLayout.right.inset + workspaceLayout.right.width + 8 : 8,
-          }}
-        >
-          <svg aria-hidden viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" width="14" height="14">
-            <rect x="1.5" y="2" width="13" height="12" rx="1" />
-            <path d="M10.5 2v12" />
-            <path d={rightPaneOpen ? 'm6.5 6 2 2-2 2' : 'm8.5 6-2 2 2 2'} />
-          </svg>
-        </button>}
         {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,
             design components and icon sets alike: the surface tells it what
             a bare request is about (an icon set: icons in the set). */}
@@ -372,12 +421,7 @@ export default function App({ onCanvasFirstPaint, interactive = true }: AppProps
           marketplace plugins (and later commands/blocks/templates).
           Portal-mounted so it escapes any overflow/transform ancestors. */}
       <CommandPalette />
-      {/* First-run product tour — shown once per browser (localStorage
-          gate). Portals to body at z-[99999], cuts a spotlight hole around
-          each chrome target tagged with `data-tutorial`. Hidden for
-          viewers: the creator tools it walks through aren't in their
-          stripped toolbar, so the steps would have no anchor. */}
-      {!isViewer && <OnboardingTutorial />}
+      <ToolbarPanelHost />
       {/* "Start from a template" prompt — brand-new cloud websites only
           (ProjectLoader arms it when the site loads with zero files).
           Offers free marketplace templates; closing keeps the blank

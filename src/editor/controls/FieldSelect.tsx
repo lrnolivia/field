@@ -8,9 +8,11 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { FieldGlyph } from '@/editor/glyph';
 
 export interface FieldSelectOption {
   value: string;
@@ -97,6 +99,9 @@ export default function FieldSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [position, setPosition] = useState<MenuPosition | null>(null);
+  const [touchPreviewIndex, setTouchPreviewIndex] = useState<number | null>(null);
+  const touchScrubRef = useRef<{ pointerId: number; x: number; y: number; initialIndex: number; currentIndex: number; moved: boolean } | null>(null);
+  const suppressNextClickRef = useRef(false);
 
   const selectedIndex = useMemo(
     () => options.findIndex(option => option.value === value),
@@ -239,6 +244,43 @@ export default function FieldSelect({
     if (event.key === 'Tab' && isOpen) setOpen(false);
   };
 
+  const beginTouchScrub = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (disabled || event.button !== 0) return;
+    const enabled = options.map((option, index) => !option.disabled ? index : -1).filter(index => index >= 0);
+    if (enabled.length < 2) return;
+    const initialIndex = enabled.includes(selectedIndex) ? selectedIndex : enabled[0];
+    touchScrubRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, initialIndex, currentIndex: initialIndex, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveTouchScrub = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    const scrub = touchScrubRef.current;
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    const dx = event.clientX - scrub.x;
+    const dy = event.clientY - scrub.y;
+    if (!scrub.moved && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    scrub.moved = true;
+    event.preventDefault();
+    document.body.style.cursor = Math.abs(dx) >= Math.abs(dy) ? 'ew-resize' : 'ns-resize';
+    const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
+    const enabled = options.map((option, index) => !option.disabled ? index : -1).filter(index => index >= 0);
+    const ordinal = enabled.indexOf(scrub.initialIndex);
+    const nextIndex = enabled[Math.max(0, Math.min(enabled.length - 1, ordinal + Math.round(travel / 20)))];
+    scrub.currentIndex = nextIndex;
+    setTouchPreviewIndex(nextIndex);
+  };
+  const endTouchScrub = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    const scrub = touchScrubRef.current;
+    if (!scrub || scrub.pointerId !== event.pointerId) return;
+    touchScrubRef.current = null;
+    document.body.style.cursor = '';
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (!scrub.moved) return; // A tap on the arrow still opens the list.
+    event.preventDefault();
+    suppressNextClickRef.current = true;
+    setTouchPreviewIndex(null);
+    chooseIndex(scrub.currentIndex);
+  };
+
   const triggerDensity = density === 'compact'
     ? 'h-5 px-1.5 text-[10px]'
     : 'h-[var(--control-height)] px-2 text-xs';
@@ -269,6 +311,7 @@ export default function FieldSelect({
         aria-expanded={isOpen}
         disabled={disabled || options.length === 0}
         onClick={(event) => {
+          if (suppressNextClickRef.current) { suppressNextClickRef.current = false; event.preventDefault(); return; }
           event.stopPropagation();
           if (disabled || options.length === 0) return;
           if (!isOpen) {
@@ -294,8 +337,8 @@ export default function FieldSelect({
           ${triggerClassName}
         `}
       >
-        {showSelectedLabel && <span className="min-w-0 flex-1 truncate">{selectedOption?.label ?? value}</span>}
-        <svg
+        {showSelectedLabel && <span className="min-w-0 flex-1 truncate">{touchPreviewIndex !== null ? options[touchPreviewIndex]?.label : selectedOption?.label ?? value}</span>}
+        <FieldGlyph behavior="chevron"><svg
           width="10"
           height="10"
           viewBox="0 0 24 24"
@@ -308,7 +351,10 @@ export default function FieldSelect({
           aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
-        </svg>
+        </svg></FieldGlyph>
+        <span aria-hidden data-touch-scrub="select" title="Slide to choose"
+          onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
+          className="absolute inset-y-0 right-0 block w-1/2 cursor-ew-resize touch-none" />
       </button>
 
       {isOpen && position && createPortal(

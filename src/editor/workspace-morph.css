@@ -1,0 +1,99 @@
+/* Collapse/restore uses the same restrained spatial grammar as chrome entry. */
+/* Keep header controls, including the logo, out of the very first editor frame.
+   The entrance coordinator takes ownership before the first painted frame. */
+html:not([data-editor-entrance-state]) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore][data-visible='true'],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle][data-visible='true'],
+  [data-left-rail-handle]
+) {
+  opacity: 0;
+}
+
+/* The normal pane opacity transition must not interpolate the coordinator's
+   initial hidden state; that was exposing the header before its late beat. */
+html:is(:not([data-editor-entrance-state]), [data-editor-entrance-state='prepared'], [data-editor-entrance-state='waiting-canvas']) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle],
+  [data-left-rail-handle]
+) {
+  transition: none;
+}
+
+[data-workspace-island],
+[data-workspace-right-header],
+[data-workspace-right-body],
+[data-workspace-right-toggle],
+[data-workspace-left-header],
+[data-left-menu-rail],
+[data-editor-panel='left-primary'],
+[data-workspace-left-restore] {
+  transition:
+    left 340ms cubic-bezier(.2, .8, .2, 1),
+    right 340ms cubic-bezier(.2, .8, .2, 1),
+    top 340ms cubic-bezier(.2, .8, .2, 1),
+    width 340ms cubic-bezier(.2, .8, .2, 1),
+    height 340ms cubic-bezier(.2, .8, .2, 1),
+    border-radius 340ms cubic-bezier(.2, .8, .2, 1),
+    box-shadow 340ms cubic-bezier(.2, .8, .2, 1),
+    opacity 200ms ease,
+    transform 340ms cubic-bezier(.2, .8, .2, 1);
+}
+
+[data-workspace-left-header][data-visible='false'],
+[data-left-menu-rail][data-visible='false'],
+[data-editor-panel='left-primary'][data-visible='false'] {
+  opacity: 0;
+  transform: translateX(-12px) scale(.98);
+  pointer-events: none;
+}
+
+[data-left-menu-rail][data-visible='false'] {
+  transform: translateX(-48px);
+}
+
+[data-workspace-left-restore][data-visible='false'] {
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+
+html[data-workspace-resizing='true'] :is(
+  [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+  [data-workspace-left-header], [data-left-menu-rail], [data-editor-panel='left-primary']
+) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-editor-entrance-state]) :is(
+    [data-workspace-left-header], [data-workspace-left-restore][data-visible='true'],
+    [data-workspace-right-header], [data-workspace-right-toggle][data-visible='true']
+  ) { opacity: revert; }
+  :is(
+    [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+    [data-workspace-right-toggle], [data-workspace-left-header], [data-left-menu-rail],
+    [data-editor-panel='left-primary'], [data-workspace-left-restore]
+  ) { transition: none; }
+}
+
+
+/* Floating title pill -> Compact Docked handoff.
+   The field mark contracts/spins back toward the rail while document identity
+   stays continuous and becomes the compact pill's primary icon. */
+[data-workspace-left-restore] [data-workspace-restore-logo],
+[data-workspace-left-restore] [data-workspace-restore-divider],
+[data-workspace-left-restore] [data-workspace-restore-title],
+[data-project-chip-icon] {
+  will-change: transform, opacity, width, height;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-workspace-left-restore] [data-workspace-restore-logo],
+  [data-workspace-left-restore] [data-workspace-restore-divider],
+  [data-workspace-left-restore] [data-workspace-restore-title],
+  [data-project-chip-icon] { transition: none !important; }
+}

@@ -206,9 +206,12 @@ export async function permanentlyDeleteFieldProject(
 export interface FieldProjectThumbnailState {
   exists: boolean;
   stale: boolean;
+  renderer: string | null;
   thumbnailUpdatedAt: string | null;
   projectUpdatedAt: string | null;
 }
+
+export const FIELD_THUMBNAIL_RENDERER = 'preview-viewport-20260927';
 
 function parseThumbnailClock(value: string | null): string | null {
   if (!value) return null;
@@ -237,17 +240,18 @@ export async function getFieldProjectThumbnailState(
 
   const projectUpdatedAt = parseThumbnailClock(response.headers.get('X-Field-Project-Updated-At'));
   const thumbnailUpdatedAt = parseThumbnailClock(response.headers.get('X-Field-Thumbnail-Updated-At'));
+  const renderer = response.headers.get('X-Field-Thumbnail-Renderer');
   if (response.status === 404) {
-    return { exists: false, stale: true, thumbnailUpdatedAt: null, projectUpdatedAt };
+    return { exists: false, stale: true, renderer: null, thumbnailUpdatedAt: null, projectUpdatedAt };
   }
   if (!response.ok) throw await responseError(response, 'Project thumbnail status');
 
-  const stale = Boolean(
+  const stale = renderer !== FIELD_THUMBNAIL_RENDERER || Boolean(
     projectUpdatedAt &&
     thumbnailUpdatedAt &&
     Date.parse(projectUpdatedAt) > Date.parse(thumbnailUpdatedAt),
   );
-  return { exists: true, stale, thumbnailUpdatedAt, projectUpdatedAt };
+  return { exists: true, stale, renderer, thumbnailUpdatedAt, projectUpdatedAt };
 }
 
 export async function uploadFieldProjectThumbnail(

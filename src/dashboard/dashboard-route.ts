@@ -1,5 +1,5 @@
 export type FieldSurface = 'dashboard' | 'builder';
 
 export function resolveFieldSurface(pathname: string): FieldSurface {
-  return pathname === '/' || pathname === '/dashboard' ? 'dashboard' : 'builder';
+  return pathname === '/' || pathname === '/dashboard' || pathname === '/dashboard/' ? 'dashboard' : 'builder';
 }

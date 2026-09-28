@@ -192,3 +192,22 @@ export async function captureElement(
       return null;
     }
 }
+
+/** A single viewport raster for the inspector eyedropper fallback. Keeping
+ * capture inside the sandbox includes the real iframe canvas and its current
+ * camera transform, which the parent document cannot read cross-origin. */
+export async function captureCanvasViewport(): Promise<string | null> {
+    if (!contentRoot) return null;
+    try {
+      const { toPng } = await import('html-to-image');
+      return await toPng(document.body, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        pixelRatio: 1,
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+      });
+    } catch (error) {
+      trace.error('canvas-sandbox:captureCanvasViewport-failed', error);
+      return null;
+    }
+}

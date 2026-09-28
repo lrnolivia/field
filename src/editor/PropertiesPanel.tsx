@@ -270,7 +270,12 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   const linkIsContainer = isLink && Array.isArray(displayNode.children) && displayNode.children.length > 0;
   const isLinkType = isLink && !linkIsContainer;
   const isText = !linkIsContainer && (isTextTag(rawType) || isLinkType);
-  const isFrame = isFrameTag(rawType) || linkIsContainer;
+  // Native field Groups use a div wrapper for source/runtime identity, but they
+  // are NOT Frames. Keep that semantic distinction explicit at the inspector
+  // boundary so generic container paint/layout controls cannot mutate a Group
+  // into an accidental Frame.
+  const isNativeGroup = node.isGroup === true;
+  const isFrame = !isNativeGroup && (isFrameTag(rawType) || linkIsContainer);
   const isSvg = node.type === 'svg' && !isFitSvgWrapper;
   // Sketch wrappers are SVGs marked with `data-sketch="true"` by the
   // SketchCreator. They share the SVG selection branch (Position +
@@ -406,7 +411,8 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
   // Figma's Design inspector leads with the selected object KIND, not a
   // two-line builder breadcrumb. Preserve the source/name as a tooltip while
   // the visible header stays compact and stable across selections.
-  const canShowContainerLayout = !isText
+  const canShowContainerLayout = !isNativeGroup
+    && !isText
     && !isContainerSetInstance
     && !isComponentInstance
     && !isCodeComponentInstance
@@ -429,13 +435,15 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           ? 'Audio'
           : isInputElement
             ? 'Input'
-            : isSvg
-              ? 'Vector'
-              : isText
-                ? 'Text'
-                : isFrame
-                  ? 'Frame'
-                  : rawType.replace(/^motion\./, '');
+            : isNativeGroup
+              ? 'Group'
+              : isSvg
+                ? 'Vector'
+                : isText
+                  ? 'Text'
+                  : isFrame
+                    ? 'Frame'
+                    : rawType.replace(/^motion\./, '');
 
   return (
     <div
@@ -475,6 +483,15 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
 
       {/* ─── Scrollable content ─── */}
       <div className="flex-1 overflow-y-auto scrollbar-hide">
+        {/* Figma UI3 prioritizes instance-specific controls before generic
+            geometry. Keep the component engine unchanged; only move its
+            inspector surface to the top of the Design stack. */}
+        {inspectorMode === 'design' && isComponentInstance && (
+          <div data-inspector-instance-priority>
+            <ComponentPropsTool />
+          </div>
+        )}
+
         {/* Small breathing room above the first section so the header divider
             doesn't kiss the topmost tool's title. Using `mb-1.5` on a spacer
             (rather than `pt-2` on the scroll container) keeps the spacing
@@ -540,7 +557,16 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             else (no Interactions / Navigation / Animation / Styles). It's a
             pure vector container; everything else would target a wrapper or a
             property it doesn't have. */}
-        {isVectorVariantCard ? (
+        {isNativeGroup ? (
+          /* Native Group: geometry-only semantic collection. Its DOM wrapper is
+             an implementation detail, not a Frame surface. Keep the inspector
+             deliberately small: placement + derived dimensions + Export. */
+          <LocalizeGate hidden>
+            {positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
+            <ToolDivider />
+            <ExportTool />
+          </LocalizeGate>
+        ) : isVectorVariantCard ? (
           /* Vector cards are shape containers — same no-localize rule as the
              SVG branch below. */
           <LocalizeGate hidden>
@@ -688,6 +714,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             nodeId={node.id}
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
+            showPaddingWithoutLayout={isFrame}
             templateRoot={isTemplateRootEdit}
             sizeContent={composeSizeIntoAutoLayout ? (
               <SizeTool
@@ -736,8 +763,9 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             success/error/disabled) to this instance's variants. Self-gates
             to a multi-variant component instance inside a <form>. */}
         {isComponentInstance && isInsideForm && <FormStateTool />}
-        {/* Component Props */}
-        <ComponentPropsTool />
+        {/* Component Props: instances are prioritized directly below the object
+            header; non-instance component surfaces retain the legacy location. */}
+        {!isComponentInstance && <ComponentPropsTool />}
 
         {/* Icon Set (only for icon-set instances — IconSetTool returns
             null when the selected node isn't pointing at an icons/*.tsx file). */}

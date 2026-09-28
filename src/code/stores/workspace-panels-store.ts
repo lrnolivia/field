@@ -1,11 +1,72 @@
-// Persist workspace visibility independently of the selected panel/tool.
+// Persist workspace visibility and pane widths independently of the selected panel/tool.
 // field workspace chrome: visibility derives docked / floating / hidden presentation.
 import { atomWithStorage } from 'jotai/utils';
+import { atom } from 'jotai';
+import { selectedIdsAtom } from './store';
 
-export const leftPaneOpenAtom = atomWithStorage('revyme:prefs:leftPaneOpen', true, undefined, { getOnInit: true });
-export const rightPaneOpenAtom = atomWithStorage('revyme:prefs:rightPaneOpen', true, undefined, { getOnInit: true });
+// The mode is the only persisted presentation state. Deriving the legacy pane
+// flags prevents impossible combinations during restore or rapid transitions.
+export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked';
+export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
+/** Temporary Inspector reveal in Compact; never changes the workspace mode. */
+export const compactInspectorOpenAtom = atom(false);
+/** Hover expands the floating Inspector; selection keeps it expanded. */
+export const floatingInspectorExpandedAtom = atom(false);
+/** Temporary full-size pane reveals in Compact Docked. */
+export const compactDockedLeftOpenAtom = atom(false);
+export const compactDockedInspectorOpenAtom = atom(false);
+export const leftPaneOpenAtom = atom(
+  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedLeftOpenAtom)),
+  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+);
+export const rightPaneOpenAtom = atom(
+  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'floating' && (get(floatingInspectorExpandedAtom) || get(selectedIdsAtom).length > 0))
+    || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom))
+    || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedInspectorOpenAtom)),
+  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+);
+export const rightPaneDetachedAtom = atom(
+  (get) => get(workspaceModeAtom) === 'floating' || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom)),
+  (_get, set, detached: boolean) => set(workspaceModeAtom, detached ? 'floating' : 'docked'),
+);
+export const rightPaneDragOffsetAtom = atom({ x: 0, y: 0 });
+export const rightFloatingHeightAtom = atomWithStorage('field:prefs:rightFloatingHeight', 680, undefined, { getOnInit: true });
+export const floatingLeftHeightAtom = atomWithStorage('field:prefs:floatingLeftHeight', 680, undefined, { getOnInit: true });
+export const leftCollapsedWidthAtom = atomWithStorage('field:prefs:leftCollapsedWidth', 52, undefined, { getOnInit: true });
+export const rightCollapsedWidthAtom = atomWithStorage('field:prefs:rightCollapsedWidth', 60, undefined, { getOnInit: true });
 
 export const LEFT_RAIL_WIDTH = 52;
-export const LEFT_CONTENT_WIDTH = 256;
-export const LEFT_WORKSPACE_WIDTH = LEFT_RAIL_WIDTH + LEFT_CONTENT_WIDTH;
-export const RIGHT_PANE_WIDTH = 260;
+export const DEFAULT_LEFT_CONTENT_WIDTH = 256;
+export const DEFAULT_RIGHT_PANE_WIDTH = 328;
+export const MIN_LEFT_CONTENT_WIDTH = 220;
+export const MAX_LEFT_CONTENT_WIDTH = 420;
+export const MIN_RIGHT_PANE_WIDTH = 300;
+export const MAX_RIGHT_PANE_WIDTH = 480;
+
+export function clampLeftContentWidth(width: number): number {
+  return Math.min(MAX_LEFT_CONTENT_WIDTH, Math.max(MIN_LEFT_CONTENT_WIDTH, Math.round(width)));
+}
+
+export function clampRightPaneWidth(width: number): number {
+  return Math.min(MAX_RIGHT_PANE_WIDTH, Math.max(MIN_RIGHT_PANE_WIDTH, Math.round(width)));
+}
+
+export const leftContentWidthAtom = atomWithStorage(
+  'field:prefs:leftContentWidth',
+  DEFAULT_LEFT_CONTENT_WIDTH,
+  undefined,
+  { getOnInit: true },
+);
+
+export const rightPaneWidthAtom = atomWithStorage(
+  'field:prefs:rightPaneWidth:v2',
+  DEFAULT_RIGHT_PANE_WIDTH,
+  undefined,
+  { getOnInit: true },
+);
+
+// Compatibility constants for code that needs the default geometry rather than
+// the live user preference. Rendering/camera code should use the width atoms.
+export const LEFT_CONTENT_WIDTH = DEFAULT_LEFT_CONTENT_WIDTH;
+export const LEFT_WORKSPACE_WIDTH = LEFT_RAIL_WIDTH + DEFAULT_LEFT_CONTENT_WIDTH;
+export const RIGHT_PANE_WIDTH = DEFAULT_RIGHT_PANE_WIDTH;

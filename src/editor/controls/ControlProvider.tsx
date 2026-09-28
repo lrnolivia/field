@@ -38,7 +38,7 @@ import { useNode, useLiveNode, useNodesComputed } from '@/code/stores/node-famil
 import { isReplicaViewportAtom, interactingViewportWidthAtom, interactingViewportIdAtom, isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
 import { resolveParentVariantStyle } from './parent-variant-style';
 import { containerOverridesAtom, getOverrideBreakpoints, hasOverrideAtWidth, getOverridesAtWidth, clearShorthandSupersededLonghands, overrideAliasKeys } from '@/code/stores/container-query-store';
-import { isDefaultLocaleAtom, localeOverridesAtom } from '@/code/stores/locale-store';
+import { activeLocaleAtom, isDefaultLocaleAtom, localeOverridesAtom } from '@/code/stores/locale-store';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { removeComponentPropProjectWide } from '@/code/features/remove-component-prop';
 import { updateNodeStyles, getContentRoot, getViewportPrefix, forceCanvasRender, parseRectCacheKey, vpIdFromPrefix } from '@/canvas/node-ops';
@@ -67,7 +67,7 @@ import { collectionSchemasAtom, collectionDataAtom } from '@/code/stores/cms-sto
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { trace } from '@/shared/debug-trace';
 import { expediteStableAtomSync } from '@/canvas/hooks/useStableAtomSync';
-import { resolveInspectorProperty, type InspectorPropertyResolution } from '@/editor/inspector/provenance/resolve-property';
+import { resolvePropertyResolution, type InspectorPropertyResolution } from '@/editor/inspector/provenance';
 
 // One shared reference for "this selection has no styles" — see `baseStyles`.
 const EMPTY_STYLES: Record<string, string> = {};
@@ -109,8 +109,8 @@ export interface ControlContextValue {
 
   /** Detect the source of a style value: 'inline', 'prop' (variable), or 'token' */
   getValueSource: (property: string) => { source: ValueSource; ref: string | null };
-  /** Read provenance and the existing write destination for an Inspector property. */
-  resolveProperty: (property: string) => InspectorPropertyResolution;
+  /** Canonical Inspector read provenance + write target for this property. */
+  getPropertyResolution: (property: string) => InspectorPropertyResolution;
   /**
    * Extract an inline value into a component prop (create variable).
    * `clearLonghands` is for compound atoms (e.g. Border) that produce per-side
@@ -185,6 +185,7 @@ export function ControlProvider({ children }: { children: ReactNode }) {
   const isComponentVariantViewport = useAtomValue(isComponentVariantViewportAtom);
   const activeComponentVariant = useAtomValue(activeComponentVariantAtom);
 
+  const activeLocale = useAtomValue(activeLocaleAtom);
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
   const localeOverrides = useAtomValue(localeOverridesAtom);
 
@@ -1370,28 +1371,79 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     };
   }, [selectedId, node, cmsListAncestor, collectionSchemas, collectionData, cmsPageMeta, isComponentFile, isComponentVariantViewport, activeComponentVariant]);
 
-  const resolutionCache = useMemo(() => new Map<string, InspectorPropertyResolution>(),
-    [node, styles, overrides, isReplica, vpWidth, isComponentFile, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, cmsBindingCtx, getValueSource]);
-  const resolveProperty = useCallback((property: string) => {
-    const cached = resolutionCache.get(property);
-    if (cached) return cached;
-    const resolved = resolveInspectorProperty({
+  const getPropertyResolution = useCallback((property: string): InspectorPropertyResolution => {
+    const source = getValueSource(property);
+    const effectiveValue = styles[property] ?? '';
+    const variant = activeComponentVariant ?? 'default';
+    const onScopedVariant = !!(isComponentVariantViewport && activeComponentVariant && activeComponentVariant !== 'default');
+    const conditional = !!(onScopedVariant && node?.conditionalStyles
+      && overrideAliasKeys(property).some((key) => {
+        const branches = (node.conditionalStyles as Record<string, Record<string, string>>)[key];
+        return !!branches && variant in branches;
+      }));
+    const variantHasOwnValue = onScopedVariant && hasOverride(property);
+
+    const localeOverride = selectedId ? localeOverrides.get(selectedId) : undefined;
+    const localeHasOwnValue = !isDefaultLocale
+      && !!localeOverride?.styles
+      && Object.prototype.hasOwnProperty.call(localeOverride.styles, property);
+
+    const instanceActive = !!selectedId && !isComponentFile
+      && (selectedId.includes(':') || isComponentInstanceInCache(selectedId));
+    const instanceId = instanceActive && selectedId
+      ? (selectedId.includes(':') ? selectedId.split(':')[0] : selectedId)
+      : null;
+    // Expanded internals expose the master's authored styles in the node cache;
+    // those are READ truth, not local page ownership. Direct instance wrappers,
+    // by contrast, carry their own page-level style overrides.
+    const instanceHasOwnValue = !!(instanceActive && selectedId && !selectedId.includes(':')
+      && node?.styles && Object.prototype.hasOwnProperty.call(node.styles, property));
+
+    const cmsRef = cmsBindingCtx?.getBindingForProperty(property) ?? null;
+    const hasAuthoredBase = !!(node?.styles && Object.prototype.hasOwnProperty.call(node.styles, property));
+
+    return resolvePropertyResolution({
       property,
-      node,
-      effectiveValue: styles[property],
-      overrides,
-      isReplica,
-      viewportWidth: vpWidth,
-      isComponentFile,
-      variant: isComponentFile ? activeComponentVariant ?? 'default' : null,
-      locale: isDefaultLocale ? null : 'active',
-      localeValue: isDefaultLocale || !selectedId ? undefined : localeOverrides.get(selectedId)?.styles?.[property],
-      cmsField: cmsBindingCtx?.getBindingForProperty(property),
-      valueSource: getValueSource(property),
+      effectiveValue,
+      nodeId: selectedId,
+      hasAuthoredBase,
+      baseValue: node?.styles?.[property],
+      responsive: {
+        active: isReplica,
+        hasOwnValue: isReplica ? hasOverride(property) : false,
+        maxWidth: vpWidth || null,
+      },
+      componentVariant: {
+        active: onScopedVariant,
+        variant,
+        hasOwnValue: variantHasOwnValue,
+        conditional,
+      },
+      ...(instanceActive && instanceId ? {
+        componentInstance: {
+          active: true,
+          instanceId,
+          hasOwnValue: instanceHasOwnValue,
+        },
+      } : {}),
+      variableRef: source.source === 'prop' ? source.ref : null,
+      presetRef: source.source === 'token' ? source.ref : null,
+      ...(cmsRef ? {
+        cms: {
+          active: true,
+          ref: cmsRef,
+          variantOverride: !!cmsBindingCtx?.hasVariantOverride(property),
+          variant: onScopedVariant ? variant : null,
+        },
+      } : {}),
+      locale: {
+        active: localeHasOwnValue,
+        locale: isDefaultLocale ? null : activeLocale,
+      },
     });
-    resolutionCache.set(property, resolved);
-    return resolved;
-  }, [resolutionCache, node, styles, overrides, isReplica, vpWidth, isComponentFile, activeComponentVariant, isDefaultLocale, selectedId, localeOverrides, cmsBindingCtx, getValueSource]);
+  }, [getValueSource, styles, activeComponentVariant, isComponentVariantViewport, node, hasOverride,
+      selectedId, localeOverrides, isDefaultLocale, activeLocale, isComponentFile, cmsBindingCtx,
+      isReplica, vpWidth]);
 
   const value: ControlContextValue = {
     nodeId: selectedId,
@@ -1408,7 +1460,7 @@ export function ControlProvider({ children }: { children: ReactNode }) {
     hasOverride,
     getOverrides,
     getValueSource,
-    resolveProperty,
+    getPropertyResolution,
     createVariable,
     removeVariable,
     cmsBinding: cmsBindingCtx,
@@ -1445,7 +1497,7 @@ const FALLBACK_CONTEXT: ControlContextValue = {
   hasOverride: () => false,
   getOverrides: () => [],
   getValueSource: () => ({ source: 'inline' as ValueSource, ref: null }),
-  resolveProperty: (property) => resolveInspectorProperty({ property, node: null, effectiveValue: undefined }),
+  getPropertyResolution: (property) => resolvePropertyResolution({ property, effectiveValue: '', editable: false, computedValue: '', computedReason: 'No active Inspector control context.' }),
   createVariable: () => {},
   removeVariable: () => {},
   cmsBinding: null,

@@ -1,5 +1,7 @@
 // FIELD_INSPECTOR_COMMAND_MENU_006
 import { useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAtomValue } from 'jotai';
 import { useControl } from '../../controls/ControlProvider';
 import PresetPicker from '../../ui/PresetPicker';
@@ -78,25 +80,30 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
   return (
     <div className="flex items-center gap-0.5">
       {canHide && (
-        <button
+        <motion.button
           type="button"
           data-appearance-visibility
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           onClick={toggleVisibility}
           className={`h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${hidden ? 'text-[var(--text-disabled)]' : 'text-[var(--text-primary)]'}`}
           title={hidden ? 'Show' : 'Hide'}
           aria-pressed={hidden}
         >
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <path d="M1.5 8s2.2-4 6.5-4 6.5 4 6.5 4-2.2 4-6.5 4S1.5 8 1.5 8Z" />
-            <circle cx="8" cy="8" r="1.75" />
-          </svg>
-        </button>
+          <FieldGlyph behavior="eye">
+            <FieldMorphGlyph active={hidden} from={glyphIcons.eye} to={glyphIcons.eyeOff} size={15} strokeWidth={1.3} />
+          </FieldGlyph>
+        </motion.button>
       )}
 
       <div className="relative">
-        <button
+        <motion.button
           ref={blendRef}
           type="button"
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
           data-appearance-blend-mode
           onClick={() => setBlendOpen(v => !v)}
           className={`h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] hover:bg-[var(--bg-hover)] ${blend !== 'normal' || blendOpen ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}
@@ -104,10 +111,10 @@ export function AppearanceHeaderActions({ canHide = true }: { canHide?: boolean 
           aria-haspopup="menu"
           aria-expanded={blendOpen}
         >
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+          <FieldGlyph behavior="generic"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
             <path d="M8 1.5C6.4 4 3.8 6.4 3.8 9.5A4.2 4.2 0 0 0 8 13.7a4.2 4.2 0 0 0 4.2-4.2C12.2 6.4 9.6 4 8 1.5Z" />
-          </svg>
-        </button>
+          </svg></FieldGlyph>
+        </motion.button>
         <DropdownMenu
           isOpen={blendOpen}
           onClose={() => setBlendOpen(false)}
@@ -157,16 +164,19 @@ export function StyleSectionActions({
     <div className="flex items-center gap-0.5">
       {showStyle && (
         <>
-          <button
+          <motion.button
             ref={styleRef}
             type="button"
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
             data-inspector-style-action={property}
             onClick={() => setStyleOpen(true)}
             className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             title="Style"
           >
-            <DotsIcon />
-          </button>
+            <FieldGlyph behavior="ellipsis"><DotsIcon /></FieldGlyph>
+          </motion.button>
           <PresetPicker
             property={property}
             tokens={tokens}
@@ -180,9 +190,12 @@ export function StyleSectionActions({
 
       {(onAdd || addOptions?.length) && (
         <div className="relative">
-          <button
+          <motion.button
             ref={addRef}
             type="button"
+            initial="rest"
+            whileHover={!addDisabled ? 'hover' : undefined}
+            whileTap={!addDisabled ? 'tap' : undefined}
             data-inspector-add-action={property}
             disabled={addDisabled}
             onClick={() => {
@@ -194,10 +207,10 @@ export function StyleSectionActions({
             aria-haspopup={addOptions?.length ? 'menu' : undefined}
             aria-expanded={addOptions?.length ? addOpen : undefined}
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <path d="M8 2v12M2 8h12" />
-            </svg>
-          </button>
+            <FieldGlyph behavior="plus">
+              <FieldMorphGlyph active={Boolean(addOptions?.length && addOpen)} from={glyphIcons.plus} to={glyphIcons.close} size={14} strokeWidth={1.3} turn={90} />
+            </FieldGlyph>
+          </motion.button>
           {addOptions?.length ? (
             <DropdownMenu
               isOpen={addOpen}

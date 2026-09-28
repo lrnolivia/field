@@ -5,7 +5,12 @@ import './styles/globals.css';
 import './styles/loew-theme.css'; // Minimal UI theme — must stay AFTER globals.css (see LOEW_THEME.md)
 import './styles/dashboard.css';
 import './styles/field-shell.css';
+import './styles/field-glyph-global.css';
 import { subscribeBuilderTheme } from './editor/builder-theme';
+
+// Mark the main field app document as the universal field.GLYPH motion surface.
+// Canvas and Preview use separate entrypoints/documents and never receive this marker.
+document.documentElement.dataset.fieldGlyphMotion = 'true';
 
 // Restore the saved builder accent BEFORE the first paint (so a non-default
 // theme doesn't flash the stock brass on reload) and keep it in sync with both
@@ -21,5 +26,4 @@ subscribeBuilderTheme();
 createRoot(document.getElementById('root')!).render(
   <Provider store={getDefaultStore()}>
     <FieldShell />
-  </Provider>
-);
+  </Provider>);

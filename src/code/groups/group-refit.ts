@@ -1170,7 +1170,7 @@ export function planNativeGroupDeletionCleanup(
 export function planNativeGroupLayersReparent(
   args: {
     draggedId: string;
-    newParentId: string;
+    newParentId: string | null;
     nodes: Map<string, CanvasNode>;
     draggedWorld: NativeGroupWorldBox;
     newParentWorld: NativeGroupWorldBox;
@@ -1185,18 +1185,18 @@ export function planNativeGroupLayersReparent(
     draggedWorldCorners, newParentWorldCorners, newParentLocalSize, preserveDraggedGeometry,
   } = args;
   const dragged = nodes.get(draggedId);
-  const destination = nodes.get(newParentId);
-  if (!dragged || !destination || !dragged.parentId || dragged.parentId === newParentId) return null;
+  const destination = newParentId ? nodes.get(newParentId) : null;
+  if (!dragged || (newParentId && !destination) || dragged.parentId === newParentId) return null;
 
-  const source = nodes.get(dragged.parentId);
+  const source = dragged.parentId ? nodes.get(dragged.parentId) : null;
   const sourceIsGroup = !!source?.isGroup;
-  const destinationIsGroup = !!destination.isGroup;
+  const destinationIsGroup = !!destination?.isGroup;
   if (!sourceIsGroup && !destinationIsGroup) return null;
 
   // Both free-positioned Groups and Groups seated as ONE Auto Layout item
   // share the same absolute child-space. The destination's live world rect is
   // supplied by Layers, so reparenting can preserve world geometry either way.
-  if (destinationIsGroup && !isSupportedNativeGroupContainer(destination)) return null;
+  if (destinationIsGroup && destination && !isSupportedNativeGroupContainer(destination)) return null;
   if (sourceIsGroup && source && !isSupportedNativeGroupContainer(source)) return null;
 
   const working = new Map(nodes);
@@ -1205,13 +1205,19 @@ export function planNativeGroupLayersReparent(
   const removeGroupIds: string[] = [];
   const oldParentId = dragged.parentId;
 
-  const oldParent = working.get(oldParentId);
-  if (oldParent) working.set(oldParentId, { ...oldParent, children: oldParent.children.filter((id) => id !== draggedId) });
-  const newParent = working.get(newParentId)!;
-  working.set(newParentId, { ...newParent, children: [...newParent.children.filter((id) => id !== draggedId), draggedId] });
+  const oldParent = oldParentId ? working.get(oldParentId) : null;
+  if (oldParentId && oldParent) {
+    working.set(oldParentId, { ...oldParent, children: oldParent.children.filter((id) => id !== draggedId) });
+  }
+  if (newParentId) {
+    const newParent = working.get(newParentId);
+    if (!newParent) return null;
+    working.set(newParentId, { ...newParent, children: [...newParent.children.filter((id) => id !== draggedId), draggedId] });
+  }
 
   const moveStyles: Record<string, string> = {};
   if (preserveDraggedGeometry) {
+    if (!destination || !newParentId) return null;
     const sourceOrDraggedTransformed = (!!source && sourceIsGroup && hasEffectiveTransform(source))
       || hasEffectiveTransform(dragged);
     const destinationTransformed = hasEffectiveTransform(destination);
@@ -1253,6 +1259,7 @@ export function planNativeGroupLayersReparent(
   working.set(draggedId, {
     ...dragged,
     parentId: newParentId,
+    isCanvasNode: newParentId ? false : true,
     styles: { ...dragged.styles, ...moveStyles },
   });
 
@@ -1269,7 +1276,7 @@ export function planNativeGroupLayersReparent(
     }
   }
 
-  if (destinationIsGroup && working.has(newParentId)) {
+  if (destinationIsGroup && newParentId && working.has(newParentId)) {
     if (!planNativeGroupRefit(newParentId, working)) return null;
     refitGroupChainFrom(newParentId, working, patches, groupIds);
   }

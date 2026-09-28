@@ -1,5 +1,7 @@
 // FIGUI3_CORRECTIVE_ICON_GROUP_20260925
 import type { ReactNode } from 'react';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 
 export interface InspectorIconButton {
   id: string;
@@ -38,8 +40,11 @@ export default function InspectorIconButtonGroup({
       className={`flex overflow-hidden rounded-[var(--control-radius)] bg-[var(--control-bg)] ${className}`}
     >
       {buttons.map((button) => (
-        <button
+        <motion.button
           key={button.id}
+          initial="rest"
+          whileHover={!button.disabled ? 'hover' : undefined}
+          whileTap={!button.disabled ? 'tap' : undefined}
           type="button"
           title={button.title}
           aria-label={button.title}
@@ -52,8 +57,8 @@ export default function InspectorIconButtonGroup({
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}
             ${button.disabled ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          {button.icon}
-        </button>
+          <FieldGlyph behavior="generic">{button.icon}</FieldGlyph>
+        </motion.button>
       ))}
     </div>
   );

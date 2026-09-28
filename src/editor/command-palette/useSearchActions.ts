@@ -62,8 +62,7 @@ import {
 import { createAndOpenProject, menuNewPage } from '@/editor/header/menu-builders';
 import { exportProject } from '@/editor/header/export-project';
 import { previewModeAtom, shortcutsModalOpenAtom } from '@/code/stores/editor-store';
-import { settingsOverlayOpenAtom } from '@/code/stores/website-settings-store';
-import { startOnboarding } from '@/editor/onboarding';
+import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { shareAsTemplate } from '@/backend/revyme-backend';
 import { projectFS } from '@/code/project/project-fs';
@@ -242,6 +241,10 @@ function executeCommand(commandId: string): void {
     case 'site-settings':
       store.set(settingsOverlayOpenAtom, true);
       break;
+    case 'localization-settings':
+      store.set(settingsSectionAtom, 'localization');
+      store.set(settingsOverlayOpenAtom, true);
+      break;
     case 'export-code':
       // Same module the header's Export button drives. Fire-and-forget:
       // the palette closes immediately below, and `exportProject` reports
@@ -255,9 +258,6 @@ function executeCommand(commandId: string): void {
       break;
     case 'open-shortcuts':
       store.set(shortcutsModalOpenAtom, true);
-      break;
-    case 'launch-tutorial':
-      startOnboarding();
       break;
     case 'open-docs': {
       // Docs are served by the marketing site: the Next dispatcher on

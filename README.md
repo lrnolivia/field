@@ -1,170 +1,65 @@
+![field — a visual web design environment by loew.fi](docs/readme/field-github-preview.png)
+
 # field
 
-**A visual web design environment by loew.fi.**
+**A visual web design environment by [loew.fi](https://loew.fi).**
 
-> the design is the real website
+*The design is the real website.*
 
-field is a source-first visual environment for designing, building, maintaining, and previewing real websites.
+field is a place to shape a website visually while keeping its source and running result in view. Design a page on the canvas, maintain its content, work directly with code, and check the result in Preview. The aim is for those views of a project to describe the same website.
 
-It is evolving from a customized Revyme foundation into a professional visual web design environment where the visual document and the real website remain aligned.
+The editor is in active development. This repository contains the application, its isolated canvas and preview runtimes, and the work of bringing familiar design-tool interactions to a live web project.
 
-## Product modes
+## Four ways into the same project
 
-field is organized around four primary modes:
+| Surface | What it is for |
+| --- | --- |
+| **Design** | Compose pages visually: layout, typography, styling, components, assets, and interactions. |
+| **Content** | Maintain copy, structured content, metadata, and localization. |
+| **Code** | Inspect and edit the project source directly. Source is part of the project, not a one-time export. |
+| **Preview** | See the website running. When the editor and runtime disagree, Preview is the reference for what the site actually does. |
 
-- **Design**
-- **Content**
-- **Code**
-- **Preview**
+field is built from a customized Revyme foundation. Some `Revyme` names remain in dependencies, protocols, and storage because they are compatibility boundaries; they do not change the product name.
 
-### Design
+## Run it locally
 
-The primary visual design environment.
+You need **Node.js 22 or newer** and npm.
 
-Design owns layout, styling, typography, responsive behavior, components, instances, variants, assets, interactions, and other deterministic document structure.
+```bash
+npm ci
+npm run dev
+```
 
-### Content
+Open the editor at **[localhost:3333](http://localhost:3333)**. The development command also starts the Canvas runtime on port **5174** and Preview on port **5175**; keep all three running together. By default, the standalone editor stores local projects in your browser. Cloud services require separate configuration; see [`.env.example`](.env.example).
 
-The site-maintenance surface.
+## Working in the repository
 
-Content is responsible for CMS data, site copy, metadata, localization, structured content, and routine updates that should not require redesigning the site.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the editor, Canvas, and Preview development servers. |
+| `npm run test:run` | Run the unit tests once. |
+| `npm run lint` | Check the application source with ESLint. |
+| `npm run build:all` | Build all three production surfaces. |
+| `npm run e2e` | Run the Playwright end-to-end suite. |
 
-### Code
+The three surfaces run separately by design:
 
-Source remains first-class.
+| Surface | Local port | Source |
+| --- | ---: | --- |
+| Editor | 3333 | [`src/editor/`](src/editor/) |
+| Canvas | 5174 | [`src/canvas/`](src/canvas/), [`src/canvas-sandbox/`](src/canvas-sandbox/) |
+| Preview | 5175 | [`src/preview-sandbox/`](src/preview-sandbox/) |
 
-field does not treat source as an export artifact. The underlying project remains inspectable, editable, portable, and part of the canonical website.
+Project and document logic lives primarily in [`src/code/`](src/code/); backend integration is in [`src/backend/`](src/backend/). See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and validation expectations.
 
-### Preview
+## The principle
 
-Preview is runtime truth.
+> The design is the real website.
 
-It represents the website running as closely as possible to its real production behavior and is the final reference when visual editing, source, or runtime behavior disagree.
+A visual editor is most useful when its document, source, and runtime stay in agreement. field treats divergence between them as a product bug to trace and fix, rather than a difference to conceal. The project should remain inspectable and portable, and Preview should show what the website really does.
 
-## Core principles
+## License & attribution
 
-- the website is the real artifact
-- source remains first-class
-- Preview is runtime truth
-- Design, source, Preview, and production should remain aligned
-- parity bugs should be traced to their first point of divergence
-- deterministic concepts should be modeled explicitly
-- AI should help with ambiguity, translation, cleanup, inference, and higher-level reasoning rather than substitute for a proper document model
+field is licensed under [AGPL-3.0-only](LICENSE). It is a modified derivative of Revyme; [NOTICE](NOTICE) records the required upstream attribution and additional terms. Keep both files with redistributed copies.
 
-## Architecture
-
-field currently runs as three coordinated web surfaces.
-
-### Local development
-
-- editor — port 3333
-- Canvas runtime — port 5174
-- Preview runtime — port 5175
-
-### Production
-
-- field editor — https://field.loew.fi
-- Canvas runtime — https://canvas.field.loew.fi
-- Preview runtime — https://preview.field.loew.fi
-
-Canvas and Preview intentionally run on separate origins from the editor.
-
-The Canvas environment uses the isolation required for live visual editing.
-
-Preview uses a less restrictive runtime environment so third-party embeds, cookies, and production-like website behavior can function correctly.
-
-## Development
-
-Install dependencies:
-
-    npm ci
-
-Run the complete local environment:
-
-    npm run dev
-
-Build all production surfaces:
-
-    npm run build:all
-
-Run unit tests:
-
-    npm run test:run
-
-Run linting:
-
-    npm run lint
-
-## Repository
-
-Canonical repository:
-
-    https://github.com/lrnolivia/field
-
-Local development path:
-
-    /Users/lrnolivia/Repos/field
-
-## Upstream foundation
-
-field originated as a customized fork of Revyme.
-
-Some Revyme-prefixed identifiers remain intentionally intact where they represent upstream dependencies or compatibility contracts.
-
-Examples include:
-
-- @revyme/runtime
-- @revyme/plugin-sdk
-- VITE_REVYME_CLOUD
-- existing _revyme compatibility structures
-- existing Revyme-prefixed storage keys
-- existing Revyme-prefixed protocol or event identifiers
-
-These names describe implementation ancestry and compatibility boundaries.
-
-They are not field's product identity and should not be mechanically renamed.
-
-## Figma
-
-Figma integration is a strategic part of field.
-
-Where possible, field should preserve semantic concepts such as:
-
-- frames
-- Auto Layout
-- components
-- instances
-- variants
-- variables
-- typography
-- assets
-- prototype relationships
-- source identity
-
-The goal is not merely visual import. The goal is to preserve design meaning wherever the field document model can represent it.
-
-## Branding
-
-Product name:
-
-    field
-
-Parent brand:
-
-    loew.fi
-
-Editorial form:
-
-    field by loew.fi
-
-field currently uses a temporary working logo and app-icon system.
-
-Light, dark, transparent, and opaque variants are kept as separate assets so the editor and browser chrome can choose the appropriate treatment for their surface.
-
-## License and attribution
-
-field is a modified derivative of Revyme.
-
-The existing LICENSE and NOTICE files remain authoritative.
-
-Required upstream copyright, authorship, attribution, and licensing notices must remain intact.
+**field by [loew.fi](https://loew.fi)**

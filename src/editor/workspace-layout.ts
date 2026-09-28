@@ -1,4 +1,10 @@
-import { LEFT_WORKSPACE_WIDTH, RIGHT_PANE_WIDTH } from '@/code/stores/workspace-panels-store';
+import {
+  DEFAULT_LEFT_CONTENT_WIDTH,
+  DEFAULT_RIGHT_PANE_WIDTH,
+  LEFT_RAIL_WIDTH,
+  clampLeftContentWidth,
+  clampRightPaneWidth,
+} from '@/code/stores/workspace-panels-store';
 
 export type WorkspacePresentation = 'hidden' | 'docked' | 'floating';
 
@@ -23,52 +29,56 @@ export interface WorkspaceLayout {
   cameraInsets: WorkspaceCameraInsets;
 }
 
-export const WORKSPACE_FLOAT_INSET = 8;
+export const WORKSPACE_FLOAT_INSET = 12;
+/** Clear gap below the stationary document pill for detached left chrome. */
+export const WORKSPACE_FLOAT_LEFT_TOP = 68;
 export const WORKSPACE_HEADER_HEIGHT = 52;
 export const WORKSPACE_FLOAT_RADIUS = 8;
 export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
-function side(
-  open: boolean,
-  oppositeOpen: boolean,
-  width: number,
-): WorkspaceSideLayout {
+
+export interface WorkspacePaneWidths {
+  leftContentWidth?: number;
+  rightPaneWidth?: number;
+  rightDetached?: boolean;
+  leftCollapsedWidth?: number;
+  rightCollapsedWidth?: number;
+}
+function side(open: boolean, width: number): WorkspaceSideLayout {
   if (!open) {
     return { presentation: 'hidden', inset: 0, top: 0, bottom: 0, width };
   }
-  if (oppositeOpen) {
-    return { presentation: 'docked', inset: 0, top: 0, bottom: 0, width };
-  }
-  return {
-    presentation: 'floating',
-    inset: WORKSPACE_FLOAT_INSET,
-    top: WORKSPACE_FLOAT_INSET,
-    bottom: WORKSPACE_FLOAT_INSET,
-    width,
-  };
+  return { presentation: 'docked', inset: 0, top: 0, bottom: 0, width };
 }
 
 /**
  * Deterministic workspace presentation contract:
- * - two panes => docked workspace
- * - one pane  => floating workspace
- * - zero panes => canvas workspace
+ * Pane presentation is explicit: closing the opposite side does not
+ * silently turn a docked pane into a floating pane.
  *
  * Floating chrome does not shrink the physical canvas. `cameraInsets`
  * describes only the safe rectangle used by automatic fit/center commands.
  * Small local restore controls are intentionally not promoted to full-edge
  * insets: doing so would waste an entire canvas strip for a tiny overlay.
  */
-export function deriveWorkspaceLayout(leftOpen: boolean, rightOpen: boolean): WorkspaceLayout {
-  const left = side(leftOpen, rightOpen, LEFT_WORKSPACE_WIDTH);
-  const right = side(rightOpen, leftOpen, RIGHT_PANE_WIDTH);
+export function deriveWorkspaceLayout(
+  leftOpen: boolean,
+  rightOpen: boolean,
+  widths: WorkspacePaneWidths = {},
+): WorkspaceLayout {
+  const leftContentWidth = clampLeftContentWidth(widths.leftContentWidth ?? DEFAULT_LEFT_CONTENT_WIDTH);
+  const rightPaneWidth = clampRightPaneWidth(widths.rightPaneWidth ?? DEFAULT_RIGHT_PANE_WIDTH);
+  const left = side(leftOpen, LEFT_RAIL_WIDTH + leftContentWidth);
+  const right = rightOpen && widths.rightDetached
+    ? { presentation: 'floating' as const, inset: 12, top: 12, bottom: 12, width: rightPaneWidth }
+    : side(rightOpen, rightPaneWidth);
 
   return {
     left,
     right,
     cameraInsets: {
-      left: leftOpen ? left.width + left.inset : 0,
+      left: leftOpen ? left.width + left.inset : widths.leftCollapsedWidth ?? 0,
       top: 0,
-      right: rightOpen ? right.width + right.inset : 0,
+      right: rightOpen && !widths.rightDetached ? right.width + right.inset : !rightOpen ? widths.rightCollapsedWidth ?? 0 : 0,
       // Local overlays (bottom toolbar / restore controls) do not consume an
       // entire viewport edge. Full-height side chrome is the only scalar-safe
       // geometry represented by CameraCommands today.

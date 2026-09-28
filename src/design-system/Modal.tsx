@@ -5,9 +5,10 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FIELD_SURFACE_Z } from '@/shared/field-surface-elevation';
+import ModalCloseButton from './ModalCloseButton';
 
 interface ModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, width = 384, headerAction, hideClose, dismissible = true }: ModalProps) {
+  const reducedMotion = Boolean(useReducedMotion());
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -79,23 +81,22 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
               blurs whatever is painted behind it). Inline `backdropFilter` so it can't be missed by a
               Tailwind purge. Clicking it closes the modal. */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/50"
-            style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+            initial={reducedMotion ? false : { opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, backdropFilter: 'blur(0px)' }}
+            transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+            className="absolute inset-0 bg-black/25"
             onClick={dismissible ? onClose : undefined}
           />
 
           {/* Panel */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.97, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 3 }}
+            transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] }}
             className="relative cut-corners cut-lg shadow-2xl overflow-hidden bg-[var(--bg-surface)] flex flex-col max-h-[80vh]"
-            style={{ width }}
+            style={{ width: `min(${width}px, calc(100vw - 32px))` }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -104,14 +105,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
               <div className="flex items-center gap-1">
                 {headerAction}
                 {!hideClose && dismissible && (
-                  <button
-                    onClick={onClose}
-                    className="p-1 hover:bg-[var(--bg-hover)] cut-corners transition-colors cursor-pointer"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                  <ModalCloseButton onClick={onClose} />
                 )}
               </div>
             </div>

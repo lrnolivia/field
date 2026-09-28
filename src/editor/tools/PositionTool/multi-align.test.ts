@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMultiAlign, type AlignRect } from './multi-align';
+import { calculateDistributeSpacing, calculateMultiAlign, type AlignRect } from './multi-align';
 
 // Two boxes: A at x=100 (w=40), B at x=200 (w=80). Same y for clarity.
 const A: AlignRect = { id: 'a', left: 100, top: 50, width: 40, height: 20 };
@@ -67,5 +67,22 @@ describe('calculateMultiAlign', () => {
     const second = calculateMultiAlign('left', moved);
     expect(second.get('a')!.dx).toBe(0);
     expect(second.get('b')!.dx).toBe(0);
+  });
+});
+
+describe('calculateDistributeSpacing', () => {
+  it('keeps outer objects fixed and evens horizontal gaps', () => {
+    const values: AlignRect[] = [
+      { id: 'a', left: 0, top: 0, width: 20, height: 10 },
+      { id: 'b', left: 35, top: 0, width: 10, height: 10 },
+      { id: 'c', left: 100, top: 0, width: 20, height: 10 },
+    ];
+    const delta = calculateDistributeSpacing('horizontal', values);
+    expect(delta.get('a')?.dx).toBe(0);
+    expect(delta.get('b')?.dx).toBe(20);
+    expect(delta.get('c')?.dx).toBe(0);
+  });
+  it('requires at least three objects', () => {
+    expect(calculateDistributeSpacing('vertical', rects).size).toBe(0);
   });
 });
