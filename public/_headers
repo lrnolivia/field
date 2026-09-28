@@ -6,3 +6,20 @@
 
 /preview-sandbox/*
   Cross-Origin-Resource-Policy: cross-origin
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/work/*
+  Cache-Control: no-cache, no-store, must-revalidate
+/builder/*
+  Cache-Control: no-cache, no-store, must-revalidate
+/sandbox/
+  Cache-Control: no-cache, no-store, must-revalidate
+/sandbox/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/preview/
+  Cache-Control: no-cache, no-store, must-revalidate
+/preview/index.html
+  Cache-Control: no-cache, no-store, must-revalidate

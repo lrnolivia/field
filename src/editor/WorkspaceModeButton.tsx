@@ -31,20 +31,20 @@ export default function WorkspaceModeButton() {
     onBlurCapture={(event) => {
       if (!groupRef.current?.contains(event.relatedTarget as Node | null)) setExpanded(false);
     }}
-    className="flex h-7 shrink-0 items-center overflow-hidden rounded-[5px] transition-[width] duration-300 ease-out"
-    style={{ width: expanded ? 216 : 32 }}>
+    className="flex h-7 shrink-0 items-center overflow-hidden rounded-[5px] px-1 transition-[width] duration-300 ease-out"
+    style={{ width: expanded ? 258 : 36 }}>
     <button type="button" data-workspace-mode-trigger
       aria-label={`Layout: ${modes.find(item => item.id === mode)?.label}. Show layouts`}
       aria-expanded={expanded} title="Workspace layout"
       onClick={() => setExpanded(value => !value)}
-      className="flex h-7 w-8 shrink-0 items-center justify-center gap-0.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+      className="flex h-7 w-7 shrink-0 items-center justify-center gap-0.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
       <LayoutGlyph mode={mode} />
     </button>
-    <div className="flex shrink-0 items-center gap-0.5 pl-0.5" aria-hidden={!expanded}>
+    <div className="flex shrink-0 items-center gap-1 px-1" aria-hidden={!expanded}>
       {modes.map(item => <button key={item.id} type="button"
         tabIndex={expanded ? 0 : -1} aria-label={`${item.label} layout`} aria-pressed={mode === item.id}
         title={item.label} onClick={() => { setMode(item.id); setExpanded(false); }}
-        className={`flex h-7 items-center justify-center gap-1 rounded-[4px] px-1 text-[10px] transition-colors ${mode === item.id
+        className={`flex h-7 items-center justify-center gap-1 rounded-[4px] px-1.5 text-[10px] transition-colors ${mode === item.id
           ? 'bg-[var(--rail-active-bg)] text-[var(--rail-active-fg)]'
           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}>
         <LayoutGlyph mode={item.id} /><span>{item.id === 'compact-docked' ? 'Docked' : item.id === 'floating' ? 'Float' : 'Default'}</span>

@@ -10,29 +10,55 @@ export default function WorkspaceRestoreBar() {
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const mode = useAtomValue(workspaceModeAtom);
   const contentWidth = useAtomValue(leftContentWidthAtom);
+  const compactDocked = mode === 'compact-docked';
+  const left = compactDocked ? 60 + WORKSPACE_FLOAT_INSET : WORKSPACE_FLOAT_INSET;
   return (
     <div
       data-workspace-left-restore
       data-visible={!leftOpen ? 'true' : 'false'}
+      data-mode={mode}
       aria-hidden={leftOpen ? true : undefined}
       inert={leftOpen}
-      className="fixed z-[9999] flex h-11 items-center overflow-hidden"
+      className="fixed z-[9999] flex h-11 items-center overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)] transition-[left,width,min-width,max-width,opacity,transform] duration-300 ease-out"
       style={{
-        left: mode === 'compact-docked' ? 60 + WORKSPACE_FLOAT_INSET : WORKSPACE_FLOAT_INSET,
+        left,
         top: WORKSPACE_FLOAT_INSET,
-        width: LEFT_RAIL_WIDTH + contentWidth,
+        width: 'max-content',
+        minWidth: compactDocked ? contentWidth + 52 : LEFT_RAIL_WIDTH + contentWidth,
+        maxWidth: `calc(100vw - ${left + WORKSPACE_FLOAT_INSET}px)`,
         borderRadius: WORKSPACE_FLOAT_RADIUS,
         opacity: leftOpen ? 0 : 1,
       }}
     >
-      <div className="flex h-full w-10 shrink-0 items-center justify-center">
+      <div
+        data-workspace-restore-logo
+        data-hidden={compactDocked ? 'true' : 'false'}
+        className="flex h-full shrink-0 items-center justify-center overflow-hidden"
+        style={{
+          width: compactDocked ? 0 : 40,
+          opacity: compactDocked ? 0 : 1,
+          transform: compactDocked ? 'rotate(-72deg) scale(.35)' : 'rotate(0deg) scale(1)',
+          transition: 'width 300ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, transform 300ms cubic-bezier(.2,.8,.2,1)',
+        }}
+      >
         <LogoButton />
       </div>
-      <div aria-hidden className="h-5 w-px shrink-0 bg-[var(--border-light)]" />
-      <div className="flex min-w-0 flex-1 items-center px-2">
-        <ProjectChip />
+      <div
+        aria-hidden
+        data-workspace-restore-divider
+        className="h-5 shrink-0 bg-[var(--border-light)]"
+        style={{ width: compactDocked ? 0 : 1, opacity: compactDocked ? 0 : 1, transition: 'width 240ms ease, opacity 160ms ease' }}
+      />
+      <div
+        data-workspace-restore-title
+        className="flex min-w-0 shrink-0 items-center"
+        style={{ width: contentWidth, paddingLeft: compactDocked ? 10 : 8, paddingRight: 8, transition: 'padding 300ms ease' }}
+      >
+        <ProjectChip compactIdentity={compactDocked} />
       </div>
-      <WorkspaceModeButton />
+      <div className="shrink-0 pr-1.5">
+        <WorkspaceModeButton />
+      </div>
     </div>
   );
 }

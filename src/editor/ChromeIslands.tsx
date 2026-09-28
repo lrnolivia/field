@@ -78,10 +78,6 @@ export default function ChromeIslands() {
         }}
       />
 
-      {!leftOpen && <div aria-hidden data-workspace-left-title-surface
-        className="pointer-events-none fixed z-[4999] h-11 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]"
-        style={{ left: mode === 'compact-docked' ? 60 + WORKSPACE_FLOAT_INSET : WORKSPACE_FLOAT_INSET, top: WORKSPACE_FLOAT_INSET, width: 52 + leftContentWidth }} />}
-
       {rightOpen && (
         <div
           aria-hidden
