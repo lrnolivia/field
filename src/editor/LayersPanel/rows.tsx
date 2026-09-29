@@ -1168,7 +1168,7 @@ export function dedupeLayerRows<T extends { id: string }>(rows: T[]): { rows: T[
  *  single-node action, matching every other row control.
  *
  *  Ids no longer in the tree are dropped — a selection can outlive a node. */
-export function visibilityToggleTargets(
+export function layerActionTargets(
   selectedIds: readonly string[],
   clickedId: string,
   exists: (id: string) => boolean,
@@ -1178,6 +1178,34 @@ export function visibilityToggleTargets(
     if (live.length > 0) return live;
   }
   return [clickedId];
+}
+
+/** Backward-compatible name for the eye control's selection targeting. */
+export function visibilityToggleTargets(
+  selectedIds: readonly string[],
+  clickedId: string,
+  exists: (id: string) => boolean,
+): string[] {
+  return layerActionTargets(selectedIds, clickedId, exists);
+}
+
+/**
+ * Build the minimum set of nodes that must toggle so every targeted row matches
+ * the clicked row's NEXT lock state. This avoids naively toggling a mixed
+ * selection (which would simply swap which half is locked).
+ */
+export function lockTogglePlan(
+  selectedIds: readonly string[],
+  clickedId: string,
+  exists: (id: string) => boolean,
+  isLocked: (id: string) => boolean,
+): { ids: string[]; locked: boolean } {
+  const ids = layerActionTargets(selectedIds, clickedId, exists);
+  const locked = !isLocked(clickedId);
+  return {
+    ids: ids.filter((id) => isLocked(id) !== locked),
+    locked,
+  };
 }
 
 /** The display to write when UNHIDING a node on a non-primary viewport whose

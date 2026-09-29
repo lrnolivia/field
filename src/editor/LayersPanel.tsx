@@ -33,7 +33,7 @@ import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMe
 // Row components + pure helpers, the drag-reorder handler, and the search filter
 // live in LayersPanel/ (Phase 7 god-file split, item 7.7). computeSelectionSets +
 // FlatLayer are re-exported below for existing importers of this module.
-import { LayerRow, dedupeLayerRows, visibilityToggleTargets, visibleDisplayForUnhide, computeSelectionSets, computeRangeSelection, isNodeUnderOverlay, resolveDisplayForLayer, getEffectiveLayerStyle, childrenInLayerStack, type FlatLayer } from './LayersPanel/rows';
+import { LayerRow, dedupeLayerRows, visibilityToggleTargets, lockTogglePlan, visibleDisplayForUnhide, computeSelectionSets, computeRangeSelection, isNodeUnderOverlay, resolveDisplayForLayer, getEffectiveLayerStyle, childrenInLayerStack, type FlatLayer } from './LayersPanel/rows';
 import { startLayerDrag, vpIdFromLayerId } from './LayersPanel/drag';
 import { filterLayersForSearch } from './LayersPanel/search';
 import { selectionColorLocateAtom } from '@/code/stores/selection-color-locate-store';
@@ -898,8 +898,20 @@ export default function LayersPanel() {
   const handleToggleLock = useCallback((nodeId: string) => {
     const contentEl = getContentRoot();
     if (!contentEl) return;
-    toggleLock(nodeId, contentEl, nodes);
-  }, [nodes]);
+
+    // MULTI-SELECT: match the eye control. Clicking the padlock on a row that
+    // belongs to the active selection applies one coherent NEXT state to the
+    // whole selection. The clicked row decides that state; nodes already there
+    // are skipped so a mixed locked/unlocked selection never just inverts.
+    const plan = lockTogglePlan(
+      selectedIds,
+      nodeId,
+      (id) => nodes.has(id),
+      (id) => nodes.get(id)?.styles.pointerEvents === 'none',
+    );
+    trace.action('layers:toggle-lock', { nodeId, targets: plan.ids, locked: plan.locked });
+    for (const id of plan.ids) toggleLock(id, contentEl, nodes);
+  }, [nodes, selectedIds]);
 
   // Toggle visibility per-layer. The eye on a non-primary viewport / non-
   // default variant row writes to that viewport's @media rule (page) or

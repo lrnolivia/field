@@ -2,7 +2,7 @@
 // one of them (user report 2026-09-21).
 
 import { describe, it, expect } from 'vitest';
-import { visibilityToggleTargets } from './rows';
+import { layerActionTargets, lockTogglePlan, visibilityToggleTargets } from './rows';
 
 const all = () => true;
 
@@ -30,3 +30,51 @@ describe('visibilityToggleTargets', () => {
     expect(visibilityToggleTargets(['x', 'y'], 'x', () => false)).toEqual(['x']);
   });
 });
+
+describe('layerActionTargets', () => {
+  it('uses the whole live selection only when the clicked row belongs to it', () => {
+    expect(layerActionTargets(['a', 'b', 'c'], 'b', all)).toEqual(['a', 'b', 'c']);
+    expect(layerActionTargets(['a', 'b', 'c'], 'z', all)).toEqual(['z']);
+  });
+});
+
+describe('lockTogglePlan', () => {
+  it('locks a mixed selection to match the clicked unlocked row next state', () => {
+    const locked = new Set(['b']);
+    expect(lockTogglePlan(
+      ['a', 'b', 'c'],
+      'a',
+      all,
+      (id) => locked.has(id),
+    )).toEqual({ ids: ['a', 'c'], locked: true });
+  });
+
+  it('unlocks a mixed selection to match the clicked locked row next state', () => {
+    const locked = new Set(['a', 'c']);
+    expect(lockTogglePlan(
+      ['a', 'b', 'c'],
+      'a',
+      all,
+      (id) => locked.has(id),
+    )).toEqual({ ids: ['a', 'c'], locked: false });
+  });
+
+  it('stays a single-row action outside the current selection', () => {
+    expect(lockTogglePlan(
+      ['a', 'b'],
+      'z',
+      all,
+      () => false,
+    )).toEqual({ ids: ['z'], locked: true });
+  });
+
+  it('drops stale selected ids before planning lock writes', () => {
+    expect(lockTogglePlan(
+      ['a', 'gone', 'c'],
+      'a',
+      (id) => id !== 'gone',
+      () => false,
+    )).toEqual({ ids: ['a', 'c'], locked: true });
+  });
+});
+
