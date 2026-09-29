@@ -40,6 +40,10 @@ export const websiteSettingsAtom = atom<WebsiteSettings>(DEFAULT_WEBSITE_SETTING
 /** Atom controlling SettingsOverlay open/close state */
 export const settingsOverlayOpenAtom = atom(false);
 
+/** Compact project-scoped settings modal. Kept separate from field-level
+ *  General Settings so project source/config never masquerades as app prefs. */
+export const projectSettingsModalOpenAtom = atom(false);
+
 /** Active section within the overlay — string so plugin-registered sections work */
 export type SettingsSection = string;
 export const settingsSectionAtom = atom<SettingsSection>('website');

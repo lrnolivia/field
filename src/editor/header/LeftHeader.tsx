@@ -36,6 +36,7 @@ import { buildTabs, buildPreferencesSubmenu, buildThemeSubmenu } from './menu-bu
 import ProjectChip from './ProjectChip';
 import KeyboardShortcutsModal from '@/editor/ui/KeyboardShortcutsModal';
 import AboutFieldModal from '@/editor/ui/AboutFieldModal';
+import ProjectSettingsModal from '@/editor/overlays/ProjectSettingsModal';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import Button from '@/design-system/Button';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
@@ -355,6 +356,7 @@ export default function LeftHeader() {
           It stays mounted while the left workspace is collapsed because
           WorkspaceRestoreBar reuses the same field menu. */}
       <KeyboardShortcutsModal />
+      <ProjectSettingsModal />
     </>
   );
 }
