@@ -2,28 +2,51 @@
 assignment: mobile-focus-touch-camera-20260929
 branch: field/mobile-focus-touch-camera-20260929
 pr: 123
-tested_head_sha: 2fe58a9748cc769034e09ac93604d4a2581433d8
-tested_main_sha: 710b02e769c904ff3ab852d095a812e8476e3e79
+tested_head_sha: c7daa52ead88abe698f640746640b2046bd68ac6
+tested_main_sha: 64888da072282562aefe7e1d2d8e38e77eb42861
 environment: branch Preview /builder/noauth
-build: PASS — Cloudflare Workers Build 6b95607f-8bb3-47a9-8324-0d2fa02b4466
-tests: NOT RUN — focused Vitest coverage added; no reliable repo unit-test executor exposed in this Contract Worker environment
-runtime_qa: PENDING — physical two-finger touch verification required
-tested_at: 2026-09-29T12:00:00Z
+build: PASS — Cloudflare Workers Build c5f7e00a-56a2-45ab-b211-69d490aa9857
+tests: PASS — Media tests + editor build d4529286-e9c8-5334-b1bf-b380ef590f21
+runtime_qa: PENDING — physical/mobile touch verification required
+tested_at: 2026-09-29T21:55:00Z
 evidence:
   - https://github.com/lrnolivia/field/pull/123
   - https://field-mobile-focus-touch-camera-20260929.canvas-preview.loew.fi/builder/noauth
-  - cloudflare-build:6b95607f-8bb3-47a9-8324-0d2fa02b4466
+  - cloudflare-build:c5f7e00a-56a2-45ab-b211-69d490aa9857
+  - github-check:d4529286-e9c8-5334-b1bf-b380ef590f21
 ---
 
-# QA — mobile Focus touch camera
+# QA — mobile Focus editor
 
-Status: EXACT-HEAD BUILD PASS / MOBILE RUNTIME QA PENDING
+Status: EXACT-HEAD BUILD/CI PASS / PHYSICAL MOBILE QA PENDING
 
-Physical Preview checks:
-- place two fingers on empty canvas and pan; canvas should follow without Safari page scroll
-- pinch inward/outward; zoom should stay centered under the live midpoint
-- pan and pinch in one continuous gesture
-- lift one finger; camera ownership should release cleanly without a stuck state
-- use a single finger afterward; this batch must not steal the existing one-finger interaction path
+## touch camera
+- two-finger pan
+- pinch zoom around live midpoint
+- combined pan + pinch
+- one-finger release after camera gesture
+- no stuck camera state
 
-No claim is made that these physical touch checks have passed yet.
+## direct manipulation
+- tap object selects
+- one-finger object drag moves
+- one-finger empty drag pans
+- empty tap deselects
+- second finger during drag cancels object motion before camera takeover
+- resize/transform handles remain usable
+- desktop marquee behavior unchanged
+
+## portrait toolbar
+- <=600px shows one active-tool launcher
+- tapping launcher opens compact existing toolbar
+- direct tool choice collapses it
+- safe area is respected in Safari
+- landscape/wide Focus keeps the traditional toolbar
+
+## text keyboard
+- double-tap text enters editing
+- iOS software keyboard appears
+- sandbox TipTap receives focus/caret
+- keyboard dismissal leaves canvas interaction usable
+
+No physical-phone PASS is claimed yet.

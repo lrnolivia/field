@@ -4,20 +4,43 @@ id: mobile-focus-touch-camera-20260929
 assignment: mobile-focus-touch-camera-20260929
 ---
 
-# mobile-focus-touch-camera-20260929 mailbox
+# mobile Focus editor mailbox
 
 ## 2026-09-29 — activation
 
-Hourly batch 1 activated from main 710b02e769c904ff3ab852d095a812e8476e3e79.
+User authorized a 24-hour mobile Focus implementation track in hourly batches using Composio.
 
-Scope is deliberately limited to native two-finger mobile camera pan/pinch. Existing toolbar/media PRs are left untouched. Object movement and one-finger touch arbitration are successor work.
+## batch 1
 
-## 2026-09-29 — implementation
+Draft PR #123 opened. Two-finger native camera pan/pinch implemented and exact-head Workers build passed.
 
-Draft PR #123 opened from field/mobile-focus-touch-camera-20260929.
+## batch 2
 
-Exact implementation head: 2fe58a9748cc769034e09ac93604d4a2581433d8.
+One-finger direct manipulation implemented:
+tap select, object drag, empty-canvas pan, touch marquee suppression, and deterministic second-finger cancellation/yield to camera.
 
-Cloudflare Workers Build 6b95607f-8bb3-47a9-8324-0d2fa02b4466 completed successfully for that exact head.
+## batch 3
 
-Focused Vitest coverage was added but not executed because no reliable unit-test executor is exposed in this Contract Worker environment. Runtime mobile touch QA remains pending.
+PR107 toolbar/media work had merged and released BottomToolbar. Narrow portrait presentation implemented as one floating active-tool launcher that expands the existing toolbar; landscape/wide behavior preserved.
+
+## batch 4
+
+Mobile text double-tap now primes the iOS software keyboard during trusted touchstart before sandbox TipTap autofocus takes over.
+
+## latest checkpoint
+
+PR #123 remains draft.
+
+Current branch head:
+c7daa52ead88abe698f640746640b2046bd68ac6
+
+Current base/main:
+64888da072282562aefe7e1d2d8e38e77eb42861
+
+Exact-head checks:
+- Workers Builds: field — PASS
+- Media tests + editor build — PASS
+
+Physical phone runtime QA remains pending.
+
+Sheets are deferred only because field-motion-quality currently owns the required panel-host files. The hourly continuation must recheck ownership and proceed as soon as those paths are released.

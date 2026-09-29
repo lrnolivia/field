@@ -4,7 +4,7 @@ id: mobile-focus-touch-camera-20260929
 status: active
 branch: field/mobile-focus-touch-camera-20260929
 pr: 123
-base: 710b02e769c904ff3ab852d095a812e8476e3e79
+base: 64888da072282562aefe7e1d2d8e38e77eb42861
 kit: 2026-09-26.4
 type: plan-to-action
 execution_class: contract-worker
@@ -36,66 +36,89 @@ qa:
   authenticated: false
 ---
 
-# mobile Focus touch editor
+# mobile Focus editor — 24-hour implementation track
+
+## product contract
+
+Focus is the mobile workspace. Do not create a mobile editor fork.
+
+The phone editor shares field's document graph, selection model, commands, undo history, source, Preview, and existing editor panels. Mobile changes presentation and touch interaction only.
+
+Portrait uses compact floating chrome. Landscape preserves the accepted traditional Focus layout unless geometry proves otherwise.
 
 ## batch 1 — two-finger camera
 
-Implemented on PR #123:
-- two fingers own camera pan + pinch
+Implemented:
+- two fingers own canvas camera pan + pinch
 - midpoint movement pans
 - finger-distance ratio zooms around the live midpoint
-- one finger remains unclaimed by the camera
+- one finger remains available to direct manipulation
 - touch end/cancel resets ownership
-- exact-head build passed at 2fe58a9748cc769034e09ac93604d4a2581433d8
-- physical touch runtime QA remains pending
+- 3→2 touch transition rebases to avoid a camera jump
 
-## batch 2 — direct touch arbitration
+## batch 2 — one-finger direct manipulation
 
-User-authorized continuation on the same PR.
-
-### goal
-
-Make the existing Focus workspace behave naturally without a mouse:
-- tap selects
-- one-finger drag on a hit object moves it through existing DragCoordinator behavior
-- one-finger drag on empty canvas pans
+Implemented:
+- tap routes through canonical canvas selection
+- one-finger hit-object drag reuses existing DragCoordinator behavior
+- one-finger empty-canvas drag pans after a small threshold
 - empty-canvas tap still deselects
-- touch pointer input does not start the desktop marquee
-- second finger cancels/reverts one-finger interaction and yields to the two-finger camera gesture
-- existing touch resize/transform handles remain independently touchable
+- touch no longer begins desktop marquee
+- second finger cancels/reverts pending or active one-finger drag before camera takeover
+- resize/transform child targets remain independently touchable
+- mouse/trackpad/marquee semantics remain unchanged
 
-### coordination
-
-field-motion-quality protects src/canvas/** but does not own these exact paths. This narrowly scoped touch continuation is explicitly user-authorized and must not change chrome-motion behavior.
-
-Native Scale remains isolated. Do not edit src/canvas/drag/**, src/canvas/scale/**, or ScaleHandles; consume only existing public DragCoordinator APIs.
-
-CanvasMouseController receives only a small cancellation-reset seam so two-finger takeover cannot leave deferred mouse-selection state behind.
-
-### acceptance
-
-1. one tap selects a node
-2. one-finger object drag moves it
-3. one-finger empty drag pans instead of marquee-selecting
-4. one-finger empty tap deselects
-5. existing resize handles still receive touch
-6. adding a second finger cancels any pending/active one-finger drag before two-finger camera motion begins
-7. desktop mouse/trackpad/marquee behavior is unchanged
-8. exact-head build passes
-9. runtime mobile Preview QA is required before claiming completion
-
+Coordination:
+- do not edit src/canvas/drag/** or native Scale internals
+- field-motion-quality protects src/canvas/** but does not own these exact touch paths; this narrow user-authorized continuation must not alter chrome-motion behavior
 
 ## batch 3 — narrow portrait toolbar
 
-PR107 is merged into main and the toolbar is no longer actively owned by that work.
-
-For narrow workspace geometry (<=600 CSS px), collapse the full bottom toolbar into one floating active-tool control. Tapping it reveals the existing toolbar command surface in a compact floating palette. Landscape/wider Focus keeps the accepted traditional toolbar unchanged.
-
-Requirements:
-- geometry-based, not device-name detection
-- keep the same tool atoms/handlers; presentation only
+Implemented:
+- <=600 CSS px collapses BottomToolbar to one floating active-tool launcher
+- launcher expands the existing toolbar command surface
 - safe-area-aware bottom offset
 - active tool glyph remains visible while collapsed
-- close the compact palette after selecting a direct tool
-- no changes to toolbar command semantics or recent media/popout behavior
-- desktop/wide toolbar stays pixel-equivalent
+- direct tool selection closes the compact palette
+- wider/landscape Focus keeps the accepted traditional toolbar
+- width/geometry drives presentation; no phone-model detection
+- command semantics and recent Media/Library behavior remain shared
+
+## batch 4 — software keyboard bridge
+
+Implemented:
+- canonical double-tap text-edit path remains unchanged
+- touch layer detects when the second tap synchronously enters text edit
+- a temporary tiny parent-frame textarea receives focus during that trusted touch event
+- sandbox TipTap autofocus then takes over the already-open software keyboard
+- no persistent mobile keyboard or duplicate text editor is introduced
+
+## current checkpoint
+
+Current branch head after latest-main sync:
+c7daa52ead88abe698f640746640b2046bd68ac6
+
+Exact-head validation:
+- Workers Builds: field — PASS
+- Media tests + editor build — PASS
+
+Runtime mobile QA:
+PENDING. Do not claim physical-phone success until verified.
+
+Branch Preview:
+https://field-mobile-focus-touch-camera-20260929.canvas-preview.loew.fi/builder/noauth
+
+## blocked / next
+
+Mobile sheet presentation is architecturally ready to reuse existing compact/floating hosts, but the exact panel-host files are currently owned by active field-motion-quality work:
+- src/App.tsx
+- src/editor/FloatingLeftPanelHost.tsx
+- src/editor/ToolbarPanelHost.tsx
+- src/editor/PropertiesPanel.tsx
+- src/editor/ChromeIslands.tsx
+
+Do not edit through that ownership. Recheck each hourly batch. When released:
+- narrow compact left panel -> bottom sheet
+- narrow toolbar-origin panels -> bottom sheet
+- narrow Inspector -> bottom sheet
+- landscape/wide Focus -> floating edge overlays
