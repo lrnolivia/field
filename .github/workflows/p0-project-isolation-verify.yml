@@ -1,0 +1,33 @@
+name: P0 Project Isolation Verify
+
+on:
+  push:
+    branches:
+      - field/project-switch-isolation
+    paths:
+      - .github/workflows/p0-project-isolation-verify.yml
+      - src/ProjectLoader.tsx
+      - src/code/project/project-fs.ts
+      - src/code/project/project-session.ts
+      - src/code/mutation/mutation-queue.ts
+      - src/code/project/project-switch-isolation.test.ts
+      - src/project-loader-readiness.test.ts
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Focused project-switch regressions
+        run: npx vitest run src/code/project/project-switch-isolation.test.ts src/project-loader-readiness.test.ts
+      - name: Production build
+        run: npm run build
