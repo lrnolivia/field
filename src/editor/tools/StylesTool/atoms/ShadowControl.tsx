@@ -188,7 +188,7 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
       </OptionsPanel>
     </ShowControlLabels>
   );
-
+}
 
 // ─── Inner atom ───────────────────────────────────────────────────────────────
 
