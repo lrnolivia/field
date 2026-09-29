@@ -933,35 +933,53 @@ export default function SettingsOverlay() {
           </header>
 
           <SettingsGroup surface title="Appearance">
-            <div data-general-appearance-preview className="p-4">
-              <div
-                className="relative h-[118px] overflow-hidden rounded-[7px] border border-[var(--border-light)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]"
-                style={{ backgroundColor: activeNeutral }}
-              >
-                <div className="absolute inset-x-0 top-0 h-6 border-b border-black/10 bg-black/10" />
-                <div className="absolute left-0 top-6 bottom-0 w-8 border-r border-black/10 bg-black/10">
-                  <div className="mx-auto mt-2 h-4 w-4 rounded-[3px]" style={{ backgroundColor: activeAccent }} />
-                  <div className="mx-auto mt-2 h-3 w-3 rounded-[2px] bg-black/15" />
-                  <div className="mx-auto mt-1.5 h-3 w-3 rounded-[2px] bg-black/15" />
+            <div
+              data-general-appearance-preview
+              className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0 max-w-[300px]">
+                <div className="text-[11px] font-medium text-[var(--text-primary)]">Editor chrome</div>
+                <div className="mt-1 text-[10px] leading-4 text-[var(--text-tertiary)]">
+                  A miniature preview of the current field appearance.
                 </div>
-                <div className="absolute left-8 right-24 top-6 bottom-0 bg-black/[0.035]">
-                  <div className="absolute left-5 top-4 h-14 w-24 rounded-[3px] border border-black/10 bg-white/10" />
-                  <div className="absolute left-9 top-8 h-2 w-14 rounded-full bg-black/15" />
-                  <div className="absolute left-9 top-12 h-1.5 w-10 rounded-full bg-black/10" />
-                </div>
-                <div className="absolute right-0 top-6 bottom-0 w-24 border-l border-black/10 bg-black/[0.07] p-2">
-                  <div className="h-2 w-12 rounded-full bg-black/15" />
-                  <div className="mt-3 h-1.5 w-16 rounded-full bg-black/10" />
-                  <div className="mt-1.5 h-1.5 w-12 rounded-full bg-black/10" />
-                  <div className="mt-4 h-5 w-full rounded-[3px] border border-black/10 bg-white/[0.08]" />
+                <div className="mt-2 inline-flex items-center gap-1.5 text-[9px] text-[var(--text-disabled)]">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: activeAccent }} />
+                  <span>{editorThemeMode === 'dark' ? 'Dark' : 'Light'}</span>
+                  <span>·</span>
+                  <span>Neutral {editorNeutralLevel}</span>
                 </div>
               </div>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-medium text-[var(--text-primary)]">Editor chrome</div>
-                  <div className="text-[10px] text-[var(--text-tertiary)]">Preview of your current field appearance.</div>
+
+              <div data-general-theme-display className="shrink-0 self-center sm:self-auto">
+                <div className="mx-auto w-[196px] max-w-full rounded-[14px] border border-[var(--border-light)] bg-[var(--bg-active)] p-[5px] shadow-[0_5px_16px_rgba(0,0,0,0.10)]">
+                  <div
+                    className="relative aspect-[16/10] overflow-hidden rounded-[9px] border border-black/10 dark:border-white/10"
+                    style={{ backgroundColor: activeNeutral }}
+                  >
+                    <div className="absolute inset-x-0 top-0 h-[14%] border-b border-black/10 bg-black/[0.07] dark:border-white/10 dark:bg-white/[0.05]">
+                      <div className="absolute left-2 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-black/20 dark:bg-white/25" />
+                    </div>
+                    <div className="absolute bottom-0 left-0 top-[14%] w-[11%] border-r border-black/10 bg-black/[0.06] dark:border-white/10 dark:bg-white/[0.05]">
+                      <div className="mx-auto mt-2 h-3 w-3 rounded-[3px]" style={{ backgroundColor: activeAccent }} />
+                      <div className="mx-auto mt-2 h-1.5 w-1.5 rounded-full bg-black/20 dark:bg-white/22" />
+                      <div className="mx-auto mt-1.5 h-1.5 w-1.5 rounded-full bg-black/15 dark:bg-white/18" />
+                    </div>
+                    <div className="absolute bottom-0 left-[11%] right-[27%] top-[14%] bg-black/[0.025] dark:bg-white/[0.025]">
+                      <div className="absolute left-[14%] top-[16%] h-[52%] w-[48%] rounded-[3px] border border-black/10 bg-white/[0.08] dark:border-white/10 dark:bg-black/[0.12]" />
+                      <div className="absolute left-[21%] top-[29%] h-1.5 w-[34%] rounded-full bg-black/20 dark:bg-white/22" />
+                      <div className="absolute left-[21%] top-[40%] h-1 w-[25%] rounded-full bg-black/15 dark:bg-white/16" />
+                      <div className="absolute left-[21%] top-[54%] h-3 w-[20%] rounded-[2px] opacity-80" style={{ backgroundColor: activeAccent }} />
+                    </div>
+                    <div className="absolute bottom-0 right-0 top-[14%] w-[27%] border-l border-black/10 bg-black/[0.055] dark:border-white/10 dark:bg-white/[0.045] p-2">
+                      <div className="h-1.5 w-[55%] rounded-full bg-black/20 dark:bg-white/22" />
+                      <div className="mt-2.5 h-1 w-[78%] rounded-full bg-black/14 dark:bg-white/16" />
+                      <div className="mt-1.5 h-1 w-[64%] rounded-full bg-black/12 dark:bg-white/13" />
+                      <div className="mt-3 h-4 w-full rounded-[3px] border border-black/10 bg-white/[0.07] dark:border-white/10 dark:bg-black/[0.10]" />
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] tabular-nums text-[var(--text-disabled)]">Neutral {editorNeutralLevel}</div>
+                <div className="mx-auto h-2.5 w-6 border-x border-[var(--border-light)] bg-[var(--bg-active)]/70" />
+                <div className="mx-auto h-[3px] w-14 rounded-full bg-[var(--border-light)]" />
               </div>
             </div>
 

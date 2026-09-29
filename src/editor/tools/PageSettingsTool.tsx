@@ -133,6 +133,95 @@ function PageSettingField({
   );
 }
 
+function PageViewportPreview({
+  title,
+  description,
+  route,
+}: {
+  title: string;
+  description: string;
+  route: string;
+}) {
+  return (
+    <div data-page-settings-preview className="justify-self-end">
+      <div className="w-[124px] rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-active)]/65 p-[3px] shadow-[0_3px_10px_rgba(0,0,0,0.08)]">
+        <div className="relative aspect-[16/10] overflow-hidden rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]">
+          <div className="absolute inset-x-0 top-0 h-3 border-b border-[var(--border-light)] bg-[var(--bg-hover)]/35">
+            <div className="absolute left-1.5 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-[var(--text-disabled)]/55" />
+          </div>
+          <div className="absolute inset-x-0 bottom-0 top-3 px-2 py-2">
+            <div className="h-1 w-[72%] rounded-full bg-[var(--text-primary)]/22" />
+            <div className="mt-1.5 h-[3px] w-[88%] rounded-full bg-[var(--text-secondary)]/18" />
+            <div className="mt-1 h-[3px] w-[66%] rounded-full bg-[var(--text-secondary)]/13" />
+            <div className="mt-2.5 h-3 w-[42%] rounded-[2px] bg-[var(--accent)]/28" />
+          </div>
+          <span className="sr-only">{title} {description} {route}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchResultPreview({
+  title,
+  description,
+  route,
+}: {
+  title: string;
+  description: string;
+  route: string;
+}) {
+  return (
+    <div
+      data-page-search-preview
+      className="mt-1 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 px-2.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+      <div className="flex items-center gap-1.5 text-[9px] leading-3 text-[var(--text-tertiary)]">
+        <span className="h-3 w-3 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/50" />
+        <span className="truncate">{route}</span>
+      </div>
+      <div className="mt-1.5 truncate text-[12px] font-medium leading-4 text-[var(--accent-text)]">
+        {title}
+      </div>
+      <div className="mt-0.5 max-h-8 overflow-hidden text-[10px] leading-4 text-[var(--text-secondary)]">
+        {description}
+      </div>
+    </div>
+  );
+}
+
+function SocialSharePreview({
+  image,
+  title,
+  description,
+}: {
+  image: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      data-page-social-preview
+      className="grid grid-cols-[62px_minmax(0,1fr)] overflow-hidden rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+      <div className="relative min-h-[58px] border-r border-[var(--border-light)] bg-[var(--bg-hover)]/45">
+        {image ? (
+          <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <>
+            <div className="absolute left-2 top-2 h-5 w-7 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-surface)]/60" />
+            <div className="absolute bottom-2 right-2 h-2.5 w-6 rounded-[2px] bg-[var(--accent)]/20" />
+          </>
+        )}
+      </div>
+      <div className="min-w-0 px-2 py-2">
+        <div className="truncate text-[10px] font-medium text-[var(--text-primary)]">{title}</div>
+        <div className="mt-1 max-h-7 overflow-hidden text-[9px] leading-[13px] text-[var(--text-tertiary)]">{description}</div>
+      </div>
+    </div>
+  );
+}
+
 function PageImageField({
   value,
   onChange,
@@ -256,14 +345,23 @@ export default function PageSettingsTool() {
     <div data-page-settings-panel className="w-full pb-5">
       <div
         data-page-settings-header
-        className="h-[52px] px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center gap-2.5"
+        className="border-b border-[var(--border-light)] px-[var(--panel-inset)] py-3"
       >
-        <div className="w-7 h-7 shrink-0 flex items-center justify-center cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]">
-          <PageIcon className="w-3.5 h-3.5" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-[12px] leading-4 font-semibold text-[var(--text-primary)] truncate">{pageTitle}</div>
-          <div className="text-[9px] leading-3 font-mono text-[var(--text-tertiary)] truncate">{routeValue}</div>
+        <div className="grid grid-cols-[minmax(0,1fr)_124px] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/30 text-[var(--text-secondary)]">
+              <PageIcon className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[12px] font-semibold leading-4 text-[var(--text-primary)]">{pageTitle}</div>
+              <div className="truncate font-mono text-[9px] leading-3 text-[var(--text-tertiary)]">{routeValue}</div>
+            </div>
+          </div>
+          <PageViewportPreview
+            title={form.title || pageTitle}
+            description={form.description || 'Page preview'}
+            route={routeValue}
+          />
         </div>
       </div>
 
@@ -324,21 +422,24 @@ export default function PageSettingsTool() {
           />
         </PageSettingField>
 
-        <div className="mt-0.5 cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-2.5 py-2">
-          <div className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Search preview</UiHeadingText></div>
-          <div className="mt-1 text-[9px] leading-3 text-[var(--text-tertiary)] truncate">{routeValue}</div>
-          <div className="mt-0.5 text-[12px] leading-4 font-medium text-[var(--accent-text)] truncate">
-            {form.title || pageTitle}
-          </div>
-          <div className="mt-0.5 max-h-8 overflow-hidden text-[10px] leading-4 text-[var(--text-secondary)]">
-            {form.description || 'Add a description to control how this page appears in search results.'}
-          </div>
+        <div className="mt-0.5">
+          <div className="mb-1 text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Search preview</UiHeadingText></div>
+          <SearchResultPreview
+            route={routeValue}
+            title={form.title || pageTitle}
+            description={form.description || 'Add a description to control how this page appears in search results.'}
+          />
         </div>
       </ToolSection>
 
       <ToolDivider />
 
       <ToolSection title="Social" defaultOpen={false}>
+        <SocialSharePreview
+          image={form.ogImage || form.twitterImage}
+          title={form.ogTitle || form.twitterTitle || form.title || pageTitle}
+          description={form.ogDescription || form.twitterDescription || form.description || 'Add social metadata to shape how this page is shared.'}
+        />
         <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Open Graph</UiHeadingText></div>
         <PageSettingField label="Title">
           <ToolInput
