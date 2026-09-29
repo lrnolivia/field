@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('canonical Media browser', () => {
-  it('offers one All / Images / Videos inventory instead of separate browser silos', () => {
+  it('offers one All / Images / Video / Audio inventory instead of separate browser silos', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(media).toContain("type MediaGalleryTab = 'all' | 'images' | 'videos'");
+    expect(media).toContain("type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio'");
     expect(media).toContain("{ value: 'all', label: 'All' }");
-    expect(media).toContain("? ['image', 'video']");
-    expect(media).toContain("merged.push({ ...item, kind })");
+    expect(media).toContain("{ value: 'audio', label: 'Audio' }");
+    expect(media).toContain("type BrowserMediaKind = 'image' | 'video' | 'audio' | 'vector'");
+    expect(media).toContain('availableUploads');
     expect(media).toContain('kind={item.kind}');
   });
 
@@ -21,11 +22,13 @@ describe('canonical Media browser', () => {
     expect(media).not.toContain('CLOUD_ENABLED');
   });
 
-  it('keeps session-only uploads instead of pretending they are durable', () => {
+  it('merges shared session/external Media with durable backend inventory', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(media).toContain("setUploads(prev => [{ url, size: file.size, kind }, ...prev])");
-    expect(media).toContain("durableInventory === false ? 'Session'");
-    expect(media).toContain('if (durableInventory === true) void fetchUploads()');
+    expect(media).toContain('const availableUploads = React.useMemo');
+    expect(media).toContain('sessionMediaAssets');
+    expect(media).toContain("item.kind === 'audio'");
+    expect(media).toContain("item.kind === 'vector'");
+    expect(media).toContain('seen.has(item.url)');
   });
 
   it('lets floating/full Media embed the browser without duplicating sidebar chrome', () => {
