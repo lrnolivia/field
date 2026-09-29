@@ -39,6 +39,7 @@ import {
 } from '@/code/stores/viewport-store';
 import {
   toolModeAtom,
+  isCreatorToolMode,
 } from '@/code/stores/tool-store';
 import {
   shapeEditingIdAtom,
@@ -145,14 +146,6 @@ import { DOUBLE_CLICK_THRESHOLD, ZERO_WIDTH_SPACE } from '@/shared/constants';
 // use 5 to be slightly more forgiving for trackpad users.
 const DOUBLE_CLICK_MAX_DIST = 5;
 const TEXT_TYPES = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button']);
-
-function isCreatorToolMode(mode: string): boolean {
-  return mode === 'frame'
-    || mode === 'text'
-    || mode === 'sketch'
-    || isShapeMode(mode)
-    || isLayoutMode(mode);
-}
 
 type JotaiStore = ReturnType<typeof useStore>;
 
