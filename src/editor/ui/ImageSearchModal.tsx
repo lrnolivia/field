@@ -315,7 +315,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   };
 
   const content = (
-      <div className="space-y-3 p-4">
+      <div data-media-creation-content="image" className="min-h-0 space-y-2.5 p-3">
         {/* Header: tabs + search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ChromeTabBar
@@ -405,7 +405,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
                   gallery alongside every other upload. */}
-              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-36' : 'aspect-square'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
+              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-28' : 'aspect-square'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
@@ -520,7 +520,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         )}
 
         {selectionMode === 'multiple' && (
-          <div data-image-multi-select-footer className="pt-3 border-t border-[var(--border-light)] flex items-center justify-between gap-3">
+          <div data-image-multi-select-footer className="pt-2.5 border-t border-[var(--border-light)] flex items-center justify-between gap-3">
             <span aria-live="polite" className="text-[11px] tabular-nums text-[var(--text-secondary)]">
               {selectedUrls.length} {selectedUrls.length === 1 ? 'image' : 'images'} selected
             </span>

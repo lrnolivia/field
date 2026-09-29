@@ -36,7 +36,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
   };
 
   const height = size === 'compact' ? 'h-7' : 'h-8';
-  const padding = size === 'compact' ? 'px-1.5' : 'px-2.5';
+  const padding = size === 'compact' ? 'px-2.5' : 'px-3';
   const text = size === 'compact' ? 'text-[10px]' : 'text-[11px]';
 
   return (
@@ -81,7 +81,8 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
             {active && (
               <span
                 aria-hidden
-                className="absolute inset-x-2.5 bottom-[2px] h-[2px] rounded-full bg-[var(--accent)] opacity-70"
+                data-active-tab-marker
+                className="absolute left-[3px] top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-[1px] bg-[var(--accent)]"
               />
             )}
           </motion.button>

@@ -173,7 +173,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
   };
 
   const content = (
-      <div className="space-y-3 p-4">
+      <div data-media-creation-content="video" className="min-h-0 space-y-2.5 p-3">
         {/* Header: tabs + search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ChromeTabBar
@@ -259,9 +259,9 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
 
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-col gap-3">
             {/* Upload drop zone */}
-            <label data-media-upload-surface="video" className={`relative flex-shrink-0 h-36 overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)]'}`}>
+            <label data-media-upload-surface="video" className={`relative flex-shrink-0 h-28 overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)]'}`}>
               <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
