@@ -253,6 +253,55 @@ export function zoomToFitSelection(
   fitBoundsInView(bounds, FIT_PADDING, instant ? 0 : ANIM_ZOOM_TO_FIT);
 }
 
+// ─── Focus Commands ─────────────────────────────────────────────────────────
+
+/**
+ * Canonical camera framing for an already-resolved screen-space rect.
+ *
+ * Callers keep ownership of semantic target resolution (selection, layer, text
+ * edit, viewport replica), while this function owns the camera mechanics so
+ * every focus surface shares the same available-area math and animation path.
+ */
+export type FocusCameraProfile = 'center' | 'quick' | 'text-edit';
+
+export function focusScreenRect(screenRect: DOMRect, profile: FocusCameraProfile = 'quick'): void {
+  const t = transformManager.getTransform();
+  const c = screenRectToCanvas(screenRect, t);
+  const canvasCenterX = c.left + c.width / 2;
+  const canvasCenterY = c.top + c.height / 2;
+  const area = profile === 'center' ? getAvailableArea() : getPaddedCanvasFocusArea();
+
+  let targetScale = t.scale;
+  let duration = ANIM_PAN_TO_NODE;
+  let focus = false;
+
+  if (profile === 'quick') {
+    // Layer/canvas double-click: bring the target to a useful editing size from
+    // any starting zoom without repeatedly ratcheting on subsequent clicks.
+    const fitScale = Math.min(
+      2.5,
+      (area.width * 0.72) / Math.max(1, c.width),
+      (area.height * 0.72) / Math.max(1, c.height),
+    );
+    targetScale = Math.max(MIN_SCALE, Math.min(fitScale, Math.max(0.65, t.scale * 1.55)));
+    const zoomRatio = Math.max(targetScale / t.scale, t.scale / targetScale);
+    duration = zoomRatio > 4 ? 253 : 180;
+    focus = true;
+  } else if (profile === 'text-edit') {
+    // Text edit: preserve the existing readable-focus behavior. Entering text
+    // edit may zoom in, but it never starts the session by zooming out.
+    const maxForWidth = (area.width * 0.82) / Math.max(1, c.width);
+    const maxForHeight = (area.height * 0.76) / Math.max(1, c.height);
+    targetScale = Math.max(t.scale, Math.min(3.5, t.scale * 2.25, maxForWidth, maxForHeight));
+    duration = 360;
+    focus = true;
+  }
+
+  const x = area.centerX - canvasCenterX * targetScale;
+  const y = area.centerY - canvasCenterY * targetScale;
+  animateCanvasTo(x, y, targetScale, duration, { focus });
+}
+
 // ─── Pan Commands ───────────────────────────────────────────────────────────
 
 /**
@@ -287,28 +336,7 @@ export function panToNode(_contentEl: HTMLElement, nodeId: string, quickFocus = 
   const screenRect = bridge.getRect(resolvedNodeId, resolvedPrefix!);
   if (!screenRect) return;
 
-  const t = transformManager.getTransform();
-  const c = screenRectToCanvas(screenRect, t);
-  const canvasCenterX = c.left + c.width / 2;
-  const canvasCenterY = c.top + c.height / 2;
-
-  const { centerX, centerY, width, height } = quickFocus ? getPaddedCanvasFocusArea() : getAvailableArea();
-  // Double-click should bring the item into a useful editing size from any
-  // starting zoom. A fixed 1.28× step barely moved a layer when the canvas
-  // was zoomed far out, and repeated double-clicks kept ratcheting forever.
-  const fitScale = Math.min(
-    2.5,
-    (width * 0.72) / Math.max(1, c.width),
-    (height * 0.72) / Math.max(1, c.height),
-  );
-  const targetScale = quickFocus
-    ? Math.max(MIN_SCALE, Math.min(fitScale, Math.max(0.65, t.scale * 1.55)))
-    : t.scale;
-  const x = centerX - canvasCenterX * targetScale;
-  const y = centerY - canvasCenterY * targetScale;
-
-  const zoomRatio = Math.max(targetScale / t.scale, t.scale / targetScale);
-  animateCanvasTo(x, y, targetScale, quickFocus ? (zoomRatio > 4 ? 253 : 180) : ANIM_PAN_TO_NODE, { focus: quickFocus });
+  focusScreenRect(screenRect, quickFocus ? 'quick' : 'center');
 }
 
 /**

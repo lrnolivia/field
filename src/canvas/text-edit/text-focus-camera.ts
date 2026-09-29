@@ -3,7 +3,7 @@ import { transformManager } from '../transform/TransformManager';
 import { findNodeRect } from '../node-ops';
 import { stripGhostSuffix } from '@/shared/ghost-id';
 import type { Transform } from '@/shared/types';
-import { getPaddedCanvasFocusArea } from '../transform/CameraCommands';
+import { focusScreenRect } from '../transform/CameraCommands';
 
 /** A temporary camera focus for typing. Canvas zoom/pan gestures keep the new
  * view; clicking away to finish editing restores the view from before typing. */
@@ -35,15 +35,7 @@ export class TextFocusCamera {
         if (attempt < 8) this.pendingFrame = requestAnimationFrame(() => focus(attempt + 1));
         return;
       }
-      const current = transformManager.getTransform();
-      const canvasX = (rect.left + rect.width / 2 - current.x) / current.scale;
-      const canvasY = (rect.top + rect.height / 2 - current.y) / current.scale;
-      const available = getPaddedCanvasFocusArea();
-      const maxForWidth = (available.width * 0.82) / (rect.width / current.scale);
-      const maxForHeight = (available.height * 0.76) / (rect.height / current.scale);
-      const scale = Math.max(current.scale, Math.min(3.5, current.scale * 2.25, maxForWidth, maxForHeight));
-      const { centerX, centerY } = available;
-      animateCanvasTo(centerX - canvasX * scale, centerY - canvasY * scale, scale, 360, { focus: true });
+      focusScreenRect(rect, 'text-edit');
     };
     this.pendingFrame = requestAnimationFrame(() => focus(0));
   }

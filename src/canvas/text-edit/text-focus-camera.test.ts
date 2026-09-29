@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { animateCanvasTo, getTransform } = vi.hoisted(() => ({
+const { animateCanvasTo, getTransform, focusScreenRect } = vi.hoisted(() => ({
   animateCanvasTo: vi.fn(),
   getTransform: vi.fn(() => ({ x: 20, y: 30, scale: 1 })),
+  focusScreenRect: vi.fn(),
 }));
 
 vi.mock('../transform/CameraAnimator', () => ({ animateCanvasTo }));
 vi.mock('../transform/TransformManager', () => ({ transformManager: { getTransform } }));
 vi.mock('../node-ops', () => ({ findNodeRect: () => ({ left: 100, top: 100, width: 80, height: 20 }) }));
-vi.mock('../transform/CameraCommands', () => ({ getPaddedCanvasFocusArea: () => ({ width: 800, height: 600, centerX: 400, centerY: 300 }) }));
+vi.mock('../transform/CameraCommands', () => ({ focusScreenRect }));
 
 import { TextFocusCamera } from './text-focus-camera';
 
@@ -16,6 +17,22 @@ describe('TextFocusCamera', () => {
   beforeEach(() => {
     animateCanvasTo.mockClear();
     getTransform.mockClear();
+    focusScreenRect.mockClear();
+  });
+
+  it('delegates text-entry framing to the canonical camera focus primitive', () => {
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    expect(focusScreenRect).toHaveBeenCalledWith(
+      expect.objectContaining({ left: 100, top: 100, width: 80, height: 20 }),
+      'text-edit',
+    );
+    focus.dispose();
+    raf.mockRestore();
   });
 
   it('restores the previous view after a wheel gesture over chrome', () => {
