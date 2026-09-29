@@ -19,14 +19,10 @@ import { getProjectId } from '@/backend/project-id';
 import { showFieldDashboard } from '@/backend/field-navigation';
 import { getHeaderPageLabel } from './project-chip-label';
 
-function DocumentIdentityIcon({ compact = false }: { compact?: boolean }) {
+function DocumentIdentityIcon() {
   return (
-    <span
-      aria-hidden
-      data-project-chip-icon
-      className={`inline-flex shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-[width,height,transform,opacity] duration-300 ease-out ${compact ? 'h-6 w-6' : 'h-3.5 w-3.5'}`}
-    >
-      <svg viewBox="0 0 16 16" width={compact ? 15 : 10} height={compact ? 15 : 10} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+    <span aria-hidden data-project-chip-icon className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+      <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 1.75h5l3 3v9.5H4z" />
         <path d="M9 1.75v3h3" />
       </svg>
@@ -117,7 +113,7 @@ export default function ProjectChip({ compactIdentity = false }: { compactIdenti
             className="group flex min-w-0 max-w-full items-center gap-1.5 rounded-[4px] border-none bg-transparent px-0 py-[2px] text-left text-xs font-semibold leading-none text-[var(--text-primary)] outline-none transition-colors"
             data-field-project-title
           >
-            <DocumentIdentityIcon compact={compactIdentity} />
+            <DocumentIdentityIcon />
             <span className="min-w-0 truncate">{displayName}</span>
             <FigmaChevronDownIcon
               size={11}
@@ -127,7 +123,7 @@ export default function ProjectChip({ compactIdentity = false }: { compactIdenti
         </div>
 
         {pageLabel && (
-          <span className="truncate text-[10px] font-normal leading-none text-[var(--text-secondary)]" data-field-current-page>
+          <span className="pl-5 truncate text-[10px] font-normal leading-none text-[var(--text-secondary)]" data-field-current-page>
             {pageLabel}
           </span>
         )}
