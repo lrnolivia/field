@@ -145,7 +145,7 @@ function GradientCard({ item }: { item: InsertItem }) {
     <div
       data-toolbar-item={item.id}
       {...insertHandlers}
-      className="flex flex-col items-center gap-2 p-4 cut-corners cursor-pointer transition-all group hover:scale-[1.03]"
+      className="flex flex-col items-center gap-2 p-3 cut-corners cursor-pointer transition-colors group"
       style={bgStyle}
     >
       {item.socialNetwork ? (
@@ -425,14 +425,14 @@ export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelCon
     : 'grid-cols-2';
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-hide">
+    <div data-field-insert-detail className="flex-1 overflow-y-auto p-2.5 space-y-3 scrollbar-hide">
       {sections.map(section => (
-        <div key={section.id}>
+        <div key={section.id} data-field-insert-section>
           {/* Section labels render in Title Case (e.g. "Forms") — no
               uppercase/letter-spacing transforms. The category-level
               header is intentionally absent so the panel opens straight
               into content (matches the reference the reference/legacy builder). */}
-          <h3 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2.5 px-1">
+          <h3 className="field-insert-detail-heading text-[11px] font-semibold text-[var(--text-secondary)] mb-1.5 px-1">
             {section.label}
           </h3>
           <div className={`grid ${gridCols} ${category.columns === 1 ? 'gap-3' : 'gap-1.5'}`}>
@@ -694,6 +694,7 @@ export default function InsertOverlay() {
 
   return (
     <div
+      data-field-insert-shell
       className="flex flex-col h-full overflow-y-auto"
       onMouseLeave={scheduleClose}
       onMouseEnter={cancelClose}
@@ -709,7 +710,7 @@ export default function InsertOverlay() {
             tier of input. ESC clears + closes. */}
         {/* `pt-[12px]` matches the rail's top padding so the input sits on the
             same line as the Vibe icon beside it. */}
-        <div className="px-2 pb-2 pt-[12px]">
+        <div data-field-insert-search className="px-2 pb-2 pt-[10px]">
           <div className="relative">
             <svg
               className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none"
@@ -744,39 +745,40 @@ export default function InsertOverlay() {
               }}
               onFocus={cancelClose}
               placeholder="Search elements…"
-              className="w-full pl-7 pr-2 py-1.5 text-xs bg-black/[0.06] hover:bg-black/[0.09] focus:bg-black/[0.12] dark:bg-white/[0.1] dark:hover:bg-white/[0.14] dark:focus:bg-white/[0.18] cut-corners text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors"
+              data-field-searchbar
+              className="w-full h-7 pl-7 pr-2 text-[11px] rounded-[5px] border border-transparent bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] focus:bg-[var(--control-bg-hover)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]"
             />
           </div>
         </div>
 
-        <SectionLabel size="md">Insert</SectionLabel>
+        <SectionLabel size="md" className="field-insert-group-header">Insert</SectionLabel>
 
         {/* Main categories */}
-        <div className="px-2">
+        <div data-field-insert-category-list className="px-2">
           {renderCategoryRows(renderedCategories)}
         </div>
 
         {/* Divider */}
-        <div className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
+        <div data-field-insert-divider className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
 
         {/* CMS — its own top-level group, sibling to Insert and Creative.
             Surfaces Collections + Fields as two separate rows so each
             opens its own secondary panel. */}
-        <SectionLabel size="xs">CMS</SectionLabel>
-        <div className="px-2">
+        <SectionLabel size="xs" className="field-insert-group-header">CMS</SectionLabel>
+        <div data-field-insert-category-list className="px-2">
           {renderCategoryRows(cmsCategories)}
         </div>
 
         {/* Divider */}
-        <div className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
+        <div data-field-insert-divider className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
 
         {/* Creative — promoted from a single Insert row into its OWN
             top-level group. Each of the five ex-sections (Effects /
             Backgrounds / Text Effects / Containers / Cursors) is a
             sibling row that opens its own secondary panel. Categories
             defined in `CREATIVE_CATEGORIES`. */}
-        <SectionLabel size="xs">CREATIVE</SectionLabel>
-        <div className="px-2 pb-2">
+        <SectionLabel size="xs" className="field-insert-group-header">CREATIVE</SectionLabel>
+        <div data-field-insert-category-list className="px-2 pb-2">
           {renderCategoryRows(CREATIVE_CATEGORIES)}
         </div>
       </div>
@@ -797,13 +799,16 @@ export default function InsertOverlay() {
       {(activeCategoryData || searchActive) && createPortal(
         <motion.div
           data-editor-panel="left-secondary"
+          data-field-chrome-panel
+          data-left-panel-surface="insert-secondary"
+          data-field-insert-secondary
           // z-[9999] is one above the bottom toolbar (z-[9998] in
           // editor/BottomToolbar.tsx). The old z-[5000] meant the
           // toolbar floated over the bottom edge of the secondary panel
           // — annoying when scanning shape / layout tiles that sit low
           // in the panel. Now the secondary sidebar covers the toolbar
           // along its full height while open.
-          className={`fixed bg-[var(--bg-surface)] border border-[var(--border-light)] flex min-h-0 flex-col overflow-hidden shadow-2xl ${floatingInsertRect ? 'z-[11001] rounded-r-[9px]' : 'z-[9999]'}`}
+          className={`field-insert-secondary-surface fixed flex min-h-0 flex-col overflow-hidden ${floatingInsertRect ? 'z-[11001]' : 'z-[9999]'}`}
           initial={{ opacity: 0, x: -14, scaleX: 0.96 }}
           animate={{ opacity: 1, x: 0, scaleX: 1 }}
           transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
@@ -868,10 +873,10 @@ function SearchResultsPanel({ query, groups }: SearchResultsPanelProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-hide">
+    <div data-field-insert-detail className="flex-1 overflow-y-auto p-2.5 space-y-3 scrollbar-hide">
       {groups.map(group => (
-        <div key={group.id}>
-          <h3 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2.5 px-1">
+        <div key={group.id} data-field-insert-section>
+          <h3 className="field-insert-detail-heading text-[11px] font-semibold text-[var(--text-secondary)] mb-1.5 px-1">
             {group.label}
             <span className="ml-1.5 font-normal text-[var(--text-disabled)]">
               · {group.items.length}

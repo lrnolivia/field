@@ -54,7 +54,7 @@ export default function FloatingLeftPanelHost() {
       className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
       style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
         opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-[6px]"><Panel /></div>
       <button type="button"
         aria-label="Resize floating left panel"
         title="Resize panel"

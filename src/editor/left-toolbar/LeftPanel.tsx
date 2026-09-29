@@ -65,6 +65,8 @@ export default function LeftPanel() {
         height: workspaceBodyHeightCss(workspace.left),
         paddingLeft: 6,
         paddingRight: 6,
+        paddingTop: 6,
+        paddingBottom: 6,
         boxSizing: 'border-box',
         willChange: 'transform',
         isolation: 'isolate',

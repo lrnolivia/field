@@ -113,3 +113,88 @@
 [data-field-layer-row] > [aria-hidden="true"]:not(.field-layer-locate-flash) {
   clip-path: none !important;
 }
+
+
+/* FIELD_LEFT_PARITY_VISIBLE_20260929
+ * Pages and Layers are two document zones, not one undifferentiated black slab.
+ * Separation stays deliberately quiet and follows Inspector section hierarchy. */
+[data-field-document-panel] {
+  gap: 5px;
+  background: transparent;
+}
+
+[data-document-pages],
+[data-document-layers] {
+  background: var(--field-chrome-section-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+[data-document-layers] {
+  --field-layer-selected-bg: var(--field-chrome-raised-bg);
+  --field-layer-selected-border: var(--field-chrome-border-strong);
+}
+
+.field-pages-section-header,
+.field-layers-section-header {
+  height: 30px;
+  min-height: 30px;
+  padding-inline: 7px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+  box-shadow: none !important;
+}
+
+[data-field-pages-tree] {
+  padding: 3px 3px 5px;
+}
+
+[data-field-pages-splitter] {
+  flex-basis: 5px;
+  min-height: 5px;
+  background: transparent;
+}
+
+[data-field-pages-splitter]::before {
+  display: none;
+}
+
+[data-field-pages-splitter]::after {
+  left: 50%;
+  right: auto;
+  top: 2px;
+  width: 30px;
+  height: 1px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--field-chrome-border);
+}
+
+[data-field-pages-splitter]:hover::after,
+[data-field-pages-splitter]:focus-visible::after {
+  background: var(--field-chrome-border-strong);
+}
+
+.field-page-row,
+[data-field-layer-row] {
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.field-page-row[data-active="true"] {
+  background: var(--field-chrome-raised-bg) !important;
+  border-color: var(--field-chrome-border-strong);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.field-page-row[data-active="false"]:hover,
+[data-field-layer-row]:hover {
+  border-color: var(--field-chrome-border);
+}
+
+[data-document-pages] [data-field-searchbar],
+[data-document-layers] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+  background: var(--field-chrome-control-bg);
+}

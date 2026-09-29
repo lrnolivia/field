@@ -360,3 +360,118 @@
   --bg-tertiary: var(--field-chrome-section-bg);
   --border-light: var(--field-chrome-border);
 }
+
+
+/* ── Visible left-panel parity pass ────────────────────────────────────────
+ * This is intentionally scoped to left-owned surfaces. Inspector and generic
+ * portaled primitives remain on their native design system. */
+[data-editor-panel="left-primary"] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-floating-left-panel] {
+  background: var(--field-chrome-panel-bg);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-section-label] {
+  background: var(--field-chrome-section-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+  box-shadow: none;
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row] {
+  border: 1px solid transparent;
+  border-radius: var(--field-chrome-radius-control);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row]:hover {
+  border-color: var(--field-chrome-border);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row][data-active="true"] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border-strong);
+  color: var(--text-primary);
+}
+
+/* Insert primary navigation: section headers carry hierarchy; rows stay quiet. */
+[data-left-panel-surface="insert"] [data-field-insert-search] {
+  margin-inline: 2px;
+  background: var(--field-chrome-section-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-search] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+  clip-path: none;
+}
+
+[data-left-panel-surface="insert"] .field-insert-group-header {
+  margin: 5px 2px 0;
+  border: 1px solid var(--field-chrome-border);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-category-list] {
+  margin-inline: 2px;
+  padding: 3px;
+  border: 1px solid var(--field-chrome-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1.1%);
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-divider] {
+  margin-block: 4px 0;
+  border-color: transparent;
+}
+
+/* Insert detail panels are still object browsers, but no longer read like
+ * legacy Revyme card galleries. Tiles stay flat, compact and non-animated. */
+[data-field-insert-secondary] {
+  background: var(--field-chrome-panel-bg);
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+[data-field-insert-secondary] [data-field-insert-section] {
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-field-insert-secondary] .field-insert-detail-heading {
+  min-height: 28px;
+  margin: 0;
+  padding: 7px 8px 6px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+:where(
+  [data-left-panel-surface="insert-secondary"],
+  [data-toolbar-panel="insert"]
+) [data-toolbar-item] {
+  clip-path: none !important;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 5px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:where(
+  [data-left-panel-surface="insert-secondary"],
+  [data-toolbar-panel="insert"]
+) [data-toolbar-item]:hover {
+  border-color: var(--field-chrome-border-strong);
+  transform: none !important;
+}

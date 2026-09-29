@@ -62,11 +62,13 @@ describe('shared field chrome architecture', () => {
     }
   });
 
-  it('marks shared panel primitives instead of styling each destination independently', () => {
+  it('marks left-owned shared primitives without retheming generic portaled UI', () => {
     expect(read('src/design-system/SectionLabel.tsx')).toContain('data-field-chrome-section-label');
     expect(read('src/design-system/SearchBar.tsx')).toContain('data-field-chrome-search');
     expect(read('src/design-system/SidebarRow.tsx')).toContain('data-field-chrome-row');
-    expect(read('src/editor/ui/SearchableDropdown.tsx')).toContain('data-field-chrome-combobox-trigger');
-    expect(read('src/design-system/Modal.tsx')).toContain('data-field-chrome-surface="modal"');
+    expect(read('src/design-system/SidebarRow.tsx')).toContain('data-active={isActive');
+    expect(read('src/editor/ui/SearchableDropdown.tsx')).not.toContain('data-field-chrome-combobox-trigger');
+    expect(read('src/design-system/Modal.tsx')).not.toContain('data-field-chrome-surface="modal"');
+    expect(read('src/editor/left-toolbar/panels/insert/index.tsx')).toContain('data-field-insert-secondary');
   });
 });
