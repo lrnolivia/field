@@ -16,7 +16,7 @@ import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
 import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
 import { agentStatusAtom } from '@/code/stores/agent-chat-store';
-import { ChatImageIcon, SettingsConnectAiIcon } from '@/shared/icons';
+import { SettingsConnectAiIcon } from '@/shared/icons';
 import EditorAppearanceControl from '@/editor/EditorAppearanceControl';
 import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import {
@@ -377,10 +377,6 @@ export default function LeftMenu() {
           </svg>
         </MenuButton>
 
-        {/* Media Gallery */}
-        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="media" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
-          <ChatImageIcon className="w-[18px] h-[18px]" />
-        </MenuButton>
 
         {/* CMS */}
         <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">

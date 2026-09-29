@@ -278,3 +278,14 @@ describe('autosave conflict classification', () => {
     expect(isRetryableSaveError(new Error('503'))).toBe(true);
   });
 });
+
+
+describe('FieldBackend Media inventory', () => {
+  it('does not pretend editor-only R2 is a source-safe durable asset catalog yet', async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 500 }));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    expect(await backend.listAssets('site-1')).toBeNull();
+    expect(await backend.getAssetStorageInfo('site-1')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

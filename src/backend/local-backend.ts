@@ -1,7 +1,7 @@
 // local-backend.ts — Standalone (no backend) implementation using localStorage.
 // Used when VITE_REVYME_CLOUD is not set.
 
-import type { ProjectBackend, ProjectData, RevymeUser, WorkspaceFont } from './types';
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont } from './types';
 import { isKnownProjectFormat } from './types';
 import { trace } from '@/shared/debug-trace';
 
@@ -71,6 +71,17 @@ export class LocalBackend implements ProjectBackend {
     });
     trace.action('backend:upload-asset', { source: 'dataURL', name: file.name, bytes: file.size });
     return url;
+  }
+
+  async listAssets(_id: string, _kind?: ProjectMediaAssetKind): Promise<ProjectMediaAsset[] | null> {
+    // LocalBackend has no durable asset catalog. The Media browser keeps
+    // uploads for this editor session while inserted data: URLs remain part
+    // of the real source/project snapshot.
+    return null;
+  }
+
+  async getAssetStorageInfo(_id: string): Promise<ProjectMediaStorageInfo | null> {
+    return null;
   }
 
   async deleteAssets(_id: string, keys: string[]): Promise<void> {

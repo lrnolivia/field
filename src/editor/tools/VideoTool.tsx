@@ -125,8 +125,7 @@ function VideoToolInner({
   node: NonNullable<ReturnType<typeof useControl>['node']>;
   vpId: string;
 }) {
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const [posterModalOpen, setPosterModalOpen] = useState(false);
+  const [mediaPicker, setMediaPicker] = useState<'video' | 'poster' | null>(null);
 
   const src = node.attrs?.src ?? '';
   const poster = node.attrs?.poster ?? '';
@@ -137,6 +136,7 @@ function VideoToolInner({
     queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { src: url } });
     // Instant canvas feedback via bridge — the canvas DOM lives in the iframe.
     getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'src', url);
+    setMediaPicker(null);
   }, [nodeId, vpId]);
 
   // ─── Poster selection ─────────────────────────────────────────────
@@ -145,6 +145,7 @@ function VideoToolInner({
     queueMutation({ type: 'updateHtmlAttrs', nodeId, attrs: { poster: url } });
     // Instant canvas feedback via bridge — the canvas DOM lives in the iframe.
     getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'poster', url);
+    setMediaPicker(null);
   }, [nodeId, vpId]);
 
   const removePoster = useCallback(() => {
@@ -159,32 +160,47 @@ function VideoToolInner({
   return (
     <>
       <ToolSection title="Video" collapsible>
-        {/* Video preview / choose */}
+        {/* Video source — compact Media row, same interaction as Fill Video. */}
         {src ? (
-          <div className="flex flex-col gap-2">
-            <div
-              className="w-full h-28 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] overflow-hidden cursor-pointer hover:opacity-90 transition-opacity bg-[var(--control-bg)]"
-              onClick={() => setVideoModalOpen(true)}
-            >
-              <video src={src} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-            </div>
-            <button
-              onClick={() => setVideoModalOpen(true)}
-              className="w-full h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer"
-            >
-              Change
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMediaPicker(mediaPicker === 'video' ? null : 'video')}
+            aria-expanded={mediaPicker === 'video'}
+            className="w-full h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-left hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
+            title={src}
+          >
+            <span className="h-6 w-9 shrink-0 overflow-hidden rounded-[3px] border border-[var(--border-light)] bg-black">
+              <video src={src} muted playsInline preload="metadata" className="h-full w-full object-cover pointer-events-none" />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">Video</span>
+            <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">Change</span>
+          </button>
         ) : (
           <button
-            onClick={() => setVideoModalOpen(true)}
-            className="w-full h-20 cut-corners cut-border border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            type="button"
+            onClick={() => setMediaPicker(mediaPicker === 'video' ? null : 'video')}
+            aria-expanded={mediaPicker === 'video'}
+            className="w-full h-8 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
-            Choose Video
+            <span className="flex h-4 w-4 items-center justify-center text-[10px]" aria-hidden>▶</span>
+            <span className="min-w-0 flex-1 truncate">Choose media</span>
+            <span className="text-[10px] text-[var(--text-disabled)]">Video</span>
           </button>
+        )}
+
+        {mediaPicker === 'video' && (
+          <div
+            data-contextual-media-picker="video-source"
+            className="mt-1 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+          >
+            <VideoSearchModal
+              isOpen
+              embedded
+              compact
+              onClose={() => setMediaPicker(null)}
+              onSelect={handleVideoSelect}
+            />
+          </div>
         )}
 
         {/* Poster — swatch + label when set (like Fill Image), Choose button when empty */}
@@ -192,8 +208,8 @@ function VideoToolInner({
           <span className="w-3/4 text-xs font-medium text-[var(--text-secondary)] select-none">Poster</span>
           {poster ? (
             <button
-              onClick={() => setPosterModalOpen(true)}
-              className="w-full h-[var(--control-height)] flex items-center gap-2 px-2 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-xs text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer"
+              onClick={() => setMediaPicker(mediaPicker === 'poster' ? null : 'poster')}
+              className="w-full h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-[11px] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
             >
               <div
                 className="w-6 h-6 rounded shrink-0 border border-[var(--border-light)]"
@@ -203,13 +219,28 @@ function VideoToolInner({
             </button>
           ) : (
             <button
-              onClick={() => setPosterModalOpen(true)}
-              className="w-full h-[var(--control-height)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              onClick={() => setMediaPicker(mediaPicker === 'poster' ? null : 'poster')}
+              className="w-full h-8 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
             >
-              Choose
+              Choose media
             </button>
           )}
         </div>
+
+        {mediaPicker === 'poster' && (
+          <div
+            data-contextual-media-picker="video-poster"
+            className="mt-1 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+          >
+            <ImageSearchModal
+              isOpen
+              embedded
+              compact
+              onClose={() => setMediaPicker(null)}
+              onSelect={handlePosterSelect}
+            />
+          </div>
+        )}
 
         {/* ToolAtom controls — all using UnifiedControlProvider */}
         <VideoControlsControl />
@@ -220,8 +251,6 @@ function VideoToolInner({
         <VideoFitControl />
       </ToolSection>
 
-      <VideoSearchModal isOpen={videoModalOpen} onClose={() => setVideoModalOpen(false)} onSelect={handleVideoSelect} />
-      <ImageSearchModal isOpen={posterModalOpen} onClose={() => setPosterModalOpen(false)} onSelect={handlePosterSelect} />
     </>
   );
 }

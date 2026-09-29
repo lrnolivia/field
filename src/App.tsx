@@ -36,6 +36,7 @@ import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
 import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
 import ToolbarPanelHost from './editor/ToolbarPanelHost';
+import MediaUploadTray from './editor/media/MediaUploadTray';
 import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
@@ -414,6 +415,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           Portal-mounted so it escapes any overflow/transform ancestors. */}
       <CommandPalette />
       <ToolbarPanelHost />
+      {!previewMode && <MediaUploadTray />}
       {/* "Start from a template" prompt — brand-new cloud websites only
           (ProjectLoader arms it when the site loads with zero files).
           Offers free marketplace templates; closing keeps the blank

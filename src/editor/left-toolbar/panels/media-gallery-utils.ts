@@ -78,7 +78,7 @@ export function sweepAutoScrollStep(
 }
 
 /** The delete-confirmation copy: single asset vs bulk. */
-export function deleteConfirmMessage(count: number, noun: 'image' | 'video'): string {
+export function deleteConfirmMessage(count: number, noun: 'image' | 'video' | 'audio' | 'asset'): string {
   return count > 1
     ? `This will delete ${count} ${noun}s from the website. Continue?`
     : 'This will delete this asset from the website. Continue?';

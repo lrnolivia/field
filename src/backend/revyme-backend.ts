@@ -9,7 +9,7 @@
 //
 // Credentials ride along on the session cookie either way.
 
-import type { ProjectBackend, ProjectData, RevymeUser, WorkspaceFont } from './types';
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont } from './types';
 import { isKnownProjectFormat } from './types';
 import { trace } from '@/shared/debug-trace';
 
@@ -274,7 +274,8 @@ export class RevymeBackend implements ProjectBackend {
   async uploadAsset(id: string, file: File): Promise<string> {
     const form = new FormData();
     form.append('file', file);
-    form.append('type', 'image');
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    form.append('type', type);
     form.append('source', 'uploaded');
     form.append('websiteId', id);
 
@@ -296,6 +297,43 @@ export class RevymeBackend implements ProjectBackend {
     const json = await res.json();
     trace.action('backend:upload-asset', { id, url: json.url });
     return json.url as string;
+  }
+
+  async listAssets(id: string, kind?: ProjectMediaAssetKind): Promise<ProjectMediaAsset[] | null> {
+    const kinds: ProjectMediaAssetKind[] = kind ? [kind] : ['image', 'video'];
+    const rows: ProjectMediaAsset[] = [];
+    for (const mediaKind of kinds) {
+      const res = await fetch(
+        url(`/api/upload?websiteId=${encodeURIComponent(id)}&type=${mediaKind}`),
+        { credentials: 'include' },
+      );
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        trace.error('backend:list-assets', { id, kind: mediaKind, status: res.status, body: text });
+        throw new Error(`Media list failed: ${res.status}`);
+      }
+      const data = await res.json() as { uploads?: Array<Omit<ProjectMediaAsset, 'kind'>> };
+      for (const item of data.uploads ?? []) rows.push({ ...item, kind: mediaKind });
+    }
+    trace.action('backend:list-assets', { id, kind: kind ?? 'all', count: rows.length });
+    return rows;
+  }
+
+  async getAssetStorageInfo(id: string): Promise<ProjectMediaStorageInfo | null> {
+    const res = await fetch(
+      url(`/api/upload?websiteId=${encodeURIComponent(id)}&type=storage`),
+      { credentials: 'include' },
+    );
+    if (!res.ok) {
+      trace.error('backend:asset-storage', { id, status: res.status });
+      return null;
+    }
+    const data = await res.json() as Partial<ProjectMediaStorageInfo>;
+    if (typeof data.currentUsageMB !== 'string' || typeof data.storageLimitMB !== 'string') return null;
+    return {
+      currentUsageMB: data.currentUsageMB,
+      storageLimitMB: data.storageLimitMB,
+    };
   }
 
   async deleteAssets(id: string, keys: string[]): Promise<void> {

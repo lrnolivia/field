@@ -5,10 +5,12 @@
 // Uses shared Modal shell for portal, backdrop, Escape key, and close button.
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSetAtom } from 'jotai';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
-import { backend } from '@/backend';
+import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
+import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 import { getProjectId } from '@/backend/project-id';
 
 // Pixabay video search. In CLOUD mode it goes through the backend proxy
@@ -31,6 +33,7 @@ interface VideoSearchModalProps {
   onClose: () => void;
   onSelect: (url: string) => void;
   compact?: boolean;
+  embedded?: boolean;
 }
 
 interface PixabayVideoSize {
@@ -62,7 +65,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = false }: VideoSearchModalProps) {
+export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = false, embedded = false }: VideoSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_PIXABAY ? 'pixabay' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PixabayVideo[]>([]);
@@ -72,6 +75,8 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
   const [urlInput, setUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const inputRef = useRef<HTMLInputElement>(null);
   const loadingMoreRef = useRef(false); // sync guard against concurrent page fetches
   const pageRef = useRef(1);            // sync last-fetched page
@@ -150,8 +155,11 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
     }
   }, [isOpen, searchPixabay]);
 
-  const handleSelect = (url: string) => {
-    trace.action('video-search:select', { url: url.slice(0, 80) });
+  const handleSelect = (url: string, registerExternal = true) => {
+    trace.action('video-search:select', { url: url.slice(0, 80), registerExternal });
+    if (registerExternal) {
+      rememberMediaAsset(mediaAssetFromExternalUrl(url, 'video'));
+    }
     onSelect(url);
     onClose();
   };
@@ -269,7 +277,15 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
                 setUploading(true);
                 setUploadError(null);
                 try {
-                  handleSelect(await backend.uploadAsset(getProjectId(), file));
+                  const result = await ingestMediaFile({
+                    file,
+                    projectId: getProjectId(),
+                    kind: 'video',
+                    upsert: upsertMediaUpload,
+                    idPrefix: 'video-picker',
+                    rememberAsset: rememberMediaAsset,
+                  });
+                  handleSelect(result.url, false);
                 } catch (error) {
                   setUploadError(error instanceof Error ? error.message : 'Video upload failed');
                 } finally {
@@ -302,19 +318,35 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
           </div>
         )}
 
-        {/* ─── Create Tab (AI placeholder) ─── */}
+        {/* Create remains discoverable, but this build has no generation backend. */}
         {tab === 'create' && (
-          <div className={`flex flex-col items-center justify-center gap-4 ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-tertiary)]">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            <p className="text-xs text-[var(--text-secondary)] text-center max-w-xs">
-              AI video generation requires a backend API. Connect your Runway or Pika API key to enable this feature.
-            </p>
+          <div
+            data-media-create-unavailable="video"
+            className={`flex items-center justify-center ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}
+          >
+            <div className="w-full max-w-[320px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-3">
+              <div className="flex items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[11px] text-[var(--text-tertiary)]"
+                >
+                  ▶
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-[var(--text-primary)]">Create video</p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                    Video generation is not connected in this build yet.
+                  </p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                    Use Upload, a URL, or Pixabay for now.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
   );
   if (!isOpen) return null;
-  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
+  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
 }

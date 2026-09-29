@@ -132,6 +132,11 @@ describe('LocalBackend', () => {
     expect(url.startsWith('data:')).toBe(true);
     expect(atob(url.split(',')[1])).toBe('hello');
   });
+
+  it('reports that standalone Media inventory is session-only', async () => {
+    expect(await backend.listAssets('local')).toBeNull();
+    expect(await backend.getAssetStorageInfo('local')).toBeNull();
+  });
 });
 
 // flushSaveNow — publish-path save flush. A publish clicked inside the 2s
