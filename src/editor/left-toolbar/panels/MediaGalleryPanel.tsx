@@ -198,7 +198,7 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
   canDelete: boolean;
   /** Shift held on pointerdown → the panel's sweep/toggle machinery. */
   onShiftPointerDown: (key: string, e: React.PointerEvent) => void;
-  /** Plain pointerdown (drag intent) — panel clears any multi-selection. */
+  /** Plain pointerdown (drag intent) — panel clears multi-selection and may inspect. */
   onPlainPointerDown: () => void;
   onRequestDelete: (key: string) => void;
 }) {
@@ -277,12 +277,36 @@ interface StorageInfo {
   storageLimitMB: string;
 }
 
+function mediaDisplayName(item: UploadedFile): string {
+  if (item.key) {
+    const part = item.key.split('/').filter(Boolean).pop();
+    if (part) return decodeURIComponent(part);
+  }
+  try {
+    const url = new URL(item.url);
+    const part = url.pathname.split('/').filter(Boolean).pop();
+    if (part) return decodeURIComponent(part);
+  } catch {
+    // data:/blob: and malformed URLs fall back to the type label below.
+  }
+  return item.kind === 'image' ? 'Image' : 'Video';
+}
+
+function formatMediaBytes(size?: number): string {
+  if (!size || size < 1) return 'Unknown';
+  if (size < 1024) return size + ' B';
+  if (size < 1024 * 1024) return (size / 1024).toFixed(size >= 1024 * 100 ? 0 : 1) + ' KB';
+  return (size / (1024 * 1024)).toFixed(size >= 1024 * 1024 * 10 ? 0 : 1) + ' MB';
+}
+
 export default function MediaGalleryPanel({
   chrome = 'full',
   initialTab = 'all',
+  workspace = false,
 }: {
   chrome?: 'full' | 'embedded';
   initialTab?: MediaGalleryTab;
+  workspace?: boolean;
 } = {}) {
   const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
@@ -296,6 +320,7 @@ export default function MediaGalleryPanel({
   const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [inspectedIdentity, setInspectedIdentity] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   // Pending delete confirmation — the keys the ConfirmModal will remove.
@@ -320,6 +345,10 @@ export default function MediaGalleryPanel({
   const selectedImageUrls = React.useMemo(
     () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image'), selectedKeys),
     [filteredUploads, selectedKeys],
+  );
+  const inspectedAsset = React.useMemo(
+    () => uploads.find((item) => (item.key ?? item.url) === inspectedIdentity) ?? null,
+    [uploads, inspectedIdentity],
   );
   const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
@@ -694,7 +723,8 @@ export default function MediaGalleryPanel({
 
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
-        <div ref={scrollRef} onPointerDown={onGridPointerDown} className="flex-1 overflow-y-auto scrollbar-hide p-3">
+        <div className="flex min-h-0 flex-1">
+          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-3">
           {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
@@ -719,7 +749,7 @@ export default function MediaGalleryPanel({
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className={workspace ? "grid grid-cols-4 gap-2" : "grid grid-cols-2 gap-2"}>
             {filteredUploads.map((item, i) => (
               <MediaTile
                 key={item.url + i}
@@ -729,11 +759,74 @@ export default function MediaGalleryPanel({
                 isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
                 canDelete={durableInventory === true}
                 onShiftPointerDown={beginShiftGesture}
-                onPlainPointerDown={() => { if (selectedKeys.size) setSelectedKeys(new Set()); }}
+                onPlainPointerDown={() => {
+                  if (selectedKeys.size) setSelectedKeys(new Set());
+                  if (workspace) setInspectedIdentity(item.key ?? item.url);
+                }}
                 onRequestDelete={requestDelete}
               />
             ))}
           </div>
+          </div>
+          {workspace && (
+            <aside
+              data-media-details
+              className="w-[220px] shrink-0 border-l border-[var(--border-light)] bg-[var(--bg-panel)]"
+            >
+              {inspectedAsset ? (
+                <div className="p-3">
+                  <div className="aspect-[4/3] overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)]">
+                    {inspectedAsset.kind === 'image' ? (
+                      <img src={inspectedAsset.url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <video src={inspectedAsset.url} className="h-full w-full object-cover" muted />
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-2 text-[10px]">
+                    <div>
+                      <div className="text-[var(--text-tertiary)]">Filename</div>
+                      <div className="mt-0.5 break-all text-[var(--text-primary)]">{mediaDisplayName(inspectedAsset)}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">Type</div>
+                        <div className="mt-0.5 capitalize text-[var(--text-primary)]">{inspectedAsset.kind}</div>
+                      </div>
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">File size</div>
+                        <div className="mt-0.5 text-[var(--text-primary)]">{formatMediaBytes(inspectedAsset.size)}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[var(--text-tertiary)]">Source</div>
+                      <div className="mt-0.5 text-[var(--text-primary)]">
+                        {durableInventory === true ? 'Project media' : 'Session'}
+                      </div>
+                    </div>
+                    {inspectedAsset.lastModified && (
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">Modified</div>
+                        <div className="mt-0.5 text-[var(--text-primary)]">{inspectedAsset.lastModified}</div>
+                      </div>
+                    )}
+                  </div>
+                  {durableInventory === true && inspectedAsset.key && (
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(inspectedAsset.key!)}
+                      className="mt-3 h-7 w-full rounded-[4px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-red-500"
+                    >
+                      Delete asset
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center text-[10px] text-[var(--text-tertiary)]">
+                  Select media to inspect
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       ) : !loadingList && uploads.length > 0 && searchQuery.trim().length > 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-1.5 px-4 text-center">

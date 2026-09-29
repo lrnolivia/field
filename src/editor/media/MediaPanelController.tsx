@@ -323,7 +323,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   } else if (session.route.kind === 'audio') {
     content = audioContent;
   } else {
-    content = <MediaGalleryPanel chrome="embedded" />;
+    content = <MediaGalleryPanel chrome="embedded" workspace={expanded} />;
   }
 
   const title = routeTitle(session.route, session.intent);
@@ -356,7 +356,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
             {transientError}
           </div>
         )}
-        {expanded && isLauncher ? <MediaGalleryPanel chrome="embedded" /> : content}
+        {expanded && isLauncher ? <MediaGalleryPanel chrome="embedded" workspace={expanded} /> : content}
       </MediaToolbarPopover>
     </>
   );
