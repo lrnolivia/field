@@ -16,11 +16,11 @@ owned:
   - src/canvas/hooks/useCanvasTouchInteraction.ts
   - src/canvas/hooks/useCanvasTouchInteraction.test.ts
   - src/canvas/selection/SelectionBox.tsx
+  - src/canvas/mouse/CanvasMouseController.ts
   - src/canvas/Canvas.tsx
 approved_shared: []
 protected:
   - src/canvas/drag/**
-  - src/canvas/mouse/**
   - src/editor/**
   - src/code/**
   - src/canvas-sandbox/**
@@ -55,7 +55,7 @@ User-authorized continuation on the same PR.
 
 Make the existing Focus workspace behave naturally without a mouse:
 - tap selects
-- one-finger drag on a selected/hit object moves it through existing DragCoordinator behavior
+- one-finger drag on a hit object moves it through existing DragCoordinator behavior
 - one-finger drag on empty canvas pans
 - empty-canvas tap still deselects
 - touch pointer input does not start the desktop marquee
@@ -66,7 +66,9 @@ Make the existing Focus workspace behave naturally without a mouse:
 
 field-motion-quality protects src/canvas/** but does not own these exact paths. This narrowly scoped touch continuation is explicitly user-authorized and must not change chrome-motion behavior.
 
-Native Scale remains isolated. Do not edit src/canvas/drag/**, src/canvas/scale/**, or ScaleHandles; consume only existing public APIs.
+Native Scale remains isolated. Do not edit src/canvas/drag/**, src/canvas/scale/**, or ScaleHandles; consume only existing public DragCoordinator APIs.
+
+CanvasMouseController receives only a small cancellation-reset seam so two-finger takeover cannot leave deferred mouse-selection state behind.
 
 ### acceptance
 
