@@ -107,6 +107,8 @@ interface Panel {
   savedY: number;
 }
 
+export type ToolPopupKind = 'default' | 'options';
+
 interface ToolPopupProps {
   isOpen: boolean;
   onClose: () => void;
@@ -114,8 +116,10 @@ interface ToolPopupProps {
   children: ReactNode;
   /** Reference element to position against (the Edit button) */
   anchorRef: React.RefObject<HTMLElement | null>;
-  /** Popup width (default 260px — matches sidebar) */
+  /** Popup width. Defaults to 260px for legacy editors and 280px for canonical options panels. */
   width?: number;
+  /** Canonical compact options-panel treatment. Legacy popups remain unchanged until migrated. */
+  kind?: ToolPopupKind;
   /** When this value changes, panel stack resets to root (for selection reactivity) */
   resetKey?: string | number;
   /** Which side to position the popup relative to the anchor. Default 'left' (opens to the left of anchor). */
@@ -140,7 +144,8 @@ export default function ToolPopup({
   title,
   children,
   anchorRef,
-  width = 260,
+  width,
+  kind = 'default',
   resetKey,
   side = 'left',
   ariaLabel,
@@ -149,6 +154,7 @@ export default function ToolPopup({
   hideHeader = false,
   contentClassName,
 }: ToolPopupProps) {
+  const resolvedWidth = width ?? (kind === 'options' ? 280 : 260);
   const popupRef = useRef<HTMLDivElement>(null);
   const activePanelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -275,12 +281,12 @@ export default function ToolPopup({
     let x: number;
     if (side === 'right') {
       x = (isDetached ? (sidebar?.getBoundingClientRect().right || window.innerWidth) : rect.right) + gap / 2;
-      if (x + width > window.innerWidth - gap) x = window.innerWidth - width - gap;
+      if (x + resolvedWidth > window.innerWidth - gap) x = window.innerWidth - resolvedWidth - gap;
     } else {
       if (sidebar) {
-        x = sidebar.getBoundingClientRect().left - width - gap;
+        x = sidebar.getBoundingClientRect().left - resolvedWidth - gap;
       } else {
-        x = (isDetached ? window.innerWidth - 260 : rect.left) - width - gap;
+        x = (isDetached ? window.innerWidth - 260 : rect.left) - resolvedWidth - gap;
       }
     }
     if (x < gap) x = gap;
@@ -296,7 +302,7 @@ export default function ToolPopup({
     setPos({ x, y });
     setPositioned(true);
     preGrowthYRef.current = null; // fresh open — forget any previous growth state
-  }, [width, side]);
+  }, [resolvedWidth, side]);
 
   // Keep onClose in a ref so the open effect doesn't re-run when parent re-renders
   const onCloseRef = useRef(onClose);
@@ -503,7 +509,7 @@ export default function ToolPopup({
         initial={{ opacity: 0, scale: 0.97, x: side === 'left' ? 6 : -6 }}
         // Elevation is resolved from the anchor's semantic surface scope.
         // One quiet perimeter + shared true-float shadow; geometry stays UI3-rounded.
-        style={{ width, zIndex }}
+        style={{ width: resolvedWidth, zIndex }}
         // Entrance: fade + subtle scale + slide from the anchor side.
         // left/top always snap instantly; animateTop enables spring for top only.
         animate={positioned ? {
@@ -573,14 +579,16 @@ export default function ToolPopup({
                 than growing the popup past the viewport. */}
             <div
               ref={panelStack.length === 0 ? activePanelRef : undefined}
-              className={contentClassName ?? "w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"}
+              className={contentClassName ?? (kind === 'options'
+                ? "w-full flex-shrink-0 px-3 pb-3 pt-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                : "w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide")}
               style={{ maxHeight: maxContentHeight }}
             >
               {/* Keyed by resetKey so the content REMOUNTS when the selected node/tile
                   changes — the children hold local useState (e.g. a Scroll Animation's
                   direction/replay), which a plain re-render wouldn't re-seed. Switching
                   Desktop→Tablet now instantly shows the active viewport's values. */}
-              <div key={resetKey ?? 'root'} className="flex flex-col gap-1.5">
+              <div key={resetKey ?? 'root'} className={kind === 'options' ? "flex flex-col gap-2.5" : "flex flex-col gap-1.5"}>
                 {children}
               </div>
             </div>
@@ -589,10 +597,12 @@ export default function ToolPopup({
               <div
                 key={i}
                 ref={i === panelStack.length - 1 ? activePanelRef : undefined}
-                className="w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                className={kind === 'options'
+                  ? "w-full flex-shrink-0 px-3 pb-3 pt-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide"
+                  : "w-full flex-shrink-0 px-2.5 pb-2 pt-1 overflow-y-auto overflow-x-hidden scrollbar-hide"}
                 style={{ maxHeight: maxContentHeight }}
               >
-                <div className="flex flex-col gap-1.5">
+                <div className={kind === 'options' ? "flex flex-col gap-2.5" : "flex flex-col gap-1.5"}>
                   {typeof panel.content === 'function'
                     ? <PanelRender render={panel.content} />
                     : panel.content}
