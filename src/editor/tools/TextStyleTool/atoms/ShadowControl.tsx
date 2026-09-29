@@ -18,7 +18,7 @@ import {
   type TextShadowEntry,
 } from '../text-helpers';
 import { trace } from '@/shared/debug-trace';
-import { EffectOptionsPanel, EffectOptionSection, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 interface ShadowControlProps {
   value?: string;
@@ -64,7 +64,8 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
   return (
     <div data-text-effect-editor>
       <EffectOptionsPanel>
-        <EffectOptionSection title="Geometry">
+        <EffectIllustration kind="text-shadow" />
+        <EffectOptionSection title="Geometry" glyph={<InspectorSectionGlyph kind="geometry" />}>
           <SpatialRow label="Offset">
             <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} chevronLabel="X" ariaLabel="Text shadow X" />
             <ToolInput value={String(activeEntry.y)} onChange={(v) => updateEntry({ y: parseFloat(v) || 0 })} step={1} chevronLabel="Y" ariaLabel="Text shadow Y" />
@@ -79,7 +80,7 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
             onChange={(v) => updateEntry({ blur: v })}
           />
         </EffectOptionSection>
-        <EffectOptionSection title="Paint">
+        <EffectOptionSection title="Paint" glyph={<InspectorSectionGlyph kind="paint" />}>
           <PaintOptionRow label="Color" value={activeEntry.color} onChange={(c) => updateEntry({ color: c })} />
         </EffectOptionSection>
       </EffectOptionsPanel>
@@ -170,7 +171,7 @@ function TextShadowList({ value, onCommit, plain, compactSection = false }: {
         hideAddRow={compactSection}
       />
       {!popupCtx && (
-        <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef}>
+        <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef} width={300} kind="options">
           {entries[activeIdx] && (
             <TextShadowEditorPanel initialIdx={activeIdx} initialValue={value} onCommit={onCommit} />
           )}

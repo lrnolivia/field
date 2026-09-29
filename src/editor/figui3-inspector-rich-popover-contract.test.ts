@@ -26,6 +26,11 @@ describe('FigUI3 rich Inspector popover architecture', () => {
     expect(typography).toContain('Basics');
     expect(typography).toContain('Details');
     expect(typography).toContain('data-typography-preview');
+    expect(typography).toContain('data-typography-preview-fit');
+    expect(typography).toContain('ResizeObserver');
+    expect(typography).toContain('<OptionSection');
+    expect(typography).toContain('rounded-[7px]');
+    expect(typography).toContain('kind="options"');
     expect(typography).toContain('<ToolSelect');
     expect(typography).toContain('<ToolSegmentedControl');
     expect(typography).not.toContain("createPortal");

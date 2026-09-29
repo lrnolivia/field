@@ -13,7 +13,7 @@ import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import { extractNonShadowFilter } from '../../../ui/shadow-utils';
 import type { AtomProps } from '../../../controls/unified/types';
-import { EffectOptionsPanel, EffectOptionSection, ScalarRow } from '../../../ui/OptionsPanel';
+import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
 
 // ─── Filter parse/format ────────────────────────────────────────────────────
 
@@ -92,12 +92,13 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
   return (
     <ShowControlLabels>
       <EffectOptionsPanel>
-        <EffectOptionSection title="Layer blur">
+        <EffectIllustration kind="layer-blur" />
+        <EffectOptionSection title="Layer blur" glyph={<InspectorSectionGlyph kind="blur" />}>
           <ScalarRow label="Radius" value={f.blur} min={0} max={40} step={0.5} unit="px"
             onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
         </EffectOptionSection>
 
-        <EffectOptionSection title="Adjustments">
+        <EffectOptionSection title="Adjustments" glyph={<InspectorSectionGlyph kind="adjustments" />}>
           <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
             onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
           <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
@@ -106,7 +107,7 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
             onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
         </EffectOptionSection>
 
-        <EffectOptionSection title="Color">
+        <EffectOptionSection title="Color" glyph={<InspectorSectionGlyph kind="color" />}>
           <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
             onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
           <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"

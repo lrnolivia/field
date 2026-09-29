@@ -9,8 +9,10 @@ describe('Options panel effect migration', () => {
     expect(options).toContain('data-effect-options-panel');
     expect(options).toContain('data-effect-option-section');
     expect(options).toContain('data-effect-option-action');
-    expect(options).toContain('cut-corners cut-border');
+    expect(options).toContain('rounded-[8px] border border-[var(--border-light)]');
     expect(options).toContain('border-b border-[var(--border-light)]');
+    expect(options).toContain('data-effect-illustration');
+    expect(options).toContain('InspectorSectionGlyph');
     expect(options).toContain('bg-[var(--bg-surface)]/45');
   });
 
@@ -18,6 +20,7 @@ describe('Options panel effect migration', () => {
     const shadow = read('src/editor/tools/StylesTool/atoms/ShadowControl.tsx');
     expect(shadow).toContain("{ kind: 'options', width: 300 }");
     expect(shadow).toContain('<EffectOptionsPanel>');
+    expect(shadow).toContain('<EffectIllustration kind="shadow" />');
     for (const title of ['Style', 'Geometry', 'Paint']) expect(shadow).toContain(`<EffectOptionSection title="${title}"`);
     expect(shadow).toContain('<SpatialRow label="Offset">');
     expect(shadow).toContain('label="Blur"');
@@ -28,6 +31,7 @@ describe('Options panel effect migration', () => {
     const filter = read('src/editor/tools/StylesTool/atoms/FilterControl.tsx');
     expect(filter).toContain("{ kind: 'options', width: 300 }");
     expect(filter).toContain('<EffectOptionsPanel>');
+    expect(filter).toContain('<EffectIllustration kind="layer-blur" />');
     for (const title of ['Layer blur', 'Adjustments', 'Color']) expect(filter).toContain(`<EffectOptionSection title="${title}"`);
     for (const label of ['Radius', 'Brightness', 'Contrast', 'Saturate', 'Grayscale', 'Hue rotate']) {
       expect(filter).toContain(`label="${label}"`);

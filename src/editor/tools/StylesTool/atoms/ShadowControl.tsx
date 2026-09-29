@@ -32,7 +32,7 @@ import { parsePx, formatPx } from '../style-helpers';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { trace } from '@/shared/debug-trace';
 import { resolvePresetColor } from '@/shared/css-utils';
-import { EffectOptionsPanel, EffectOptionSection, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 // ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
 
@@ -109,7 +109,8 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   return (
     <ShowControlLabels>
       <EffectOptionsPanel>
-        <EffectOptionSection title="Style">
+        <EffectIllustration kind="shadow" />
+        <EffectOptionSection title="Style" glyph={<InspectorSectionGlyph kind="style" />}>
           <ChoiceRow
             label="Type"
             value={activeEntry.type}
@@ -130,7 +131,7 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
           )}
         </EffectOptionSection>
 
-        <EffectOptionSection title="Geometry">
+        <EffectOptionSection title="Geometry" glyph={<InspectorSectionGlyph kind="geometry" />}>
           <SpatialRow label="Offset">
             <ToolInput
               value={formatPx(activeEntry.x)}
@@ -177,7 +178,7 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
           )}
         </EffectOptionSection>
 
-        <EffectOptionSection title="Paint">
+        <EffectOptionSection title="Paint" glyph={<InspectorSectionGlyph kind="paint" />}>
           <PaintOptionRow
             label="Color"
             value={activeEntry.color}
