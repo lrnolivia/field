@@ -29,7 +29,7 @@ import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
 import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
-import { ingestMediaFile } from '@/editor/media/media-ingest';
+import { ingestMediaFile, isMediaUploadCancelled } from '@/editor/media/media-ingest';
 
 type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio';
 
@@ -596,6 +596,10 @@ export default function MediaGalleryPanel({
           reusedExisting: result.reusedExisting,
         });
       } catch (err) {
+        if (isMediaUploadCancelled(err)) {
+          trace.action('media:upload-cancelled', { name: file.name, kind });
+          continue;
+        }
         const message = err instanceof Error ? err.message : 'Upload failed';
         trace.error('media:upload-failed', { name: file.name, error: message });
       }
@@ -635,6 +639,7 @@ export default function MediaGalleryPanel({
         setUploads((prev) => [{ url: result.url, size: file.size, kind, name: file.name }, ...prev]);
         created += 1;
       } catch (error) {
+        if (isMediaUploadCancelled(error)) continue;
         const message = error instanceof Error ? error.message : 'Could not keep duplicate';
         setUploadError(message);
       }

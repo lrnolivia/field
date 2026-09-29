@@ -10,7 +10,7 @@ import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
 import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
-import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
+import { ingestMediaFile, isMediaUploadCancelled, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 import { getProjectId } from '@/backend/project-id';
 import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
@@ -286,7 +286,9 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
                   });
                   handleSelect(result.url, false);
                 } catch (error) {
-                  setUploadError(error instanceof Error ? error.message : 'Video upload failed');
+                  if (!isMediaUploadCancelled(error)) {
+                    setUploadError(error instanceof Error ? error.message : 'Video upload failed');
+                  }
                 } finally {
                   input.value = '';
                   setUploading(false);

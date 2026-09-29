@@ -42,7 +42,7 @@ import NameInputModal from '@/editor/ui/NameInputModal';
 import { getImageDimensions, fitFrameBox } from '@/canvas/image-dims';
 import { trace } from '@/shared/debug-trace';
 import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
-import { ingestMediaFile, type MediaQueueWriter } from '@/editor/media/media-ingest';
+import { ingestMediaFile, isMediaUploadCancelled, type MediaQueueWriter } from '@/editor/media/media-ingest';
 
 /** Classification of a file by its mime/extension. */
 type FileKind = 'svg' | 'image' | 'unknown';
@@ -538,6 +538,10 @@ async function handleImageFileDrops(
       });
       xOffset += width + 20;
     } catch (err) {
+      if (isMediaUploadCancelled(err)) {
+        trace.action('canvas-file-drop:image-upload-cancelled', { name: file.name });
+        continue;
+      }
       const message = err instanceof Error ? err.message : String(err);
       trace.error('canvas-file-drop:image-upload-failed', {
         name: file.name,

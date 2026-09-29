@@ -25,7 +25,7 @@ import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { viewportPrefixesForNode } from '@/canvas/node-ops';
 import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { getProjectId } from '@/backend/project-id';
-import { ingestMediaFile } from './media-ingest';
+import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
 import { resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
@@ -140,6 +140,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       // selection change cannot unexpectedly replace a different node.
       placeUrl(elementKind, result.url, placement);
     } catch (error) {
+      if (isMediaUploadCancelled(error)) return;
       const message = error instanceof Error ? error.message : 'Upload failed.';
       setTransientError(message);
     }

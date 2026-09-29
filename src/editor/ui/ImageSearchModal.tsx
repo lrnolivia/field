@@ -13,7 +13,7 @@ import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
 import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
-import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
+import { ingestMediaFile, isMediaUploadCancelled, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
 // Unsplash search. In CLOUD mode it goes through the backend proxy
@@ -272,8 +272,10 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         onClose();
       }
     } catch (err) {
-      trace.error('image-search:upload-failed', err);
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      if (!isMediaUploadCancelled(err)) {
+        trace.error('image-search:upload-failed', err);
+        setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      }
     } finally {
       setUploading(false);
     }
