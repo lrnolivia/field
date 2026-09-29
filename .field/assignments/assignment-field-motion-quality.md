@@ -15,8 +15,8 @@ owned:
   - src/editor/ChromeIslands.tsx
   - src/editor/FloatingLeftPanelHost.tsx
   - src/editor/ToolbarPanelHost.tsx
-protected:
   - src/editor/editor-entrance.ts
+protected:
   - src/field-shell-motion.ts
   - src/canvas/**
   - src/dashboard/**
@@ -33,8 +33,8 @@ qa:
 
 Make field chrome motion consistently smooth, interruptible, judder-resistant, and accessibility-correct without changing the accepted product language or adding another animation runtime.
 
-Gold-standard references, read-only for this assignment:
-- editor/dashboard structural spring + directional motion blur
+Gold-standard references:
+- editor/dashboard structural spring + directional motion blur (editor-entrance.ts is now owned; preserve accepted behavior unless a change clearly improves consistency/performance)
 - accepted focus-camera motion + reduced-motion behavior
 
 # Baseline findings
@@ -150,3 +150,9 @@ Validate exact branch head:
 - global text-morph effects
 - blanket blur on moving text
 - unrelated chrome redesign
+
+## Ownership transfer — 2026-09-29
+
+User explicitly confirmed the editor-entrance work is complete and authorized this assignment to take it over.
+
+`src/editor/editor-entrance.ts` moved from protected/read-only to owned. Preserve its accepted choreography as the structural motion reference; changes should consolidate primitives or improve motion quality, not gratuitously retune the approved sequence.

@@ -3,7 +3,7 @@
 ---
 field_assignment: 1
 id: dashboard-editor-left-rail-handoff
-status: active
+status: complete
 branch: field/dashboard-editor-left-rail-handoff
 pr: 32
 base: 3a8f45a7f05250688a54c1fccc2634ebf1a59880
@@ -61,3 +61,9 @@ Dashboard → Canvas visual order:
 7. Inspector content follows once the backing surface is legible.
 
 Cold boot / refresh uses the same left surface → rail ordering while preserving the previously accepted right-inspector and bottom-toolbar entrance.
+
+## Completion / ownership handoff — 2026-09-29
+
+User explicitly confirmed this work is done.
+
+`src/editor/editor-entrance.ts` ownership transfers to active assignment `field-motion-quality` for system-wide motion consolidation. Historical choreography decisions remain reference behavior.
