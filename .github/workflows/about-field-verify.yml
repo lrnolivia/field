@@ -1,0 +1,27 @@
+name: About field verify
+
+on:
+  push:
+    branches:
+      - field/about-build-info
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Focused tests
+        run: npx vitest run src/backend/build-info.test.ts cloudflare/field-build.test.ts
+      - name: Production build
+        run: npm run build
+      - name: Verify emitted build metadata
+        run: node -e "const m=require('./dist/build.json'); if(!m.commitSha||!m.shortSha||!m.builtAt||!m.version) process.exit(1); console.log(m)"
