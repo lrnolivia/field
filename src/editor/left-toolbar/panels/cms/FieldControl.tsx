@@ -258,9 +258,21 @@ function ColorFieldControl({ value, onChange, name }: { value: string; onChange:
         placeholder="#000000"
         className={INPUT_BASE}
       />
-      <ToolPopup isOpen={open} onClose={() => { setOpen(false); setLive(null); }} title={name} anchorRef={swatchRef} width={280}>
+      <ToolPopup
+        isOpen={open}
+        onClose={() => { setOpen(false); setLive(null); }}
+        title={name}
+        ariaLabel="Paint picker"
+        anchorRef={swatchRef}
+        width={480}
+        hideHeader
+        showNestedHeaderWhenHidden
+        radius={14}
+      >
         <ColorPicker
           value={value || '#000000'}
+          onClose={() => { setOpen(false); setLive(null); }}
+          capabilityLabel={name}
           // onChange fires every drag frame — keep it to the local swatch preview and only
           // write the item on commit, so a drag doesn't queue a JSON write per frame.
           onChange={setLive}

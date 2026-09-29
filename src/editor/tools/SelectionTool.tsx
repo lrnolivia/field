@@ -297,9 +297,14 @@ function SelectionColorRow({
         title="Color"
         ariaLabel={'Edit selection color ' + labelText}
         anchorRef={btnRef}
-        width={280}
+        width={480}
+        hideHeader
+        showNestedHeaderWhenHidden
+        radius={14}
       >
         <ColorPicker
+          onClose={() => setIsOpen(false)}
+          capabilityLabel="selection color"
           value={resolvedColor}
           onChange={previewColor}
           onChangeEnd={commitColor}
