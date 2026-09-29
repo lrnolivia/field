@@ -368,47 +368,28 @@ body:has(.field-dashboard-page),
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: color-mix(in srgb, var(--bg-tertiary) 92%, var(--bg-surface));
+  background: color-mix(in srgb, var(--bg-tertiary) 94%, var(--bg-surface));
 }
 
-.field-project-placeholder-grid {
-  position: absolute;
-  width: 36px;
-  height: 28px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-surface) 54%, transparent);
-  transform: translate(4px, 4px) rotate(2deg);
-}
-
-.field-project-placeholder-mark {
+.field-project-placeholder-page {
   position: relative;
-  z-index: 1;
-  display: grid;
-  width: 36px;
-  height: 28px;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 13%, transparent);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-surface) 84%, var(--bg-tertiary));
-  box-shadow: 0 3px 9px color-mix(in srgb, #000 10%, transparent);
-  font-size: 14px;
-  font-weight: 650;
-  letter-spacing: -.04em;
+  width: 66%;
+  height: 68%;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--bg-tertiary));
+  box-shadow: 0 4px 14px color-mix(in srgb, #000 7%, transparent);
 }
 
-.field-project-placeholder-mark::after {
-  content: '';
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-  opacity: .55;
-}
+.field-project-placeholder-page > span { position: absolute; display: block; }
+.field-project-placeholder-nav { left: 7%; right: 7%; top: 8%; height: 7%; border-radius: 2px; background: color-mix(in srgb, var(--text-primary) 10%, transparent); }
+.field-project-placeholder-hero { left: 7%; right: 7%; top: 22%; height: 27%; border-radius: 3px; background: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+.field-project-placeholder-line { left: 7%; height: 4%; border-radius: 999px; background: color-mix(in srgb, var(--text-primary) 13%, transparent); }
+.field-project-placeholder-line-long { top: 56%; width: 52%; }
+.field-project-placeholder-line-short { top: 64%; width: 34%; opacity: .7; }
+.field-project-placeholder-card { bottom: 8%; width: 39%; height: 17%; border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent); border-radius: 3px; background: color-mix(in srgb, var(--bg-tertiary) 55%, transparent); }
+.field-project-placeholder-card-a { left: 7%; }
+.field-project-placeholder-card-b { right: 7%; }
 
 .field-project-star-badge {
   position: absolute;
