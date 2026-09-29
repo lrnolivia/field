@@ -953,28 +953,28 @@ export default function SettingsOverlay() {
               <div data-general-theme-display className="shrink-0 self-center sm:self-auto">
                 <div className="mx-auto w-[214px] max-w-full rounded-[14px] border border-[var(--border-light)] bg-[var(--bg-active)] p-[5px] shadow-[0_5px_16px_rgba(0,0,0,0.10)]">
                   <div
-                    className="relative aspect-[16/10] overflow-hidden rounded-[9px] border border-black/10"
+                    className="relative aspect-[16/10] overflow-hidden rounded-[9px] border border-black/10 dark:border-white/10"
                     style={{ backgroundColor: activeNeutral }}
                   >
-                    <div className="absolute inset-x-0 top-0 h-[14%] border-b border-black/10 bg-black/[0.07]">
-                      <div className="absolute left-2 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-black/20" />
+                    <div className="absolute inset-x-0 top-0 h-[14%] border-b border-black/10 bg-black/[0.07] dark:border-white/10 dark:bg-white/[0.05]">
+                      <div className="absolute left-2 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-black/20 dark:bg-white/25" />
                     </div>
-                    <div className="absolute bottom-0 left-0 top-[14%] w-[11%] border-r border-black/10 bg-black/[0.06]">
+                    <div className="absolute bottom-0 left-0 top-[14%] w-[11%] border-r border-black/10 bg-black/[0.06] dark:border-white/10 dark:bg-white/[0.05]">
                       <div className="mx-auto mt-2 h-3 w-3 rounded-[3px]" style={{ backgroundColor: activeAccent }} />
-                      <div className="mx-auto mt-2 h-1.5 w-1.5 rounded-full bg-black/20" />
-                      <div className="mx-auto mt-1.5 h-1.5 w-1.5 rounded-full bg-black/15" />
+                      <div className="mx-auto mt-2 h-1.5 w-1.5 rounded-full bg-black/20 dark:bg-white/22" />
+                      <div className="mx-auto mt-1.5 h-1.5 w-1.5 rounded-full bg-black/15 dark:bg-white/18" />
                     </div>
-                    <div className="absolute bottom-0 left-[11%] right-[27%] top-[14%] bg-black/[0.025]">
-                      <div className="absolute left-[14%] top-[16%] h-[52%] w-[48%] rounded-[3px] border border-black/10 bg-white/[0.08]" />
+                    <div className="absolute bottom-0 left-[11%] right-[27%] top-[14%] bg-black/[0.025] dark:bg-white/[0.025]">
+                      <div className="absolute left-[14%] top-[16%] h-[52%] w-[48%] rounded-[3px] border border-black/10 bg-white/[0.08] dark:border-white/10 dark:bg-black/[0.12]" />
                       <div className="absolute left-[21%] top-[29%] h-1.5 w-[34%] rounded-full bg-black/20" />
-                      <div className="absolute left-[21%] top-[40%] h-1 w-[25%] rounded-full bg-black/15" />
+                      <div className="absolute left-[21%] top-[40%] h-1 w-[25%] rounded-full bg-black/15 dark:bg-white/16" />
                       <div className="absolute left-[21%] top-[54%] h-3 w-[20%] rounded-[2px] opacity-80" style={{ backgroundColor: activeAccent }} />
                     </div>
-                    <div className="absolute bottom-0 right-0 top-[14%] w-[27%] border-l border-black/10 bg-black/[0.055] p-2">
+                    <div className="absolute bottom-0 right-0 top-[14%] w-[27%] border-l border-black/10 bg-black/[0.055] dark:border-white/10 dark:bg-white/[0.045] p-2">
                       <div className="h-1.5 w-[55%] rounded-full bg-black/20" />
-                      <div className="mt-2.5 h-1 w-[78%] rounded-full bg-black/14" />
-                      <div className="mt-1.5 h-1 w-[64%] rounded-full bg-black/12" />
-                      <div className="mt-3 h-4 w-full rounded-[3px] border border-black/10 bg-white/[0.07]" />
+                      <div className="mt-2.5 h-1 w-[78%] rounded-full bg-black/14 dark:bg-white/16" />
+                      <div className="mt-1.5 h-1 w-[64%] rounded-full bg-black/12 dark:bg-white/13" />
+                      <div className="mt-3 h-4 w-full rounded-[3px] border border-black/10 bg-white/[0.07] dark:border-white/10 dark:bg-black/[0.10]" />
                     </div>
                   </div>
                 </div>

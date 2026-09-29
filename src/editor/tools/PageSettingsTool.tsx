@@ -430,7 +430,6 @@ export default function PageSettingsTool() {
             description={form.description || 'Add a description to control how this page appears in search results.'}
           />
         </div>
-        </div>
       </ToolSection>
 
       <ToolDivider />
