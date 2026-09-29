@@ -77,7 +77,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
     if (!popup) return;
     const place = () => {
       const rect = popup.getBoundingClientRect();
-      const width = 480;
+      const width = 360;
       const gap = 12;
       const left = rect.left >= width + gap + 12 ? rect.left - width - gap : Math.min(window.innerWidth - width - 12, rect.right + gap);
       setSidecarPos({ left: Math.max(12, left), top: Math.max(12, rect.top), zIndex: fieldSurfaceZ('rich-popup', popup) + 1 });
@@ -168,10 +168,10 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
           <div
             data-field-floating-surface
             data-shader-fill-gallery
-            className="fixed w-[480px] max-h-[min(720px,calc(100vh-24px))] overflow-hidden rounded-[12px] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] flex flex-col"
+            className="fixed w-[360px] max-h-[min(620px,calc(100vh-24px))] overflow-hidden rounded-[12px] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] flex flex-col"
             style={sidecarPos}
           >
-            <div className="h-[58px] px-4 flex items-center justify-between border-b border-[var(--border-light)]">
+            <div className="h-[48px] px-3 flex items-center justify-between border-b border-[var(--border-light)]">
               <div className="flex items-center gap-2">
                 <span className="text-[15px] font-medium text-[var(--text-primary)]">Shader fills</span>
                 <span className="px-2 py-0.5 rounded-[6px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)]">Beta</span>
@@ -186,7 +186,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
               </div>
             </div>
             <div className="p-4 border-b border-[var(--border-light)]">
-              <div className="h-11 rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] flex items-center gap-2 px-3">
+              <div className="h-9 rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] flex items-center gap-2 px-3">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
                 <input value={shaderSearch} onChange={(event) => setShaderSearch(event.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent outline-none text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)]" />
               </div>
@@ -242,7 +242,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
   let section = '';
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)]">
+      <div className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)]">
         {activeLibraryItem && SHADER_THUMBS[activeLibraryItem.id] ? (
           <img src={SHADER_THUMBS[activeLibraryItem.id]} alt="" className="absolute inset-0 w-full h-full object-cover" />
         ) : null}

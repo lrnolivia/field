@@ -202,7 +202,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
               disabled={!hasImage}
               aria-label="Crop image"
               title="Crop image"
-              className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
@@ -213,7 +213,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
           <button
             type="button"
             onClick={openMedia}
-            className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+            className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
             title={previewUrl || 'Select image source'}
           >
             <span
@@ -224,7 +224,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
               aria-hidden
             />
             <span className="absolute inset-0 flex items-center justify-center">
-              <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+              <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
                 {hasImage ? 'Replace source…' : 'Select source…'}
               </span>
@@ -450,13 +450,13 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
         <button
           type="button"
           onClick={openPatternMedia}
-          className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+          className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
           aria-label="Replace pattern source"
           title={config.assetUrl}
         >
           <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
           <span className="absolute inset-0 flex items-center justify-center">
-            <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+            <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="m7 14 3-3 3 3 2-2 2 2" /></svg>
               Select source…
             </span>
@@ -504,7 +504,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     return (
       <div className="flex flex-col gap-4">
         <div
-          className="w-full aspect-square max-h-[360px] rounded-[10px] border border-[var(--control-border)]"
+          className="w-full aspect-square max-h-[300px] rounded-[10px] border border-[var(--control-border)]"
           style={preview as React.CSSProperties}
           aria-label={`${monsterDefinition.title} preview`}
         />
@@ -658,12 +658,12 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <button
         type="button"
         onClick={openPatternMedia}
-        className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+        className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
         aria-label="Select pattern source"
       >
         <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
         <span className="absolute inset-0 flex items-center justify-center">
-          <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+          <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></svg>
             Select source…
           </span>
@@ -822,7 +822,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
             <button
               type="button"
               onClick={openVideoMedia}
-              className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
               title="Replace video"
               aria-label="Replace video"
             >
@@ -833,7 +833,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
           <button
             type="button"
             onClick={openVideoMedia}
-            className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+            className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
             title={currentUrl || 'Select video source'}
           >
             {hasVideo ? (
@@ -848,7 +848,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
               <span className="absolute inset-0" style={ALPHA_CHECKER_STYLE} aria-hidden />
             )}
             <span className="absolute inset-0 flex items-center justify-center">
-              <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+              <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m10 8 6 4-6 4Z" /></svg>
                 {hasVideo ? 'Replace source…' : 'Select source…'}
               </span>
@@ -2117,7 +2117,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
         title="Fill"
         ariaLabel="Paint picker"
         anchorRef={btnRef}
-        width={480}
+        width={360}
         side="left"
         hideHeader
         showNestedHeaderWhenHidden
