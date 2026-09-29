@@ -9,12 +9,14 @@ on:
 permissions:
   contents: read
 
+env:
+  CI: "true"
+
 jobs:
-  verify:
+  build:
+    name: Candidate build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      CI: "true"
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,16 +35,67 @@ jobs:
           npm install --no-audit --no-fund
       - name: Build all
         run: npm run build:all
-      - name: Test
-        run: npm run test:run
-      - name: Lint
-        run: npm run lint
+
+  test-candidate:
+    name: Candidate full tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:run
+
+  test-baseline:
+    name: Baseline main full tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f94bd17cd96c5950d39525ab137f5c27dfb6c231
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:run
+
+  lint-candidate:
+    name: Candidate lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+
+  lint-baseline:
+    name: Baseline main lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f94bd17cd96c5950d39525ab137f5c27dfb6c231
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
 
   visual:
+    name: Left panel visual matrix
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      CI: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
