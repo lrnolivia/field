@@ -11,7 +11,7 @@ describe('General Settings surfaced preferences', () => {
       'editorThemeModeAtom',
       'editorNeutralLevelAtom',
       'websitePreviewThemeAtom',
-      'lowercaseHeadingsAtom',
+      'caseManagementAtom',
       'workspaceModeAtom',
       'workspaceAutoHideAtom',
       'rightInspectorAutoHideAtom',
