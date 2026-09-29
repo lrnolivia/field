@@ -40,16 +40,16 @@ jobs:
           CI: "1"
         run: |
           set -euo pipefail
-          npx vite --config vite.sandbox.config.ts --host 127.0.0.1 > /tmp/field-sandbox-vite.log 2>&1 &
+          npx vite --config vite.sandbox.config.ts --host localhost > /tmp/field-sandbox-vite.log 2>&1 &
           SANDBOX_PID=$!
-          npx vite --config vite.preview.config.ts --host 127.0.0.1 > /tmp/field-preview-vite.log 2>&1 &
+          npx vite --config vite.preview.config.ts --host localhost > /tmp/field-preview-vite.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill "$SANDBOX_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
 
           for port in 5174 5175; do
             ready=0
             for _ in $(seq 1 60); do
-              if curl -fsS "http://127.0.0.1:${port}/" >/dev/null; then
+              if curl -fsS "http://localhost:${port}/" >/dev/null; then
                 ready=1
                 break
               fi
@@ -64,5 +64,25 @@ jobs:
               exit 1
             fi
           done
+
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage();
+          const messages = [];
+          page.on('console', msg => messages.push('[console:' + msg.type() + '] ' + msg.text()));
+          page.on('pageerror', err => messages.push('[pageerror] ' + err.message));
+          const response = await page.goto('http://localhost:5174/', { waitUntil: 'domcontentloaded' });
+          try {
+            await page.locator('[data-content-root]').waitFor({ state: 'attached', timeout: 10000 });
+            console.log('SANDBOX_BOOT_OK status=' + (response?.status() ?? 'none'));
+          } catch (error) {
+            console.error('SANDBOX_BOOT_FAILED status=' + (response?.status() ?? 'none'));
+            console.error(messages.join('\n'));
+            throw error;
+          } finally {
+            await browser.close();
+          }
+          NODE
 
           npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --grep "Canvas computed styles match Preview" --reporter=list
