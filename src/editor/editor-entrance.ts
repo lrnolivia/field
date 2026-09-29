@@ -1,3 +1,5 @@
+import { fieldMotionBlurFilter, fieldStructuralSpringPhysics } from './motion';
+
 export type EditorEntranceRole = 'left' | 'right' | 'bottom';
 export type EditorEntrancePhase =
   | 'default'
@@ -69,9 +71,7 @@ export const EDITOR_ENTRANCE_TARGETS: readonly EditorEntranceTargetSpec[] = Obje
  * past rest and exposing a transient gap/flash at the viewport edge.
  */
 export const EDITOR_SIDE_SPRING: Readonly<EditorSpringProfile> = Object.freeze({
-  stiffness: 520,
-  damping: 42.3,
-  mass: 0.86,
+  ...fieldStructuralSpringPhysics,
   durationMs: 340,
   samples: 30,
 });
@@ -315,7 +315,7 @@ export function editorSpringKeyframes(
         : `0 ${px}px`,
       opacity,
       filter: offset > 0.04 && offset < 0.39
-        ? `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`
+        ? fieldMotionBlurFilter(role === 'bottom' ? 'vertical' : 'horizontal')
         : 'none',
     });
   }
@@ -340,7 +340,7 @@ export function editorExitKeyframes(
         ? `0 ${exitDistancePx * .45}px`
         : `${exitDistancePx * .45}px 0`,
       opacity: 1,
-      filter: `url(#field-motion-blur-${role === 'bottom' ? 'vertical' : 'horizontal'})`,
+      filter: fieldMotionBlurFilter(role === 'bottom' ? 'vertical' : 'horizontal'),
     },
     {
       offset: 1,
