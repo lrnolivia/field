@@ -312,12 +312,23 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
 function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode; onSelect: () => void; open: boolean; setOpen: (open: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const setToolbarPanel = useSetAtom(toolbarPanelAtom);
+  const setMediaSession = useSetAtom(mediaSessionAtom);
   useClickOutside(ref, open, () => setOpen(false));
   const elementSections = CATEGORIES.find((category) => category.id === 'elements')?.sections ?? [];
   const basicItems = elementSections.find((section) => section.id === 'basic')?.items ?? [];
   const layoutItems = elementSections.find((section) => section.id === 'layouts')?.items.filter((item) =>
     item.id === 'column' || item.id === 'row' || item.id.startsWith('layout-')) ?? [];
   const insert = (id: string) => { insertToolbarItemAtVisibleCenter(id); setOpen(false); };
+  const openImageMedia = useCallback(() => {
+    setMediaSession(createMediaSession({
+      surface: 'toolbar',
+      route: { view: 'browser', kind: 'image' },
+      intent: 'insert',
+    }));
+    setToolbarPanel({ kind: 'media' });
+    setOpen(false);
+    trace.action('toolbar:image-media');
+  }, [setMediaSession, setToolbarPanel, setOpen]);
   const openSectionLibrary = useCallback(() => {
     setToolbarPanel({ kind: 'insert', category: 'elements', section: 'layouts' });
     setOpen(false);
@@ -332,7 +343,7 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
         {basicItems.map((item) => <MenuItem key={item.id} label={item.name}
           shortcut={item.id === 'frame' ? 'F' : undefined} active={item.id === 'frame' && toolMode === 'frame'}
           icon={item.id === 'frame' ? <FrameToolbarIcon className="w-4 h-4" /> : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" /> : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
-          onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { setToolbarPanel({ kind: 'media-picker', media: 'image' }); setOpen(false); } else insert(item.id); }} />)}
+          onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { openImageMedia(); } else insert(item.id); }} />)}
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Layouts</div>
         <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
