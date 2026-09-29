@@ -15,11 +15,21 @@ describe('toolbar Media launcher contract', () => {
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
     const popover = read('src/editor/media/MediaToolbarPopover.tsx');
     expect(popover).toContain('data-toolbar-tool="media"');
-    expect(popover).toContain('requestedWidth = compact ? 224 : 480');
-    expect(popover).toContain('aria-label={');
-    expect(popover).toContain('Expand ');
+    expect(popover).toContain('requestedWidth = expanded ? 760 : compact ? 224 : 480');
+    expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
+    expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
+    expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
     expect(popover).not.toContain('ModalCloseButton');
     expect(popover).not.toContain('>Expand</button>');
+  });
+
+  it('expands the same Media shell without swapping to a second modal', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain('expanded={expanded}');
+    expect(controller).toContain('onExpand={() => setExpanded((value) => !value)}');
+    expect(controller).toContain('embedded');
+    expect(controller).not.toContain("import Modal from '@/design-system/Modal'");
+    expect(controller).not.toContain('if (expanded) {');
   });
 
   it('keeps sidebar Media and toolbar Media as separate invocation surfaces', () => {

@@ -23,7 +23,6 @@ import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutatio
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
-import Modal from '@/design-system/Modal';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 
@@ -202,6 +201,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   const imagePicker = (
     <ImageSearchModal
       isOpen
+      embedded
       compact={!expanded}
       onClose={onClose}
       onSelect={(url) => insertUrl('image', url)}
@@ -210,6 +210,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   const videoPicker = (
     <VideoSearchModal
       isOpen
+      embedded
       compact={!expanded}
       onClose={onClose}
       onSelect={(url) => insertUrl('video', url)}
@@ -327,18 +328,6 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
   const title = routeTitle(session.route, session.intent);
 
-  if (expanded) {
-    if (session.route.kind === 'image' && !isGallery) return imagePicker;
-    if (session.route.kind === 'video') return videoPicker;
-    const fullBrowser = isLauncher || (session.route.view === 'browser' && session.route.kind === 'all');
-    return (
-      <Modal isOpen title={isLauncher ? 'Media' : title} width={fullBrowser ? 720 : 520} onClose={onClose}>
-        <div className={fullBrowser ? 'h-[min(70vh,680px)] min-h-[420px]' : 'max-h-[70vh] overflow-y-auto'}>
-          {isLauncher ? <MediaGalleryPanel chrome="embedded" /> : content}
-        </div>
-      </Modal>
-    );
-  }
 
   return (
     <>
@@ -356,9 +345,10 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       />
       <MediaToolbarPopover
         title={title}
-        compact={isLauncher}
+        compact={isLauncher && !expanded}
+        expanded={expanded}
         onClose={onClose}
-        onExpand={() => setExpanded(true)}
+        onExpand={() => setExpanded((value) => !value)}
         onBack={isLauncher ? undefined : goHome}
       >
         {transientError && (
@@ -366,7 +356,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
             {transientError}
           </div>
         )}
-        {content}
+        {expanded && isLauncher ? <MediaGalleryPanel chrome="embedded" /> : content}
       </MediaToolbarPopover>
     </>
   );

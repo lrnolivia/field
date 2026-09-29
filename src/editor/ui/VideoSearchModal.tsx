@@ -31,6 +31,7 @@ interface VideoSearchModalProps {
   onClose: () => void;
   onSelect: (url: string) => void;
   compact?: boolean;
+  embedded?: boolean;
 }
 
 interface PixabayVideoSize {
@@ -62,7 +63,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = false }: VideoSearchModalProps) {
+export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = false, embedded = false }: VideoSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_PIXABAY ? 'pixabay' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PixabayVideo[]>([]);
@@ -316,5 +317,5 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
       </div>
   );
   if (!isOpen) return null;
-  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
+  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
 }

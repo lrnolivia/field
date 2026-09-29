@@ -35,6 +35,7 @@ interface ImageSearchModalProps {
   selectionMode?: 'single' | 'multiple';
   onSelectMany?: (urls: string[]) => void;
   compact?: boolean;
+  embedded?: boolean;
 }
 
 interface UnsplashImage {
@@ -58,7 +59,7 @@ interface Asset3D {
 
 type Tab = 'unsplash' | 'upload' | 'create' | '3d';
 
-export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false }: ImageSearchModalProps) {
+export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false, embedded = false }: ImageSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnsplashImage[]>([]);
@@ -511,5 +512,5 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   );
   if (!isOpen) return null;
   const modalWidth = tab === 'upload' && uploads.length === 0 ? 520 : tab === 'create' ? 560 : 800;
-  return compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
+  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
 }
