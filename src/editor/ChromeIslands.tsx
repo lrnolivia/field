@@ -14,7 +14,7 @@ import {
   type WorkspaceSideLayout,
 } from './workspace-layout';
 import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
-import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from './motion';
+import { fieldMotion, fieldMotionBlurFilter, fieldSpatialTransition, useFieldOpticalMotion, useFieldReducedMotion } from './motion';
 
 const SURFACE = {
   background: 'var(--bg-panel)',
@@ -54,6 +54,8 @@ export default function ChromeIslands() {
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
   const reducedMotion = useFieldReducedMotion();
   const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
+  const leftOpticalSignal = [mode, leftOpen ? '1' : '0', railVisible ? '1' : '0', compactPanelOpen ? '1' : '0', floatingPanelCollapsed ? '1' : '0', autoHide ? '1' : '0'].join(':');
+  const leftOpticalActive = useFieldOpticalMotion(leftOpticalSignal, reducedMotion);
 
   return (
     <>
@@ -80,6 +82,7 @@ export default function ChromeIslands() {
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
           transformOrigin: 'left center',
+          filter: leftOpticalActive ? fieldMotionBlurFilter('horizontal') : 'none',
         }}
       />
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { createFieldRafCoalescer } from './motion';
+import { motion } from 'motion/react';
+import { createFieldRafCoalescer, fieldMotion, fieldOpacityTransition, fieldSpatialTransition, useFieldReducedMotion } from './motion';
 import { useAtom } from 'jotai';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 import LibraryPanel from '@/editor/left-toolbar/panels/LibraryPanel';
@@ -209,6 +210,11 @@ export default function ToolbarPanelHost() {
     : panel.kind === 'media-gallery' ? 'Media Gallery'
       : panel.section ? category?.sections.find((entry) => entry.id === panel.section)?.label ?? category?.label
         : category?.label ?? 'Insert';
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
+  const responseTransition = fieldSpatialTransition(reducedMotion, fieldMotion.response);
+  const opacityTransition = fieldOpacityTransition(reducedMotion);
+  const peekOffset = peeked && position ? 32 - size.height - position.y : 0;
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
@@ -219,7 +225,7 @@ export default function ToolbarPanelHost() {
     const offsetY = event.clientY - rect.top;
     const element = dialogRef.current;
     let finalPosition = { x: rect.left, y: rect.top };
-    if (element) element.style.transition = 'none';
+    if (element) { element.style.transition = 'none'; element.style.translate = 'none'; }
     setPosition(finalPosition);
     const coalescer = createFieldRafCoalescer((next: { x: number; y: number }) => {
       if (!element) return;
@@ -253,7 +259,7 @@ export default function ToolbarPanelHost() {
     const rect = dialogRef.current?.getBoundingClientRect();
     if (!rect) return;
     const element = dialogRef.current;
-    if (element) element.style.transition = 'none';
+    if (element) { element.style.transition = 'none'; element.style.translate = 'none'; }
     setPosition({ x: rect.left, y: rect.top });
     const startX = event.clientX;
     const startY = event.clientY;
@@ -297,19 +303,25 @@ export default function ToolbarPanelHost() {
   };
 
   return createPortal(
-    <div className={`field-toolbar-panel-backdrop fixed inset-0 z-[15000] transition-[background-color,backdrop-filter] duration-300 ${peeked ? 'bg-transparent' : 'bg-black/25'}`}
+    <div className="field-toolbar-panel-backdrop fixed inset-0 z-[15000]"
       data-modal-root={peeked ? undefined : ''} data-toolbar-panel-backdrop
-      style={{ backdropFilter: peeked ? 'blur(0px)' : 'blur(4px)', WebkitBackdropFilter: peeked ? 'blur(0px)' : 'blur(4px)', pointerEvents: peeked ? 'none' : 'auto' }}
+      style={{ pointerEvents: peeked ? 'none' : 'auto' }}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !peeked) peekAtTop(); }}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal={!peeked} aria-label={title}
+      <motion.div aria-hidden className="pointer-events-none absolute inset-0 bg-black/25"
+        initial={false} animate={{ opacity: peeked ? 0 : 1 }} transition={opacityTransition}
+        style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }} />
+      <motion.div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal={!peeked} aria-label={title}
         data-toolbar-panel={panel.kind}
         data-peeked={peeked ? 'true' : 'false'}
-        className="field-toolbar-panel-surface fixed flex flex-col overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] outline-none transition-[top,left] duration-[420ms] ease-[cubic-bezier(.2,.8,.2,1)]"
+        initial={reducedMotion ? false : { opacity: 0, y: 6, scale: 0.99 }}
+        animate={{ opacity: 1, y: peekOffset, scale: 1 }}
+        transition={{ y: structuralTransition, scale: responseTransition, opacity: opacityTransition }}
+        className="field-toolbar-panel-surface fixed flex flex-col overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] outline-none"
         style={{
           width: `min(${size.width}px, calc(100vw - 32px))`,
           height: `min(${size.height}px, calc(100vh - 32px))`,
-          left: position?.x ?? '50%', top: peeked ? 32 - size.height : position?.y ?? '50%',
-          transform: position ? 'none' : 'translate(-50%, -50%)',
+          left: position?.x ?? '50%', top: position?.y ?? '50%',
+          translate: position ? 'none' : '-50% -50%',
           pointerEvents: 'auto',
         }}>
         <div className="flex h-11 shrink-0 cursor-move select-none items-center gap-2 border-b border-[var(--border-light)] px-4"
@@ -326,7 +338,7 @@ export default function ToolbarPanelHost() {
           {panel.kind === 'library' && <LibraryPanel mode="library" focusSection={panel.section} />}
           {panel.kind === 'media-gallery' && <MediaGalleryPanel />}
           {panel.kind === 'insert' && category && <div className="flex h-full min-h-0 flex-col"><SecondaryPanelContent category={category} sectionId={panel.section} /></div>}
-        </div>
+        </motion.div>
         {peeked && <button type="button" data-toolbar-panel-peek onClick={() => { setPeeked(false); dialogRef.current?.focus(); }}
           className="field-toolbar-panel-peek absolute bottom-0 left-0 z-20 flex h-8 w-full items-center justify-center gap-2 border-t border-[var(--border-light)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <span aria-hidden>⌄</span><span>{title}</span>

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion, type Transition, type Variants } from 'motion/react';
 
 export type FieldMotionAxis = 'horizontal' | 'vertical';
@@ -55,6 +56,40 @@ export function fieldMotionBlurFilter(
   reducedMotion = false,
 ): string {
   return reducedMotion ? 'none' : 'url(#field-motion-blur-' + axis + ')';
+}
+
+export function fieldOpacityTransition(reducedMotion: boolean): Transition {
+  return reducedMotion ? { duration: 0.08 } : fieldMotion.utilityOpacity;
+}
+
+/**
+ * Optical blur is a short acceleration cue, never a full-duration softening.
+ * The first render is intentionally quiet, direct workspace resizing is exempt,
+ * and reduced motion disables the effect entirely.
+ */
+export function useFieldOpticalMotion(
+  signal: string,
+  reducedMotion: boolean,
+  activeMs = 180,
+): boolean {
+  const first = useRef(true);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (reducedMotion || document.documentElement.dataset.workspaceResizing === 'true') {
+      setActive(false);
+      return;
+    }
+    setActive(true);
+    const timer = window.setTimeout(() => setActive(false), activeMs);
+    return () => window.clearTimeout(timer);
+  }, [activeMs, reducedMotion, signal]);
+
+  return active;
 }
 
 export function createFieldRafCoalescer<T>(apply: (value: T) => void) {
