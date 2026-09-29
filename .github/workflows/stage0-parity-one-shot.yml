@@ -1,0 +1,40 @@
+name: Stage 0 parity one-shot
+
+on:
+  push:
+    branches:
+      - stage0/canvas-preview-parity-closeout
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage0-parity-one-shot
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Repair known lock drift in CI only
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Clean install
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Canvas Preview parity
+        env:
+          CI: "1"
+        run: npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --reporter=list
