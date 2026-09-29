@@ -16,7 +16,7 @@ import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { workspaceTitlePresentation } from '@/editor/workspace-title-presentation';
@@ -253,6 +253,7 @@ export default function LeftHeader() {
   const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const headerVisible = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'embedded';
+  const collapsedTitle = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'compact-pill';
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
@@ -269,7 +270,14 @@ export default function LeftHeader() {
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: dockedShell ? leftContentWidth : workspace.left.width, left: dockedShell ? 52 : workspace.left.inset, top: dockedShell ? 0 : workspace.left.top }}
+      style={{
+        width: dockedShell ? leftContentWidth : workspace.left.width,
+        left: headerVisible ? LEFT_RAIL_WIDTH : collapsedTitle ? LEFT_RAIL_WIDTH + 12 : 12,
+        top: headerVisible ? 0 : 12,
+        height: headerVisible ? 52 : 44,
+        borderRadius: headerVisible ? 0 : 8,
+        boxShadow: headerVisible ? 'none' : 'var(--shadow-lg)',
+      }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).

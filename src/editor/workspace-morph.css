@@ -51,13 +51,17 @@ html:is(:not([data-editor-entrance-state]), [data-editor-entrance-state='prepare
   pointer-events: none;
 }
 
+[data-workspace-left-header][data-visible='false'] {
+  transform: none;
+}
+
 [data-left-menu-rail][data-visible='false'] {
   transform: translateX(-48px);
 }
 
 [data-workspace-left-restore][data-visible='false'] {
   opacity: 0;
-  transform: translateX(-8px);
+  transform: none;
   pointer-events: none;
 }
 
