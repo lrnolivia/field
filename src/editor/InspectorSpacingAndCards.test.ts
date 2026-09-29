@@ -11,7 +11,7 @@ describe('Inspector cards and spacing contract', () => {
     expect(section).toContain('data-inspector-section-card');
     expect(section).toContain('data-inspector-section-kind={sectionVisualKind(title)}');
     expect(section).toContain('data-inspector-section-glyph');
-    expect(section).toContain('rounded-[10px]');
+    expect(section).toContain('rounded-[8px]');
     expect(divider).toContain('h-1 bg-transparent');
     expect(scale).toContain('data-inspector-section-card');
   });
@@ -60,6 +60,13 @@ describe('Inspector cards and spacing contract', () => {
     expect(component).toContain('data-inspector-section="component"');
     expect(component).toContain('data-inspector-section-kind="content"');
     expect(component).not.toContain("var(--accent-secondary, #a855f7)");
+  });
+
+  it('keeps instance priority and SVG terminal export aligned across selection branches', () => {
+    const panel = read('src/editor/PropertiesPanel.tsx');
+    expect(panel).toContain("inspectorMode === 'design' && (isComponentInstance || isCodeComponentInstance)");
+    expect(panel).toContain('!isComponentInstance && !isCodeComponentInstance && <ComponentPropsTool />');
+    expect(panel).toContain('{isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool />}\n            <ToolDivider />\n            <ExportTool />');
   });
 
   it('keeps spatial and picker micro-grids intentionally compact', () => {

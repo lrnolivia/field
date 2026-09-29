@@ -4,6 +4,8 @@ import {
   LEFT_RAIL_WIDTH,
   clampLeftContentWidth,
   clampRightPaneWidth,
+  LEGACY_RIGHT_FLOATING_DEFAULT_HEIGHT,
+  RIGHT_FLOATING_AUTO_HEIGHT,
 } from '@/code/stores/workspace-panels-store';
 import type { WorkspaceMode } from '@/code/stores/workspace-panels-store';
 
@@ -31,11 +33,70 @@ export interface WorkspaceLayout {
 }
 
 export const WORKSPACE_FLOAT_INSET = 12;
+/** The bottom toolbar itself is fixed 18px above the viewport edge. */
+export const WORKSPACE_BOTTOM_TOOLBAR_BOTTOM = 18;
 /** Clear gap below the stationary document pill for detached left chrome. */
 export const WORKSPACE_FLOAT_LEFT_TOP = 68;
 export const WORKSPACE_HEADER_HEIGHT = 52;
 export const WORKSPACE_FLOAT_RADIUS = 8;
 export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
+export const WORKSPACE_FLOAT_MIN_INSPECTOR_HEIGHT = 320;
+
+export interface WorkspaceFloatingOffset {
+  x: number;
+  y: number;
+}
+
+export function usesAutomaticRightFloatingHeight(storedHeight: number): boolean {
+  return storedHeight === RIGHT_FLOATING_AUTO_HEIGHT
+    || storedHeight === LEGACY_RIGHT_FLOATING_DEFAULT_HEIGHT;
+}
+
+/**
+ * Default floating Inspector geometry: start at the 12px workspace inset and
+ * land on the same bottom edge as the floating toolbar (18px from viewport).
+ * Explicitly resized heights remain user-owned, but can never cross the 12px
+ * viewport margin.
+ */
+export function resolveRightFloatingHeight(
+  viewportHeight: number,
+  storedHeight: number,
+): number {
+  const available = Math.max(0, viewportHeight - WORKSPACE_FLOAT_INSET * 2);
+  const preferred = usesAutomaticRightFloatingHeight(storedHeight)
+    ? viewportHeight - WORKSPACE_FLOAT_INSET - WORKSPACE_BOTTOM_TOOLBAR_BOTTOM
+    : storedHeight;
+  return Math.min(available, Math.max(Math.min(WORKSPACE_FLOAT_MIN_INSPECTOR_HEIGHT, available), preferred));
+}
+
+export function clampRightFloatingHeight(
+  viewportHeight: number,
+  desiredHeight: number,
+  offsetY = 0,
+): number {
+  const available = Math.max(0, viewportHeight - WORKSPACE_FLOAT_INSET * 2 - Math.max(0, offsetY));
+  return Math.min(available, Math.max(Math.min(WORKSPACE_FLOAT_MIN_INSPECTOR_HEIGHT, available), desiredHeight));
+}
+
+/**
+ * Floating-pane edge padding is a hard margin, not decorative whitespace.
+ * The Inspector may move within the 12px safe rectangle but never beyond it.
+ */
+export function clampRightFloatingOffset(
+  viewportWidth: number,
+  viewportHeight: number,
+  paneWidth: number,
+  paneHeight: number,
+  offset: WorkspaceFloatingOffset,
+): WorkspaceFloatingOffset {
+  const baseLeft = viewportWidth - WORKSPACE_FLOAT_INSET - paneWidth;
+  const minX = Math.min(0, WORKSPACE_FLOAT_INSET - baseLeft);
+  const maxY = Math.max(0, viewportHeight - WORKSPACE_FLOAT_INSET * 2 - paneHeight);
+  return {
+    x: Math.max(minX, Math.min(0, offset.x)),
+    y: Math.max(0, Math.min(maxY, offset.y)),
+  };
+}
 
 export interface WorkspacePaneWidths {
   leftContentWidth?: number;

@@ -111,7 +111,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
   const inputClass = 'h-6 min-w-0 flex-1 rounded-[4px] border border-[var(--border-light)] bg-[var(--control-bg)] px-1.5 text-[11px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
   return (
-    <section data-scale-panel data-inspector-section-card data-inspector-section="scale" className="mx-2 my-0.5 rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2.5 py-2.5">
+    <section data-scale-panel data-inspector-section-card data-inspector-section="scale" className="mx-2 my-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2.5 py-2.5">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-medium text-[var(--text-primary)]">Scale</span>
         <span className="text-[10px] text-[var(--text-tertiary)]">K</span>

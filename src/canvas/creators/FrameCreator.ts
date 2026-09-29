@@ -4,7 +4,7 @@
 //
 // Flow: pointerdown → draw preview → pointerup → validate → inject JSX → cleanup
 
-import { transformManager } from '@/canvas/transform';
+import { transformManager, isSpaceBarDown } from '@/canvas/transform';
 import { toKebab } from '@/shared/css-utils';
 import { screenToCanvas, absoluteToRelativeById, getAbsoluteCanvasRectById } from '@/canvas/canvas-math';
 import { stripTranslateTransforms } from '@/shared/position-utils';
@@ -15,7 +15,7 @@ import { isComponentFilePath } from '@/code/project/active-file-store';
 import { flushNow, setForceRender, queueMutation } from '@/code/mutation/mutation-queue';
 import { el, attachDragListeners } from '@/shared/dom-utils';
 import {
-  findParentAtPoint,
+  findCreatorParentAtPoint,
   getInsertionMode,
   ensureAbsChildContainingBlock,
   getFlexInsertIndex,
@@ -95,7 +95,7 @@ export function startFrameCreation(
   const transform = transformManager.getTransform();
 
   // Detect parent under cursor using bridge-based hit testing
-  const parent = findParentAtPoint(e.clientX, e.clientY, nodes);
+  const parent = findCreatorParentAtPoint(e.clientX, e.clientY, nodes, isSpaceBarDown());
   const vpId = parent ? vpIdFromPrefix(parent.vpPrefix) : 'desktop';
   const isReplica = parent ? parent.vpPrefix !== '' : false;
   const isCanvasNode = !parent; // no parent = canvas-level node

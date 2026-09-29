@@ -23,7 +23,7 @@
 // selection box matches stroke bounds the next time the user comes
 // back to the sketch.
 
-import { transformManager } from '@/canvas/transform';
+import { transformManager, isSpaceBarDown } from '@/canvas/transform';
 import { screenToCanvas, absoluteToRelativeById } from '@/canvas/canvas-math';
 import { vpIdFromPrefix, getActiveFilePath } from '@/canvas/node-ops';
 import { isComponentFilePath } from '@/code/project/active-file-store';
@@ -33,7 +33,7 @@ import { getDefaultStore } from 'jotai';
 import { brushConfigAtom, buildStrokeOptions, pointsToAttr, pointsFromAttr, readSvgAttr } from '@/code/stores/sketch-edit-store';
 import { getStroke } from 'perfect-freehand';
 import {
-  findParentAtPoint,
+  findCreatorParentAtPoint,
   getInsertionMode,
   ensureAbsChildContainingBlock,
   getFlexInsertIndex,
@@ -180,7 +180,7 @@ export function startSketchCreation(
   const transform = transformManager.getTransform();
   const brush = getDefaultStore().get(brushConfigAtom);
 
-  const parent = findParentAtPoint(e.clientX, e.clientY, nodes);
+  const parent = findCreatorParentAtPoint(e.clientX, e.clientY, nodes, isSpaceBarDown());
   const vpId = parent ? vpIdFromPrefix(parent.vpPrefix) : 'desktop';
   const isReplica = parent ? parent.vpPrefix !== '' : false;
   const isCanvasNode = !parent;

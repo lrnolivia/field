@@ -1,22 +1,25 @@
-# QA classification
+# field QA classification overlay
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` section 11 first. Runner owns the universal classification meanings, retry/watchdog rules, fallbacks, and danger-zone boundary.
 
-Use explicit evidence states. Do not convert missing evidence into a pass.
+field uses the Runner vocabulary without weakening it:
 
 ## PASS
-The tested acceptance criteria are supported by direct evidence against the recorded tested code/runtime.
+Direct evidence proves the criterion on the recorded exact artifact/SHA.
 
 ## FAIL — FIELD
-The harness successfully exercised the intended behavior and direct evidence shows field violated the acceptance criterion.
+The harness successfully exercised the intended behavior and direct evidence shows field violated the criterion. This is field's specialization of Runner `FAIL — PRODUCT`.
 
 ## BLOCKED/UNVERIFIED — HARNESS
-The product may be correct, but the QA harness cannot prove the requirement. Examples include a missing branch Preview or an unavailable browser capability.
+Product correctness is unknown because the selected harness could not prove the criterion.
 
 ## BLOCKED — ENVIRONMENT
-The required external/runtime environment is unavailable or does not match the assignment.
+The required external/runtime environment is unavailable or invalid.
+
+## DANGER ZONE — HUMAN QA REQUIRED
+Automated QA has been deliberately exited under Runner section 11, deterministic gates that must pass are satisfied or inapplicable, and an isolated exact-SHA Preview plus human-QA packet is ready. This is a stop state for automatic promotion, not a pass.
 
 ## NOT RUN
-The required check or packet has not been attempted. Never report NOT RUN as PASS.
+The required check has not been attempted.
 
-When evidence is ambiguous, choose the less-certain classification and state what evidence is missing.
+Missing or ambiguous evidence is never a pass. If the tested head changes, affected automated and human runtime evidence becomes stale.

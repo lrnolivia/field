@@ -6,14 +6,14 @@
 // Flow: pointerdown → draw preview → pointerup → validate → queue addNode/
 // addCanvasNode mutation (with children) → flushNow → render in iframe.
 
-import { transformManager } from '@/canvas/transform';
+import { transformManager, isSpaceBarDown } from '@/canvas/transform';
 import { screenToCanvas, absoluteToRelativeById } from '@/canvas/canvas-math';
 import { vpIdFromPrefix, getActiveFilePath } from '@/canvas/node-ops';
 import { isComponentFilePath } from '@/code/project/active-file-store';
 import { queueMutation, flushNow, setForceRender } from '@/code/mutation/mutation-queue';
 import { el, attachDragListeners } from '@/shared/dom-utils';
 import {
-  findParentAtPoint,
+  findCreatorParentAtPoint,
   getInsertionMode,
   ensureAbsChildContainingBlock,
   getFlexInsertIndex,
@@ -129,7 +129,7 @@ export function startLayoutCreation(
   const nodes = callbacks.getNodes();
   const transform = transformManager.getTransform();
 
-  const parent = findParentAtPoint(e.clientX, e.clientY, nodes);
+  const parent = findCreatorParentAtPoint(e.clientX, e.clientY, nodes, isSpaceBarDown());
   const vpId = parent ? vpIdFromPrefix(parent.vpPrefix) : 'desktop';
   const isReplica = parent ? parent.vpPrefix !== '' : false;
   const isCanvasNode = !parent;

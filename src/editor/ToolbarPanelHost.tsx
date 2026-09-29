@@ -7,20 +7,8 @@ import LibraryPanel from '@/editor/left-toolbar/panels/LibraryPanel';
 import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 import { SecondaryPanelContent } from '@/editor/left-toolbar/panels/insert';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
-import ImageSearchModal from '@/editor/ui/ImageSearchModal';
-import VideoSearchModal from '@/editor/ui/VideoSearchModal';
-import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
-import GalleryCreationWizard from '@/editor/gallery/GalleryCreationWizard';
-import type { GalleryWizardConfig } from '@/editor/gallery/gallery-wizard-model';
-import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
-import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutations';
-import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
-import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import ModalCloseButton from '@/design-system/ModalCloseButton';
-import { backend } from '@/backend';
-import { getProjectId } from '@/backend/project-id';
 import MediaPanelController from '@/editor/media/MediaPanelController';
-import MediaToolbarPopover from '@/editor/media/MediaToolbarPopover';
 
 const LIBRARY_TITLES = {
   components: 'Components', vectors: 'Vectors', templates: 'Templates',
@@ -29,7 +17,7 @@ const LIBRARY_TITLES = {
 
 function toolbarPanelOriginTool(panel: ToolbarPanel): string {
   if (panel.kind === 'library') return 'library';
-  if (panel.kind === 'media' || panel.kind === 'media-gallery' || panel.kind === 'media-picker' || panel.kind === 'gallery-picker' || panel.kind === 'audio-picker') return 'media';
+  if (panel.kind === 'media' || panel.kind === 'media-gallery') return 'media';
   if (panel.kind === 'insert') {
     if (panel.category === 'creative-text-effects') return 'text';
     if (panel.category === 'elements') return 'frame';
@@ -43,62 +31,13 @@ export default function ToolbarPanelHost() {
   const [size, setSize] = useState({ width: 480, height: 560 });
   const [peeked, setPeeked] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [galleryBusy, setGalleryBusy] = useState(false);
-  const [galleryError, setGalleryError] = useState<string | null>(null);
-  const [audioUrl, setAudioUrl] = useState('');
-  const [audioBusy, setAudioBusy] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
-  const [mediaExpanded, setMediaExpanded] = useState(false);
   const [originArrow, setOriginArrow] = useState(240);
   const [anchoredToToolbar, setAnchoredToToolbar] = useState(true);
-  const addAudio = (url: string) => {
-    if (!url.trim()) return;
-    insertToolbarItemAtVisibleCenter('audio', undefined, { src: url.trim() });
-    setPanel(null);
-    setAudioUrl('');
-    setAudioError(null);
-  };
-
-  const finishGallery = async (config: GalleryWizardConfig) => {
-    if (galleryBusy) return;
-    setGalleryBusy(true);
-    setGalleryError(null);
-    try {
-      const ratios = config.frameSizing === 'source' ? await Promise.all(config.mediaUrls.map((url) => new Promise<number | null>((resolve) => {
-        const image = new Image();
-        const timeout = window.setTimeout(() => resolve(null), 8000);
-        image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalHeight ? image.naturalWidth / image.naturalHeight : null); };
-        image.onerror = () => { window.clearTimeout(timeout); resolve(null); };
-        image.src = url;
-      }))) : undefined;
-      const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
-      const created = insertToolbarItemAtVisibleCenter('gallery');
-      const galleryId = created[0];
-      if (!galleryId) throw new Error('Could not place the Gallery on the canvas.');
-      const mutations: Mutation[] = [
-        { type: 'updateStyles', nodeId: galleryId, styles: plan.rootPatch },
-        { type: 'updateHtmlAttrs', nodeId: galleryId, attrs: plan.rootAttrs },
-        ...plan.itemNodes.map((node) => ({ type: 'addNode' as const, parentId: galleryId, node })),
-      ];
-      if (plan.stripHoverPatch) plan.itemNodes.forEach((node) => mutations.push({ type: 'updateCssHover', nodeId: node.id, styles: plan.stripHoverPatch! }));
-      if (plan.carousel) mutations.push(...buildGalleryCarouselSyncMutations(plan.itemNodes.map((node) => ({ itemId: node.id, controlIds: [] }))));
-      queueMutations(mutations);
-      flushNow();
-      completeGalleryCreationSession(galleryId);
-      setPanel(null);
-    } catch (error) {
-      setGalleryError(error instanceof Error ? error.message : 'Could not create Gallery.');
-    } finally {
-      setGalleryBusy(false);
-    }
-  };
-
   useLayoutEffect(() => {
     if (!panel) return;
     const nextSize = { width: 480, height: 560 };
     setSize(nextSize);
     setPeeked(false);
-    setMediaExpanded(false);
 
     const tool = document.querySelector(`[data-toolbar-tool="${toolbarPanelOriginTool(panel)}"]`) as HTMLElement | null;
     const width = Math.min(nextSize.width, window.innerWidth - 24);
@@ -124,7 +63,7 @@ export default function ToolbarPanelHost() {
     return () => window.removeEventListener('field:insert-complete', closeAfterInsert);
   }, [panel, setPanel]);
   useEffect(() => {
-    if (!panel || panel.kind === 'media' || panel.kind === 'media-picker' || panel.kind === 'gallery-picker' || panel.kind === 'audio-picker') return;
+    if (!panel || panel.kind === 'media') return;
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -149,89 +88,6 @@ export default function ToolbarPanelHost() {
 
   if (!panel) return null;
   if (panel.kind === 'media') return <MediaPanelController onClose={() => setPanel(null)} />;
-  if (panel.kind === 'media-picker') {
-    const onSelect = (url: string) => {
-      insertToolbarItemAtVisibleCenter(panel.media, undefined, { src: url });
-      setPanel(null);
-    };
-    const picker = panel.media === 'image'
-      ? <ImageSearchModal isOpen embedded compact={!mediaExpanded} onClose={() => setPanel(null)} onSelect={onSelect} />
-      : <VideoSearchModal isOpen embedded compact={!mediaExpanded} onClose={() => setPanel(null)} onSelect={onSelect} />;
-    return (
-      <MediaToolbarPopover
-        title={panel.media === 'image' ? 'Images' : 'Video'}
-        expanded={mediaExpanded}
-        onClose={() => setPanel(null)}
-        onExpand={() => setMediaExpanded((value) => !value)}
-      >
-        {picker}
-      </MediaToolbarPopover>
-    );
-  }
-  if (panel.kind === 'gallery-picker') {
-    const wizard = <GalleryCreationWizard busy={galleryBusy} error={galleryError} onFinish={(config) => { void finishGallery(config); }} onCancel={() => setPanel(null)} />;
-    return (
-      <MediaToolbarPopover
-        title="Gallery"
-        expanded={mediaExpanded}
-        onClose={() => setPanel(null)}
-        onExpand={() => setMediaExpanded((value) => !value)}
-      >
-        {wizard}
-      </MediaToolbarPopover>
-    );
-  }
-  if (panel.kind === 'audio-picker') {
-    const audioContent = (
-      <div data-toolbar-audio-picker className="space-y-3 p-3 text-[11px] text-[var(--text-primary)]">
-        <div className="rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-3">
-          <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Audio URL</span>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              autoFocus
-              type="url"
-              value={audioUrl}
-              onChange={(event) => setAudioUrl(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') addAudio(audioUrl); }}
-              placeholder="https://…"
-              className="h-8 min-w-0 flex-1 rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 outline-none transition-colors hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)]"
-            />
-            <button type="button" disabled={!audioUrl.trim()} onClick={() => addAudio(audioUrl)}
-              className="h-8 rounded-[7px] bg-[var(--accent)] px-3 text-[10px] font-medium text-[var(--accent-fg)] disabled:opacity-35">
-              Add
-            </button>
-          </div>
-        </div>
-        <label className={`flex min-h-[104px] cursor-pointer flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 text-center transition-colors ${audioBusy ? 'cursor-progress opacity-60' : 'hover:bg-[var(--bg-hover)]/50 hover:border-[var(--control-border-hover)]'}`}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)]">
-            <svg aria-hidden width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"><path d="M6 11.5V4.25l6-1.25v7"/><circle cx="4.5" cy="11.5" r="1.5"/><circle cx="10.5" cy="10.5" r="1.5"/></svg>
-          </span>
-          <span className="mt-2 text-[10px] font-medium text-[var(--text-primary)]">{audioBusy ? 'Uploading…' : 'Choose audio file'}</span>
-          <span className="mt-1 text-[9px] text-[var(--text-tertiary)]">Upload a local audio asset</span>
-          <input type="file" accept="audio/*" className="sr-only" disabled={audioBusy} onChange={async (event) => {
-            const input = event.currentTarget;
-            const file = input.files?.[0];
-            if (!file) return;
-            setAudioBusy(true); setAudioError(null);
-            try { addAudio(await backend.uploadAsset(getProjectId(), file)); }
-            catch (error) { setAudioError(error instanceof Error ? error.message : 'Audio upload failed.'); }
-            finally { setAudioBusy(false); input.value = ''; }
-          }} />
-        </label>
-        {audioError && <p role="alert" className="text-[10px] text-[var(--text-danger)]">{audioError}</p>}
-      </div>
-    );
-    return (
-      <MediaToolbarPopover
-        title="Audio"
-        expanded={mediaExpanded}
-        onClose={() => setPanel(null)}
-        onExpand={() => setMediaExpanded((value) => !value)}
-      >
-        {audioContent}
-      </MediaToolbarPopover>
-    );
-  }
   const category = panel.kind === 'insert'
     ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
     : null;

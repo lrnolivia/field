@@ -10,6 +10,10 @@ describe('toolbar Media launcher contract', () => {
     expect(toolbar).toContain('dataTool="media"');
     expect(toolbar).toContain("setPanel({ kind: 'media' })");
     expect(toolbar).not.toContain('function MediaDropdown(');
+    const glyph = read('src/editor/media/MediaGlyph.tsx');
+    expect(glyph).toContain('data-media-glyph="library"');
+    expect(glyph).not.toContain('<circle');
+    expect(glyph).not.toContain('m3.5 9.25');
   });
 
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
@@ -36,13 +40,16 @@ describe('toolbar Media launcher contract', () => {
     expect(controller).not.toContain('if (expanded) {');
   });
 
-  it('keeps sidebar Media and toolbar Media as separate invocation surfaces', () => {
+  it('keeps Media toolbar-only instead of duplicating it inside Insert', () => {
+    const toolbar = read('src/editor/BottomToolbar.tsx');
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
-    const controller = read('src/editor/media/MediaPanelController.tsx');
-    expect(insert).toContain("if (category.id === 'media')");
-    expect(insert).toContain('<MediaGalleryPanel />');
-    expect(controller).not.toContain('leftPanelAtom');
-    expect(controller).not.toContain("openRailPanel('media')");
+    expect(toolbar).toContain('function MediaButton()');
+    expect(toolbar).toContain('<MediaButton />');
+    expect(toolbar).toContain('dataTool="media"');
+    expect(insert).toContain("CATEGORIES.filter((category) => category.id !== 'media')");
+    expect(insert).not.toContain("if (category.id === 'media')");
+    expect(insert).not.toContain('MediaGalleryPanel');
+    expect(insert).not.toContain('MediaGlyph');
   });
 
   it('keeps Gallery an image composition intent instead of a media kind', () => {
@@ -50,4 +57,25 @@ describe('toolbar Media launcher contract', () => {
     expect(system).toContain("return { view: 'create', kind: 'image', provider: 'gallery' }");
     expect(system).toContain("action === 'gallery' ? 'gallery'");
   });
+
+  it('routes typed launcher actions through the canonical Media browser before secondary sources', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain('data-media-type-browser={session.route.kind}');
+    expect(controller).toContain('initialTab={browserTab}');
+    expect(controller).toContain('onPick={pickFromProjectMedia}');
+    expect(controller).toContain("{ value: 'media', label: 'Media', glyph: 'media' }");
+    expect(controller).toContain("{ value: 'sources', label: 'Find & create', glyph: 'search' }");
+    expect(controller).toContain("{ value: 'url', label: 'URL', glyph: 'behavior' }");
+    expect(controller).toContain("typeSource !== 'media' ? () => setTypeSource('media') : goHome");
+  });
+
+  it('keeps existing polished search/create pickers subordinate to the same toolbar shell', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain("typeSource === 'sources'");
+    expect(controller).toContain("typeSource === 'url'");
+    expect(controller).toContain("onClose={() => setTypeSource('media')}");
+    expect(controller).not.toContain("content = imagePicker;");
+    expect(controller).not.toContain("content = videoPicker;");
+  });
+
 });

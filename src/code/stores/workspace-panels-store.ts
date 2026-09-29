@@ -56,7 +56,20 @@ export const rightPaneDetachedAtom = atom(
   (_get, set, detached: boolean) => set(workspaceModeAtom, detached ? 'floating' : 'docked'),
 );
 export const rightPaneDragOffsetAtom = atom({ x: 0, y: 0 });
-export const rightFloatingHeightAtom = atomWithStorage('field:prefs:rightFloatingHeight', 680, undefined, { getOnInit: true });
+/**
+ * Negative means "auto": size the floating Inspector from the top workspace
+ * inset down to the bottom edge of the floating toolbar. Existing installs
+ * persisted 680 as the old default; workspace geometry treats that value as
+ * auto too until the user explicitly resizes the pane.
+ */
+export const RIGHT_FLOATING_AUTO_HEIGHT = -1;
+export const LEGACY_RIGHT_FLOATING_DEFAULT_HEIGHT = 680;
+export const rightFloatingHeightAtom = atomWithStorage(
+  'field:prefs:rightFloatingHeight',
+  RIGHT_FLOATING_AUTO_HEIGHT,
+  undefined,
+  { getOnInit: true },
+);
 export const floatingLeftHeightAtom = atomWithStorage('field:prefs:floatingLeftHeight', 680, undefined, { getOnInit: true });
 export const leftCollapsedWidthAtom = atomWithStorage('field:prefs:leftCollapsedWidth', 52, undefined, { getOnInit: true });
 export const rightCollapsedWidthAtom = atomWithStorage('field:prefs:rightCollapsedWidth', 60, undefined, { getOnInit: true });

@@ -12,6 +12,7 @@ import { queueMutation } from '@/code/mutation/mutation-queue';
 import { getViewportPrefix } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { trace } from '@/shared/debug-trace';
+import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 
 // ─── Options ────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ function AudioToolInner({
 }) {
   const src = node.attrs?.src ?? '';
   const [localSrc, setLocalSrc] = useState(src);
+  const [mediaOpen, setMediaOpen] = useState(false);
 
   const commitSrc = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -111,6 +113,12 @@ function AudioToolInner({
     getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'src', trimmed || null);
   }, [nodeId, vpId]);
 
+  const applyMediaAudio = useCallback((url: string) => {
+    setLocalSrc(url);
+    commitSrc(url);
+    setMediaOpen(false);
+  }, [commitSrc]);
+
   // Sync local state on node change
   if (localSrc !== src && !document.activeElement?.closest('[data-audio-src-input]')) {
     setLocalSrc(src);
@@ -120,15 +128,43 @@ function AudioToolInner({
 
   return (
     <ToolSection title="Audio" collapsible>
-      {/* Source URL */}
-      <div className="flex items-center justify-between w-full">
-        <span className="w-3/4 text-xs font-medium text-[var(--text-secondary)] select-none">Source</span>
-        <ToolInput
-          value={localSrc}
-          onChange={(val) => { setLocalSrc(val); commitSrc(val); }}
-          text
-          placeholder="Audio URL..."
-        />
+      {/* Source — project Media first; direct URL remains the precision fallback. */}
+      <div className="space-y-1.5">
+        <button
+          type="button"
+          onClick={() => setMediaOpen((open) => !open)}
+          aria-expanded={mediaOpen}
+          className="w-full h-8 flex items-center gap-2 rounded-[6px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        >
+          <span className="flex h-4 w-4 items-center justify-center text-[12px]" aria-hidden>♫</span>
+          <span className="min-w-0 flex-1 truncate">Choose media</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">Audio</span>
+        </button>
+
+        {mediaOpen && (
+          <div
+            data-contextual-media-picker="audio-source"
+            className="max-h-[320px] overflow-hidden rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+          >
+            <MediaGalleryPanel
+              chrome="embedded"
+              initialTab="audio"
+              onPick={(asset) => {
+                if (asset.kind === 'audio') applyMediaAudio(asset.url);
+              }}
+            />
+          </div>
+        )}
+
+        <div data-audio-src-input className="flex items-center justify-between w-full">
+          <span className="w-3/4 text-xs font-medium text-[var(--text-secondary)] select-none">URL</span>
+          <ToolInput
+            value={localSrc}
+            onChange={(val) => { setLocalSrc(val); commitSrc(val); }}
+            text
+            placeholder="Audio URL..."
+          />
+        </div>
       </div>
 
       {/* ToolAtom controls */}

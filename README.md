@@ -10,6 +10,8 @@ field is a place to shape a website visually while keeping its source and runnin
 
 The editor is in active development. This repository contains the application, its isolated canvas and preview runtimes, and the work of bringing familiar design-tool interactions to a live web project.
 
+> **Agent / automation execution:** the canonical repository is `lrnolivia/field`. Before doing project work, read [`AGENTS.md`](AGENTS.md), then refresh the current universal execution and QA law from `lrnolivia/loew-runner@main`. Historical Revyme repository names are not current execution targets.
+
 ## Four ways into the same project
 
 | Surface | What it is for |

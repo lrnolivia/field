@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { findParentAtPoint, nextFrameColor } from './creator-utils';
+import { findParentAtPoint, findCreatorParentAtPoint, nextFrameColor } from './creator-utils';
 import { generateNodeId } from '@/shared/id-utils';
 import { setActiveBridge } from '@/canvas/canvas-bridge';
 import type { CanvasBridge } from '@/canvas/canvas-bridge';
@@ -62,6 +62,34 @@ function makeFakeBridge(rects: Array<{ key: string; rect: DOMRect }>): CanvasBri
   };
   return bridge as CanvasBridge;
 }
+
+describe('findCreatorParentAtPoint — Figma Space parenting override', () => {
+  afterEach(() => setActiveBridge(makeFakeBridge([])));
+
+  it('returns the normal deepest frame when Space bypass is off', () => {
+    setActiveBridge(makeFakeBridge([
+      { key: ':root', rect: new DOMRect(0, 0, 1000, 800) },
+      { key: ':card', rect: new DOMRect(100, 100, 300, 200) },
+    ]));
+    const nodes = new Map<string, CanvasNode>([
+      ['root', { id: 'root', type: 'div', styles: {}, children: ['card'] } as any],
+      ['card', { id: 'card', type: 'div', styles: {}, children: [] } as any],
+    ]);
+    expect(findCreatorParentAtPoint(150, 150, nodes, false)?.nodeId).toBe('card');
+  });
+
+  it('returns null over the same frame when Space bypass is on', () => {
+    setActiveBridge(makeFakeBridge([
+      { key: ':root', rect: new DOMRect(0, 0, 1000, 800) },
+      { key: ':card', rect: new DOMRect(100, 100, 300, 200) },
+    ]));
+    const nodes = new Map<string, CanvasNode>([
+      ['root', { id: 'root', type: 'div', styles: {}, children: ['card'] } as any],
+      ['card', { id: 'card', type: 'div', styles: {}, children: [] } as any],
+    ]);
+    expect(findCreatorParentAtPoint(150, 150, nodes, true)).toBeNull();
+  });
+});
 
 describe('findParentAtPoint — drop-target safety vs layout-merged nodes', () => {
   let originalBridge: CanvasBridge;

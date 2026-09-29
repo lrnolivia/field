@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampRightFloatingHeight,
+  clampRightFloatingOffset,
   deriveWorkspaceLayout,
+  resolveRightFloatingHeight,
+  WORKSPACE_BOTTOM_TOOLBAR_BOTTOM,
+  WORKSPACE_FLOAT_INSET,
 } from './workspace-layout';
 import {
   LEFT_WORKSPACE_WIDTH,
@@ -71,6 +76,32 @@ describe('deriveWorkspaceLayout', () => {
     expect(layout.right.presentation).toBe('floating');
     expect(layout.right.inset).toBe(12);
     expect(layout.cameraInsets.right).toBe(0);
+  });
+
+  it('auto-sizes the floating Inspector to the bottom edge of the toolbar', () => {
+    const viewportHeight = 900;
+    const height = resolveRightFloatingHeight(viewportHeight, 680);
+    expect(height).toBe(viewportHeight - WORKSPACE_FLOAT_INSET - WORKSPACE_BOTTOM_TOOLBAR_BOTTOM);
+    expect(WORKSPACE_FLOAT_INSET + height).toBe(viewportHeight - WORKSPACE_BOTTOM_TOOLBAR_BOTTOM);
+  });
+
+  it('preserves explicit floating Inspector height while enforcing edge margins', () => {
+    expect(resolveRightFloatingHeight(900, 540)).toBe(540);
+    expect(clampRightFloatingHeight(900, 1200, 6)).toBe(870);
+  });
+
+  it('clamps a moved floating Inspector inside the 12px viewport margins', () => {
+    const viewportWidth = 1200;
+    const viewportHeight = 900;
+    const paneWidth = 328;
+    const paneHeight = resolveRightFloatingHeight(viewportHeight, 680);
+
+    expect(clampRightFloatingOffset(viewportWidth, viewportHeight, paneWidth, paneHeight, { x: 200, y: -80 }))
+      .toEqual({ x: 0, y: 0 });
+
+    const far = clampRightFloatingOffset(viewportWidth, viewportHeight, paneWidth, paneHeight, { x: -5000, y: 5000 });
+    expect(viewportWidth - WORKSPACE_FLOAT_INSET - paneWidth + far.x).toBe(WORKSPACE_FLOAT_INSET);
+    expect(WORKSPACE_FLOAT_INSET + paneHeight + far.y).toBe(viewportHeight - WORKSPACE_FLOAT_INSET);
   });
 
   it('leaves a canvas-first workspace when both panes are hidden', () => {

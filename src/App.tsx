@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { Toaster } from 'sonner';
 import Canvas from './canvas/Canvas';
@@ -62,7 +62,7 @@ import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
-import { deriveWorkspaceCameraInsets, deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
@@ -93,16 +93,26 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
+  const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 900 : window.innerHeight);
   const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const floatingInspectorHeight = rightDetached
+    ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight)
+    : rightFloatingHeight;
   const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
     leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
   });
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   const previousMode = useRef(workspaceMode);
+
+  useEffect(() => {
+    const onResize = () => setViewportHeight(window.innerHeight);
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const root = editorRootRef.current;
@@ -336,7 +346,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               right: workspaceLayout.right.inset,
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
-              height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 12 - 52) : workspaceBodyHeightCss(workspaceLayout.right),
+              height: rightDetached ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT) : workspaceBodyHeightCss(workspaceLayout.right),
               transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
@@ -350,9 +360,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               onPointerDown={(event) => {
                 event.preventDefault();
                 const startY = event.clientY;
-                const startHeight = rightFloatingHeight;
+                const startHeight = floatingInspectorHeight;
                 document.documentElement.dataset.workspaceResizing = 'true';
-                const move = (next: PointerEvent) => setRightFloatingHeight(Math.max(320, Math.min(window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 8, startHeight + next.clientY - startY)));
+                const move = (next: PointerEvent) => setRightFloatingHeight(
+                  clampRightFloatingHeight(window.innerHeight, startHeight + next.clientY - startY, rightDragOffset.y),
+                );
                 const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); delete document.documentElement.dataset.workspaceResizing; };
                 window.addEventListener('pointermove', move);
                 window.addEventListener('pointerup', stop, { once: true });
