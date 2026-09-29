@@ -40,7 +40,7 @@ describe('settings visual hierarchy', () => {
     expect(block).not.toContain('Site metadata');
     expect(block).not.toContain('Custom code');
     expect(block).not.toContain('Default theme');
-    expect(block).toContain('Lowercase headings');
+    expect(block).toContain('Case management');
     expect(block).toContain('Website preview');
   });
 
