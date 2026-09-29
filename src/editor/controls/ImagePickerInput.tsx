@@ -1,7 +1,7 @@
 // ImagePickerInput.tsx — Reusable image-picker input row.
 //
 // Shows a small thumbnail + URL chip (truncated) + ×, click anywhere on the
-// row opens the existing `ImageSearchModal` (Unsplash + upload + URL paste).
+// row expands an inline contextual Media picker (search + upload + create).
 // On select, wraps the chosen URL in `url(...)` so the value drops straight
 // into a CSS `backgroundImage:` slot (or any other image-bearing property)
 // without runtime wrapping.
@@ -58,7 +58,8 @@ export default function ImagePickerInput({
     <>
       <button
         type="button"
-        onClick={() => setPickerOpen(true)}
+        onClick={() => setPickerOpen((open) => !open)}
+        aria-expanded={pickerOpen}
         className="w-full h-8 flex items-center gap-2 px-1.5 bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:border-[var(--border-focus)] hover:[--cut-border-color:var(--border-focus)] transition-colors cursor-pointer text-left"
         title={hasImage ? url : placeholder}
       >
@@ -90,14 +91,23 @@ export default function ImagePickerInput({
         )}
       </button>
 
-      <ImageSearchModal
-        isOpen={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(picked) => {
-          handleSelect(picked);
-          setPickerOpen(false);
-        }}
-      />
+      {pickerOpen && (
+        <div
+          data-contextual-media-picker="image-input"
+          className="mt-1 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+        >
+          <ImageSearchModal
+            isOpen
+            embedded
+            compact
+            onClose={() => setPickerOpen(false)}
+            onSelect={(picked) => {
+              handleSelect(picked);
+              setPickerOpen(false);
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }

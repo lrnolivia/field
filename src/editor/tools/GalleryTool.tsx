@@ -755,6 +755,26 @@ function GalleryToolInner() {
         onReorder={reorderItem}
       />
 
+      {pickerOpen && (
+        <div
+          data-contextual-media-picker={replaceItemId ? 'gallery-replace' : 'gallery-add'}
+          className="mx-2 mb-2 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+        >
+          <ImageSearchModal
+            isOpen
+            embedded
+            compact
+            onClose={() => { setPickerOpen(false); setReplaceItemId(null); }}
+            selectionMode={replaceItemId ? 'single' : 'multiple'}
+            onSelect={(url) => {
+              if (replaceItemId) replaceMedia(replaceItemId, url);
+              else addMedia([url]);
+            }}
+            onSelectMany={addMedia}
+          />
+        </div>
+      )}
+
       <ToolDivider />
 
       <GalleryViewSection
@@ -791,17 +811,6 @@ function GalleryToolInner() {
 
         </>
       )}
-
-      <ImageSearchModal
-        isOpen={pickerOpen}
-        onClose={() => { setPickerOpen(false); setReplaceItemId(null); }}
-        selectionMode={replaceItemId ? 'single' : 'multiple'}
-        onSelect={(url) => {
-          if (replaceItemId) replaceMedia(replaceItemId, url);
-          else addMedia([url]);
-        }}
-        onSelectMany={addMedia}
-      />
 
       {selectedItem && cropImageId === selectedItem.imageId && (
         <GalleryCropOverlay

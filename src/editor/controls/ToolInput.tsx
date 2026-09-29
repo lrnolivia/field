@@ -8,6 +8,7 @@ import { FieldGlyph } from '@/editor/glyph';
 import { useScrubInteracting } from '@/editor/hooks/useScrubInteracting';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
+import { takeVerticalWheelSteps } from './vertical-wheel';
 
 interface Props {
   value: string;
@@ -79,6 +80,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const [localValue, setLocalValue] = useState(value);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   // Panel value scrub: flips interacting + panelScrub (hides the InteractionOutline).
   const setCanvasInteracting = useScrubInteracting();
 
@@ -96,6 +98,8 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const [chevronDragging, setChevronDragging] = useState(false);
   const chevronDraggingRef = useRef(false);
   const touchScrubRef = useRef<{ pointerId: number; x: number; y: number; start: number; moved: boolean } | null>(null);
+  const wheelDeltaRef = useRef(0);
+  const wheelValueRef = useRef(0);
   // After a chevron drag with a live (DOM-only) scrub, the COMMIT is async (code write → reparse → re-render,
   // ~0.1s). Hold the scrubbed `localValue` on screen through that gap — else on mouseup the field snaps back to
   // the stale `value` prop for a frame, then jumps to the committed value (the user-reported 255→280 flash).
@@ -135,6 +139,10 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const parsed = parseNumeric(value);
   const isNumeric = parsed !== null && !text;
   const unit = parsed?.unit || '';
+
+  useEffect(() => {
+    if (parsed && !chevronDraggingRef.current) wheelValueRef.current = parsed.num;
+  }, [value]);
 
   const clampNum = useCallback((num: number): number => {
     let n = num;
@@ -254,9 +262,8 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const moveTouchScrub = (event: React.PointerEvent<HTMLSpanElement>) => {
     const touch = touchScrubRef.current;
     if (!touch || touch.pointerId !== event.pointerId) return;
-    const dx = event.clientX - touch.x;
     const dy = event.clientY - touch.y;
-    if (!touch.moved && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    if (!touch.moved && Math.abs(dy) < 6) return;
     if (!touch.moved) {
       touch.moved = true;
       chevronDraggingRef.current = true;
@@ -265,8 +272,8 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
       inputRef.current?.blur();
     }
     event.preventDefault();
-    document.body.style.cursor = Math.abs(dx) >= Math.abs(dy) ? 'ew-resize' : 'ns-resize';
-    const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
+    document.body.style.cursor = 'ns-resize';
+    const travel = -dy;
     currentValueRef.current = clampNum(touch.start + Math.round(travel / 6) * step);
     applyValue(currentValueRef.current, true);
   };
@@ -286,8 +293,37 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
     else onChange(finalValue);
   };
 
+  const handleValueWheel = useCallback((event: WheelEvent) => {
+    if (!isNumeric || !parsed || effectiveDisabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const result = takeVerticalWheelSteps(wheelDeltaRef.current, event.deltaY, event.deltaMode);
+    wheelDeltaRef.current = result.remainder;
+    if (result.steps === 0) return;
+
+    const base = Number.isFinite(wheelValueRef.current) ? wheelValueRef.current : parsed.num;
+    // Wheel up increases; wheel down decreases.
+    const next = clampNum(base - result.steps * step);
+    wheelValueRef.current = next;
+    applyValue(next);
+    trace.action('tool-input:wheel-step', { from: base, to: next, steps: result.steps });
+  }, [applyValue, clampNum, effectiveDisabled, isNumeric, parsed, step]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || !isNumeric || effectiveDisabled) return;
+    const onWheel = (event: WheelEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('[data-value-wheel="vertical"]')) return;
+      handleValueWheel(event);
+    };
+    wrapper.addEventListener('wheel', onWheel, { passive: false });
+    return () => wrapper.removeEventListener('wheel', onWheel);
+  }, [effectiveDisabled, handleValueWheel, isNumeric]);
+
   return (
-    <div className={`relative group w-full ${effectiveDisabled ? 'opacity-40 pointer-events-none' : ''} ${className || ''}`}>
+    <div ref={wrapperRef} className={`relative group w-full ${effectiveDisabled ? 'opacity-40 pointer-events-none' : ''} ${className || ''}`}>
       <input
         ref={inputRef}
         type="text"
@@ -323,9 +359,9 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
         style={alwaysShowStepper ? { paddingRight: '20px' } : undefined}
         className={`w-full h-[var(--control-height)] px-[var(--control-pad-x)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] ${isAutoOrFill ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'} cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
       />
-      {isNumeric && <span aria-hidden data-touch-scrub="number" title="Slide to adjust"
+      {isNumeric && <span aria-hidden data-touch-scrub="number" data-field-no-canvas-input data-value-wheel="vertical" title="Drag or scroll vertically to adjust"
         onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
-        className="absolute inset-y-0 right-0 z-10 block w-1/2 cursor-ew-resize touch-none" />}
+        className="absolute inset-y-0 right-0 z-10 block w-1/2 cursor-ns-resize touch-none" />}
       {/* Chevron label — shown when not hovering/focused, hidden when chevrons appear */}
       {chevronLabel && isNumeric && (
         <div className={`absolute right-2.5 inset-y-0 flex items-center pointer-events-none ${isFocused ? 'hidden' : 'group-hover:hidden'}`}>
@@ -345,8 +381,10 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
             whileHover="hover"
             whileTap="tap"
             aria-label={`Increase ${ariaLabel ?? 'value'}`}
+            data-field-no-canvas-input
+            data-value-wheel="vertical"
             onMouseDown={(e) => startChevronDrag('up', e)}
-            className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
+            className="flex-1 flex items-center justify-center cursor-ns-resize group/chevron"
           >
             <FieldGlyph behavior="step-up">
               <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -361,8 +399,10 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
             whileHover="hover"
             whileTap="tap"
             aria-label={`Decrease ${ariaLabel ?? 'value'}`}
+            data-field-no-canvas-input
+            data-value-wheel="vertical"
             onMouseDown={(e) => startChevronDrag('down', e)}
-            className="flex-1 flex items-center justify-center cursor-pointer group/chevron"
+            className="flex-1 flex items-center justify-center cursor-ns-resize group/chevron"
           >
             <FieldGlyph behavior="step-down">
               <svg className="w-2.5 h-2.5 text-[var(--text-secondary)] group-hover/chevron:text-[var(--text-primary)] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

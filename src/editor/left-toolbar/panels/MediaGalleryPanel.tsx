@@ -1,6 +1,6 @@
-// MediaGalleryPanel.tsx — Media gallery with upload support.
-// Cloud mode: uploads to R2 via /api/upload, lists existing uploads.
-// Standalone mode: uses object URLs (session-only).
+// MediaGalleryPanel.tsx — canonical project Media browser.
+// Durable inventory comes from the active backend when supported; otherwise
+// uploaded source/runtime URLs remain session-local without faking durability.
 //
 // Drop into canvas: tiles use the same toolbar-drag pipeline the Library
 // and Insert panels use (`startToolbarDrag` + 5 px movement threshold +
@@ -15,7 +15,7 @@
 // standalone object URLs have no server object to delete).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CLOUD_ENABLED } from '@/shared/cloud-flag';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
@@ -28,15 +28,25 @@ import { ConfirmModal } from '@/editor/overlays/settings-shared';
 import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
+import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
+import { ingestMediaFile } from '@/editor/media/media-ingest';
+
+type MediaGalleryTab = 'all' | 'images' | 'videos';
 
 const TAB_OPTIONS = [
+  { value: 'all', label: 'All' },
   { value: 'images', label: 'Images' },
   { value: 'videos', label: 'Videos' },
 ];
 
 interface UploadedFile {
   url: string;
+  kind: 'image' | 'video';
   key?: string;
+  name?: string;
+  mimeType?: string;
+  contentHash?: string;
+  source?: 'upload' | 'external' | 'generated' | 'figma' | 'embed' | 'code' | 'unknown';
   size?: number;
   lastModified?: string;
 }
@@ -193,7 +203,7 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
   canDelete: boolean;
   /** Shift held on pointerdown → the panel's sweep/toggle machinery. */
   onShiftPointerDown: (key: string, e: React.PointerEvent) => void;
-  /** Plain pointerdown (drag intent) — panel clears any multi-selection. */
+  /** Plain pointerdown (drag intent) — panel clears multi-selection and may inspect. */
   onPlainPointerDown: () => void;
   onRequestDelete: (key: string) => void;
 }) {
@@ -219,10 +229,10 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
       // Selected: border snaps to accent with NO transition — with the base
       // white border + `transition-colors`, every tile joining the selection
       // flashed white→blue under the instant outline (the reported fringe).
-      className={`group relative aspect-square cut-corners cut-border overflow-hidden border cursor-grab active:cursor-grabbing ${
+      className={`group relative aspect-square overflow-hidden rounded-[4px] border cursor-grab active:cursor-grabbing ${
         isSelected
-          ? 'border-[var(--accent)] [--cut-border-color:var(--accent)] transition-none'
-          : 'border-[var(--border-light)] [--cut-border-color:var(--border-light)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] transition-colors'
+          ? 'border-[var(--accent)] transition-none'
+          : 'border-[var(--border-light)] hover:border-[var(--control-border-hover)] transition-colors'
       }`}
       style={isSelected ? MULTI_SELECT_OUTLINE : undefined}
       title="Drag to canvas"
@@ -244,7 +254,7 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
       {isSelected && (
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: 'var(--accent, #4c8df6)', opacity: 0.22 }}
+          style={{ background: 'var(--accent, #4c8df6)', opacity: 0.08 }}
         />
       )}
       {/* Hover delete — dark grey disc, white ×. pointerdown is stopped so
@@ -272,17 +282,57 @@ interface StorageInfo {
   storageLimitMB: string;
 }
 
-export default function MediaGalleryPanel() {
-  const [tab, setTab] = useState('images');
+function mediaDisplayName(item: UploadedFile): string {
+  if (item.name?.trim()) return item.name.trim();
+  if (item.key) {
+    const part = item.key.split('/').filter(Boolean).pop();
+    if (part) return decodeURIComponent(part);
+  }
+  try {
+    const url = new URL(item.url);
+    const part = url.pathname.split('/').filter(Boolean).pop();
+    if (part) return decodeURIComponent(part);
+  } catch {
+    // data:/blob: and malformed URLs fall back to the type label below.
+  }
+  return item.kind === 'image' ? 'Image' : 'Video';
+}
+
+function formatMediaBytes(size?: number): string {
+  if (!size || size < 1) return 'Unknown';
+  if (size < 1024) return size + ' B';
+  if (size < 1024 * 1024) return (size / 1024).toFixed(size >= 1024 * 100 ? 0 : 1) + ' KB';
+  return (size / (1024 * 1024)).toFixed(size >= 1024 * 1024 * 10 ? 0 : 1) + ' MB';
+}
+
+export default function MediaGalleryPanel({
+  chrome = 'full',
+  initialTab = 'all',
+  workspace = false,
+}: {
+  chrome?: 'full' | 'embedded';
+  initialTab?: MediaGalleryTab;
+  workspace?: boolean;
+} = {}) {
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'upload' | 'external'>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
-  // True while a list fetch is in flight — drives the skeleton grid so the
-  // panel never flashes "No images uploaded yet" before the data lands.
-  // Starts true in cloud mode (a fetch always fires on mount).
-  const [loadingList, setLoadingList] = useState(!!CLOUD_ENABLED);
+  // The backend tells us whether it owns a durable Media inventory. field
+  // and standalone currently return null so we keep a truthful session-only
+  // inventory without coupling UI behavior to the legacy Revyme cloud flag.
+  const [loadingList, setLoadingList] = useState(true);
+  const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dropActive, setDropActive] = useState(false);
+  const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
+  const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: 'image' | 'video' }>>([]);
+  const [inspectedIdentity, setInspectedIdentity] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   // Pending delete confirmation — the keys the ConfirmModal will remove.
@@ -291,19 +341,51 @@ export default function MediaGalleryPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const projectId = getProjectId();
-  const isCloud = !!CLOUD_ENABLED;
-  const noun: 'image' | 'video' = tab === 'images' ? 'image' : 'video';
+  const noun: 'image' | 'video' | 'asset' = tab === 'images' ? 'image' : tab === 'videos' ? 'video' : 'asset';
+  const visibleUploads = React.useMemo(
+    () => tab === 'all' ? uploads : uploads.filter((item) => item.kind === (tab === 'images' ? 'image' : 'video')),
+    [uploads, tab],
+  );
   const filteredUploads = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return uploads;
-    return uploads.filter((item) => {
-      const key = item.key ?? deriveUploadKey(item) ?? '';
-      return key.toLowerCase().includes(query) || item.url.toLowerCase().includes(query);
+    let rows = query
+      ? visibleUploads.filter((item) => {
+          const key = item.key ?? deriveUploadKey(item) ?? '';
+          return item.name?.toLowerCase().includes(query)
+            || key.toLowerCase().includes(query)
+            || item.url.toLowerCase().includes(query);
+        })
+      : visibleUploads;
+
+    if (workspace && sourceFilter !== 'all') {
+      rows = rows.filter((item) => {
+        const source = item.source ?? (item.key ? 'upload' : 'unknown');
+        return source === sourceFilter;
+      });
+    }
+
+    if (!workspace) return rows;
+
+    const sorted = [...rows];
+    sorted.sort((a, b) => {
+      if (sortOrder === 'name') {
+        return mediaDisplayName(a).localeCompare(mediaDisplayName(b), undefined, { sensitivity: 'base' });
+      }
+
+      const aTime = a.lastModified ? Date.parse(a.lastModified) : 0;
+      const bTime = b.lastModified ? Date.parse(b.lastModified) : 0;
+      return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
     });
-  }, [uploads, searchQuery]);
+    return sorted;
+  }, [visibleUploads, searchQuery, workspace, sourceFilter, sortOrder]);
+
   const selectedImageUrls = React.useMemo(
-    () => tab === 'images' ? selectedGalleryMediaUrls(filteredUploads, selectedKeys) : [],
-    [tab, filteredUploads, selectedKeys],
+    () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image'), selectedKeys),
+    [filteredUploads, selectedKeys],
+  );
+  const inspectedAsset = React.useMemo(
+    () => uploads.find((item) => (item.key ?? item.url) === inspectedIdentity) ?? null,
+    [uploads, inspectedIdentity],
   );
   const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
@@ -315,36 +397,57 @@ export default function MediaGalleryPanel() {
     searchActive: searchQuery.trim().length > 0,
   });
 
-  // Fetch existing uploads + storage info
+  // Ask the backend for its durable inventory instead of branching on a
+  // product-mode flag. `null` is an explicit "session inventory only" answer.
   const fetchUploads = useCallback(async () => {
-    if (!isCloud) { setLoadingList(false); return; }
     setLoadingList(true);
     try {
-      const [uploadsRes, storageRes] = await Promise.all([
-        fetch(`/api/upload?websiteId=${projectId}&type=${tab === 'images' ? 'image' : 'video'}`),
-        fetch(`/api/upload?websiteId=${projectId}&type=storage`),
+      const [assets, storageInfo] = await Promise.all([
+        backend.listAssets(projectId),
+        backend.getAssetStorageInfo(projectId),
       ]);
-      if (uploadsRes.ok) {
-        const data = await uploadsRes.json();
-        setUploads(data.uploads || []);
-        trace.action('media:fetched', { type: tab, count: data.uploads?.length ?? 0 });
-      }
-      if (storageRes.ok) {
-        const data = await storageRes.json();
-        setStorage({ currentUsageMB: data.currentUsageMB, storageLimitMB: data.storageLimitMB });
+      if (assets === null) {
+        setDurableInventory(false);
+        setStorage(null);
+        trace.action('media:fetched', { source: 'session' });
+      } else {
+        setDurableInventory(true);
+        setUploads(assets);
+        setStorage(storageInfo);
+        trace.action('media:fetched', { source: 'backend', count: assets.length });
       }
     } catch (err) {
       trace.error('media:fetch-failed', err);
+      setUploadError(err instanceof Error ? err.message : 'Could not load Media.');
+    } finally {
+      setLoadingList(false);
     }
-    setLoadingList(false);
-  }, [projectId, tab, isCloud]);
+  }, [projectId]);
 
-  useEffect(() => { fetchUploads(); }, [fetchUploads]);
+  useEffect(() => { void fetchUploads(); }, [fetchUploads]);
 
-  // Tab switch invalidates the selection AND the visible list — without the
-  // clear, the previous tab's items linger under the new tab until its own
-  // fetch lands (images briefly shown under Videos).
-  useEffect(() => { setSelectedKeys(new Set()); setUploads([]); }, [tab]);
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [tab]);
+
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
+
+  useEffect(() => {
+    if (durableInventory !== false) return;
+    setUploads(
+      sessionMediaAssets
+        .filter((item) => item.kind === 'image' || item.kind === 'video')
+        .map((item) => ({
+          url: item.url,
+          kind: item.kind as 'image' | 'video',
+          name: item.name,
+          mimeType: item.mimeType,
+          contentHash: item.contentHash,
+          size: item.size,
+          lastModified: item.createdAt,
+        })),
+    );
+  }, [durableInventory, sessionMediaAssets]);
 
   // Escape clears the multi-selection (the ConfirmModal handles its own).
   useEffect(() => {
@@ -375,27 +478,149 @@ export default function MediaGalleryPanel() {
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [selectedKeys.size, confirmKeys]);
 
-  // Handle file upload
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Batch ingest belongs to the canonical Media browser. File picker and OS
+  // drag/drop both use this exact path so validation, dedup, and queue state
+  // cannot diverge.
+  const ingestFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
     setUploading(true);
     setUploadError(null);
-    trace.action('media:upload-start', { name: file.name, size: file.size });
-    try {
-      const url = await backend.uploadAsset(projectId, file);
-      setUploads(prev => [{ url, size: file.size }, ...prev]);
-      trace.action('media:upload-success', { url });
-      // Re-fetch storage so the usage chip updates immediately.
-      fetchUploads();
-    } catch (err) {
-      trace.error('media:upload-failed', err);
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+
+    const skipped: string[] = [];
+    let successful = 0;
+
+    for (const [index, file] of files.entries()) {
+      const kind: 'image' | 'video' | null = file.type.startsWith('image/')
+        ? 'image'
+        : file.type.startsWith('video/')
+          ? 'video'
+          : null;
+
+      if (!kind) {
+        skipped.push(file.name + ' · unsupported type');
+        continue;
+      }
+      if (tab === 'images' && kind !== 'image') {
+        skipped.push(file.name + ' · not an image');
+        continue;
+      }
+      if (tab === 'videos' && kind !== 'video') {
+        skipped.push(file.name + ' · not a video');
+        continue;
+      }
+
+      trace.action('media:upload-start', { name: file.name, size: file.size, kind, batchSize: files.length });
+
+      try {
+        const result = await ingestMediaFile({
+          file,
+          projectId,
+          kind,
+          upsert: upsertMediaUpload,
+          idPrefix: 'media-browser',
+          rememberAsset: rememberMediaAsset,
+        });
+        setUploads((prev) => (
+          prev.some((item) => item.url === result.url)
+            ? prev
+            : [{ url: result.url, size: file.size, kind, name: file.name }, ...prev]
+        ));
+        if (!result.reusedExisting) {
+          successful += 1;
+        } else if (durableInventory === true) {
+          setDuplicateCandidates((current) => [...current, { file, kind }]);
+        }
+        trace.action('media:upload-success', {
+          url: result.url,
+          kind,
+          batchSize: files.length,
+          reusedExisting: result.reusedExisting,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Upload failed';
+        trace.error('media:upload-failed', { name: file.name, error: message });
+      }
     }
+
+    if (durableInventory === true && successful > 0) await fetchUploads();
+
+    if (skipped.length > 0) {
+      const first = skipped[0];
+      const rest = skipped.length - 1;
+      setUploadError(rest > 0 ? first + ' · +' + rest + ' more skipped' : first);
+    }
+
     setUploading(false);
-    // Reset input so same file can be re-uploaded
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [projectId, fetchUploads]);
+  }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload, rememberMediaAsset]);
+
+  const keepDuplicateUploads = useCallback(async () => {
+    if (durableInventory !== true || duplicateCandidates.length === 0 || uploading) return;
+
+    const candidates = duplicateCandidates;
+    setDuplicateCandidates([]);
+    setUploading(true);
+    setUploadError(null);
+    let created = 0;
+
+    for (const { file, kind } of candidates) {
+      try {
+        const result = await ingestMediaFile({
+          file,
+          projectId,
+          kind,
+          upsert: upsertMediaUpload,
+          idPrefix: 'media-duplicate',
+          allowDuplicate: true,
+          rememberAsset: rememberMediaAsset,
+        });
+        setUploads((prev) => [{ url: result.url, size: file.size, kind, name: file.name }, ...prev]);
+        created += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not keep duplicate';
+        setUploadError(message);
+      }
+    }
+
+    if (created > 0) await fetchUploads();
+    setUploading(false);
+  }, [
+    durableInventory,
+    duplicateCandidates,
+    uploading,
+    projectId,
+    upsertMediaUpload,
+    rememberMediaAsset,
+    fetchUploads,
+  ]);
+
+
+  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const files = Array.from(input.files ?? []);
+    await ingestFiles(files);
+    input.value = '';
+  }, [ingestFiles]);
+
+  const handleBrowserDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDropActive(true);
+  }, []);
+
+  const handleBrowserDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) return;
+    setDropActive(false);
+  }, []);
+
+  const handleBrowserDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    setDropActive(false);
+    await ingestFiles(Array.from(event.dataTransfer.files ?? []));
+  }, [ingestFiles]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a
@@ -549,65 +774,149 @@ export default function MediaGalleryPanel() {
     setDeleting(false);
   }, [confirmKeys, deleting, projectId, fetchUploads]);
 
-  const storageLabel = storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : '0.0 / 500 MB';
+  const storageLabel = durableInventory === true
+    ? storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : 'Storage'
+    : durableInventory === false ? 'Session' : 'Loading…';
 
   return (
-    <div className="flex flex-col h-full">
-      <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+    <div
+      className="relative flex h-full flex-col"
+      onDragOver={handleBrowserDragOver}
+      onDragLeave={handleBrowserDragLeave}
+      onDrop={(event) => { void handleBrowserDrop(event); }}
+    >
+      {dropActive && (
+        <div
+          data-media-browser-drop-target
+          className="pointer-events-none absolute inset-1 z-50 flex items-start justify-center rounded-[5px] border border-[var(--accent)] pt-3"
+          style={{ background: 'color-mix(in srgb, var(--accent) 5%, transparent)' }}
+          aria-hidden
+        >
+          <span className="rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1 text-[10px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
+            Add to Media
+          </span>
+        </div>
+      )}
+      {chrome === 'full' && (
+        <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+      )}
 
       {/* Tabs */}
-      <div className="px-3 mt-3">
-        <ToolSegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
+      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2'}`}>
+        <ToolSegmentedControl value={tab} onChange={(value) => setTab(value as MediaGalleryTab)} options={TAB_OPTIONS} />
       </div>
 
-      {/* Dynamic inventory: canonical minimal search row. */}
+      {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}
       <div className="px-3 mt-2">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={tab === 'images' ? 'Search images…' : 'Search videos…'}
-        />
+        <div className="flex items-center gap-1.5">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : 'Search videos…'}
+            className="min-w-0 flex-1"
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={tab === 'all' ? 'image/*,video/*' : tab === 'images' ? 'image/*' : 'video/*'}
+            onChange={handleUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[10px] font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
+              <path d="M8 11V3M5 6l3-3 3 3" />
+              <path d="M3 10.5v1.75A.75.75 0 0 0 3.75 13h8.5a.75.75 0 0 0 .75-.75V10.5" />
+            </svg>
+            {uploading ? 'Adding…' : 'Add media'}
+          </button>
+        </div>
       </div>
 
-      {/* Error banner (e.g. 402 storage cap reached) */}
+      {/* Item-local failures stay compact; the upload tray carries queue detail. */}
       {uploadError && (
-        <div className="px-3 mt-3">
-          <div className="px-2.5 py-1.5 cut-corners cut-border bg-red-500/10 border border-red-500/20 text-[11px] text-red-500 dark:text-red-400 leading-snug">
+        <div className="px-3 mt-2">
+          <div className="rounded-[4px] border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-[10px] leading-snug text-red-500 dark:text-red-400">
             {uploadError}
           </div>
         </div>
       )}
 
-      {/* Upload button */}
-      <div className="px-3 mt-3">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={tab === 'images' ? 'image/*' : 'video/*'}
-          onChange={handleUpload}
-          className="hidden"
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 py-2 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer disabled:opacity-50"
+      {durableInventory === true && duplicateCandidates.length > 0 && (
+        <div className="px-3 mt-2">
+          <div
+            data-media-duplicate-notice
+            className="flex min-h-8 items-center gap-2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] px-2 py-1.5"
+          >
+            <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">
+              {duplicateCandidates.length > 1 ? duplicateCandidates.length + ' files · ' : ''}
+              Already in Media · using existing
+            </span>
+            <button
+              type="button"
+              onClick={() => { void keepDuplicateUploads(); }}
+              className="h-6 shrink-0 rounded-[3px] px-1.5 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-active)]"
+            >
+              Keep {duplicateCandidates.length > 1 ? 'duplicates' : 'duplicate'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDuplicateCandidates([])}
+              aria-label="Dismiss duplicate notice"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] text-[var(--text-tertiary)] hover:bg-[var(--bg-active)] hover:text-[var(--text-primary)]"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {workspace && (
+        <div
+          data-media-workspace-controls
+          className="mt-2 flex items-center gap-1.5 px-3"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          {uploading ? 'Uploading...' : `Upload ${tab === 'images' ? 'image' : 'video'}`}
-        </button>
-      </div>
+          <label className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">Source</span>
+            <select
+              value={sourceFilter}
+              onChange={(event) => setSourceFilter(event.target.value as 'all' | 'upload' | 'external')}
+              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+            >
+              <option value="all">All</option>
+              <option value="upload">Uploaded</option>
+              <option value="external">External</option>
+            </select>
+          </label>
+
+          <label className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">Sort</span>
+            <select
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value as 'newest' | 'oldest' | 'name')}
+              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
-        <div ref={scrollRef} onPointerDown={onGridPointerDown} className="flex-1 overflow-y-auto scrollbar-hide p-3">
-          {tab === 'images' && selectedImageUrls.length >= 2 && (
+        <div className="flex min-h-0 flex-1">
+          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-3">
+          {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
-              className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 border border-[var(--border-light)] bg-[var(--bg-surface)] px-2 py-1.5"
+              className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2 py-1.5"
             >
               <span className="min-w-0 truncate text-[10px] tabular-nums text-[var(--text-secondary)]">
                 {selectedImageUrls.length} images selected
@@ -628,21 +937,88 @@ export default function MediaGalleryPanel() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className={workspace ? "grid grid-cols-4 gap-2" : "grid grid-cols-2 gap-2"}>
             {filteredUploads.map((item, i) => (
               <MediaTile
                 key={item.url + i}
                 url={item.url}
-                kind={tab === 'images' ? 'image' : 'video'}
+                kind={item.kind}
                 mediaKey={deriveUploadKey(item)}
                 isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
-                canDelete={isCloud}
+                canDelete={durableInventory === true}
                 onShiftPointerDown={beginShiftGesture}
-                onPlainPointerDown={() => { if (selectedKeys.size) setSelectedKeys(new Set()); }}
+                onPlainPointerDown={() => {
+                  if (selectedKeys.size) setSelectedKeys(new Set());
+                  if (workspace) setInspectedIdentity(item.key ?? item.url);
+                }}
                 onRequestDelete={requestDelete}
               />
             ))}
           </div>
+          </div>
+          {workspace && (
+            <aside
+              data-media-details
+              className="w-[220px] shrink-0 border-l border-[var(--border-light)] bg-[var(--bg-panel)]"
+            >
+              {inspectedAsset ? (
+                <div className="p-3">
+                  <div className="aspect-[4/3] overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)]">
+                    {inspectedAsset.kind === 'image' ? (
+                      <img src={inspectedAsset.url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <video src={inspectedAsset.url} className="h-full w-full object-cover" muted />
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-2 text-[10px]">
+                    <div>
+                      <div className="text-[var(--text-tertiary)]">Filename</div>
+                      <div className="mt-0.5 break-all text-[var(--text-primary)]">{mediaDisplayName(inspectedAsset)}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">Type</div>
+                        <div className="mt-0.5 capitalize text-[var(--text-primary)]">{inspectedAsset.kind}</div>
+                      </div>
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">File size</div>
+                        <div className="mt-0.5 text-[var(--text-primary)]">{formatMediaBytes(inspectedAsset.size)}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[var(--text-tertiary)]">Source</div>
+                      <div className="mt-0.5 text-[var(--text-primary)]">
+                        {inspectedAsset.source === 'external'
+                          ? 'External'
+                          : inspectedAsset.source === 'upload'
+                            ? 'Uploaded'
+                            : durableInventory === true ? 'Project media' : 'Session'}
+                      </div>
+                    </div>
+                    {inspectedAsset.lastModified && (
+                      <div>
+                        <div className="text-[var(--text-tertiary)]">Modified</div>
+                        <div className="mt-0.5 text-[var(--text-primary)]">{inspectedAsset.lastModified}</div>
+                      </div>
+                    )}
+                  </div>
+                  {durableInventory === true && inspectedAsset.key && (
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(inspectedAsset.key!)}
+                      className="mt-3 h-7 w-full rounded-[4px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-red-500"
+                    >
+                      Delete asset
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center text-[10px] text-[var(--text-tertiary)]">
+                  Select media to inspect
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       ) : !loadingList && uploads.length > 0 && searchQuery.trim().length > 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
@@ -657,23 +1033,26 @@ export default function MediaGalleryPanel() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-hover)] animate-pulse"
+                className="aspect-square rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] animate-pulse"
                 style={{ animationDelay: `${i * 90}ms` }}
               />
             ))}
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 text-center">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          <p className="text-xs text-[var(--text-secondary)]">No {tab} uploaded yet</p>
-          <p className="text-[10px] text-[var(--text-disabled)] max-w-[180px] leading-relaxed">
-            Upload {tab} to see them here
-          </p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
+          <span className="flex h-7 w-7 items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[13px] text-[var(--text-tertiary)]" aria-hidden>▦</span>
+          <div>
+            <p className="text-[11px] font-medium text-[var(--text-secondary)]">No {tab === 'all' ? 'media' : tab} yet</p>
+            <p className="mt-0.5 text-[10px] text-[var(--text-disabled)]">Drop files here or add them from your computer.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-1 h-7 rounded-[4px] border border-[var(--control-border)] px-2 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+          >
+            Add media
+          </button>
         </div>
       )}
 

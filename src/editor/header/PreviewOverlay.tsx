@@ -36,21 +36,20 @@ import { chooseDashboardThumbnailPage } from '@/preview/dashboard-thumbnail-page
 import { collectPreviewProjectPayload, postPreviewProjectPayload } from '@/preview/preview-project-payload';
 import ToolInput from '@/editor/controls/ToolInput';
 import Button from '@/design-system/Button';
+import { previewFrameUrl } from './preview-frame-url';
 
-/** URL the preview iframe loads. Historically this lived at
- *  `http://localhost:5175` (a separate Vite project). The runtime has since
- *  been moved into the editor's own dev server, so the iframe is now
- *  same-origin with the parent. The constant is kept for the iframe `src`
- *  attribute only — postMessage target origin is set to `'*'` (the iframe
- *  is self-hosted by us, so origin pinning adds no real security but DOES
- *  silently drop messages whenever the iframe ends up at a different port,
- *  which is exactly the bug we're fixing). */
-const PREVIEW_ORIGIN =
+/** Final URL the Preview iframe loads.
+ *
+ * Production uses the dedicated preview.field.loew.fi host. Immutable branch
+ * Preview deployments already contain /preview-sandbox in the same deployment,
+ * so they must stay on that certified hostname instead of inventing a
+ * preview.<deployment>.field-preview.loew.fi sub-subdomain.
+ */
+const PREVIEW_URL =
   typeof window !== 'undefined'
-    ? window.location.port
-      ? `${window.location.protocol}//${window.location.hostname}:5175`
-      : `${window.location.protocol}//preview.${window.location.hostname}`
-    : 'http://localhost:5175';
+    ? previewFrameUrl(window.location)
+    : 'http://localhost:5175/';
+
 /** Target-origin used in `iframe.contentWindow.postMessage(..., …)`.
  *  `'*'` works regardless of where the iframe ends up (5175, 3333, or any
  *  future port). The incoming filter is also relaxed below so messages from
@@ -289,7 +288,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
     if (!open) return;
     setIframeReady(false);
     const handler = (e: MessageEvent) => {
-      // No origin filter — the iframe may be served from PREVIEW_ORIGIN,
+      // No origin filter — the iframe may be served from PREVIEW_URL,
       // the parent's own origin, or any future port. We only act on a
       // narrow set of `preview:*` message types we send to ourselves; an
       // unrelated origin can't fake the protocol shape in a way that
@@ -693,7 +692,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
             <iframe
               key={reloadKey}
               ref={iframeRef}
-              src={PREVIEW_ORIGIN + '/'}
+              src={PREVIEW_URL}
               className="w-full h-full"
               style={{ border: 'none', display: 'block' }}
               // No `sandbox` attribute on purpose. The preview lives at

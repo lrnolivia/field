@@ -14,7 +14,8 @@ For Contract Worker branch work:
 2. wait for the Cloudflare branch Preview build for that SHA
 3. resolve the branch-specific Preview URL
 4. open the Preview with a browser-capable QA tool
-5. use `/builder/noauth` by default when authentication is not itself under test
+5. when real saved project state matters, open `/qa/work/<projectId>`; this loads the production project snapshot read-only into the exact branch Preview
+6. use `/builder/noauth` only for isolated editor/canvas interaction checks that do not depend on saved project state
 
 Do not use production to claim that an unmerged branch head was runtime-tested.
 
@@ -88,7 +89,11 @@ Keep fixtures minimal and disposable. Do not broaden QA writes beyond what is ne
 
 ## Auth boundary
 
-`/builder/noauth` does not prove authenticated persistence, account metadata, Access behavior, authenticated APIs, multi-session behavior, or other auth-specific requirements.
+`/qa/work/<projectId>` is a public-by-link, read-only QA surface. It embeds one real production snapshot into the tested field build, forces viewer semantics, sets no-store/noindex response headers, and does not open Dashboard listing or persistence mutations.
+
+`/builder/noauth` remains a disposable in-memory harness and does not prove real project loading.
+
+Neither QA surface proves authenticated persistence, account metadata, Access behavior, authenticated APIs, multi-session behavior, or other auth-specific requirements.
 
 Use `AUTHENTICATED_QA.md` when those behaviors are part of the acceptance criteria.
 

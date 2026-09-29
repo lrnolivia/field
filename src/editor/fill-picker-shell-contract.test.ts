@@ -16,8 +16,10 @@ describe('fill picker shell contract', () => {
     expect(fillSource).toContain('<InspectorIconButtonGroup');
     expect(fillSource).toContain("title: 'Solid'");
     expect(fillSource).toContain("title: 'Gradient'");
+    expect(fillSource).toContain("title: 'Pattern'");
     expect(fillSource).toContain("title: 'Image'");
     expect(fillSource).toContain("title: 'Video'");
+    expect(fillSource).toContain("title: 'Shader'");
   });
 
   it('reuses the existing preset surfaces instead of creating a second library system', () => {
@@ -27,11 +29,29 @@ describe('fill picker shell contract', () => {
     expect(colorSource).toContain('libraryOnly');
   });
 
-  it('does not expose Pattern or Shader before canonical Fill paths exist', () => {
+  it('keeps the canonical paint-type order in one shared rail', () => {
     const start = fillSource.indexOf('const paintTypeButtons');
     const end = fillSource.indexOf('return (', start);
     const railBlock = fillSource.slice(start, end);
-    expect(railBlock).not.toContain("id: 'pattern'");
-    expect(railBlock).not.toContain("id: 'shader'");
+    const ids = ['color', 'gradient', 'pattern', 'image', 'video', 'shader'];
+    let cursor = -1;
+    for (const id of ids) {
+      const next = railBlock.indexOf(`id: '${id}'`);
+      expect(next).toBeGreaterThan(cursor);
+      cursor = next;
+    }
+  });
+
+  it('keeps semantic Pattern, Video, and Shader fills in Single mode until the paint stack owns them natively', () => {
+    expect(fillSource).toContain('const semanticSingleFill = hasSemanticSingleFill(ctx?.node)');
+    expect(fillSource).toContain("node?.attrs?.['data-field-pattern']");
+    expect(fillSource).toContain("node?.attrs?.['data-field-shader-fill']");
+    expect(fillSource).toContain('node?.bgVideo');
+    expect(fillSource).toContain('!semanticSingleFill && (');
+  });
+
+  it('re-detects the selected paint type after undo/redo on the same node', () => {
+    expect(fillSource).toContain("const typeSig = solidOnly ? 'color' : fillTypeSignature(styles, node)");
+    expect(fillSource).toContain('[nodeId, solidOnly, typeSig]');
   });
 });

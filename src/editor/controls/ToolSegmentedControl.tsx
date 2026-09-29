@@ -1,7 +1,7 @@
 // ToolSegmentedControl.tsx — Button group with animated highlight.
 // FIGUI3_CORRECTIVE_SEGMENTED_20260925
 
-import { useRef, useEffect, useLayoutEffect, useState } from 'react';
+import { useRef, useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { trace } from '@/shared/debug-trace';
@@ -23,6 +23,19 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
   const containerRef = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState({ left: 0, width: 0 });
   const hasMounted = useRef(false);
+
+  const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    if (options.length < 2) return;
+    event.preventDefault();
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? options.length - 1
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
+    const target = containerRef.current?.querySelectorAll<HTMLButtonElement>('button')[next];
+    target?.focus();
+  };
 
   // Measure the active button and move the highlight onto it.
   //
@@ -67,7 +80,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
     // Outlined like the inputs and selects: the track was a bare fill with no
     // border, so when the other controls moved to outlined-and-recessed this
     // one stayed a filled slab and stood out as the odd control.
-    <div ref={containerRef} className="relative flex w-full bg-[var(--control-bg)] border border-transparent cut-corners p-0.5">
+    <div ref={containerRef} role="group" className="relative flex w-full bg-[var(--control-bg)] border border-transparent cut-corners p-0.5">
       {/* Animated highlight */}
       <div
         className="absolute cut-corners cut-sm"
@@ -84,13 +97,16 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
           zIndex: 1,
         }}
       />
-      {options.map(opt => (
+      {options.map((opt, index) => (
         <motion.button
           key={opt.value}
+          type="button"
+          aria-pressed={value === opt.value}
           initial="rest"
           whileHover="hover"
           whileTap="tap"
           onClick={() => { trace.action('tool-segmented:change', { from: value, to: opt.value }); onChange(opt.value); }}
+          onKeyDown={(event) => moveFocus(event, index)}
           className={`flex-1 flex items-center justify-center gap-2 text-xs ${py} ${px} cut-corners transition-colors relative z-10 ${value === opt.value ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
         >
           {opt.icon && <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>}

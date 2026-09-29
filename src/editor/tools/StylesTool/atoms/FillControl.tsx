@@ -1,4 +1,4 @@
-// FillControl.tsx — Self-contained fill ToolAtom (compound: color/gradient/image/video).
+// FillControl.tsx — Self-contained fill ToolAtom (solid/gradient/pattern/image/video/shader).
 // Supports Single mode (current behavior) and Multiple mode (stacked background layers).
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -33,7 +33,7 @@ import CreateVideoPresetPanel from '../../../ui/CreateVideoPresetPanel';
 import EditAssetPresetPanel from '../../../ui/EditAssetPresetPanel';
 import ColorPresetEditPanel from '../../../ui/ColorPresetEditPanel';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
-import { isComponentFileAtom, selectedIdsAtom } from '@/code/stores/store';
+import { isComponentFileAtom, selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { forSelectionTargets } from '../../../controls/multi-select-targets';
 import { isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
 import { fillClearStyles, isTransparentColor } from './fill-clear';
@@ -60,8 +60,10 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, type PatternFillConfig, type PatternKind } from '@/editor/ui/pattern-fill-utils';
-import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon } from '@/design-system/PropertyIcons';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
+import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon, AnimationIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -119,7 +121,6 @@ const BLEND_MODE_OPTIONS = [
 // ─── Image Fill Tab (shared between Single and Multiple) ────────────────────
 
 function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; libraryOnly?: boolean }) {
-  const [imageModalOpen, setImageModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
@@ -158,40 +159,71 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
     ));
   }, [pushPanel, popPanel, imagePresets]);
 
+  const applyImageUrl = useCallback((url: string) => {
+    onUpdate('backgroundColor', '');
+    onUpdate('background', '');
+    onUpdate('backgroundImage', `url(${url})`);
+    onUpdate('backgroundSize', styles.backgroundSize || 'cover');
+    onUpdate('backgroundPosition', styles.backgroundPosition || 'center');
+    onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat');
+    trace.action('fill:image-selected', { url: url.slice(0, 80), source: 'media-context' });
+  }, [onUpdate, styles.backgroundSize, styles.backgroundPosition, styles.backgroundRepeat]);
+
+  const openMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-image" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={applyImageUrl}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, applyImageUrl]);
+
   return (
     <div className="flex flex-col gap-2">
       {!libraryOnly && (
         <>
       {/* Image preview + Choose button */}
       {hasImage ? (
-        <div className="flex flex-col gap-2">
-          <div className="w-full h-28 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setImageModalOpen(true)}
-            style={{ backgroundImage: previewBg, backgroundSize: styles.backgroundSize || 'cover', backgroundPosition: styles.backgroundPosition || 'center' }}
-          />
-          <div className="flex gap-1.5">
-            <button onClick={() => setImageModalOpen(true)}
-              className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer">
-              Change
-            </button>
-            {/* Crop — opens a modal to crop the current image, then replaces the
-                fill with the cropped upload (undo-safe: it's a style write). */}
-            <button onClick={() => setCropModalOpen(true)}
-              className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer flex items-center justify-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
-              </svg>
-              Crop
-            </button>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={openMedia}
+            className="min-w-0 flex-1 h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-left hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
+            title={previewUrl || 'Image'}
+          >
+            <span
+              className="h-6 w-6 shrink-0 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]"
+              style={{ backgroundImage: previewBg, backgroundSize: 'cover', backgroundPosition: styles.backgroundPosition || 'center' }}
+            />
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">Image</span>
+            <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">Change</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCropModalOpen(true)}
+            aria-label="Crop image"
+            title="Crop image"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[var(--control-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
+            </svg>
+          </button>
         </div>
       ) : (
-        <button onClick={() => setImageModalOpen(true)}
-          className="w-full h-20 cut-corners cut-border border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
-          Choose Image
+        <button
+          type="button"
+          onClick={openMedia}
+          className="w-full h-8 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          <span className="flex h-4 w-4 items-center justify-center" aria-hidden>◇</span>
+          <span className="min-w-0 flex-1 truncate">Choose media</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">Image</span>
         </button>
       )}
 
@@ -248,24 +280,6 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
         />
       )}
 
-      {/* Image Search Modal */}
-      <ImageSearchModal
-        isOpen={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
-        onSelect={(url) => {
-          onUpdate('backgroundColor', '');
-          onUpdate('background', '');
-          onUpdate('backgroundImage', `url(${url})`);
-          // Preserve the existing size/position/repeat when CHANGING the image
-          // (e.g. keep `Contain`), default otherwise — written UNCONDITIONALLY
-          // to repair the `background: ''` shorthand wipe (see preset path).
-          onUpdate('backgroundSize', styles.backgroundSize || 'cover');
-          onUpdate('backgroundPosition', styles.backgroundPosition || 'center');
-          onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat');
-          trace.action('fill:image-selected', { url: url.slice(0, 80) });
-        }}
-      />
-
       {/* Crop Modal — crops the CURRENT image and replaces the fill with the
           cropped upload. The style write goes through `onUpdate` (mutation
           queue), so Cmd+Z reverts to the original image. */}
@@ -296,9 +310,10 @@ function extractUrl(value: string): string | null {
 
 // ─── Single Mode Fill Popup Content ─────────────────────────────────────────
 
-type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video';
+type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video' | 'shader';
 
 function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
+  if (node?.attrs?.['data-field-shader-fill']) return 'shader';
   if (node?.attrs?.['data-field-pattern']) return 'pattern';
   // bg-video child on the node = Video tab. This is the new canonical state;
   // the legacy `backgroundVideo` style key was a no-op CSS prop that the parser
@@ -312,6 +327,24 @@ function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null)
   if (/^var\(\s*--image-/.test(bgImage)) return 'image';
   if (styles.background?.includes('gradient') || bgImage.includes('gradient')) return 'gradient';
   return 'color';
+}
+
+function fillTypeSignature(styles: Record<string, string>, node?: CanvasNode | null): string {
+  const type = detectFillTab(styles, node);
+  return [
+    type,
+    node?.attrs?.['data-field-pattern'] ? 'pattern' : '',
+    node?.attrs?.['data-field-shader-fill'] ? 'shader' : '',
+    node?.bgVideo ? 'video' : '',
+  ].join('|');
+}
+
+function hasSemanticSingleFill(node?: CanvasNode | null): boolean {
+  return !!(
+    node?.attrs?.['data-field-pattern']
+    || node?.attrs?.['data-field-shader-fill']
+    || node?.bgVideo
+  );
 }
 
 /** Transparent-checker pattern for the empty poster swatch — matches the
@@ -330,15 +363,32 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
   const nodeId = node?.id ?? null;
   const raw = node?.attrs?.['data-field-pattern'] || '';
   const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
+  const [monsterDefinition, setMonsterDefinition] = useState<PatternMonsterDefinition | null>(null);
 
   useEffect(() => {
     setConfig(parsePatternFillConfig(raw));
   }, [nodeId, raw]);
 
-  const applyPattern = useCallback((next: PatternFillConfig) => {
+  const monsterId = config.source === 'pattern-monster' ? config.patternId : null;
+  useEffect(() => {
+    if (!monsterId) {
+      setMonsterDefinition(null);
+      return;
+    }
+    let cancelled = false;
+    import('@/editor/ui/patterns/pattern-monster-catalog').then(module => {
+      if (!cancelled) setMonsterDefinition(module.findPatternMonsterDefinition(monsterId) || null);
+    });
+    return () => { cancelled = true; };
+  }, [monsterId]);
+
+  const applyPattern = useCallback((next: PatternFillConfig, definition?: PatternMonsterDefinition | null) => {
+    const resolvedDefinition = next.source === 'pattern-monster' ? (definition || monsterDefinition) : undefined;
+    if (next.source === 'pattern-monster' && !resolvedDefinition) return;
+
     setConfig(next);
     if (!nodeId) return;
-    const compiled = buildPatternFillStyles(next);
+    const compiled = buildPatternFillStyles(next, resolvedDefinition);
     forSelectionTargets(nodeId, (tid) => {
       queueMutation({
         type: 'updateStyles',
@@ -361,22 +411,184 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
         attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
       });
     });
-    trace.action('fill:pattern-applied', { nodeId, kind: next.kind });
-  }, [nodeId]);
-
-  const patch = <K extends keyof PatternFillConfig>(key: K, value: PatternFillConfig[K]) => {
-    applyPattern({ ...config, [key]: value });
-  };
+    trace.action('fill:pattern-applied', {
+      nodeId,
+      source: next.source,
+      pattern: next.source === 'field' ? next.kind : next.patternId,
+    });
+  }, [nodeId, monsterDefinition]);
 
   if (libraryOnly) {
     return (
-      <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
-        Open-source pattern library is coming in the next batch.
+      <PatternLibraryPanel
+        activePatternId={config.source === 'pattern-monster' ? config.patternId : undefined}
+        onSelect={(definition, next) => {
+          setMonsterDefinition(definition);
+          applyPattern(next, definition);
+        }}
+      />
+    );
+  }
+
+  if (config.source === 'pattern-monster') {
+    if (!monsterDefinition) {
+      return <div className="py-8 text-center text-[11px] text-[var(--text-disabled)]">Loading pattern controls…</div>;
+    }
+
+    const preview = buildPatternFillStyles(config, monsterDefinition);
+    const maxColors = patternMonsterMaxColors(monsterDefinition);
+    const updateMonster = (next: Partial<PatternMonsterFillConfig>) => {
+      applyPattern({ ...config, ...next }, monsterDefinition);
+    };
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div
+          className="w-full h-24 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)]"
+          style={preview as React.CSSProperties}
+          aria-label={`${monsterDefinition.title} preview`}
+        />
+
+        <div className="flex items-center justify-between px-0.5 text-[10px] text-[var(--text-disabled)]">
+          <span className="truncate pr-2">{monsterDefinition.title}</span>
+          <span className="shrink-0">Pattern Monster · MIT</span>
+        </div>
+
+        {maxColors > 2 && (
+          <ToolRow label="Colors" hideCreateVariable>
+            <ToolInput
+              value={String(config.colorCount)}
+              onChange={(value) => updateMonster({ colorCount: Math.max(2, Math.min(maxColors, Math.round(Number(value) || 2))) })}
+              min={2}
+              max={maxColors}
+              step={1}
+              ariaLabel="Pattern color count"
+            />
+          </ToolRow>
+        )}
+
+        {config.colors.slice(0, config.colorCount).map((color, index) => (
+          <ToolRow key={index} label={index === 0 ? 'Background' : `Color ${index}`} hideCreateVariable>
+            <ColorInput
+              allowPresets={false}
+              value={color}
+              onChange={(value) => {
+                const colors = [...config.colors];
+                colors[index] = value;
+                updateMonster({ colors });
+              }}
+              showAlpha
+            />
+          </ToolRow>
+        ))}
+
+        <ToolRow label="Scale" hideCreateVariable>
+          <ToolInput
+            value={String(config.scale)}
+            onChange={(value) => updateMonster({ scale: Math.max(1, Math.min(monsterDefinition.maxScale, Number(value) || 1)) })}
+            min={1}
+            max={monsterDefinition.maxScale}
+            step={0.25}
+            ariaLabel="Pattern scale"
+          />
+        </ToolRow>
+
+        {monsterDefinition.mode !== 'fill' && (
+          <ToolRow label="Stroke" hideCreateVariable>
+            <ToolInput
+              value={String(config.stroke)}
+              onChange={(value) => updateMonster({ stroke: Math.max(0.5, Math.min(monsterDefinition.maxStroke, Number(value) || 0.5)) })}
+              min={0.5}
+              max={monsterDefinition.maxStroke}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern stroke width"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.mode === 'stroke-join' && (
+          <ToolRow label="Join" hideCreateVariable>
+            <ToolSegmentedControl
+              value={String(config.join)}
+              onChange={(value) => updateMonster({ join: value === '2' ? 2 : 1 })}
+              options={[{ value: '1', label: 'Square' }, { value: '2', label: 'Round' }]}
+              size="sm"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[0] > 0 && (
+          <ToolRow label="Spacing X" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[0])}
+              onChange={(value) => updateMonster({ spacing: [Math.max(0, Math.min(monsterDefinition.maxSpacing[0], Number(value) || 0)), config.spacing[1]] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[0]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern horizontal spacing"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[1] > 0 && (
+          <ToolRow label="Spacing Y" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[1])}
+              onChange={(value) => updateMonster({ spacing: [config.spacing[0], Math.max(0, Math.min(monsterDefinition.maxSpacing[1], Number(value) || 0))] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[1]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern vertical spacing"
+            />
+          </ToolRow>
+        )}
+
+        <ToolRow label="Angle" hideCreateVariable>
+          <ToolInput
+            value={String(config.angle)}
+            onChange={(value) => updateMonster({ angle: Math.max(0, Math.min(180, Number(value) || 0)) })}
+            min={0}
+            max={180}
+            step={5}
+            chevronLabel="°"
+            ariaLabel="Pattern angle"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset X" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveLeft)}
+            onChange={(value) => updateMonster({ moveLeft: Math.max(monsterDefinition.width * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.width * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern horizontal offset"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset Y" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveTop)}
+            onChange={(value) => updateMonster({ moveTop: Math.max(monsterDefinition.height * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.height * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern vertical offset"
+          />
+        </ToolRow>
       </div>
     );
   }
 
   const preview = buildPatternFillStyles(config);
+  const updateField = (next: Partial<FieldPatternFillConfig>) => {
+    applyPattern({ ...config, ...next });
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -389,20 +601,21 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Pattern" hideCreateVariable>
         <ToolSelect
           value={config.kind}
-          onChange={(value) => patch('kind', value as PatternKind)}
+          onChange={(value) => updateField({ kind: value as PatternKind })}
           options={PATTERN_KIND_OPTIONS}
           ariaLabel="Pattern kind"
         />
       </ToolRow>
 
-      <ToolRow label="Color">
-        <ColorInput value={config.color} onChange={(value) => patch('color', value)} showAlpha />
+      <ToolRow label="Color" hideCreateVariable>
+        <ColorInput allowPresets={false} value={config.color} onChange={(value) => updateField({ color: value })} showAlpha />
       </ToolRow>
 
-      <ToolRow label="Background">
+      <ToolRow label="Background" hideCreateVariable>
         <ColorInput
+          allowPresets={false}
           value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background}
-          onChange={(value) => patch('background', value)}
+          onChange={(value) => updateField({ background: value })}
           showAlpha
         />
       </ToolRow>
@@ -410,7 +623,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Opacity" hideCreateVariable>
         <ToolInput
           value={String(Math.round(config.opacity * 100))}
-          onChange={(value) => patch('opacity', Math.max(0, Math.min(100, Number(value) || 0)) / 100)}
+          onChange={(value) => updateField({ opacity: Math.max(0, Math.min(100, Number(value) || 0)) / 100 })}
           min={0}
           max={100}
           step={1}
@@ -422,7 +635,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Tile size" hideCreateVariable>
         <ToolInput
           value={String(config.tileSize)}
-          onChange={(value) => patch('tileSize', Math.max(4, Math.min(120, Number(value) || 4)))}
+          onChange={(value) => updateField({ tileSize: Math.max(4, Math.min(120, Number(value) || 4)) })}
           min={4}
           max={120}
           step={1}
@@ -434,7 +647,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Thickness" hideCreateVariable>
         <ToolInput
           value={String(config.thickness)}
-          onChange={(value) => patch('thickness', Math.max(0.5, Math.min(12, Number(value) || 0.5)))}
+          onChange={(value) => updateField({ thickness: Math.max(0.5, Math.min(12, Number(value) || 0.5)) })}
           min={0.5}
           max={12}
           step={0.5}
@@ -446,6 +659,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
   );
 }
 
+
 const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'cover', label: 'Cover' },
   { value: 'contain', label: 'Contain' },
@@ -455,8 +669,6 @@ const VIDEO_OBJECT_FIT_OPTIONS = [
 ];
 
 function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const posterInputRef = useRef<HTMLInputElement>(null);
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const videoPresets = allTokens.filter(t => t.category === 'video');
@@ -495,6 +707,34 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
     trace.action('fill:video-src-applied', { nodeId, urlLength: url.length });
   }, [nodeId]);
 
+  const openVideoMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video" className="min-h-0">
+        <VideoSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={applyVideoSrc}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, applyVideoSrc]);
+
+  const openPosterMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video-poster" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={(url) => patchVideo({ poster: url })}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, patchVideo]);
+
   const handleCreatePreset = useCallback(() => {
     pushPanel('New Video Preset', (
       <CreateVideoPresetPanel initialValue={currentUrl} onCreated={() => popPanel()} />
@@ -531,33 +771,27 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
       {!libraryOnly && (
         <>
       {hasVideo ? (
-        <div className="flex flex-col gap-2">
-          <div
-            className="w-full h-28 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] overflow-hidden bg-black cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setVideoModalOpen(true)}
-          >
-            <video
-              src={currentUrl}
-              muted
-              loop
-              autoPlay
-              playsInline
-              preload="metadata"
-              className="w-full h-full object-cover pointer-events-none"
-            />
-          </div>
-          <button onClick={() => setVideoModalOpen(true)}
-            className="w-full h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer">
-            Change
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={openVideoMedia}
+          className="w-full h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-left hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
+          title={currentUrl}
+        >
+          <span className="h-6 w-9 shrink-0 overflow-hidden rounded-[3px] border border-[var(--border-light)] bg-black">
+            <video src={currentUrl} muted playsInline preload="metadata" className="h-full w-full object-cover pointer-events-none" />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">Video</span>
+          <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">Change</span>
+        </button>
       ) : (
-        <button onClick={() => setVideoModalOpen(true)}
-          className="w-full h-20 cut-corners cut-border border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-          </svg>
-          Choose Video
+        <button
+          type="button"
+          onClick={openVideoMedia}
+          className="w-full h-8 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          <span className="flex h-4 w-4 items-center justify-center text-[10px]" aria-hidden>▶</span>
+          <span className="min-w-0 flex-1 truncate">Choose media</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">Video</span>
         </button>
       )}
 
@@ -600,14 +834,13 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
               options={VIDEO_OBJECT_FIT_OPTIONS}
             />
           </div>
-          {/* Poster — single ControlActionRow matching the Fill row pattern.
-              Swatch shows the image when set (or a transparent-checker pattern
-              when empty), label reads "Upload…" when empty / a short caption
-              when set. Whole row triggers the OS file picker; × clears. */}
+          {/* Poster uses the same contextual Media picker as image Fill.
+              Swatch shows the current poster; the row opens Media and minus
+              clears without introducing a second upload path. */}
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Poster" property="poster" plain />
             <ControlActionRow
-              onClick={() => posterInputRef.current?.click()}
+              onClick={openPosterMedia}
               className="justify-between"
             >
               <span className="flex items-center gap-2 truncate">
@@ -617,7 +850,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
                     : ALPHA_CHECKER_STYLE}
                 />
                 <span className={`text-xs truncate ${cfg.poster ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                  {cfg.poster ? 'Poster set' : 'Upload…'}
+                  {cfg.poster ? 'Poster set' : 'Choose media'}
                 </span>
               </span>
               {cfg.poster && (
@@ -629,24 +862,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
                 </span>
               )}
             </ControlActionRow>
-            <input
-              ref={posterInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    patchVideo({ poster: reader.result });
-                  }
-                };
-                reader.readAsDataURL(file);
-                e.target.value = '';
-              }}
-            />
+
           </div>
         </div>
       )}
@@ -674,11 +890,6 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
         />
       )}
 
-      <VideoSearchModal
-        isOpen={videoModalOpen}
-        onClose={() => setVideoModalOpen(false)}
-        onSelect={applyVideoSrc}
-      />
     </div>
   );
 }
@@ -703,11 +914,14 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     trace.action('fill-control:create-preset-panel', { color });
   }, [pushPanel, popPanel]);
 
-  // Re-detect tab ONLY when selected node changes (not during editing)
+  // Re-detect only when the semantic fill TYPE changes. This catches undo/redo
+  // on the same node without resetting the tab while a color/gradient value is
+  // merely being edited inside its current type.
+  const typeSig = solidOnly ? 'color' : fillTypeSignature(styles, node);
   useEffect(() => {
     setTab(solidOnly ? 'color' : detectFillTab(styles, node));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeId, solidOnly]);
+  }, [nodeId, solidOnly, typeSig]);
 
   const changeFillType = (newTab: FillTab) => {
     trace.action('fill:tab-change', { from: tab, to: newTab });
@@ -730,6 +944,17 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       if (tab === 'video' && nodeId) {
         forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
       }
+      if (tab === 'shader' && nodeId) {
+        const shaderLayerId = node?.children?.find((id) => getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true');
+        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } }));
+        if (shaderLayerId) queueMutation({ type: 'removeNode', nodeId: shaderLayerId });
+      }
+    }
+
+    if (newTab === 'shader' && !node?.attrs?.['data-field-shader-fill']) {
+      // Shader is library-backed: opening an empty Shader fill should land on
+      // the existing shader gallery instead of a dead-end "choose from Libraries" state.
+      setSurface('libraries');
     }
 
     if (newTab === 'pattern' && nodeId) {
@@ -767,6 +992,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     { id: 'pattern', title: 'Pattern', icon: <GridIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'pattern', onClick: () => changeFillType('pattern') },
     { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
     { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
+    { id: 'shader', title: 'Shader', icon: <AnimationIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'shader', onClick: () => changeFillType('shader') },
   ];
 
   return (
@@ -871,6 +1097,10 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
 
       {tab === 'pattern' && (
         <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
+      )}
+
+      {tab === 'shader' && (
+        <ShaderFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'image' && (
@@ -1326,23 +1556,25 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
   const ctx = useControlContextOptional();
   const nodeId = ctx?.nodeId ?? nodeIdProp ?? null;
   const solidOnly = isFormControlNode(ctx?.node);
+  const semanticSingleFill = hasSemanticSingleFill(ctx?.node);
   const [mode, setMode] = useState<FillMode>(() =>
-    isMultiLayerBackground(styles) ? 'multiple' : 'single'
+    semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single')
   );
 
   // Re-detect mode on node change AND on external style changes (an undo
   // that reverts multi-layer → single must flip the tab back).
-  const modeSig = `${nodeId}|${isMultiLayerBackground(styles)}`;
+  const modeSig = `${nodeId}|${semanticSingleFill}|${isMultiLayerBackground(styles)}`;
   const prevModeSigRef = useRef(modeSig);
   useEffect(() => {
     if (modeSig === prevModeSigRef.current) return;
     prevModeSigRef.current = modeSig;
-    setMode(isMultiLayerBackground(styles) ? 'multiple' : 'single');
+    setMode(semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modeSig]);
 
   const handleModeChange = useCallback((v: string) => {
     const newMode = v as FillMode;
+    if (semanticSingleFill && newMode === 'multiple') return;
     trace.action('fill:mode-change', { from: mode, to: newMode });
 
     if (newMode === 'multiple' && mode === 'single') {
@@ -1381,14 +1613,14 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
     }
 
     setMode(newMode);
-  }, [mode, styles, onChangeMultiple]);
+  }, [mode, styles, onChangeMultiple, semanticSingleFill]);
 
   return (
     // Rich color/gradient/image/video editors remain their own content, but the
     // outer composition follows the canonical Inspector Options Panel hierarchy.
     <ShowControlLabels>
       <OptionsPanel>
-        {!solidOnly && (
+        {!solidOnly && !semanticSingleFill && (
           <OptionSection title="Fill mode">
             <ChoiceRow
               label="Mode"

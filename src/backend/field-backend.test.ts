@@ -16,7 +16,10 @@ function response(body: unknown, status: number, etag?: string): Response {
   return new Response(body === null ? null : JSON.stringify(body), { status, headers });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('backend selection', () => {
   it('keeps explicitly-enabled Revyme Cloud authoritative', () => {
@@ -33,6 +36,33 @@ describe('backend selection', () => {
 
   it('supports an explicit local production-preview fallback', () => {
     expect(resolveBackendKind({ cloudEnabled: false, isDev: false, forceLocal: true })).toBe('local');
+  });
+});
+
+
+describe('FieldBackend read-only QA bootstrap', () => {
+  it('loads the injected real project snapshot without Access or project API calls', async () => {
+    vi.stubGlobal('window', {
+      __FIELD_QA_PROJECT__: {
+        id: 'qa-project',
+        data: project,
+        meta: { name: 'QA project' },
+      },
+    });
+
+    const fetchImpl = vi.fn();
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      legacyLoader: async () => null,
+    });
+
+    await expect(backend.getUser()).resolves.toBeNull();
+    await expect(backend.loadProject('qa-project')).resolves.toEqual(project);
+    await expect(backend.getWebsiteName('qa-project')).resolves.toBe('QA project');
+    await expect(backend.getWebsiteRole('qa-project')).resolves.toBe('viewer');
+    await expect(backend.saveProject('qa-project', project)).rejects.toThrow('read-only');
+    await expect(backend.renameWebsite('qa-project', 'nope')).rejects.toThrow('read-only');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 
@@ -246,5 +276,16 @@ describe('autosave conflict classification', () => {
   it('never classifies a persistence conflict as retryable', () => {
     expect(isRetryableSaveError(new PersistenceConflictError())).toBe(false);
     expect(isRetryableSaveError(new Error('503'))).toBe(true);
+  });
+});
+
+
+describe('FieldBackend Media inventory', () => {
+  it('does not pretend editor-only R2 is a source-safe durable asset catalog yet', async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 500 }));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    expect(await backend.listAssets('site-1')).toBeNull();
+    expect(await backend.getAssetStorageInfo('site-1')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

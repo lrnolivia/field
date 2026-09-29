@@ -689,7 +689,7 @@ describe('CanvasMouseController — canonical hierarchy selection', () => {
     expect(store.get(selectedIdsAtom)).toEqual(['inner']);
   });
 
-  test('double click on text enters editing even when its frame is selected', () => {
+  test('double click on text selects the edit target and enters editing even when its frame is selected', () => {
     const { controller, store, opts } = makeController();
     store.set(nodesAtom, new Map([
       ['frame', { id: 'frame', parentId: null, type: 'div', children: ['text'], styles: {}, attrs: {} }],
@@ -703,6 +703,7 @@ describe('CanvasMouseController — canonical hierarchy selection', () => {
 
     controller.handleNodeMouseDown('text', makeMouseEvent(), 'desktop');
 
+    expect(store.get(selectedIdsAtom)).toEqual(['text']);
     expect(opts.startTextEdit).toHaveBeenCalledWith('text', null, '', 'desktop');
     expect(store.get(activeContainerIdAtom)).toBeNull();
   });

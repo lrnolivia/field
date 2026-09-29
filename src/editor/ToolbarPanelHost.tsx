@@ -19,6 +19,7 @@ import Modal from '@/design-system/Modal';
 import ModalCloseButton from '@/design-system/ModalCloseButton';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
+import MediaPanelController from '@/editor/media/MediaPanelController';
 
 const LIBRARY_TITLES = {
   components: 'Components', vectors: 'Vectors', templates: 'Templates',
@@ -133,7 +134,7 @@ export default function ToolbarPanelHost() {
     return () => window.removeEventListener('field:insert-complete', closeAfterInsert);
   }, [panel, setPanel]);
   useEffect(() => {
-    if (!panel || panel.kind === 'media-picker' || panel.kind === 'gallery-picker' || panel.kind === 'audio-picker') return;
+    if (!panel || panel.kind === 'media' || panel.kind === 'media-picker' || panel.kind === 'gallery-picker' || panel.kind === 'audio-picker') return;
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -157,6 +158,7 @@ export default function ToolbarPanelHost() {
   }, [panel, setPanel, peeked]);
 
   if (!panel) return null;
+  if (panel.kind === 'media') return <MediaPanelController onClose={() => setPanel(null)} />;
   if (panel.kind === 'media-picker') {
     const onSelect = (url: string) => {
       insertToolbarItemAtVisibleCenter(panel.media, undefined, { src: url });

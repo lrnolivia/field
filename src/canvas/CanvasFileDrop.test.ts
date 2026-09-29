@@ -1,8 +1,11 @@
 import { describe, test, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   isExternalImageDrag,
   extractImageUrlFromDataTransfer,
   filenameFromUrl,
+  isPointInsideCanvasRect,
+  canvasMediaDropLabel,
 } from './CanvasFileDrop';
 // `fitFrameBox` moved to the shared image-dims module (also used by the
 // clipboard-paste path); the cases below still pin the drop behaviour.
@@ -94,5 +97,37 @@ describe('filenameFromUrl', () => {
   test('returns null for extensionless paths and data URLs', () => {
     expect(filenameFromUrl('https://x.com/a/b')).toBeNull();
     expect(filenameFromUrl('data:image/png;base64,AAA')).toBeNull();
+  });
+});
+
+
+describe('canvas Media drop targeting', () => {
+  const rect = { left: 100, top: 50, right: 900, bottom: 650 } as DOMRect;
+
+  test('accepts only points inside the actual canvas rect', () => {
+    expect(isPointInsideCanvasRect(100, 50, rect)).toBe(true);
+    expect(isPointInsideCanvasRect(500, 300, rect)).toBe(true);
+    expect(isPointInsideCanvasRect(900, 650, rect)).toBe(true);
+    expect(isPointInsideCanvasRect(99, 300, rect)).toBe(false);
+    expect(isPointInsideCanvasRect(500, 651, rect)).toBe(false);
+  });
+
+  test('uses contextual copy for images, SVG sets, and mixed media', () => {
+    expect(canvasMediaDropLabel(1, 0)).toBe('Place image');
+    expect(canvasMediaDropLabel(3, 0)).toBe('Place 3 images');
+    expect(canvasMediaDropLabel(0, 1)).toBe('Create vector set');
+    expect(canvasMediaDropLabel(0, 4)).toBe('Create vector set · 4 SVGs');
+    expect(canvasMediaDropLabel(2, 1)).toBe('Add media');
+    expect(canvasMediaDropLabel(0, 0)).toBe('Place media');
+  });
+
+  test('renders restrained canvas-local feedback instead of a fullscreen drop veil', () => {
+    const source = readFileSync('src/canvas/CanvasFileDrop.tsx', 'utf8');
+    expect(source).toContain('data-canvas-media-drop-target');
+    expect(source).toContain("getContentRootRect()");
+    expect(source).toContain("background: 'color-mix(in srgb, var(--accent) 5%, transparent)'");
+    expect(source).toContain("canvas-file-drop:ignored-outside-canvas");
+    expect(source).not.toContain('fixed inset-0');
+    expect(source).not.toContain('border-dashed');
   });
 });

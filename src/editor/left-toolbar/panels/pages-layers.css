@@ -16,9 +16,8 @@
 @media (prefers-reduced-motion: reduce) {
   .field-layer-locate-flash { animation: none; background: color-mix(in srgb, var(--accent) 14%, transparent); }
 }
-[data-field-document-panel] {
-  --field-layer-selected-bg: color-mix(in srgb, var(--selection) 12%, var(--bg-active));
-}
+/* Layer selection inherits the canonical accent-derived tokens from
+ * loew-theme.css. Do not remap it to --selection (canvas blue). */
 
 [data-field-pages-splitter] {
   position: relative;
@@ -109,6 +108,8 @@
   border-radius: 4px;
 }
 
-[data-field-layer-row] > [aria-hidden="true"] {
+/* Keep the viewport-pinned selection/hover surface rounded. Horizontal inset
+ * is owned by the 4px Layers scroll padding + rows.tsx viewport-width math. */
+[data-field-layer-row] > [aria-hidden="true"]:not(.field-layer-locate-flash) {
   clip-path: none !important;
 }

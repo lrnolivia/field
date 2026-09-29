@@ -204,3 +204,36 @@ describe('Template flow — free templates + remix-into', () => {
     await expect(remixTemplateIntoWebsite('t1', 'w1')).rejects.toThrow(/already has content/);
   });
 });
+
+
+describe('RevymeBackend — Media inventory', () => {
+  it('lists typed uploaded assets through the backend contract', async () => {
+    setResponse({ uploads: [{ url: 'https://cdn/image.jpg', key: 'site/image.jpg', size: 12 }] });
+    const backend = new RevymeBackend();
+    await expect(backend.listAssets('site 1', 'image')).resolves.toEqual([
+      { url: 'https://cdn/image.jpg', key: 'site/image.jpg', size: 12, kind: 'image' },
+    ]);
+    expect(calls[0].url).toBe(API + '/api/upload?websiteId=site%201&type=image');
+    expect(calls[0].init.credentials).toBe('include');
+  });
+
+  it('reads storage telemetry through the backend contract', async () => {
+    setResponse({ currentUsageMB: '12.5', storageLimitMB: '500' });
+    const backend = new RevymeBackend();
+    await expect(backend.getAssetStorageInfo('site-1')).resolves.toEqual({
+      currentUsageMB: '12.5',
+      storageLimitMB: '500',
+    });
+    expect(calls[0].url).toBe(API + '/api/upload?websiteId=site-1&type=storage');
+  });
+
+  it('preserves video kind when uploading media', async () => {
+    setResponse({ url: 'https://cdn/video.mp4' });
+    const backend = new RevymeBackend();
+    const file = new File(['video'], 'clip.mp4', { type: 'video/mp4' });
+    await expect(backend.uploadAsset('site-1', file)).resolves.toBe('https://cdn/video.mp4');
+    const body = calls[0].init.body as FormData;
+    expect(body.get('type')).toBe('video');
+    expect(body.get('websiteId')).toBe('site-1');
+  });
+});

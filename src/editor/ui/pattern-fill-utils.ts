@@ -1,8 +1,8 @@
 // pattern-fill-utils.ts — Native Pattern Fill compiler.
 //
-// Reuses the seven pattern recipes already shipped by field's Pattern code
-// component instead of introducing a second pattern engine. Pattern Fill stores
-// semantic config in `data-field-pattern`; the website remains ordinary CSS/SVG.
+// field owns the semantic Fill model. Commodity pattern artwork comes from
+// existing field recipes or permissively licensed catalogs, then compiles to
+// ordinary CSS/SVG so Preview and production remain real web output.
 
 export type PatternKind =
   | 'grid'
@@ -13,7 +13,7 @@ export type PatternKind =
   | 'honeycomb'
   | 'checkerboard';
 
-export interface PatternFillConfig {
+export interface FieldPatternFillConfig {
   v: 1;
   source: 'field';
   kind: PatternKind;
@@ -23,6 +23,39 @@ export interface PatternFillConfig {
   tileSize: number;
   thickness: number;
 }
+
+export type PatternMonsterMode = 'stroke' | 'stroke-join' | 'fill';
+
+export interface PatternMonsterDefinition {
+  title: string;
+  slug: string;
+  mode: PatternMonsterMode;
+  maxStroke: number;
+  maxScale: number;
+  maxSpacing: [number, number];
+  width: number;
+  height: number;
+  vHeight: number;
+  tags: string[];
+  path: string;
+}
+
+export interface PatternMonsterFillConfig {
+  v: 1;
+  source: 'pattern-monster';
+  patternId: string;
+  colors: string[];
+  colorCount: number;
+  stroke: number;
+  scale: number;
+  spacing: [number, number];
+  angle: number;
+  join: 1 | 2;
+  moveLeft: number;
+  moveTop: number;
+}
+
+export type PatternFillConfig = FieldPatternFillConfig | PatternMonsterFillConfig;
 
 export const PATTERN_KIND_OPTIONS: Array<{ value: PatternKind; label: string }> = [
   { value: 'grid', label: 'Grid' },
@@ -34,7 +67,7 @@ export const PATTERN_KIND_OPTIONS: Array<{ value: PatternKind; label: string }> 
   { value: 'checkerboard', label: 'Checkerboard' },
 ];
 
-export const DEFAULT_PATTERN_FILL: PatternFillConfig = {
+export const DEFAULT_PATTERN_FILL: FieldPatternFillConfig = {
   v: 1,
   source: 'field',
   kind: 'grid',
@@ -45,21 +78,74 @@ export const DEFAULT_PATTERN_FILL: PatternFillConfig = {
   thickness: 1,
 };
 
+// Pattern Monster's own default light palette. Kept here because applying an
+// upstream catalog entry should start from the same visual defaults as upstream.
+export const PATTERN_MONSTER_DEFAULT_COLORS = [
+  'hsla(0,0%,100%,1)',
+  'hsla(258.5,59.4%,59.4%,1)',
+  'hsla(339.6,82.2%,51.6%,1)',
+  'hsla(198.7,97.6%,48.4%,1)',
+  'hsla(47,80.9%,61%,1)',
+];
+
 const KINDS = new Set<PatternKind>(PATTERN_KIND_OPTIONS.map(o => o.value));
+
+export function defaultPatternMonsterFill(definition: PatternMonsterDefinition): PatternMonsterFillConfig {
+  const maxColors = patternMonsterMaxColors(definition);
+  return {
+    v: 1,
+    source: 'pattern-monster',
+    patternId: definition.slug,
+    colors: PATTERN_MONSTER_DEFAULT_COLORS.slice(0, Math.max(2, maxColors)),
+    colorCount: maxColors,
+    stroke: 1,
+    scale: Math.min(2, definition.maxScale),
+    spacing: [0, 0],
+    angle: 0,
+    join: 1,
+    moveLeft: 0,
+    moveTop: 0,
+  };
+}
 
 export function parsePatternFillConfig(raw?: string | null): PatternFillConfig {
   if (!raw) return { ...DEFAULT_PATTERN_FILL };
   try {
-    const value = JSON.parse(raw) as Partial<PatternFillConfig>;
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    if (value.source === 'pattern-monster' && typeof value.patternId === 'string' && value.patternId) {
+      const colors = Array.isArray(value.colors)
+        ? value.colors.filter((color): color is string => typeof color === 'string' && !!color)
+        : [];
+      const spacing = Array.isArray(value.spacing) ? value.spacing : [];
+      return {
+        v: 1,
+        source: 'pattern-monster',
+        patternId: value.patternId,
+        colors: colors.length >= 2 ? colors.slice(0, 5) : [...PATTERN_MONSTER_DEFAULT_COLORS],
+        colorCount: clampNumber(value.colorCount, 2, 5, colors.length || 2),
+        stroke: clampNumber(value.stroke, 0.5, 32, 1),
+        scale: clampNumber(value.scale, 1, 64, 2),
+        spacing: [
+          clampNumber(spacing[0], 0, 500, 0),
+          clampNumber(spacing[1], 0, 500, 0),
+        ],
+        angle: clampNumber(value.angle, 0, 180, 0),
+        join: value.join === 2 ? 2 : 1,
+        moveLeft: clampNumber(value.moveLeft, -10000, 0, 0),
+        moveTop: clampNumber(value.moveTop, -10000, 0, 0),
+      };
+    }
+
+    const fieldValue = value as Partial<FieldPatternFillConfig>;
     return {
       v: 1,
       source: 'field',
-      kind: KINDS.has(value.kind as PatternKind) ? value.kind as PatternKind : DEFAULT_PATTERN_FILL.kind,
-      color: typeof value.color === 'string' && value.color ? value.color : DEFAULT_PATTERN_FILL.color,
-      background: typeof value.background === 'string' && value.background ? value.background : DEFAULT_PATTERN_FILL.background,
-      opacity: clampNumber(value.opacity, 0, 1, DEFAULT_PATTERN_FILL.opacity),
-      tileSize: clampNumber(value.tileSize, 4, 120, DEFAULT_PATTERN_FILL.tileSize),
-      thickness: clampNumber(value.thickness, 0.5, 12, DEFAULT_PATTERN_FILL.thickness),
+      kind: KINDS.has(fieldValue.kind as PatternKind) ? fieldValue.kind as PatternKind : DEFAULT_PATTERN_FILL.kind,
+      color: typeof fieldValue.color === 'string' && fieldValue.color ? fieldValue.color : DEFAULT_PATTERN_FILL.color,
+      background: typeof fieldValue.background === 'string' && fieldValue.background ? fieldValue.background : DEFAULT_PATTERN_FILL.background,
+      opacity: clampNumber(fieldValue.opacity, 0, 1, DEFAULT_PATTERN_FILL.opacity),
+      tileSize: clampNumber(fieldValue.tileSize, 4, 120, DEFAULT_PATTERN_FILL.tileSize),
+      thickness: clampNumber(fieldValue.thickness, 0.5, 12, DEFAULT_PATTERN_FILL.thickness),
     };
   } catch {
     return { ...DEFAULT_PATTERN_FILL };
@@ -80,8 +166,28 @@ export interface PatternFillStyles {
   maskImage: string;
 }
 
-export function buildPatternFillStyles(input: PatternFillConfig): PatternFillStyles {
+export const EMPTY_PATTERN_STYLES: PatternFillStyles = {
+  backgroundColor: 'transparent',
+  backgroundImage: '',
+  backgroundSize: '',
+  backgroundPosition: '',
+  backgroundRepeat: '',
+  WebkitMaskImage: '',
+  maskImage: '',
+};
+
+export function buildPatternFillStyles(
+  input: PatternFillConfig,
+  definition?: PatternMonsterDefinition | null,
+): PatternFillStyles {
   const config = parsePatternFillConfig(JSON.stringify(input));
+  if (config.source === 'pattern-monster') {
+    return definition ? buildPatternMonsterFillStyles(config, definition) : EMPTY_PATTERN_STYLES;
+  }
+  return buildFieldPatternFillStyles(config);
+}
+
+function buildFieldPatternFillStyles(config: FieldPatternFillConfig): PatternFillStyles {
   const tile = Math.max(2, config.tileSize);
   const t = Math.max(0.5, config.thickness);
   const fill = alphaColor(config.color, config.opacity);
@@ -140,6 +246,85 @@ export function buildPatternFillStyles(input: PatternFillConfig): PatternFillSty
     WebkitMaskImage: mask,
     maskImage: mask,
   };
+}
+
+/**
+ * TypeScript port of Pattern Monster's MIT-licensed `svgPattern` function.
+ * The geometry/color fallback rules intentionally mirror upstream rather than
+ * approximating them. The catalog itself is lazy-loaded by the Libraries UI.
+ */
+export function buildPatternMonsterFillStyles(
+  input: PatternMonsterFillConfig,
+  definition: PatternMonsterDefinition,
+): PatternFillStyles {
+  const paths = definition.path.split('~');
+  const maxColors = paths.length + 1;
+  const colorCount = Math.round(clampNumber(input.colorCount, 2, maxColors, maxColors));
+  const colors = normalizedMonsterColors(input.colors, maxColors);
+  const stroke = clampNumber(input.stroke, 0.5, definition.maxStroke, 1);
+  const scale = clampNumber(input.scale, 1, definition.maxScale, Math.min(2, definition.maxScale));
+  const spacing: [number, number] = [
+    clampNumber(input.spacing[0], 0, definition.maxSpacing[0], 0),
+    clampNumber(input.spacing[1], 0, definition.maxSpacing[1], 0),
+  ];
+  const angle = clampNumber(input.angle, 0, 180, 0);
+  const join: 1 | 2 = input.join === 2 ? 2 : 1;
+  const moveLeft = clampNumber(input.moveLeft, definition.width * -2, 0, 0);
+  const moveTop = clampNumber(input.moveTop, definition.height * -2, 0, 0);
+
+  const pathCount = definition.vHeight === 0 && maxColors > 2 ? maxColors - 1 : colorCount - 1;
+  let strokeGroup = '';
+  for (let i = 0; i < Math.min(pathCount, paths.length); i++) {
+    let defColor = colors[i + 1];
+    if (definition.vHeight === 0 && maxColors > 2) {
+      if (colorCount === 3 && maxColors === 4 && i === 2) defColor = colors[1];
+      else if (colorCount === 4 && maxColors === 5 && i === 3) defColor = colors[1];
+      else if (colorCount === 3 && maxColors === 5 && i === 3) defColor = colors[1];
+      else if (colorCount === 3 && maxColors === 5 && i === 2) defColor = colors[1];
+      else if (colorCount === 2) defColor = colors[1];
+    }
+
+    let paint = '';
+    let joinMode = '';
+    if (definition.mode === 'stroke-join') {
+      paint = ` stroke='${defColor}' fill='none'`;
+      joinMode = join === 2
+        ? "stroke-linejoin='round' stroke-linecap='round' "
+        : "stroke-linecap='square' ";
+    } else if (definition.mode === 'stroke') {
+      paint = ` stroke='${defColor}' fill='none'`;
+    } else {
+      paint = ` stroke='none' fill='${defColor}'`;
+    }
+
+    strokeGroup += paths[i]
+      .replace('/>', ` transform='translate(${spacing[0] / 2},0)' ${joinMode}stroke-width='${stroke}'${paint}/>`)
+      .replace("transform='translate(0,0)' ", ' ');
+  }
+
+  const patternWidth = definition.width + spacing[0];
+  const patternHeight = definition.height - definition.vHeight * (maxColors - colorCount) + spacing[1];
+  const svg = `<svg width='100%' height='100%' xmlns='http://www.w3.org/2000/svg'><defs><pattern id='a' patternUnits='userSpaceOnUse' width='${patternWidth}' height='${patternHeight}' patternTransform='scale(${scale}) rotate(${angle})'><rect x='0' y='0' width='100%' height='100%' fill='${colors[0]}'/>${strokeGroup}</pattern></defs><rect width='800%' height='800%' transform='translate(${scale * moveLeft},${scale * moveTop})' fill='url(#a)'/></svg>`;
+
+  return {
+    backgroundColor: colors[0],
+    backgroundImage: svgDataUrl(svg),
+    backgroundSize: '',
+    backgroundPosition: '',
+    backgroundRepeat: 'repeat',
+    WebkitMaskImage: '',
+    maskImage: '',
+  };
+}
+
+export function patternMonsterMaxColors(definition: PatternMonsterDefinition): number {
+  return Math.min(5, Math.max(2, definition.path.split('~').length + 1));
+}
+
+function normalizedMonsterColors(colors: string[], maxColors: number): string[] {
+  const next = [...colors];
+  while (next.length < maxColors) next.push(PATTERN_MONSTER_DEFAULT_COLORS[next.length] || PATTERN_MONSTER_DEFAULT_COLORS[1]);
+  return next.slice(0, Math.max(2, maxColors));
 }
 
 function alphaColor(color: string, opacity: number): string {
