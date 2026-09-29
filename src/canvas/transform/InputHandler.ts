@@ -275,11 +275,168 @@ export function isSpacePanning(): boolean {
 
 // ─── Touch Events (trackpad / mobile) ───────────────────────────────────────
 
-interface TouchState {
-  active: boolean;
-  lastDistance: number;
-  lastMidpoint: { x: number; y: number };
+export interface TouchPoint {
+  clientX: number;
+  clientY: number;
 }
 
-const touchState: TouchState = { active: false, lastDistance: 0, lastMidpoint: { x: 0, y: 0 } };
+export interface TouchCameraSnapshot {
+  distance: number;
+  midpoint: { x: number; y: number };
+}
+
+export interface TouchCameraFrame extends TouchCameraSnapshot {
+  panX: number;
+  panY: number;
+  zoomFactor: number;
+}
+
+/** The mobile camera only claims a gesture once two fingers are present.
+ * A single finger remains available to selection / object manipulation. */
+export function shouldOwnTouchCamera(touchCount: number): boolean {
+  return touchCount >= 2;
+}
+
+/** Pure geometry for a two-finger camera frame. Exported so the touch contract
+ * is testable without synthesising browser-specific TouchEvent objects. */
+export function touchCameraFrame(
+  touches: readonly TouchPoint[],
+  previous: TouchCameraSnapshot | null = null,
+): TouchCameraFrame | null {
+  if (!shouldOwnTouchCamera(touches.length)) return null;
+
+  const a = touches[0];
+  const b = touches[1];
+  const dx = b.clientX - a.clientX;
+  const dy = b.clientY - a.clientY;
+  const distance = Math.hypot(dx, dy);
+  const midpoint = {
+    x: (a.clientX + b.clientX) / 2,
+    y: (a.clientY + b.clientY) / 2,
+  };
+
+  if (!previous || previous.distance <= 0 || distance <= 0) {
+    return { distance, midpoint, panX: 0, panY: 0, zoomFactor: 1 };
+  }
+
+  return {
+    distance,
+    midpoint,
+    panX: midpoint.x - previous.midpoint.x,
+    panY: midpoint.y - previous.midpoint.y,
+    zoomFactor: distance / previous.distance,
+  };
+}
+
+function snapshotTouches(touches: TouchList): TouchPoint[] {
+  const points: TouchPoint[] = [];
+  for (let i = 0; i < Math.min(2, touches.length); i++) {
+    const touch = touches.item(i);
+    if (touch) points.push({ clientX: touch.clientX, clientY: touch.clientY });
+  }
+  return points;
+}
+
+/**
+ * Attach the native mobile camera gesture.
+ *
+ * One finger is deliberately NOT claimed here; it remains available to the
+ * canvas selection/object interaction layer. The moment a second finger joins,
+ * camera ownership becomes deterministic: midpoint movement pans and distance
+ * change pinches around the live midpoint. This matches field's mobile rule
+ * that two fingers always operate the camera.
+ */
+export function attachTouchCamera(
+  container: HTMLElement,
+  onCameraStateChange: (active: boolean) => void,
+): () => void {
+  let state: TouchCameraSnapshot | null = null;
+
+  const reset = (reason: 'end' | 'cancel') => {
+    if (!state) return;
+    state = null;
+    onCameraStateChange(false);
+    trace.action('input:touch-camera-end', { reason });
+  };
+
+  const rebase = (touches: TouchList) => {
+    const frame = touchCameraFrame(snapshotTouches(touches));
+    state = frame ? { distance: frame.distance, midpoint: frame.midpoint } : null;
+  };
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (!shouldOwnTouchCamera(e.touches.length)) return;
+    // The second finger is the ownership boundary. Cancel browser page
+    // pinch/scroll only after the camera actually owns the gesture.
+    e.preventDefault();
+    rebase(e.touches);
+    onCameraStateChange(true);
+    trace.action('input:touch-camera-start', { touches: e.touches.length });
+  };
+
+  const onTouchMove = (e: TouchEvent) => {
+    if (!shouldOwnTouchCamera(e.touches.length)) {
+      reset('end');
+      return;
+    }
+
+    e.preventDefault();
+    const frame = touchCameraFrame(snapshotTouches(e.touches), state);
+    if (!frame) return;
+
+    if (!state) {
+      state = { distance: frame.distance, midpoint: frame.midpoint };
+      onCameraStateChange(true);
+      return;
+    }
+
+    // Pan first so the canvas point under the OLD midpoint follows the fingers
+    // to the NEW midpoint; zooming around that new midpoint then preserves it.
+    if (frame.panX !== 0 || frame.panY !== 0) {
+      transformManager.pan(frame.panX, frame.panY);
+    }
+    if (Number.isFinite(frame.zoomFactor) && frame.zoomFactor > 0 && frame.zoomFactor !== 1) {
+      const rect = container.getBoundingClientRect();
+      transformManager.zoomByFactor(
+        frame.midpoint.x - rect.left,
+        frame.midpoint.y - rect.top,
+        frame.zoomFactor,
+      );
+    }
+
+    state = { distance: frame.distance, midpoint: frame.midpoint };
+  };
+
+  const onTouchEnd = (e: TouchEvent) => {
+    if (!state) return;
+    e.preventDefault();
+    if (shouldOwnTouchCamera(e.touches.length)) {
+      // 3→2 fingers can change which Touch objects occupy slots 0/1. Rebase
+      // rather than applying a synthetic jump on the next move.
+      rebase(e.touches);
+      return;
+    }
+    reset('end');
+  };
+
+  const onTouchCancel = (e: TouchEvent) => {
+    if (!state) return;
+    e.preventDefault();
+    reset('cancel');
+  };
+
+  const options: AddEventListenerOptions = { passive: false, capture: true };
+  container.addEventListener('touchstart', onTouchStart, options);
+  container.addEventListener('touchmove', onTouchMove, options);
+  container.addEventListener('touchend', onTouchEnd, options);
+  container.addEventListener('touchcancel', onTouchCancel, options);
+
+  return () => {
+    container.removeEventListener('touchstart', onTouchStart, options);
+    container.removeEventListener('touchmove', onTouchMove, options);
+    container.removeEventListener('touchend', onTouchEnd, options);
+    container.removeEventListener('touchcancel', onTouchCancel, options);
+    reset('cancel');
+  };
+}
 
