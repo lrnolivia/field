@@ -28,6 +28,19 @@ const PROTECTED_NAMES = [
   'Figma',
   'Revyme',
   'Twitter',
+  'X',
+  'Adobe',
+  'Apple',
+  'Google',
+  'Microsoft',
+  'Meta',
+  'Stripe',
+  'Supabase',
+  'Vercel',
+  'WordPress',
+  'Shopify',
+  'Framer',
+  'Webflow',
   'React',
   'HTML',
   'CSS',
@@ -75,6 +88,9 @@ function maskProtectedNames(value: string): { text: string; protectedValues: str
   }
 
   text = text.replace(/\b[A-Z]{2,}(?:\/[A-Z]{1,})*\b/g, protect);
+  // Unknown trademarks with deliberate internal capitalization (e.g. iCloud)
+  // keep their authored casing even when not yet in the explicit dictionary.
+  text = text.replace(/\b(?:[a-z]+[A-Z][A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z0-9]*)\b/g, protect);
   text = text.replace(/\b[a-z][a-z0-9-]*\.[A-Z]{2,}\b/g, protect);
 
   return { text, protectedValues };

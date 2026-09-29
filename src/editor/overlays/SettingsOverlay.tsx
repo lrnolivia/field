@@ -42,8 +42,8 @@ import {
 } from './settings-shared';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
-import { uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
-import { getUiHeadingRole, type UiHeadingCase } from '@/shared/ui-heading-case';
+import { lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
+import UiHeadingText from '@/design-system/UiHeadingText';
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ export default function SettingsOverlay() {
   const [isOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
   const [websiteSettings, setWebsiteSettings] = useAtom(websiteSettingsAtom);
   const [activeSection, setActiveSection] = useAtom(settingsSectionAtom);
-  const [uiHeadingCase, setUiHeadingCase] = useAtom(uiHeadingCaseAtom);
+  const [lowercaseHeadings, setLowercaseHeadings] = useAtom(lowercaseHeadingsAtom);
 
   // ─── Mobile nav dropdown (sidebar replacement on small screens) ─────
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -739,7 +739,7 @@ export default function SettingsOverlay() {
       return (
         <div className="space-y-5">
           <header className="pb-4 border-b border-[var(--border-light)]">
-            <h1 data-ui-heading="brand" className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]">General</h1>
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
             <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
               Project-wide defaults for identity, branding, appearance, and site behavior.
             </p>
@@ -934,21 +934,14 @@ export default function SettingsOverlay() {
               </div>
             </SettingsRow>
 
-            <SettingsRow label="UI heading case" htmlFor="ui-heading-case" align="top">
-              <div className="flex flex-col gap-1">
-                <RowSelect
-                  id="ui-heading-case"
-                  value={uiHeadingCase}
-                  options={[
-                    { value: 'brand', label: 'Brand' },
-                    { value: 'original', label: 'Original' },
-                    { value: 'lowercase', label: 'lowercase' },
-                  ]}
-                  onChange={(value) => setUiHeadingCase(value as UiHeadingCase)}
-                />
+            <SettingsRow label="Lowercase headings" align="top">
+              <div className="flex items-start justify-between gap-4 py-0.5">
                 <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Brand follows loew.fi casing rules; Original keeps authored UI case; lowercase forces eligible headings lower. Editor only · applies instantly.
+                  Use loew.fi lowercase styling for interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
                 </p>
+                <div className="shrink-0 pt-0.5">
+                  <Toggle value={lowercaseHeadings} onChange={setLowercaseHeadings} />
+                </div>
               </div>
             </SettingsRow>
           </SettingsGroup>
@@ -1073,7 +1066,6 @@ export default function SettingsOverlay() {
           </Button>
         </div>
         <div
-          data-ui-heading="brand"
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--text-primary)] truncate"
           style={{ pointerEvents: 'none' }}
         >
@@ -1097,10 +1089,9 @@ export default function SettingsOverlay() {
                       case) so the settings sidebar and the right tool panel
                       read as the same visual language. */}
                   <div
-                    data-ui-heading={getUiHeadingRole(category.title)}
                     className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"
                   >
-                    {category.title}
+                    <UiHeadingText>{category.title}</UiHeadingText>
                   </div>
                   <div className="space-y-0.5">
                     {category.items.map((item) => {
@@ -1164,7 +1155,7 @@ export default function SettingsOverlay() {
                               }`}
                             >
                               <Icon className="w-3.5 h-3.5" />
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate"><UiHeadingText>{item.label}</UiHeadingText></span>
                             </button>
                           )}
                           {showEllipsis && item.pagePath && !isRenaming && (
@@ -1218,7 +1209,7 @@ export default function SettingsOverlay() {
                   data-ui-heading={activeLabel ? getUiHeadingRole(activeLabel) : 'brand'}
                   className="flex items-center gap-1.5 text-base font-semibold text-[var(--text-primary)] cursor-pointer"
                 >
-                  {activeLabel}
+                  {activeLabel ? <UiHeadingText>{activeLabel}</UiHeadingText> : null}
                   <ChevronDownIcon />
                 </button>
                 {mobileNavOpen && (
@@ -1228,10 +1219,9 @@ export default function SettingsOverlay() {
                       {menuCategories.map((category, ci) => (
                         <div key={ci}>
                           <div
-                            data-ui-heading={getUiHeadingRole(category.title)}
                             className="px-3 py-1 text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider"
                           >
-                            {category.title}
+                            <UiHeadingText>{category.title}</UiHeadingText>
                           </div>
                           {category.items.map((item) => {
                             const Icon = item.icon;
@@ -1250,7 +1240,7 @@ export default function SettingsOverlay() {
                                 }`}
                               >
                                 <Icon className="w-4 h-4" />
-                                <span>{item.label}</span>
+                                <span><UiHeadingText>{item.label}</UiHeadingText></span>
                               </button>
                             );
                           })}
