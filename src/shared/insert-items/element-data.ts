@@ -60,13 +60,6 @@ const BASIC_ITEMS: InsertItem[] = [
   { id: 'button', name: 'Button', iconKey: 'button' },
 ];
 
-const MEDIA_ITEMS: InsertItem[] = [
-  { id: 'image', name: 'Image', iconKey: 'image' },
-  { id: 'gallery', name: 'Gallery', iconKey: 'image' },
-  { id: 'video', name: 'Video', iconKey: 'video' },
-  { id: 'audio', name: 'Audio', iconKey: 'audio' },
-];
-
 const TYPOGRAPHY_ITEMS: InsertItem[] = [
   { id: 'heading', name: 'Heading', iconKey: 'heading' },
   { id: 'paragraph', name: 'Paragraph', iconKey: 'paragraph' },
@@ -323,15 +316,6 @@ export const CATEGORIES: InsertCategory[] = [
       // Product / etc.) at the bottom of the section.
       { id: 'layouts', label: 'Layouts', items: [...LAYOUT_ITEMS, ...CARD_ITEMS] },
       { id: 'shapes', label: 'Shapes', items: SHAPE_ITEMS },
-    ],
-  },
-  {
-    id: 'media',
-    label: 'Media',
-    iconKey: 'media',
-    columns: 2,
-    sections: [
-      { id: 'media-library', label: 'Media', items: MEDIA_ITEMS },
     ],
   },
   // Sections — the source-level blueprint library (shared/sections-library).

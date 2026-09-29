@@ -19,7 +19,7 @@ describe('toolbar Media launcher contract', () => {
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
     const popover = read('src/editor/media/MediaToolbarPopover.tsx');
     expect(popover).toContain('data-toolbar-tool="media"');
-    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 480');
+    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 560');
     expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
     expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
     expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
@@ -43,13 +43,18 @@ describe('toolbar Media launcher contract', () => {
   it('keeps Media toolbar-only instead of duplicating it inside Insert', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
+    const insertData = read('src/shared/insert-items/element-data.ts');
     expect(toolbar).toContain('function MediaButton()');
     expect(toolbar).toContain('<MediaButton />');
     expect(toolbar).toContain('dataTool="media"');
-    expect(insert).toContain("CATEGORIES.filter((category) => category.id !== 'media')");
+    expect(insert).toContain('const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;');
+    expect(insert).not.toContain("category.id !== 'media'");
     expect(insert).not.toContain("if (category.id === 'media')");
     expect(insert).not.toContain('MediaGalleryPanel');
     expect(insert).not.toContain('MediaGlyph');
+    expect(insertData).not.toContain('const MEDIA_ITEMS');
+    expect(insertData).not.toContain("id: 'media'");
+    expect(insertData).not.toContain("id: 'media-library'");
   });
 
   it('keeps Gallery an image composition intent instead of a media kind', () => {

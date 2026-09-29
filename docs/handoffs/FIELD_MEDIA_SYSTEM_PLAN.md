@@ -9,7 +9,7 @@ Shipped on `main`:
 - one canonical project Media model across toolbar, floating, sidebar, contextual, Content, and canvas ingest surfaces
 - project-scoped Media session/catalog/upload state; project switching cannot leak session Media between projects
 - toolbar Media → anchored launcher → same-shell typed browser → expandable free-standing Media
-- Media is a first-class bottom-toolbar surface; it is intentionally removed from `Insert` to avoid a duplicate nested sidebar/browser surface
+- Media is a first-class bottom-toolbar surface and is not modeled in the Insert category data at all; this prevents stale/programmatic Insert state from recreating the duplicate nested Media panel
 - canonical All / Images / Video / Audio inventory with SVG/vector coverage, shared search, selection, source/sort controls, and durable/session inventory merging
 - shared ingest lifecycle with exact-content session deduplication, upload queue, cancellation, safe retry, duplicate handling, Finder/Desktop drop ingest, and persistent upload tray
 - contextual placement: matching selected image/video/audio = replace source; selected structural container = place inside; otherwise insert

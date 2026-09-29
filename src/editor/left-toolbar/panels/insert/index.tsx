@@ -24,7 +24,7 @@ import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 
-const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES.filter((category) => category.id !== 'media');
+const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;
 
 // ─── Chevron Right ─────────────────────────────────────────────────────────
 

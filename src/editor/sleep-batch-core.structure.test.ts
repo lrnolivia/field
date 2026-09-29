@@ -15,9 +15,13 @@ describe('toolbar/media/effects sleep batch core', () => {
   it('keeps Media on the main toolbar and removes it from Insert categories', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
+    const insertData = read('src/shared/insert-items/element-data.ts');
     expect(toolbar).toContain('<MediaButton />');
-    expect(insert).toContain("CATEGORIES.filter((category) => category.id !== 'media')");
+    expect(insert).toContain('const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;');
+    expect(insert).not.toContain("category.id !== 'media'");
     expect(insert).not.toContain('<MediaGalleryPanel');
+    expect(insertData).not.toContain('const MEDIA_ITEMS');
+    expect(insertData).not.toContain("id: 'media-library'");
   });
   it('gives Media creation routes a larger shell without oversized upload cards', () => {
     const pop = read('src/editor/media/MediaToolbarPopover.tsx');
