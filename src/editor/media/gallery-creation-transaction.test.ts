@@ -27,4 +27,20 @@ describe('Gallery creation transaction', () => {
     expect(controller).toContain('image.onload = null');
     expect(controller).toContain('image.onerror = null');
   });
+  it('captures a selected container before the multi-step Gallery flow and preserves it through async work', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain("intent === 'gallery'");
+    expect(controller).toContain('targetId: galleryTargetId');
+    expect(controller).toContain('const galleryTargetId = session.targetId');
+    expect(controller).toContain("insertToolbarItemAtSelection('gallery', galleryTargetId)");
+    expect(controller).toContain("insertToolbarItemAtVisibleCenter('gallery')");
+
+    const capture = controller.indexOf('const galleryTargetId = session.targetId');
+    const ratioProbe = controller.indexOf('await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))');
+    const placement = controller.indexOf("insertToolbarItemAtSelection('gallery', galleryTargetId)");
+    expect(capture).toBeGreaterThan(-1);
+    expect(capture).toBeLessThan(ratioProbe);
+    expect(placement).toBeGreaterThan(ratioProbe);
+  });
+
 });

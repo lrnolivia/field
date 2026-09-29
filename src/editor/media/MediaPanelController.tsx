@@ -27,7 +27,7 @@ import { viewportPrefixesForNode } from '@/canvas/node-ops';
 import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { getProjectId } from '@/backend/project-id';
 import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
-import { resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
+import { mediaNodeAcceptsChild, resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
@@ -63,6 +63,12 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   const navigate = (route: MediaRoute, intent: MediaIntent) => {
     setTransientError(null);
     setTypeSource('media');
+    const galleryTargetId =
+      intent === 'gallery'
+      && selectedIds.length === 1
+      && mediaNodeAcceptsChild(getNodeFromCache(selectedIds[0])?.type)
+        ? selectedIds[0]
+        : undefined;
     setSession((current) => ({
       ...current,
       surface: 'toolbar',
@@ -70,6 +76,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       intent,
       selectedIds: [],
       scrollTop: 0,
+      targetId: galleryTargetId,
     }));
   };
 
@@ -188,6 +195,10 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     setGalleryBusy(true);
     setGalleryError(null);
 
+    // Gallery creation can spend time measuring source ratios. Preserve the
+    // container chosen when the wizard opened instead of consulting whatever
+    // happens to be selected after that async work finishes.
+    const galleryTargetId = session.targetId;
     let galleryId: string | null = null;
     let committed = false;
 
@@ -197,7 +208,12 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         : undefined;
 
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
-      const created = insertToolbarItemAtVisibleCenter('gallery');
+      const created =
+        galleryTargetId
+        && getNodeFromCache(galleryTargetId)
+        && mediaNodeAcceptsChild(getNodeFromCache(galleryTargetId)?.type)
+          ? insertToolbarItemAtSelection('gallery', galleryTargetId)
+          : insertToolbarItemAtVisibleCenter('gallery');
       galleryId = created[0] ?? null;
       if (!galleryId) throw new Error('Could not place the Gallery on the canvas.');
 
