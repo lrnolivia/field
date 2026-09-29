@@ -297,3 +297,66 @@ test('Inspector category cards light-mode spot check', async ({ page }) => {
   await select(page, ['frame']);
   await capture(page, 'auto-layout-light');
 });
+
+
+test('floating Inspector honors toolbar alignment and hard viewport margins', async ({ page }) => {
+  await page.addInitScript(({ data }) => {
+    localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    localStorage.setItem('revyme-onboarding-completed', 'true');
+    localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('floating'));
+    localStorage.setItem('field:prefs:rightFloatingHeight', JSON.stringify(680));
+  }, { data: project });
+
+  await page.goto('/work/local');
+  const sandbox = page.frameLocator('iframe[src*="5174"]');
+  await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
+  await sandbox.locator('[data-viewport]').first().waitFor({ state: 'attached', timeout: 30_000 });
+  await select(page, ['frame']);
+
+  const header = page.locator('[data-workspace-right-header]').first();
+  const body = page.locator('[data-workspace-right-body]').first();
+  const toolbar = page.locator('#bottom-toolbar-container').first();
+  await expect(header).toBeVisible();
+  await expect(body).toBeVisible();
+  await expect(toolbar).toBeVisible();
+
+  const expanded = await page.evaluate(() => {
+    const header = document.querySelector<HTMLElement>('[data-workspace-right-header]')!.getBoundingClientRect();
+    const body = document.querySelector<HTMLElement>('[data-workspace-right-body]')!.getBoundingClientRect();
+    const toolbar = document.querySelector<HTMLElement>('#bottom-toolbar-container')!.getBoundingClientRect();
+    return {
+      top: header.top,
+      right: window.innerWidth - header.right,
+      bottom: window.innerHeight - body.bottom,
+      toolbarBottom: window.innerHeight - toolbar.bottom,
+      left: header.left,
+      width: header.width,
+    };
+  });
+
+  expect(expanded.top).toBeGreaterThanOrEqual(12);
+  expect(expanded.right).toBeGreaterThanOrEqual(12);
+  expect(expanded.bottom).toBeCloseTo(expanded.toolbarBottom, 0);
+
+  const drag = page.locator('[data-right-pane-drag-handle]').first();
+  const box = await drag.boundingBox();
+  if (!box) throw new Error('missing right Inspector drag handle');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(-500, -500, { steps: 8 });
+  await page.mouse.up();
+
+  const afterDrag = await header.boundingBox();
+  if (!afterDrag) throw new Error('floating Inspector disappeared after drag');
+  expect(afterDrag.x).toBeGreaterThanOrEqual(11.5);
+  expect(afterDrag.y).toBeGreaterThanOrEqual(11.5);
+
+  const collapse = page.locator('[data-workspace-collapse][data-side="right"]').first();
+  await collapse.click();
+  const compact = page.locator('[data-workspace-right-toggle]').first();
+  await expect(compact).toBeVisible();
+  const compactBox = await compact.boundingBox();
+  if (!compactBox) throw new Error('missing compact floating Inspector');
+  expect(compactBox.y).toBeGreaterThanOrEqual(11.5);
+  expect(window.innerHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
+});

@@ -30,7 +30,7 @@ import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom } from '@/code/stores/workspace-panels-store';
-import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
+import { clampRightFloatingOffset, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_INSET } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
@@ -66,8 +66,33 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   useEffect(() => transformManager.subscribe(() => setCompactZoom(Math.round(transformManager.getTransform().scale * 100))), []);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window === 'undefined' ? 1440 : window.innerWidth,
+    height: typeof window === 'undefined' ? 900 : window.innerHeight,
+  }));
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
+  const floatingInspectorHeight = rightDetached
+    ? resolveRightFloatingHeight(viewportSize.height, rightFloatingHeight)
+    : rightFloatingHeight;
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
+  useEffect(() => {
+    const onResize = () => setViewportSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!rightDetached) return;
+    const next = clampRightFloatingOffset(
+      viewportSize.width,
+      viewportSize.height,
+      rightPaneWidth,
+      floatingInspectorHeight,
+      rightDragOffset,
+    );
+    if (next.x !== rightDragOffset.x || next.y !== rightDragOffset.y) setRightDragOffset(next);
+  }, [floatingInspectorHeight, rightDetached, rightDragOffset, rightPaneWidth, setRightDragOffset, viewportSize.height, viewportSize.width]);
+
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   // Publish failures used to go through window.alert(), which is unstyled,
@@ -276,12 +301,20 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     let latestX = startOffset.x;
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
-      const baseLeft = window.innerWidth - 24 - rightPaneWidth;
-      const x = Math.max(8 - baseLeft, Math.min(window.innerWidth - 8 - rightPaneWidth - baseLeft, startOffset.x + next.clientX - startX));
-      latestX = x;
+      const candidate = {
+        x: startOffset.x + next.clientX - startX,
+        y: startOffset.y + next.clientY - startY,
+      };
+      const clamped = clampRightFloatingOffset(
+        window.innerWidth,
+        window.innerHeight,
+        rightPaneWidth,
+        resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight),
+        candidate,
+      );
+      latestX = clamped.x;
       if (Math.abs(next.clientX - startX) + Math.abs(next.clientY - startY) > 8) dragged = true;
-      const y = Math.max(-workspace.right.top, Math.min(window.innerHeight - workspace.right.top - Math.min(rightFloatingHeight, window.innerHeight - 90) - 8, startOffset.y + next.clientY - startY));
-      setRightDragOffset({ x, y });
+      setRightDragOffset(clamped);
     };
     const stop = () => {
       window.removeEventListener('pointermove', move);
@@ -401,8 +434,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         <button type="button" aria-label={uiCase('Close compact Inspector') ?? undefined} title={uiCase('Close Inspector') ?? undefined}
           onClick={() => setCompactInspectorOpen(false)}
           className="fixed z-[10002] flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
-            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y }}>×</button>
+          style={{ right: workspace.right.inset + WORKSPACE_FLOAT_INSET - rightDragOffset.x,
+            top: workspace.right.top + floatingInspectorHeight - 44 + rightDragOffset.y }}>×</button>
       )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
@@ -411,7 +444,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             right: rightDetached ? 12 : 0,
             top: rightDetached ? 12 : 0,
             width: 60,
-            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - 24) : '100vh',
+            height: rightDetached ? floatingInspectorHeight : '100vh',
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             border: rightDetached ? '1px solid var(--border-light)' : undefined,
             borderLeft: '1px solid var(--border-light)',

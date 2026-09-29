@@ -1,4 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { AnimatePresence, motion } from 'motion/react';
 import { floatingEntranceAtom, workspaceAutoHideAtom } from './workspace-mode-store';
 import { rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
@@ -33,7 +34,7 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
   const label = uiCase(rawLabel) ?? rawLabel;
   return <div className={`z-10 ${className || 'relative'}`}>
     <button type="button" data-workspace-autohide data-side={side} aria-label={label}
-      aria-pressed={enabled} title={label}
+      aria-pressed={enabled}
       onClick={() => {
         if (side === 'right') { setRightOpen(false); setTemporaryReveal(false); setExplicitCollapse(false); }
         setEnabled(!enabled);
@@ -41,9 +42,24 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
       className={`${PANE_CONTROL_BASE} ${enabled ? PANE_CONTROL_ACTIVE : PANE_CONTROL_NEUTRAL} ${entrance ? 'animate-pulse ring-1 ring-[var(--accent)]' : ''}`}>
       <AutoHideEyeIcon enabled={enabled} />
     </button>
-    {entrance && <span role="tooltip" className={`pointer-events-none absolute bottom-0 z-20 w-44 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1.5 text-[11px] leading-4 text-[var(--text-primary)] shadow-[var(--shadow-md)] ${side === 'left' ? 'left-9' : 'right-9'}`}>
-      {uiCase(enabled ? 'Auto-hide on' : 'Auto-hide off')}
-    </span>}
+    <AnimatePresence initial={false}>
+      {entrance && (
+        <div
+          className={`pointer-events-none absolute top-1/2 z-30 -translate-y-1/2 ${side === 'left' ? 'left-[calc(100%+6px)]' : 'right-[calc(100%+6px)]'}`}
+        >
+          <motion.span
+            role="tooltip"
+            initial={{ opacity: 0, x: side === 'left' ? -2 : 2, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: side === 'left' ? -2 : 2, scale: 0.98 }}
+            transition={{ duration: entrance ? 0.12 : 0.09, ease: entrance ? 'easeOut' : 'easeIn' }}
+            className="block whitespace-nowrap rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-1.5 py-1 text-[10px] leading-none text-[var(--text-primary)] shadow-[0_4px_12px_rgba(0,0,0,0.16)]"
+          >
+            {uiCase(enabled ? 'Auto-hide on' : 'Auto-hide off')}
+          </motion.span>
+        </div>
+      )}
+    </AnimatePresence>
   </div>;
 }
 
