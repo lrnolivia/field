@@ -15,10 +15,13 @@ export default function Page() { return <PageClient />; }`,
 'use client';
 import Card from '../components/Card';
 import FilmGrain from '../components/FilmGrain';
+import team from '@/cms/team.json';
+import { useState } from 'react';
 
 const IMG = '${IMG}';
 
 export default function Page() {
+  const [overlayOpen, setOverlayOpen] = useState(true);
   return (
     <div data-id="root" data-name="Page" style={{
       width: '1280px', minHeight: '1500px', background: '#161616',
@@ -57,6 +60,56 @@ export default function Page() {
 
       <Card data-id="component" title="Design component" accent="#75d7c7" />
       <FilmGrain data-id="code-component" intensity={0.62} accentColor="#f79d84" />
+
+      <video data-id="video" data-name="Video" controls style={{
+        width: '420px', height: '236px', background: '#111', borderRadius: '12px',
+      }} />
+
+      <audio data-id="audio" data-name="Audio" controls style={{
+        width: '420px',
+      }} />
+
+      <form data-id="form" data-name="Form" action="/submit" method="post" style={{
+        width: '420px', padding: '18px', display: 'flex', flexDirection: 'column',
+        gap: '12px', border: '1px solid #555', borderRadius: '12px',
+      }}>
+        <input data-id="input" data-name="Input" name="email" type="email"
+          placeholder="name@example.com" required style={{
+            height: '38px', padding: '0 10px', background: '#202020', color: '#fff',
+            border: '1px solid #555', borderRadius: '8px',
+          }} />
+      </form>
+
+      <a data-id="link" data-name="Link" href="#target" style={{
+        color: '#8ac7ff', fontSize: '16px', textDecoration: 'underline',
+      }}>Navigation link</a>
+      <div data-id="target" data-name="Target" style={{ height: '20px' }} />
+
+      <div data-id="collection-list" data-name="Collection list" data-collection-list="team" style={{
+        width: '420px', padding: '14px', display: 'flex', flexDirection: 'column',
+        gap: '10px', background: '#202020', borderRadius: '12px',
+      }}>
+        {team.map((item, idx) => (
+          <div data-id="collection-row" data-name="Row" key={idx} style={{
+            minHeight: '44px', padding: '10px', background: '#2b2b2b', borderRadius: '8px',
+          }}>
+            <p data-id="collection-name" style={{ margin: 0, color: '#fff' }}>{item.name}</p>
+          </div>
+        ))}
+      </div>
+
+      <button data-id="overlay-trigger" data-name="Overlay trigger"
+        data-overlay-trigger='{"trigger":"click"}'
+        onClick={() => setOverlayOpen(!overlayOpen)}
+        style={{ width: '180px', height: '40px' }}>Overlay trigger</button>
+      {overlayOpen && (
+        <div data-id="overlay" data-name="Overlay"
+          data-overlay='{"type":"relative","triggerId":"overlay-trigger","side":"bottom","align":"center","offsetX":0,"offsetY":8}'
+          style={{
+            position: 'absolute', width: '240px', height: '120px',
+            background: '#27323a', border: '1px solid #6688aa', borderRadius: '12px',
+          }} />
+      )}
     </div>
   );
 }`,
@@ -78,6 +131,8 @@ export default function Card({ title = 'Design component', accent = '#75d7c7', .
     </div>
   );
 }`,
+    'cms/team.schema.json': '{"slug":"team","name":"Team","fields":[{"id":"name","name":"Name","type":"text"}]}',
+    'cms/team.json': '[{"_id":"1","_slug":"one","_status":"published","name":"Ada"},{"_id":"2","_slug":"two","_status":"published","name":"Grace"}]',
     'components/FilmGrain.tsx': `'use client';
 /** @controls {
   "intensity": { "type":"slider", "label":"Intensity", "default":0.5, "min":0, "max":1, "step":0.01 },
@@ -171,6 +226,12 @@ test('Inspector category cards visual sweep', async ({ page }) => {
     ['code-component-dark', ['code-component']],
     ['selection-colors-dark', ['box', 'text']],
     ['viewport-root-dark', ['root']],
+    ['video-dark', ['video']],
+    ['audio-dark', ['audio']],
+    ['form-dark', ['form']],
+    ['input-dark', ['input']],
+    ['collection-list-dark', ['collection-list']],
+    ['overlay-design-dark', ['overlay']],
   ];
 
   for (const [name, ids] of states) {
@@ -190,6 +251,36 @@ test('Inspector category cards visual sweep', async ({ page }) => {
 
     await capture(page, name);
   }
+
+  // Exercise nested Advanced cards, which is where web-specific Inspector
+  // categories live. This catches card-inside-card spacing and density drift.
+  await select(page, ['box']);
+  const advancedHeader = page.locator(
+    '[data-properties-panel] [data-inspector-section="advanced"] [data-inspector-section-header] button',
+  ).first();
+  await advancedHeader.click();
+  await page.waitForTimeout(250);
+  await capture(page, 'advanced-expanded-dark');
+
+  // Prototype is a separate Inspector stack. A normal frame exercises
+  // Interactions, Navigation, Overlay and Animation together.
+  await select(page, ['box']);
+  await page.getByRole('tab', { name: /prototype/i }).click();
+  await page.waitForTimeout(250);
+  await capture(page, 'prototype-frame-dark');
+
+  // An authored overlay takes the active Overlay path rather than the add state.
+  await select(page, ['overlay']);
+  await capture(page, 'prototype-overlay-dark');
+
+  // Return to Design before the remaining Design-state checks.
+  await page.getByRole('tab', { name: /design/i }).click();
+  await page.waitForTimeout(200);
+
+  // No selection is still an Inspector surface: Route / SEO / Social /
+  // Search engines should use the same compact category-card grammar.
+  await select(page, []);
+  await capture(page, 'page-settings-dark');
 
   // Exercise the actual collapsed-card state on the auto-layout selection.
   await select(page, ['frame']);
