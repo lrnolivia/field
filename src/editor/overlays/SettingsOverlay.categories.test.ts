@@ -16,7 +16,14 @@ describe('settings sidebar categories', () => {
   it('General settings first, Insights, then AI with Connect AI and Skills', () => {
     const cats = buildMenuCategories(registered, []);
     expect(cats.map((c) => c.title)).toEqual(['General', 'Insights', 'AI']);
-    expect(cats[0].items[0].id).toBe('website');
+    expect(cats[0].items.map((i) => i.id)).toEqual([
+      'website',
+      'appearance',
+      'workspace',
+      'canvas',
+      'localization',
+      'domain',
+    ]);
     expect(cats[0].items[0].label).toBe('General');
     expect(cats[0].items.map((i) => i.id)).not.toContain('pages');
     expect(cats[2].items.map((i) => i.id)).toEqual(['connect-ai', 'skills']);
