@@ -23,7 +23,6 @@ import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
-import MediaGlyph from '@/editor/media/MediaGlyph';
 
 const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES.filter((category) => category.id !== 'media');
 
@@ -42,7 +41,7 @@ function ChevronRight({ className }: { className?: string }) {
 function InsertCategoryRow({ iconKey, label, isActive, onMouseEnter, onClick }: {
   iconKey: string; label: string; isActive: boolean; onMouseEnter: () => void; onClick: () => void;
 }) {
-  const IconComponent = iconKey === 'media' ? MediaGlyph : CATEGORY_ICON_MAP[iconKey];
+  const IconComponent = CATEGORY_ICON_MAP[iconKey];
   return (
     <DSidebarRow
       size="lg"
@@ -350,10 +349,6 @@ export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelCon
   // as <img> elements pointing at the SVG endpoint.
   if (category.id === 'icons') {
     return <IconPanel />;
-  }
-
-  if (category.id === 'media') {
-    return <div className="flex h-full min-h-0 flex-col"><MediaGalleryPanel /></div>;
   }
 
   // Conditionally inert categories (e.g. CMS Fields off a detail page)
