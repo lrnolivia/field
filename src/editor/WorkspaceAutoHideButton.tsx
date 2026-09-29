@@ -50,9 +50,8 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
           <motion.span
             role="tooltip"
             initial={{ opacity: 0, x: side === 'left' ? -2 : 2, scale: 0.98 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: side === 'left' ? -2 : 2, scale: 0.98 }}
-            transition={{ duration: entrance ? 0.12 : 0.09, ease: entrance ? 'easeOut' : 'easeIn' }}
+            animate={{ opacity: 1, x: 0, scale: 1, transition: { duration: 0.12, ease: 'easeOut' } }}
+            exit={{ opacity: 0, x: side === 'left' ? -2 : 2, scale: 0.98, transition: { duration: 0.09, ease: 'easeIn' } }}
             className="block whitespace-nowrap rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-1.5 py-1 text-[10px] leading-none text-[var(--text-primary)] shadow-[0_4px_12px_rgba(0,0,0,0.16)]"
           >
             {uiCase(enabled ? 'Auto-hide on' : 'Auto-hide off')}

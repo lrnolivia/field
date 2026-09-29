@@ -358,5 +358,6 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   const compactBox = await compact.boundingBox();
   if (!compactBox) throw new Error('missing compact floating Inspector');
   expect(compactBox.y).toBeGreaterThanOrEqual(11.5);
-  expect(window.innerHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
+  const viewportHeight = await page.evaluate(() => window.innerHeight);
+  expect(viewportHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
 });
