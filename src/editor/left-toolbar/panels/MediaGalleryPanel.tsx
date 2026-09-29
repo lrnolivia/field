@@ -34,11 +34,27 @@ import { ingestMediaFile } from '@/editor/media/media-ingest';
 type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio';
 
 const TAB_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'images', label: 'Images' },
-  { value: 'videos', label: 'Videos' },
-  { value: 'audio', label: 'Audio' },
-];
+  {
+    value: 'all',
+    label: 'All',
+    icon: <svg aria-hidden width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15"><rect x="2.5" y="2.5" width="4.25" height="4.25" rx="1"/><rect x="9.25" y="2.5" width="4.25" height="4.25" rx="1"/><rect x="2.5" y="9.25" width="4.25" height="4.25" rx="1"/><rect x="9.25" y="9.25" width="4.25" height="4.25" rx="1"/></svg>,
+  },
+  {
+    value: 'images',
+    label: 'Images',
+    icon: <svg aria-hidden width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><circle cx="5.25" cy="5.5" r="1"/><path d="m4 11 2.8-2.8L9 10.4l1.4-1.4 2.2 2.2"/></svg>,
+  },
+  {
+    value: 'videos',
+    label: 'Videos',
+    icon: <svg aria-hidden width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="8" height="10" rx="1.5"/><path d="m10.5 6 3-1.5v7l-3-1.5z"/></svg>,
+  },
+  {
+    value: 'audio',
+    label: 'Audio',
+    icon: <svg aria-hidden width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><path d="M6 11.5V4.25l6-1.25v7"/><circle cx="4.5" cy="11.5" r="1.5"/><circle cx="10.5" cy="10.5" r="1.5"/></svg>,
+  },
+]
 
 type BrowserMediaKind = 'image' | 'video' | 'audio' | 'vector';
 

@@ -35,7 +35,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
     containerRef.current?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
   };
 
-  const height = size === 'compact' ? 'h-7' : size === 'sm' ? 'h-7.5' : 'h-8';
+  const height = size === 'compact' ? 'h-7' : 'h-8';
   const padding = size === 'compact' ? 'px-1.5' : 'px-2.5';
   const text = size === 'compact' ? 'text-[10px]' : 'text-[11px]';
 

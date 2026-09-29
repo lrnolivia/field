@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import MediaGlyph from './MediaGlyph';
@@ -47,7 +47,7 @@ export default function MediaToolbarPopover({
   const ref = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState({ left: 24, bottom: 76, arrow: 112, width: 224 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const position = () => {
       const rect = document.querySelector('[data-toolbar-tool="media"]')?.getBoundingClientRect();
       if (!rect) return;

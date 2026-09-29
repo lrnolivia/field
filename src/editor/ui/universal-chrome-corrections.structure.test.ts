@@ -20,7 +20,8 @@ describe('universal inspector/media chrome corrections', () => {
     expect(media).toContain("label: 'All'");
     expect(media).toContain("label: 'Images'");
     expect(media).toContain("label: 'Videos'");
-    expect(media).toContain('icon: <svg');
+    expect(media).toContain("label: 'Audio'");
+    expect((media.match(/icon: <svg/g) ?? []).length).toBeGreaterThanOrEqual(4);
   });
 
   it('renders the Media origin pointer outside the clipped surface and removes sheet sliding', () => {
@@ -28,6 +29,7 @@ describe('universal inspector/media chrome corrections', () => {
     expect(popover).toContain('data-media-toolbar-surface');
     expect(popover).toContain('data-media-origin-pointer');
     expect(popover).toContain('overflow-visible');
+    expect(popover).toContain('useLayoutEffect');
     expect(popover).not.toContain('transition-[left,bottom,width,max-height]');
   });
 
