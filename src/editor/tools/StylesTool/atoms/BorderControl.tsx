@@ -10,10 +10,11 @@ import { BorderIcon } from '@/design-system/PropertyIcons';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolInput, ToolSelect, ToolSegmentedControl, ColorInput, ControlLabel, SingleEntryRow, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
+import { ToolInput, ToolSelect, ColorInput, ControlLabel, SingleEntryRow, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
 import { useOverriddenLabel } from '../../../controls/label-override-context';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
 import ToolPopup from '../../../ui/ToolPopup';
+import { OptionsPanel, OptionSection, ScalarRow, ChoiceRow, PaintOptionRow, OptionFieldRow } from '../../../ui/OptionsPanel';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import GradientEditor from '../../../ui/GradientEditor';
 import { parseGradient as gradientParseGradient, formatGradient as gradientFormatGradient, createDefaultGradient as gradientCreateDefault } from '@/shared/gradient-utils';
@@ -395,103 +396,135 @@ function BorderEditorPanel({ styles: s, nodeId, onChangeMultiple, onChangeMultip
     trace.action('border-panel:switch-type', { newType, renderMode });
   };
 
-  // Force per-field labels (Width / Style / Color) visible inside the expanded popup even when the atom
-  // carries `hideLabel` from the Variable modal's Default row.
+  // The editor keeps source-backed semantics intact but presents them through
+  // the canonical Options Panel grammar. No Figma-only stroke controls are
+  // exposed unless field can serialize them faithfully.
   return (
     <ShowControlLabels>
-    <div className="flex flex-col gap-2">
-      {!isScrollMode && <ToolSegmentedControl value={renderMode} onChange={(v) => switchRenderMode(v as 'inline' | 'overlay')}
-        options={[{ value: 'overlay', label: 'Overlay' }, { value: 'inline', label: 'Inline' }]} size="sm" />}
-      {!isScrollMode && <ToolSegmentedControl value={borderType} onChange={(v) => switchBorderType(v as 'solid' | 'gradient')}
-        options={[{ value: 'solid', label: 'Solid' }, { value: 'gradient', label: 'Gradient' }]} size="sm" />}
+      <OptionsPanel>
+        {!isScrollMode && (
+          <OptionSection title="Stroke">
+            <ChoiceRow
+              label="Paint"
+              value={borderType}
+              onChange={(v) => switchBorderType(v as 'solid' | 'gradient')}
+              options={[{ value: 'solid', label: 'Solid' }, { value: 'gradient', label: 'Gradient' }]}
+            />
+            <ChoiceRow
+              label="Render"
+              value={renderMode}
+              onChange={(v) => switchRenderMode(v as 'inline' | 'overlay')}
+              options={[{ value: 'inline', label: 'Inline' }, { value: 'overlay', label: 'Overlay' }]}
+            />
+          </OptionSection>
+        )}
 
-      {borderType === 'solid' && (!showIndividual || isScrollMode ? (
-        // Force uniform UI in non-direct modes (variableDefault — component-
-        // instance prop row, animation/scroll stops). The downstream prop
-        // is a single string field; per-side longhands can't survive a
-        // single-value handoff. The uniform/individual toggle below is
-        // also hidden in that case so the user can't reach a UI that
-        // would silently coerce on write.
-        <>
-          <div className="flex items-center justify-between w-full">
-            <ControlLabel label="Color" property="borderColor" plain />
-            <ColorInput value={borderState.top.color} onChange={(v) => updateUniform({ color: v })} onChangeLive={(v) => updateUniformLive({ color: v })} showAlpha />
-          </div>
-          <div className="flex items-center justify-between w-full">
-            <ControlLabel label="Width" property="borderWidth" plain />
-            {/* Chevron drag MUST live-patch (onChangeLive → writeBorderLive → previewVar) + commit once on
-                release (onCommit), like Color/Shadow — otherwise it committed code every frame (slow fps,
-                stale DOM). The ToolInput chevron path uses onChangeLive during drag, onCommit on mouseup. */}
-            <ToolInput value={String(borderState.top.width)}
-              onChange={(v) => updateUniform({ width: parseFloat(v) || 0 })}
-              onChangeLive={(v) => updateUniformLive({ width: parseFloat(v) || 0 })}
-              onCommit={(v) => updateUniform({ width: parseFloat(v) || 0 })}
-              step={1} />
-          </div>
-          <div className="flex items-center justify-between w-full">
-            <ControlLabel label="Style" property="borderStyle" plain />
-            <ToolSelect value={borderState.top.style} onChange={(v) => updateUniform({ style: v })} options={BORDER_STYLE_OPTIONS} />
-          </div>
-        </>
-      ) : (
-        <>
-          {(['top', 'right', 'bottom', 'left'] as const).map((sideKey) => {
-            const side = borderState[sideKey];
-            const label = sideKey.charAt(0).toUpperCase() + sideKey.slice(1);
-            return (
-              <div key={sideKey} className="flex items-center gap-2 w-full">
-                <span className="w-10 text-xs font-bold text-[var(--text-secondary)] shrink-0">{label}</span>
-                <ToolInput value={String(side.width)}
-                  onChange={(v) => updateIndividual(sideKey, { width: parseFloat(v) || 0 })}
-                  onChangeLive={(v) => updateIndividualLive(sideKey, { width: parseFloat(v) || 0 })}
-                  onCommit={(v) => updateIndividual(sideKey, { width: parseFloat(v) || 0 })}
-                  step={1} className="w-14" />
-                <ToolSelect value={side.style} onChange={(v) => updateIndividual(sideKey, { style: v })} options={BORDER_STYLE_OPTIONS} />
-                <ColorInput value={side.color} onChange={(v) => updateIndividual(sideKey, { color: v })} onChangeLive={(v) => updateIndividualLive(sideKey, { color: v })} swatchOnly showAlpha />
-              </div>
-            );
-          })}
-        </>
-      ))}
+        {borderType === 'solid' && (!showIndividual || isScrollMode ? (
+          <OptionSection title={isScrollMode ? undefined : 'Appearance'} divided={!isScrollMode}>
+            <PaintOptionRow
+              label="Color"
+              value={borderState.top.color}
+              onChange={(v) => updateUniform({ color: v })}
+              onChangeLive={(v) => updateUniformLive({ color: v })}
+            />
+            <ScalarRow
+              label="Width"
+              value={borderState.top.width}
+              min={0}
+              max={64}
+              step={1}
+              unit="px"
+              onChange={(v) => updateUniform({ width: v })}
+              onChangeLive={(v) => updateUniformLive({ width: v })}
+              onCommit={(v) => updateUniform({ width: v })}
+            />
+            <OptionFieldRow label="Style">
+              <ToolSelect value={borderState.top.style} onChange={(v) => updateUniform({ style: v })} options={BORDER_STYLE_OPTIONS} />
+            </OptionFieldRow>
+            {!isScrollMode && (
+              <ChoiceRow
+                label="Sides"
+                value="uniform"
+                onChange={(v) => { if (v === 'individual') switchToIndividual(); }}
+                options={[{ value: 'uniform', label: 'All' }, { value: 'individual', label: 'Individual' }]}
+              />
+            )}
+          </OptionSection>
+        ) : (
+          <OptionSection title="Individual sides" divided>
+            <ChoiceRow
+              label="Sides"
+              value="individual"
+              onChange={(v) => { if (v === 'uniform') switchToUniform(); }}
+              options={[{ value: 'uniform', label: 'All' }, { value: 'individual', label: 'Individual' }]}
+            />
+            {(['top', 'right', 'bottom', 'left'] as const).map((sideKey) => {
+              const side = borderState[sideKey];
+              const label = sideKey.charAt(0).toUpperCase() + sideKey.slice(1);
+              return (
+                <OptionFieldRow key={sideKey} label={label}>
+                  <div className="grid grid-cols-[52px_minmax(0,1fr)_28px] gap-1">
+                    <ToolInput
+                      value={`${side.width}px`}
+                      onChange={(v) => updateIndividual(sideKey, { width: parseFloat(v) || 0 })}
+                      onChangeLive={(v) => updateIndividualLive(sideKey, { width: parseFloat(v) || 0 })}
+                      onCommit={(v) => updateIndividual(sideKey, { width: parseFloat(v) || 0 })}
+                      min={0}
+                      step={1}
+                      chevronLabel="px"
+                      ariaLabel={`${label} stroke width`}
+                    />
+                    <ToolSelect value={side.style} onChange={(v) => updateIndividual(sideKey, { style: v })} options={BORDER_STYLE_OPTIONS} />
+                    <ColorInput
+                      value={side.color}
+                      onChange={(v) => updateIndividual(sideKey, { color: v })}
+                      onChangeLive={(v) => updateIndividualLive(sideKey, { color: v })}
+                      swatchOnly
+                      showAlpha
+                    />
+                  </div>
+                </OptionFieldRow>
+              );
+            })}
+          </OptionSection>
+        ))}
 
-      {borderType === 'gradient' && (
-        <GradientEditor
-          value={gradientFormatGradient(activeGradient)}
-          onChange={(css) => { const parsed = gradientParseGradient(css); if (parsed) writeGradientBorder(parsed, gradientWidth); }}
-          // Smooth drag: live-paint the canvas DOM every frame (no code write);
-          // onChange above commits once on pointer-release. Matches fill gradient.
-          onLiveChange={(css) => { const parsed = gradientParseGradient(css); if (parsed) writeGradientBorderLive(parsed, gradientWidth); }}
-          extraAfterType={
-            <div className="flex items-center justify-between w-full">
-              <ControlLabel label="Width" property="borderWidth" plain />
-              <ToolInput value={String(gradientWidth)} onChange={(v) => writeGradientBorder(activeGradient, parseFloat(v) || 1)} step={1} />
-            </div>
-          }
-        />
-      )}
+        {borderType === 'gradient' && (
+          <OptionSection title="Gradient" divided>
+            <GradientEditor
+              value={gradientFormatGradient(activeGradient)}
+              onChange={(css) => { const parsed = gradientParseGradient(css); if (parsed) writeGradientBorder(parsed, gradientWidth); }}
+              onLiveChange={(css) => { const parsed = gradientParseGradient(css); if (parsed) writeGradientBorderLive(parsed, gradientWidth); }}
+              extraAfterType={
+                <ScalarRow
+                  label="Width"
+                  value={gradientWidth}
+                  min={0}
+                  max={64}
+                  step={1}
+                  unit="px"
+                  onChange={(v) => writeGradientBorder(activeGradient, v)}
+                />
+              }
+            />
+          </OptionSection>
+        )}
 
-      {/* Uniform/individual toggle is hidden in non-direct modes — the prop
-          downstream is a single string, no per-side longhand survives. */}
-      {borderType === 'solid' && !isScrollMode && (
-        <div className="flex justify-end">
-          <div className="flex items-center border border-[var(--control-border)] cut-corners cut-border [--cut-border-color:var(--control-border)] overflow-hidden shrink-0">
-            <button tabIndex={-1} onClick={switchToUniform}
-              className={`flex items-center justify-center h-[var(--control-height-sm)] w-7 transition-colors ${!showIndividual ? 'bg-[var(--button-secondary-bg)] text-[var(--text-primary)]' : 'bg-[var(--choice-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-              title="Uniform"><BorderUniformIcon className="w-3 h-3" /></button>
-            <button tabIndex={-1} onClick={switchToIndividual}
-              className={`flex items-center justify-center h-[var(--control-height-sm)] w-7 transition-colors ${showIndividual ? 'bg-[var(--button-secondary-bg)] text-[var(--text-primary)]' : 'bg-[var(--choice-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-              title="Individual sides"><BorderIndividualIcon className="w-3 h-3" /></button>
-          </div>
-        </div>
-      )}
-    </div>
+        {!isScrollMode && (
+          <OptionSection title="Rendering" divided>
+            <p className="text-[10px] leading-4 text-[var(--text-disabled)]">
+              Inline writes CSS border properties. Overlay uses field's source-backed pseudo-element border for effects that need independent rendering.
+            </p>
+          </OptionSection>
+        )}
+      </OptionsPanel>
     </ShowControlLabels>
   );
-}
+
 
 function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, node, onChange, onChangeMultiple, onChangeMultipleLive, binding, mode, nodeId: ctxNodeId, allProps, hasVariable } = useControlContext();
-  const { openPanel, panelPopup } = useEditorPanel('Border', () => (
+  const { openPanel, panelPopup } = useEditorPanel('Stroke', () => (
     /* controlMode MUST be forwarded — the panel's `isScrollMode` flag
        (which forces inline writes and disables the overlay path) is
        derived from it. Without this, opening the panel from a
@@ -500,7 +533,7 @@ function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
        `[data-node-id=""]::after` ghost selector inside some
        unrelated element's <style> block. */
     <BorderEditorPanel styles={s} nodeId={nodeId} onChangeMultiple={onChangeMultiple} onChangeMultipleLive={onChangeMultipleLive} controlMode={mode} />
-  ));
+  ), { kind: 'options', width: 288 });
   const allTokens = useAtomValue(presetTokensAtom);
   const isScrollMode = mode !== 'direct';
   // allProps has ALL properties: node.styles in direct, stopProps in scrollStop.
