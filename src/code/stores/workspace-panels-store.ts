@@ -8,6 +8,8 @@ import { selectedIdsAtom } from './store';
 // flags prevents impossible combinations during restore or rapid transitions.
 export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked';
 export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
+export const dockedLeftOpenAtom = atomWithStorage('field:prefs:dockedLeftOpen:v1', true, undefined, { getOnInit: true });
+export const dockedInspectorOpenAtom = atomWithStorage('field:prefs:dockedInspectorOpen:v1', true, undefined, { getOnInit: true });
 /** Temporary Inspector reveal in Compact; never changes the workspace mode. */
 export const compactInspectorOpenAtom = atom(false);
 /** Hover expands the floating Inspector; selection keeps it expanded. */
@@ -16,14 +18,35 @@ export const floatingInspectorExpandedAtom = atom(false);
 export const compactDockedLeftOpenAtom = atom(false);
 export const compactDockedInspectorOpenAtom = atom(false);
 export const leftPaneOpenAtom = atom(
-  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedLeftOpenAtom)),
-  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+  (get) => {
+    const mode = get(workspaceModeAtom);
+    if (mode === 'docked') return get(dockedLeftOpenAtom);
+    if (mode === 'compact-docked') return get(compactDockedLeftOpenAtom);
+    return false;
+  },
+  (get, set, open: boolean) => {
+    const mode = get(workspaceModeAtom);
+    if (mode === 'docked') { set(dockedLeftOpenAtom, open); return; }
+    if (mode === 'compact-docked') { set(compactDockedLeftOpenAtom, open); return; }
+    if (mode === 'compact') set(workspaceModeAtom, open ? 'docked' : 'compact');
+  },
 );
 export const rightPaneOpenAtom = atom(
-  (get) => get(workspaceModeAtom) === 'docked' || (get(workspaceModeAtom) === 'floating' && (get(floatingInspectorExpandedAtom) || get(selectedIdsAtom).length > 0))
-    || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom))
-    || (get(workspaceModeAtom) === 'compact-docked' && get(compactDockedInspectorOpenAtom)),
-  (_get, set, open: boolean) => set(workspaceModeAtom, open ? 'docked' : 'compact'),
+  (get) => {
+    const mode = get(workspaceModeAtom);
+    if (mode === 'docked') return get(dockedInspectorOpenAtom);
+    if (mode === 'floating') return get(floatingInspectorExpandedAtom) || get(selectedIdsAtom).length > 0;
+    if (mode === 'compact') return get(compactInspectorOpenAtom);
+    if (mode === 'compact-docked') return get(compactDockedInspectorOpenAtom);
+    return false;
+  },
+  (get, set, open: boolean) => {
+    const mode = get(workspaceModeAtom);
+    if (mode === 'docked') { set(dockedInspectorOpenAtom, open); return; }
+    if (mode === 'floating') { set(floatingInspectorExpandedAtom, open); return; }
+    if (mode === 'compact') { set(compactInspectorOpenAtom, open); return; }
+    if (mode === 'compact-docked') set(compactDockedInspectorOpenAtom, open);
+  },
 );
 export const rightPaneDetachedAtom = atom(
   (get) => get(workspaceModeAtom) === 'floating' || (get(workspaceModeAtom) === 'compact' && get(compactInspectorOpenAtom)),

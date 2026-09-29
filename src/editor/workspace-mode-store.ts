@@ -34,7 +34,7 @@ export const floatingInspectorSuppressedAtom = atom(false);
 export const floatingInspectorVisibleAtom = atom((get) => {
   const mode = get(workspaceModeAtom);
   const autoHide = get(workspaceAutoHideAtom);
-  if ((mode === 'docked' || mode === 'floating') && autoHide) {
+  if ((mode === 'docked' || mode === 'floating' || mode === 'compact-docked') && autoHide) {
     return !get(floatingInspectorSuppressedAtom)
       && (get(selectedIdsAtom).length > 0 || get(floatingInspectorRevealedAtom));
   }
@@ -42,9 +42,11 @@ export const floatingInspectorVisibleAtom = atom((get) => {
 });
 export const leftRailVisibleAtom = atom((get) => {
   const mode = get(workspaceModeAtom);
-  if (mode === 'compact' || mode === 'compact-docked') return true;
-  if (mode === 'floating') return !get(workspaceAutoHideAtom) || !get(floatingLeftHiddenAtom);
-  return !get(dockedRailCollapsedAtom) || get(railRevealedAtom);
+  if (mode === 'compact') return true;
+  if (mode === 'docked' || mode === 'floating' || mode === 'compact-docked') {
+    return !get(workspaceAutoHideAtom) || !get(floatingLeftHiddenAtom);
+  }
+  return true;
 });
 
 export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) => {
