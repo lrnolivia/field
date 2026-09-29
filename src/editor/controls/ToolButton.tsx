@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react';
 import { buttonContentVariants, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface Props {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function ToolButton({ children, onClick, disabled, className }: Props) {
   const reducedMotion = useFieldReducedMotion();
+  const uiCase = useUiChromeCase();
 
   return (
     <motion.button
@@ -30,7 +32,7 @@ export default function ToolButton({ children, onClick, disabled, className }: P
         variants={buttonContentVariants}
         transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
       >
-        {children}
+        {typeof children === 'string' ? uiCase(children) : children}
       </motion.span>
     </motion.button>
   );

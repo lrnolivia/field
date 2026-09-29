@@ -3,19 +3,21 @@ import { websitePreviewThemeAtom } from '@/code/stores/user-preferences-store';
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { refreshCanvasTokens } from '@/canvas/node-ops';
 import { trace } from '@/shared/debug-trace';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 /** Controls which existing website theme variant Canvas + Preview display.
  *  This is a viewing preference only; it never mutates project source. */
 export default function WebsitePreviewAppearanceControl() {
   const [mode, setMode] = useAtom(websitePreviewThemeAtom);
   const nextMode = mode === 'dark' ? 'light' : 'dark';
+  const uiCase = useUiChromeCase();
 
   return (
     <button
       type="button"
       data-website-preview-appearance
-      aria-label={`Website preview: ${mode}. Switch to ${nextMode}`}
-      title={`Website preview: ${mode === 'dark' ? 'Dark' : 'Light'} · switch to ${nextMode}`}
+      aria-label={uiCase(`site appearance: ${mode}. Switch to ${nextMode}`) ?? undefined}
+      title={uiCase(`site appearance: ${mode === 'dark' ? 'Dark' : 'Light'} · switch to ${nextMode}`) ?? undefined}
       onClick={() => {
         setMode(nextMode);
         requestAnimationFrame(() => refreshCanvasTokens());

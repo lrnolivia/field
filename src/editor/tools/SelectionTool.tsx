@@ -267,7 +267,7 @@ function SelectionColorRow({
           onMouseEnter={startHover}
           onMouseLeave={cancelHover}
           onClick={clickLocate}
-          title="Locate objects using this color"
+          title="locate"
           aria-label="Locate objects using this color"
           data-selection-color-locate
           data-locate-pulsing={hoverActive ? 'true' : undefined}

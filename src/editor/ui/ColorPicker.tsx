@@ -38,6 +38,10 @@ interface ColorPickerProps {
   onEditPreset?: (presetName: string) => void;
   /** Currently active preset name (for highlighting in the list). */
   activePresetName?: string;
+  /** Hide the picker controls and show only the preset/library surface. */
+  libraryOnly?: boolean;
+  /** Whether to render the existing preset list. */
+  showPresets?: boolean;
 }
 
 type InputMode = 'hex' | 'rgb' | 'hsl';
@@ -156,7 +160,7 @@ function usePointerDrag(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName }: ColorPickerProps) {
+export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName, libraryOnly = false, showPresets = true }: ColorPickerProps) {
   // Panel value scrub: flips interacting + panelScrub (hides the InteractionOutline).
   const setCanvasInteracting = useScrubInteracting();
   const setColorPickerOpen = useSetAtom(colorPickerOpenAtom);
@@ -420,6 +424,8 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
 
   return (
     <div className="space-y-0">
+      {!libraryOnly && (
+        <>
       {/* ── 1. Saturation/Brightness Square ──────────────────────────────── */}
       <div
         ref={satValDrag.ref}
@@ -577,14 +583,16 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         )}
 
         {/* Eyedropper */}
-        <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="Pick a canvas pixel" aria-label="Pick a canvas pixel">
+        <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="pick" aria-label="Pick a canvas pixel">
           <EyedropperIcon />
         </button>
       </div>
       {eyedropperError && <div role="status" className="mt-1.5 text-[11px] text-[var(--text-secondary)]">{eyedropperError}</div>}
+        </>
+      )}
 
       {/* ── 5. Color preset list + Create button ──────────────────────────── */}
-      {(onCreatePreset || (colorPresets && colorPresets.length > 0)) && (
+      {showPresets && (onCreatePreset || (colorPresets && colorPresets.length > 0)) && (
         <div className="mt-3 border-t border-[var(--border-light)] pt-2">
           {/* Create new preset row */}
           {onCreatePreset && (
