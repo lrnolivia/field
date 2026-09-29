@@ -81,19 +81,16 @@ html[data-workspace-resizing='true'] :is(
 }
 
 
-/* Floating title pill -> Compact Docked handoff.
-   The field mark contracts/spins back toward the rail while document identity
-   stays continuous and becomes the compact pill's primary icon. */
-[data-workspace-left-restore] [data-workspace-restore-logo],
-[data-workspace-left-restore] [data-workspace-restore-divider],
-[data-workspace-left-restore] [data-workspace-restore-title],
-[data-project-chip-icon] {
-  will-change: transform, opacity, width, height;
+/* The title yields to the layout chooser without resizing its surface. */
+[data-title-identity] {
+  transition: opacity 180ms ease, transform 240ms ease;
+}
+:is([data-workspace-left-header], [data-workspace-left-restore]):has([data-workspace-layout-control][data-expanded='true']) [data-title-identity] {
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-workspace-left-restore] [data-workspace-restore-logo],
-  [data-workspace-left-restore] [data-workspace-restore-divider],
-  [data-workspace-left-restore] [data-workspace-restore-title],
-  [data-project-chip-icon] { transition: none !important; }
+  [data-title-identity], [data-workspace-layout-control] { transition: none !important; }
 }

@@ -18,7 +18,8 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
-import { workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { workspaceTitlePresentation } from '@/editor/workspace-title-presentation';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -250,7 +251,8 @@ export default function LeftHeader() {
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
-  const headerVisible = dockedShell && leftPaneOpen;
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const headerVisible = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'embedded';
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
@@ -299,8 +301,8 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
-        <div className="flex-1 min-w-0 flex items-center">
+      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 35 }}>
+        <div data-title-identity className="flex-1 min-w-0 flex items-center">
           {previewMode ? (
             <Button
               variant="secondary"
