@@ -2,7 +2,7 @@
 // Fully migrated — uses useControlContext(), no legacy delegation.
 
 import { useState, useRef, useEffect } from 'react';
-import { ToolInput, ToolSlider, ControlLabel, SingleEntryRow, EffectRow, ControlActionRow } from '../../../controls';
+import { ControlLabel, SingleEntryRow, EffectRow, ControlActionRow } from '../../../controls';
 import { useOverriddenLabel } from '../../../controls/label-override-context';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
 import { FilterIcon } from '@/design-system/PropertyIcons';
@@ -12,6 +12,7 @@ import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import { extractNonShadowFilter } from '../../../ui/shadow-utils';
 import type { AtomProps } from '../../../controls/unified/types';
+import { OptionsPanel, OptionSection, ScalarRow } from '../../../ui/OptionsPanel';
 
 // ─── Filter parse/format ────────────────────────────────────────────────────
 
@@ -85,64 +86,25 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
     setLocalValue(val);
     if (live) { onChangeLive(val); } else { selfWriteRef.current++; onCommit(val); }
   };
-  type FKey = keyof typeof f;
-  // Slider: live every tick, commit on release. Input: typed commits, chevron
-  // drag is live + commit on release (ToolInput onChangeLive/onCommit).
-  const sliderProps = (key: FKey) => ({
-    onChange: (v: number) => update({ [key]: v } as Partial<typeof f>, true),
-    onCommit: (v: number) => update({ [key]: v } as Partial<typeof f>, false),
-  });
-  const inputProps = (key: FKey, fallback: number) => ({
-    onChange: (v: string) => update({ [key]: parseFloat(v) || fallback } as Partial<typeof f>, false),
-    onChangeLive: (v: string) => update({ [key]: parseFloat(v) || fallback } as Partial<typeof f>, true),
-    onCommit: (v: string) => update({ [key]: parseFloat(v) || fallback } as Partial<typeof f>, false),
-  });
+
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Blur" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.blur} min={0} max={20} step={0.5} {...sliderProps('blur')} />
-          <ToolInput value={`${f.blur}px`} {...inputProps('blur', 0)} step={0.5} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Brightness" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.brightness} min={0} max={200} step={1} {...sliderProps('brightness')} />
-          <ToolInput value={`${f.brightness}%`} {...inputProps('brightness', 100)} step={1} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Contrast" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.contrast} min={0} max={200} step={1} {...sliderProps('contrast')} />
-          <ToolInput value={`${f.contrast}%`} {...inputProps('contrast', 100)} step={1} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Saturate" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.saturate} min={0} max={200} step={1} {...sliderProps('saturate')} />
-          <ToolInput value={`${f.saturate}%`} {...inputProps('saturate', 100)} step={1} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Grayscale" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.grayscale} min={0} max={100} step={1} {...sliderProps('grayscale')} />
-          <ToolInput value={`${f.grayscale}%`} {...inputProps('grayscale', 0)} step={1} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <ControlLabel label="Hue Rotate" property="filter" plain />
-        <div className="flex items-center gap-2 w-full">
-          <ToolSlider value={f.hueRotate} min={0} max={360} step={1} {...sliderProps('hueRotate')} />
-          <ToolInput value={`${f.hueRotate}deg`} {...inputProps('hueRotate', 0)} step={1} />
-        </div>
-      </div>
-    </div>
+    <OptionsPanel>
+      <OptionSection title="Filter">
+        <ScalarRow label="Blur" value={f.blur} min={0} max={40} step={0.5} unit="px"
+          onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
+        <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
+          onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
+        <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
+          onChange={(v) => update({ contrast: v }, false)} onChangeLive={(v) => update({ contrast: v }, true)} onCommit={(v) => update({ contrast: v }, false)} />
+        <ScalarRow label="Saturate" value={f.saturate} min={0} max={200} step={1} unit="%"
+          onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
+        <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
+          onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
+        <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"
+          onChange={(v) => update({ hueRotate: v }, false)} onChangeLive={(v) => update({ hueRotate: v }, true)} onCommit={(v) => update({ hueRotate: v }, false)} />
+      </OptionSection>
+    </OptionsPanel>
   );
 }
 
@@ -152,7 +114,7 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, onChange, onChangeLive, node, binding, mode, allProps, hasVariable } = useControlContext();
   const { openPanel, panelPopup } = useEditorPanel('Filter', () => (
     <FilterEditorPanel initialValue={value || ''} rawFilter={allProps.filter || ''} onChangeLive={onChangeLive} onCommit={onChange} />
-  ));
+  ), { kind: 'options' });
   const btnRef = useRef<HTMLDivElement>(null);
   // Variable-name override for the instance-prop row (see useOverriddenLabel).
   const { label: ovLabel, subLabel: ovSubLabel } = useOverriddenLabel('Filter');
