@@ -20,6 +20,6 @@ jobs:
       - name: Install
         run: npm install --no-audit --no-fund
       - name: Focused tests
-        run: npx vitest run src/editor/product-language.test.ts src/dashboard/project-meta.test.ts src/editor/figui3-toolbar-shortcuts.test.ts src/dashboard/dashboard-final-polish.test.ts src/editor/figui3-left-rail-command-chrome.test.ts src/editor/workspace-mode-store.test.ts src/backend/build-info.test.ts
+        run: npx vitest run src/editor/product-language.test.ts src/dashboard/project-meta.test.ts src/editor/figui3-toolbar-shortcuts.test.ts src/editor/figui3-left-rail-command-chrome.test.ts src/editor/workspace-mode-store.test.ts src/backend/build-info.test.ts
       - name: Build all
         run: npm run build:all

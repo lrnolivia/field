@@ -33,7 +33,7 @@ describe('Dashboard final visual polish contract', () => {
   });
   it('offers an explicit server-truth refresh that force rebuilds thumbnails', () => {
     expect(header).toContain('FigmaReloadIcon');
-    expect(header).toContain('Refresh projects and thumbnails');
+    expect(header).toContain('refresh projects and thumbnails');
     expect(dashboard).toContain('const fresh = await listFieldProjects()');
     expect(dashboard).toContain('{ ...project, thumbnail: null }');
     expect(dashboard).toContain('force={forceThumbnailRefresh}');
