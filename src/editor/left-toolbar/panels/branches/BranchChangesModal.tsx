@@ -60,7 +60,7 @@ export default function BranchChangesModal({ branchId, isOpen, onClose }: {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Changes on “${branchId}”`} width={560}>
-      <div className="flex max-h-[60vh] flex-col">
+      <div data-branch-changes-surface className="flex max-h-[60vh] flex-col">
         <div className="min-h-0 flex-1 overflow-auto">
           {files.length === 0 && (
             <div className="px-3 py-6 text-center text-[12px] text-[var(--text-tertiary)]">
@@ -68,7 +68,7 @@ export default function BranchChangesModal({ branchId, isOpen, onClose }: {
             </div>
           )}
           {files.map((f) => (
-            <div key={f.path}>
+            <div key={f.path} data-branch-change-file>
               <SectionLabel size="xs">{f.path}</SectionLabel>
               {f.unparsed && (
                 <div className="px-3 pb-2 text-[11px] text-[var(--text-disabled)]">

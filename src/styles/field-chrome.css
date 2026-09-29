@@ -707,3 +707,116 @@
 [data-localization-overlay] [data-localization-row] textarea:hover {
   border-color: var(--field-chrome-border-strong);
 }
+
+
+/* ── CMS + Branches visible parity ──────────────────────────────────────── */
+[data-left-panel-surface="cms"] [data-cms-search],
+[data-left-panel-surface="branches"] [data-branches-search] {
+  margin: 0 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+:where(
+  [data-left-panel-surface="cms"] [data-cms-search],
+  [data-left-panel-surface="branches"] [data-branches-search]
+) [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="cms"] .field-cms-header,
+[data-left-panel-surface="branches"] .field-branches-header {
+  height: 30px;
+  margin: 5px 2px 0;
+  border: 1px solid var(--field-chrome-border);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--field-chrome-raised-bg);
+}
+
+[data-left-panel-surface="cms"] [data-cms-collection-list],
+[data-left-panel-surface="branches"] [data-branches-list] {
+  margin: 0 2px 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="cms"] [data-field-empty-state] {
+  margin: 0 2px 2px;
+  min-height: 150px;
+  border: 1px solid var(--field-chrome-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+/* The CMS editor is a maintenance workspace: one master-detail plane, clear
+ * structural edges, no dashboard cards or ornamental shadows. */
+[data-cms-editor-header] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-cms-editor-body] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-cms-editor-sidebar] {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-cms-editor-sidebar] [data-field-chrome-row] {
+  border-radius: 4px;
+}
+
+[data-cms-editor-content] {
+  background: var(--field-chrome-panel-bg);
+}
+
+/* Legacy/manage CMS overlay still exists, so it deliberately shares the same
+ * hierarchy rather than preserving Revyme cut-corner modal chrome. */
+[data-cms-overlay-surface] {
+  overflow: hidden;
+  border-color: var(--field-chrome-border-strong);
+  border-radius: 8px;
+  background: var(--field-chrome-panel-bg);
+  box-shadow: 0 16px 40px rgba(0,0,0,.18);
+}
+
+[data-cms-overlay-header] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-cms-overlay-toolbar] {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
+}
+
+/* Branches mirrors the CMS/Locale list structure, while status colors remain
+ * semantic and are never derived from interface contrast. */
+[data-left-panel-surface="branches"] [data-field-chrome-row] {
+  min-height: 26px;
+}
+
+[data-branch-changes-surface] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-branch-change-file] {
+  margin: 5px 6px;
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-branch-change-file] [data-field-chrome-section-label] {
+  min-height: 28px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}

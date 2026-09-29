@@ -279,18 +279,19 @@ export default function CmsOverlay() {
   const fieldCount = schema?.fields.length ?? 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div data-cms-overlay className="fixed inset-0 z-[60] flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
       {/* Content */}
       <div
-        className="relative bg-[var(--bg-surface)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-2xl border border-[var(--border-light)] flex flex-col"
+        data-cms-overlay-surface
+        className="relative border flex flex-col"
         style={{ width: 1100, height: 750 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-light)] shrink-0">
+        <div data-cms-overlay-header className="flex items-center justify-between px-5 py-3 border-b shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-[var(--text-primary)]">
               Manage {collectionName}
@@ -310,7 +311,7 @@ export default function CmsOverlay() {
         </div>
 
         {/* ── Toolbar Bar ────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 px-5 py-2.5 bg-[var(--bg-panel)] border-b border-[var(--border-light)] shrink-0">
+        <div data-cms-overlay-toolbar className="flex items-center gap-3 px-5 py-2.5 border-b shrink-0">
           {/* Add Item */}
           <button
             onClick={handleAddItem}

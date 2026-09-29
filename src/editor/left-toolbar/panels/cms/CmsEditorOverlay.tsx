@@ -388,7 +388,8 @@ export default function CmsEditorOverlay() {
     <>
       {/* Header bar */}
       <div
-        className="fixed z-[10000] border-b border-[var(--border-light)] bg-[var(--bg-surface)] flex items-center justify-between px-4"
+        data-cms-editor-header
+        className="fixed z-[10000] border-b flex items-center justify-between px-4"
         style={{ top: 0, left: 308, right: 260, height: 52 }}
       >
         <Breadcrumb segments={[
@@ -420,7 +421,8 @@ export default function CmsEditorOverlay() {
 
       {/* Body — master-detail: items/fields sidebar + editor pane. */}
       <div
-        className="fixed z-[9000] bg-[var(--bg-panel)] flex"
+        data-cms-editor-body
+        className="fixed z-[9000] flex"
         style={{ top: 52, left: 308, right: 0, bottom: 0 }}
       >
         {!activeSlug || !schema ? (
@@ -430,7 +432,7 @@ export default function CmsEditorOverlay() {
         ) : (
           <>
             {/* ── Sidebar ───────────────────────────────────────────────── */}
-            <div className="w-64 shrink-0 border-r border-[var(--border-light)] bg-[var(--bg-surface)] flex flex-col">
+            <div data-cms-editor-sidebar className="w-64 shrink-0 border-r flex flex-col">
               {/* Items / Fields segmented control */}
               <div className="px-3 pt-3 pb-2 shrink-0">
                 <ToolSegmentedControl
@@ -613,7 +615,7 @@ export default function CmsEditorOverlay() {
             </div>
 
             {/* ── Editor pane ───────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide bg-[var(--bg-panel)]">
+            <div data-cms-editor-content className="flex-1 overflow-y-auto scrollbar-hide">
               {sidebarMode === 'items' ? (
                 selectedItem ? (
                   <div className="max-w-2xl mx-auto mt-2">

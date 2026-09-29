@@ -206,7 +206,7 @@ function CollectionListView({
     // in the (a) branch so first-run users have a clear next step.
     const hasAnyCollections = allSlugs.length > 0;
     return (
-      <div className="flex flex-col items-center gap-3 px-4 pt-6 text-center">
+      <div data-field-empty-state className="field-chrome-empty flex flex-col items-center gap-3 px-4 pt-6 text-center">
         <CmsIcon className="w-5 h-5 text-[var(--text-disabled)]" />
         <p className="text-xs font-medium text-[var(--text-secondary)]">
           {hasAnyCollections ? 'No collections match' : 'No collections yet'}
@@ -236,7 +236,7 @@ function CollectionListView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
+      <div data-cms-collection-list className="flex-1 overflow-y-auto scrollbar-hide px-1.5 pb-1.5">
         {slugs.map(slug => {
           const schema = schemas.get(slug);
           const items = data.get(slug) ?? [];
@@ -778,14 +778,14 @@ export default function CmsPanel() {
   }, [refresh, handleClickCollection]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-cms-panel className="flex flex-col h-full">
       {/* Top-of-panel search — matches the Library panel chrome (SearchBar
           + thin divider) so the left-toolbar panels share a consistent
           header pattern. Spacing math mirrors LibraryPanel verbatim:
           12 px above (pt-3), 6 px below to the divider (pb-1.5), then
           another 6 px (mt-1.5) before the divider lands and stacks
           directly against the SectionLabel below (mb-0). */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div data-cms-search className="px-2 pt-2 pb-1.5 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={(v) => {
@@ -795,9 +795,9 @@ export default function CmsPanel() {
           placeholder="Search collections…"
         />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-2 mt-1 mb-1" />
 
-      <SectionLabel size="md" right={<AddButton onClick={handleCreateCollectionInline} title="New collection" />}>CMS</SectionLabel>
+      <SectionLabel size="md" className="field-cms-header" right={<AddButton onClick={handleCreateCollectionInline} title="New collection" />}>CMS</SectionLabel>
 
       <CollectionListView
         onClickCollection={handleClickCollection}

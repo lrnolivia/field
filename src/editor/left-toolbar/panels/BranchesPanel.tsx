@@ -71,20 +71,20 @@ export default function BranchesPanel() {
   const shown = q ? branches.filter((b) => b.id.toLowerCase().includes(q)) : branches;
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-branches-panel className="flex h-full flex-col">
       {/* The left-toolbar panel chrome the Localization / CMS panels use —
           search, divider, section label with "+", rows inset by px-2 — so a
           branch row sits exactly where a locale row sits. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div data-branches-search className="px-2 pt-2 pb-1.5 shrink-0">
         <SearchBar value={search} onChange={setSearch} placeholder="Search branches…" />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-2 mt-1 mb-1" />
 
-      <SectionLabel size="md" right={<AddButton title="New branch" onClick={() => { setError(null); setCreating(true); }} />}>
+      <SectionLabel size="md" className="field-branches-header" right={<AddButton title="New branch" onClick={() => { setError(null); setCreating(true); }} />}>
         Branches
       </SectionLabel>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2">
+      <div data-branches-list className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
         <div className="flex flex-col">
           {shown.map((b) => {
             const locked = isBranchLocked(b.id);
