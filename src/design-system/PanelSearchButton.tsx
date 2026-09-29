@@ -4,17 +4,22 @@
 // user is actively filtering a section.
 
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface PanelSearchButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
 }
 
 const PanelSearchButton = forwardRef<HTMLButtonElement, PanelSearchButtonProps>(
-  ({ active = false, className = '', ...props }, ref) => (
+  ({ active = false, className = '', title, 'aria-label': ariaLabel, ...props }, ref) => {
+    const uiCase = useUiChromeCase();
+    return (
     <button
       ref={ref}
       type="button"
       aria-pressed={active}
+      aria-label={typeof ariaLabel === 'string' ? uiCase(ariaLabel) ?? undefined : ariaLabel}
+      title={typeof title === 'string' ? uiCase(title) ?? undefined : title}
       className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer ${
         active
           ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
@@ -37,7 +42,8 @@ const PanelSearchButton = forwardRef<HTMLButtonElement, PanelSearchButtonProps>(
         <line x1="20" y1="20" x2="16.65" y2="16.65" />
       </svg>
     </button>
-  ),
+    );
+  },
 );
 
 PanelSearchButton.displayName = 'PanelSearchButton';
