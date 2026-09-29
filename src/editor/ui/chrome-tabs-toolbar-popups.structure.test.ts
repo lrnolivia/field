@@ -12,7 +12,10 @@ describe('shared chrome tabs and toolbar-origin popups', () => {
     const video = source('src/editor/ui/VideoSearchModal.tsx');
     const gallery = source('src/editor/gallery/GalleryCreationWizard.tsx');
     expect(tabs).toContain('data-chrome-tabbar');
-    expect(tabs).toContain("background: 'var(--accent-surface)'");
+    expect(tabs).toContain('data-active-tab-marker');
+    expect(tabs).toContain('left-[3px]');
+    expect(tabs).toContain('bg-[var(--bg-active)]');
+    expect(tabs).not.toContain("background: 'var(--accent-surface)'");
     expect(tabs).toContain("color: active ? 'var(--accent)'");
     expect(inspector).toContain('<ChromeTabBar');
     expect(image).toContain('<ChromeTabBar');
@@ -28,7 +31,8 @@ describe('shared chrome tabs and toolbar-origin popups', () => {
     expect(toolbar).toContain("transformOrigin: 'calc(50% - 10px) calc(100% + 7px)'");
     expect(media).toContain("type: 'spring'");
     expect(media).toContain('transformOrigin');
-    expect(media).toContain('absolute -bottom-[6px]');
+    expect(media).toContain('data-media-origin-pointer');
+    expect(media).toContain('absolute -bottom-[5px]');
   });
 
   it('removes dashed upload treatments from the refreshed Media creation flows', () => {

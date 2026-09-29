@@ -8,7 +8,7 @@ describe('toolbar/media/effects sleep batch core', () => {
       const s = read(rel);
       expect(s).toContain('data-active-tab-marker');
       expect(s).toContain('left-[3px]');
-      expect(s).toContain('h-3.5 w-[2px]');
+      expect(s).toContain('h-4 w-[2px]');
       expect(s).not.toContain('bottom-[2px] h-[2px]');
     }
   });
@@ -18,7 +18,7 @@ describe('toolbar/media/effects sleep batch core', () => {
     const insertData = read('src/shared/insert-items/element-data.ts');
     expect(toolbar).toContain('<MediaButton />');
     expect(insert).toContain('const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;');
-    expect(insert).not.toContain("category.id !== 'media'");
+    expect(insert).not.toContain("if (category.id === 'media')");
     expect(insert).not.toContain('<MediaGalleryPanel');
     expect(insertData).not.toContain('const MEDIA_ITEMS');
     expect(insertData).not.toContain("id: 'media-library'");
@@ -29,6 +29,15 @@ describe('toolbar/media/effects sleep batch core', () => {
     expect(pop).toContain("min(660px, calc(100vh - 96px))");
     expect(read('src/editor/ui/ImageSearchModal.tsx')).toContain('col-span-3 h-28');
     expect(read('src/editor/ui/VideoSearchModal.tsx')).toContain('h-28 overflow-hidden');
+  });
+  it('gives the vertical Media panel a compact 2x2 selector and stacked commands', () => {
+    const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    const segmented = read('src/editor/controls/ToolSegmentedControl.tsx');
+    expect(segmented).toContain("layout?: 'inline' | 'grid'");
+    expect(segmented).toContain("'grid grid-cols-2'");
+    expect(media).toContain("layout={chrome === 'full' ? 'grid' : 'inline'}");
+    expect(media).toContain("data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}");
+    expect(media).toContain("'justify-start pt-12'");
   });
   it('does not let a box shadow blank an unrelated filter effect', () => {
     const u = read('src/editor/ui/shadow-utils.ts');

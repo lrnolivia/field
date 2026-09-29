@@ -18,9 +18,10 @@ interface Props {
   onChange: (value: string) => void;
   options: Option[];
   size?: 'sm' | 'md' | 'compact';
+  layout?: 'inline' | 'grid';
 }
 
-export default function ToolSegmentedControl({ value, onChange, options, size = 'md' }: Props) {
+export default function ToolSegmentedControl({ value, onChange, options, size = 'md', layout = 'inline' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -36,7 +37,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
   };
 
   const height = size === 'compact' ? 'h-7' : 'h-8';
-  const padding = size === 'compact' ? 'px-2.5' : 'px-3';
+  const padding = 'px-2.5';
   const text = size === 'compact' ? 'text-[10px]' : 'text-[11px]';
 
   return (
@@ -44,7 +45,8 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
       ref={containerRef}
       role="group"
       data-tool-segmented
-      className="relative flex w-full items-center gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5"
+      data-segmented-layout={layout}
+      className={`relative w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
     >
       {options.map((opt, index) => {
         const active = value === opt.value;
@@ -61,12 +63,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
               onChange(opt.value);
             }}
             onKeyDown={(event) => moveFocus(event, index)}
-            className={`relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[6px] border border-transparent font-medium transition-[background-color,color,border-color,box-shadow] ${height} ${padding} ${text} ${active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]/70 hover:text-[var(--text-primary)]'}`}
-            style={active ? {
-              background: 'var(--accent-surface)',
-              borderColor: 'color-mix(in srgb, var(--accent) 28%, var(--border-light))',
-              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent)',
-            } : undefined}
+            className={`relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[6px] border border-transparent font-medium transition-[background-color,color,border-color] ${height} ${padding} ${text} ${active ? 'bg-[var(--bg-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]/70 hover:text-[var(--text-primary)]'}`}
           >
             {opt.icon && (
               <span
@@ -82,7 +79,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
               <span
                 aria-hidden
                 data-active-tab-marker
-                className="absolute left-[3px] top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-[1px] bg-[var(--accent)]"
+                className="absolute left-[3px] top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-[1px] bg-[var(--accent)]"
               />
             )}
           </motion.button>
