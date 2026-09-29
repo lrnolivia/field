@@ -15,7 +15,6 @@
 // standalone object URLs have no server object to delete).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
@@ -287,10 +286,11 @@ export default function MediaGalleryPanel({
   const [searchQuery, setSearchQuery] = useState('');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
-  // True while a list fetch is in flight — drives the skeleton grid so the
-  // panel never flashes "No images uploaded yet" before the data lands.
-  // Starts true in cloud mode (a fetch always fires on mount).
-  const [loadingList, setLoadingList] = useState(!!CLOUD_ENABLED);
+  // The backend tells us whether it owns a durable Media inventory. field
+  // and standalone currently return null so we keep a truthful session-only
+  // inventory without coupling UI behavior to the legacy Revyme cloud flag.
+  const [loadingList, setLoadingList] = useState(true);
+  const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
@@ -301,7 +301,6 @@ export default function MediaGalleryPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const projectId = getProjectId();
-  const isCloud = !!CLOUD_ENABLED;
   const noun: 'image' | 'video' | 'asset' = tab === 'images' ? 'image' : tab === 'videos' ? 'video' : 'asset';
   const visibleUploads = React.useMemo(
     () => tab === 'all' ? uploads : uploads.filter((item) => item.kind === (tab === 'images' ? 'image' : 'video')),
@@ -329,47 +328,38 @@ export default function MediaGalleryPanel({
     searchActive: searchQuery.trim().length > 0,
   });
 
-  // Fetch the project inventory. `All` deliberately merges the existing
-  // image + video endpoints instead of inventing a second asset store.
+  // Ask the backend for its durable inventory instead of branching on a
+  // product-mode flag. `null` is an explicit "session inventory only" answer.
   const fetchUploads = useCallback(async () => {
-    if (!isCloud) { setLoadingList(false); return; }
     setLoadingList(true);
     try {
-      const kinds: Array<'image' | 'video'> = tab === 'all'
-        ? ['image', 'video']
-        : [tab === 'images' ? 'image' : 'video'];
-      const [storageRes, ...assetResponses] = await Promise.all([
-        fetch(`/api/upload?websiteId=${projectId}&type=storage`),
-        ...kinds.map((kind) => fetch(`/api/upload?websiteId=${projectId}&type=${kind}`)),
+      const [assets, storageInfo] = await Promise.all([
+        backend.listAssets(projectId),
+        backend.getAssetStorageInfo(projectId),
       ]);
-      const merged: UploadedFile[] = [];
-      for (let index = 0; index < assetResponses.length; index += 1) {
-        const response = assetResponses[index];
-        if (!response.ok) continue;
-        const data = await response.json();
-        const kind = kinds[index];
-        for (const item of data.uploads || []) merged.push({ ...item, kind });
-      }
-      setUploads(merged);
-      trace.action('media:fetched', { type: tab, count: merged.length });
-      if (storageRes.ok) {
-        const data = await storageRes.json();
-        setStorage({ currentUsageMB: data.currentUsageMB, storageLimitMB: data.storageLimitMB });
+      if (assets === null) {
+        setDurableInventory(false);
+        setStorage(null);
+        trace.action('media:fetched', { source: 'session' });
+      } else {
+        setDurableInventory(true);
+        setUploads(assets);
+        setStorage(storageInfo);
+        trace.action('media:fetched', { source: 'backend', count: assets.length });
       }
     } catch (err) {
       trace.error('media:fetch-failed', err);
+      setUploadError(err instanceof Error ? err.message : 'Could not load Media.');
+    } finally {
+      setLoadingList(false);
     }
-    setLoadingList(false);
-  }, [projectId, tab, isCloud]);
+  }, [projectId]);
 
-  useEffect(() => { fetchUploads(); }, [fetchUploads]);
+  useEffect(() => { void fetchUploads(); }, [fetchUploads]);
 
-  // Cloud inventory is fetched per tab; standalone inventory stays in memory
-  // so switching filters never destroys files uploaded during this session.
   useEffect(() => {
     setSelectedKeys(new Set());
-    if (isCloud) setUploads([]);
-  }, [tab, isCloud]);
+  }, [tab]);
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
 
@@ -426,8 +416,9 @@ export default function MediaGalleryPanel({
       const url = await backend.uploadAsset(projectId, file);
       setUploads(prev => [{ url, size: file.size, kind }, ...prev]);
       trace.action('media:upload-success', { url, kind });
-      // Re-fetch durable cloud inventory + storage; standalone keeps the row.
-      if (isCloud) fetchUploads();
+      // Re-fetch only when the backend owns a durable catalog. Session-only
+      // backends keep the just-appended row in local component state.
+      if (durableInventory === true) void fetchUploads();
     } catch (err) {
       trace.error('media:upload-failed', err);
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
@@ -435,7 +426,7 @@ export default function MediaGalleryPanel({
     setUploading(false);
     // Reset input so same file can be re-uploaded
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [projectId, fetchUploads, isCloud, tab]);
+  }, [projectId, fetchUploads, durableInventory, tab]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a
@@ -589,9 +580,9 @@ export default function MediaGalleryPanel({
     setDeleting(false);
   }, [confirmKeys, deleting, projectId, fetchUploads]);
 
-  const storageLabel = isCloud
-    ? storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : '0.0 / 500 MB'
-    : 'Session';
+  const storageLabel = durableInventory === true
+    ? storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : 'Storage'
+    : durableInventory === false ? 'Session' : 'Loading…';
 
   return (
     <div className="flex flex-col h-full">
@@ -680,7 +671,7 @@ export default function MediaGalleryPanel({
                 kind={item.kind}
                 mediaKey={deriveUploadKey(item)}
                 isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
-                canDelete={isCloud}
+                canDelete={durableInventory === true}
                 onShiftPointerDown={beginShiftGesture}
                 onPlainPointerDown={() => { if (selectedKeys.size) setSelectedKeys(new Set()); }}
                 onRequestDelete={requestDelete}

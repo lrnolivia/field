@@ -13,10 +13,19 @@ describe('canonical Media browser', () => {
     expect(media).toContain('kind={item.kind}');
   });
 
-  it('does not erase standalone uploads when the user changes Media filters', () => {
+  it('uses the backend inventory contract without coupling the browser to Revyme cloud mode', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(media).toContain('if (isCloud) setUploads([])');
+    expect(media).toContain('backend.listAssets(projectId)');
+    expect(media).toContain('backend.getAssetStorageInfo(projectId)');
+    expect(media).toContain('if (assets === null)');
+    expect(media).not.toContain('CLOUD_ENABLED');
+  });
+
+  it('keeps session-only uploads instead of pretending they are durable', () => {
+    const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
     expect(media).toContain("setUploads(prev => [{ url, size: file.size, kind }, ...prev])");
+    expect(media).toContain("durableInventory === false ? 'Session'");
+    expect(media).toContain('if (durableInventory === true) void fetchUploads()');
   });
 
   it('lets floating/full Media embed the browser without duplicating sidebar chrome', () => {
