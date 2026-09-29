@@ -35,6 +35,8 @@ import EditAssetPresetPanel from '../../../ui/EditAssetPresetPanel';
 import ColorPresetEditPanel from '../../../ui/ColorPresetEditPanel';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { isComponentFileAtom, selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
+import { useNodesComputed } from '@/code/stores/node-family';
+import { aggregateSelectionColors } from '@/editor/selection-colors';
 import { forSelectionTargets } from '../../../controls/multi-select-targets';
 import { isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
 import { fillClearStyles, isTransparentColor } from './fill-clear';
@@ -1023,6 +1025,18 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter(t => t.category === 'color');
   const gradientPresets = allTokens.filter(t => t.category === 'gradient');
+  // Same document-order extraction that powers Selection colors. Using page
+  // roots turns that existing deterministic utility into Figma-style "On this page".
+  const pageColors = useNodesComputed((nodes) => {
+    const roots = Array.from(nodes.values())
+      .filter(candidate => !candidate.parentId || !nodes.has(candidate.parentId))
+      .map(candidate => candidate.id);
+    return aggregateSelectionColors(roots, nodes, (id) => getNodeFromCache(id) ?? nodes.get(id))
+      .map(group => ({
+        value: group.value,
+        swatch: group.value.startsWith('var(') ? resolveCssTokens(group.value, colorPresets) : group.value,
+      }));
+  }, [colorPresets]);
 
   const handleCreatePreset = useCallback((color: string) => {
     pushPanel('New Color Preset', (
@@ -1165,6 +1179,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
               : (c) => { trace.action('fill:color', { value: c }); commitColor(c); }}
             onChangeEnd={legacyCtl ? (c) => { trace.action('fill:color', { value: c }); onLivePreview?.(c); commitColor(c); } : undefined}
             showAlpha
+            pageColors={surface === 'custom' ? pageColors : []}
             onCreatePreset={handleCreatePreset}
             colorPresets={colorPresets}
             onApplyPreset={(varVal) => { commitColor(varVal); }}
