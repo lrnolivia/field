@@ -35,19 +35,19 @@ export default function GalleryImageSection({
   onResetTreatment,
 }: GalleryImageSectionProps) {
   return (
-    <ToolSection title="Image" collapsible>
+    <ToolSection title="image" collapsible>
       <ToolRow label="Alt text">
         <ToolInput
           text
           value={alt}
           onChange={onAltChange}
           placeholder="Describe image"
-          ariaLabel="Gallery image alt text"
+          ariaLabel="gallery image alt text"
         />
       </ToolRow>
       <ToolRow label="Fit">
         <ToolSelect
-          ariaLabel="Gallery image fit"
+          ariaLabel="gallery image fit"
           value={fit}
           onChange={onFitChange}
           options={FIT_OPTIONS}
@@ -62,8 +62,8 @@ export default function GalleryImageSection({
             type="button"
             className="h-[var(--control-height-sm)] px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
             onClick={onResetPosition}
-            aria-label="Center image position"
-            title="Center image position"
+            aria-label="center image position"
+            title="center image position"
           >
             Center
           </button>

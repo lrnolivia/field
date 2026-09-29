@@ -28,12 +28,12 @@ export default function RenameProjectDialog({ project, saving, onClose, onSave }
         const name = value.trim();
         if (name) onSave(name);
       }}>
-        <h2 id="field-rename-title">Rename project</h2>
+        <h2 id="field-rename-title">rename project</h2>
         <input ref={inputRef} value={value} onChange={(event) => setValue(event.target.value)} maxLength={200} />
         <div className="field-dashboard-modal-actions">
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose}>cancel</button>
           <button type="submit" className="field-dashboard-modal-primary" disabled={saving || !value.trim()}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'saving…' : 'save'}
           </button>
         </div>
       </form>

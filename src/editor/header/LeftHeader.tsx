@@ -119,7 +119,7 @@ export function LogoButton() {
     return [
       {
         id: 'logo-dashboard',
-        label: 'Go to Dashboard',
+        label: 'home',
         onClick: () => {
           trace.action('left-header:logo-dashboard');
           // field's Dashboard is now a persistent layer in FieldShell, not a
@@ -131,7 +131,7 @@ export function LogoButton() {
       },
       {
         id: 'logo-account',
-        label: 'Your Account',
+        label: 'account',
         onClick: async () => {
           trace.action('left-header:logo-account');
           // Route to the workspace-scoped account settings in the cloud
@@ -161,7 +161,7 @@ export function LogoButton() {
       // needing a filled button competing with Publish.
       ...(CLOUD_ENABLED && !isViewer && !hasActiveSubscription ? [{
         id: 'logo-upgrade',
-        label: 'Upgrade your plan',
+        label: 'upgrade your plan',
         accent: true,
         onClick: () => {
           trace.action('left-header:upgrade');
@@ -187,7 +187,7 @@ export function LogoButton() {
       { type: 'separator' as const },
       {
         id: 'logo-settings',
-        label: 'Settings…',
+        label: 'settings…',
         disabled: isViewer,
         onClick: () => {
           if (isViewer) return;
@@ -204,7 +204,7 @@ export function LogoButton() {
       // about the project, so a read-only collaborator can still use it.
       {
         id: 'logo-theme',
-        label: 'Theme',
+        label: 'appearance',
         submenuItems: buildThemeSubmenu(builderTheme, setBuilderTheme),
         onClick: () => {},
       },

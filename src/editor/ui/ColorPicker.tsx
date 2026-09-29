@@ -577,7 +577,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         )}
 
         {/* Eyedropper */}
-        <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="Pick a canvas pixel" aria-label="Pick a canvas pixel">
+        <button type="button" onClick={handleEyedropper} className={iconBtnCls} title="pick" aria-label="pick a canvas color">
           <EyedropperIcon />
         </button>
       </div>

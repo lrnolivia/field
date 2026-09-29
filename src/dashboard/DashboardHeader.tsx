@@ -2,10 +2,10 @@ import { FigmaPlusIcon, FigmaReloadIcon } from '@/shared/loew-figma-icons';
 import type { DashboardView } from './project-meta';
 
 const titles: Record<DashboardView, string> = {
-  recents: 'Recents',
-  all: 'All projects',
-  starred: 'Starred',
-  trash: 'Trash',
+  recents: 'recents',
+  all: 'all projects',
+  starred: 'starred',
+  trash: 'trash',
 };
 
 type Props = {
@@ -30,8 +30,8 @@ export default function DashboardHeader({ view, count, creating, refreshing, onC
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
-          aria-label={refreshing ? 'Refreshing projects and thumbnails' : 'Refresh projects and thumbnails'}
-          title="Refresh projects and thumbnails"
+          aria-label={refreshing ? 'refreshing projects and thumbnails' : 'refresh projects and thumbnails'}
+          title="refresh projects and thumbnails"
           data-refreshing={refreshing ? 'true' : undefined}
         >
           <FigmaReloadIcon size={13} />
@@ -39,7 +39,7 @@ export default function DashboardHeader({ view, count, creating, refreshing, onC
         {view !== 'trash' && (
           <button className="field-dashboard-new" type="button" onClick={onCreate} disabled={creating || refreshing}>
             <FigmaPlusIcon size={13} />
-            <span>{creating ? 'Creating…' : 'New project'}</span>
+            <span>{creating ? 'creating…' : 'new project'}</span>
           </button>
         )}
       </div>

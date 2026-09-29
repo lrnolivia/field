@@ -45,15 +45,15 @@ export default function GalleryContentSection({
 
   return (
     <ToolSection
-      title="Content"
+      title="content"
       collapsible
       action={(
         <button
           type="button"
           onClick={onAddMedia}
           className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)]"
-          aria-label="Add gallery media"
-          title="Add media"
+          aria-label="add gallery media"
+          title="add media"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
             <path d="M6 2v8M2 6h8" />
@@ -71,7 +71,7 @@ export default function GalleryContentSection({
           Add images from project media or upload new media.
         </div>
       ) : (
-        <div className="flex flex-col gap-1" data-gallery-item-list role="list" aria-label="Gallery media">
+        <div className="flex flex-col gap-1" data-gallery-item-list role="list" aria-label="gallery media">
           {items.map((item, index) => {
             const active = selectedItemId === item.itemId;
             return (
@@ -137,8 +137,8 @@ export default function GalleryContentSection({
             </span>
             <button
               type="button"
-              aria-label="Move selected image up"
-              title="Move up"
+              aria-label="move selected image up"
+              title="move up"
               disabled={selectedIndex === 0}
               onClick={() => onMoveItem(selectedItem.itemId, -1)}
               className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
@@ -149,8 +149,8 @@ export default function GalleryContentSection({
             </button>
             <button
               type="button"
-              aria-label="Move selected image down"
-              title="Move down"
+              aria-label="move selected image down"
+              title="move down"
               disabled={selectedIndex === items.length - 1}
               onClick={() => onMoveItem(selectedItem.itemId, 1)}
               className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
@@ -161,8 +161,8 @@ export default function GalleryContentSection({
             </button>
             <button
               type="button"
-              aria-label="Remove selected image"
-              title="Remove"
+              aria-label="remove selected image"
+              title="remove"
               onClick={() => onRemoveItem(selectedItem.itemId)}
               className="h-6 px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >

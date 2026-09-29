@@ -28,10 +28,10 @@ function avatarLabel(user: RevymeUser | null): string {
 }
 
 const nav: Array<{ id: DashboardView; label: string; icon: 'clock' | 'grid' | 'star' | 'trash' }> = [
-  { id: 'recents', label: 'Recents', icon: 'clock' },
-  { id: 'all', label: 'All projects', icon: 'grid' },
-  { id: 'starred', label: 'Starred', icon: 'star' },
-  { id: 'trash', label: 'Trash', icon: 'trash' },
+  { id: 'recents', label: 'recents', icon: 'clock' },
+  { id: 'all', label: 'all projects', icon: 'grid' },
+  { id: 'starred', label: 'starred', icon: 'star' },
+  { id: 'trash', label: 'trash', icon: 'trash' },
 ];
 
 export default function DashboardSidebar({ view, query, user, onViewChange, onQueryChange }: Props) {
@@ -48,12 +48,12 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search"
-          aria-label="Search projects"
+          placeholder="search"
+          aria-label="search projects"
         />
       </label>
 
-      <nav className="field-dashboard-nav" aria-label="Project views">
+      <nav className="field-dashboard-nav" aria-label="project views">
         {nav.map((item) => (
           <button
             key={item.id}
@@ -79,8 +79,8 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
           {user?.image ? <img src={user.image} alt="" /> : avatarLabel(user)}
         </div>
         <div className="field-dashboard-profile-copy">
-          <strong>{user?.name || 'Your projects'}</strong>
-          <span>{user?.email || 'Personal field'}</span>
+          <strong>{user?.name || 'your projects'}</strong>
+          <span>{user?.email || 'personal field'}</span>
         </div>
       </div>
     </aside>

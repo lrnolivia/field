@@ -811,11 +811,11 @@ export default function LayersPanel() {
   }, [isViewer, nodes]);
 
   const layerOptions: DropdownMenuEntry[] = [
-    { id: 'expand-all', label: 'Expand all layers', onClick: expandAllLayers },
-    { id: 'collapse-all', label: 'Collapse all layers', onClick: collapseAllLayers },
+    { id: 'expand-all', label: 'expand all layers', onClick: expandAllLayers },
+    { id: 'collapse-all', label: 'collapse all layers', onClick: collapseAllLayers },
     { type: 'separator' },
-    { id: 'auto-rename-text', label: 'Auto-rename text layers', onClick: autoRenameTextLayers },
-    { id: 'text-content-names', label: 'Use text as layer name',
+    { id: 'auto-rename-text', label: 'auto-rename text layers', onClick: autoRenameTextLayers },
+    { id: 'text-content-names', label: 'use text as layer name',
       trailingIcon: showTextContent ? <span aria-hidden>✓</span> : undefined,
       onClick: () => setShowTextContent(value => !value) },
   ];
@@ -1180,8 +1180,8 @@ export default function LayersPanel() {
             <PanelSearchButton
               active={layerSearchOpen}
               aria-expanded={layerSearchOpen}
-              aria-label={layerSearchOpen ? 'Close layer search' : 'Search layers'}
-              title={layerSearchOpen ? 'Close layer search' : 'Search layers'}
+              aria-label={layerSearchOpen ? 'close layer search' : 'search layers'}
+              title={layerSearchOpen ? 'close layer search' : 'search layers'}
               onClick={() => {
                 if (layerSearchOpen) {
                   setLayerSearchQuery('');
@@ -1194,8 +1194,8 @@ export default function LayersPanel() {
             <button
               type="button"
               className="field-layer-tree-action"
-              aria-label="Collapse all layers"
-              title="Collapse all layers"
+              aria-label="collapse all layers"
+              title="collapse all layers"
               onClick={collapseAllLayers}
             >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1204,14 +1204,14 @@ export default function LayersPanel() {
               </svg>
             </button>
             {!isViewer && <button type="button" className="field-layer-tree-action"
-              aria-label="Auto-rename text layers" title="Auto-rename text layers"
+              aria-label="auto-rename text layers" title="auto-rename text layers"
               onClick={autoRenameTextLayers}>
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M3 12.5 10.8 4.7M9.2 3.1l3.7 3.7M12.8 1.5v2M11.8 2.5h2M3 2v2M2 3h2M13 11v2M12 12h2" />
               </svg>
             </button>}
             <button ref={optionsRef} type="button" className="field-layer-tree-action"
-              aria-label="Layer options" title="Layer options" aria-haspopup="menu"
+              aria-label="layer options" title="layer options" aria-haspopup="menu"
               aria-expanded={optionsOpen} onClick={() => setOptionsOpen(value => !value)}>
               <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
                 <circle cx="3" cy="8" r="1" /><circle cx="8" cy="8" r="1" /><circle cx="13" cy="8" r="1" />
@@ -1223,7 +1223,7 @@ export default function LayersPanel() {
           </div>
         }
       >
-        Layers
+        layers
       </SectionLabel>
 
       {layerSearchOpen && (
@@ -1231,7 +1231,7 @@ export default function LayersPanel() {
           <SearchBar
             value={layerSearchQuery}
             onChange={setLayerSearchQuery}
-            placeholder="Search layers…"
+            placeholder="search layers…"
             autoFocus
           />
         </div>

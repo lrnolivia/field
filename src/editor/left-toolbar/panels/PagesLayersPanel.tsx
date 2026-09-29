@@ -103,7 +103,7 @@ export default function PagesLayersPanel() {
 
       <div
         role="separator"
-        aria-label="Resize Pages and Layers"
+        aria-label="resize pages and layers"
         aria-orientation="horizontal"
         aria-valuemin={12}
         aria-valuemax={62}
@@ -113,7 +113,7 @@ export default function PagesLayersPanel() {
         onPointerDown={beginResize}
         onDoubleClick={() => setPagesRatio(DEFAULT_PAGES_RATIO)}
         onKeyDown={handleSeparatorKeyDown}
-        title="Drag to resize Pages and Layers · Double-click to reset"
+        title="drag to resize pages and layers · double-click to reset"
       />
 
       <div data-document-layers className="flex-1 min-h-0 flex flex-col overflow-hidden">

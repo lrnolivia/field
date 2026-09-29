@@ -174,7 +174,7 @@ export function buildPageTree(version: number): PageTreeEntry[] {
         displayPath: fp,
         // Home gets the human-readable "Home" label (matches the reference + makes
         // the bare `/` render less cryptic). Everything else uses its slug.
-        label: isHome ? 'Home' : slug,
+        label: isHome ? 'home' : slug,
         type: 'page',
         group: getRouteGroup(fp),
         depth: baseDepth,
@@ -1191,8 +1191,8 @@ export default function Page() {
           <PanelSearchButton
             active={pageSearchOpen}
             aria-expanded={pageSearchOpen}
-            aria-label={pageSearchOpen ? 'Close page search' : 'Search pages'}
-            title={pageSearchOpen ? 'Close page search' : 'Search pages'}
+            aria-label={pageSearchOpen ? 'close page search' : 'search pages'}
+            title={pageSearchOpen ? 'close page search' : 'search pages'}
             onClick={() => {
               if (pageSearchOpen) {
                 setPageSearchQuery('');
@@ -1207,7 +1207,7 @@ export default function Page() {
             ref={addBtnRef}
             disabled={isViewer}
             onClick={isViewer ? undefined : () => setShowAddMenu(prev => !prev)}
-            title={isViewer ? 'View only' : 'Add new page or route group'}
+            title={isViewer ? 'view only' : 'add new page or route group'}
             className={isViewer ? 'opacity-40 !cursor-not-allowed hover:!bg-transparent' : ''}
           />
           <DropdownMenu
@@ -1217,7 +1217,7 @@ export default function Page() {
             position="bottom-left"
             items={(() => {
               const items: DropdownMenuEntry[] = [
-                { id: 'new-page', label: 'New Page', icon: <PageDocumentIcon size={14} />, onClick: () => addPage() },
+                { id: 'new-page', label: 'new page', icon: <PageDocumentIcon size={14} />, onClick: () => addPage() },
               ];
               // 404 page — only one allowed per project. Hide the
               // entry once `app/not-found.tsx` exists so the user can't
@@ -1225,7 +1225,7 @@ export default function Page() {
               if (!notFoundExists()) {
                 items.push({
                   id: 'new-404',
-                  label: '404 Page',
+                  label: '404 page',
                   icon: <PageDocumentIcon size={14} />,
                   onClick: () => addNotFoundPage(),
                 });
@@ -1242,7 +1242,7 @@ export default function Page() {
                 // skips disabled items) so the cascade just stops.
                 items.push({
                   id: 'new-cms-page',
-                  label: 'New CMS Page',
+                  label: 'new cms page',
                   icon: <PageDocumentIcon size={14} />,
                   // Parent items don't fire onClick — they open their
                   // submenu on hover. The placeholder noop satisfies the
@@ -1269,14 +1269,14 @@ export default function Page() {
                       submenuItems: [
                         {
                           id: `cms-${slug}-index`,
-                          label: 'Index',
+                          label: 'index',
                           icon: <PageDocumentIcon size={14} />,
                           disabled: indexExists,
                           onClick: () => addCmsPage(slug, 'index'),
                         },
                         {
                           id: `cms-${slug}-detail`,
-                          label: 'Detail Page',
+                          label: 'detail page',
                           icon: <PageDocumentIcon size={14} />,
                           disabled: detailExists,
                           onClick: () => addCmsPage(slug, 'detail'),
@@ -1298,7 +1298,7 @@ export default function Page() {
           />
           </div>
         </div>
-      }>Pages</SectionLabel>
+      }>pages</SectionLabel>
 
       {pageSearchOpen && (
         <div className="px-2 pb-1 shrink-0">
@@ -1611,7 +1611,7 @@ export default function Page() {
             right={
               <span
                 className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-[var(--text-secondary)] tabular-nums"
-                title="Project-wide 404 page (app/not-found.tsx)"
+                title="project-wide 404 page (app/not-found.tsx)"
               >
                 404
               </span>
@@ -1619,7 +1619,7 @@ export default function Page() {
             menuItems={[
               {
                 id: 'delete-404',
-                label: 'Delete',
+                label: 'delete',
                 // Same in-app confirm path as regular page delete —
                 // routes through `pageDelete` state so the user sees
                 // the design-system modal instead of the browser
@@ -1672,7 +1672,7 @@ export default function Page() {
           framing matches what's actually happening: the page's content
           is being overwritten with this variant's, and the test ends. */}
       <ConfirmDeleteModal
-        title="Make as Control"
+        title="make as control"
         message={
           makeControlTarget
             ? `"${makeControlTarget.label}" will replace the Control page. The A/B test ends and the other variants are removed. Conversion data already in your analytics stays put.`
@@ -1746,7 +1746,7 @@ export default function Page() {
         isOpen={routeGroupModalOpen}
         onClose={() => setRouteGroupModalOpen(false)}
         onSubmit={performAddRouteGroup}
-        title="New Route Group"
+        title="new route group"
         placeholder='Route group name (e.g. "marketing")'
         submitLabel="Create Route Group"
       />
@@ -1754,7 +1754,7 @@ export default function Page() {
         isOpen={templateModalOpen}
         onClose={() => setTemplateModalOpen(false)}
         onSubmit={performAddTemplate}
-        title="New Template"
+        title="new template"
         placeholder='Template name (e.g. "marketing")'
         submitLabel="Create Template"
         // Validate the SLUGIFIED name — this call site lower-cases and
@@ -1827,7 +1827,7 @@ function UpgradePlanModal({
     <Modal
       isOpen={!!message}
       onClose={onCancel}
-      title="Upgrade plan"
+      title="upgrade plan"
       width={256}
     >
       <div className="px-3 py-3 flex flex-col gap-3">
@@ -2144,7 +2144,7 @@ const TreeRow = React.memo(function TreeRow({
         ] : entry.type === 'page' ? [
           {
             id: 'copy-link',
-            label: 'Copy link to page',
+            label: 'copy link to page',
             onClick: () => {
               const href = buildPageEditorLink(window.location.href, filePathToSlug(entry.filePath));
               void navigator.clipboard.writeText(href)
@@ -2154,26 +2154,26 @@ const TreeRow = React.memo(function TreeRow({
           } as DropdownMenuEntry,
           { type: 'separator' } as DropdownMenuEntry,
           ...(onStartRename && !entry.isHome ? [
-            { id: 'rename', label: 'Rename page', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
+            { id: 'rename', label: 'rename page', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
           ] : []),
-          { id: 'duplicate', label: 'Duplicate page', onClick: () => onDuplicate(entry.filePath) } as DropdownMenuEntry,
+          { id: 'duplicate', label: 'duplicate page', onClick: () => onDuplicate(entry.filePath) } as DropdownMenuEntry,
           ...((onOpenPageSettings || onCreateAbTest) ? [{ type: 'separator' } as DropdownMenuEntry] : []),
           ...(onOpenPageSettings ? [
-            { id: 'settings', label: 'Page settings…', onClick: () => onOpenPageSettings(entry.filePath) } as DropdownMenuEntry,
+            { id: 'settings', label: 'page settings…', onClick: () => onOpenPageSettings(entry.filePath) } as DropdownMenuEntry,
           ] : []),
           ...(onCreateAbTest ? [
             {
               id: 'ab-test',
-              label: entry.children.some(c => c.type === 'variant') ? 'Add variant' : 'New A/B test',
+              label: entry.children.some(c => c.type === 'variant') ? 'add variant' : 'new A/B test',
               onClick: () => onCreateAbTest(entry.filePath),
             } as DropdownMenuEntry,
           ] : []),
           ...(canDelete ? [
             { type: 'separator' } as DropdownMenuEntry,
-            { id: 'delete', label: 'Delete page', onClick: () => onDelete(entry.filePath) } as DropdownMenuEntry,
+            { id: 'delete', label: 'delete page', onClick: () => onDelete(entry.filePath) } as DropdownMenuEntry,
           ] : []),
         ] : entry.type === 'layout' ? [
-          { id: 'edit-layout', label: 'Edit layout', onClick: () => onSwitch(entry.filePath) } as DropdownMenuEntry,
+          { id: 'edit-layout', label: 'edit layout', onClick: () => onSwitch(entry.filePath) } as DropdownMenuEntry,
 
         ] : entry.type === 'variant' && (onStartRename || onDeleteVariant || onMakeAsControl) ? [
           // Variant row menu — Control (variantId === 'a') is the
@@ -2182,20 +2182,20 @@ const TreeRow = React.memo(function TreeRow({
           // (the reference's promote-winner equivalent) + Delete (with auto-
           // cascade-delete-test when dropping below 2 variants).
           ...(onStartRename && entry.variantId !== 'a' ? [
-            { id: 'rename', label: 'Rename', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
+            { id: 'rename', label: 'rename', onClick: () => onStartRename(entry) } as DropdownMenuEntry,
           ] : []),
           ...(onMakeAsControl && entry.variantId !== 'a' ? [
-            { id: 'make-control', label: 'Make as Control', onClick: () => onMakeAsControl(entry) } as DropdownMenuEntry,
+            { id: 'make-control', label: 'make as control', onClick: () => onMakeAsControl(entry) } as DropdownMenuEntry,
           ] : []),
           ...(onDeleteVariant ? [
             ...((onStartRename || onMakeAsControl) && entry.variantId !== 'a' ? [{ type: 'separator' } as DropdownMenuEntry] : []),
-            { id: 'delete', label: 'Delete', onClick: () => onDeleteVariant(entry) } as DropdownMenuEntry,
+            { id: 'delete', label: 'delete', onClick: () => onDeleteVariant(entry) } as DropdownMenuEntry,
           ] : []),
         ] : undefined}
         right={entry.type === 'group' && onAddPageToGroup ? (
           <button
             onClick={(e) => { e.stopPropagation(); onAddPageToGroup!(entry.group!); }}
-            title="Add page to group"
+            title="add page to group"
             className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 cut-corners transition-opacity border-none bg-transparent cursor-pointer"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

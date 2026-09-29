@@ -110,8 +110,8 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
             <svg viewBox="0 0 20 20"><path d="m5 10.2 3.1 3.1L15.2 6" /></svg>
           </span>
           <div>
-            <strong>Done</strong>
-            <span>Opening {doneProject.name || 'Untitled'}…</span>
+            <strong>done</strong>
+            <span>opening {doneProject.name || 'Untitled'}…</span>
           </div>
         </div>
       </div>
@@ -138,8 +138,8 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
       >
         <header className="field-new-project-head">
           <div>
-            <span className="field-new-project-eyebrow">New project</span>
-            <h2 id="field-new-project-title">{step === 1 ? 'Start with the essentials' : 'Responsive canvases'}</h2>
+            <span className="field-new-project-eyebrow">new project</span>
+            <h2 id="field-new-project-title">{step === 1 ? 'start with the essentials' : 'responsive canvases'}</h2>
           </div>
           <span className="field-new-project-step">{step} / 2</span>
         </header>
@@ -147,19 +147,19 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
         {step === 1 ? (
           <div className="field-new-project-body">
             <label className="field-new-project-field">
-              <span>Project name</span>
+              <span>project name</span>
               <input
                 ref={nameRef}
                 value={draft.name}
                 maxLength={200}
                 disabled={saving}
                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Untitled"
+                placeholder="untitled"
               />
             </label>
 
             <fieldset className="field-new-project-fieldset" disabled={saving}>
-              <legend>Starting canvas</legend>
+              <legend>starting canvas</legend>
               <div className="field-new-project-canvas-grid">
                 {NEW_PROJECT_CANVAS_PRESETS.map((preset) => (
                   <label key={preset.id} className="field-new-project-canvas-option" data-selected={draft.canvasPresetId === preset.id ? 'true' : 'false'}>
@@ -182,14 +182,14 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
 
             <div className="field-new-project-row">
               <label className="field-new-project-field">
-                <span>Page color</span>
+                <span>page color</span>
                 <div className="field-new-project-color-control">
                   <input
                     className="field-new-project-color-swatch"
                     type="color"
                     value={normalizeProjectColor(draft.pageColor)}
                     disabled={saving}
-                    aria-label="Page color"
+                    aria-label="page color"
                     onChange={(event) => {
                       setPageColorTouched(true);
                       setDraft((current) => ({ ...current, pageColor: event.target.value }));
@@ -200,7 +200,7 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
                     value={draft.pageColor}
                     disabled={saving}
                     spellCheck={false}
-                    aria-label="Page color hex value"
+                    aria-label="page color hex value"
                     onChange={(event) => {
                       setPageColorTouched(true);
                       setDraft((current) => ({ ...current, pageColor: event.target.value }));
@@ -212,7 +212,7 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
             </div>
 
             <fieldset className="field-new-project-fieldset" disabled={saving}>
-              <legend>Style set <span>optional</span></legend>
+              <legend>style set <span>optional</span></legend>
               <div className="field-new-project-style-grid">
                 {NEW_PROJECT_STYLE_SETS.map((styleSet) => (
                   <label key={styleSet.id} className="field-new-project-style-option" data-selected={draft.styleSetId === styleSet.id ? 'true' : 'false'}>
@@ -272,7 +272,7 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
               </div>
             )}
             <div className="field-new-project-template-note">
-              <span>Templates</span>
+              <span>templates</span>
               <p>Blank project for now. Template selection can join this step later without changing the creation model.</p>
             </div>
           </div>
@@ -282,16 +282,16 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
 
         <footer className="field-new-project-actions">
           <button type="button" className="field-new-project-secondary" disabled={saving} onClick={step === 1 ? onClose : () => setStep(1)}>
-            {step === 1 ? 'Cancel' : 'Back'}
+            {step === 1 ? 'cancel' : 'back'}
           </button>
           <div className="field-new-project-actions-right">
             {step === 1 && responsiveOptions.length > 0 && (
               <button type="button" className="field-new-project-secondary" disabled={saving} onClick={() => setStep(2)}>
-                More options
+                more options
               </button>
             )}
             <button type="submit" className="field-new-project-primary" disabled={saving}>
-              {saving ? 'Creating…' : 'Create'}
+              {saving ? 'creating…' : 'create'}
             </button>
           </div>
         </footer>

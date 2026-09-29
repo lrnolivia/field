@@ -553,7 +553,7 @@ export default function MediaGalleryPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+      <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>media</SectionLabel>
 
       {/* Tabs */}
       <div className="px-3 mt-3">
@@ -565,7 +565,7 @@ export default function MediaGalleryPanel() {
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder={tab === 'images' ? 'Search images…' : 'Search videos…'}
+          placeholder={tab === 'images' ? 'search images…' : 'search videos…'}
         />
       </div>
 

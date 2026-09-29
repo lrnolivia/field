@@ -229,7 +229,7 @@ function GalleryToolInner() {
         : config.mediaUrls.map(() => null);
 
       if (!hasGalleryCreationSession(galleryId) || galleryStateRef.current !== stateAtStart) {
-        setCreationWizardError('Gallery changed while media was loading. Review setup and try again.');
+        setCreationWizardError('The gallery changed while media was loading. Review setup and try again.');
         return;
       }
       if (config.frameSizing === 'source' && measuredRatios.some((ratio) => ratio === null)) {
@@ -278,7 +278,7 @@ function GalleryToolInner() {
         naturalSeed: plan.naturalSeed,
       });
     } catch (error) {
-      setCreationWizardError(error instanceof Error ? error.message : 'Could not create Gallery.');
+      setCreationWizardError(error instanceof Error ? error.message : 'Could not create gallery.');
       trace.error('gallery:wizard-finish-failed', {
         nodeId: galleryId,
         message: error instanceof Error ? error.message : String(error),
@@ -733,7 +733,7 @@ function GalleryToolInner() {
   return (
     <>
       {creationWizardOpen ? (
-        <Modal isOpen onClose={cancelCreationWizard} title="Create Gallery" width={440}>
+        <Modal isOpen onClose={cancelCreationWizard} title="create gallery" width={440}>
           <GalleryCreationWizard
             busy={creationWizardBusy}
             error={creationWizardError}

@@ -331,10 +331,10 @@ export default function LeftMenu() {
                   activity ring; the motion still reports a running turn. */}
               <div className={`vibe-ring relative w-8 h-8 rounded-[6px] ${agentRunning ? 'vibe-working' : ''}`} data-testid="vibe-button" data-working={agentRunning || undefined}>
                 <button
-                  aria-label="AI assistant"
+                  aria-label="ai assistant"
                   disabled={isViewerRole}
                   onClick={isViewerRole ? undefined : (e) => { openRailPanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
-                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'AI assistant', e.currentTarget)}
+                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'ai assistant', e.currentTarget)}
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
                   className={`vibe-face absolute inset-0 rounded-[6px] flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
@@ -363,7 +363,7 @@ export default function LeftMenu() {
           data-tutorial="insert-button"
           disabled={isViewer}
           onClick={isViewer ? undefined : (e) => { openRailPanel('insert'); handleClick('insert'); e.currentTarget.blur(); }}
-          onMouseEnter={isViewer ? undefined : (e) => handleEnter('insert', 'Insert', e.currentTarget)}
+          onMouseEnter={isViewer ? undefined : (e) => handleEnter('insert', 'insert', e.currentTarget)}
           onMouseLeave={isViewer ? undefined : handleLeave}
           className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
             isViewer
@@ -380,7 +380,7 @@ export default function LeftMenu() {
             the layer tree, so the rail item opens/collapses the document pane
             without introducing a second navigation mode. Both legacy panel ids
             still count as active for restored state compatibility. */}
-        <MenuButton panelId="layers" isActive={activePanel === 'pages-layers' || activePanel === 'layers'} onToggle={openRailPanel} title="Pages & Layers" tooltip={tooltipHandlers} dataTutorial="layers-button">
+        <MenuButton panelId="layers" isActive={activePanel === 'pages-layers' || activePanel === 'layers'} onToggle={openRailPanel} title="pages & layers" tooltip={tooltipHandlers} dataTutorial="layers-button">
           <LayersIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -388,25 +388,25 @@ export default function LeftMenu() {
             insert surface (pick a thing, drop it on the canvas) rather than a
             way of navigating the current document. Enabled for viewers; the
             panel itself gates which sections they can click into. */}
-        <MenuButton panelId="library" isActive={activePanel === 'library'} onToggle={openRailPanel} title="Library" tooltip={tooltipHandlers} dataTutorial="library-button">
+        <MenuButton panelId="library" isActive={activePanel === 'library'} onToggle={openRailPanel} title="library" tooltip={tooltipHandlers} dataTutorial="library-button">
           <LibraryStackIcon className="w-[18px] h-[18px]" size={18} />
         </MenuButton>
 
 
         {/* Presets */}
-        <MenuButton panelId="presets" isActive={activePanel === 'presets'} onToggle={openRailPanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
+        <MenuButton panelId="presets" isActive={activePanel === 'presets'} onToggle={openRailPanel} title="presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className="w-[18px] h-[18px]">
             <path fill="currentColor" d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 2 2a2 2 0 0 0 2-2c0-1.33-2-3.5-2-3.5M5.21 10L10 5.21L14.79 10m1.77-1.06L7.62 0L6.21 1.41l2.38 2.38l-5.15 5.15c-.59.56-.59 1.53 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.59.59-1.56 0-2.12" />
           </svg>
         </MenuButton>
 
         {/* Media Gallery */}
-        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
+        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="media" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
           <ChatImageIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
         {/* CMS */}
-        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
+        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="cms" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
           <CmsIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
@@ -414,7 +414,7 @@ export default function LeftMenu() {
         {/* Branches keys on the ROLE: while an agent run holds the branch the
             panel is where you see which one is in use (switching is refused
             with the reason until the run finishes). */}
-        <MenuButton panelId="branches" isActive={activePanel === 'branches'} onToggle={openRailPanel} title="Branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
+        <MenuButton panelId="branches" isActive={activePanel === 'branches'} onToggle={openRailPanel} title="branches" tooltip={tooltipHandlers} disabled={isViewerRole} dataTutorial="branches-button">
           <BranchIcon size={18} />
         </MenuButton>
 
@@ -428,7 +428,7 @@ export default function LeftMenu() {
           whileHover={!isViewerRole ? 'hover' : undefined}
           whileTap={!isViewerRole ? 'tap' : undefined}
           onClick={isViewerRole ? undefined : (e) => { setCodeOpen(v => !v); handleClick('code'); e.currentTarget.blur(); }}
-          onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('code', 'Code', e.currentTarget)}
+          onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('code', 'code', e.currentTarget)}
           onMouseLeave={isViewerRole ? undefined : handleLeave}
           className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors ${
             isViewerRole

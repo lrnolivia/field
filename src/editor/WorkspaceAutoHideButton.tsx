@@ -27,7 +27,7 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
   const setTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
   const setExplicitCollapse = useSetAtom(rightInspectorExplicitCollapseAtom);
   const entrance = useAtomValue(floatingEntranceAtom);
-  const label = `${enabled ? 'Turn off' : 'Turn on'} ${side === 'right' ? 'Inspector' : 'left panel'} auto-hide`;
+  const label = `${enabled ? 'turn off' : 'turn on'} ${side === 'right' ? 'inspector' : 'left panel'} auto-hide`;
   return <div className={`z-10 ${className || 'relative'}`}>
     <button type="button" data-workspace-autohide data-side={side} aria-label={label}
       aria-pressed={enabled} title={label}
@@ -39,7 +39,7 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
       <AutoHideEyeIcon enabled={enabled} />
     </button>
     {entrance && <span role="tooltip" className={`pointer-events-none absolute bottom-0 z-20 w-44 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1.5 text-[11px] leading-4 text-[var(--text-primary)] shadow-[var(--shadow-md)] ${side === 'left' ? 'left-9' : 'right-9'}`}>
-      {enabled ? 'Auto-hide on' : 'Auto-hide off'}
+      {enabled ? 'auto-hide on' : 'auto-hide off'}
     </span>}
   </div>;
 }
@@ -59,8 +59,8 @@ export function WorkspaceCollapseButton({
   className?: string;
 }) {
   const label = actionLabel ?? (collapsed
-    ? (side === 'right' ? 'Expand Inspector' : 'Expand panel')
-    : (side === 'right' ? 'Collapse Inspector' : 'Collapse panel'));
+    ? (side === 'right' ? 'expand inspector' : 'expand panel')
+    : (side === 'right' ? 'collapse inspector' : 'collapse panel'));
   const path = side === 'right'
     ? (collapsed ? 'M2 2v12M11 4 7 8l4 4' : 'M14 2v12M5 4l4 4-4 4')
     : (collapsed ? 'M14 2v12M5 4l4 4-4 4' : 'M2 2v12M11 4 7 8l4 4');

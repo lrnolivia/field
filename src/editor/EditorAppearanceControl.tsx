@@ -33,8 +33,8 @@ export default function EditorAppearanceControl() {
         type="button"
         data-editor-appearance
         aria-expanded={open}
-        aria-label={'Editor appearance: ' + mode + ', neutral ' + neutralLevel}
-        title={'Editor appearance: ' + mode + ' · Neutral ' + neutralLevel}
+        aria-label={'field appearance: ' + mode + ', neutral ' + neutralLevel}
+        title={'field appearance: ' + mode + ' · neutral ' + neutralLevel}
         onClick={() => setOpen((value) => !value)}
         className={`flex h-7 w-7 items-center justify-center rounded-[5px] border-none transition-colors ${
           open

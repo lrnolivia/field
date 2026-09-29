@@ -232,7 +232,7 @@ function SelectionColorRow({
           onClick={() => setIsOpen(true)}
           className="h-[var(--control-height)] min-w-0 flex items-center gap-2 px-2 bg-[var(--grid-line)] border border-[var(--control-border)] rounded-[var(--control-radius)] text-left hover:border-[var(--control-border-hover)] transition-colors overflow-hidden"
           title={labelText}
-          aria-label={'Edit selection color ' + labelText}
+          aria-label={'edit selection color ' + labelText}
         >
           <ColorSwatch style={{ background: displayValue }} />
           <span className="min-w-0 flex-1 text-xs text-[var(--text-primary)] truncate">{labelText}</span>
@@ -243,8 +243,8 @@ function SelectionColorRow({
             type="button"
             onClick={detachVariable}
             disabled={!canDetach}
-            title="Detach variable in selected scope"
-            aria-label="Detach variable in selected scope"
+            title="detach variable in selected scope"
+            aria-label="detach variable in selected scope"
             className="h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-primary)] opacity-0 group-hover/selection-color:opacity-100 focus-visible:opacity-100 hover:bg-[var(--bg-hover)] disabled:opacity-0 transition-opacity"
           >
             <DetachIcon />
@@ -254,8 +254,8 @@ function SelectionColorRow({
             ref={styleRef}
             type="button"
             onClick={() => setStyleOpen(true)}
-            title="Apply color style"
-            aria-label="Apply color style"
+            title="apply color style"
+            aria-label="apply color style"
             className="h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-primary)] opacity-0 group-hover/selection-color:opacity-100 focus-visible:opacity-100 hover:bg-[var(--bg-hover)] transition-opacity"
           >
             <FourDotIcon />
@@ -267,8 +267,8 @@ function SelectionColorRow({
           onMouseEnter={startHover}
           onMouseLeave={cancelHover}
           onClick={clickLocate}
-          title="Locate objects using this color"
-          aria-label="Locate objects using this color"
+          title="locate"
+          aria-label="locate objects using this color"
           data-selection-color-locate
           data-locate-pulsing={hoverActive ? 'true' : undefined}
           className="field-selection-color-target h-7 w-7 flex items-center justify-center rounded-[7px] text-[var(--text-primary)] opacity-0 group-hover/selection-color:opacity-100 focus-visible:opacity-100 hover:bg-[var(--bg-hover)] transition-opacity"
@@ -294,8 +294,8 @@ function SelectionColorRow({
       <ToolPopup
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Color"
-        ariaLabel={'Edit selection color ' + labelText}
+        title="color"
+        ariaLabel={'edit selection color ' + labelText}
         anchorRef={btnRef}
         width={280}
       >
@@ -340,11 +340,11 @@ export default function SelectionTool() {
 
   return (
     <>
-      <div data-inspector-section="selection-colors" data-inspector-section-title="Selection colors" data-selection-colors-figui3>
+      <div data-inspector-section="selection-colors" data-inspector-section-title="selection colors" data-selection-colors-figui3>
         <button type="button" aria-expanded={expanded} aria-label={`Selection colors, ${groups.length} colors`}
           onClick={() => setExpanded(value => !value)}
           className="flex h-10 w-full items-center justify-between gap-2 px-[var(--panel-inset)] text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-          <span>Selection colors</span>
+          <span>selection colors</span>
           <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
             {groups.slice(0, 3).map(group => <span key={group.value}
               className="h-4 w-4 rounded-[4px] border border-[var(--border-light)]" style={{ background: group.value }} />)}

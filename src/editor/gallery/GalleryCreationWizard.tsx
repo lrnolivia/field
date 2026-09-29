@@ -57,7 +57,7 @@ function Preview({
   }, [view]);
 
   return (
-    <div style={rootStyle} role="img" aria-label={'Gallery ' + view + ' preview'}>
+    <div style={rootStyle} role="img" aria-label={'gallery ' + view + ' preview'}>
       {urls.map((url, index) => {
         let itemStyle: CSSProperties = { overflow: 'hidden', minWidth: 0, background: 'var(--grid-line)' };
         if (view === 'grid') itemStyle = { ...itemStyle, aspectRatio: '1 / 1' };
@@ -76,7 +76,7 @@ function Preview({
       })}
       {urls.length === 0 && (
         <div className="self-center justify-self-center p-4 text-center text-[10px] text-[var(--text-disabled)]">
-          Choose media to preview the Gallery.
+          Choose media to preview the gallery.
         </div>
       )}
     </div>
@@ -101,13 +101,13 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
     <>
       <section className="space-y-4 p-3" aria-labelledby="gallery-creation-title">
         <div className="flex items-center justify-between gap-2">
-          <h3 id="gallery-creation-title" className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</h3>
+          <h3 id="gallery-creation-title" className="text-xs font-medium text-[var(--text-primary)]">create gallery</h3>
           <div className="text-[10px] tabular-nums text-[var(--text-disabled)]" aria-live="polite">
             Step {stepIndex + 1} / {STEPS.length}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1" role="navigation" aria-label="Gallery creation steps">
+        <div className="grid grid-cols-3 gap-1" role="navigation" aria-label="gallery creation steps">
           {STEPS.map((entry, index) => (
             <button
               key={entry.id}
@@ -142,15 +142,15 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                 Select at least one image to continue.
               </div>
             ) : (
-              <div className="space-y-1" role="list" aria-label="Selected Gallery media">
+              <div className="space-y-1" role="list" aria-label="selected gallery media">
                 {mediaUrls.map((url, index) => (
                   <div key={url} role="listitem" className="flex h-9 items-center gap-2 border border-[var(--control-border)] px-2">
                     <img src={url} alt="" draggable={false} className="h-6 w-6 object-cover" />
                     <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">{url.split('/').pop() || 'Image'}</span>
                     <button
                       type="button"
-                      aria-label={'Move image ' + (index + 1) + ' up'}
-                      title="Move up"
+                      aria-label={'move image ' + (index + 1) + ' up'}
+                      title="move up"
                       disabled={busy || index === 0}
                       onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, -1))}
                       className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
@@ -161,8 +161,8 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                     </button>
                     <button
                       type="button"
-                      aria-label={'Move image ' + (index + 1) + ' down'}
-                      title="Move down"
+                      aria-label={'move image ' + (index + 1) + ' down'}
+                      title="move down"
                       disabled={busy || index === mediaUrls.length - 1}
                       onClick={() => setMediaUrls((current) => moveGalleryWizardMedia(current, index, 1))}
                       className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
@@ -173,8 +173,8 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                     </button>
                     <button
                       type="button"
-                      aria-label={'Remove image ' + (index + 1)}
-                      title="Remove"
+                      aria-label={'remove image ' + (index + 1)}
+                      title="remove"
                       disabled={busy}
                       onClick={() => setMediaUrls((current) => removeGalleryWizardMedia(current, index))}
                       className="w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30"
@@ -193,7 +193,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
         {step === 'layout' && (
           <div className="space-y-2">
             <ToolSelect
-              ariaLabel="Initial Gallery view"
+              ariaLabel="initial gallery view"
               value={view}
               disabled={busy}
               onChange={(value) => setView(value as GalleryViewId)}
@@ -206,7 +206,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
         {step === 'behavior' && (
           <div className="space-y-2">
             <ToolSelect
-              ariaLabel="Initial Gallery frame sizing"
+              ariaLabel="initial gallery frame sizing"
               value={frameSizing}
               disabled={busy}
               onChange={(value) => setFrameSizing(value as GalleryFrameSizing)}
@@ -216,7 +216,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               ]}
             />
             <ToolSelect
-              ariaLabel="Initial Gallery media fit"
+              ariaLabel="initial gallery media fit"
               value={fit}
               disabled={busy}
               onChange={(value) => setFit(value as GalleryWizardFit)}

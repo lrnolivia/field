@@ -11,8 +11,8 @@ describe('FigUI3 grouped toolbar shortcuts', () => {
     expect(shortcuts).toContain("key: 'l', label: 'Line tool'");
     expect(shortcuts).toContain("key: 'p', label: 'Pen tool'");
     expect(shortcuts).toContain("key: 'p', shift: true, label: 'Sketch tool'");
-    expect(menu).toContain("label: 'Line', shortcut: 'L'");
-    expect(menu).toContain("label: 'Pen', shortcut: 'P'");
-    expect(menu).toContain("label: 'Pencil', shortcut: 'Shift+P'");
+    expect(menu).toContain("label: 'line', shortcut: 'L'");
+    expect(menu).toContain("label: 'pen', shortcut: 'P'");
+    expect(menu).toContain("label: 'pencil', shortcut: 'Shift+P'");
   });
 });

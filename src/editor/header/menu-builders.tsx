@@ -284,15 +284,15 @@ function menuZoomFit(): void {
 // Site Settings keeps a submenu — multi-page domain / SEO / analytics
 // surfaces, each likely to grow.
 const siteSettingsSubmenu: DropdownMenuEntry[] = [
-  { id: 'site-domain', label: 'Domain', onClick: stub('site-domain') },
-  { id: 'site-seo', label: 'SEO', onClick: stub('site-seo') },
-  { id: 'site-analytics', label: 'Analytics', onClick: stub('site-analytics') },
+  { id: 'site-domain', label: 'domain', onClick: stub('site-domain') },
+  { id: 'site-seo', label: 'seo', onClick: stub('site-seo') },
+  { id: 'site-analytics', label: 'analytics', onClick: stub('site-analytics') },
 ];
 
 // Plugins keeps a submenu — browse vs manage are clearly distinct entry points.
 const pluginsSubmenu: DropdownMenuEntry[] = [
-  { id: 'plugins-browse', label: 'Browse plugins…', onClick: stub('plugins-browse') },
-  { id: 'plugins-manage', label: 'Manage installed', onClick: stub('plugins-manage') },
+  { id: 'plugins-browse', label: 'browse plugins…', onClick: stub('plugins-browse') },
+  { id: 'plugins-manage', label: 'manage installed', onClick: stub('plugins-manage') },
 ];
 
 /** Builder accent themes — recolours the EDITOR chrome (not the user's site).
@@ -387,7 +387,7 @@ export function buildPreferencesSubmenu(prefs: PrefsState, set: PrefsSetters): D
     // Auto-pan speed — three rows, one radio group. Header row at the
     // top is non-interactive (disabled) so it reads as a label rather
     // than a clickable command.
-    { id: 'pref-auto-pan-speed', label: 'Auto pan speed', disabled: true, onClick: () => {} },
+    { id: 'pref-auto-pan-speed', label: 'auto pan speed', disabled: true, onClick: () => {} },
     radio('pref-auto-pan-speed-low',  '   Low',  'low'),
     radio('pref-auto-pan-speed-mid',  '   Mid',  'mid'),
     radio('pref-auto-pan-speed-high', '   High', 'high'),
@@ -406,7 +406,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
   return [
   {
     id: 'file',
-    label: 'File',
+    label: 'file',
     items: [
       // Project-level (real handlers — wired up to the backend).
       // No Save item — autosave handles persistence (`autosave.ts`
@@ -416,16 +416,16 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       // shortcut would steal Ctrl+N from the browser.
       // New project's `Ctrl+Alt+N` is registered in
       // `src/canvas/shortcuts.ts` (search for `menuNewProject`).
-      { id: 'file-new-project', label: 'New project', shortcut: 'Ctrl+Alt+N', onClick: () => createAndOpenProject() },
-      { id: 'file-new', label: 'New page', onClick: () => menuNewPage() },
-      { id: 'file-export', label: 'Export…', onClick: stub('file-export') },
+      { id: 'file-new-project', label: 'new project', shortcut: 'Ctrl+Alt+N', onClick: () => createAndOpenProject() },
+      { id: 'file-new', label: 'new page', onClick: () => menuNewPage() },
+      { id: 'file-export', label: 'export…', onClick: stub('file-export') },
       { type: 'separator' },
       // Create Remix Link — uploads the current project as a
       // shareable template. Same URL works two ways: friends with the
       // link can remix instantly, and pasting it into the dashboard's
       // Templates → Submit form publishes it to the marketplace. The
       // RemixLinkModal renders the URL with a copy button on success.
-      ...(CLOUD_ENABLED ? [{ id: 'file-create-remix-link', label: 'Create remix link…', onClick: () => menuCreateRemixLink() }] : []),
+      ...(CLOUD_ENABLED ? [{ id: 'file-create-remix-link', label: 'create remix link…', onClick: () => menuCreateRemixLink() }] : []),
       { type: 'separator' },
       // Code ops (formerly Code ▶)
       // Opens the right-header Export dropdown (format picker + Export
@@ -436,7 +436,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       // (copy which code — the page? the project?), so it is gone.
       {
         id: 'code-export',
-        label: 'Export code…',
+        label: 'export code…',
         onClick: () => {
           trace.action('menu:code-export');
           getDefaultStore().set(exportDropdownOpenAtom, true);
@@ -444,8 +444,8 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       },
       { type: 'separator' },
       // Project-scoped configuration — kept as submenus.
-      { id: 'site-settings', label: 'Site Settings', submenuItems: siteSettingsSubmenu, onClick: () => {} },
-      { id: 'plugins', label: 'Plugins', submenuItems: pluginsSubmenu, onClick: () => {} },
+      { id: 'site-settings', label: 'site settings', submenuItems: siteSettingsSubmenu, onClick: () => {} },
+      { id: 'plugins', label: 'plugins', submenuItems: pluginsSubmenu, onClick: () => {} },
       // "Go to Dashboard" + "Your Account" live in the LeftHeader's
       // Revyme-logo dropdown — they're account-level actions that
       // don't really belong with project-file actions like New/Export.
@@ -453,36 +453,36 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
   },
   {
     id: 'edit',
-    label: 'Edit',
+    label: 'edit',
     items: [
       // History — wired to `code/mutation/history` (same module the
       // Ctrl+Z/Y/Shift+Z keyboard shortcuts call).
-      { id: 'edit-undo', label: 'Undo', shortcut: 'Ctrl+Z', onClick: menuUndo },
-      { id: 'edit-redo', label: 'Redo', shortcut: 'Ctrl+Shift+Z', onClick: menuRedo },
+      { id: 'edit-undo', label: 'undo', shortcut: 'Ctrl+Z', onClick: menuUndo },
+      { id: 'edit-redo', label: 'redo', shortcut: 'Ctrl+Shift+Z', onClick: menuRedo },
       { type: 'separator' },
       // Clipboard — same `copyNodes` + `executePaste` + `deleteNode`
       // helpers `src/canvas/shortcuts.ts` calls for Ctrl+C/X/V.
-      { id: 'edit-cut', label: 'Cut', shortcut: 'Ctrl+X', onClick: menuCut },
-      { id: 'edit-copy', label: 'Copy', shortcut: 'Ctrl+C', onClick: menuCopy },
-      { id: 'edit-paste', label: 'Paste', shortcut: 'Ctrl+V', onClick: () => menuPaste() },
+      { id: 'edit-cut', label: 'cut', shortcut: 'Ctrl+X', onClick: menuCut },
+      { id: 'edit-copy', label: 'copy', shortcut: 'Ctrl+C', onClick: menuCopy },
+      { id: 'edit-paste', label: 'paste', shortcut: 'Ctrl+V', onClick: () => menuPaste() },
       { type: 'separator' },
       // Selection lifecycle
-      { id: 'edit-duplicate', label: 'Duplicate', shortcut: 'Ctrl+D', onClick: menuDuplicate },
-      { id: 'edit-delete', label: 'Delete', shortcut: 'Del', onClick: menuDelete },
+      { id: 'edit-duplicate', label: 'duplicate', shortcut: 'Ctrl+D', onClick: menuDuplicate },
+      { id: 'edit-delete', label: 'delete', shortcut: 'Del', onClick: menuDelete },
       { type: 'separator' },
       // Tools — flip `toolModeAtom`. Comment tool not implemented yet,
       // kept as a stub. Select / Hand match the V / H keyboard shortcuts.
-      { id: 'tool-select', label: 'Select', shortcut: 'V', onClick: () => menuSetTool('select') },
-      { id: 'tool-hand', label: 'Hand', shortcut: 'H', onClick: () => menuSetTool('hand') },
-      { id: 'tool-comment', label: 'Comment', shortcut: 'C', onClick: stub('tool-comment') },
+      { id: 'tool-select', label: 'select', shortcut: 'V', onClick: () => menuSetTool('select') },
+      { id: 'tool-hand', label: 'hand', shortcut: 'H', onClick: () => menuSetTool('hand') },
+      { id: 'tool-comment', label: 'comment', shortcut: 'C', onClick: stub('tool-comment') },
       { type: 'separator' },
       // Editor configuration
-      { id: 'preferences', label: 'Preferences', submenuItems: preferencesSubmenu, onClick: () => {} },
+      { id: 'preferences', label: 'preferences', submenuItems: preferencesSubmenu, onClick: () => {} },
       // The row advertises Ctrl+K, so it must open the same palette that
       // shortcut does — it was a `stub()` that only traced.
       {
         id: 'quick-actions',
-        label: 'Quick Actions',
+        label: 'quick actions',
         shortcut: 'Ctrl+K',
         onClick: () => {
           trace.action('menu:quick-actions');
@@ -493,7 +493,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
   },
   {
     id: 'insert',
-    label: 'Insert',
+    label: 'insert',
     // Mirrors the bottom toolbar exactly: Frame, Text, Layout (rows /
     // columns / grids), the native shape primitives, then Pen and Pencil. Each
     // item just sets `toolModeAtom` — the same atom the bottom-toolbar
@@ -502,32 +502,32 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
     // `BottomToolbar.tsx` and `src/canvas/shortcuts.ts` so the menu is
     // just a third surface onto the same actions, never a stale list.
     items: [
-      { id: 'insert-frame', label: 'Frame', shortcut: 'F', onClick: () => menuSetTool('frame') },
-      { id: 'insert-text', label: 'Text', shortcut: 'T', onClick: () => menuSetTool('text') },
+      { id: 'insert-frame', label: 'frame', shortcut: 'F', onClick: () => menuSetTool('frame') },
+      { id: 'insert-text', label: 'text', shortcut: 'T', onClick: () => menuSetTool('text') },
       { type: 'separator' },
-      { id: 'insert-layout-rows', label: 'Rows', shortcut: 'Shift+R', onClick: () => menuSetTool('layout-rows') },
-      { id: 'insert-layout-columns', label: 'Columns', shortcut: 'Shift+C', onClick: () => menuSetTool('layout-columns') },
-      { id: 'insert-layout-grids', label: 'Grids', shortcut: 'Shift+G', onClick: () => menuSetTool('layout-grids') },
+      { id: 'insert-layout-rows', label: 'rows', shortcut: 'Shift+R', onClick: () => menuSetTool('layout-rows') },
+      { id: 'insert-layout-columns', label: 'columns', shortcut: 'Shift+C', onClick: () => menuSetTool('layout-columns') },
+      { id: 'insert-layout-grids', label: 'grids', shortcut: 'Shift+G', onClick: () => menuSetTool('layout-grids') },
       { type: 'separator' },
-      { id: 'insert-shape-rect', label: 'Rectangle', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
-      { id: 'insert-shape-ellipse', label: 'Ellipse', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
-      { id: 'insert-shape-triangle', label: 'Triangle', shortcut: 'Shift+T', onClick: () => menuSetTool('shape-triangle') },
-      { id: 'insert-shape-line', label: 'Line', shortcut: 'L', onClick: () => menuSetTool('shape-line') },
-      { id: 'insert-shape-path', label: 'Pen', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
+      { id: 'insert-shape-rect', label: 'rectangle', shortcut: 'R', onClick: () => menuSetTool('shape-rect') },
+      { id: 'insert-shape-ellipse', label: 'ellipse', shortcut: 'O', onClick: () => menuSetTool('shape-ellipse') },
+      { id: 'insert-shape-triangle', label: 'triangle', shortcut: 'Shift+T', onClick: () => menuSetTool('shape-triangle') },
+      { id: 'insert-shape-line', label: 'line', shortcut: 'L', onClick: () => menuSetTool('shape-line') },
+      { id: 'insert-shape-path', label: 'pen', shortcut: 'P', onClick: () => menuSetTool('shape-path') },
       { type: 'separator' },
-      { id: 'insert-sketch', label: 'Pencil', shortcut: 'Shift+P', onClick: () => menuSetTool('sketch') },
+      { id: 'insert-sketch', label: 'pencil', shortcut: 'Shift+P', onClick: () => menuSetTool('sketch') },
     ],
   },
   {
     id: 'view',
-    label: 'View',
+    label: 'view',
     items: [
       // Zoom — direct calls into `canvas/transform`, same module the
       // Ctrl+= / Ctrl+- / Shift+1 / Shift+3 keyboard shortcuts use.
-      { id: 'view-zoom-in', label: 'Zoom in', shortcut: 'Ctrl++', onClick: () => { trace.action('menu:view-zoom-in'); zoomIn(); } },
-      { id: 'view-zoom-out', label: 'Zoom out', shortcut: 'Ctrl+-', onClick: () => { trace.action('menu:view-zoom-out'); zoomOut(); } },
-      { id: 'view-zoom-reset', label: 'Zoom to 100%', shortcut: 'Ctrl+0', onClick: () => { trace.action('menu:view-zoom-reset'); zoomTo100(); } },
-      { id: 'view-fit', label: 'Zoom to fit', shortcut: 'Shift+1', onClick: menuZoomFit },
+      { id: 'view-zoom-in', label: 'zoom in', shortcut: 'Ctrl++', onClick: () => { trace.action('menu:view-zoom-in'); zoomIn(); } },
+      { id: 'view-zoom-out', label: 'zoom out', shortcut: 'Ctrl+-', onClick: () => { trace.action('menu:view-zoom-out'); zoomOut(); } },
+      { id: 'view-zoom-reset', label: 'zoom to 100%', shortcut: 'Ctrl+0', onClick: () => { trace.action('menu:view-zoom-reset'); zoomTo100(); } },
+      { id: 'view-fit', label: 'zoom to fit', shortcut: 'Shift+1', onClick: menuZoomFit },
       { type: 'separator' },
       // Mode toggle — `previewModeAtom` is also driven by the right-header
       // Preview button and the Ctrl+P shortcut (App.tsx). Reading the
@@ -536,7 +536,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       // to preview state just to render this row.
       {
         id: 'view-preview',
-        label: 'Toggle preview',
+        label: 'toggle preview',
         shortcut: 'Ctrl+P',
         onClick: () => {
           const store = getDefaultStore();
@@ -552,7 +552,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       // revyme-backend.ts (raw `import.meta.env` trips this tsconfig).
       {
         id: 'help-docs',
-        label: 'Documentation',
+        label: 'documentation',
         onClick: () => {
           const isDev = !!(import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV;
           const docsUrl = isDev ? 'http://localhost:3001/docs' : 'https://revyme.com/docs';
@@ -564,7 +564,7 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
       // mounted in LeftHeader) — rows come straight from keyboard.getAll().
       {
         id: 'help-shortcuts',
-        label: 'Keyboard shortcuts',
+        label: 'keyboard shortcuts',
         onClick: () => {
           trace.action('menu:help-shortcuts');
           getDefaultStore().set(shortcutsModalOpenAtom, true);

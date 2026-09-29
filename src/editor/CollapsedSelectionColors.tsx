@@ -19,9 +19,9 @@ export default function CollapsedSelectionColors({ onOpen }: { onOpen: () => voi
   };
 
   return <button type="button" data-collapsed-selection-colors aria-label={`Selection colors, ${groups.length} colors. Open Inspector`}
-    title="Selection colors" onClick={openColors}
+    title="selection colors" onClick={openColors}
     className="flex w-[calc(100%-8px)] flex-col items-center gap-1 rounded-[5px] py-2 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
-    <span className="text-[9px]">Colors</span>
+    <span className="text-[9px]">colors</span>
     {groups.slice(0, 3).map((group) => <span key={group.value} className="h-5 w-5 rounded-[4px] border border-[var(--border-light)]"
       style={{ background: group.value }} aria-hidden />)}
     {groups.length > 3 && <span className="text-[10px] tabular-nums">+{groups.length - 3}</span>}

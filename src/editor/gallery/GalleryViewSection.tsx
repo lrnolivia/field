@@ -40,10 +40,10 @@ export default function GalleryViewSection({
   canShuffleNatural,
 }: GalleryViewSectionProps) {
   return (
-    <ToolSection title="View" collapsible>
+    <ToolSection title="view" collapsible>
       <ToolRow label="View">
         <ToolSelect
-          ariaLabel="Gallery view"
+          ariaLabel="gallery view"
           value={currentView}
           disabled={frameSizingBusy}
           onChange={(value) => onViewChange(value as GalleryViewId)}
@@ -57,7 +57,7 @@ export default function GalleryViewSection({
 
       <ToolRow label="Frame">
         <ToolSelect
-          ariaLabel="Gallery frame sizing"
+          ariaLabel="gallery frame sizing"
           value={frameSizing}
           disabled={frameSizingBusy}
           onChange={(value) => onFrameSizingChange(value as GalleryFrameSizing)}
@@ -79,7 +79,7 @@ export default function GalleryViewSection({
             onChange={(value) => onRootStyleChange('gap', px(value, currentView === 'grid' ? 24 : 4))}
             min={0}
             chevronLabel="px"
-            ariaLabel="Gallery gap"
+            ariaLabel="gallery gap"
           />
         </ToolRow>
       )}
@@ -105,7 +105,7 @@ export default function GalleryViewSection({
             }}
             min={1}
             max={12}
-            ariaLabel="Gallery columns"
+            ariaLabel="gallery columns"
           />
         </ToolRow>
       )}

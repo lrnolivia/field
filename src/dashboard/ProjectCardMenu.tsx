@@ -37,11 +37,11 @@ export default function ProjectCardMenu({
     <div className="field-project-menu" role="menu">
       {!trashed ? (
         <>
-          <button role="menuitem" type="button" onClick={() => run(onOpenProject)}>Open</button>
-          <button role="menuitem" type="button" onClick={() => run(onRename)}>Rename</button>
-          <button role="menuitem" type="button" onClick={() => run(onDuplicate)}>Duplicate</button>
+          <button role="menuitem" type="button" onClick={() => run(onOpenProject)}>open</button>
+          <button role="menuitem" type="button" onClick={() => run(onRename)}>rename</button>
+          <button role="menuitem" type="button" onClick={() => run(onDuplicate)}>duplicate</button>
           <button role="menuitem" type="button" onClick={() => run(onToggleStar)}>
-            {project.starred ? 'Unstar' : 'Star'}
+            {project.starred ? 'unstar' : 'star'}
           </button>
           <span className="field-project-menu-separator" />
           <button role="menuitem" type="button" className="field-project-menu-danger" onClick={() => run(onTrash)}>
@@ -50,7 +50,7 @@ export default function ProjectCardMenu({
         </>
       ) : (
         <>
-          <button role="menuitem" type="button" onClick={() => run(onRestore)}>Restore</button>
+          <button role="menuitem" type="button" onClick={() => run(onRestore)}>restore</button>
           <span className="field-project-menu-separator" />
           <button role="menuitem" type="button" className="field-project-menu-danger" onClick={() => run(onPermanentDelete)}>
             Delete permanently…

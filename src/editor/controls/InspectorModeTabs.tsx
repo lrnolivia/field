@@ -13,7 +13,7 @@ export default function InspectorModeTabs() {
       data-inspector-mode-tabs
       className="shrink-0 h-10 px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center gap-1"
       role="tablist"
-      aria-label="Inspector mode"
+      aria-label="inspector mode"
     >
       <button
         type="button"
@@ -24,7 +24,7 @@ export default function InspectorModeTabs() {
           ? 'h-7 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
           : 'h-7 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
       >
-        Design
+        design
       </button>
       <button
         type="button"
@@ -35,7 +35,7 @@ export default function InspectorModeTabs() {
           ? 'h-7 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
           : 'h-7 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
       >
-        Prototype
+        prototype
       </button>
       <div data-inspector-pane-actions className="ml-auto flex items-center gap-1">
         <motion.div layoutId="right-inspector-autohide" transition={{ duration: 0.2, ease: 'easeInOut' }}>

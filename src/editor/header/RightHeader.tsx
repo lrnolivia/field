@@ -316,7 +316,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           }}
         >
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
-            aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
+            aria-label="move inspector" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
@@ -330,8 +330,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
 
           <button
             type="button"
-            aria-label={previewMode ? 'Exit preview' : 'Preview'}
-            title={previewMode ? 'Exit preview' : 'Preview'}
+            aria-label={previewMode ? 'exit preview' : 'preview'}
+            title={previewMode ? 'exit preview' : 'preview'}
             data-tutorial="header-preview-button"
             onClick={onTogglePreview}
             className={`ml-2 flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
@@ -396,7 +396,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         </div>
       )}
       {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
-        <button type="button" aria-label="Close compact Inspector" title="Close Inspector"
+        <button type="button" aria-label="close inspector" title="close inspector"
           onClick={() => setCompactInspectorOpen(false)}
           className="fixed z-[10002] flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
@@ -421,8 +421,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             transition: 'opacity 260ms ease, transform 260ms ease',
           }}
           >
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+          <button type="button" aria-label="open design inspector" title="design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">design</span></button>
+          <button type="button" aria-label="open prototype inspector" title="prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>

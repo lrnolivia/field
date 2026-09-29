@@ -113,7 +113,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
   return (
     <section data-scale-panel className="px-3 py-2.5">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[11px] font-medium text-[var(--text-primary)]">Scale</span>
+        <span className="text-[11px] font-medium text-[var(--text-primary)]">scale</span>
         <span className="text-[10px] text-[var(--text-tertiary)]">K</span>
       </div>
 
@@ -128,7 +128,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
             onChange={(e) => setWidth(e.target.value)}
             onBlur={commitWidth}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-            aria-label="Scaled width"
+            aria-label="scaled width"
           />
         </label>
         <label className="flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
@@ -141,7 +141,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
             onChange={(e) => setHeight(e.target.value)}
             onBlur={commitHeight}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-            aria-label="Scaled height"
+            aria-label="scaled height"
           />
         </label>
       </div>
@@ -156,7 +156,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
           onChange={(e) => setMultiplier(e.target.value)}
           onBlur={commitMultiplier}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          aria-label="Scale multiplier"
+          aria-label="scale multiplier"
         />
       </div>
 
@@ -166,7 +166,7 @@ export default function ScaleTool({ vpId }: { vpId: string }) {
           data-scale-anchor-grid
           className="grid h-[42px] w-[42px] grid-cols-3 grid-rows-3 gap-[3px] rounded-[4px] border border-[var(--border-light)] p-[4px]"
           role="radiogroup"
-          aria-label="Scale anchor"
+          aria-label="scale anchor"
         >
           {ANCHORS.map((item) => (
             <button

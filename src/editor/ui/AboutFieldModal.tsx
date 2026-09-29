@@ -96,10 +96,10 @@ export default function AboutFieldModal({
         <div className="border-t border-[var(--border-light)] pt-2">
           {build ? (
             <>
-              <AboutRow label="Version" value={build.version} />
-              <AboutRow label="Build" value={build.shortSha} title={build.commitSha} />
-              <AboutRow label="Environment" value={build.environment} />
-              <AboutRow label="Deployed" value={formatTimestamp(build.deployedAt)} title={build.deployedAt ?? undefined} />
+              <AboutRow label="version" value={build.version} />
+              <AboutRow label="build" value={build.shortSha} title={build.commitSha} />
+              <AboutRow label="environment" value={build.environment} />
+              <AboutRow label="deployed" value={formatTimestamp(build.deployedAt)} title={build.deployedAt ?? undefined} />
               <AboutRow label="Cloudflare" value={build.deploymentId ?? '—'} />
             </>
           ) : (
@@ -115,7 +115,7 @@ export default function AboutFieldModal({
           disabled={!build}
           className="mt-3 flex h-8 w-full items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-transparent px-3 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40"
         >
-          {copied ? 'Copied diagnostics' : 'Copy diagnostics'}
+          {copied ? 'copied diagnostics' : 'Copy diagnostics'}
         </button>
       </div>
     </Modal>

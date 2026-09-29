@@ -23,7 +23,7 @@ type Props = {
 
 function StarBadge() {
   return (
-    <span className="field-project-star-badge" aria-label="Starred">
+    <span className="field-project-star-badge" aria-label="starred">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 2.3 1.7 3.4 3.8.6-2.8 2.7.7 3.8L8 11l-3.4 1.8.7-3.8-2.8-2.7 3.8-.6z"/></svg>
     </span>
   );
