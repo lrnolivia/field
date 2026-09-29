@@ -273,7 +273,7 @@ export function EditPopupContent({ token, onUpdate, onDelete, onClose }: EditPop
 
       {/* Value editor — category-specific control only */}
       {token.category === 'color' ? (
-        <ColorPicker key={theme} value={activeValue} onChange={handleColorLive} onChangeEnd={handleColorCommit} />
+        <ColorPicker key={theme} value={activeValue} onChange={handleColorLive} onChangeEnd={handleColorCommit} onClose={onClose} capabilityLabel="color preset" />
       ) : token.category === 'gradient' ? (
         <GradientEditor value={value} onChange={handleValueChange} />
       ) : token.category === 'image' ? (
