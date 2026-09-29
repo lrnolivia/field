@@ -75,4 +75,15 @@ describe('Media upload tray', () => {
     expect(toolbarUpload).toContain('files?.[0]');
   });
 
+
+  it('exposes real per-item cancel and retry actions from the persistent queue', () => {
+    const tray = read('src/editor/media/MediaUploadTray.tsx');
+    expect(tray).toContain('cancelMediaUploadAtom');
+    expect(tray).toContain('retryMediaUploadAtom');
+    expect(tray).toContain("aria-label={'Cancel upload ' + item.name}");
+    expect(tray).toContain("aria-label={'Retry upload ' + item.name}");
+    expect(tray).toContain("item.retryable === true && (item.status === 'error' || item.status === 'cancelled')");
+    expect(tray).toContain('void retry(item.id)');
+  });
+
 });

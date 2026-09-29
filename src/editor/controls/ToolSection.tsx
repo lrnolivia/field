@@ -98,7 +98,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
       data-inspector-section-empty={validChildren.length === 0 ? 'true' : undefined}
       data-inspector-section-card
       data-inspector-section-kind={sectionVisualKind(title)}
-      className="mx-2 my-0.5 overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]"
+      className="mx-2 my-0.5 overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]"
     >
       {/* Canonical inspector section header. ToolSection remains the compatibility
           surface for existing tools while exposing one Figma-shaped DOM grammar. */}
@@ -131,7 +131,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
         >
           <span
             data-inspector-section-glyph
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]"
           >
             <SectionGlyph kind={sectionVisualKind(title)} />
           </span>

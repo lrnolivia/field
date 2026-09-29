@@ -18,7 +18,8 @@ describe('Audio contextual Media', () => {
     expect(audio).toContain('Choose media');
     expect(audio).toContain('aria-expanded={mediaOpen}');
     expect(audio).toContain('h-8 flex items-center gap-2');
-    expect(audio).toContain('type="url"');
+    expect(audio).toContain('data-audio-src-input');
+    expect(audio).toContain('<ToolInput');
   });
 
   it('applies the chosen project Audio source through the existing canvas attribute path', () => {

@@ -322,6 +322,7 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<MenuView>('list');
   const setToolbarPanel = useSetAtom(toolbarPanelAtom);
+  const setMediaSession = useSetAtom(mediaSessionAtom);
   useClickOutside(ref, open, () => setOpen(false));
   const elementSections = CATEGORIES.find((category) => category.id === 'elements')?.sections ?? [];
   const basicItems = elementSections.find((section) => section.id === 'basic')?.items ?? [];
@@ -331,6 +332,17 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
     insertToolbarItemAtVisibleCenter(id);
     setOpen(false);
   };
+
+  const openImageMedia = useCallback(() => {
+    setMediaSession(createMediaSession({
+      surface: 'toolbar',
+      route: { view: 'browser', kind: 'image' },
+      intent: 'insert',
+    }));
+    setToolbarPanel({ kind: 'media' });
+    setOpen(false);
+    trace.action('toolbar:image-media');
+  }, [setMediaSession, setToolbarPanel, setOpen]);
 
   const openSectionLibrary = useCallback(() => {
     setToolbarPanel({ kind: 'insert', category: 'elements', section: 'layouts' });
@@ -361,7 +373,7 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
                 : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" />
                   : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
               onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); }
-                else if (item.id === 'image') { setToolbarPanel({ kind: 'media-picker', media: 'image' }); setOpen(false); }
+                else if (item.id === 'image') { openImageMedia(); }
                 else insert(item.id); }} />)}
             <DropdownDivider />
             <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Layouts</div>
@@ -374,7 +386,7 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
               icon={item.id === 'frame' ? <FrameToolbarIcon /> : item.id === 'text' ? <TextToolbarIcon />
                 : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon size={30} />}
               onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); }
-                else if (item.id === 'image') { setToolbarPanel({ kind: 'media-picker', media: 'image' }); setOpen(false); }
+                else if (item.id === 'image') { openImageMedia(); }
                 else insert(item.id); }} />)}
             {layoutItems.map((item) => {
               const Icon = ELEMENT_ICON_MAP[item.iconKey];

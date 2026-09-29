@@ -11,7 +11,7 @@ describe('Figma inspector contract', () => {
     expect(section).toContain('data-inspector-section-card');
     expect(section).toContain('data-inspector-section-kind={sectionVisualKind(title)}');
     expect(section).toContain('data-inspector-section-glyph');
-    expect(section).toContain('rounded-[10px]');
+    expect(section).toContain('rounded-[8px]');
     expect(section).toContain('data-inspector-section-header');
     expect(section).toContain('data-inspector-section-content');
   });

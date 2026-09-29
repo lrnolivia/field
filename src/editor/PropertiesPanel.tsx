@@ -485,7 +485,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {/* Figma UI3 prioritizes instance-specific controls before generic
             geometry. Keep the component engine unchanged; only move its
             inspector surface to the top of the Design stack. */}
-        {inspectorMode === 'design' && isComponentInstance && (
+        {inspectorMode === 'design' && (isComponentInstance || isCodeComponentInstance) && (
           <div data-inspector-instance-priority>
             <ComponentPropsTool />
           </div>
@@ -593,6 +593,8 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             {positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
             <ToolDivider />
             {isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool />}
+            <ToolDivider />
+            <ExportTool />
           </LocalizeGate>
         ) : isFixedOverlay ? (
           <>
@@ -757,7 +759,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
         {isComponentInstance && isInsideForm && <FormStateTool />}
         {/* Component Props: instances are prioritized directly below the object
             header; non-instance component surfaces retain the legacy location. */}
-        {!isComponentInstance && <ComponentPropsTool />}
+        {!isComponentInstance && !isCodeComponentInstance && <ComponentPropsTool />}
 
         {/* Icon Set (only for icon-set instances — IconSetTool returns
             null when the selected node isn't pointing at an icons/*.tsx file). */}
