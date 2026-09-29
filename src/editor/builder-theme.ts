@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
@@ -17,7 +17,6 @@ import {
 } from '@/shared/builder-themes';
 import { trace } from '@/shared/debug-trace';
 import { normalizeEditorNeutralLevel, normalizeEditorThemeMode } from '@/shared/editor-neutral-theme';
-import { normalizeUiHeadingCase } from '@/shared/ui-heading-case';
 
 const OWNED_VARS = [
   '--accent',
@@ -74,12 +73,12 @@ export function applyEditorChromePreferences(): void {
   const store = getDefaultStore();
   const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
   const level = normalizeEditorNeutralLevel(store.get(editorNeutralLevelAtom));
-  const headingCase = normalizeUiHeadingCase(store.get(uiHeadingCaseAtom));
+  const lowercaseHeadings = store.get(lowercaseHeadingsAtom);
   const root = document.documentElement;
   root.classList.toggle('dark', mode === 'dark');
   root.dataset.themeMode = mode;
   root.dataset.neutralLevel = level;
-  root.dataset.uiHeadingCase = headingCase;
+  root.dataset.lowercaseHeadings = lowercaseHeadings ? 'true' : 'false';
 }
 
 function currentTheme(): BuilderTheme {
@@ -223,12 +222,20 @@ export function subscribeBuilderTheme(): void {
   const storedNeutral = normalizeEditorNeutralLevel(
     migrateNeutralScalePreference(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom)),
   );
-  const storedHeadingCase = normalizeUiHeadingCase(
-    readStoredString('field:prefs:uiHeadingCase') ?? store.get(uiHeadingCaseAtom),
-  );
+  const storedLowercaseHeadingsRaw = readStoredString('field:prefs:lowercaseHeadings');
+  // Compatibility with the short-lived Brand / Original / lowercase selector:
+  // Original meant "do not auto-lowercase"; both other values meant "on".
+  const legacyHeadingCase = readStoredString('field:prefs:uiHeadingCase');
+  const storedLowercaseHeadings = typeof storedLowercaseHeadingsRaw === 'boolean'
+    ? storedLowercaseHeadingsRaw
+    : legacyHeadingCase === 'original'
+      ? false
+      : true;
   if (store.get(editorThemeModeAtom) !== storedMode) store.set(editorThemeModeAtom, storedMode);
   if (store.get(editorNeutralLevelAtom) !== storedNeutral) store.set(editorNeutralLevelAtom, storedNeutral);
-  if (store.get(uiHeadingCaseAtom) !== storedHeadingCase) store.set(uiHeadingCaseAtom, storedHeadingCase);
+  if (store.get(lowercaseHeadingsAtom) !== storedLowercaseHeadings) {
+    store.set(lowercaseHeadingsAtom, storedLowercaseHeadings);
+  }
   applyEditorChromePreferences();
 
   // One-time compatibility migration:
@@ -262,9 +269,9 @@ export function subscribeBuilderTheme(): void {
     trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
   });
 
-  store.sub(uiHeadingCaseAtom, () => {
+  store.sub(lowercaseHeadingsAtom, () => {
     applyEditorChromePreferences();
-    trace.action('ui-heading-case:changed', { value: store.get(uiHeadingCaseAtom) });
+    trace.action('lowercase-headings:changed', { enabled: store.get(lowercaseHeadingsAtom) });
   });
 
   if (observer || typeof MutationObserver === 'undefined') return;
