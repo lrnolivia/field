@@ -354,7 +354,6 @@ select {
 
 [data-properties-panel] [data-inspector-section-content],
 [data-properties-panel] [data-tool-row-value],
-[data-properties-panel] [data-layout-padding] > div:last-child,
 [data-properties-panel] [data-layout-padding-axes],
 [data-properties-panel] [data-layout-padding-sides],
 [data-properties-panel] [data-spacing-axis-pair] {

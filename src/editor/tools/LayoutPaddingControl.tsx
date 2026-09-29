@@ -72,10 +72,51 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
   };
 
   return (
-    <div data-layout-padding data-layout-padding-view={resolvedView} className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full">
-      <ControlLabel label="Padding" property="padding" plain cell />
-      <div className="flex min-w-0 items-start gap-2">
-        <div className="min-w-0 flex-1">
+    <div data-layout-padding data-layout-padding-view={resolvedView} className="flex flex-col gap-2 w-full">
+      <div data-layout-padding-toolbar className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+        <ControlLabel label="Padding" property="padding" plain cell />
+        <div className="flex min-w-0 justify-end">
+          <div className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
+            <button
+              type="button"
+              data-layout-padding-equal
+              aria-pressed={resolvedView === 'equal'}
+              onClick={() => setView('equal')}
+              className={`h-[var(--control-height)] w-6 flex items-center justify-center ${resolvedView === 'equal' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
+              title={allEqual ? 'Equal padding' : 'Edit all padding sides together'}
+              aria-label="Equal padding"
+            >
+              <EqualSidesIcon />
+            </button>
+            <button
+              type="button"
+              data-layout-padding-axis-mode
+              aria-pressed={resolvedView === 'axes'}
+              onClick={() => setView('axes')}
+              className={`h-[var(--control-height)] w-6 flex items-center justify-center border-l border-[var(--control-border)] ${resolvedView === 'axes' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
+              title="Horizontal and vertical padding"
+              aria-label="Horizontal and vertical padding"
+            >
+              <AxisSidesIcon />
+            </button>
+            <button
+              type="button"
+              data-layout-padding-individual
+              aria-pressed={resolvedView === 'sides'}
+              onClick={() => setView('sides')}
+              className={`h-[var(--control-height)] w-6 flex items-center justify-center border-l border-[var(--control-border)] ${resolvedView === 'sides' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
+              title="Individual padding sides"
+              aria-label="Individual padding sides"
+            >
+              <IndividualSidesIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div data-layout-padding-editor className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+        <span aria-hidden />
+        <div className="min-w-0">
           {resolvedView === 'equal' ? (
             <ToolInput
               value={allEqual ? display(sides[0]) : ''}
@@ -96,41 +137,6 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
               ))}
             </div>
           )}
-        </div>
-        <div className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
-          <button
-            type="button"
-            data-layout-padding-equal
-            aria-pressed={resolvedView === 'equal'}
-            onClick={() => setView('equal')}
-            className={`h-[var(--control-height)] w-6 flex items-center justify-center ${resolvedView === 'equal' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
-            title={allEqual ? 'Equal padding' : 'Edit all padding sides together'}
-            aria-label="Equal padding"
-          >
-            <EqualSidesIcon />
-          </button>
-          <button
-            type="button"
-            data-layout-padding-axis-mode
-            aria-pressed={resolvedView === 'axes'}
-            onClick={() => setView('axes')}
-            className={`h-[var(--control-height)] w-6 flex items-center justify-center border-l border-[var(--control-border)] ${resolvedView === 'axes' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
-            title="Horizontal and vertical padding"
-            aria-label="Horizontal and vertical padding"
-          >
-            <AxisSidesIcon />
-          </button>
-          <button
-            type="button"
-            data-layout-padding-individual
-            aria-pressed={resolvedView === 'sides'}
-            onClick={() => setView('sides')}
-            className={`h-[var(--control-height)] w-6 flex items-center justify-center border-l border-[var(--control-border)] ${resolvedView === 'sides' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
-            title="Individual padding sides"
-            aria-label="Individual padding sides"
-          >
-            <IndividualSidesIcon />
-          </button>
         </div>
       </div>
     </div>
