@@ -14,6 +14,10 @@ describe('settings visual hierarchy', () => {
     expect(settings).toContain('data-general-theme-display');
     expect(settings).toContain('aspect-[16/10]');
     expect(settings).toContain('data-general-settings-summary');
+    expect(settings).toContain("activeSection === 'appearance'");
+    expect(settings).toContain("activeSection === 'workspace'");
+    expect(settings).toContain("activeSection === 'canvas'");
+    expect(settings).toContain('data-general-settings-overview');
     expect(settings).toContain('SettingsGroup surface title="Appearance"');
     expect(settings).toContain('SettingsGroup surface title="Workspace"');
     expect(settings).toContain('SettingsGroup surface title="Canvas"');
@@ -36,7 +40,7 @@ describe('settings visual hierarchy', () => {
     expect(block).not.toContain('Site metadata');
     expect(block).not.toContain('Custom code');
     expect(block).not.toContain('Default theme');
-    expect(block).toContain('Lowercase headings');
+    expect(block).toContain('Case management');
     expect(block).toContain('Website preview');
   });
 
