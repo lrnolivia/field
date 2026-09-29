@@ -89,3 +89,15 @@ PR #60 remains draft/unmerged pending final user acceptance.
 User final visual QA: PASS — "it's great! lets go and merge everything."
 
 Merge authorization is explicit for PR #60 at accepted head `01531291174a1ea1a77bba5b740a30e8e66a7d24`. Proceed with final merge/closeout after exact-state sanity.
+
+## 2026-09-29 — merged and complete
+
+PR #60 was marked ready and squash-merged after final user acceptance.
+
+- accepted head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`
+- main merge SHA: `85add9062a67dca2600f333125286e948affb515`
+- accepted tree = merged main tree: `283b4b62d8fae3c85aac9bc247f934c64b27c653`
+- PR state: merged
+- assignment state: complete
+
+No additional implementation work remains in this assignment.

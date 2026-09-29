@@ -1,7 +1,7 @@
 ---
 field_assignment: 1
 id: focus-camera-text-session
-status: active
+status: complete
 branch: field/focus-camera-text-session
 pr: 60
 base: edc43eb951f5077e5e0ea58904f7ab95122e81df
@@ -296,3 +296,19 @@ User accepted Batch 3 and the complete focus-camera/text-session system on 2026-
 
 Final accepted implementation head before merge: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
 The user explicitly authorized merging PR #60 and closing the assignment.
+
+## Merge closeout — COMPLETE
+
+PR #60 was marked ready after final user acceptance and squash-merged into `main`.
+
+Merge evidence:
+- accepted branch head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`
+- accepted branch tree: `283b4b62d8fae3c85aac9bc247f934c64b27c653`
+- squash merge/main SHA: `85add9062a67dca2600f333125286e948affb515`
+- merged main tree: `283b4b62d8fae3c85aac9bc247f934c64b27c653`
+- PR #60 state: merged
+- source parity: exact — merged `main` tree equals the final user-accepted branch tree
+
+The final branch Preview exact-head build had already passed `npm run build:all`, including editor, sandbox, and Preview bundles. No post-merge Cloudflare build for the squash SHA was observed during closeout; because the squash merge produced the exact same tree as the validated branch head, the merged source content is identical to the tested/accepted source.
+
+Assignment complete. Historical assignment/mail/QA records are preserved on `field/control`.
