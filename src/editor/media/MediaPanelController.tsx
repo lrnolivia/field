@@ -248,23 +248,37 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   );
 
   const audioContent = (
-    <div className="space-y-3 p-3 text-[11px] text-[var(--text-primary)]">
-      <label className="block space-y-1.5">
-        <span className="text-[var(--text-secondary)]">Audio URL</span>
-        <input
-          autoFocus
-          type="url"
-          value={audioUrl}
-          onChange={(event) => setAudioUrl(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') addAudio(audioUrl);
-          }}
-          placeholder="https://…"
-          className="h-8 w-full rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-base)] px-2.5 outline-none focus:border-[var(--border-focus)]"
-        />
-      </label>
-      <label className="flex h-16 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
-        {audioBusy ? 'Uploading…' : 'Choose audio file'}
+    <div data-media-audio-picker className="space-y-3 p-3 text-[11px] text-[var(--text-primary)]">
+      <div className="rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-3">
+        <label className="block">
+          <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Audio URL</span>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              autoFocus
+              type="url"
+              value={audioUrl}
+              onChange={(event) => setAudioUrl(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter') addAudio(audioUrl); }}
+              placeholder="https://…"
+              className="h-8 min-w-0 flex-1 rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 outline-none transition-colors hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)]"
+            />
+            <button
+              type="button"
+              disabled={!audioUrl.trim()}
+              onClick={() => addAudio(audioUrl)}
+              className="h-8 rounded-[7px] bg-[var(--accent)] px-3 text-[10px] font-medium text-[var(--accent-fg)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] disabled:opacity-35"
+            >
+              Add
+            </button>
+          </div>
+        </label>
+      </div>
+      <label className={`group flex min-h-[104px] cursor-pointer flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-4 text-center transition-[background-color,border-color,box-shadow] ${audioBusy ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/50 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.05)]'}`}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)]">
+          <svg aria-hidden width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"><path d="M6 11.5V4.25l6-1.25v7"/><circle cx="4.5" cy="11.5" r="1.5"/><circle cx="10.5" cy="10.5" r="1.5"/></svg>
+        </span>
+        <span className="mt-2 text-[10px] font-medium text-[var(--text-primary)]">{audioBusy ? 'Uploading…' : 'Choose audio file'}</span>
+        <span className="mt-1 text-[9px] text-[var(--text-tertiary)]">Upload a local audio asset to this project</span>
         <input
           type="file"
           accept="audio/*"
@@ -275,25 +289,11 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
             const file = input.files?.[0];
             if (!file) return;
             setAudioBusy(true);
-            try {
-              await ingestFile(file);
-            } finally {
-              setAudioBusy(false);
-              input.value = '';
-            }
+            try { await ingestFile(file); }
+            finally { setAudioBusy(false); input.value = ''; }
           }}
         />
       </label>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          disabled={!audioUrl.trim()}
-          onClick={() => addAudio(audioUrl)}
-          className="h-7 rounded-[4px] bg-[var(--accent)] px-2.5 text-[11px] font-medium text-[var(--accent-fg)] disabled:opacity-40"
-        >
-          Add audio
-        </button>
-      </div>
     </div>
   );
 
