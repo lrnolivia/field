@@ -213,6 +213,8 @@ export function updateViewportHeaderPositions(container: HTMLElement): void {
     header.style.height = `${scaledH}px`;
     header.style.padding = `0 ${8 / scale}px`;
     header.style.borderWidth = `${1 / scale}px`;
+    header.style.borderRadius = `${8 / scale}px`;
+    header.style.boxShadow = `0 ${2 / scale}px ${8 / scale}px var(--canvas-chrome-shadow-color)`;
     // Cut corners in CANVAS space: the header lives inside the zoomed
     // transform, so the slice (like every other px here) divides by scale
     // to stay constant on screen. Custom props need setProperty — they
@@ -344,6 +346,8 @@ function createHeader(
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: `0 ${8 / scale}px`, backgroundColor: 'var(--canvas-chrome-bg)',
       border: `${1 / scale}px solid var(--canvas-chrome-border)`,
+      borderRadius: `${8 / scale}px`,
+      boxShadow: `0 ${2 / scale}px ${8 / scale}px var(--canvas-chrome-shadow-color)`,
       userSelect: 'none', pointerEvents: 'auto', cursor: 'grab',
       zIndex: '9999', overflow: 'hidden', boxSizing: 'border-box',
     },

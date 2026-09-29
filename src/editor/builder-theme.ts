@@ -51,6 +51,24 @@ function readStoredString(key: string): unknown {
   }
 }
 
+const NEUTRAL_SCALE_VERSION_KEY = 'field:prefs:neutralScaleVersion';
+
+function migrateNeutralScalePreference(value: unknown): unknown {
+  if (typeof localStorage === 'undefined') return value;
+  try {
+    if (localStorage.getItem(NEUTRAL_SCALE_VERSION_KEY) === '5') return value;
+
+    // Preserve the visual intent of the old 3-step scale when expanding to 5:
+    // old light/default/dark-ish positions become 2/3/4, with new extremes at 1/5.
+    const migrated = value === '1' ? '2' : value === '2' ? '3' : value === '3' ? '4' : value;
+    if (migrated != null) localStorage.setItem('revyme:prefs:neutralLevel', JSON.stringify(migrated));
+    localStorage.setItem(NEUTRAL_SCALE_VERSION_KEY, '5');
+    return migrated;
+  } catch {
+    return value;
+  }
+}
+
 export function applyEditorChromePreferences(): void {
   const store = getDefaultStore();
   const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
@@ -199,7 +217,9 @@ export function subscribeBuilderTheme(): void {
   // Restore editor mode + neutral tone before first paint. atomWithStorage is
   // still the persistence owner; this eager read prevents a Dark/neutral flash.
   const storedMode = normalizeEditorThemeMode(readStoredString('revyme:prefs:themeMode') ?? store.get(editorThemeModeAtom));
-  const storedNeutral = normalizeEditorNeutralLevel(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom));
+  const storedNeutral = normalizeEditorNeutralLevel(
+    migrateNeutralScalePreference(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom)),
+  );
   if (store.get(editorThemeModeAtom) !== storedMode) store.set(editorThemeModeAtom, storedMode);
   if (store.get(editorNeutralLevelAtom) !== storedNeutral) store.set(editorNeutralLevelAtom, storedNeutral);
   applyEditorChromePreferences();
