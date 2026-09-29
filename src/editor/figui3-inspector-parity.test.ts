@@ -28,6 +28,9 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(fill).toContain('serializePaintOpacity');
     expect(stroke).toContain('<PaintRow');
     expect(stroke).toContain('data-inspector-stroke-geometry');
+    expect(stroke).toContain('grid-cols-[72px_minmax(0,1fr)_28px] gap-2');
+    expect(stroke).toContain('chevronLabel="px"');
+    expect(stroke).toContain('ariaLabel="Stroke style"');
   });
 
   it('uses the canonical effect row for regular, filter, backdrop, and text effects', () => {
@@ -38,6 +41,11 @@ describe('FigUI3 Inspector parity contract', () => {
     for (const source of [shadow, filter, backdrop, textShadow]) expect(source).toContain('<EffectRow');
     expect(shadow).toContain('data-effect-editor');
     expect(textShadow).toContain('data-text-effect-editor');
+    expect(filter).toContain('<OptionSection title="Layer blur">');
+    expect(filter).toContain('<OptionSection title="Adjustments" divided>');
+    expect(filter).toContain('<OptionSection title="Color" divided>');
+    expect(filter).toContain('ScalarRow label="Radius"');
+    expect(filter).not.toContain('<OptionSection title="Filter">');
   });
 
   it('uses native SVG paint-opacity attributes and exposes Effects', () => {

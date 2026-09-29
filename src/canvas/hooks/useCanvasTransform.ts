@@ -23,7 +23,6 @@ import {
 } from '../transform';
 import {
   updateViewportHeaderPositions,
-  setViewportHeadersVisible,
   startViewportHeaderTracking,
 } from '../ViewportHeaderManager';
 import { useSetAtom } from 'jotai';
@@ -131,14 +130,14 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     if (vpOverlay) transformManager.addElement(vpOverlay);
 
     // Subscribe for transform updates:
-    // 1. Update viewport header positions
-    // 2. Hide visual helpers during interaction (debounced — show again 100ms after last update)
-    // 3. Forward transform to sandbox iframe
+    // 1. Update viewport header positions continuously — the viewport header is
+    //    persistent canvas chrome and must remain visible while panning/zooming.
+    // 2. Mark camera interaction so node-scoped helpers can suppress themselves.
+    // 3. Forward transform to sandbox iframe.
     let interactTimeout: ReturnType<typeof setTimeout> | null = null;
     const unsub = transformManager.subscribe(() => {
       if (vpOverlay) {
         updateViewportHeaderPositions(vpOverlay);
-        setViewportHeadersVisible(vpOverlay, false);
       }
       setCanvasInteracting(true);
       // …and specifically that the CAMERA is what's moving, so node-scoped
@@ -179,7 +178,6 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
         // The camera has settled either way — an auto-panning drag keeps
         // `canvasInteracting` (above) but the camera itself has stopped.
         cameraMoveOps.set(false);
-        if (vpOverlay) setViewportHeadersVisible(vpOverlay, true);
       }, 100);
     });
 

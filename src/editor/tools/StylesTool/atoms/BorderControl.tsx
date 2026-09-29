@@ -820,6 +820,11 @@ function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
       const top = { ...borderState.top, width, style: width > 0 && borderState.top.style === 'none' ? 'solid' : borderState.top.style };
       writeBorder({ isUniform: true, top, right: { ...top }, bottom: { ...top }, left: { ...top } }, renderMode);
     };
+    const setUniformStyle = (style: string) => {
+      if (isGradient || !borderState.isUniform) return;
+      const top = { ...borderState.top, style };
+      writeBorder({ isUniform: true, top, right: { ...top }, bottom: { ...top }, left: { ...top } }, renderMode);
+    };
     return (
       <>
         <div ref={btnRef} className="w-full min-w-0">
@@ -832,8 +837,23 @@ function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
             opacityLabel="Stroke opacity"
           />
         </div>
-        <div data-inspector-stroke-geometry className="grid grid-cols-[minmax(0,1fr)_28px] gap-1 items-center w-full">
-          <ToolInput value={String(borderState.top.width)} onChange={setUniformWidth} min={0} disabled={isGradient || !borderState.isUniform} ariaLabel="Stroke width" />
+        <div data-inspector-stroke-geometry className="grid grid-cols-[72px_minmax(0,1fr)_28px] gap-2 items-center w-full">
+          <ToolInput
+            value={String(borderState.top.width)}
+            onChange={setUniformWidth}
+            min={0}
+            step={1}
+            chevronLabel="px"
+            disabled={isGradient || !borderState.isUniform}
+            ariaLabel="Stroke width"
+          />
+          <ToolSelect
+            value={borderState.isUniform ? borderState.top.style : 'mixed'}
+            onChange={setUniformStyle}
+            options={borderState.isUniform ? BORDER_STYLE_OPTIONS : [{ value: 'mixed', label: 'Mixed', disabled: true }, ...BORDER_STYLE_OPTIONS]}
+            disabled={isGradient || !borderState.isUniform}
+            ariaLabel="Stroke style"
+          />
           <button type="button" onClick={openEditor} className="h-[var(--control-height)] w-7 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Stroke details" aria-label="Stroke details">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><path d="M4 2v12M12 2v12M2 5h4M10 11h4" /><circle cx="4" cy="5" r="1.5" fill="var(--dropdown-bg)" /><circle cx="12" cy="11" r="1.5" fill="var(--dropdown-bg)" /></svg>
           </button>

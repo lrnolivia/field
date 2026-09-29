@@ -7,6 +7,7 @@ import { useOverriddenLabel } from '../../../controls/label-override-context';
 import { useHoistMenuItem } from '../../../controls/hoist-context';
 import { FilterIcon } from '@/design-system/PropertyIcons';
 import { UnifiedControlProvider, useControlContext } from '../../../controls/unified';
+import { ShowControlLabels } from '../../../controls/unified/useControlContext';
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
@@ -89,22 +90,30 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
 
 
   return (
-    <OptionsPanel>
-      <OptionSection title="Filter">
-        <ScalarRow label="Blur" value={f.blur} min={0} max={40} step={0.5} unit="px"
-          onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
-        <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
-          onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
-        <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
-          onChange={(v) => update({ contrast: v }, false)} onChangeLive={(v) => update({ contrast: v }, true)} onCommit={(v) => update({ contrast: v }, false)} />
-        <ScalarRow label="Saturate" value={f.saturate} min={0} max={200} step={1} unit="%"
-          onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
-        <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
-          onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
-        <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"
-          onChange={(v) => update({ hueRotate: v }, false)} onChangeLive={(v) => update({ hueRotate: v }, true)} onCommit={(v) => update({ hueRotate: v }, false)} />
-      </OptionSection>
-    </OptionsPanel>
+    <ShowControlLabels>
+      <OptionsPanel>
+        <OptionSection title="Layer blur">
+          <ScalarRow label="Radius" value={f.blur} min={0} max={40} step={0.5} unit="px"
+            onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
+        </OptionSection>
+
+        <OptionSection title="Adjustments" divided>
+          <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
+          <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ contrast: v }, false)} onChangeLive={(v) => update({ contrast: v }, true)} onCommit={(v) => update({ contrast: v }, false)} />
+          <ScalarRow label="Saturate" value={f.saturate} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
+        </OptionSection>
+
+        <OptionSection title="Color" divided>
+          <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
+            onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
+          <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"
+            onChange={(v) => update({ hueRotate: v }, false)} onChangeLive={(v) => update({ hueRotate: v }, true)} onCommit={(v) => update({ hueRotate: v }, false)} />
+        </OptionSection>
+      </OptionsPanel>
+    </ShowControlLabels>
   );
 }
 
