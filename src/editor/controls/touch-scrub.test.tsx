@@ -67,7 +67,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     const numberSurface = numeric.container.querySelector('[data-touch-scrub="number"]') as HTMLElement;
     expect(numberSurface.className).toContain('cursor-ns-resize');
     expect(numberSurface.className).not.toContain('cursor-ew-resize');
-    expect(numberSurface).toHaveAttribute('data-field-no-canvas-input');
+    expect(numberSurface.hasAttribute('data-field-no-canvas-input')).toBe(true);
 
     const numberWheel = new WheelEvent('wheel', { deltaY: -24, bubbles: true, cancelable: true });
     numberSurface.dispatchEvent(numberWheel);
@@ -82,7 +82,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     const selectSurface = select.container.querySelector('[data-touch-scrub="select"]') as HTMLElement;
     expect(trigger.className).toContain('cursor-ns-resize');
     expect(selectSurface.className).toContain('cursor-ns-resize');
-    expect(trigger).toHaveAttribute('data-field-no-canvas-input');
+    expect(trigger.hasAttribute('data-field-no-canvas-input')).toBe(true);
 
     const selectWheel = new WheelEvent('wheel', { deltaY: 24, bubbles: true, cancelable: true });
     trigger.dispatchEvent(selectWheel);
@@ -94,7 +94,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     const onChange = vi.fn();
     const { container } = render(<ToolPlusMinus value={5} onChange={onChange} min={0} max={10} step={1} />);
     const stepper = container.querySelector('[data-value-wheel="vertical"]') as HTMLElement;
-    expect(stepper).toHaveAttribute('data-field-no-canvas-input');
+    expect(stepper.hasAttribute('data-field-no-canvas-input')).toBe(true);
     expect(stepper.className).toContain('cursor-ns-resize');
 
     const event = new WheelEvent('wheel', { deltaY: -24, bubbles: true, cancelable: true });

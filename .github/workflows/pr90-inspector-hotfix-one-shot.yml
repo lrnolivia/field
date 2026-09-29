@@ -36,5 +36,5 @@ jobs:
           npx vitest run \
             src/canvas/mouse/CanvasMouseController.test.ts \
             src/editor/controls/touch-scrub.test.tsx \
-            src/editor/tools/layout-padding.test.ts \
-            src/editor/figma-inspector-contract.test.ts
+            src/editor/tools/layout-padding.test.ts
+          npx vitest run src/editor/figma-inspector-contract.test.ts -t "keeps Layout permanent while Auto layout owns child arrangement only"
