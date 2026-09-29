@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import ColorInput from '@/editor/controls/ColorInput';
 import ToolInput from '@/editor/controls/ToolInput';
+import ToolSection from '@/editor/controls/ToolSection';
 import { FigmaReloadIcon } from '@/shared/loew-figma-icons';
 import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
 import { activePageAppearanceAtom, pageAppearanceOps } from '@/code/stores/page-appearance-store';
@@ -34,58 +35,58 @@ export default function PageAppearanceTool() {
 
   return (
     <div data-page-inspector="" className="w-full">
-      <div className="h-10 px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center">
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">Page</span>
-      </div>
-      <div className="px-[var(--panel-inset)] py-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_52px_24px_24px] gap-1 items-center">
-          <div className="h-[var(--control-height)] min-w-0 overflow-hidden rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)]">
-            <ColorInput
-              value={color}
-              onChange={(background) => pageAppearanceOps.patch(filePath, { background, opacity, visible: true })}
-              embedded
+      <ToolSection title="Canvas">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] font-medium text-[var(--text-secondary)]">Background</div>
+          <div className="grid grid-cols-[minmax(0,1fr)_52px_24px_24px] gap-1 items-center">
+            <div className="h-[var(--control-height)] min-w-0 overflow-hidden rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)]">
+              <ColorInput
+                value={color}
+                onChange={(background) => pageAppearanceOps.patch(filePath, { background, opacity, visible: true })}
+                embedded
+              />
+            </div>
+            <ToolInput
+              value={String(opacity)}
+              min={0}
+              max={100}
+              chevronLabel="%"
+              ariaLabel="Page background opacity"
+              onChange={(value) => {
+                const next = Number.parseFloat(value);
+                pageAppearanceOps.patch(filePath, {
+                  background: appearance?.background ?? defaultBackground,
+                  opacity: Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : opacity,
+                });
+              }}
             />
+            <button
+              type="button"
+              className={`h-6 w-6 flex items-center justify-center rounded-[var(--control-radius)] transition-colors ${visible ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]' : 'text-[var(--text-secondary)] bg-[var(--bg-active)]'}`}
+              aria-label={visible ? 'Hide page canvas paint' : 'Show page canvas paint'}
+              title={visible ? 'Hide page canvas paint' : 'Show page canvas paint'}
+              onClick={() => pageAppearanceOps.patch(filePath, { visible: !visible })}
+            >
+              <EyeIcon hidden={!visible} />
+            </button>
+            <button
+              type="button"
+              disabled={!customized}
+              className="h-6 w-6 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-25 disabled:pointer-events-none"
+              aria-label="Reset page canvas to theme default"
+              title="Reset to theme default"
+              onClick={() => pageAppearanceOps.reset(filePath)}
+            >
+              <FigmaReloadIcon size={14} />
+            </button>
           </div>
-          <ToolInput
-            value={String(opacity)}
-            min={0}
-            max={100}
-            chevronLabel="%"
-            ariaLabel="Page background opacity"
-            onChange={(value) => {
-              const next = Number.parseFloat(value);
-              pageAppearanceOps.patch(filePath, {
-                background: appearance?.background ?? defaultBackground,
-                opacity: Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : opacity,
-              });
-            }}
-          />
-          <button
-            type="button"
-            className={`h-6 w-6 flex items-center justify-center rounded-[var(--control-radius)] transition-colors ${visible ? 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]' : 'text-[var(--text-secondary)] bg-[var(--bg-active)]'}`}
-            aria-label={visible ? 'Hide page canvas paint' : 'Show page canvas paint'}
-            title={visible ? 'Hide page canvas paint' : 'Show page canvas paint'}
-            onClick={() => pageAppearanceOps.patch(filePath, { visible: !visible })}
-          >
-            <EyeIcon hidden={!visible} />
-          </button>
-          <button
-            type="button"
-            disabled={!customized}
-            className="h-6 w-6 flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-25 disabled:pointer-events-none"
-            aria-label="Reset page canvas to theme default"
-            title="Reset to theme default"
-            onClick={() => pageAppearanceOps.reset(filePath)}
-          >
-            <FigmaReloadIcon size={14} />
-          </button>
+          {!appearance?.background && (
+            <div className="text-[9px] leading-[12px] text-[var(--text-tertiary)]">
+              Following editor theme
+            </div>
+          )}
         </div>
-        {!appearance?.background && (
-          <div className="mt-1.5 text-[9px] leading-[12px] text-[var(--text-tertiary)]">
-            Following editor theme
-          </div>
-        )}
-      </div>
+      </ToolSection>
     </div>
   );
 }
