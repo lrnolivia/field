@@ -16,7 +16,7 @@ import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
 import { toHexDisplay } from '../../../ui/color-utils';
 import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, InspectorIconButtonGroup } from '../../../controls';
+import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, InspectorIconButtonGroup, ToolRow, ToolInput, ColorInput } from '../../../controls';
 import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
 import { useToolPopup } from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
@@ -59,7 +59,8 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { ColorIcon, GradientIcon, ImageIcon, VideoIcon } from '@/design-system/PropertyIcons';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, type PatternFillConfig, type PatternKind } from '@/editor/ui/pattern-fill-utils';
+import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -294,9 +295,10 @@ function extractUrl(value: string): string | null {
 
 // ─── Single Mode Fill Popup Content ─────────────────────────────────────────
 
-type FillTab = 'color' | 'gradient' | 'image' | 'video';
+type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video';
 
 function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
+  if (node?.attrs?.['data-field-pattern']) return 'pattern';
   // bg-video child on the node = Video tab. This is the new canonical state;
   // the legacy `backgroundVideo` style key was a no-op CSS prop that the parser
   // now strips silently, so we don't check it here.
@@ -322,6 +324,126 @@ const ALPHA_CHECKER_STYLE: React.CSSProperties = {
   backgroundSize: '6px 6px',
   backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0',
 };
+
+function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+  const nodeId = node?.id ?? null;
+  const raw = node?.attrs?.['data-field-pattern'] || '';
+  const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
+
+  useEffect(() => {
+    setConfig(parsePatternFillConfig(raw));
+  }, [nodeId, raw]);
+
+  const applyPattern = useCallback((next: PatternFillConfig) => {
+    setConfig(next);
+    if (!nodeId) return;
+    const compiled = buildPatternFillStyles(next);
+    forSelectionTargets(nodeId, (tid) => {
+      queueMutation({
+        type: 'updateStyles',
+        nodeId: tid,
+        styles: {
+          background: '',
+          backgroundColor: compiled.backgroundColor,
+          backgroundImage: compiled.backgroundImage,
+          backgroundSize: compiled.backgroundSize,
+          backgroundPosition: compiled.backgroundPosition,
+          backgroundRepeat: compiled.backgroundRepeat,
+          backgroundAttachment: '',
+          WebkitMaskImage: compiled.WebkitMaskImage,
+          maskImage: compiled.maskImage,
+        },
+      });
+      queueMutation({
+        type: 'updateHtmlAttrs',
+        nodeId: tid,
+        attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
+      });
+    });
+    trace.action('fill:pattern-applied', { nodeId, kind: next.kind });
+  }, [nodeId]);
+
+  const patch = <K extends keyof PatternFillConfig>(key: K, value: PatternFillConfig[K]) => {
+    applyPattern({ ...config, [key]: value });
+  };
+
+  if (libraryOnly) {
+    return (
+      <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
+        Open-source pattern library is coming in the next batch.
+      </div>
+    );
+  }
+
+  const preview = buildPatternFillStyles(config);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className="w-full h-24 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)]"
+        style={preview as React.CSSProperties}
+        aria-label={`${PATTERN_KIND_OPTIONS.find(o => o.value === config.kind)?.label || 'Pattern'} preview`}
+      />
+
+      <ToolRow label="Pattern" hideCreateVariable>
+        <ToolSelect
+          value={config.kind}
+          onChange={(value) => patch('kind', value as PatternKind)}
+          options={PATTERN_KIND_OPTIONS}
+          ariaLabel="Pattern kind"
+        />
+      </ToolRow>
+
+      <ToolRow label="Color">
+        <ColorInput value={config.color} onChange={(value) => patch('color', value)} showAlpha />
+      </ToolRow>
+
+      <ToolRow label="Background">
+        <ColorInput
+          value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background}
+          onChange={(value) => patch('background', value)}
+          showAlpha
+        />
+      </ToolRow>
+
+      <ToolRow label="Opacity" hideCreateVariable>
+        <ToolInput
+          value={String(Math.round(config.opacity * 100))}
+          onChange={(value) => patch('opacity', Math.max(0, Math.min(100, Number(value) || 0)) / 100)}
+          min={0}
+          max={100}
+          step={1}
+          chevronLabel="%"
+          ariaLabel="Pattern opacity"
+        />
+      </ToolRow>
+
+      <ToolRow label="Tile size" hideCreateVariable>
+        <ToolInput
+          value={String(config.tileSize)}
+          onChange={(value) => patch('tileSize', Math.max(4, Math.min(120, Number(value) || 4)))}
+          min={4}
+          max={120}
+          step={1}
+          chevronLabel="px"
+          ariaLabel="Pattern tile size"
+        />
+      </ToolRow>
+
+      <ToolRow label="Thickness" hideCreateVariable>
+        <ToolInput
+          value={String(config.thickness)}
+          onChange={(value) => patch('thickness', Math.max(0.5, Math.min(12, Number(value) || 0.5)))}
+          min={0.5}
+          max={12}
+          step={0.5}
+          chevronLabel="px"
+          ariaLabel="Pattern thickness"
+        />
+      </ToolRow>
+    </div>
+  );
+}
 
 const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'cover', label: 'Cover' },
@@ -592,16 +714,56 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       if (tab === 'color') onUpdate('backgroundColor', '');
       if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
       if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
+      if (tab === 'pattern') {
+        onUpdate('backgroundColor', '');
+        onUpdate('backgroundImage', '');
+        onUpdate('backgroundSize', '');
+        onUpdate('backgroundPosition', '');
+        onUpdate('backgroundRepeat', '');
+        onUpdate('WebkitMaskImage', '');
+        onUpdate('maskImage', '');
+        if (nodeId) {
+          forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '' } }));
+        }
+      }
       if (tab === 'video' && nodeId) {
         forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
       }
     }
+
+    if (newTab === 'pattern' && nodeId) {
+      const compiled = buildPatternFillStyles(DEFAULT_PATTERN_FILL);
+      forSelectionTargets(nodeId, (tid) => {
+        queueMutation({
+          type: 'updateStyles',
+          nodeId: tid,
+          styles: {
+            background: '',
+            backgroundColor: compiled.backgroundColor,
+            backgroundImage: compiled.backgroundImage,
+            backgroundSize: compiled.backgroundSize,
+            backgroundPosition: compiled.backgroundPosition,
+            backgroundRepeat: compiled.backgroundRepeat,
+            backgroundAttachment: '',
+            WebkitMaskImage: compiled.WebkitMaskImage,
+            maskImage: compiled.maskImage,
+          },
+        });
+        queueMutation({
+          type: 'updateHtmlAttrs',
+          nodeId: tid,
+          attrs: { 'data-field-pattern': serializePatternFillConfig(DEFAULT_PATTERN_FILL) },
+        });
+      });
+    }
+
     setTab(newTab);
   };
 
   const paintTypeButtons = [
     { id: 'color', title: 'Solid', icon: <ColorIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'color', onClick: () => changeFillType('color') },
     { id: 'gradient', title: 'Gradient', icon: <GradientIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'gradient', onClick: () => changeFillType('gradient') },
+    { id: 'pattern', title: 'Pattern', icon: <GridIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'pattern', onClick: () => changeFillType('pattern') },
     { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
     { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
   ];
@@ -704,6 +866,10 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
             onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
           />
         )
+      )}
+
+      {tab === 'pattern' && (
+        <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'image' && (
