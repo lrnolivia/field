@@ -17,7 +17,7 @@ export function AutoHideEyeIcon({ enabled }: { enabled: boolean }) {
   );
 }
 
-const PANE_CONTROL_BASE = 'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[3px] bg-[var(--bg-hover)] p-0 transition-colors';
+const PANE_CONTROL_BASE = 'flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-[var(--bg-hover)] p-0 transition-colors';
 const PANE_CONTROL_NEUTRAL = 'text-[var(--text-secondary)] hover:bg-[var(--text-secondary)] hover:text-[var(--bg-hover)]';
 const PANE_CONTROL_ACTIVE = 'text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--bg-hover)]';
 
