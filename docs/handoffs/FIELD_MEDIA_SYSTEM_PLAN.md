@@ -1,6 +1,55 @@
 # field Media system — implementation plan
 
-Status: approved product direction; implementation started on `field/media-system-foundation`.
+Status: core implementation is integrated on `main`; post-polish hardening is active.
+
+## Implementation status — 2026-09-29
+
+Shipped on `main`:
+
+- one canonical project Media model across toolbar, floating, sidebar, contextual, Content, and canvas ingest surfaces
+- project-scoped Media session/catalog/upload state; project switching cannot leak session Media between projects
+- toolbar Media → anchored launcher → same-shell typed browser → expandable free-standing Media
+- `Insert → Media` remains the dedicated sidebar Media route and is intentionally independent from toolbar Media
+- canonical All / Images / Video / Audio inventory with SVG/vector coverage, shared search, selection, source/sort controls, and durable/session inventory merging
+- shared ingest lifecycle with exact-content session deduplication, upload queue, cancellation, safe retry, duplicate handling, Finder/Desktop drop ingest, and persistent upload tray
+- contextual placement: matching selected image/video/audio = replace source; selected structural container = place inside; otherwise insert
+- async toolbar uploads capture their placement target before upload so later selection changes cannot redirect the result
+- Gallery remains a composition intent, not a Media kind; the wizard supports multi-image selection, dedupe, reorder/remove, layout/behavior steps, transactional rollback, and now preserves the container target captured when the Gallery flow begins
+- contextual Image, Video, Audio, Fill, CMS/content, Gallery, and reusable image-value pickers share the same Media catalog/ingest semantics
+- external/search-picked media become shared session Media references rather than isolated picker-only values
+- Create remains truthfully unavailable where no generation provider exists
+- Preview remains free of field Media editing/upload chrome
+
+Visual polish already merged:
+
+- PR #101 — Media library/viewer polish
+- PR #103 — Media creation, tabs, toolbar popups, upload surfaces, and Gallery wizard polish
+
+Recent hardening commits:
+
+- `79e9b2c` — project-scope Media session/catalog/upload state
+- `986c2dd` — contextual toolbar Media replacement
+- `2ad35b1` — selected-container Media placement through the canonical insertion engine
+- `148b2b9` — preserve Gallery container placement across the multi-step/async creation flow
+
+Upload behavior audit:
+
+- the canonical browser is batch-capable and the global upload tray owns active progress, cancel, retry, dismissal, and completed-collapse behavior
+- toolbar/canvas/browser uploads retain safe retry continuations where the operation can be replayed deterministically
+- contextual Image/Video picker uploads intentionally do not globally replay picker callbacks after those picker contexts close; cancellation remains non-error and successful retry is therefore not allowed to mutate a stale contextual UI
+- one failed browser upload does not halt the remaining batch; duplicate handling remains item/session aware
+
+Architecture guardrails:
+
+- `Insert → Media` is required. Toolbar Media must never become the only Media entry point or hijack the sidebar.
+- PR #107 is still open at this status point; a guardrail comment was added explicitly requiring it to preserve `Insert → Media` while retaining compatible visual polish.
+- the generic `media-gallery` toolbar compatibility panel still exists. Exact repository searches currently return incomplete results, so its callers are not proven dead. Do not delete it until that proof exists.
+
+Validation status:
+
+- focused regression contracts cover sidebar independence, canonical browser routing, upload lifecycle/cancel/retry, project isolation, contextual placement, Gallery transaction rollback, and the preserved Gallery container target
+- this Composio session has not executed the repository build or Vitest suite; do not treat committed tests as executed validation evidence
+
 
 ## Product rule
 
