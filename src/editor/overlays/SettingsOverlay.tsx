@@ -1206,7 +1206,6 @@ export default function SettingsOverlay() {
               <div className="relative">
                 <button
                   onClick={() => setMobileNavOpen((p) => !p)}
-                  data-ui-heading={activeLabel ? getUiHeadingRole(activeLabel) : 'brand'}
                   className="flex items-center gap-1.5 text-base font-semibold text-[var(--text-primary)] cursor-pointer"
                 >
                   {activeLabel ? <UiHeadingText>{activeLabel}</UiHeadingText> : null}

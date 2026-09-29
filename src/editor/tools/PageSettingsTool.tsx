@@ -339,7 +339,7 @@ export default function PageSettingsTool() {
       <ToolDivider />
 
       <ToolSection title="Social" defaultOpen={false}>
-        <div data-ui-heading="brand" className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Open Graph</UiHeadingText></div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Open Graph</UiHeadingText></div>
         <PageSettingField label="Title">
           <ToolInput
             value={form.ogTitle}
