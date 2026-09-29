@@ -7,9 +7,6 @@ export type ToolbarPanel =
   | { kind: 'library'; section: LibrarySection }
   | { kind: 'insert'; category: string; section?: string; categoryData?: InsertCategory }
   | { kind: 'media'; route?: MediaRoute; intent?: MediaIntent }
-  | { kind: 'media-gallery' }
-  | { kind: 'media-picker'; media: 'image' | 'video' }
-  | { kind: 'gallery-picker' }
-  | { kind: 'audio-picker' };
+  | { kind: 'media-gallery' };
 
 export const toolbarPanelAtom = atom<ToolbarPanel | null>(null);
