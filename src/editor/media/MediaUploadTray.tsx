@@ -78,7 +78,7 @@ export default function MediaUploadTray() {
     return (
       <div
         data-media-upload-tray="collapsed"
-        className="fixed bottom-[72px] right-4 z-[14970] flex items-center gap-1.5 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1.5 text-[10px] text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
+        className="fixed bottom-[72px] right-4 z-[14970] flex items-center gap-1.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2.5 py-2 text-[10px] text-[var(--text-secondary)] shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
         aria-live="polite"
       >
         <button
@@ -111,9 +111,9 @@ export default function MediaUploadTray() {
       data-media-upload-tray="expanded"
       aria-label="Media uploads"
       aria-live="polite"
-      className="fixed bottom-[72px] right-4 z-[14970] w-[320px] overflow-hidden rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]"
+      className="fixed bottom-[72px] right-4 z-[14970] w-[320px] overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[0_14px_36px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)]"
     >
-      <header className="flex h-8 items-center gap-2 border-b border-[var(--border-light)] px-2">
+      <header className="flex h-9 items-center gap-2 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
         <strong className="min-w-0 flex-1 truncate text-[10px] font-semibold text-[var(--text-primary)]">
           {activeCount > 0 ? 'Uploading ' + activeCount : errorCount > 0 ? 'Media uploads' : 'Uploads complete'}
         </strong>
@@ -136,10 +136,10 @@ export default function MediaUploadTray() {
               key={item.id}
               data-media-upload-row
               data-status={item.status}
-              className="relative flex min-h-11 items-center gap-2 border-b border-[var(--border-light)] px-2 py-1.5 last:border-b-0"
+              className="relative flex min-h-12 items-center gap-2.5 border-b border-[var(--border-light)] px-2.5 py-2 last:border-b-0"
             >
               <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] text-[11px] text-[var(--text-secondary)]"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[11px] text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
                 aria-hidden
               >
                 {kindGlyph(item)}

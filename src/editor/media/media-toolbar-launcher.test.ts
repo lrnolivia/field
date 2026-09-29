@@ -15,12 +15,16 @@ describe('toolbar Media launcher contract', () => {
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
     const popover = read('src/editor/media/MediaToolbarPopover.tsx');
     expect(popover).toContain('data-toolbar-tool="media"');
-    expect(popover).toContain('requestedWidth = expanded ? 760 : compact ? 224 : 480');
+    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 480');
     expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
     expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
     expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
     expect(popover).not.toContain('ModalCloseButton');
     expect(popover).not.toContain('>Expand</button>');
+    const launcher = read('src/editor/media/MediaLauncher.tsx');
+    expect(launcher).toContain('data-media-launcher-featured');
+    expect(launcher).toContain('Browse media');
+    expect(launcher).toContain('grid grid-cols-2 gap-1.5');
   });
 
   it('expands the same Media shell without swapping to a second modal', () => {

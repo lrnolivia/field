@@ -229,10 +229,10 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
       // Selected: border snaps to accent with NO transition — with the base
       // white border + `transition-colors`, every tile joining the selection
       // flashed white→blue under the instant outline (the reported fringe).
-      className={`group relative aspect-square overflow-hidden rounded-[4px] border cursor-grab active:cursor-grabbing ${
+      className={`group relative aspect-[4/3] overflow-hidden rounded-[7px] border bg-[var(--bg-hover)]/35 cursor-grab shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:cursor-grabbing ${
         isSelected
           ? 'border-[var(--accent)] transition-none'
-          : 'border-[var(--border-light)] hover:border-[var(--control-border-hover)] transition-colors'
+          : 'border-[var(--border-light)] transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-[var(--control-border-hover)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.09)]'
       }`}
       style={isSelected ? MULTI_SELECT_OUTLINE : undefined}
       title="Drag to canvas"
@@ -241,13 +241,25 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
         <img
           src={url}
           alt=""
-          className="w-full h-full object-cover pointer-events-none"
+          className="w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]"
           loading="lazy"
           draggable={false}
           onLoad={(event) => rememberMediaImageRatio(url, event.currentTarget)}
         />
       ) : (
-        <video src={url} className="w-full h-full object-cover pointer-events-none" muted />
+        <video src={url} className="w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]" muted />
+      )}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/28 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      {kind === 'video' && (
+        <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex h-5 items-center gap-1 rounded-full border border-white/15 bg-black/45 px-1.5 text-[8px] font-medium text-white/90 backdrop-blur-[2px]">
+          <span aria-hidden>▶</span>
+          Video
+        </span>
+      )}
+      {isSelected && (
+        <span className="pointer-events-none absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-bold text-[var(--accent-fg)] shadow-sm">
+          ✓
+        </span>
       )}
       {/* Selected: light accent wash over the artwork so membership reads at
           a glance (the outline alone was easy to miss between busy thumbs). */}
@@ -265,7 +277,7 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
           aria-label="Delete asset"
           onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
           onClick={(e) => { e.stopPropagation(); onRequestDelete(mediaKey); }}
-          className="absolute top-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity cursor-pointer"
+          className="absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white opacity-0 shadow-sm backdrop-blur-[2px] transition-opacity hover:bg-black/75 group-hover:opacity-100 cursor-pointer"
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
             <path d="M6 6l12 12" />
@@ -802,13 +814,13 @@ export default function MediaGalleryPanel({
       )}
 
       {/* Tabs */}
-      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2'}`}>
+      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2.5'}`}>
         <ToolSegmentedControl value={tab} onChange={(value) => setTab(value as MediaGalleryTab)} options={TAB_OPTIONS} />
       </div>
 
       {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}
       <div className="px-3 mt-2">
-        <div className="flex items-center gap-1.5">
+        <div data-media-browser-commandbar className="flex items-center gap-1.5">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -827,7 +839,7 @@ export default function MediaGalleryPanel({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[10px] font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50"
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
               <path d="M8 11V3M5 6l3-3 3 3" />
@@ -879,14 +891,14 @@ export default function MediaGalleryPanel({
       {workspace && (
         <div
           data-media-workspace-controls
-          className="mt-2 flex items-center gap-1.5 px-3"
+          className="mt-2.5 flex items-center gap-2 border-y border-[var(--border-light)] bg-[var(--bg-surface)]/24 px-3 py-2"
         >
           <label className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">Source</span>
             <select
               value={sourceFilter}
               onChange={(event) => setSourceFilter(event.target.value as 'all' | 'upload' | 'external')}
-              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+              className="h-7 min-w-0 flex-1 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[10px] text-[var(--text-primary)] outline-none transition-colors hover:border-[var(--control-border-hover)]"
             >
               <option value="all">All</option>
               <option value="upload">Uploaded</option>
@@ -899,7 +911,7 @@ export default function MediaGalleryPanel({
             <select
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value as 'newest' | 'oldest' | 'name')}
-              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+              className="h-7 min-w-0 flex-1 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2 text-[10px] text-[var(--text-primary)] outline-none transition-colors hover:border-[var(--control-border-hover)]"
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
@@ -912,11 +924,11 @@ export default function MediaGalleryPanel({
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
         <div className="flex min-h-0 flex-1">
-          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-3">
+          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-3.5">
           {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
-              className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2 py-1.5"
+              className="sticky top-0 z-20 mb-2.5 flex items-center justify-between gap-2 rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-panel)]/95 px-2.5 py-2 shadow-[0_3px_12px_rgba(0,0,0,0.07)] backdrop-blur-md"
             >
               <span className="min-w-0 truncate text-[10px] tabular-nums text-[var(--text-secondary)]">
                 {selectedImageUrls.length} images selected
@@ -924,7 +936,7 @@ export default function MediaGalleryPanel({
               <div
                 data-media-gallery-drag
                 onPointerDown={beginGallerySelectionDrag}
-                className="shrink-0 h-7 px-2 flex items-center gap-1.5 border border-[var(--control-border)] text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-grab active:cursor-grabbing select-none"
+                className="shrink-0 flex h-7 items-center gap-1.5 rounded-[5px] border border-[var(--control-border)] px-2 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-grab active:cursor-grabbing select-none"
                 title={`Drag ${selectedImageUrls.length} selected images to Canvas as one Gallery`}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true">
@@ -937,7 +949,7 @@ export default function MediaGalleryPanel({
               </div>
             </div>
           )}
-          <div className={workspace ? "grid grid-cols-4 gap-2" : "grid grid-cols-2 gap-2"}>
+          <div data-media-grid className={workspace ? "grid grid-cols-3 gap-2.5" : "grid grid-cols-2 gap-2.5"}>
             {filteredUploads.map((item, i) => (
               <MediaTile
                 key={item.url + i}
@@ -959,62 +971,76 @@ export default function MediaGalleryPanel({
           {workspace && (
             <aside
               data-media-details
-              className="w-[220px] shrink-0 border-l border-[var(--border-light)] bg-[var(--bg-panel)]"
+              className="w-[274px] shrink-0 border-l border-[var(--border-light)] bg-[var(--bg-surface)]/32"
             >
               {inspectedAsset ? (
-                <div className="p-3">
-                  <div className="aspect-[4/3] overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)]">
-                    {inspectedAsset.kind === 'image' ? (
-                      <img src={inspectedAsset.url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <video src={inspectedAsset.url} className="h-full w-full object-cover" muted />
-                    )}
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="border-b border-[var(--border-light)] p-3">
+                    <div
+                      data-media-viewer-stage
+                      className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.015)]"
+                    >
+                      <div className="pointer-events-none absolute inset-0 opacity-[0.25]" style={{
+                        backgroundImage: 'linear-gradient(45deg,var(--bg-hover) 25%,transparent 25%),linear-gradient(-45deg,var(--bg-hover) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--bg-hover) 75%),linear-gradient(-45deg,transparent 75%,var(--bg-hover) 75%)',
+                        backgroundSize: '14px 14px',
+                        backgroundPosition: '0 0,0 7px,7px -7px,-7px 0px',
+                      }} />
+                      {inspectedAsset.kind === 'image' ? (
+                        <img src={inspectedAsset.url} alt="" className="relative z-[1] max-h-full max-w-full object-contain p-2" />
+                      ) : (
+                        <video src={inspectedAsset.url} className="relative z-[1] max-h-full max-w-full object-contain" muted />
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-3 space-y-2 text-[10px]">
-                    <div>
-                      <div className="text-[var(--text-tertiary)]">Filename</div>
-                      <div className="mt-0.5 break-all text-[var(--text-primary)]">{mediaDisplayName(inspectedAsset)}</div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-[var(--text-tertiary)]">Type</div>
-                        <div className="mt-0.5 capitalize text-[var(--text-primary)]">{inspectedAsset.kind}</div>
-                      </div>
-                      <div>
-                        <div className="text-[var(--text-tertiary)]">File size</div>
-                        <div className="mt-0.5 text-[var(--text-primary)]">{formatMediaBytes(inspectedAsset.size)}</div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                    <div className="min-w-0">
+                      <div className="break-words text-[11px] font-semibold leading-4 text-[var(--text-primary)]">{mediaDisplayName(inspectedAsset)}</div>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <span className="rounded-full border border-[var(--border-light)] bg-[var(--bg-hover)]/45 px-1.5 py-0.5 text-[8px] capitalize text-[var(--text-secondary)]">{inspectedAsset.kind}</span>
+                        <span className="rounded-full border border-[var(--border-light)] bg-[var(--bg-hover)]/45 px-1.5 py-0.5 text-[8px] text-[var(--text-secondary)]">{formatMediaBytes(inspectedAsset.size)}</span>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[var(--text-tertiary)]">Source</div>
-                      <div className="mt-0.5 text-[var(--text-primary)]">
+
+                    <dl className="mt-4 grid grid-cols-[70px_minmax(0,1fr)] gap-x-2 gap-y-2.5 text-[9px]">
+                      <dt className="text-[var(--text-tertiary)]">File size</dt>
+                      <dd className="text-right text-[var(--text-primary)]">{formatMediaBytes(inspectedAsset.size)}</dd>
+                      <dt className="text-[var(--text-tertiary)]">Source</dt>
+                      <dd className="text-right text-[var(--text-primary)]">
                         {inspectedAsset.source === 'external'
                           ? 'External'
                           : inspectedAsset.source === 'upload'
                             ? 'Uploaded'
                             : durableInventory === true ? 'Project media' : 'Session'}
-                      </div>
-                    </div>
-                    {inspectedAsset.lastModified && (
-                      <div>
-                        <div className="text-[var(--text-tertiary)]">Modified</div>
-                        <div className="mt-0.5 text-[var(--text-primary)]">{inspectedAsset.lastModified}</div>
-                      </div>
-                    )}
+                      </dd>
+                      {inspectedAsset.lastModified && (
+                        <>
+                          <dt className="text-[var(--text-tertiary)]">Modified</dt>
+                          <dd className="break-words text-right text-[var(--text-primary)]">{inspectedAsset.lastModified}</dd>
+                        </>
+                      )}
+                      <dt className="text-[var(--text-tertiary)]">Filename</dt>
+                      <dd className="break-all text-right text-[var(--text-primary)]">{mediaDisplayName(inspectedAsset)}</dd>
+                    </dl>
                   </div>
+
                   {durableInventory === true && inspectedAsset.key && (
-                    <button
-                      type="button"
-                      onClick={() => requestDelete(inspectedAsset.key!)}
-                      className="mt-3 h-7 w-full rounded-[4px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-red-500"
-                    >
-                      Delete asset
-                    </button>
+                    <div className="border-t border-[var(--border-light)] p-3">
+                      <button
+                        type="button"
+                        onClick={() => requestDelete(inspectedAsset.key!)}
+                        className="h-7 w-full rounded-[6px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] transition-colors hover:border-red-500/30 hover:bg-red-500/[0.06] hover:text-red-500"
+                      >
+                        Delete asset
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
-                <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center text-[10px] text-[var(--text-tertiary)]">
-                  Select media to inspect
+                <div className="flex h-full min-h-[260px] flex-col items-center justify-center px-5 text-center">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[13px] text-[var(--text-tertiary)]" aria-hidden>▦</span>
+                  <div className="mt-3 text-[10px] font-medium text-[var(--text-secondary)]">Select media to inspect</div>
+                  <div className="mt-1 max-w-[160px] text-[9px] leading-4 text-[var(--text-disabled)]">Choose an asset to preview it at full fit and review its file details.</div>
                 </div>
               )}
             </aside>
@@ -1033,7 +1059,7 @@ export default function MediaGalleryPanel({
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] animate-pulse"
+                className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/65 animate-pulse"
                 style={{ animationDelay: `${i * 90}ms` }}
               />
             ))}
@@ -1041,7 +1067,10 @@ export default function MediaGalleryPanel({
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
-          <span className="flex h-7 w-7 items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[13px] text-[var(--text-tertiary)]" aria-hidden>▦</span>
+          <span className="relative flex h-11 w-14 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 text-[13px] text-[var(--text-tertiary)] shadow-[0_2px_8px_rgba(0,0,0,0.04)]" aria-hidden>
+            <span className="absolute left-2 top-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/55" />
+            <span className="absolute bottom-2 right-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--accent)] opacity-[0.12]" />
+          </span>
           <div>
             <p className="text-[11px] font-medium text-[var(--text-secondary)]">No {tab === 'all' ? 'media' : tab} yet</p>
             <p className="mt-0.5 text-[10px] text-[var(--text-disabled)]">Drop files here or add them from your computer.</p>
@@ -1049,7 +1078,7 @@ export default function MediaGalleryPanel({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="mt-1 h-7 rounded-[4px] border border-[var(--control-border)] px-2 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            className="mt-1 h-7 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-[var(--control-bg-hover)]"
           >
             Add media
           </button>

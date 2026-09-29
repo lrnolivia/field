@@ -13,8 +13,9 @@ describe('Media upload tray', () => {
   it('uses the approved compact lower-right queue instead of a success modal', () => {
     const tray = read('src/editor/media/MediaUploadTray.tsx');
     expect(tray).toContain('w-[320px]');
+    expect(tray).toContain('rounded-[10px]');
     expect(tray).toContain('bottom-[72px] right-4');
-    expect(tray).toContain('min-h-11');
+    expect(tray).toContain('min-h-12');
     expect(tray).toContain('h-[2px]');
     expect(tray).toContain('1400');
     expect(tray).toContain('aria-live="polite"');
