@@ -101,6 +101,10 @@ function restoreProtectedNames(value: string, protectedValues: string[]): string
 
 function sentenceCase(value: string): string {
   const lower = value.toLowerCase();
+  // If a protected product/technical token leads the label (SEO, AI,
+  // GitHub, field.RUNTIME), it already supplies the intentional initial
+  // casing. Do not promote the following editorial word to title case.
+  if (/^§\d+§/.test(lower)) return lower;
   return lower.replace(/[a-z]/, (letter) => letter.toUpperCase());
 }
 
