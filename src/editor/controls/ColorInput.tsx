@@ -244,7 +244,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           title="Color"
           ariaLabel="Paint picker"
           anchorRef={btnRef}
-          width={480}
+          width={360}
           hideHeader
           showNestedHeaderWhenHidden
           radius={14}
