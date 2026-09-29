@@ -14,6 +14,10 @@ describe('settings visual hierarchy', () => {
     expect(settings).toContain('data-general-theme-display');
     expect(settings).toContain('aspect-[16/10]');
     expect(settings).toContain('data-general-settings-summary');
+    expect(settings).toContain("activeSection === 'appearance'");
+    expect(settings).toContain("activeSection === 'workspace'");
+    expect(settings).toContain("activeSection === 'canvas'");
+    expect(settings).toContain('data-general-settings-overview');
     expect(settings).toContain('SettingsGroup surface title="Appearance"');
     expect(settings).toContain('SettingsGroup surface title="Workspace"');
     expect(settings).toContain('SettingsGroup surface title="Canvas"');

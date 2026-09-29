@@ -114,6 +114,27 @@ const ChevronDownIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+const AppearanceSettingsIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3.25" />
+    <path d="M12 2.75v2.1M12 19.15v2.1M2.75 12h2.1M19.15 12h2.1M5.45 5.45l1.5 1.5M17.05 17.05l1.5 1.5M18.55 5.45l-1.5 1.5M6.95 17.05l-1.5 1.5" />
+  </svg>
+);
+
+const WorkspaceSettingsIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M8 4v16M16 4v16" />
+  </svg>
+);
+
+const CanvasSettingsIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3" />
+    <rect x="8" y="8" width="8" height="8" rx="1.5" />
+  </svg>
+);
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 /** Minimal slice of an A/B test row the sidebar needs — `id` + `name`
@@ -158,6 +179,9 @@ export function buildMenuCategories(
   const result: Array<{ title: string; items: MenuItem[] }> = [
     { title: 'General', items: [
       { id: 'website', label: 'General', icon: SettingsWebsiteIcon },
+      { id: 'appearance', label: 'Appearance', icon: AppearanceSettingsIcon },
+      { id: 'workspace', label: 'Workspace', icon: WorkspaceSettingsIcon },
+      { id: 'canvas', label: 'Canvas', icon: CanvasSettingsIcon },
       { id: 'localization', label: 'Localization', icon: GlobeInternationalIcon },
     ] },
   ];
@@ -912,24 +936,84 @@ export default function SettingsOverlay() {
     if (activeSection === 'website') {
       return (
         <div data-general-settings className="space-y-5">
-          <header className="flex flex-col gap-4 border-b border-[var(--border-light)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
-              <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
-                Personalize how field looks, behaves, and arranges itself. These preferences follow you across projects.
-              </p>
-            </div>
-            <div
-              data-general-settings-summary
-              className="flex w-fit items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/25 px-2.5 py-1.5 text-[10px] text-[var(--text-secondary)]"
+          <header className="border-b border-[var(--border-light)] pb-5">
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
+            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+              The essentials at a glance. Appearance, workspace, and canvas preferences each have their own settings page.
+            </p>
+          </header>
+
+          <div data-general-settings-overview className="grid gap-3 md:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => setActiveSection('appearance')}
+              className="group min-w-0 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-3.5 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
             >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAccent }} />
-              <span>{editorThemeMode === 'dark' ? 'Dark' : 'Light'}</span>
-              <span className="text-[var(--text-disabled)]">·</span>
-              <span>{activeBuilderTheme.label}</span>
-              <span className="text-[var(--text-disabled)]">·</span>
-              <span>{workspaceLabel}</span>
-            </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]">
+                  <AppearanceSettingsIcon className="h-4 w-4" />
+                </span>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAccent }} />
+              </div>
+              <div className="mt-3 text-[12px] font-semibold text-[var(--text-primary)]"><UiHeadingText>Appearance</UiHeadingText></div>
+              <div className="mt-1 text-[10px] leading-4 text-[var(--text-tertiary)]">
+                {editorThemeMode === 'dark' ? 'Dark' : 'Light'} · {activeBuilderTheme.label} · Neutral {editorNeutralLevel}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('workspace')}
+              className="group min-w-0 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-3.5 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]">
+                <WorkspaceSettingsIcon className="h-4 w-4" />
+              </span>
+              <div className="mt-3 text-[12px] font-semibold text-[var(--text-primary)]"><UiHeadingText>Workspace</UiHeadingText></div>
+              <div className="mt-1 text-[10px] leading-4 text-[var(--text-tertiary)]">
+                {workspaceLabel} layout · {workspaceAutoHide ? 'left auto-hide' : 'left pinned'} · {rightInspectorAutoHide ? 'Inspector auto-hide' : 'Inspector pinned'}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('canvas')}
+              className="group min-w-0 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-3.5 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]">
+                <CanvasSettingsIcon className="h-4 w-4" />
+              </span>
+              <div className="mt-3 text-[12px] font-semibold text-[var(--text-primary)]"><UiHeadingText>Canvas</UiHeadingText></div>
+              <div className="mt-1 text-[10px] leading-4 text-[var(--text-tertiary)]">
+                {showRulers ? 'Rulers on' : 'Rulers off'} · {showPixelGrid ? 'pixel grid on' : 'pixel grid off'} · {autoPanSpeed} auto-pan
+              </div>
+            </button>
+          </div>
+
+          <SettingsGroup surface title="Quick preferences">
+            <SettingsRow label="Case management" align="top">
+              <div className="flex items-start justify-between gap-4 py-0.5">
+                <p className="max-w-lg text-xs leading-relaxed text-[var(--text-tertiary)]">
+                  Apply loew.fi casing across eligible field chrome while preserving technical terms.
+                </p>
+                <div className="shrink-0 pt-0.5">
+                  <Toggle value={caseManagement} onChange={setCaseManagement} />
+                </div>
+              </div>
+            </SettingsRow>
+          </SettingsGroup>
+        </div>
+      );
+    }
+
+    if (activeSection === 'appearance') {
+      return (
+        <div data-appearance-settings className="space-y-5">
+          <header className="border-b border-[var(--border-light)] pb-5">
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>Appearance</UiHeadingText></h1>
+            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+              Tune field’s editor chrome and how existing site themes are viewed in Canvas and Preview.
+            </p>
           </header>
 
           <SettingsGroup surface title="Appearance">
@@ -1067,17 +1151,21 @@ export default function SettingsOverlay() {
               </div>
             </SettingsRow>
 
-            <SettingsRow label="Case management" align="top">
-              <div className="flex items-start justify-between gap-4 py-0.5">
-                <p className="max-w-lg text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Apply loew.fi casing across eligible field chrome while preserving technical terms. Turn it off to leave authored UI case untouched.
-                </p>
-                <div className="shrink-0 pt-0.5">
-                  <Toggle value={caseManagement} onChange={setCaseManagement} />
-                </div>
-              </div>
-            </SettingsRow>
+
           </SettingsGroup>
+        </div>
+      );
+    }
+
+    if (activeSection === 'workspace') {
+      return (
+        <div data-workspace-settings className="space-y-5">
+          <header className="border-b border-[var(--border-light)] pb-5">
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>Workspace</UiHeadingText></h1>
+            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+              Choose how field’s panels occupy the editor and how much canvas they leave visible.
+            </p>
+          </header>
 
           <SettingsGroup surface title="Workspace">
             <SettingsRow label="Layout" align="top">
@@ -1154,6 +1242,19 @@ export default function SettingsOverlay() {
               </div>
             </SettingsRow>
           </SettingsGroup>
+        </div>
+      );
+    }
+
+    if (activeSection === 'canvas') {
+      return (
+        <div data-canvas-settings className="space-y-5">
+          <header className="border-b border-[var(--border-light)] pb-5">
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>Canvas</UiHeadingText></h1>
+            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+              Control selection assistance, guides, zoom behavior, and edge panning while designing.
+            </p>
+          </header>
 
           <SettingsGroup surface title="Canvas">
             <SettingsRow label="Selection">
@@ -1487,7 +1588,7 @@ export default function SettingsOverlay() {
             <div className="flex-1 min-h-0">{renderContent()}</div>
           ) : (
             <div className={`flex-1 overflow-y-auto overscroll-contain ${isMobile ? 'px-4 py-5' : activeSection === 'website' ? 'px-12 py-10' : 'px-10 py-8'}`}>
-              <div className={`mx-auto ${activeSection === 'website' ? 'max-w-[920px]' : 'max-w-4xl'}`}>
+              <div className={`mx-auto ${['website', 'appearance', 'workspace', 'canvas'].includes(activeSection) ? 'max-w-[920px]' : 'max-w-4xl'}`}>
                 {renderContent()}
               </div>
             </div>
