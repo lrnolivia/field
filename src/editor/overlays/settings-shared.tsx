@@ -43,24 +43,32 @@ export function SettingsGroup({
   title,
   action,
   children,
+  surface = false,
 }: {
   title?: string;
   action?: ReactNode;
   children: ReactNode;
+  /** Give a page-level settings group a restrained field-native surface.
+   *  Used by General Settings; plugin/dashboard sections can stay borderless. */
+  surface?: boolean;
 }) {
   return (
-    <section>
+    <section
+      className={surface
+        ? 'overflow-hidden cut-corners cut-lg cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/10'
+        : undefined}
+    >
       {(title || action) && (
-        <div className="flex items-center justify-between px-3 py-3">
+        <div className={`flex items-center justify-between ${surface ? 'px-4 py-2.5 border-b border-[var(--border-light)]' : 'px-3 py-3'}`}>
           {title ? (
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
+            <h3 className={`${surface ? 'text-xs' : 'text-sm'} font-semibold text-[var(--text-primary)]`}>{title}</h3>
           ) : (
             <span />
           )}
           {action}
         </div>
       )}
-      <div className="divide-y divide-[var(--border-light)]">{children}</div>
+      <div className={`divide-y divide-[var(--border-light)] ${surface ? 'bg-[var(--bg-surface)]/45' : ''}`}>{children}</div>
     </section>
   );
 }
@@ -198,7 +206,7 @@ export function RowButton({
       onClick={onClick}
       disabled={disabled || loading}
       title={title}
-      className={`inline-flex items-center justify-center gap-1.5 px-3 h-[30px] rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${tint}`}
+      className={`inline-flex items-center justify-center gap-1.5 px-2.5 h-7 cut-corners cut-border border border-[var(--control-border)] [--cut-border-color:var(--control-border)] text-[11px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${tint}`}
     >
       {loading ? <SettingsSpinner /> : children}
     </button>

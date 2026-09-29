@@ -734,16 +734,17 @@ export default function SettingsOverlay() {
     // Website section is inline (uses parent state: websiteSettings atom, mutation queue)
     if (activeSection === 'website') {
       return (
-        <div className="space-y-8">
-          <header className="pb-1">
-            <h1 className="text-lg font-semibold text-[var(--text-primary)]">General</h1>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-              Project-wide defaults, branding, and site metadata.
+        <div className="space-y-5">
+          <header className="pb-4 border-b border-[var(--border-light)]">
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]">General</h1>
+            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+              Project-wide defaults for identity, branding, appearance, and site behavior.
             </p>
           </header>
 
           {/* ─── Site metadata ─── */}
           <SettingsGroup
+            surface
             title="Site metadata"
             action={
               <SaveButton
@@ -785,15 +786,15 @@ export default function SettingsOverlay() {
             </SettingsRow>
 
             <SettingsRow label="Search preview" align="top" interactive={false}>
-              <div className="flex flex-col gap-0.5 py-1">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-                  <span>{subdomain ? `${subdomain}.revyme.app` : 'yoursite.revyme.app'}</span>
+              <div className="cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
+                  <span className="truncate">{subdomain ? `${subdomain}.revyme.app` : 'yoursite.revyme.app'}</span>
                   <MoreVerticalIcon />
                 </div>
-                <div className="text-base text-[#8ab4f8] font-normal leading-tight">
+                <div className="mt-1 text-[14px] text-[#8ab4f8] font-medium leading-tight truncate">
                   {siteName || 'My Website'}
                 </div>
-                <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-4 max-w-2xl">
                   {siteDescription || 'Made with Revyme'}
                 </div>
               </div>
@@ -801,7 +802,7 @@ export default function SettingsOverlay() {
           </SettingsGroup>
 
           {/* ─── Branding ─── */}
-          <SettingsGroup title="Branding">
+          <SettingsGroup surface title="Branding">
             <input
               ref={faviconLightInputRef}
               type="file"
@@ -906,6 +907,7 @@ export default function SettingsOverlay() {
 
           {/* ─── Appearance ─── */}
           <SettingsGroup
+            surface
             title="Appearance"
             action={
               <SaveButton onClick={handleSaveTheme} saving={false} dirty={hasThemeChanges} />
@@ -932,6 +934,7 @@ export default function SettingsOverlay() {
 
           {/* ─── Custom code ─── */}
           <SettingsGroup
+            surface
             title="Custom code"
             action={
               <SaveButton
@@ -1061,17 +1064,17 @@ export default function SettingsOverlay() {
         {/* Sidebar -- desktop only */}
         {!isMobile && (
           <div
-            className="w-60 border-r border-[var(--control-border)] flex flex-col overflow-y-auto overscroll-contain shrink-0"
+            className="w-[224px] border-r border-[var(--control-border)] flex flex-col overflow-y-auto overscroll-contain shrink-0"
             style={{ backgroundColor: 'var(--bg-surface)' }}
           >
-            <nav className="flex-1 px-3 py-8 space-y-5">
+            <nav className="flex-1 px-2.5 py-5 space-y-4">
               {menuCategories.map((category, index) => (
                 <div key={index}>
                   {/* Category title — matches the property-panel ToolSection
                       header style (text-xs font-bold, primary color, mixed
                       case) so the settings sidebar and the right tool panel
                       read as the same visual language. */}
-                  <div className="px-3 mb-1.5 text-xs font-bold text-[var(--text-primary)]">
+                  <div className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
                     {category.title}
                   </div>
                   <div className="space-y-0.5">
@@ -1101,7 +1104,7 @@ export default function SettingsOverlay() {
                         <div key={item.id} className="group relative flex items-center">
                           {isRenaming && abRenameTarget ? (
                             <div
-                              className={`w-full flex items-center gap-2 pl-5 pr-3 py-1.5 cut-corners text-xs font-medium ${
+                              className={`w-full flex items-center gap-2 pl-3 pr-3 h-8 cut-corners text-[11px] font-medium ${
                                 isActive
                                   ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
                                   : 'text-[var(--text-primary)] bg-[var(--bg-hover)]'
@@ -1129,7 +1132,7 @@ export default function SettingsOverlay() {
                               }}
                               // `pr-9` reserves space so the row label never
                               // disappears behind the ellipsis on hover.
-                              className={`w-full flex items-center gap-2 pl-5 ${showEllipsis ? 'pr-9' : 'pr-3'} py-1.5 cut-corners text-xs font-medium transition-colors cursor-pointer ${
+                              className={`w-full flex items-center gap-2 pl-3 ${showEllipsis ? 'pr-9' : 'pr-3'} h-8 cut-corners text-[11px] font-medium transition-colors cursor-pointer ${
                                 isActive
                                   ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
                                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -1243,8 +1246,8 @@ export default function SettingsOverlay() {
           {(activeSection === 'ab-tests' && selectedAbTestPage) || activeSection === 'pages' ? (
             <div className="flex-1 min-h-0">{renderContent()}</div>
           ) : (
-            <div className={`flex-1 overflow-y-auto overscroll-contain ${isMobile ? 'px-4 py-5' : 'px-10 py-8'}`}>
-              <div className="mx-auto max-w-4xl">
+            <div className={`flex-1 overflow-y-auto overscroll-contain ${isMobile ? 'px-4 py-5' : activeSection === 'website' ? 'px-12 py-10' : 'px-10 py-8'}`}>
+              <div className={`mx-auto ${activeSection === 'website' ? 'max-w-[760px]' : 'max-w-4xl'}`}>
                 {renderContent()}
               </div>
             </div>
