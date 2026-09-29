@@ -6,40 +6,40 @@ const fillSource = readFileSync(
   new URL('./tools/StylesTool/atoms/FillControl.tsx', import.meta.url),
   'utf8',
 );
+const shellSource = readFileSync(new URL('./ui/PaintPickerShell.tsx', import.meta.url), 'utf8');
 const colorSource = readFileSync(new URL('./ui/ColorPicker.tsx', import.meta.url), 'utf8');
 
 describe('fill picker shell contract', () => {
-  it('reuses field inspector primitives for Custom/Libraries and the paint type rail', () => {
-    expect(fillSource).toContain("value={surface}");
-    expect(fillSource).toContain("{ value: 'custom', label: 'Custom' }");
-    expect(fillSource).toContain("{ value: 'libraries', label: 'Libraries' }");
-    expect(fillSource).toContain('<InspectorIconButtonGroup');
-    expect(fillSource).toContain("title: 'Solid'");
-    expect(fillSource).toContain("title: 'Gradient'");
-    expect(fillSource).toContain("title: 'Pattern'");
-    expect(fillSource).toContain("title: 'Image'");
-    expect(fillSource).toContain("title: 'Video'");
-    expect(fillSource).toContain("title: 'Shader'");
+  it('opens Fill as an anchored floating ToolPopup instead of Inspector navigation', () => {
+    expect(fillSource).toContain('const [fillPopupOpen, setFillPopupOpen] = useState(false)');
+    expect(fillSource).toContain('isOpen={fillPopupOpen}');
+    expect(fillSource).toContain('anchorRef={btnRef}');
+    expect(fillSource).toContain('width={480}');
+    expect(fillSource).toContain('hideHeader');
+    expect(fillSource).not.toContain("useEditorPanel('Fill'");
+    expect(fillSource).not.toContain('<OptionsPanel>');
   });
 
-  it('reuses the existing preset surfaces instead of creating a second library system', () => {
-    expect(fillSource).toContain('libraryOnly');
+  it('uses the same universal PaintPickerShell as other paint properties', () => {
+    expect(fillSource).toContain('<PaintPickerShell');
+    expect(fillSource).toContain('supportedTypes={supportedPaintTypes}');
+    expect(fillSource).toContain('solidOnly ? SOLID_ONLY_PAINT_TYPES : ALL_PAINT_TYPES');
+    expect(shellSource).toContain("['solid', 'gradient', 'pattern', 'image', 'video', 'shader']");
+  });
+
+  it('keeps unsupported paint types visible and disabled rather than hiding them', () => {
+    expect(shellSource).toContain('disabled={!supported}');
+    expect(shellSource).toContain("data-supported={supported ? 'true' : 'false'}");
+    expect(shellSource).toContain('isn’t supported for');
+  });
+
+  it('reuses the existing preset/library systems and canonical type editors', () => {
     expect(fillSource).toContain('<AssetPresetGrid');
-    expect(colorSource).toContain('showPresets');
-    expect(colorSource).toContain('libraryOnly');
-  });
-
-  it('keeps the canonical paint-type order in one shared rail', () => {
-    const start = fillSource.indexOf('const paintTypeButtons');
-    const end = fillSource.indexOf('return (', start);
-    const railBlock = fillSource.slice(start, end);
-    const ids = ['color', 'gradient', 'pattern', 'image', 'video', 'shader'];
-    let cursor = -1;
-    for (const id of ids) {
-      const next = railBlock.indexOf(`id: '${id}'`);
-      expect(next).toBeGreaterThan(cursor);
-      cursor = next;
-    }
+    expect(fillSource).toContain('<PatternLibraryPanel');
+    expect(fillSource).toContain('<ShaderFillTab');
+    expect(fillSource).toContain('canonicalFill');
+    expect(colorSource).toContain('pageColors');
+    expect(colorSource).toContain('embeddedBody');
   });
 
   it('keeps semantic Pattern, Video, and Shader fills in Single mode until the paint stack owns them natively', () => {
@@ -47,7 +47,6 @@ describe('fill picker shell contract', () => {
     expect(fillSource).toContain("node?.attrs?.['data-field-pattern']");
     expect(fillSource).toContain("node?.attrs?.['data-field-shader-fill']");
     expect(fillSource).toContain('node?.bgVideo');
-    expect(fillSource).toContain('!semanticSingleFill && (');
   });
 
   it('re-detects the selected paint type after undo/redo on the same node', () => {
