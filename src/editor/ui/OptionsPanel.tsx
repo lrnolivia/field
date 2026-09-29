@@ -71,14 +71,14 @@ export function EffectPreviewFrame({
       className="overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55"
     >
       <div className="flex min-h-7 items-center justify-between gap-2 border-b border-[var(--border-light)] px-2.5 py-1.5">
-        <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Preview</span>
-        {details ? <span className="truncate text-[9px] tabular-nums text-[var(--text-secondary)]">{details}</span> : null}
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Preview</span>
+        {details ? <span className="truncate text-[10px] tabular-nums text-[var(--text-secondary)]">{details}</span> : null}
       </div>
       <div className="relative flex min-h-[76px] items-center justify-center overflow-hidden bg-[var(--bg-hover)]/16 p-3">
         {children}
       </div>
       {hint ? (
-        <div className="border-t border-[var(--border-light)] px-2.5 py-1.5 text-[8px] leading-3 text-[var(--text-disabled)]">
+        <div className="border-t border-[var(--border-light)] px-2.5 py-1.5 text-[9px] leading-3.5 text-[var(--text-disabled)]">
           {hint}
         </div>
       ) : null}

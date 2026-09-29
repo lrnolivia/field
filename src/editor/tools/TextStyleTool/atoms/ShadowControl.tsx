@@ -38,12 +38,15 @@ function TextShadowLivePreview({
   onOffsetCommit: (x: number, y: number) => void;
 }) {
   const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null);
+  const [previewOffset, setPreviewOffset] = useState<{ x: number; y: number } | null>(null);
   const clampOffset = (value: number) => Math.max(-48, Math.min(48, Math.round(value)));
+  const shownX = previewOffset?.x ?? entry.x;
+  const shownY = previewOffset?.y ?? entry.y;
   const nudge = (dx: number, dy: number) => onOffsetCommit(clampOffset(entry.x + dx), clampOffset(entry.y + dy));
 
   return (
     <EffectPreviewFrame
-      details={<>Layer {layer}/{count} · X {entry.x} · Y {entry.y} · Blur {entry.blur}</>}
+      details={<>Layer {layer}/{count} · X {shownX} · Y {shownY} · Blur {entry.blur}</>}
       hint="Drag the text or use arrow keys to change shadow offset."
     >
       <button
@@ -51,7 +54,7 @@ function TextShadowLivePreview({
         data-text-shadow-live-preview
         aria-label="Text shadow preview. Drag or use arrow keys to change offset."
         className="cursor-move rounded-[6px] px-4 py-2 text-[24px] font-semibold leading-none text-[var(--text-primary)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] active:scale-[0.98]"
-        style={{ textShadow: `${entry.x}px ${entry.y}px ${entry.blur}px ${entry.color}` }}
+        style={{ textShadow: `${shownX}px ${shownY}px ${entry.blur}px ${entry.color}` }}
         onKeyDown={(event) => {
           const step = event.shiftKey ? 10 : 1;
           if (event.key === 'ArrowLeft') { event.preventDefault(); nudge(-step, 0); }
@@ -63,15 +66,27 @@ function TextShadowLivePreview({
           event.currentTarget.setPointerCapture(event.pointerId);
           dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: entry.x, startY: entry.y };
         }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          setPreviewOffset({
+            x: clampOffset(drag.startX + event.clientX - drag.x),
+            y: clampOffset(drag.startY + event.clientY - drag.y),
+          });
+        }}
         onPointerUp={(event) => {
           const drag = dragRef.current;
           if (!drag || drag.pointerId !== event.pointerId) return;
+          const x = clampOffset(drag.startX + event.clientX - drag.x);
+          const y = clampOffset(drag.startY + event.clientY - drag.y);
           dragRef.current = null;
+          setPreviewOffset(null);
           event.currentTarget.releasePointerCapture(event.pointerId);
-          onOffsetCommit(
-            clampOffset(drag.startX + event.clientX - drag.x),
-            clampOffset(drag.startY + event.clientY - drag.y),
-          );
+          onOffsetCommit(x, y);
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+          setPreviewOffset(null);
         }}
       >
         Aa
