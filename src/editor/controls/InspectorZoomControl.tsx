@@ -21,6 +21,8 @@ import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { trace } from '@/shared/debug-trace';
 
 function MenuRow({ label, shortcut, onClick }: {
@@ -94,6 +96,7 @@ function InspectorThemeControl() {
 /** Compact zoom readout + appearance control in the Inspector mode bar. */
 export default function InspectorZoomControl() {
   const selectedId = useAtomValue(selectedNodeAtom);
+  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
   const ref = useRef<HTMLDivElement>(null);
@@ -167,6 +170,8 @@ export default function InspectorZoomControl() {
           </div>
         )}
       </div>
+      <WorkspaceCollapseButton side="right" collapsed={!rightPaneOpen} onClick={() => setRightPaneOpen(!rightPaneOpen)} />
+      <WorkspaceAutoHideButton side="right" />
     </div>
   );
 }

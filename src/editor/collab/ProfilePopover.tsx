@@ -17,6 +17,8 @@ import AvatarCropModal from './AvatarCropModal';
 interface Props {
   anchorRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
+  onAddCollaborator?: () => void;
+  addCollaboratorDisabled?: boolean;
 }
 
 function providerLabel(raw?: string): string {
@@ -34,6 +36,8 @@ function providerLabel(raw?: string): string {
 export default function ProfilePopover({
   anchorRef,
   onClose,
+  onAddCollaborator,
+  addCollaboratorDisabled = false,
 }: Props) {
   const user = useAtomValue(userAtom);
   const setUser = useSetAtom(userAtom);
@@ -202,6 +206,20 @@ export default function ProfilePopover({
                 event.currentTarget.value = '';
               }}
             />
+
+            {onAddCollaborator && (
+              <button
+                type="button"
+                disabled={addCollaboratorDisabled}
+                onClick={() => {
+                  onClose();
+                  onAddCollaborator();
+                }}
+                className="flex h-8 w-full items-center rounded-[5px] px-2 text-left text-[11px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Add collaborator…
+              </button>
+            )}
 
             <button
               type="button"

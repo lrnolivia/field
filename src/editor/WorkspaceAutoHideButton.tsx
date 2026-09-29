@@ -24,3 +24,39 @@ export default function WorkspaceAutoHideButton({ side = 'left', className = '' 
     </span>}
   </div>;
 }
+
+
+export function WorkspaceCollapseButton({
+  side = 'left',
+  collapsed,
+  onClick,
+  className = '',
+}: {
+  side?: 'left' | 'right';
+  collapsed: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  const label = collapsed
+    ? (side === 'right' ? 'Expand Inspector' : 'Expand panel')
+    : (side === 'right' ? 'Collapse Inspector' : 'Collapse panel');
+  const path = side === 'right'
+    ? (collapsed ? 'M2 2v12M11 4 7 8l4 4' : 'M14 2v12M5 4l4 4-4 4')
+    : (collapsed ? 'M14 2v12M5 4l4 4-4 4' : 'M2 2v12M11 4 7 8l4 4');
+  return (
+    <button
+      type="button"
+      data-workspace-collapse
+      data-side={side}
+      aria-label={label}
+      aria-pressed={collapsed}
+      title={label}
+      onClick={onClick}
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] ${className}`}
+    >
+      <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+        <path d={path} />
+      </svg>
+    </button>
+  );
+}
