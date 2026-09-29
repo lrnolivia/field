@@ -134,7 +134,7 @@ function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNo
   </button>;
 }
 
-function LayoutMiniIconfunction LayoutMiniIcon({ id }: { id: string }) {
+function LayoutMiniIcon({ id }: { id: string }) {
   const cols = id === 'column' || id === 'layout-2col' || id === 'layout-3col' || id === 'layout-sidebar';
   const grid = id === 'layout-grid';
   const count = id === 'layout-3col' || id === 'layout-3row' ? 3 : 2;
