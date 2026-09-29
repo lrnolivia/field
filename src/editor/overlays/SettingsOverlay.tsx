@@ -879,7 +879,7 @@ export default function SettingsOverlay() {
   const activeNeutral = EDITOR_NEUTRAL_SWATCHES[editorThemeMode][editorNeutralLevel];
   const workspaceLabel = workspaceMode === 'floating'
     ? 'Float'
-    : workspaceMode === 'compact-docked'
+    : workspaceMode === 'compact-docked' || workspaceMode === 'compact'
       ? 'Focus'
       : 'Full';
 
@@ -1017,7 +1017,7 @@ export default function SettingsOverlay() {
                     <button
                       key={theme.id}
                       type="button"
-                      aria-pressed={builderTheme === theme.id}
+                      aria-pressed={activeBuilderTheme.id === theme.id}
                       onClick={() => setBuilderTheme(theme.id)}
                       className={`flex items-center gap-2.5 rounded-[5px] border px-2.5 py-2 text-left transition-colors ${
                         activeBuilderTheme.id === theme.id
@@ -1071,7 +1071,7 @@ export default function SettingsOverlay() {
                 ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).map((mode) => (
                   <ChoiceTile
                     key={mode.id}
-                    active={workspaceMode === mode.id}
+                    active={workspaceMode === mode.id || (mode.id === 'compact-docked' && workspaceMode === 'compact')}
                     title={mode.title}
                     description={mode.description}
                     onClick={() => setWorkspaceMode(mode.id)}
