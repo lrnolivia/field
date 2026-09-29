@@ -1,13 +1,12 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { floatingEntranceAtom, floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom, floatingLeftHiddenAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
-import { compactDockedInspectorOpenAtom, compactDockedLeftOpenAtom, compactInspectorOpenAtom, floatingInspectorExpandedAtom, leftContentWidthAtom, rightPaneOpenAtom, rightPaneWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
+import { floatingInspectorExpandedAtom, rightPaneOpenAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { groupEditingIdAtom, shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import WorkspaceAutoHideButton from './WorkspaceAutoHideButton';
 
-/** Normalize older per-pane saved preferences before the editor first paints. */
+/** Floating interaction semantics are canonical; docked modes only change wrapper geometry. */
 export default function WorkspaceModeCoordinator() {
   const mode = useAtomValue(workspaceModeAtom);
   const [autoHide, setAutoHide] = useAtom(workspaceAutoHideAtom);
@@ -16,23 +15,18 @@ export default function WorkspaceModeCoordinator() {
   const setEntrance = useSetAtom(floatingEntranceAtom);
   const setLeftHidden = useSetAtom(floatingLeftHiddenAtom);
   const setInspectorRevealed = useSetAtom(floatingInspectorRevealedAtom);
+  const setInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const expanded = useAtomValue(floatingInspectorExpandedAtom);
   const setExpanded = useSetAtom(floatingInspectorExpandedAtom);
-  const compactDockedLeftOpen = useAtomValue(compactDockedLeftOpenAtom);
-  const compactDockedInspectorOpen = useAtomValue(compactDockedInspectorOpenAtom);
-  const compactInspectorOpen = useAtomValue(compactInspectorOpenAtom);
-  const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
-  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const groupEditingId = useAtomValue(groupEditingIdAtom);
   const previewMode = useAtomValue(previewModeAtom);
-  const setInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
-  const setCompactDockedLeftOpen = useSetAtom(compactDockedLeftOpenAtom);
-  const setCompactDockedInspectorOpen = useSetAtom(compactDockedInspectorOpenAtom);
-  const leftContentWidth = useAtomValue(leftContentWidthAtom);
-  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+
   useLayoutEffect(() => { setMode(mode === 'compact' ? 'floating' : mode); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (mode !== 'floating' || !entrance) return;
     const timer = window.setTimeout(() => {
@@ -41,12 +35,20 @@ export default function WorkspaceModeCoordinator() {
     }, 3200);
     return () => window.clearTimeout(timer);
   }, [mode, autoHide, entrance, setEntrance, setLeftHidden, setInspectorRevealed]);
+
   useEffect(() => {
-    if (mode !== 'floating') return;
-    if (!autoHide) { setLeftHidden(false); setInspectorRevealed(false); return; }
+    const sharedMode = mode === 'docked' || mode === 'floating' || mode === 'compact-docked';
+    if (!sharedMode) return;
+    if (!autoHide) {
+      setLeftHidden(false);
+      setInspectorSuppressed(false);
+      setInspectorRevealed(false);
+      return;
+    }
     let idle: number | undefined;
     const reveal = () => {
       setLeftHidden(false);
+      setInspectorSuppressed(false);
       setInspectorRevealed(true);
       window.clearTimeout(idle);
       idle = window.setTimeout(() => { setLeftHidden(true); setInspectorRevealed(false); }, 1800);
@@ -54,7 +56,8 @@ export default function WorkspaceModeCoordinator() {
     window.addEventListener('pointermove', reveal, { passive: true });
     idle = window.setTimeout(() => { setLeftHidden(true); setInspectorRevealed(false); }, 1800);
     return () => { window.removeEventListener('pointermove', reveal); window.clearTimeout(idle); };
-  }, [mode, autoHide, setLeftHidden, setInspectorRevealed]);
+  }, [mode, autoHide, setInspectorRevealed, setInspectorSuppressed, setLeftHidden]);
+
   useEffect(() => {
     if (mode !== 'floating' || !expanded) return;
     let close: number | undefined;
@@ -67,52 +70,12 @@ export default function WorkspaceModeCoordinator() {
     window.addEventListener('pointermove', move, { passive: true });
     return () => { window.removeEventListener('pointermove', move); window.clearTimeout(close); };
   }, [mode, expanded, rightPaneWidth, setExpanded]);
-  useEffect(() => {
-    if (mode !== 'docked') return;
-    if (!autoHide) {
-      setInspectorSuppressed(false);
-      setInspectorRevealed(false);
-      return;
-    }
-
-    let idle: number | undefined;
-    const hide = () => {
-      if (selectedIds.length === 0) setInspectorRevealed(false);
-    };
-    const move = (event: PointerEvent) => {
-      const insideInspectorZone = event.clientX >= window.innerWidth - rightPaneWidth - 24;
-      if (!insideInspectorZone) {
-        window.clearTimeout(idle);
-        idle = window.setTimeout(hide, 520);
-        return;
-      }
-      setInspectorSuppressed(false);
-      setInspectorRevealed(true);
-      window.clearTimeout(idle);
-    };
-    window.addEventListener('pointermove', move, { passive: true });
-    idle = window.setTimeout(hide, 900);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.clearTimeout(idle);
-    };
-  }, [mode, autoHide, rightPaneWidth, selectedIds.length, setInspectorRevealed, setInspectorSuppressed]);
 
   useEffect(() => {
-    if (mode !== 'compact' || !autoHide || !compactInspectorOpen) return;
-    let close: number | undefined;
-    const move = (event: PointerEvent) => {
-      window.clearTimeout(close);
-      if (event.clientX < window.innerWidth - rightPaneWidth - 24) {
-        close = window.setTimeout(() => setCompactInspectorOpen(false), 220);
-      }
-    };
-    window.addEventListener('pointermove', move, { passive: true });
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.clearTimeout(close);
-    };
-  }, [mode, autoHide, compactInspectorOpen, rightPaneWidth, setCompactInspectorOpen]);
+    if (selectedIds.length === 0) return;
+    setInspectorSuppressed(false);
+    setRightPaneOpen(true);
+  }, [selectedIds, setInspectorSuppressed, setRightPaneOpen]);
 
   useEffect(() => {
     const isTypingOrUsingControl = (target: EventTarget | null) => {
@@ -126,7 +89,6 @@ export default function WorkspaceModeCoordinator() {
       if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       if (previewMode || selectedIds.length > 0 || shapeEditingId || groupEditingId) return;
       if (document.querySelector('[data-modal-root]') || isTypingOrUsingControl(event.target)) return;
-
       event.preventDefault();
       event.stopPropagation();
       if (event.key === 'ArrowUp') setMode('floating');
@@ -138,34 +100,5 @@ export default function WorkspaceModeCoordinator() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [autoHide, groupEditingId, previewMode, selectedIds.length, setAutoHide, setMode, shapeEditingId]);
 
-  useEffect(() => {
-    if (mode !== 'compact-docked') return;
-    let leftTimer: number | undefined;
-    let rightTimer: number | undefined;
-    const move = (event: PointerEvent) => {
-      if (compactDockedLeftOpen) {
-        window.clearTimeout(leftTimer);
-        if (event.clientX > LEFT_RAIL_WIDTH + leftContentWidth + 12) {
-          leftTimer = window.setTimeout(() => setCompactDockedLeftOpen(false), 220);
-        }
-      }
-      if (autoHide && compactDockedInspectorOpen) {
-        window.clearTimeout(rightTimer);
-        if (event.clientX < window.innerWidth - rightPaneWidth - 12) {
-          rightTimer = window.setTimeout(() => setCompactDockedInspectorOpen(false), 220);
-        }
-      }
-    };
-    window.addEventListener('pointermove', move);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.clearTimeout(leftTimer);
-      window.clearTimeout(rightTimer);
-    };
-  }, [mode, autoHide, compactDockedLeftOpen, compactDockedInspectorOpen, leftContentWidth, rightPaneWidth, setCompactDockedLeftOpen, setCompactDockedInspectorOpen]);
-
-  if (previewMode || mode === 'floating' || !rightPaneOpen) return null;
-  return <div className="fixed z-[10003]" style={{ top: 56, right: mode === 'compact-docked' ? 64 : mode === 'compact' ? 16 : 8 }}>
-    <WorkspaceAutoHideButton side="right" />
-  </div>;
+  return null;
 }
