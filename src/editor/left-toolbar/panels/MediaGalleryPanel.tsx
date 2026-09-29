@@ -988,7 +988,7 @@ export default function MediaGalleryPanel({
                       {inspectedAsset.kind === 'image' ? (
                         <img src={inspectedAsset.url} alt="" className="relative z-[1] max-h-full max-w-full object-contain p-2" />
                       ) : (
-                        <video src={inspectedAsset.url} className="relative z-[1] max-h-full max-w-full object-contain" muted controls />
+                        <video src={inspectedAsset.url} className="relative z-[1] max-h-full max-w-full object-contain" muted />
                       )}
                     </div>
                   </div>

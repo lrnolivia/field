@@ -121,7 +121,6 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
       >
         <span className="flex h-5 w-5 items-center justify-center text-[var(--text-secondary)]"><UploadGlyph /></span>
         <span className="min-w-0 flex-1 truncate">Upload from computer</span>
-        <span className="text-[9px] text-[var(--text-disabled)]">⌘U</span>
       </button>
 
       <div className="my-2 border-t border-[var(--border-light)]" />
