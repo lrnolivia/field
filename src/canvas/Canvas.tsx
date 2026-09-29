@@ -980,6 +980,50 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       },
     );
     textFocusCameraRef.current = focusCamera;
+
+    const workspaceGeometrySelector = '[data-floating-left-panel], [data-workspace-island="right"]';
+    let geometryTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleGeometryReconcile = () => {
+      if (geometryTimer) clearTimeout(geometryTimer);
+      geometryTimer = setTimeout(() => {
+        geometryTimer = null;
+        focusCamera.updateViewport();
+      }, 120);
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleGeometryReconcile);
+    const observedGeometryTargets = new Set<Element>();
+    const observeGeometryTargets = () => {
+      const targets: Element[] = [containerRef.current].filter((el): el is Element => !!el);
+      document.querySelectorAll(workspaceGeometrySelector).forEach((el) => targets.push(el));
+      for (const target of targets) {
+        if (observedGeometryTargets.has(target)) continue;
+        observedGeometryTargets.add(target);
+        resizeObserver.observe(target);
+      }
+    };
+    observeGeometryTargets();
+
+    const onWindowResize = () => scheduleGeometryReconcile();
+    const onWorkspaceTransitionEnd = (event: TransitionEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.matches(workspaceGeometrySelector) || target?.closest(workspaceGeometrySelector)) {
+        scheduleGeometryReconcile();
+      }
+    };
+    const structureObserver = new MutationObserver((records) => {
+      const touchesWorkspace = records.some((record) => [...record.addedNodes, ...record.removedNodes].some((node) => {
+        if (!(node instanceof Element)) return false;
+        return node.matches(workspaceGeometrySelector) || node.querySelector(workspaceGeometrySelector) !== null;
+      }));
+      if (!touchesWorkspace) return;
+      observeGeometryTargets();
+      scheduleGeometryReconcile();
+    });
+    window.addEventListener('resize', onWindowResize);
+    document.addEventListener('transitionend', onWorkspaceTransitionEnd, true);
+    structureObserver.observe(document.body, { childList: true, subtree: true });
+
     const unsubscribeFocus = jotaiStore.sub(isTextEditingAtom, () => {
       if (jotaiStore.get(isTextEditingAtom)) {
         const id = controller.getEditingNodeId();
@@ -992,6 +1036,11 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     trace.action('canvas:text-edit-controller-created', {});
     return () => {
       unsubscribeFocus();
+      if (geometryTimer) clearTimeout(geometryTimer);
+      resizeObserver.disconnect();
+      structureObserver.disconnect();
+      window.removeEventListener('resize', onWindowResize);
+      document.removeEventListener('transitionend', onWorkspaceTransitionEnd, true);
       focusCamera.dispose();
       if (textFocusCameraRef.current === focusCamera) textFocusCameraRef.current = null;
       if (textEditControllerRef.current) {
