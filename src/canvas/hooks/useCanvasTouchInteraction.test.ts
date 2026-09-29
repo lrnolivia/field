@@ -44,3 +44,22 @@ describe('mobile touch wiring contract', () => {
     expect(mouse).toContain('this.pendingShiftRemove = null');
   });
 });
+
+
+describe('mobile software-keyboard bridge', () => {
+  const source = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/canvas/hooks/useCanvasTouchInteraction.ts'),
+    'utf8',
+  );
+  const canvas = fs.readFileSync(path.resolve(process.cwd(), 'src/canvas/Canvas.tsx'), 'utf8');
+
+  it('primes a real editable control synchronously when touch starts text edit', () => {
+    expect(source).toContain('data-field-mobile-keyboard-primer');
+    expect(source).toContain('primer.focus({ preventScroll: true })');
+    expect(source).toContain('!wasTextEditing && isTextEditing()');
+  });
+
+  it('reads live text-edit state from the canonical editor atom', () => {
+    expect(canvas).toContain('isTextEditing: () => jotaiStore.get(isTextEditingAtom)');
+  });
+});

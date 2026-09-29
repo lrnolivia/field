@@ -1222,6 +1222,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     mouseControllerRef,
     dragCoordinatorRef,
     getToolMode: () => jotaiStore.get(toolModeAtom),
+    isTextEditing: () => jotaiStore.get(isTextEditingAtom),
     setPanCursor,
   });
 

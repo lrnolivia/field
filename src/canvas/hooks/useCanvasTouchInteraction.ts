@@ -19,6 +19,61 @@ import { trace } from '@/shared/debug-trace';
 
 export const SINGLE_TOUCH_PAN_THRESHOLD_PX = 4;
 
+const MOBILE_KEYBOARD_PRIMER_LIFETIME_MS = 700;
+
+/**
+ * iOS only raises the software keyboard when an editable element receives
+ * focus during the trusted touch event. The real TipTap editor lives in the
+ * sandbox iframe and is created from a postMessage task, so its autofocus can
+ * arrive after transient user activation has expired. Prime the keyboard with
+ * a tiny parent-frame textarea in the SAME touchstart that opened text edit;
+ * sandbox autofocus then takes over the already-open keyboard.
+ */
+export function primeMobileSoftwareKeyboard(doc: Document = document): () => void {
+  const existing = doc.querySelector<HTMLTextAreaElement>('[data-field-mobile-keyboard-primer]');
+  existing?.remove();
+
+  const primer = doc.createElement('textarea');
+  primer.setAttribute('data-field-mobile-keyboard-primer', '');
+  primer.setAttribute('aria-label', 'Text editing');
+  primer.setAttribute('autocomplete', 'off');
+  primer.setAttribute('autocapitalize', 'off');
+  primer.setAttribute('spellcheck', 'false');
+  primer.tabIndex = -1;
+  primer.inputMode = 'text';
+  Object.assign(primer.style, {
+    position: 'fixed',
+    left: '0',
+    bottom: '0',
+    width: '1px',
+    height: '1px',
+    padding: '0',
+    border: '0',
+    opacity: '0.01',
+    fontSize: '16px',
+    pointerEvents: 'none',
+    zIndex: '-1',
+  });
+
+  doc.body.appendChild(primer);
+  try {
+    primer.focus({ preventScroll: true });
+  } catch {
+    primer.focus();
+  }
+
+  const timer = window.setTimeout(() => {
+    if (doc.activeElement === primer) primer.blur();
+    primer.remove();
+  }, MOBILE_KEYBOARD_PRIMER_LIFETIME_MS);
+
+  return () => {
+    window.clearTimeout(timer);
+    if (doc.activeElement === primer) primer.blur();
+    primer.remove();
+  };
+}
+
 export function shouldStartSingleTouchPan(dx: number, dy: number): boolean {
   return Math.hypot(dx, dy) >= SINGLE_TOUCH_PAN_THRESHOLD_PX;
 }
@@ -76,6 +131,7 @@ export interface UseCanvasTouchInteractionOptions {
   mouseControllerRef: RefObject<CanvasMouseController | null>;
   dragCoordinatorRef: RefObject<DragCoordinator | null>;
   getToolMode: () => string;
+  isTextEditing: () => boolean;
   setPanCursor: (active: boolean) => void;
 }
 
@@ -84,6 +140,7 @@ export function useCanvasTouchInteraction({
   mouseControllerRef,
   dragCoordinatorRef,
   getToolMode,
+  isTextEditing,
   setPanCursor,
 }: UseCanvasTouchInteractionOptions): void {
   useEffect(() => {
@@ -91,6 +148,7 @@ export function useCanvasTouchInteraction({
     if (!container) return;
 
     let gesture: GestureState | null = null;
+    let releaseKeyboardPrimer: (() => void) | null = null;
 
     const cancelOneFinger = (keepCameraCursor = false) => {
       const controller = mouseControllerRef.current;
@@ -125,7 +183,17 @@ export function useCanvasTouchInteraction({
 
       const target = event.target instanceof HTMLElement ? event.target : container;
       const hits = getNodeHitsAtPoint(touch.clientX, touch.clientY);
+      const wasTextEditing = isTextEditing();
       controller.handleMouseDown(mouseLike(touch.clientX, touch.clientY, target, 'mousedown'));
+
+      // The existing double-click detector starts text edit synchronously on
+      // the second tap. Prime iOS's keyboard before this trusted touchstart
+      // returns; the sandbox-hosted TipTap editor autofocuses moments later.
+      if (!wasTextEditing && isTextEditing()) {
+        releaseKeyboardPrimer?.();
+        releaseKeyboardPrimer = primeMobileSoftwareKeyboard(container.ownerDocument);
+        trace.action('input:mobile-keyboard-prime', {});
+      }
 
       const coordinator = dragCoordinatorRef.current;
       const objectIntent = !!coordinator?.isPending || hits.length > 0;
@@ -238,8 +306,10 @@ export function useCanvasTouchInteraction({
       container.removeEventListener('touchend', onTouchEnd, opts);
       container.removeEventListener('touchcancel', onTouchCancel, opts);
       if (gesture) cancelOneFinger(false);
+      releaseKeyboardPrimer?.();
+      releaseKeyboardPrimer = null;
     };
-    // Refs are stable; getToolMode reads the live store value.
+    // Refs are stable; getToolMode/isTextEditing read live store values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, mouseControllerRef, dragCoordinatorRef, setPanCursor]);
 }
