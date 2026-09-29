@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { cancelMediaUpload } from './media-ingest';
 import { getProjectId } from '@/backend/project-id';
 import {
   createMediaSession,
@@ -135,6 +136,31 @@ export const upsertMediaUploadAtom = atom(null, (get, set, item: MediaUploadItem
   else next[index] = item;
 
   set(mediaUploadQueuesByProjectAtom, { ...buckets, [projectId]: next });
+});
+
+export const cancelMediaUploadAtom = atom(null, (get, _set, id: string) => {
+  const projectId = get(mediaProjectIdAtom);
+  const queue = get(mediaUploadQueuesByProjectAtom)[projectId] ?? EMPTY_MEDIA_UPLOADS;
+  const item = queue.find((entry) => entry.id === id);
+  if (!item || (item.status !== 'queued' && item.status !== 'uploading' && item.status !== 'processing')) {
+    return false;
+  }
+  return cancelMediaUpload(id);
+});
+
+export const cancelAllActiveMediaUploadsAtom = atom(null, (get) => {
+  const projectId = get(mediaProjectIdAtom);
+  const queue = get(mediaUploadQueuesByProjectAtom)[projectId] ?? EMPTY_MEDIA_UPLOADS;
+  let cancelled = 0;
+  for (const item of queue) {
+    if (
+      (item.status === 'queued' || item.status === 'uploading' || item.status === 'processing')
+      && cancelMediaUpload(item.id)
+    ) {
+      cancelled += 1;
+    }
+  }
+  return cancelled;
 });
 
 export const removeMediaUploadAtom = atom(null, (get, set, id: string) => {
