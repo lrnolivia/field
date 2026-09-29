@@ -37,3 +37,21 @@ jobs:
         run: npm run test:run
       - name: Lint
         run: npm run lint
+
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run left-panel visual matrix
+        run: npx playwright test src/editor/e2e/left-panel-visual-qa.spec.ts --project=chromium --reporter=line
