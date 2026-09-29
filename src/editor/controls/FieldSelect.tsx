@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom';
 import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import { FieldGlyph } from '@/editor/glyph';
+import { takeVerticalWheelSteps } from './vertical-wheel';
 
 export interface FieldSelectOption {
   value: string;
@@ -102,12 +103,18 @@ export default function FieldSelect({
   const [touchPreviewIndex, setTouchPreviewIndex] = useState<number | null>(null);
   const touchScrubRef = useRef<{ pointerId: number; x: number; y: number; initialIndex: number; currentIndex: number; moved: boolean } | null>(null);
   const suppressNextClickRef = useRef(false);
+  const wheelDeltaRef = useRef(0);
+  const wheelIndexRef = useRef(-1);
 
   const selectedIndex = useMemo(
     () => options.findIndex(option => option.value === value),
     [options, value],
   );
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : null;
+
+  useEffect(() => {
+    wheelIndexRef.current = selectedIndex;
+  }, [selectedIndex]);
   const rowHeight = density === 'compact' ? COMPACT_ROW_HEIGHT : DEFAULT_ROW_HEIGHT;
 
   const setOpen = useCallback((next: boolean) => {
@@ -255,13 +262,12 @@ export default function FieldSelect({
   const moveTouchScrub = (event: ReactPointerEvent<HTMLSpanElement>) => {
     const scrub = touchScrubRef.current;
     if (!scrub || scrub.pointerId !== event.pointerId) return;
-    const dx = event.clientX - scrub.x;
     const dy = event.clientY - scrub.y;
-    if (!scrub.moved && Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    if (!scrub.moved && Math.abs(dy) < 6) return;
     scrub.moved = true;
     event.preventDefault();
-    document.body.style.cursor = Math.abs(dx) >= Math.abs(dy) ? 'ew-resize' : 'ns-resize';
-    const travel = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
+    document.body.style.cursor = 'ns-resize';
+    const travel = -dy;
     const enabled = options.map((option, index) => !option.disabled ? index : -1).filter(index => index >= 0);
     const ordinal = enabled.indexOf(scrub.initialIndex);
     const nextIndex = enabled[Math.max(0, Math.min(enabled.length - 1, ordinal + Math.round(travel / 20)))];
@@ -300,12 +306,46 @@ export default function FieldSelect({
     boxShadow: 'var(--menu-shadow, 0 12px 32px rgba(0, 0, 0, 0.28))',
   } : undefined;
 
+  const handleValueWheel = useCallback((event: WheelEvent) => {
+    if (disabled || options.length < 2) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const result = takeVerticalWheelSteps(wheelDeltaRef.current, event.deltaY, event.deltaMode);
+    wheelDeltaRef.current = result.remainder;
+    if (result.steps === 0) return;
+
+    let index = wheelIndexRef.current;
+    if (index < 0 || options[index]?.disabled) index = edgeEnabledIndex(options, 'start');
+    const direction: 1 | -1 = result.steps > 0 ? 1 : -1;
+    for (let i = 0; i < Math.abs(result.steps); i += 1) {
+      const next = enabledIndex(options, index, direction);
+      if (next < 0) break;
+      index = next;
+    }
+
+    wheelIndexRef.current = index;
+    if (isOpen) setHighlightedIndex(index);
+    const option = options[index];
+    if (option && !option.disabled && option.value !== value) onChange(option.value);
+  }, [disabled, isOpen, onChange, options, value]);
+
+  useEffect(() => {
+    const trigger = triggerRef.current;
+    if (!trigger || disabled || options.length < 2) return;
+    const onWheel = (event: WheelEvent) => handleValueWheel(event);
+    trigger.addEventListener('wheel', onWheel, { passive: false });
+    return () => trigger.removeEventListener('wheel', onWheel);
+  }, [disabled, handleValueWheel, options.length]);
+
   return (
     <div className={`relative min-w-0 ${className}`}>
       <button
         ref={triggerRef}
         type="button"
         data-field-select-trigger
+        data-field-no-canvas-input
+        data-value-wheel="vertical"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -332,7 +372,7 @@ export default function FieldSelect({
           transition-colors focus:outline-none focus:[--cut-border-color:var(--border-focus,var(--accent))]
           ${disabled
             ? 'opacity-50 cursor-not-allowed'
-            : 'cursor-pointer hover:[--cut-border-color:var(--control-border-hover)] hover:border-[var(--control-border-hover)]'
+            : 'cursor-ns-resize hover:[--cut-border-color:var(--control-border-hover)] hover:border-[var(--control-border-hover)]'
           }
           ${triggerClassName}
         `}
@@ -352,9 +392,9 @@ export default function FieldSelect({
         >
           <polyline points="6 9 12 15 18 9" />
         </svg></FieldGlyph>
-        <span aria-hidden data-touch-scrub="select" title="Slide to choose"
+        <span aria-hidden data-touch-scrub="select" data-field-no-canvas-input data-value-wheel="vertical" title="Drag or scroll vertically to choose"
           onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
-          className="absolute inset-y-0 right-0 block w-1/2 cursor-ew-resize touch-none" />
+          className="absolute inset-y-0 right-0 block w-1/2 cursor-ns-resize touch-none" />
       </button>
 
       {isOpen && position && createPortal(

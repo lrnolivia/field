@@ -1595,7 +1595,22 @@ export class CanvasMouseController {
       const node = this.store.get(nodesAtom).get(nodeId);
       if (node && node.children.length === 0
           && (node.textContent?.trim() || node.hasMixedContent || TEXT_TYPES.has(node.type))) {
+        // Keep Inspector selection bound to the node TipTap is actually editing.
+        // The dblclick path returns before the normal selection-routing block
+        // below, so without this write a parent/frame can stay selected while
+        // the deep text child enters edit mode. The Inspector then loses the
+        // Typography tool even though the caret is inside that text node.
+        const selectedBeforeEdit = this.store.get(selectedIdsAtom);
+        if (selectedBeforeEdit.length !== 1 || selectedBeforeEdit[0] !== nodeId) {
+          this.opts.setSelectedIds([nodeId]);
+          trace.action('canvas:text-edit-select-target', {
+            nodeId,
+            previousSelection: selectedBeforeEdit,
+          });
+        }
+
         // For .map() ghosts, mount TipTap on the GHOST'S data-node-id (with __N suffix).
+        // Inspector selection stays on the canonical source node above.
         const editTargetId = nodeId + ghostSuffix;
         trace.action('canvas:text-edit-from-dblclick-iframe', { nodeId: editTargetId, vpId });
         this.opts.startTextEdit(editTargetId, null, '', vpId);

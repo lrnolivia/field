@@ -48,6 +48,8 @@ describe('Figma inspector contract', () => {
     expect(padding).toContain("placeholder={allEqual ? undefined : 'Mixed'}");
     expect(padding).toContain('data-layout-padding-equal');
     expect(padding).toContain('data-layout-padding-axes');
+    expect(padding).toContain('data-layout-padding-axis-mode');
+    expect(padding).toContain("setView('axes')");
     expect(padding).toContain('data-layout-padding-sides');
   });
 

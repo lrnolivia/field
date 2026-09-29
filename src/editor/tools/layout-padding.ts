@@ -65,8 +65,8 @@ export function setPaddingAll(raw: string): Record<string, string> {
 }
 
 export function paddingAxisCompatible(sides: PaddingSides): boolean {
-  return (Number.parseFloat(sides[0]) || 0) === (Number.parseFloat(sides[2]) || 0)
-    && (Number.parseFloat(sides[1]) || 0) === (Number.parseFloat(sides[3]) || 0);
+  return sides[0].trim() === sides[2].trim()
+    && sides[1].trim() === sides[3].trim();
 }
 
 export function collapsePaddingToAxes(sides: PaddingSides): Record<string, string> {
