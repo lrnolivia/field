@@ -46,6 +46,8 @@ describe('Auto layout padding source writes', () => {
   it('detects whether the compact axis-pair representation is lossless', () => {
     expect(paddingAxisCompatible(sides)).toBe(true);
     expect(paddingAxisCompatible(['8px', '16px', '9px', '16px'])).toBe(false);
+    expect(paddingAxisCompatible(['8px', '16px', '8em', '16px'])).toBe(false);
+    expect(paddingAxisCompatible(['8px', '16px', '8px', '16em'])).toBe(false);
   });
 
   it('collapses independent sides deterministically using top/right as the chosen axes', () => {
