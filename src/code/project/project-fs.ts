@@ -1009,7 +1009,18 @@ export class InMemoryProjectFS implements ProjectFS {
       if (typeof v === 'string') files.set(k, v);
     }
     const branches = parseBranchRecords((data as { branches?: unknown }).branches);
-    this.files = files;
+
+    // PROJECT BOUNDARY: this singleton survives same-document Dashboard project
+    // switches. Never let the previous project's active branch decide where the
+    // next project's MAIN snapshot lands, and never retain its branches/conflicts.
+    // loadSnapshot owns the established load-time migrations/heals, so reset to
+    // main first and run the new project's files through that exact path.
+    this.activeBranchId = MAIN_BRANCH_ID;
+    this.branches = new Map();
+    this.branchConflicts.clear();
+    this.nextOrigin = 'local';
+    this.loadSnapshot(files);
+
     this.branches = branches;
     const wantActive = typeof data.activeBranchId === 'string' ? data.activeBranchId : MAIN_BRANCH_ID;
     this.activeBranchId = wantActive === MAIN_BRANCH_ID || branches.has(wantActive) ? wantActive : MAIN_BRANCH_ID;
@@ -1030,7 +1041,10 @@ export class InMemoryProjectFS implements ProjectFS {
    */
   hydrateBranches(rawBranches: unknown, wantActive: unknown): void {
     const parsed = parseBranchRecords(rawBranches);
-    for (const [id, b] of parsed) this.branches.set(id, b);
+    // Hydration is replacement, not merge. The ProjectFS singleton can outlive
+    // a project route, so appending here leaks the previous project's branches.
+    this.branches = parsed;
+    this.branchConflicts.clear();
     const active = typeof wantActive === 'string' ? wantActive : MAIN_BRANCH_ID;
     this.activeBranchId = active === MAIN_BRANCH_ID || this.branches.has(active) ? active : MAIN_BRANCH_ID;
     trace.action('project-fs:branches-hydrated', { branches: parsed.size, active: this.activeBranchId });
