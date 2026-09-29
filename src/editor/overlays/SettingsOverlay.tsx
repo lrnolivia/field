@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { SettingsWebsiteIcon, PageHomeIcon, PageDocumentIcon, GlobeInternationalIcon } from '@/shared/icons';
 import LocalePanel from '@/editor/left-toolbar/panels/LocalePanel';
 import Button from '@/design-system/Button';
@@ -49,8 +49,37 @@ import {
   showRulersAtom,
   useSmoothZoomAtom,
   showPixelGridAtom,
+  builderThemeAtom,
+  editorThemeModeAtom,
+  editorNeutralLevelAtom,
+  websitePreviewThemeAtom,
   type AutoPanSpeed,
 } from '@/code/stores/user-preferences-store';
+import { BUILDER_THEMES, getBuilderThemeById } from '@/shared/builder-themes';
+import {
+  EDITOR_NEUTRAL_SWATCHES,
+  type EditorNeutralLevel,
+  type EditorThemeMode,
+} from '@/shared/editor-neutral-theme';
+import {
+  leftContentWidthAtom,
+  rightPaneWidthAtom,
+  rightInspectorAutoHideAtom,
+  rightPaneOpenAtom,
+  rightInspectorTemporaryRevealAtom,
+  rightInspectorExplicitCollapseAtom,
+  MIN_LEFT_CONTENT_WIDTH,
+  MAX_LEFT_CONTENT_WIDTH,
+  MIN_RIGHT_PANE_WIDTH,
+  MAX_RIGHT_PANE_WIDTH,
+} from '@/code/stores/workspace-panels-store';
+import {
+  workspaceModeAtom,
+  setWorkspaceModeAtom,
+  workspaceAutoHideAtom,
+  type WorkspaceMode,
+} from '@/editor/workspace-mode-store';
+import { refreshCanvasTokens } from '@/canvas/node-ops';
 import UiHeadingText from '@/design-system/UiHeadingText';
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
@@ -183,6 +212,99 @@ export function buildMenuCategories(
   return result;
 }
 
+// ─── General settings visual controls ───────────────────────────────────────
+
+function ChoiceTile({
+  active,
+  title,
+  description,
+  onClick,
+  children,
+  compact = false,
+}: {
+  active: boolean;
+  title: string;
+  description?: string;
+  onClick: () => void;
+  children?: React.ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`group min-w-0 text-left cut-corners cut-border border transition-colors ${
+        active
+          ? 'border-[var(--accent)] [--cut-border-color:var(--accent)] bg-[var(--accent-surface)]'
+          : 'border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-surface)]/65 hover:bg-[var(--bg-hover)]/55'
+      } ${compact ? 'px-2.5 py-2' : 'px-3 py-3'}`}
+    >
+      {children}
+      <div className={children ? 'mt-2' : ''}>
+        <div className="text-[12px] font-medium text-[var(--text-primary)]">{title}</div>
+        {description && (
+          <div className="mt-0.5 text-[10px] leading-4 text-[var(--text-tertiary)]">{description}</div>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function WorkspaceChoiceGlyph({ mode }: { mode: Exclude<WorkspaceMode, 'compact'> }) {
+  return (
+    <div className="h-12 w-full overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-1.5">
+      <div className="flex h-full gap-1">
+        {mode === 'floating' ? (
+          <>
+            <div className="w-2 rounded-[2px] bg-[var(--bg-active)]" />
+            <div className="relative flex-1 rounded-[2px] bg-[var(--canvas-bg,var(--bg-surface))]">
+              <div className="absolute left-1 top-1 bottom-1 w-4 rounded-[2px] border border-[var(--border-light)] bg-[var(--bg-panel)]" />
+              <div className="absolute right-1 top-1 bottom-1 w-5 rounded-[2px] border border-[var(--border-light)] bg-[var(--bg-panel)]" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={`${mode === 'docked' ? 'w-7' : 'w-3'} rounded-[2px] bg-[var(--bg-active)]`} />
+            <div className="flex-1 rounded-[2px] bg-[var(--canvas-bg,var(--bg-surface))]" />
+            <div className={`${mode === 'docked' ? 'w-8' : 'w-3'} rounded-[2px] bg-[var(--bg-active)]`} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SegmentedChoice({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`h-7 min-w-[64px] rounded-[3px] px-2.5 text-[11px] font-medium transition-colors ${
+            value === option.value
+              ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SettingsOverlay
 // ═══════════════════════════════════════════════════════════════════════════
@@ -198,6 +320,19 @@ export default function SettingsOverlay() {
   const [showRulers, setShowRulers] = useAtom(showRulersAtom);
   const [useSmoothZoom, setUseSmoothZoom] = useAtom(useSmoothZoomAtom);
   const [showPixelGrid, setShowPixelGrid] = useAtom(showPixelGridAtom);
+  const [builderTheme, setBuilderTheme] = useAtom(builderThemeAtom);
+  const [editorThemeMode, setEditorThemeMode] = useAtom(editorThemeModeAtom);
+  const [editorNeutralLevel, setEditorNeutralLevel] = useAtom(editorNeutralLevelAtom);
+  const [websitePreviewTheme, setWebsitePreviewTheme] = useAtom(websitePreviewThemeAtom);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
+  const [workspaceAutoHide, setWorkspaceAutoHide] = useAtom(workspaceAutoHideAtom);
+  const [rightInspectorAutoHide, setRightInspectorAutoHide] = useAtom(rightInspectorAutoHideAtom);
+  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
+  const setRightInspectorTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
+  const setRightInspectorExplicitCollapse = useSetAtom(rightInspectorExplicitCollapseAtom);
+  const [leftContentWidth, setLeftContentWidth] = useAtom(leftContentWidthAtom);
+  const [rightPaneWidth, setRightPaneWidth] = useAtom(rightPaneWidthAtom);
 
   // ─── Mobile nav dropdown (sidebar replacement on small screens) ─────
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -739,6 +874,31 @@ export default function SettingsOverlay() {
 
   const menuCategories = buildMenuCategories(getSettingsCategories(), abTestPages);
 
+  const activeBuilderTheme = getBuilderThemeById(builderTheme) ?? BUILDER_THEMES[0]!;
+  const activeAccent = editorThemeMode === 'dark' ? activeBuilderTheme.dark.accent : activeBuilderTheme.light.accent;
+  const activeNeutral = EDITOR_NEUTRAL_SWATCHES[editorThemeMode][editorNeutralLevel];
+  const workspaceLabel = workspaceMode === 'floating'
+    ? 'Float'
+    : workspaceMode === 'compact-docked'
+      ? 'Focus'
+      : 'Full';
+
+  const handleWebsitePreviewTheme = (mode: EditorThemeMode) => {
+    setWebsitePreviewTheme(mode);
+    requestAnimationFrame(() => refreshCanvasTokens());
+    trace.action('general-settings:preview-theme', { mode });
+  };
+
+  const handleInspectorAutoHide = (enabled: boolean) => {
+    if (enabled) {
+      setRightPaneOpen(false);
+      setRightInspectorTemporaryReveal(false);
+      setRightInspectorExplicitCollapse(false);
+    }
+    setRightInspectorAutoHide(enabled);
+    trace.action('general-settings:inspector-auto-hide', { enabled });
+  };
+
   // ─── renderContent ─────────────────────────────────────────────────
 
   const renderContent = () => {
@@ -747,24 +907,152 @@ export default function SettingsOverlay() {
         <LocalePanel />
       </div>;
     }
-    // Website section is inline (uses parent state: websiteSettings atom, mutation queue)
     // General is field/editor-level. Project/site source configuration lives
     // in ProjectSettingsModal and is intentionally not rendered full-screen.
     if (activeSection === 'website') {
       return (
-        <div className="space-y-5">
-          <header className="pb-4 border-b border-[var(--border-light)]">
-            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
-            <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
-              field preferences that follow you across projects.
-            </p>
+        <div data-general-settings className="space-y-5">
+          <header className="flex flex-col gap-4 border-b border-[var(--border-light)] pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
+              <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
+                Personalize how field looks, behaves, and arranges itself. These preferences follow you across projects.
+              </p>
+            </div>
+            <div
+              data-general-settings-summary
+              className="flex w-fit items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/25 px-2.5 py-1.5 text-[10px] text-[var(--text-secondary)]"
+            >
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAccent }} />
+              <span>{editorThemeMode === 'dark' ? 'Dark' : 'Light'}</span>
+              <span className="text-[var(--text-disabled)]">·</span>
+              <span>{activeBuilderTheme.label}</span>
+              <span className="text-[var(--text-disabled)]">·</span>
+              <span>{workspaceLabel}</span>
+            </div>
           </header>
 
-          <SettingsGroup surface title="Interface">
+          <SettingsGroup surface title="Appearance">
+            <div data-general-appearance-preview className="p-4">
+              <div
+                className="relative h-[118px] overflow-hidden rounded-[7px] border border-[var(--border-light)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]"
+                style={{ backgroundColor: activeNeutral }}
+              >
+                <div className="absolute inset-x-0 top-0 h-6 border-b border-black/10 bg-black/10" />
+                <div className="absolute left-0 top-6 bottom-0 w-8 border-r border-black/10 bg-black/10">
+                  <div className="mx-auto mt-2 h-4 w-4 rounded-[3px]" style={{ backgroundColor: activeAccent }} />
+                  <div className="mx-auto mt-2 h-3 w-3 rounded-[2px] bg-black/15" />
+                  <div className="mx-auto mt-1.5 h-3 w-3 rounded-[2px] bg-black/15" />
+                </div>
+                <div className="absolute left-8 right-24 top-6 bottom-0 bg-black/[0.035]">
+                  <div className="absolute left-5 top-4 h-14 w-24 rounded-[3px] border border-black/10 bg-white/10" />
+                  <div className="absolute left-9 top-8 h-2 w-14 rounded-full bg-black/15" />
+                  <div className="absolute left-9 top-12 h-1.5 w-10 rounded-full bg-black/10" />
+                </div>
+                <div className="absolute right-0 top-6 bottom-0 w-24 border-l border-black/10 bg-black/[0.07] p-2">
+                  <div className="h-2 w-12 rounded-full bg-black/15" />
+                  <div className="mt-3 h-1.5 w-16 rounded-full bg-black/10" />
+                  <div className="mt-1.5 h-1.5 w-12 rounded-full bg-black/10" />
+                  <div className="mt-4 h-5 w-full rounded-[3px] border border-black/10 bg-white/[0.08]" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-medium text-[var(--text-primary)]">Editor chrome</div>
+                  <div className="text-[10px] text-[var(--text-tertiary)]">Preview of your current field appearance.</div>
+                </div>
+                <div className="text-[10px] tabular-nums text-[var(--text-disabled)]">Neutral {editorNeutralLevel}</div>
+              </div>
+            </div>
+
+            <SettingsRow label="Mode" align="top">
+              <div className="grid max-w-md grid-cols-2 gap-2">
+                {(['light', 'dark'] as EditorThemeMode[]).map((mode) => (
+                  <ChoiceTile
+                    key={mode}
+                    compact
+                    active={editorThemeMode === mode}
+                    title={mode === 'dark' ? 'Dark' : 'Light'}
+                    description={mode === 'dark' ? 'Low-light editor chrome' : 'Bright editor chrome'}
+                    onClick={() => setEditorThemeMode(mode)}
+                  >
+                    <div
+                      className="h-9 rounded-[4px] border border-black/10"
+                      style={{ backgroundColor: EDITOR_NEUTRAL_SWATCHES[mode][editorNeutralLevel] }}
+                    />
+                  </ChoiceTile>
+                ))}
+              </div>
+            </SettingsRow>
+
+            <SettingsRow label="Neutral tone" align="top">
+              <div className="flex flex-wrap gap-2">
+                {(['1', '2', '3', '4', '5'] as EditorNeutralLevel[]).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    aria-label={`Neutral tone ${level}`}
+                    aria-pressed={editorNeutralLevel === level}
+                    onClick={() => setEditorNeutralLevel(level)}
+                    className={`flex h-10 w-10 items-center justify-center rounded-[5px] border transition-all ${
+                      editorNeutralLevel === level
+                        ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
+                        : 'border-[var(--border-light)] hover:border-[var(--text-disabled)]'
+                    }`}
+                    style={{ backgroundColor: EDITOR_NEUTRAL_SWATCHES[editorThemeMode][level] }}
+                  >
+                    <span className={`text-[9px] font-semibold ${
+                      editorThemeMode === 'dark' ? 'text-white/60' : 'text-black/50'
+                    }`}>{level}</span>
+                  </button>
+                ))}
+              </div>
+            </SettingsRow>
+
+            <SettingsRow label="Accent" align="top">
+              <div className="grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
+                {BUILDER_THEMES.map((theme) => {
+                  const accent = editorThemeMode === 'dark' ? theme.dark.accent : theme.light.accent;
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      aria-pressed={builderTheme === theme.id}
+                      onClick={() => setBuilderTheme(theme.id)}
+                      className={`flex items-center gap-2.5 rounded-[5px] border px-2.5 py-2 text-left transition-colors ${
+                        activeBuilderTheme.id === theme.id
+                          ? 'border-[var(--accent)] bg-[var(--accent-surface)]'
+                          : 'border-[var(--border-light)] bg-[var(--bg-surface)]/65 hover:bg-[var(--bg-hover)]/55'
+                      }`}
+                    >
+                      <span className="h-5 w-5 shrink-0 rounded-[4px] border border-black/15" style={{ backgroundColor: accent }} />
+                      <span className="truncate text-[11px] font-medium text-[var(--text-primary)]">{theme.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsRow>
+
+            <SettingsRow label="Website preview" align="top">
+              <div className="flex flex-col gap-1.5">
+                <SegmentedChoice
+                  value={websitePreviewTheme}
+                  options={[
+                    { value: 'light', label: 'Light' },
+                    { value: 'dark', label: 'Dark' },
+                  ]}
+                  onChange={(value) => handleWebsitePreviewTheme(value as EditorThemeMode)}
+                />
+                <p className="text-[10px] leading-4 text-[var(--text-tertiary)]">
+                  Changes how Canvas and Preview display an existing site theme. It never rewrites project source.
+                </p>
+              </div>
+            </SettingsRow>
+
             <SettingsRow label="Lowercase headings" align="top">
               <div className="flex items-start justify-between gap-4 py-0.5">
-                <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Use loew.fi lowercase styling for interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
+                <p className="max-w-lg text-xs leading-relaxed text-[var(--text-tertiary)]">
+                  Apply loew.fi lowercase styling to eligible interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
                 </p>
                 <div className="shrink-0 pt-0.5">
                   <Toggle value={lowercaseHeadings} onChange={setLowercaseHeadings} />
@@ -773,30 +1061,126 @@ export default function SettingsOverlay() {
             </SettingsRow>
           </SettingsGroup>
 
+          <SettingsGroup surface title="Workspace">
+            <SettingsRow label="Layout" align="top">
+              <div className="grid max-w-2xl grid-cols-1 gap-2 sm:grid-cols-3">
+                {([
+                  { id: 'docked', title: 'Full', description: 'Expanded panels' },
+                  { id: 'compact-docked', title: 'Focus', description: 'More canvas, slim panels' },
+                  { id: 'floating', title: 'Float', description: 'Detached working panels' },
+                ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).map((mode) => (
+                  <ChoiceTile
+                    key={mode.id}
+                    active={workspaceMode === mode.id}
+                    title={mode.title}
+                    description={mode.description}
+                    onClick={() => setWorkspaceMode(mode.id)}
+                  >
+                    <WorkspaceChoiceGlyph mode={mode.id} />
+                  </ChoiceTile>
+                ))}
+              </div>
+            </SettingsRow>
+
+            <SettingsRow label="Panel behavior" align="top">
+              <div className="grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2.5">
+                  <div>
+                    <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto-hide left panel</div>
+                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Keep the canvas clear until the rail is needed.</div>
+                  </div>
+                  <Toggle value={workspaceAutoHide} onChange={setWorkspaceAutoHide} />
+                </div>
+                <div className="flex items-center justify-between rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2.5">
+                  <div>
+                    <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto-hide Inspector</div>
+                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Reveal the Inspector only when context needs it.</div>
+                  </div>
+                  <Toggle value={rightInspectorAutoHide} onChange={handleInspectorAutoHide} />
+                </div>
+              </div>
+            </SettingsRow>
+
+            <SettingsRow label="Panel widths" align="top">
+              <div className="grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
+                    <span>Pages & layers</span>
+                    <span className="tabular-nums text-[var(--text-tertiary)]">{leftContentWidth}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_LEFT_CONTENT_WIDTH}
+                    max={MAX_LEFT_CONTENT_WIDTH}
+                    step={4}
+                    value={leftContentWidth}
+                    onChange={(event) => setLeftContentWidth(Number(event.target.value))}
+                    className="w-full accent-[var(--accent)]"
+                  />
+                </label>
+                <label className="block">
+                  <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
+                    <span>Inspector</span>
+                    <span className="tabular-nums text-[var(--text-tertiary)]">{rightPaneWidth}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_RIGHT_PANE_WIDTH}
+                    max={MAX_RIGHT_PANE_WIDTH}
+                    step={4}
+                    value={rightPaneWidth}
+                    onChange={(event) => setRightPaneWidth(Number(event.target.value))}
+                    className="w-full accent-[var(--accent)]"
+                  />
+                </label>
+              </div>
+            </SettingsRow>
+          </SettingsGroup>
+
           <SettingsGroup surface title="Canvas">
-            <SettingsRow label="Auto focus layers">
-              <Toggle value={autoFocusLayers} onChange={setAutoFocusLayers} />
+            <SettingsRow label="Selection">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto focus layers</div>
+                  <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Reveal and scroll to the selected layer automatically.</div>
+                </div>
+                <Toggle value={autoFocusLayers} onChange={setAutoFocusLayers} />
+              </div>
             </SettingsRow>
-            <SettingsRow label="Show rulers">
-              <Toggle value={showRulers} onChange={setShowRulers} />
+            <SettingsRow label="Guides">
+              <div className="grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-3 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2">
+                  <span className="text-[11px] text-[var(--text-primary)]">Show rulers</span>
+                  <Toggle value={showRulers} onChange={setShowRulers} />
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2">
+                  <span className="text-[11px] text-[var(--text-primary)]">Pixel grid at high zoom</span>
+                  <Toggle value={showPixelGrid} onChange={setShowPixelGrid} />
+                </div>
+              </div>
             </SettingsRow>
-            <SettingsRow label="Smooth zoom">
-              <Toggle value={useSmoothZoom} onChange={setUseSmoothZoom} />
+            <SettingsRow label="Zoom">
+              <div className="flex max-w-xl items-center justify-between gap-4">
+                <div>
+                  <div className="text-[11px] font-medium text-[var(--text-primary)]">Smooth zoom</div>
+                  <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Animate wheel and shortcut zoom instead of snapping.</div>
+                </div>
+                <Toggle value={useSmoothZoom} onChange={setUseSmoothZoom} />
+              </div>
             </SettingsRow>
-            <SettingsRow label="Pixel grid">
-              <Toggle value={showPixelGrid} onChange={setShowPixelGrid} />
-            </SettingsRow>
-            <SettingsRow label="Auto pan speed" htmlFor="general-auto-pan-speed">
-              <RowSelect
-                id="general-auto-pan-speed"
-                value={autoPanSpeed}
-                options={[
-                  { value: 'low', label: 'Low' },
-                  { value: 'mid', label: 'Medium' },
-                  { value: 'high', label: 'High' },
-                ]}
-                onChange={(value) => setAutoPanSpeed(value as AutoPanSpeed)}
-              />
+            <SettingsRow label="Auto pan" align="top">
+              <div className="flex flex-col gap-1.5">
+                <SegmentedChoice
+                  value={autoPanSpeed}
+                  options={[
+                    { value: 'low', label: 'Low' },
+                    { value: 'mid', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                  ]}
+                  onChange={(value) => setAutoPanSpeed(value as AutoPanSpeed)}
+                />
+                <p className="text-[10px] leading-4 text-[var(--text-tertiary)]">Controls edge-scrolling speed while dragging on the canvas.</p>
+              </div>
             </SettingsRow>
           </SettingsGroup>
         </div>
@@ -1085,7 +1469,7 @@ export default function SettingsOverlay() {
             <div className="flex-1 min-h-0">{renderContent()}</div>
           ) : (
             <div className={`flex-1 overflow-y-auto overscroll-contain ${isMobile ? 'px-4 py-5' : activeSection === 'website' ? 'px-12 py-10' : 'px-10 py-8'}`}>
-              <div className={`mx-auto ${activeSection === 'website' ? 'max-w-[760px]' : 'max-w-4xl'}`}>
+              <div className={`mx-auto ${activeSection === 'website' ? 'max-w-[920px]' : 'max-w-4xl'}`}>
                 {renderContent()}
               </div>
             </div>
