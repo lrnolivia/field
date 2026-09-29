@@ -45,6 +45,7 @@ import { previewFrameUrl } from './preview-frame-url';
  * so they must stay on that certified hostname instead of inventing a
  * preview.<deployment>.field-preview.loew.fi sub-subdomain.
  */
+// QA source-touch: force immutable branch Preview to rebuild this editor bundle.
 const PREVIEW_URL =
   typeof window !== 'undefined'
     ? previewFrameUrl(window.location)
