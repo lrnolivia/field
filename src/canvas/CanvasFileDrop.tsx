@@ -7,12 +7,12 @@
 //   1. OS file drops (`DataTransfer.files`):
 //        - All SVG: open "New Vector Set" modal → build an icon-set
 //          master and drop an instance at the drop position.
-//        - Images (PNG/JPG/WebP/GIF/…): upload to R2 via
+//        - Images (PNG/JPG/WebP/GIF/…): ingest through the active backend via
 //          `backend.uploadAsset` and drop each as a frame.
 //   2. Browser image-URL drops (`text/uri-list` / `DownloadURL` /
 //      `text/html` <img>): dragging an image out of another tab, off a
 //      web page, or from Chrome's download history. The image is
-//      re-hosted into R2 (server-side bytes are fetched client-side and
+//      re-ingested through the active Media backend (server-side bytes are fetched client-side and
 //      re-uploaded through the SAME `/api/upload` route the Media tab
 //      uses) and dropped. If the source blocks CORS so the bytes can't
 //      be read, we fall back to the original remote URL so the drop
@@ -22,6 +22,7 @@
 // sized to the image's aspect ratio — not an `<img>` node.
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
@@ -30,7 +31,7 @@ import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { generateNodeId } from '@/shared/id-utils';
 import { transformManager } from '@/canvas/transform';
 import { screenToCanvas } from '@/canvas/canvas-math';
-import { getContentRoot } from '@/canvas/node-ops';
+import { getContentRoot, getContentRootRect } from '@/canvas/node-ops';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { createVectorSetFromSvgs, preflightSvgFiles, type PreflightSvg } from '@/code/icons/create-vector-set-from-svgs';
@@ -63,6 +64,48 @@ function classifyFile(file: File): FileKind {
  *  the payload isn't actually an image. */
 export function isExternalImageDrag(types: readonly string[]): boolean {
   return types.includes('Files') || types.includes('text/uri-list') || types.includes('DownloadURL');
+}
+
+export function isPointInsideCanvasRect(
+  x: number,
+  y: number,
+  rect: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
+): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+export function canvasMediaDropLabel(imageCount: number, svgCount: number): string {
+  if (imageCount > 0 && svgCount === 0) {
+    return imageCount === 1 ? 'Place image' : 'Place ' + imageCount + ' images';
+  }
+  if (svgCount > 0 && imageCount === 0) {
+    return svgCount === 1 ? 'Create vector set' : 'Create vector set · ' + svgCount + ' SVGs';
+  }
+  if (imageCount > 0 || svgCount > 0) return 'Add media';
+  return 'Place media';
+}
+
+function dragFeedbackLabel(dt: DataTransfer): string {
+  const files = Array.from(dt.files ?? []);
+  if (files.length === 0 && (Array.from(dt.types).includes('text/uri-list') || Array.from(dt.types).includes('DownloadURL'))) {
+    return 'Place image';
+  }
+  let imageCount = 0;
+  let svgCount = 0;
+  for (const file of files) {
+    const kind = classifyFile(file);
+    if (kind === 'image') imageCount += 1;
+    else if (kind === 'svg') svgCount += 1;
+  }
+  return canvasMediaDropLabel(imageCount, svgCount);
+}
+
+interface CanvasMediaDropFeedback {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  label: string;
 }
 
 /** Don't hijack drops aimed at a real text field (URL inputs, code
@@ -127,7 +170,7 @@ export function extractImageUrlFromDataTransfer(dt: DataTransfer): { url: string
   return null;
 }
 
-/** Derive a filename from a URL for the upload (R2 keys + media library). */
+/** Derive a filename from a URL for the upload (Media library naming). */
 export function filenameFromUrl(url: string): string | null {
   try {
     if (url.startsWith('data:')) return null;
@@ -139,10 +182,10 @@ export function filenameFromUrl(url: string): string | null {
   }
 }
 
-/** Fetch a URL's bytes client-side and re-upload to R2 via the shared
- *  asset route. Returns the R2 URL, or null when the bytes can't be read
+/** Fetch a URL's bytes client-side and re-ingest through the active backend via the shared
+ *  asset route. Returns the backend URL, or null when the bytes can't be read
  *  (CORS) or aren't an image — caller falls back to the original URL. */
-async function rehostImageToR2(url: string, projectId: string, name?: string): Promise<string | null> {
+async function rehostImageThroughBackend(url: string, projectId: string, name?: string): Promise<string | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
@@ -154,9 +197,9 @@ async function rehostImageToR2(url: string, projectId: string, name?: string): P
     const looksImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(fileName);
     if (!looksImage) return null;
     const file = new File([blob], fileName, { type: type || 'image/png' });
-    const r2 = await backend.uploadAsset(projectId, file);
-    trace.action('canvas-file-drop:rehost-success', { from: url.slice(0, 80), r2 });
-    return r2;
+    const hostedUrl = await backend.uploadAsset(projectId, file);
+    trace.action('canvas-file-drop:rehost-success', { from: url.slice(0, 80), hostedUrl });
+    return hostedUrl;
   } catch (err) {
     trace.action('canvas-file-drop:rehost-failed', { url: url.slice(0, 80), error: String(err) });
     return null;
@@ -209,22 +252,61 @@ export default function CanvasFileDrop() {
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSelectedIds = useSetAtom(selectedIdsAtom);
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
+  const [dropFeedback, setDropFeedback] = useState<CanvasMediaDropFeedback | null>(null);
 
-  // dragenter + dragover must `preventDefault` so the `drop` event fires
-  // and the browser doesn't open/navigate to the dragged file/URL. No
-  // visual drag-over indicator — the drop just lands silently.
+  // External Media drags are valid only over the actual canvas viewport.
+  // Editor chrome still prevents browser navigation, but does not become an
+  // accidental canvas insertion target.
   const handleDragOver = useCallback((e: DragEvent) => {
     if (!e.dataTransfer || isFormFieldTarget(e.target)) return;
     if (!isExternalImageDrag(Array.from(e.dataTransfer.types))) return;
     e.preventDefault();
+    if (isViewerMode()) {
+      setDropFeedback(null);
+      return;
+    }
+
+    const rect = getContentRootRect();
+    if (!rect || !isPointInsideCanvasRect(e.clientX, e.clientY, rect)) {
+      setDropFeedback(null);
+      return;
+    }
+
     e.dataTransfer.dropEffect = 'copy';
+    const next: CanvasMediaDropFeedback = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      label: dragFeedbackLabel(e.dataTransfer),
+    };
+    setDropFeedback((current) => (
+      current
+      && current.left === next.left
+      && current.top === next.top
+      && current.width === next.width
+      && current.height === next.height
+      && current.label === next.label
+        ? current
+        : next
+    ));
   }, []);
 
   const handleDrop = useCallback(async (e: DragEvent) => {
     if (!e.dataTransfer || isFormFieldTarget(e.target)) return;
     if (!isExternalImageDrag(Array.from(e.dataTransfer.types))) return;
     e.preventDefault();
-    // Viewer sessions never write — same chokepoint as every other mutation path.
+    setDropFeedback(null);
+
+    const rect = getContentRootRect();
+    if (!rect || !isPointInsideCanvasRect(e.clientX, e.clientY, rect)) {
+      trace.action('canvas-file-drop:ignored-outside-canvas', {
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
+      return;
+    }
+
     if (isViewerMode()) return;
 
     // Canvas-space drop position — exactly under the cursor, accounting
@@ -279,21 +361,27 @@ export default function CanvasFileDrop() {
     await handleImageUrlDrop(extracted.url, extracted.name, canvasX, canvasY, setSelectedIds);
   }, [setSelectedIds]);
 
-  // Window-level listeners — files/images dropped anywhere over the editor
-  // are captured. The browser default (navigate to the file/URL) is killed
-  // by preventDefault on dragenter/dragover/drop.
+  // Window-level listeners suppress browser navigation for external Media,
+  // while the canvas rect itself remains the only valid insertion target.
   useEffect(() => {
     const onOver = (e: DragEvent) => handleDragOver(e);
     const onDrop = (e: DragEvent) => { void handleDrop(e); };
+    const clearFeedback = () => setDropFeedback(null);
+    const onLeave = (e: DragEvent) => {
+      const rect = getContentRootRect();
+      if (!rect || !isPointInsideCanvasRect(e.clientX, e.clientY, rect)) clearFeedback();
+    };
 
-    // dragenter shares dragover's predicate + preventDefault (some
-    // browsers need the default suppressed on enter too before drop fires).
     window.addEventListener('dragenter', onOver);
     window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('dragend', clearFeedback);
     window.addEventListener('drop', onDrop);
     return () => {
       window.removeEventListener('dragenter', onOver);
       window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('dragend', clearFeedback);
       window.removeEventListener('drop', onDrop);
     };
   }, [handleDragOver, handleDrop]);
@@ -371,10 +459,28 @@ export default function CanvasFileDrop() {
       ].filter(Boolean).join(' · ')
     : undefined;
 
-  // No drag-over indicator — the SVG flow still needs its naming modal,
-  // so the component renders only that (nothing while just hovering).
   return (
     <>
+      {dropFeedback && createPortal(
+        <div
+          data-canvas-media-drop-target
+          className="pointer-events-none fixed z-[14980] border"
+          style={{
+            left: dropFeedback.left,
+            top: dropFeedback.top,
+            width: dropFeedback.width,
+            height: dropFeedback.height,
+            borderColor: 'var(--accent)',
+            background: 'color-mix(in srgb, var(--accent) 5%, transparent)',
+          }}
+          aria-hidden
+        >
+          <div className="absolute left-1/2 top-3 -translate-x-1/2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1 text-[10px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
+            {dropFeedback.label}
+          </div>
+        </div>,
+        document.body,
+      )}
       <NameInputModal
         isOpen={!!pendingDrop && pendingDrop.validSvgs.length > 0}
         onClose={handleVectorSetCancel}
@@ -428,7 +534,7 @@ async function handleImageFileDrops(
   }
 }
 
-/** Re-host a browser image URL into R2 and drop it as a frame. Falls back
+/** Re-host a browser image URL through the active backend and drop it as a frame. Falls back
  *  to the original URL when the bytes can't be fetched (CORS), so the drop
  *  still lands; aborts only if the URL can't render as an image at all. */
 async function handleImageUrlDrop(
@@ -439,23 +545,23 @@ async function handleImageUrlDrop(
   setSelectedIds: (ids: string[]) => void,
 ): Promise<void> {
   const projectId = getProjectId();
-  const r2 = await rehostImageToR2(url, projectId, name);
-  const displayUrl = r2 ?? url;
+  const hostedUrl = await rehostImageThroughBackend(url, projectId, name);
+  const displayUrl = hostedUrl ?? url;
 
   // Confirm it actually renders before inserting an empty frame.
   const dims = await getImageDimensions(displayUrl);
-  if (!dims && !r2) {
+  if (!dims && !hostedUrl) {
     trace.action('canvas-file-drop:url-not-image', { url: url.slice(0, 120) });
     toast.error('Could not load the dropped image');
     return;
   }
-  if (!r2) {
-    // CORS-blocked re-host — using the remote URL directly (not in R2).
+  if (!hostedUrl) {
+    // CORS-blocked re-host — using the remote URL directly (not in durable Media storage).
     trace.action('canvas-file-drop:url-rehost-fallback', { url: url.slice(0, 120) });
   }
 
   const id = queueImageFrame(displayUrl, dims, canvasX, canvasY);
   flushNow();
   setSelectedIds([id]);
-  trace.action('canvas-file-drop:url-dropped', { id, rehosted: !!r2 });
+  trace.action('canvas-file-drop:url-dropped', { id, rehosted: !!hostedUrl });
 }
