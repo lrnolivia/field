@@ -1,6 +1,6 @@
 # field Preview QA overlay
 
-> **Runner-first law:** read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` section 11 and `contracts/manifest.json` before using this file. This overlay defines field runtime targets; it does **not** choose the universal QA engine or override Runner retry/watchdog/danger-zone rules.
+> **Runner-first law:** read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` section 11 and `contracts/manifest.json` before using this file. This overlay defines field runtime targets; it does **not** choose the universal QA engine or override Runner retry/watchdog/danger-zone rules.
 
 For routine loew web QA, follow Runner routing: HTTP/read-only inspection → deterministic Inspector/GitHub Chromium when capable → Browser Run only for exploratory/session behavior → project-native/authenticated harnesses where required.
 
