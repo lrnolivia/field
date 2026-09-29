@@ -333,7 +333,7 @@ const PointerEventsIcon: React.FC<P> = (p) => W(p, c => <>
 
 // ─── Grid ──────────────────────────────────────────────────────────────────
 
-const GridIcon: React.FC<P> = (p) => W(p, c => <>
+export const GridIcon: React.FC<P> = (p) => W(p, c => <>
   <rect x={3} y={3} width={10} height={10} rx={1} stroke={c} strokeWidth={1.2} fill="none" />
   <line x1={3} y1={7.5} x2={13} y2={7.5} stroke={c} strokeWidth={1} />
   <line x1={7.5} y1={3} x2={7.5} y2={13} stroke={c} strokeWidth={1} />
