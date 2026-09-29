@@ -1,0 +1,175 @@
+diff --git a/src/editor/tools/StylesTool/atoms/FillControl.tsx b/src/editor/tools/StylesTool/atoms/FillControl.tsx
+index d01c256..36b6628 100644
+--- a/src/editor/tools/StylesTool/atoms/FillControl.tsx
++++ b/src/editor/tools/StylesTool/atoms/FillControl.tsx
+@@ -6,7 +6,7 @@ import { useLivePreview } from '../../../hooks/useLivePreview';
+ import { useAtomValue, useSetAtom } from 'jotai';
+ import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
+ import LocaleBoundPill, { useLocaleStyleOverrides } from '@/editor/controls/LocaleBoundPill';
+-import { UnifiedControlProvider, useControlContext, useControlContextOptional, ShowControlLabels, InspectorProvenanceBoundary } from '../../../controls/unified';
++import { UnifiedControlProvider, useControlContext, useControlContextOptional, InspectorProvenanceBoundary } from '../../../controls/unified';
+ import { UsedByRow } from '../../../controls/unified/UsedByRow';
+ import { VariableBoundPill, LegacyVariableBoundPill } from '../../../controls/VariableBoundPill';
+ import { useControlOptional } from '../../../controls/ControlProvider';
+@@ -16,11 +16,10 @@ import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
+ import { toHexDisplay } from '../../../ui/color-utils';
+ import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
+ import type { AtomProps } from '../../../controls/unified/types';
+-import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, InspectorIconButtonGroup, ToolRow, ToolInput, ColorInput } from '../../../controls';
++import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, ToolRow, ToolInput, ColorInput } from '../../../controls';
+ import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
+-import { useToolPopup } from '../../../ui/ToolPopup';
+-import { useEditorPanel } from '../../../hooks/useEditorPanel';
+-import { OptionsPanel, OptionSection, ChoiceRow } from '../../../ui/OptionsPanel';
++import ToolPopup, { useToolPopup } from '../../../ui/ToolPopup';
++import PaintPickerShell, { ALL_PAINT_TYPES, SOLID_ONLY_PAINT_TYPES, type PaintPickerSurface, type PaintType } from '../../../ui/PaintPickerShell';
+ import ColorPicker from '../../../ui/ColorPicker';
+ import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
+ import { CreatePresetPopupBody } from '../../../ui/CreatePresetPopup';
+@@ -66,7 +65,6 @@ import { parseVarRef } from '@/shared/css-utils';
+ import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+ import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
+ import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+-import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon, AnimationIcon } from '@/design-system/PropertyIcons';
+ 
+ // ─── Shared Constants ───────────────────────────────────────────────────────
+ 
+@@ -187,105 +185,90 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
+   }, [pushPanel, popPanel, applyImageUrl]);
+ 
+   return (
+-    <div className="flex flex-col gap-2">
++    <div className="flex flex-col gap-4">
+       {!libraryOnly && (
+         <>
+-      {/* Image preview + Choose button */}
+-      {hasImage ? (
+-        <div className="flex items-center gap-1.5">
++          <div className="flex items-center justify-between gap-3">
++            <div className="w-[190px]">
++              <ToolSelect
++                value={styles.backgroundSize || 'cover'}
++                onChange={(value) => onUpdate('backgroundSize', value)}
++                options={SIZE_OPTIONS}
++              />
++            </div>
++            <button
++              type="button"
++              onClick={() => hasImage && setCropModalOpen(true)}
++              disabled={!hasImage}
++              aria-label="Crop image"
++              title="Crop image"
++              className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
++            >
++              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
++                <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
++              </svg>
++            </button>
++          </div>
++
+           <button
+             type="button"
+             onClick={openMedia}
+-            className="min-w-0 flex-1 h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-left hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
+-            title={previewUrl || 'Image'}
++            className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
++            title={previewUrl || 'Select image source'}
+           >
+             <span
+-              className="h-6 w-6 shrink-0 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]"
+-              style={{ backgroundImage: previewBg, backgroundSize: 'cover', backgroundPosition: styles.backgroundPosition || 'center' }}
++              className="absolute inset-0"
++              style={hasImage
++                ? { backgroundImage: previewBg, backgroundSize: styles.backgroundSize || 'cover', backgroundPosition: styles.backgroundPosition || 'center', backgroundRepeat: styles.backgroundRepeat || 'no-repeat' }
++                : ALPHA_CHECKER_STYLE}
++              aria-hidden
+             />
+-            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">Image</span>
+-            <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">Change</span>
+-          </button>
+-          <button
+-            type="button"
+-            onClick={() => setCropModalOpen(true)}
+-            aria-label="Crop image"
+-            title="Crop image"
+-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[var(--control-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+-          >
+-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+-              <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
+-            </svg>
++            <span className="absolute inset-0 flex items-center justify-center">
++              <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
++                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
++                {hasImage ? 'Replace source…' : 'Select source…'}
++              </span>
++            </span>
+           </button>
+-        </div>
+-      ) : (
+-        <button
+-          type="button"
+-          onClick={openMedia}
+-          className="w-full h-8 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+-        >
+-          <span className="flex h-4 w-4 items-center justify-center" aria-hidden>◇</span>
+-          <span className="min-w-0 flex-1 truncate">Choose media</span>
+-          <span className="text-[10px] text-[var(--text-disabled)]">Image</span>
+-        </button>
+-      )}
+-
+-      {/* Size/Position/Repeat/Attachment controls — only when image is set */}
+-      {hasImage && (
+-        <>
+-          <div className="flex items-center justify-between w-full">
+-            <ControlLabel label="Size" property="backgroundSize" plain />
+-            <ToolSelect value={styles.backgroundSize || 'cover'} onChange={(v) => onUpdate('backgroundSize', v)} options={SIZE_OPTIONS} />
+-          </div>
+-          <div className="flex items-center justify-between w-full">
+-            <ControlLabel label="Position" property="backgroundPosition" plain />
+-            <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(v) => onUpdate('backgroundPosition', v)} options={POSITION_OPTIONS} />
+-          </div>
+-          <div className="flex items-center justify-between w-full">
+-            <ControlLabel label="Repeat" property="backgroundRepeat" plain />
+-            <ToolSelect value={styles.backgroundRepeat || 'no-repeat'} onChange={(v) => onUpdate('backgroundRepeat', v)} options={REPEAT_OPTIONS} />
+-          </div>
+-          <div className="flex items-center justify-between w-full">
+-            <ControlLabel label="Attachment" property="backgroundAttachment" plain />
+-            <ToolSelect value={styles.backgroundAttachment || 'scroll'} onChange={(v) => onUpdate('backgroundAttachment', v)} options={ATTACHMENT_OPTIONS} />
+-          </div>
+-        </>
+-      )}
+ 
++          {hasImage && (
++            <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
++              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
++                <span className="text-[12px] text-[var(--text-secondary)]">Position</span>
++                <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(value) => onUpdate('backgroundPosition', value)} options={POSITION_OPTIONS} />
++              </div>
++              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
++                <span className="text-[12px] text-[var(--text-secondary)]">Repeat</span>
++                <ToolSelect value={styles.backgroundRepeat || 'no-repeat'} onChange={(value) => onUpdate('backgroundRepeat', value)} options={REPEAT_OPTIONS} />
++              </div>
++              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
++                <span className="text-[12px] text-[var(--text-secondary)]">Attachment</span>
++                <ToolSelect value={styles.backgroundAttachment || 'scroll'} onChange={(value) => onUpdate('backgroundAttachment', value)} options={ATTACHMENT_OPTIONS} />
++              </div>
++            </div>
++          )}
+         </>
+       )}
+ 
+-      {/* Image preset grid + Create new entry */}
+       {libraryOnly && (
+         <AssetPresetGrid
+           presets={imagePresets}
+-        type="image"
+-        activePresetName={activePresetName}
+-        onApplyPreset={(varVal) => {
+-          // Apply preset reference; clear conflicting fill props that might
+-          // have come from a prior solid/gradient/raw-url selection.
+-          onUpdate('backgroundColor', '');
+-          onUpdate('background', '');
+-          onUpdate('backgroundImage', varVal);
+-          // ALWAYS (re)write size/position/repeat — preserve the authored
+-          // value, default otherwise. The `background: ''` clear above wipes
+-          // every background-* longhand from the inline DOM style (CSSOM
