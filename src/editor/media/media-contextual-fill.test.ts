@@ -104,4 +104,18 @@ describe('contextual Media in image Fill', () => {
   });
 
 
+
+  it('keeps shared ImagePickerInput contextual instead of opening a standalone modal', () => {
+    const input = read('src/editor/controls/ImagePickerInput.tsx');
+
+    expect(input).toContain('aria-expanded={pickerOpen}');
+    expect(input).toContain('data-contextual-media-picker="image-input"');
+    expect(input).toContain('<ImageSearchModal');
+    expect(input).toContain('embedded');
+    expect(input).toContain('compact');
+    expect(input).toContain('pickerOpen &&');
+    expect(input).not.toContain('isOpen={pickerOpen}');
+  });
+
+
 });
