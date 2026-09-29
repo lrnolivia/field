@@ -11,7 +11,7 @@
 // dropdown so the 25 s deploy doesn't feel dead.
 
 import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { LayoutGroup, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, useAtomValue, useAtom } from 'jotai';
 import { exportDropdownOpenAtom, inspectorModeAtom } from '@/code/stores/editor-store';
@@ -38,6 +38,7 @@ import { zoomTo100 } from '@/canvas/transform/CameraCommands';
 import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
+import WebsitePreviewAppearanceControl from '@/editor/WebsitePreviewAppearanceControl';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -295,7 +296,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   };
 
   return (
-    <LayoutGroup id="right-inspector-pane-actions">
+    <>
       {rightPaneOpen && (
         <div
           data-workspace-right-header
@@ -319,9 +320,13 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
-          <div data-inspector-header-actions className="flex h-full flex-col items-end py-px">
-            <div className="flex h-7 items-center">
-              {!previewMode && <InspectorZoomControl />}
+          <div data-inspector-header-actions className="flex items-center">
+            {!previewMode && (
+              <div className="flex items-center gap-1">
+                <InspectorZoomControl />
+                <WebsitePreviewAppearanceControl />
+              </div>
+            )}
 
           <button
             type="button"
@@ -387,27 +392,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
               }}
             />
           </div>
-            </div>
-            {!previewMode && (
-              <div data-inspector-header-pane-actions className="mt-0.5 flex h-5 items-center gap-1">
-                <motion.div
-                  layoutId="right-inspector-autohide"
-                  transition={{ duration: 0.2, ease: 'easeInOut' }}
-                >
-                  <WorkspaceAutoHideButton side="right" />
-                </motion.div>
-                <motion.div
-                  layoutId="right-inspector-collapse"
-                  transition={{ duration: 0.2, ease: 'easeInOut' }}
-                >
-                  <WorkspaceCollapseButton
-                    side="right"
-                    collapsed={false}
-                    onClick={() => setRightPaneOpen(false)}
-                  />
-                </motion.div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -509,6 +493,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         confirmLabel={publishError?.upgradable ? 'See plans' : publishError?.retryable === false ? 'Close' : 'Try again'}
         cancelLabel={publishError?.upgradable ? 'Not now' : publishError?.retryable === false ? 'Keep editing' : 'Close'}
       />
-    </LayoutGroup>
+    </>
   );
 }

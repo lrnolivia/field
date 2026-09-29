@@ -4,8 +4,8 @@ import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
 import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
-import { refreshCanvasTokens } from '@/canvas/node-ops';
 import { trace } from '@/shared/debug-trace';
+import { applyEditorChromePreferences } from '@/editor/builder-theme';
 
 export default function EditorAppearanceControl() {
   const [mode, setMode] = useAtom(editorThemeModeAtom);
@@ -18,8 +18,11 @@ export default function EditorAppearanceControl() {
     root.classList.add('theme-transition');
     setMode(nextMode);
     setNeutralLevel(nextLevel);
+    // Apply immediately instead of waiting on the global store subscriber.
+    // This control owns FIELD CHROME only; website Canvas/Preview appearance
+    // is a separate view preference.
+    applyEditorChromePreferences();
     window.setTimeout(() => root.classList.remove('theme-transition'), 200);
-    requestAnimationFrame(() => refreshCanvasTokens());
     setOpen(false);
     trace.action('editor:theme-neutral', { mode: nextMode, level: nextLevel });
   }, [setMode, setNeutralLevel]);

@@ -51,7 +51,7 @@ function readStoredString(key: string): unknown {
   }
 }
 
-function applyEditorChromePreferences(): void {
+export function applyEditorChromePreferences(): void {
   const store = getDefaultStore();
   const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
   const level = normalizeEditorNeutralLevel(store.get(editorNeutralLevelAtom));

@@ -1,29 +1,25 @@
-// canvas-theme.ts — the canvas shows the website in the EDITOR's colour mode.
+// canvas-theme.ts — website appearance shown in Canvas + Preview.
 //
 // A website's tokens live in app/globals.css twice: `:root { … }` for light
 // and `:root.dark { … }` for dark (the class next-themes puts on <html> on
-// the live site). The canvas iframe never carries that class — its <html> is
-// the sandbox's — so the dark block never applied and the canvas could only
-// ever paint the light scheme, whatever the editor was set to.
-//
-// The lifter now reads the editor's own mode (the `.dark` class the bottom
-// toolbar toggles on the editor's <html>) and, in dark mode, appends the dark
-// block AFTER the light one, scoped to [data-content-root] like every lifted
-// token block; last rule wins, so the canvas paints the dark values. The
-// toolbar re-lifts on toggle, and the preview is pinned to the same mode, so
-// canvas, preview and the editor chrome agree.
+// the live site). Canvas/Preview use a dedicated per-user viewing preference,
+// independent from FIELD CHROME. Changing editor chrome never changes which
+// website theme is being inspected, and this viewing preference never rewrites
+// project source or the published site's own theme/default behavior.
 //
 // One extractor for both lifters (Renderer at render time, node-ops on token
 // edits) — they used to keep two copies of this scan, and a rule one knew
 // about and the other did not was exactly the kind of drift a live token
 // edit would expose.
 
+import { getDefaultStore } from 'jotai';
+import { websitePreviewThemeAtom } from '@/code/stores/user-preferences-store';
+
 export type CanvasThemeMode = 'light' | 'dark';
 
-/** The mode the editor chrome is in: the `.dark` class on its <html>. */
+/** The website appearance currently being inspected in Canvas + Preview. */
 export function canvasThemeMode(): CanvasThemeMode {
-  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-    ? 'dark' : 'light';
+  return getDefaultStore().get(websitePreviewThemeAtom);
 }
 
 /** Every `@<name> … { … }` block, nested braces included. A regex breaks on

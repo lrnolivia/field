@@ -1,8 +1,12 @@
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
+import { motion } from 'motion/react';
 import { inspectorModeAtom } from '@/code/stores/editor-store';
+import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 
 export default function InspectorModeTabs() {
   const [mode, setMode] = useAtom(inspectorModeAtom);
+  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
 
   return (
     <div
@@ -33,6 +37,14 @@ export default function InspectorModeTabs() {
       >
         Prototype
       </button>
+      <div data-inspector-pane-actions className="ml-auto flex items-center gap-1">
+        <motion.div layoutId="right-inspector-autohide" transition={{ duration: 0.2, ease: 'easeInOut' }}>
+          <WorkspaceAutoHideButton side="right" />
+        </motion.div>
+        <motion.div layoutId="right-inspector-collapse" transition={{ duration: 0.2, ease: 'easeInOut' }}>
+          <WorkspaceCollapseButton side="right" collapsed={false} onClick={() => setRightPaneOpen(false)} />
+        </motion.div>
+      </div>
     </div>
   );
 }
