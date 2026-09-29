@@ -1,10 +1,10 @@
 // InspectorZoomControl.tsx — compact Inspector view controls.
 // FIGUI3_INSPECTOR_VIEW_CONTROLS_20260926
 //
-// Full zoom and Inspector pane actions belong in the Inspector utility area.
+// Zoom stays in the Inspector utility area. Pane actions live in the shared right header.
 // Editor appearance lives on the canonical left rail.
 
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useEffect, useRef, useState } from 'react';
 import { selectedNodeAtom } from '@/code/stores/store';
 import {
@@ -17,8 +17,7 @@ import {
 } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
-import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
-import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
+
 
 function MenuRow({ label, shortcut, onClick }: {
   label: string;
@@ -37,10 +36,9 @@ function MenuRow({ label, shortcut, onClick }: {
   );
 }
 
-/** Compact zoom readout + Inspector pane controls. */
+/** Compact zoom readout. */
 export default function InspectorZoomControl() {
   const selectedId = useAtomValue(selectedNodeAtom);
-  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
   const ref = useRef<HTMLDivElement>(null);
@@ -78,9 +76,6 @@ export default function InspectorZoomControl() {
 
   return (
     <div data-inspector-view-controls className="relative ml-auto flex items-center gap-0.5">
-      <WorkspaceAutoHideButton side="right" />
-      <WorkspaceCollapseButton side="right" collapsed={false}
-        onClick={() => setRightPaneOpen(false)} />
       <div ref={ref} className="relative">
         <button
           type="button"
