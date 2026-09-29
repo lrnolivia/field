@@ -13,7 +13,7 @@ import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import { extractNonShadowFilter } from '../../../ui/shadow-utils';
 import type { AtomProps } from '../../../controls/unified/types';
-import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
+import { EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
 
 // ─── Filter parse/format ────────────────────────────────────────────────────
 
@@ -92,7 +92,6 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
   return (
     <ShowControlLabels>
       <EffectOptionsPanel>
-        <EffectIllustration kind="layer-blur" />
         <EffectOptionSection title="Layer blur" glyph={<InspectorSectionGlyph kind="blur" />}>
           <ScalarRow label="Radius" value={f.blur} min={0} max={40} step={0.5} unit="px"
             onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
