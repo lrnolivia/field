@@ -352,8 +352,8 @@ export default function LeftHeader() {
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).
-          It stays mounted while the left workspace is collapsed because
-          WorkspaceRestoreBar reuses the same field menu. */}
+          It stays mounted while the persistent title surface morphs between
+          embedded, compact-pill and full-pill workspace presentations. */}
       <KeyboardShortcutsModal />
       <ProjectSettingsModal />
     </>
