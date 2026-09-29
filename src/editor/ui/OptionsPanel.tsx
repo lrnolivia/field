@@ -8,6 +8,62 @@ export function OptionsPanel({ children, className = '' }: { children: ReactNode
   return <div data-options-panel className={`flex flex-col gap-2.5 ${className}`}>{children}</div>;
 }
 
+/**
+ * Settings-inspired shell for effect editors. Effects are small enough to
+ * benefit from visible semantic grouping, but still use compact Inspector
+ * controls inside each group instead of turning into full Settings forms.
+ */
+export function EffectOptionsPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div data-effect-options-panel className={`flex flex-col gap-2.5 ${className}`}>{children}</div>;
+}
+
+export function EffectOptionSection({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      data-effect-option-section
+      className="overflow-hidden cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/10"
+    >
+      <div className="flex min-h-7 items-center justify-between gap-2 border-b border-[var(--border-light)] px-3 py-1.5">
+        <span className="text-[10px] font-semibold text-[var(--text-primary)]">{title}</span>
+        {action}
+      </div>
+      <div className="flex flex-col gap-2.5 bg-[var(--bg-surface)]/45 p-3">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+export function EffectOptionAction({
+  children,
+  onClick,
+  disabled = false,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      data-effect-option-action
+      onClick={onClick}
+      disabled={disabled}
+      className="h-6 rounded-[4px] px-2 text-[10px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {children}
+    </button>
+  );
+}
+
 export function OptionSection({
   title,
   action,

@@ -13,7 +13,7 @@ import { VariableBoundPill } from '../../../controls/VariableBoundPill';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import { extractNonShadowFilter } from '../../../ui/shadow-utils';
 import type { AtomProps } from '../../../controls/unified/types';
-import { OptionsPanel, OptionSection, ScalarRow } from '../../../ui/OptionsPanel';
+import { EffectOptionsPanel, EffectOptionSection, ScalarRow } from '../../../ui/OptionsPanel';
 
 // ─── Filter parse/format ────────────────────────────────────────────────────
 
@@ -91,28 +91,28 @@ function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: 
 
   return (
     <ShowControlLabels>
-      <OptionsPanel>
-        <OptionSection title="Layer blur">
+      <EffectOptionsPanel>
+        <EffectOptionSection title="Layer blur">
           <ScalarRow label="Radius" value={f.blur} min={0} max={40} step={0.5} unit="px"
             onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
-        </OptionSection>
+        </EffectOptionSection>
 
-        <OptionSection title="Adjustments" divided>
+        <EffectOptionSection title="Adjustments">
           <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
             onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
           <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
             onChange={(v) => update({ contrast: v }, false)} onChangeLive={(v) => update({ contrast: v }, true)} onCommit={(v) => update({ contrast: v }, false)} />
           <ScalarRow label="Saturate" value={f.saturate} min={0} max={200} step={1} unit="%"
             onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
-        </OptionSection>
+        </EffectOptionSection>
 
-        <OptionSection title="Color" divided>
+        <EffectOptionSection title="Color">
           <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
             onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
           <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"
             onChange={(v) => update({ hueRotate: v }, false)} onChangeLive={(v) => update({ hueRotate: v }, true)} onCommit={(v) => update({ hueRotate: v }, false)} />
-        </OptionSection>
-      </OptionsPanel>
+        </EffectOptionSection>
+      </EffectOptionsPanel>
     </ShowControlLabels>
   );
 }
@@ -123,7 +123,7 @@ function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, onChange, onChangeLive, node, binding, mode, allProps, hasVariable } = useControlContext();
   const { openPanel, panelPopup } = useEditorPanel('Filter', () => (
     <FilterEditorPanel initialValue={value || ''} rawFilter={allProps.filter || ''} onChangeLive={onChangeLive} onCommit={onChange} />
-  ), { kind: 'options' });
+  ), { kind: 'options', width: 300 });
   const btnRef = useRef<HTMLDivElement>(null);
   // Variable-name override for the instance-prop row (see useOverriddenLabel).
   const { label: ovLabel, subLabel: ovSubLabel } = useOverriddenLabel('Filter');

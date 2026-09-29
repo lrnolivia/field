@@ -8,7 +8,7 @@ import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../
 import type { AtomProps } from '../../../controls/unified/types';
 import { FilterIcon } from '@/design-system/PropertyIcons';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
-import { OptionsPanel, OptionSection, ScalarRow } from '../../../ui/OptionsPanel';
+import { EffectOptionsPanel, EffectOptionSection, EffectOptionAction, ScalarRow } from '../../../ui/OptionsPanel';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
 import { trace } from '@/shared/debug-trace';
 
@@ -24,10 +24,13 @@ function BackdropBlurEditor({
   onReset: () => void;
 }) {
   return (
-    <OptionsPanel>
-      <OptionSection>
+    <EffectOptionsPanel>
+      <EffectOptionSection
+        title="Background blur"
+        action={<EffectOptionAction onClick={onReset}>Reset</EffectOptionAction>}
+      >
         <ScalarRow
-          label="Blur"
+          label="Radius"
           value={value}
           min={0}
           max={80}
@@ -37,16 +40,8 @@ function BackdropBlurEditor({
           onChangeLive={onChangeLive}
           onCommit={onCommit}
         />
-      </OptionSection>
-      <button
-        type="button"
-        data-options-reset
-        onClick={onReset}
-        className="self-end h-[var(--control-height-sm)] rounded-[4px] px-2 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-      >
-        Reset blur
-      </button>
-    </OptionsPanel>
+      </EffectOptionSection>
+    </EffectOptionsPanel>
   );
 }
 
@@ -84,7 +79,7 @@ function BackdropFilterAtom({ compactSection = false }: { compactSection?: boole
         onReset={reset}
       />
     ),
-    { kind: 'options' },
+    { kind: 'options', width: 300 },
   );
 
   if (compactSection) {

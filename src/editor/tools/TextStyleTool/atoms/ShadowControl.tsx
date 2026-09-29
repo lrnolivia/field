@@ -8,7 +8,7 @@
 // Supports external value/onChange for preset editing.
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { ToolSlider, ToolInput, ControlLabel, ColorInput, EntryList, EffectRow, ControlActionRow, ColorSwatch } from '../../../controls';
+import { ToolInput, EntryList, EffectRow, ControlActionRow, ColorSwatch } from '../../../controls';
 import { useControl } from '../../../controls/ControlProvider';
 import ToolPopup, { useToolPopupOptional } from '../../../ui/ToolPopup';
 import { ShadowIcon } from '@/design-system/PropertyIcons';
@@ -18,6 +18,7 @@ import {
   type TextShadowEntry,
 } from '../text-helpers';
 import { trace } from '@/shared/debug-trace';
+import { EffectOptionsPanel, EffectOptionSection, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 interface ShadowControlProps {
   value?: string;
@@ -61,19 +62,27 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
   if (!activeEntry) return null;
 
   return (
-    <div data-text-effect-editor className="flex flex-col gap-2.5">
-      <div className="grid grid-cols-2 gap-1">
-        <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} chevronLabel="X" ariaLabel="Text shadow X" />
-        <ToolInput value={String(activeEntry.y)} onChange={(v) => updateEntry({ y: parseFloat(v) || 0 })} step={1} chevronLabel="Y" ariaLabel="Text shadow Y" />
-      </div>
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-        <ControlLabel label="Blur" property="textShadow" plain cell />
-        <ToolInput value={String(activeEntry.blur)} onChange={(v) => updateEntry({ blur: parseFloat(v) || 0 })} step={1} min={0} ariaLabel="Text shadow blur" />
-      </div>
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-        <ControlLabel label="Color" property="textShadow" plain cell />
-        <ColorInput value={activeEntry.color} onChange={(c) => updateEntry({ color: c })} showAlpha />
-      </div>
+    <div data-text-effect-editor>
+      <EffectOptionsPanel>
+        <EffectOptionSection title="Geometry">
+          <SpatialRow label="Offset">
+            <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} chevronLabel="X" ariaLabel="Text shadow X" />
+            <ToolInput value={String(activeEntry.y)} onChange={(v) => updateEntry({ y: parseFloat(v) || 0 })} step={1} chevronLabel="Y" ariaLabel="Text shadow Y" />
+          </SpatialRow>
+          <ScalarRow
+            label="Blur"
+            value={activeEntry.blur}
+            min={0}
+            max={100}
+            step={1}
+            unit="px"
+            onChange={(v) => updateEntry({ blur: v })}
+          />
+        </EffectOptionSection>
+        <EffectOptionSection title="Paint">
+          <PaintOptionRow label="Color" value={activeEntry.color} onChange={(c) => updateEntry({ color: c })} />
+        </EffectOptionSection>
+      </EffectOptionsPanel>
     </div>
   );
 }
@@ -137,7 +146,7 @@ function TextShadowList({ value, onCommit, plain, compactSection = false }: {
             </div>
           ))}
         </div>
-        {!popupCtx && <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef}>{entries[activeIdx] && <TextShadowEditorPanel initialIdx={activeIdx} initialValue={value} onCommit={onCommit} />}</ToolPopup>}
+        {!popupCtx && <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Text Shadow" anchorRef={rowRef} width={300} kind="options">{entries[activeIdx] && <TextShadowEditorPanel initialIdx={activeIdx} initialValue={value} onCommit={onCommit} />}</ToolPopup>}
       </>
     );
   }
