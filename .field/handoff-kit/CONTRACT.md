@@ -1,367 +1,54 @@
-# field handoff kit contract
+# field handoff contract overlay
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+This file is intentionally thin. Universal execution process does not live here anymore.
 
-This contract governs field assignment packaging, coordination, validation, QA evidence, and closeout.
+## authority
 
-## 1. Assignment versus infrastructure
+Before field execution work, read in this order:
 
-The assignment owns the job:
+1. `lrnolivia/loew-runner@main/contracts/manifest.json`
+2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
+3. `lrnolivia/loew-runner@main/projects/field.json`
+4. `lrnolivia/field@main/AGENTS.md`
+5. the applicable role contract and current field assignment/mail/QA state
+6. fresh Git, PR, Preview, and runtime evidence
 
-- goal
-- verified current state
-- settled decisions
-- implementation intent
-- acceptance criteria
-- ownership
-- bounded investigation
-- non-goals
-- validation
-- runtime QA
-- completion contract
+Runner owns universal execution and QA law. This file may add field-specific paths and constraints only. If this overlay conflicts with the current Runner Bible, Runner wins unless the user explicitly says otherwise.
 
-The repo-hosted handoff kit owns the reusable process.
+The canonical repository is **`lrnolivia/field`**. Historical repository targets such as `revyme-loewfi`, `revyme-loew`, `revyme-löew`, and old local Revyme checkout paths are non-authoritative history. Revyme-prefixed identifiers inside field may remain when they are real compatibility, protocol, dependency, storage, or attribution contracts.
 
-Assignments must not embed a stale copy of the handoff kit.
+## field execution overlay
 
-## 2. Execution lanes
+Contract Worker / Night Shift coordination may still use:
 
-### Codex lane
+- control branch: `field/control`
+- assignment records: `.field/assignments/assignment-<id>.md`
+- mail records: `.field/mail/<id>.md`
+- QA records: `.field/qa/<id>.md`
+- implementation branches: `field/<id>`
+- one Draft PR per implementation assignment unless the current assignment explicitly defines another standing/planning shape
 
-```text
-PJM → Master → Codex Worker
-```
+For the Contract Worker / Night Shift lane, **Composio is the exclusive GitHub transport**. The built-in ChatGPT GitHub connector is prohibited for that lane. The separate Codex/local lane follows its current PJM / Master / Worker contract and may use an authorized local clone where permitted.
 
-Existing PJM/Master/Codex Worker contracts remain authoritative.
+Do not merge `field/control` into `main`. Preserve current ownership boundaries and do not force-push.
 
-### Contract Worker lane
+## field QA overlay
 
-```text
-Night Shift Manager
-→ Contract Worker
-→ Composio-exclusive GitHub transport
-→ assignment branch / Draft PR
-→ project-appropriate QA
-→ merge gate
-```
+`LOEW_CHAT_BIBLE.md` section 11 is law for engine routing, exact-artifact evidence, classifications, retry/watchdog limits, self-correction, fallbacks, danger-zone handoff, and promotion.
 
-Do not silently mix the lanes.
+field adds only these runtime facts:
 
-## 3. Terminology
+- exact branch/PR head SHA -> exact branch Preview
+- `/qa/work/<projectId>` -> read-only real saved-project QA
+- `/builder/noauth` -> smoke/isolation only, never proof of real-project loading or persistence
+- deterministic Inspector/GitHub Chromium -> routine visual/runtime QA when capable
+- Browser Run -> exploratory/session behavior deterministic recipes cannot prove
+- authenticated/project-native harness -> protected state, credentials, persistence, account metadata, or environment-specific behavior
 
-**Contract Worker**: ordinary ChatGPT execution chat operating under one bounded repository assignment.
+A successful build is not runtime QA. Production cannot prove an unmerged branch. A head change makes affected runtime evidence stale.
 
-**Night Shift**: informal collective term for one or more Contract Workers working asynchronously.
+field may specialize Runner `FAIL — PRODUCT` as `FAIL — FIELD`; all other classification meanings remain Runner-owned.
 
-**Night Shift Manager**: standing coordination chat for the Contract Worker lane. It is not a PJM.
+## historical detail
 
-**Codex Worker**: Worker inside the PJM / Master / Worker hierarchy.
-
-**Composio Executor**: Composio's internal execution worker. It is transport infrastructure only, not a field organizational agent.
-
-## 4. Contract Worker GitHub transport
-
-For the Contract Worker / Night Shift lane, **Composio is the exclusive GitHub transport for all repository access, including reads and writes**.
-
-- The built-in ChatGPT GitHub connector is prohibited, including read-only inspection.
-- Do not substitute another GitHub plugin/app.
-- Do not use web search as a repository-state substitute.
-- Do not use remembered repository state when live Git state is available.
-- Start every GitHub workflow with `COMPOSIO_SEARCH_TOOLS`.
-- Verify an ACTIVE GitHub connection to the exact repository.
-- Discover exact tool slugs. Never invent them.
-- The Contract Worker or Night Shift Manager owns reasoning, scope, architecture, ownership decisions, and the exact requested transaction.
-- The Composio Executor performs bounded transport only.
-- Never force-push.
-- Never push Contract Worker implementation directly to `main`.
-
-If Composio GitHub is unavailable:
-
-```text
-CONTRACT WORKER GITHUB UNAVAILABLE
-```
-
-Stop. Do not fall back to the built-in GitHub connector.
-
-This exclusivity rule applies to the Contract Worker / Night Shift lane. It does not silently modify the separate Codex lane.
-
-## 5. Three coordination planes
-
-### Control plane
-
-Permanent branch:
-
-```text
-field/control
-```
-
-Canonical files:
-
-```text
-.field/assignments/assignment-<assignment-id>.md
-.field/mail/<assignment-id>.md
-.field/qa/<assignment-id>.md
-```
-
-`field/control` must never merge into `main`.
-
-### Implementation plane
-
-Every activated implementation Contract Worker assignment gets:
-
-```text
-field/<assignment-id>
-```
-
-and one Draft PR targeting `main`.
-
-Implementation source belongs on that branch.
-
-Standing coordination roles and pre-activation/planned assignments may have `branch: null` and `pr: null`; do not manufacture empty implementation branches.
-
-### Runtime QA plane
-
-The actual environment where the implementation is exercised.
-
-For web-visible field work, the canonical runtime path is the exact PR head SHA → its Cloudflare branch Preview → browser-driven QA against that Preview. Use `/builder/noauth` by default when authentication is not itself under test. The browser capability may navigate, click, type, inspect rendered state, and capture screenshots/evidence as required by the acceptance criteria.
-
-Do not use production to claim an unmerged branch was runtime-tested. A successful build is not runtime QA. When the PR head changes, previous browser QA is stale until rerun against the new Preview.
-
-For native/system work use the assignment's environment-specific QA harness.
-
-The QA plane is evidence, not source/control state.
-
-## 6. Assignment identity and naming
-
-Every new Contract Worker assignment file must be uniquely named:
-
-```text
-assignment-<unique-name>.md
-```
-
-Never create a new deliverable named plain `assignment.md`.
-
-For an activated implementation assignment, keep a 1:1 identity:
-
-```text
-assignment ID
-↔ assignment file
-↔ field/<assignment-id>
-↔ Draft PR
-↔ Contract Worker chat
-```
-
-The canonical assignment file lives on `field/control`.
-
-## 7. Assignment frontmatter
-
-Minimum Contract Worker frontmatter:
-
-```yaml
----
-field_assignment: 1
-id: <unique-name>
-status: active
-branch: field/<unique-name> | null
-pr: <number-or-null>
-base: <main-sha>
-kit: <kit-version>
-type: handoff | plan-to-action | repair | follow-up | qa-closeout
-execution_class: contract-worker
-owned:
-  - <path-or-pattern>
-approved_shared:
-  - <path-or-pattern>
-protected:
-  - <path-or-pattern>
-qa:
-  browser_preview: true | false
-  authenticated: true | false
----
-```
-
-If frontmatter and prose ownership disagree, fail closed.
-
-If `branch` is non-null, it must be exactly `field/<id>`.
-
-## 8. Ownership
-
-### Legacy migration compatibility
-
-Existing active `tracker.md` `Owned:` reservations remain authoritative until those assignments finish.
-
-### Contract Worker v2
-
-Active control-plane assignment `owned` paths are the Contract Worker ownership database.
-
-Semantics:
-
-```text
-owned
-= primary modification authority
-
-approved_shared
-= explicit deliberate overlap
-
-protected
-= this assignment promises not to modify the path
-```
-
-`protected` is not global ownership.
-
-Parent/child path overlap counts as overlap.
-
-Before activation and before merge, check the union of:
-
-1. active legacy tracker `Owned:` paths
-2. active Contract Worker control-plane `owned` paths
-
-Do not silently acquire another assignment's owned path.
-
-## 9. Mailboxes
-
-Each Contract Worker owns exactly one mailbox:
-
-```text
-.field/mail/<assignment-id>.md
-```
-
-Only that worker writes its mailbox. Every Contract Worker and the Night Shift Manager may read every mailbox.
-
-Use mail for dependency notes, changed assumptions, integration contracts, ownership reconciliation requests, blockers, and completion notes.
-
-Do not create one shared mutable notes file.
-
-## 10. QA records
-
-Each assignment receives:
-
-```text
-.field/qa/<assignment-id>.md
-```
-
-Minimum metadata:
-
-```yaml
-assignment:
-branch:
-pr:
-tested_head_sha:
-tested_main_sha:
-environment:
-build:
-tests:
-runtime_qa:
-tested_at:
-evidence:
-```
-
-Never claim a test or QA step passed unless it actually ran.
-
-Use classifications such as:
-
-```text
-PASS
-FAIL — PRODUCT
-BLOCKED/UNVERIFIED — HARNESS
-BLOCKED — ENVIRONMENT
-NOT RUN
-```
-
-A successful CI/build check is not automatically runtime QA.
-
-## 11. Exact-SHA merge gate
-
-Immediately before merge, refresh:
-
-- current PR head SHA
-- current `main` SHA
-- current ownership state
-- checks/statuses
-- QA record
-
-A Contract Worker implementation may merge only when the current contract's required checks and QA are satisfied and the tested SHAs still describe the code being merged.
-
-If `main` moved after QA, reconcile and rerun the required validation/QA where the assignment could be affected.
-
-## 12. Assignment authoring
-
-Read `ASSIGNMENT_AUTHORING.md`.
-
-Core rule:
-
-> An assignment is not a transcript. It is the smallest complete executable representation of the next unit of work.
-
-Separate follow-up work gets a new unique assignment rather than silently expanding current scope.
-
-## 13. Installer boundary
-
-Read `installer/INSTALLER_CONTRACT.md`.
-
-The local installer system belongs primarily to the Codex/local-repository lane.
-
-Do not use a legacy direct-main installer as a substitute for the Contract Worker branch/PR model.
-
-## 14. Validation
-
-Before publishing coordination-kit changes:
-
-- run the handoff-kit self-test
-- run Contract Worker v2 regression tests
-- validate JSON
-- validate Bash/Node/Python syntax where relevant
-- run `git diff --check` when a checkout is available
-- verify exact changed paths
-- re-read the committed files from Git
-
-For product/runtime work, add assignment-specific tests/build/QA.
-
-
-## Artificial blocker repair doctrine
-
-A Contract Worker must distinguish a **real blocker** from an **artificial blocker created by our own workflow, coordination, tooling, harness, metadata, or stale instructions**.
-
-Examples of artificial blockers include:
-
-- stale or contradictory handoff-kit instructions
-- missing or stale control-plane records
-- incorrect branch / PR metadata
-- an obsolete baseline or assignment status
-- a missing mailbox / QA record that the current contract requires
-- a deterministic Composio/tooling mistake that can be corrected safely
-- a QA harness defect that prevents otherwise-valid acceptance evidence
-- a process rule that conflicts with the current canonical contract
-
-When a Contract Worker discovers an artificial blocker, the default behavior is:
-
-1. verify that it is actually artificial using current Git/runtime truth
-2. fix it immediately when the repair is bounded, safe, and within the Worker's ownership/authority
-3. validate the repair
-4. record the repair in the Worker's mailbox/QA or assignment history as appropriate
-5. continue the original assignment without waiting for user confirmation
-
-Do **not** turn a repairable workflow defect into a reason to stop work.
-
-If the repair requires a path owned by another active assignment, changes product direction, requires credentials/authorization the worker does not have, or would violate a safety/merge boundary:
-
-- do not trespass on ownership
-- register or request a bounded repair assignment / ownership reconciliation
-- continue any independent work that remains possible
-- report the genuine dependency precisely
-
-A Contract Worker may expand effort to repair the road it is currently traveling; it may not use this doctrine as permission to redesign unrelated systems.
-
-The Night Shift Manager is responsible for noticing repeated artificial blockers and promoting durable fixes into the handoff kit so later workers do not hit the same failure again.
-
-## 15. Closeout and continuity
-
-A completion report distinguishes:
-
-- what changed
-- what was proposed
-- what was tested
-- what remains unverified
-- architecture/process drift
-- follow-up work
-
-Durable coordination belongs in Git-backed assignment/mail/QA records so a replacement chat can rehydrate without depending on private conversation memory.
+Older field-local universal process rules are retained in Git history only. Do not copy them forward into new assignments. Rehydrate from Runner on every invocation.
