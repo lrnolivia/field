@@ -2,7 +2,7 @@
 // Cloudflare Worker + R2. R2 is durable EDITOR WORKING STATE only; published
 // website/source truth remains the later GitHub bridge.
 
-import type { ProjectBackend, ProjectData, RevymeUser, WorkspaceFont } from './types';
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont } from './types';
 import { isKnownProjectFormat } from './types';
 import { LocalBackend } from './local-backend';
 import { trace } from '@/shared/debug-trace';
@@ -573,6 +573,18 @@ export class FieldBackend implements ProjectBackend {
     // asset-canonicalization pass may externalize bytes and materialize them
     // into GitHub/public source during publish.
     return this.localFallback.uploadAsset(id, file);
+  }
+
+  async listAssets(_id: string, _kind?: ProjectMediaAssetKind): Promise<ProjectMediaAsset[] | null> {
+    // IMPORTANT: hosted field intentionally keeps uploaded source bytes as
+    // data: URLs for now so source/Preview/production remain aligned. Do not
+    // externalize them into editor-only R2 URLs until publish materialization
+    // has a deterministic public-asset contract.
+    return null;
+  }
+
+  async getAssetStorageInfo(_id: string): Promise<ProjectMediaStorageInfo | null> {
+    return null;
   }
 
   async deleteAssets(id: string, keys: string[]): Promise<void> {

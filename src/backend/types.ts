@@ -66,6 +66,24 @@ export interface WorkspaceFont {
   uploadedBy: string;
 }
 
+
+export type ProjectMediaAssetKind = 'image' | 'video';
+
+export interface ProjectMediaAsset {
+  url: string;
+  kind: ProjectMediaAssetKind;
+  key?: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
+  lastModified?: string;
+}
+
+export interface ProjectMediaStorageInfo {
+  currentUsageMB: string;
+  storageLimitMB: string;
+}
+
 export interface RevymeUser {
   id: string;
   name: string;
@@ -105,8 +123,18 @@ export interface ProjectBackend {
    *  on load so a rename done in the dashboard shows up in the editor. */
   getWebsiteName(id: string): Promise<string | null>;
 
-  /** Upload an asset file. Returns the CDN/object URL. */
+  /** Upload an asset file. Returns the source/runtime URL to insert. */
   uploadAsset(id: string, file: File): Promise<string>;
+
+  /**
+   * Durable project Media inventory when the backend owns one.
+   * null means this backend deliberately has no persistent Media catalog;
+   * callers may keep a session inventory without pretending it is durable.
+   */
+  listAssets(id: string, kind?: ProjectMediaAssetKind): Promise<ProjectMediaAsset[] | null>;
+
+  /** Storage telemetry for the durable Media inventory, when available. */
+  getAssetStorageInfo(id: string): Promise<ProjectMediaStorageInfo | null>;
 
   /** Delete uploaded assets by their R2 object keys (bulk-capable — the
    *  Media panel's multi-select delete). Cloud-only: the standalone impl

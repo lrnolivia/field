@@ -89,7 +89,7 @@ function ImageToolInner({
   updateStyle: (key: string, value: string) => void;
   cmsBinding: ReturnType<typeof useControl>['cmsBinding'];
 }) {
-  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
 
   // CMS binding state — when src is bound to a CMS image field, the source
   // row swaps to a CmsBoundPill (matches Fill's bound-state UI). The
@@ -118,6 +118,7 @@ function ImageToolInner({
     // Imperative canvas update for instant feedback — the canvas DOM lives
     // in the sandbox iframe, so the attribute patch goes through the bridge.
     getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'src', url);
+    setMediaOpen(false);
   }, [nodeId, vpId]);
 
   // ─── Alt text ─────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ function ImageToolInner({
           {isSrcCmsBound ? (
             <CmsBoundPill property="src" fallbackValue={src} />
           ) : (
-            <ControlActionRow onClick={() => setImageModalOpen(true)}>
+            <ControlActionRow onClick={() => setMediaOpen((open) => !open)}>
               <ColorSwatch size="md" style={sourceSwatchStyle} />
               <span className="text-xs text-[var(--text-primary)] truncate">
                 {sourceLabel}
@@ -168,6 +169,21 @@ function ImageToolInner({
             </ControlActionRow>
           )}
         </div>
+
+        {mediaOpen && !isSrcCmsBound && (
+          <div
+            data-contextual-media-picker="image-source"
+            className="mt-1 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+          >
+            <ImageSearchModal
+              isOpen
+              embedded
+              compact
+              onClose={() => setMediaOpen(false)}
+              onSelect={handleImageSelect}
+            />
+          </div>
+        )}
 
         {/* Alt text — full ControlLabel (not plain) so users can bind alt
             text to a CMS field via the menu, same way Source binds. */}
@@ -211,12 +227,6 @@ function ImageToolInner({
           repositioning without teaching PropertiesPanel about Gallery. */}
       <GalleryImageCropTool />
 
-      {/* Image Search Modal */}
-      <ImageSearchModal
-        isOpen={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
-        onSelect={handleImageSelect}
-      />
     </>
   );
 }

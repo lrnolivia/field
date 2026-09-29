@@ -43,6 +43,9 @@ import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import type { LibrarySection } from '@/editor/library-focus-store';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
+import MediaGlyph from '@/editor/media/MediaGlyph';
+import { mediaSessionAtom } from '@/editor/media/media-state';
+import { createMediaSession } from '@/editor/media/media-system';
 import './bottom-toolbar-glyphs.css';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
@@ -496,54 +499,26 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
   </div>;
 }
 
-// ─── Media menu ─────────────────────────────────────────────────────────────
+// ─── Media launcher ──────────────────────────────────────────────────────────
 
-function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<MenuView>('list');
-  const setPanel = useSetAtom(toolbarPanelAtom);
-  const chooseMedia = (id: string) => {
-    setOpen(false);
-    if (id === 'image' || id === 'video') setPanel({ kind: 'media-picker', media: id });
-    else if (id === 'gallery') setPanel({ kind: 'gallery-picker' });
-    else if (id === 'audio') setPanel({ kind: 'audio-picker' });
-    else insertToolbarItemAtVisibleCenter(id);
+function MediaButton() {
+  const [panel, setPanel] = useAtom(toolbarPanelAtom);
+  const setMediaSession = useSetAtom(mediaSessionAtom);
+  const active = panel?.kind === 'media';
+
+  const toggle = () => {
+    if (active) {
+      setPanel(null);
+      return;
+    }
+    setMediaSession(createMediaSession({ surface: 'toolbar' }));
+    setPanel({ kind: 'media' });
   };
-  useClickOutside(ref, open, () => setOpen(false));
-  const mediaItems = [
-    ...(CATEGORIES.find((category) => category.id === 'elements')?.sections.find((section) => section.id === 'basic')?.items.filter((item) => item.id === 'image') ?? []),
-    ...(CATEGORIES.find((category) => category.id === 'elements')?.sections.find((section) => section.id === 'media')?.items ?? []),
-  ];
-  const embedItems = CATEGORIES.find((category) => category.id === 'integrations')
-    ?.sections.find((section) => section.id === 'embeds')?.items ?? [];
+
   return (
-    <div className="relative" ref={ref}>
-      <SplitButton active={false} open={open} icon={<MediaIcon className="w-4 h-4" size={16} />}
-        onClick={() => { setOpen(false); setPanel({ kind: 'media-picker', media: 'image' }); }} onChevronClick={() => setOpen(!open)} title="Media" dataTool="media" />
-      {open && (
-        <DropdownContainer wide={view === 'icons'}>
-          <MenuViewToggle view={view} onChange={setView} />
-          {view === 'icons' ? <div className="grid grid-cols-3 gap-1.5 p-1">{mediaItems.map((item) => {
-            const Icon = ELEMENT_ICON_MAP[item.iconKey];
-            return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : null}
-              onClick={() => chooseMedia(item.id)} />;
-          })}
-          <div className="col-span-3 mt-1 border-t border-[var(--border-light)] px-1 pt-2 text-[10px] font-semibold text-[var(--text-tertiary)]">Embeds</div>
-          {embedItems.map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id}
-            label={item.name} icon={Icon ? <Icon /> : null} onClick={() => chooseMedia(item.id)} />; })}</div> : <>
-          {mediaItems.map((item) => {
-            const Icon = ELEMENT_ICON_MAP[item.iconKey];
-            return <MenuItem key={item.id} label={item.name} icon={Icon ? <Icon /> : undefined}
-              onClick={() => chooseMedia(item.id)} />;
-          })}
-          <DropdownDivider />
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-tertiary)]">Embeds</div>
-          {embedItems.map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuItem key={item.id}
-            label={item.name} icon={Icon ? <Icon /> : undefined} onClick={() => chooseMedia(item.id)} />; })}
-          </>}
-        </DropdownContainer>
-      )}
-    </div>
+    <ToolButton active={active} onClick={toggle} title="Media" dataTool="media">
+      <MediaGlyph className="h-4 w-4" size={16} />
+    </ToolButton>
   );
 }
 
@@ -807,7 +782,7 @@ export default function BottomToolbar() {
 
             {!isContainerSetMaster && (
               <CreatorGate locked={creatorLocked}>
-                <MediaDropdown {...menuProps('media')} />
+                <MediaButton />
               </CreatorGate>
             )}
 
