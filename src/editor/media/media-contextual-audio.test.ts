@@ -24,7 +24,7 @@ describe('Audio contextual Media', () => {
 
   it('applies the chosen project Audio source through the existing canvas attribute path', () => {
     const audio = read('src/editor/tools/AudioTool.tsx');
-    expect(audio).toContain("getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'src', url)");
+    expect(audio).toContain("getCanvasBridge().setAttribute(nodeId, getViewportPrefix(vpId), 'src', trimmed || null)");
     expect(audio).toContain('setMediaOpen(false)');
   });
 });

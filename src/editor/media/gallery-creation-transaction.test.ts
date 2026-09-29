@@ -20,12 +20,12 @@ describe('Gallery creation transaction', () => {
   });
 
   it('settles intrinsic-ratio probes once and abandons timed-out image loads', () => {
-    const controller = read('src/editor/media/MediaPanelController.tsx');
-    expect(controller).toContain('let settled = false');
-    expect(controller).toContain('if (settled) return');
-    expect(controller).toContain("image.src = ''");
-    expect(controller).toContain('image.onload = null');
-    expect(controller).toContain('image.onerror = null');
+    const dims = read('src/canvas/image-dims.ts');
+    expect(dims).toContain('let settled = false');
+    expect(dims).toContain('if (settled) return');
+    expect(dims).toContain("img.src = ''");
+    expect(dims).toContain('img.onload = null');
+    expect(dims).toContain('img.onerror = null');
   });
   it('captures a selected container before the multi-step Gallery flow and preserves it through async work', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');

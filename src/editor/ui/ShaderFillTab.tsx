@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
@@ -14,10 +15,13 @@ import { SHADER_LIBRARY_ITEMS } from '@/shared/insert-items/element-data';
 import { SHADER_THUMBS } from '@/shared/insert-items/shader-thumb-map';
 import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { trace } from '@/shared/debug-trace';
+import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 
 interface Props {
   node: CanvasNode | null;
   libraryOnly?: boolean;
+  onSelected?: () => void;
+  onDismissLibrary?: () => void;
 }
 
 function managedShaderChild(node: CanvasNode | null): CanvasNode | null {
@@ -56,12 +60,32 @@ function flattenControls(
   return out;
 }
 
-export default function ShaderFillTab({ node, libraryOnly = false }: Props) {
+export default function ShaderFillTab({ node, libraryOnly = false, onSelected, onDismissLibrary }: Props) {
   const activeFilePath = useAtomValue(activeFilePathAtom);
   useAtomValue(projectVersionAtom);
   const bumpProjectVersion = useSetAtom(projectVersionAtom);
   const child = managedShaderChild(node);
   const activeTag = node?.attrs?.['data-field-shader-fill'] || child?.type || '';
+  const sidecarAnchorRef = useRef<HTMLDivElement>(null);
+  const [sidecarPos, setSidecarPos] = useState<{ left: number; top: number; zIndex: number } | null>(null);
+  const [shaderSearch, setShaderSearch] = useState('');
+
+  useLayoutEffect(() => {
+    if (!libraryOnly) { setSidecarPos(null); return; }
+    const anchor = sidecarAnchorRef.current;
+    const popup = anchor?.closest<HTMLElement>('[data-tool-popup]');
+    if (!popup) return;
+    const place = () => {
+      const rect = popup.getBoundingClientRect();
+      const width = 480;
+      const gap = 12;
+      const left = rect.left >= width + gap + 12 ? rect.left - width - gap : Math.min(window.innerWidth - width - 12, rect.right + gap);
+      setSidecarPos({ left: Math.max(12, left), top: Math.max(12, rect.top), zIndex: fieldSurfaceZ('rich-popup', popup) + 1 });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [libraryOnly]);
 
   const controlsMeta = useMemo(() => {
     if (!child?.type) return null;
@@ -124,6 +148,7 @@ export default function ShaderFillTab({ node, libraryOnly = false }: Props) {
     queueMutations(mutations);
     flushNow();
     trace.action('fill:shader-applied', { nodeId: node.id, tag, itemId, installed: installed === true });
+    onSelected?.();
   };
 
   const updateProp = (name: string, def: ComponentControlDef, value: string) => {
@@ -135,37 +160,63 @@ export default function ShaderFillTab({ node, libraryOnly = false }: Props) {
   };
 
   if (libraryOnly) {
+    const filteredItems = SHADER_LIBRARY_ITEMS.filter(item => item.name.toLowerCase().includes(shaderSearch.trim().toLowerCase()));
     return (
-      <div className="flex flex-col gap-2 pt-1">
-        <div className="grid grid-cols-2 gap-1.5">
-          {SHADER_LIBRARY_ITEMS.map(item => {
-            const cfg = getToolbarItemConfig(item.id);
-            const tag = cfg?.elementType || '';
-            const active = tag !== '' && activeTag === tag;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => applyShader(item.id)}
-                className={`overflow-hidden text-left cut-corners cut-border border transition-colors cursor-pointer ${active
-                  ? 'border-[var(--accent)] [--cut-border-color:var(--accent)] bg-[var(--bg-hover)]'
-                  : 'border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:[--cut-border-color:var(--control-border-hover)]'}`}
-                aria-pressed={active}
-                title={item.name}
-              >
-                {SHADER_THUMBS[item.id] ? (
-                  <img src={SHADER_THUMBS[item.id]} alt="" className="block w-full h-20 object-cover" />
-                ) : (
-                  <span className="block w-full h-20 bg-[var(--canvas-bg)]" />
-                )}
-                <span className="block px-1.5 py-1 text-[10px] text-[var(--text-secondary)] truncate">{item.name}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="text-[10px] text-[var(--text-disabled)] px-0.5">
-          Existing field shader components · Paper shader GLSL retains Apache-2.0 provenance in source.
-        </div>
+      <div ref={sidecarAnchorRef} className="min-h-[360px] flex items-center justify-center text-[12px] text-[var(--text-disabled)]">
+        Choose a shader from the gallery.
+        {sidecarPos && createPortal(
+          <div
+            data-field-floating-surface
+            data-shader-fill-gallery
+            className="fixed w-[480px] max-h-[min(720px,calc(100vh-24px))] overflow-hidden rounded-[12px] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] flex flex-col"
+            style={sidecarPos}
+          >
+            <div className="h-[58px] px-4 flex items-center justify-between border-b border-[var(--border-light)]">
+              <div className="flex items-center gap-2">
+                <span className="text-[15px] font-medium text-[var(--text-primary)]">Shader fills</span>
+                <span className="px-2 py-0.5 rounded-[6px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)]">Beta</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button type="button" className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Create shader" aria-label="Create shader">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+                <button type="button" onClick={onDismissLibrary} className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Close shader gallery" aria-label="Close shader gallery">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 border-b border-[var(--border-light)]">
+              <div className="h-11 rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] flex items-center gap-2 px-3">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+                <input value={shaderSearch} onChange={(event) => setShaderSearch(event.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent outline-none text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)]" />
+              </div>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <div className="mb-3 text-[12px] text-[var(--text-secondary)]">By field</div>
+              <div className="grid grid-cols-2 gap-3">
+                {filteredItems.map(item => {
+                  const cfg = getToolbarItemConfig(item.id);
+                  const tag = cfg?.elementType || '';
+                  const active = tag !== '' && activeTag === tag;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => applyShader(item.id)}
+                      className={`overflow-hidden text-left rounded-[10px] border transition-colors cursor-pointer ${active ? 'border-[var(--accent)] bg-[var(--bg-hover)]' : 'border-[var(--control-border)] hover:border-[var(--control-border-hover)]'}`}
+                      aria-pressed={active}
+                      title={item.name}
+                    >
+                      {SHADER_THUMBS[item.id] ? <img src={SHADER_THUMBS[item.id]} alt="" className="block w-full aspect-[1.25] object-cover" /> : <span className="block w-full aspect-[1.25] bg-[var(--canvas-bg)]" />}
+                      <span className="block px-2 py-2 text-[12px] text-[var(--text-primary)] truncate">{item.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
       </div>
     );
   }
@@ -187,9 +238,15 @@ export default function ShaderFillTab({ node, libraryOnly = false }: Props) {
     );
   }
 
+  const activeLibraryItem = SHADER_LIBRARY_ITEMS.find(item => getToolbarItemConfig(item.id)?.elementType === activeTag);
   let section = '';
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-4">
+      <div className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)]">
+        {activeLibraryItem && SHADER_THUMBS[activeLibraryItem.id] ? (
+          <img src={SHADER_THUMBS[activeLibraryItem.id]} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : null}
+      </div>
       <div className="px-0.5 pb-1">
         <div className="text-[11px] text-[var(--text-primary)]">{controlsMeta.label || child.type}</div>
         {controlsMeta.comment && <div className="text-[10px] text-[var(--text-disabled)] mt-0.5">{controlsMeta.comment}</div>}

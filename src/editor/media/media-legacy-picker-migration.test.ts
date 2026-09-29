@@ -26,14 +26,20 @@ describe('Media legacy picker migration', () => {
     expect(host).not.toContain("import VideoSearchModal");
     expect(host).not.toContain('backend.uploadAsset');
     expect(host).toContain("panel.kind === 'media'");
-    expect(host).toContain("panel.kind === 'media-gallery'");
+    expect(host).not.toContain("media-gallery");
   });
 
-  it('keeps the generic media-gallery compatibility panel until its callers are separately proven dead', () => {
+  it('removes the generic media-gallery compatibility panel after proving there are no live callers', () => {
     const store = read('src/editor/toolbar-panel-store.ts');
     const host = read('src/editor/ToolbarPanelHost.tsx');
-    expect(store).toContain("kind: 'media-gallery'");
-    expect(host).toContain("panel.kind === 'media-gallery'");
-    expect(host).toContain('<MediaGalleryPanel />');
+    const toolbar = read('src/editor/BottomToolbar.tsx');
+    const leftMenu = read('src/editor/left-toolbar/LeftMenu.tsx');
+    const leftPanel = read('src/editor/left-toolbar/LeftPanel.tsx');
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+
+    for (const source of [store, host, toolbar, leftMenu, leftPanel, controller]) {
+      expect(source).not.toContain('media-gallery');
+    }
+    expect(host).not.toContain('MediaGalleryPanel');
   });
 });

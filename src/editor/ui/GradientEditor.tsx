@@ -7,6 +7,7 @@ import ToolSegmentedControl from '../controls/ToolSegmentedControl';
 import ToolSlider from '../controls/ToolSlider';
 import ToolInput from '../controls/ToolInput';
 import ToolSelect from '../controls/ToolSelect';
+import { ColorSwatch } from '../controls/ColorSwatch';
 import ControlLabel from '../controls/ControlLabel';
 import { YES_NO_OPTIONS } from '../controls/css-property-options';
 import ColorPicker from './ColorPicker';
@@ -21,6 +22,7 @@ import { parseGradient, formatGradient, createDefaultGradient, type GradientData
 import { activeGradientAtom, selectedGradientStopAtom, gradientUpdateCallbackAtom, gradientStopUpdateCallbackAtom, gradientStopSelectCallbackAtom, gradientCommitCallbackAtom } from '@/code/stores/gradient-store';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
+import { parseColor, toHexDisplay } from './color-utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,11 +38,13 @@ interface GradientEditorProps {
   extraAfterType?: React.ReactNode;  // Optional content rendered after the type selector (e.g. border width)
   /** Hide canvas overlay (for per-portion text gradients where overlay doesn't apply) */
   hideOverlay?: boolean;
+  /** Canonical Fill popover composition: compact type/actions + stops list. */
+  canonical?: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function GradientEditor({ value, onChange, onLiveChange, extraAfterType, hideOverlay }: GradientEditorProps) {
+export default function GradientEditor({ value, onChange, onLiveChange, extraAfterType, hideOverlay, canonical = false }: GradientEditorProps) {
   // Color presets for per-stop color picker
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = useMemo(() => allTokens.filter(t => t.category === 'color'), [allTokens]);
@@ -306,6 +310,115 @@ export default function GradientEditor({ value, onChange, onLiveChange, extraAft
   // ─── Selected stop for color picker ──────────────────────────────────────
 
   const selectedStop = data.stops.find(s => s.id === selectedStopId);
+
+  if (canonical) {
+    const reverseStops = () => {
+      updateData(prev => ({
+        ...prev,
+        stops: prev.stops
+          .map(stop => ({ ...stop, position: 100 - stop.position }))
+          .sort((a, b) => a.position - b.position),
+      }));
+    };
+    const rotate = () => {
+      if (data.type === 'linear') handleDirectionChange((data.direction + 90) % 360);
+      else if (data.type === 'conic') handleAngleChange((data.angle + 90) % 360);
+      else updateData(prev => ({ ...prev, centerX: 100 - prev.centerX, centerY: 100 - prev.centerY }));
+    };
+    const openStopColor = (stop: GradientStop) => {
+      setSelectedStopId(stop.id);
+      const rawColor = stop.color;
+      const varName = parseVarRef(rawColor);
+      const resolvedColor = varName ? (colorPresets.find(t => t.name === varName)?.value || '#000000') : rawColor;
+      if (!popupCtx) return;
+      popupCtx.pushPanel('Stop color', () => (
+        <ColorPicker
+          value={resolvedColor}
+          onChange={(color) => handleUpdateStop(stop.id, { color })}
+          showAlpha
+          canonical
+          colorPresets={colorPresets}
+          activePresetName={varName ?? undefined}
+          onApplyPreset={(varVal) => handleUpdateStop(stop.id, { color: varVal })}
+        />
+      ));
+    };
+
+    return (
+      <div className="flex flex-col gap-5" onPointerDownCapture={handleRootPointerDown}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="w-[190px]">
+            <ToolSelect
+              value={data.type}
+              onChange={handleTypeChange}
+              options={[
+                { value: 'linear', label: 'Linear' },
+                { value: 'radial', label: 'Radial' },
+                { value: 'conic', label: 'Conic' },
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={reverseStops} title="Reverse stops" aria-label="Reverse gradient stops" className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h12m0 0-3-3m3 3-3 3M17 17H5m0 0 3-3m-3 3 3 3" /></svg>
+            </button>
+            <button type="button" onClick={rotate} title="Rotate gradient" aria-label="Rotate gradient" className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 1-2.34-5.66L20 7.68" /><path d="M20 3v4.68h-4.68" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <GradientStopsBar
+          stops={data.stops.map(stop => ({ ...stop, color: resolveColor(stop.color) }))}
+          selectedStopId={selectedStopId}
+          onSelectStop={handleSelectStop}
+          onUpdateStop={handleUpdateStop}
+          onAddStop={handleAddStop}
+          onRemoveStop={handleRemoveStop}
+        />
+
+        <div className="border-t border-[var(--border-light)] pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[13px] font-medium text-[var(--text-primary)]">Stops</span>
+            <button
+              type="button"
+              onClick={() => handleAddStop(50, selectedStop?.color || data.stops[0]?.color || '#ffffff')}
+              className="w-9 h-9 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+              aria-label="Add gradient stop"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {data.stops.map(stop => {
+              const resolved = resolveColor(stop.color);
+              const parsed = parseColor(resolved);
+              const opacity = Math.round(parsed.alpha * 100);
+              return (
+                <div key={stop.id} className={`h-12 px-2 rounded-[8px] flex items-center gap-2 ${selectedStopId === stop.id ? 'bg-[var(--bg-selected)]' : 'hover:bg-[var(--bg-hover)]'}`}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.round(stop.position)}
+                    onChange={(event) => handleUpdateStop(stop.id, { position: Math.max(0, Math.min(100, Number(event.target.value) || 0)) })}
+                    className="w-20 h-9 px-2 rounded-[7px] bg-[var(--control-bg)] border border-[var(--control-border)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)]"
+                    aria-label="Stop position"
+                  />
+                  <button type="button" onClick={() => openStopColor(stop)} className="min-w-0 flex-1 h-9 px-2 rounded-[7px] bg-[var(--control-bg)] border border-[var(--control-border)] flex items-center gap-2 text-left hover:border-[var(--control-border-hover)]">
+                    <ColorSwatch style={{ background: resolved }} />
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--text-primary)]">{toHexDisplay(resolved).replace(/^#/, '')}</span>
+                    <span className="text-[12px] text-[var(--text-secondary)]">{opacity}%</span>
+                  </button>
+                  <button type="button" disabled={data.stops.length <= 2} onClick={() => handleRemoveStop(stop.id)} className="w-8 h-8 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-30" aria-label="Remove stop">−</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2" onPointerDownCapture={handleRootPointerDown}>

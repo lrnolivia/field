@@ -134,6 +134,12 @@ interface ToolPopupProps {
   hideHeader?: boolean;
   /** Root-panel wrapper class. Use for full-bleed rich editors. */
   contentClassName?: string;
+  /** When the root owns its header, restore ToolPopup navigation for pushed child panels. */
+  showNestedHeaderWhenHidden?: boolean;
+  /** Optional outer radius for rich design-tool surfaces. */
+  radius?: number;
+  /** Child floating surface: stays above its parent without replacing the global root popup. */
+  nested?: boolean;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -153,6 +159,9 @@ export default function ToolPopup({
   outsidePointerMode = 'none',
   hideHeader = false,
   contentClassName,
+  showNestedHeaderWhenHidden = false,
+  radius,
+  nested = false,
 }: ToolPopupProps) {
   const resolvedWidth = width ?? (kind === 'options' ? 280 : 260);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -224,6 +233,7 @@ export default function ToolPopup({
   const currentTitle = currentPanel?.title ?? title;
   const currentContent = currentPanel?.content ?? children;
   const canGoBack = panelStack.length > 0;
+  const showShellHeader = !hideHeader || (canGoBack && showNestedHeaderWhenHidden);
 
   // ─── Panel navigation ─────────────────────────────────────
   const pushPanel = useCallback((panelTitle: string, content: ReactNode | (() => ReactNode)) => {
@@ -317,9 +327,11 @@ export default function ToolPopup({
 
   useEffect(() => {
     if (!isOpen) { setPositioned(false); return; }
-    // Close any other open popup (global singleton)
+    // Root ToolPopups participate in the singleton. Nested rich surfaces
+    // (for example a ColorInput inside another options popup) stay above the
+    // parent without closing it.
     const closeFn = () => onCloseRef.current();
-    registerAsActivePopup(closeFn);
+    if (!nested) registerAsActivePopup(closeFn);
     setPositioned(false);
     // Position on next frame so DOM is measured correctly
     requestAnimationFrame(() => recalcPosition());
@@ -330,9 +342,9 @@ export default function ToolPopup({
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
-      unregisterActivePopup(closeFn);
+      if (!nested) unregisterActivePopup(closeFn);
     };
-  }, [isOpen, recalcPosition, title]); // onClose removed from deps — uses ref
+  }, [isOpen, recalcPosition, title, nested]); // onClose removed from deps — uses ref
 
   useEffect(() => {
     if (!isOpen || !positioned || !initialFocusRef?.current) return;
@@ -366,8 +378,8 @@ export default function ToolPopup({
     const popupEl = popupRef.current;
     if (!popupEl) return;
     const gap = 16;
-    const headerEl = hideHeader ? null : popupEl.querySelector<HTMLElement>(':scope > div:first-child');
-    const headerHeight = hideHeader ? 0 : (headerEl?.offsetHeight ?? 44);
+    const headerEl = showShellHeader ? popupEl.querySelector<HTMLElement>(':scope > div:first-child') : null;
+    const headerHeight = showShellHeader ? (headerEl?.offsetHeight ?? 44) : 0;
     const totalHeight = headerHeight + contentHeight;
     const currentTop = popupEl.getBoundingClientRect().top;
 
@@ -398,7 +410,7 @@ export default function ToolPopup({
     }
   // pos intentionally excluded — we read live DOM position instead
    
-  }, [contentHeight, isOpen, positioned, hideHeader]);
+  }, [contentHeight, isOpen, positioned, showShellHeader]);
 
   // ─── Escape key ───────────────────────────────────────────
   useEffect(() => {
@@ -465,7 +477,7 @@ export default function ToolPopup({
   // Rich editors live above the Inspector but below any menu/select they spawn.
   // Modal scope is inherited through a data marker because ToolPopup itself is portalled.
   const surfaceScope = fieldSurfaceScopeFor(anchorRef?.current ?? null);
-  const zIndex = fieldSurfaceZ('rich-popup', anchorRef?.current ?? null);
+  const zIndex = fieldSurfaceZ('rich-popup', anchorRef?.current ?? null) + (nested ? 1 : 0);
   const backdropZIndex = zIndex - 1;
 
   return createPortal(
@@ -509,7 +521,7 @@ export default function ToolPopup({
         initial={{ opacity: 0, scale: 0.97, x: side === 'left' ? 6 : -6 }}
         // Elevation is resolved from the anchor's semantic surface scope.
         // One quiet perimeter + shared true-float shadow; geometry stays UI3-rounded.
-        style={{ width: resolvedWidth, zIndex }}
+        style={{ width: resolvedWidth, zIndex, borderRadius: radius ?? 8 }}
         // Entrance: fade + subtle scale + slide from the anchor side.
         // left/top always snap instantly; animateTop enables spring for top only.
         animate={positioned ? {
@@ -534,7 +546,7 @@ export default function ToolPopup({
         onWheelCapture={(e) => e.stopPropagation()}
       >
         {/* Header — draggable, back arrow when navigated, title, close × */}
-        {!hideHeader && (
+        {showShellHeader && (
           <div className="h-8 flex items-center justify-between px-2.5 py-0 cursor-grab active:cursor-grabbing select-none"
             onPointerDown={handleDragStart}>
             <div className="flex items-center gap-1.5">

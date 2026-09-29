@@ -177,30 +177,8 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
   liveShowAlphaRef.current = showAlpha;
 
   const handleClick = () => {
-    if (popupCtx) {
-      // Inside a ToolPopup — push color picker as sliding panel.
-      // Pass a render function (not a static element) so each ToolPopup
-      // render reads fresh refs and the picker reflects the just-applied
-      // preset / color immediately.
-      trace.action('color-input:push-panel', { value });
-      popupCtx.pushPanel('Color', () => (
-        <ColorPicker
-          value={liveValueRef.current}
-          onChange={liveOnChangeRef.current}
-          onChangeEnd={liveOnChangeEndRef.current}
-          showAlpha={liveShowAlphaRef.current}
-          onCreatePreset={allowPresets ? liveCreatePresetRef.current : undefined}
-          colorPresets={allowPresets ? liveColorPresetsRef.current : []}
-          onApplyPreset={allowPresets ? liveOnApplyPresetRef.current : undefined}
-          onEditPreset={allowPresets ? liveEditPresetRef.current : undefined}
-          activePresetName={allowPresets ? liveActivePresetRef.current : undefined}
-        />
-      ));
-    } else {
-      // Standalone — open own popup
-      setOpen(true);
-      trace.action('color-input:open', { value });
-    }
+    setOpen(true);
+    trace.action('color-input:open-universal-picker', { value });
   };
 
   return (
@@ -264,8 +242,14 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           isOpen={open}
           onClose={() => setOpen(false)}
           title="Color"
+          ariaLabel="Paint picker"
           anchorRef={btnRef}
-          width={280}
+          width={480}
+          hideHeader
+          showNestedHeaderWhenHidden
+          radius={14}
+          nested={!!popupCtx}
+          outsidePointerMode="close"
         >
           <StandaloneColorPickerWithPresets
             value={resolvedColor || '#000000'}
@@ -275,6 +259,7 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             colorPresets={colorPresets}
             activePresetName={allowPresets ? (presetName || undefined) : undefined}
             allowPresets={allowPresets}
+            onClose={() => setOpen(false)}
           />
         </ToolPopup>
       )}
@@ -292,7 +277,7 @@ function expandHex(value: string): string {
 // ─── Standalone ColorPicker wrapper with preset support ─────────────────────
 // Lives INSIDE the ToolPopup so it can use useToolPopup() for push/pop panels.
 
-function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha, colorPresets, activePresetName, allowPresets = true }: {
+function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha, colorPresets, activePresetName, allowPresets = true, onClose }: {
   value: string;
   onChange: (c: string) => void;
   /** Commit callback — see ColorInput's pickerOnChangeEnd. When set,
@@ -302,6 +287,7 @@ function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha
   colorPresets: Array<{ name: string; value: string; label?: string }>;
   activePresetName?: string;
   allowPresets?: boolean;
+  onClose?: () => void;
 }) {
   const { pushPanel, popPanel } = useToolPopup();
 
@@ -349,6 +335,7 @@ function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha
       activePresetName={allowPresets ? activePresetName : undefined}
       onCreatePreset={allowPresets ? handleCreate : undefined}
       onEditPreset={allowPresets ? handleEdit : undefined}
+      onClose={onClose}
     />
   );
 }

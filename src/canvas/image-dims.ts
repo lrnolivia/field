@@ -29,10 +29,23 @@ export function getImageDimensions(url: string): Promise<{ w: number; h: number 
   return new Promise((resolve) => {
     const img = new Image();
     let settled = false;
-    const finish = (v: { w: number; h: number } | null) => { if (!settled) { settled = true; resolve(v); } };
-    const timer = setTimeout(() => finish(null), DIMS_TIMEOUT_MS);
-    img.onload = () => { clearTimeout(timer); finish(img.naturalWidth > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null); };
-    img.onerror = () => { clearTimeout(timer); finish(null); };
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = (v: { w: number; h: number } | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+      resolve(v);
+    };
+    timer = setTimeout(() => {
+      finish(null);
+      // Abandon a still-pending network/decode after the timeout. Handlers are
+      // already cleared by finish(), so cancelling cannot settle twice.
+      img.src = '';
+    }, DIMS_TIMEOUT_MS);
+    img.onload = () => finish(img.naturalWidth > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null);
+    img.onerror = () => finish(null);
     img.src = url;
   });
 }

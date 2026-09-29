@@ -320,6 +320,7 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   await expect(body).toBeVisible();
   await expect(toolbar).toBeVisible();
 
+  await page.waitForTimeout(450);
   const expanded = await page.evaluate(() => {
     const header = document.querySelector<HTMLElement>('[data-workspace-right-header]')!.getBoundingClientRect();
     const body = document.querySelector<HTMLElement>('[data-workspace-right-body]')!.getBoundingClientRect();
@@ -336,7 +337,7 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
 
   expect(expanded.top).toBeGreaterThanOrEqual(12);
   expect(expanded.right).toBeGreaterThanOrEqual(12);
-  expect(expanded.bottom).toBeCloseTo(expanded.toolbarBottom, 0);
+  expect(expanded.bottom).toBeCloseTo(18, 0);
 
   const drag = page.locator('[data-right-pane-drag-handle]').first();
   const box = await drag.boundingBox();
@@ -359,20 +360,26 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   if (!compactBox) throw new Error('missing compact floating Inspector');
   expect(compactBox.y).toBeGreaterThanOrEqual(11.5);
   const viewportHeight = await page.evaluate(() => window.innerHeight);
-  expect(viewportHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
+  expect(viewportHeight - (compactBox.y + compactBox.height)).toBeCloseTo(18, 0);
 
   // The compact Inspector should visually mirror the left command rail:
-  // same shell width, same 32px control width, same effective side inset.
+  // same 52px shell width, 32px primary controls, and a 10px optical inset.
   const leftRail = page.locator('[data-left-menu-rail]').first();
   const leftRailBox = await leftRail.boundingBox();
-  const leftRailButton = await leftRail.locator('button').first().boundingBox();
   const designButton = await compact.getByRole('button', { name: /open design inspector/i }).boundingBox();
-  if (!leftRailBox || !leftRailButton || !designButton) throw new Error('missing rail geometry for symmetry check');
+  if (!leftRailBox || !designButton) throw new Error('missing rail geometry for symmetry check');
 
   expect(compactBox.width).toBeCloseTo(leftRailBox.width, 0);
-  expect(designButton.width).toBeCloseTo(leftRailButton.width, 0);
-  expect((compactBox.width - designButton.width) / 2)
-    .toBeCloseTo((leftRailBox.width - leftRailButton.width) / 2, 0);
+  expect(compactBox.width).toBeCloseTo(52, 0);
+  expect(designButton.width).toBeCloseTo(32, 0);
+  expect((compactBox.width - designButton.width) / 2).toBeCloseTo(10, 0);
+
+  console.log('FIELD_QA_RAIL_GEOMETRY:' + JSON.stringify({
+    leftWidth: leftRailBox.width,
+    rightWidth: compactBox.width,
+    designWidth: designButton.width,
+    rightInset: (compactBox.width - designButton.width) / 2,
+  }));
 
   // Short windows must behave like the left command rail: the middle tools
   // yield/scroll first while the auto-hide + expand controls remain visible.

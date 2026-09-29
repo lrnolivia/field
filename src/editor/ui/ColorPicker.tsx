@@ -14,6 +14,8 @@ import {
 } from './color-utils';
 import { clamp } from '@/canvas/canvas-math';
 import { ColorSwatch } from '@/editor/controls/ColorSwatch';
+import PaintPickerShell, { SOLID_ONLY_PAINT_TYPES, type PaintPickerSurface } from './PaintPickerShell';
+import { useToolPopupOptional } from './ToolPopup';
 import { pickCanvasPixel } from './canvas-eyedropper';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -45,6 +47,14 @@ interface ColorPickerProps {
   /** Colors already used by the current page/scope. `value` is what gets applied;
    *  `swatch` may be a resolved token value used only for preview. */
   pageColors?: Array<{ value: string; swatch?: string }>;
+  /** Canonical field color editor. Disable only for deliberately compact legacy embeds. */
+  canonical?: boolean;
+  /** Render only the Solid editor body inside an existing PaintPickerShell. */
+  embeddedBody?: boolean;
+  /** Explicit close action for the universal picker shell. */
+  onClose?: () => void;
+  /** Human property name used by disabled paint-type tooltips. */
+  capabilityLabel?: string;
 }
 
 type InputMode = 'hex' | 'rgb' | 'hsl';
@@ -163,7 +173,7 @@ function usePointerDrag(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName, libraryOnly = false, showPresets = true, pageColors = [] }: ColorPickerProps) {
+function ColorPickerBody({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName, libraryOnly = false, showPresets = true, pageColors = [], canonical = true }: ColorPickerProps) {
   // Panel value scrub: flips interacting + panelScrub (hides the InteractionOutline).
   const setCanvasInteracting = useScrubInteracting();
   const setColorPickerOpen = useSetAtom(colorPickerOpenAtom);
@@ -422,33 +432,39 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
   // Input styles
   // NO cut on this row (user call 2026-08-20): the hex/alpha inputs and
   // their sibling buttons stay rounded so the row reads as one quiet strip.
-  const inputCls = 'h-[var(--control-height-sm)] px-1.5 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]';
-  const iconBtnCls = 'h-[var(--control-height-sm)] w-7 flex items-center justify-center bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)]';
+  const inputCls = canonical ? 'h-11 px-3 text-[13px] bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] px-1.5 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]';
+  const iconBtnCls = canonical ? 'h-11 w-11 flex items-center justify-center bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] w-7 flex items-center justify-center bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)]';
 
   return (
     <div className="space-y-0">
+      {libraryOnly && (!colorPresets || colorPresets.length === 0) && !onCreatePreset && (
+        <div className="min-h-[260px] flex flex-col items-center justify-center gap-2 px-8 text-center">
+          <div className="text-[13px] font-medium text-[var(--text-primary)]">No color styles yet</div>
+          <div className="text-[11px] leading-4 text-[var(--text-secondary)]">Libraries stay in the same picker; this property just has no color styles available yet.</div>
+        </div>
+      )}
       {!libraryOnly && (
         <>
       {/* ── 1. Saturation/Brightness Square ──────────────────────────────── */}
       <div
         ref={satValDrag.ref}
         onPointerDown={satValDrag.onPointerDown}
-        className="w-full h-[150px] rounded-md relative cursor-crosshair touch-none"
+        className={canonical ? "w-full aspect-square rounded-[8px] relative cursor-crosshair touch-none overflow-hidden" : "w-full h-[150px] rounded-md relative cursor-crosshair touch-none"}
         style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
       >
         {/* White gradient (left → right) */}
         <div
-          className="absolute inset-0 rounded-md"
+          className={canonical ? "absolute inset-0 rounded-[8px]" : "absolute inset-0 rounded-md"}
           style={{ background: 'linear-gradient(to right, #fff, transparent)' }}
         />
         {/* Black gradient (top → bottom) */}
         <div
-          className="absolute inset-0 rounded-md"
+          className={canonical ? "absolute inset-0 rounded-[8px]" : "absolute inset-0 rounded-md"}
           style={{ background: 'linear-gradient(to bottom, transparent, #000)' }}
         />
         {/* Handle */}
         <div
-          className="w-3 h-3 rounded-full border-2 border-white shadow-md absolute pointer-events-none"
+          className={canonical ? "w-7 h-7 rounded-full border-[4px] border-white shadow-md absolute pointer-events-none" : "w-3 h-3 rounded-full border-2 border-white shadow-md absolute pointer-events-none"}
           style={{
             left: `${hsv.s}%`,
             top: `${100 - hsv.v}%`,
@@ -462,13 +478,13 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       <div
         ref={hueDrag.ref}
         onPointerDown={hueDrag.onPointerDown}
-        className="w-full h-2 rounded relative cursor-pointer mt-3 touch-none"
+        className={canonical ? "w-full h-4 rounded-full relative cursor-pointer mt-5 touch-none" : "w-full h-2 rounded relative cursor-pointer mt-3 touch-none"}
         style={{
           background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
         }}
       >
         <div
-          className="w-3 h-3 rounded-full border border-white/50 bg-white shadow absolute pointer-events-none"
+          className={canonical ? "w-7 h-7 rounded-full border-[4px] border-white bg-transparent shadow absolute pointer-events-none" : "w-3 h-3 rounded-full border border-white/50 bg-white shadow absolute pointer-events-none"}
           style={{
             left: `${(hsv.h / 360) * 100}%`,
             top: '50%',
@@ -482,7 +498,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         <div
           ref={alphaDrag.ref}
           onPointerDown={alphaDrag.onPointerDown}
-          className="w-full h-2 rounded relative cursor-pointer mt-2 touch-none"
+          className={canonical ? "w-full h-4 rounded-full relative cursor-pointer mt-4 touch-none" : "w-full h-2 rounded relative cursor-pointer mt-2 touch-none"}
           style={{
             // Checkerboard background for transparency
             backgroundImage: `
@@ -497,7 +513,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
           }}
         >
           <div
-            className="w-3 h-3 rounded-full border border-white/50 bg-white shadow absolute pointer-events-none"
+            className={canonical ? "w-7 h-7 rounded-full border-[4px] border-white bg-transparent shadow absolute pointer-events-none" : "w-3 h-3 rounded-full border border-white/50 bg-white shadow absolute pointer-events-none"}
             style={{
               left: `${alpha * 100}%`,
               top: '50%',
@@ -508,12 +524,12 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       )}
 
       {/* ── 4. Input Row ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1.5 mt-3">
+      <div className={canonical ? "flex items-center gap-2 mt-5" : "flex items-center gap-1.5 mt-3"}>
         {/* Mode selector button */}
         <button
           type="button"
           onClick={cycleMode}
-          className="h-[var(--control-height-sm)] px-2 text-[10px] font-bold bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)] shrink-0 select-none"
+          className={canonical ? "h-11 min-w-[108px] px-3 text-[13px] font-medium bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-primary)] shrink-0 select-none text-left" : "h-[var(--control-height-sm)] px-2 text-[10px] font-bold bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)] shrink-0 select-none"}
         >
           {inputMode.toUpperCase()}
         </button>
@@ -573,13 +589,13 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         {showAlpha && (
           <div className="relative shrink-0">
             <input
-              className={`${inputCls} w-12 pr-4`}
+              className={`${inputCls} ${canonical ? 'w-[106px] pr-8' : 'w-12 pr-4'}`}
               value={alphaInput}
               onChange={e => setAlphaInput(e.target.value)}
               onBlur={commitAlpha}
               onKeyDown={e => handleInputKeyDown(e, commitAlpha)}
             />
-            <span className="absolute right-1.5 inset-y-0 flex items-center pointer-events-none text-[9px] font-medium text-[var(--text-secondary)] select-none">
+            <span className={canonical ? "absolute right-3 inset-y-0 flex items-center pointer-events-none text-[12px] font-medium text-[var(--text-secondary)] select-none" : "absolute right-1.5 inset-y-0 flex items-center pointer-events-none text-[9px] font-medium text-[var(--text-secondary)] select-none"}>
               A
             </span>
           </div>
@@ -595,15 +611,18 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       )}
 
       {!libraryOnly && pageColors.length > 0 && (
-        <div className="mt-3 border-t border-[var(--border-light)] pt-2">
-          <div className="px-0.5 pb-1.5 text-[10px] font-medium text-[var(--text-secondary)]">On this page</div>
-          <div className="flex flex-wrap gap-1.5 px-0.5" role="list" aria-label="Colors on this page">
+        <div className={canonical ? "mt-6 border-t border-[var(--border-light)] pt-5" : "mt-3 border-t border-[var(--border-light)] pt-2"}>
+          <div className={canonical ? "h-12 px-4 flex items-center justify-between rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[13px] text-[var(--text-primary)] mb-4" : "px-0.5 pb-1.5 text-[10px] font-medium text-[var(--text-secondary)]"}>
+            <span>On this page</span>
+            {canonical && <span className="text-[var(--text-secondary)]">⌄</span>}
+          </div>
+          <div className={canonical ? "flex flex-wrap gap-3" : "flex flex-wrap gap-1.5 px-0.5"} role="list" aria-label="Colors on this page">
             {pageColors.slice(0, 24).map((pageColor, index) => (
               <button
                 key={`${pageColor.value}-${index}`}
                 type="button"
                 role="listitem"
-                className="w-5 h-5 cut-corners cut-sm cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] hover:[--cut-border-color:var(--border-focus)] hover:border-[var(--border-focus)] transition-colors cursor-pointer"
+                className={canonical ? "w-8 h-8 rounded-[6px] border border-[var(--border-light)] hover:border-[var(--border-focus)] transition-colors cursor-pointer" : "w-5 h-5 cut-corners cut-sm cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] hover:[--cut-border-color:var(--border-focus)] hover:border-[var(--border-focus)] transition-colors cursor-pointer"}
                 style={{ background: pageColor.swatch || pageColor.value }}
                 title={pageColor.value}
                 aria-label={`Use ${pageColor.value}`}
@@ -680,5 +699,37 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
         </div>
       )}
     </div>
+  );
+}
+
+export default function ColorPicker(props: ColorPickerProps) {
+  const popupCtx = useToolPopupOptional();
+  const [surface, setSurface] = useState<PaintPickerSurface>('custom');
+
+  if (props.embeddedBody) {
+    return <ColorPickerBody {...props} />;
+  }
+
+  const close = props.onClose ?? (popupCtx?.canGoBack ? popupCtx.popPanel : undefined);
+  return (
+    <PaintPickerShell
+      surface={surface}
+      onSurfaceChange={setSurface}
+      activeType="solid"
+      onTypeChange={() => {}}
+      supportedTypes={SOLID_ONLY_PAINT_TYPES}
+      contextLabel={props.capabilityLabel || 'this color property'}
+      onPlus={() => setSurface('libraries')}
+      onClose={close}
+    >
+      <ColorPickerBody
+        {...props}
+        canonical
+        embeddedBody
+        libraryOnly={surface === 'libraries'}
+        showPresets={surface === 'libraries'}
+        pageColors={surface === 'custom' ? props.pageColors : []}
+      />
+    </PaintPickerShell>
   );
 }

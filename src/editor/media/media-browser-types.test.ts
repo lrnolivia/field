@@ -6,7 +6,8 @@ const read = (path: string) => readFileSync(path, 'utf8');
 describe('canonical Media type coverage', () => {
   it('includes Audio and Vector in the project Media browser', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(media).toContain("{ value: 'audio', label: 'Audio' }");
+    expect(media).toContain("value: 'audio'");
+    expect(media).toContain("label: 'Audio'");
     expect(media).toContain("type BrowserMediaKind = 'image' | 'video' | 'audio' | 'vector'");
     expect(media).toContain("return availableUploads.filter((item) => item.kind === 'audio')");
     expect(media).toContain("item.kind === 'image' || item.kind === 'vector'");
