@@ -1,11 +1,23 @@
 // FIELD_INSPECTOR_COMMAND_MENU_006
 // @vitest-environment jsdom
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import React, { useRef, useState } from 'react';
+import { getDefaultStore } from 'jotai';
+import { uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DropdownMenu, { type DropdownMenuEntry } from './DropdownMenu';
 
-afterEach(cleanup);
+const store = getDefaultStore();
+
+beforeEach(() => {
+  // Keyboard tests assert authored labels; Brand casing has its own contract tests.
+  store.set(uiHeadingCaseAtom, 'original');
+});
+
+afterEach(() => {
+  cleanup();
+  store.set(uiHeadingCaseAtom, 'brand');
+});
 
 const item = (id: string, label: string, extra: Partial<Extract<DropdownMenuEntry, { id: string }>> = {}): DropdownMenuEntry => ({
   id,
