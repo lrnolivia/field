@@ -37,11 +37,10 @@ async function drawFrame(
   await page.waitForTimeout(450);
 
   const added = (await allNodeIds(editor)).filter((id) => !before.has(id));
-  const frames: string[] = [];
-  for (const id of added) {
-    const name = await editor.sandbox().locator(`[data-id="${id}"]`).first().getAttribute('data-name');
-    if (name === 'Frame') frames.push(id);
-  }
+  // Frame creation's canonical generated id is available immediately. The
+  // friendly data-name can lag behind the source commit/render round-trip, so
+  // don't make hierarchy semantics depend on that presentation attribute.
+  const frames = added.filter((id) => id.startsWith('frame-'));
   expect(frames, `expected one created Frame; new ids were ${added.join(', ')}`).toHaveLength(1);
   return frames[0];
 }
