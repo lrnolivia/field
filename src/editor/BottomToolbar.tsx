@@ -12,6 +12,7 @@ import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toolModeAtom, panHighlightAtom, type ToolMode } from '@/code/stores/tool-store';
 import { zoomToFit, zoomToFitSelection } from '@/canvas/transform';
+import { signalUserCameraIntent } from '@/canvas/transform/camera-intent';
 import { getContentRoot } from '@/canvas/node-ops';
 import { selectedNodeAtom } from '@/code/stores/store';
 import { activeFilePathAtom, isIconSetFilePath } from '@/code/project/active-file-store';
@@ -588,6 +589,7 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
   const fit = useCallback(() => {
     const root = getContentRoot();
     if (!root) return;
+    signalUserCameraIntent(selectedId ? 'toolbar:fit-selection' : 'toolbar:fit-canvas');
     if (selectedId) {
       zoomToFitSelection(root, [selectedId]);
       trace.action('toolbar:smart-zoom', { target: 'selection', selectedId });

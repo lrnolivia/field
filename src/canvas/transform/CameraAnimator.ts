@@ -13,6 +13,11 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+export function prefersReducedCameraMotion(): boolean {
+  return typeof window !== 'undefined'
+    && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+}
+
 let animationFrameId: number | null = null;
 let blurAnimation: Animation | null = null;
 const onAnimStart: (() => void) | null = null;
@@ -51,6 +56,15 @@ export function animateCanvasTo(
 ): void {
   cancelAnimation();
 
+  // Reduced-motion is stronger than field's smooth-zoom preference and applies
+  // to focus transitions too. Preserve the exact final transform while removing
+  // both tweening and transient focus blur at the shared animation chokepoint.
+  if (prefersReducedCameraMotion()) {
+    trace.fn('camera.animateCanvasTo:reduced-motion', { targetX, targetY, targetScale });
+    moveCanvasTo(targetX, targetY, targetScale);
+    return;
+  }
+
   // Smooth-zoom pref OFF → snap directly to the target. Routing through
   // moveCanvasTo skips the easing loop entirely so the user gets
   // single-frame jumps for every zoom-to-fit / Ctrl++/− / variant pan
@@ -75,7 +89,7 @@ export function animateCanvasTo(
     [(anchorX - start.x) / start.scale, (anchorY - start.y) / start.scale, viewportWidth / start.scale],
     [(anchorX - targetX) / targetScale, (anchorY - targetY) / targetScale, viewportWidth / targetScale],
   ) : null;
-  if (focusPath && !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)) {
+  if (focusPath) {
     const iframe = document.querySelector<HTMLIFrameElement>('[data-canvas-iframe]');
     blurAnimation = iframe?.animate([
       { filter: 'blur(0px)', offset: 0 },

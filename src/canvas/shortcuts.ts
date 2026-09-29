@@ -2,6 +2,7 @@
 // Registers with KeyboardManager. Returns cleanup function.
 
 import { keyboard } from './KeyboardManager';
+import { signalUserCameraIntent } from './transform/camera-intent';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import {
   setSpaceBarDown, panToNode,
@@ -192,15 +193,15 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   cleanups.push(() => window.removeEventListener('blur', clearSpaceHold));
 
   // ─── Zoom ────────────────────────────────────────────────────────
-  cleanups.push(keyboard.register({ key: ['+', '='], ctrl: true, label: 'Zoom in', category: 'zoom', handler: () => zoomIn() }));
-  cleanups.push(keyboard.register({ key: ['-', '_'], ctrl: true, label: 'Zoom out', category: 'zoom', handler: () => zoomOut() }));
+  cleanups.push(keyboard.register({ key: ['+', '='], ctrl: true, label: 'Zoom in', category: 'zoom', handler: () => { signalUserCameraIntent('shortcut:zoom-in'); zoomIn(); } }));
+  cleanups.push(keyboard.register({ key: ['-', '_'], ctrl: true, label: 'Zoom out', category: 'zoom', handler: () => { signalUserCameraIntent('shortcut:zoom-out'); zoomOut(); } }));
   cleanups.push(keyboard.register({ key: ['1', '!'], shift: true, label: 'Zoom to fit', category: 'zoom', handler: () => {
-    const el = contentRef.current; if (el) zoomToFit(el);
+    const el = contentRef.current; if (el) { signalUserCameraIntent('shortcut:fit-canvas'); zoomToFit(el); }
   }}));
   cleanups.push(keyboard.register({ key: ['2', '@'], shift: true, label: 'Zoom to selection', category: 'zoom', handler: () => {
-    const el = contentRef.current; if (el) zoomToFitSelection(el, selectedIdRef.current ? [selectedIdRef.current] : []);
+    const el = contentRef.current; if (el) { signalUserCameraIntent('shortcut:fit-selection'); zoomToFitSelection(el, selectedIdRef.current ? [selectedIdRef.current] : []); }
   }}));
-  cleanups.push(keyboard.register({ key: ['3', '#'], shift: true, label: 'Zoom to 100%', category: 'zoom', handler: () => zoomTo100() }));
+  cleanups.push(keyboard.register({ key: ['3', '#'], shift: true, label: 'Zoom to 100%', category: 'zoom', handler: () => { signalUserCameraIntent('shortcut:zoom-100'); zoomTo100(); } }));
   cleanups.push(keyboard.register({ key: 'c', label: 'Center focused object', category: 'zoom', handler: () => {
     const content = contentRef.current;
     if (!content) return;
@@ -210,6 +211,7 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     const id = selected || hovered;
     if (!id) return;
     const vpId = selected ? store.get(interactingViewportIdAtom) : store.get(hoveredViewportIdAtom);
+    signalUserCameraIntent('shortcut:center-focused-object');
     panToNode(content, `${getViewportPrefix(vpId)}${id}`, true);
   }}));
 

@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FlagIcon } from '@/shared/flag-icon';
+import { getUiHeadingRole } from '@/shared/ui-heading-case';
 
 // ─── LoadingSpinner ────────────────────────────────────────────────────────
 
@@ -61,7 +62,10 @@ export function SettingsGroup({
       {(title || action) && (
         <div className={`flex items-center justify-between ${surface ? 'px-4 py-2.5 border-b border-[var(--border-light)]' : 'px-3 py-3'}`}>
           {title ? (
-            <h3 className={`${surface ? 'text-xs' : 'text-sm'} font-semibold text-[var(--text-primary)]`}>{title}</h3>
+            <h3
+              data-ui-heading={getUiHeadingRole(title)}
+              className={`${surface ? 'text-xs' : 'text-sm'} font-semibold text-[var(--text-primary)]`}
+            >{title}</h3>
           ) : (
             <span />
           )}
@@ -425,7 +429,7 @@ export function ConfirmModal({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-light)]">
-              <h3 className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
+              <h3 data-ui-heading={getUiHeadingRole(title)} className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
               <button
                 onClick={onCancel}
                 disabled={isLoading}
