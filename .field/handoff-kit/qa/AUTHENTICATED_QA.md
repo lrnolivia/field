@@ -2,7 +2,9 @@
 
 > Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
-Use authenticated/staging verification for requirements that disposable /builder/noauth cannot prove.
+Apply current Runner Bible section 11 first. Authenticated/project-native verification is the field-specific harness for criteria that require protected state, credentials, persistence, account metadata, or an environment generic Inspector/browser paths cannot prove.
+
+`/builder/noauth` is smoke-only; `/qa/work/<projectId>` is read-only real-project truth. Neither proves authenticated persistence or account behavior.
 
 Examples include Cloudflare Access authentication/re-authentication, dashboard project listing/rename/star/trash/restore, R2 persistence, real account metadata, authenticated API behavior, ETag/stale-session conflict behavior, multi-browser or multi-session persistence, and production-only integration behavior.
 
