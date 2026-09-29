@@ -33,7 +33,7 @@ export function LibrarySectionHeader({ title, addTitle, items }: {
   const [open, setOpen] = useState(false);
   const isViewer = useIsViewer();
   return (
-    <SectionLabel size="md" right={isViewer ? undefined :
+    <SectionLabel size="md" className="field-library-section-header" right={isViewer ? undefined :
       <>
         <AddButton ref={plusButtonRef} onClick={() => setOpen(o => !o)} title={addTitle} />
         <DropdownMenu
@@ -56,7 +56,7 @@ export function LibraryEmptyState({ icon, message }: {
   message: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 px-4 py-4 text-center">
+    <div data-field-empty-state className="flex flex-col items-center gap-1.5 px-4 py-4 text-center">
       {icon}
       <p className="text-[10px] text-[var(--text-disabled)] max-w-[180px] leading-relaxed">
         {message}
@@ -92,6 +92,7 @@ export function LibraryProjectHeader({ dropAttr, rootId, expanded, onToggle, ico
   const isProjectDropTarget = folderTreeIndicator?.rowId === rootId;
   return (
     <div
+      data-library-project-header
       {...{ [dropAttr]: rootId }}
       style={{
         outline: isProjectDropTarget ? '1px solid var(--accent-secondary, #a78bfa)' : 'none',

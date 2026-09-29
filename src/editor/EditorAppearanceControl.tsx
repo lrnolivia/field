@@ -1,7 +1,7 @@
 import { useAtom } from 'jotai';
 import { useCallback, useRef, useState } from 'react';
 import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
-import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
+import { editorNeutralLevelAtom, editorThemeModeAtom, interfaceContrastAtom } from '@/code/stores/user-preferences-store';
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { trace } from '@/shared/debug-trace';
@@ -11,6 +11,7 @@ import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 export default function EditorAppearanceControl() {
   const [mode, setMode] = useAtom(editorThemeModeAtom);
   const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
+  const [interfaceContrast, setInterfaceContrast] = useAtom(interfaceContrastAtom);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
   const uiCase = useUiChromeCase();
@@ -28,6 +29,13 @@ export default function EditorAppearanceControl() {
     setOpen(false);
     trace.action('editor:theme-neutral', { mode: nextMode, level: nextLevel });
   }, [setMode, setNeutralLevel]);
+
+  const applyContrast = useCallback((nextContrast: number) => {
+    const clamped = Math.max(0, Math.min(100, nextContrast));
+    setInterfaceContrast(clamped);
+    applyEditorChromePreferences();
+    trace.action('editor:interface-contrast', { value: clamped });
+  }, [setInterfaceContrast]);
 
   return (
     <div ref={anchorRef} className="relative z-10">
@@ -55,9 +63,11 @@ export default function EditorAppearanceControl() {
         <ThemeNeutralPopover
           mode={mode}
           level={neutralLevel}
+          contrast={interfaceContrast}
           anchorRef={anchorRef}
           placement="right"
           onSelect={applyChoice}
+          onContrastChange={applyContrast}
           onClose={() => setOpen(false)}
         />
       )}

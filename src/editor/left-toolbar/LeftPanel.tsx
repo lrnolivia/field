@@ -51,11 +51,13 @@ export default function LeftPanel() {
   return (
     <div
       data-editor-panel="left-primary"
+      data-field-chrome-panel
+      data-left-panel-surface={activePanel}
       data-visible={leftOpen && railVisible ? 'true' : 'false'}
       aria-hidden={leftOpen && railVisible ? undefined : true}
       inert={!leftOpen || !railVisible}
       data-tutorial="left-panel"
-      className="fixed z-[5000] flex flex-col overflow-hidden"
+      className="field-chrome-panel fixed z-[5000] flex flex-col overflow-hidden"
       style={{
         left: workspace.left.inset + (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         top: workspaceBodyTop(workspace.left),
@@ -63,6 +65,8 @@ export default function LeftPanel() {
         height: workspaceBodyHeightCss(workspace.left),
         paddingLeft: 6,
         paddingRight: 6,
+        paddingTop: 6,
+        paddingBottom: 6,
         boxSizing: 'border-box',
         willChange: 'transform',
         isolation: 'isolate',

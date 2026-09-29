@@ -1,0 +1,110 @@
+name: Left panel parity verify
+
+on:
+  push:
+    branches:
+      - field/left-panel-inspector-parity-20260929
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+
+jobs:
+  build:
+    name: Candidate build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check clean install
+        id: npm_ci
+        continue-on-error: true
+        run: npm ci
+      - name: Record known lockfile drift and install without rewriting it
+        if: steps.npm_ci.outcome == 'failure'
+        run: |
+          echo "::warning::npm ci is blocked by pre-existing package-lock drift; validating product code with the repository's existing npm install path."
+          rm -rf node_modules
+          npm install --no-audit --no-fund
+      - name: Build all
+        run: npm run build:all
+
+  test-candidate:
+    name: Candidate full tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:run
+
+  test-baseline:
+    name: Baseline main full tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f94bd17cd96c5950d39525ab137f5c27dfb6c231
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:run
+
+  lint-candidate:
+    name: Candidate lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+
+  lint-baseline:
+    name: Baseline main lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f94bd17cd96c5950d39525ab137f5c27dfb6c231
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+
+  visual:
+    name: Left panel visual matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run left-panel visual matrix
+        run: npx playwright test src/editor/e2e/left-panel-visual-qa.spec.ts --project=chromium --reporter=line

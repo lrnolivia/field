@@ -16,8 +16,8 @@ export const rightInspectorTemporaryRevealAtom = atom(false);
 export const rightInspectorExplicitCollapseAtom = atom(false);
 /** Temporary Inspector reveal in Compact; never changes the workspace mode. */
 export const compactInspectorOpenAtom = atom(false);
-/** Explicitly pinned floating Inspector expansion. */
-export const floatingInspectorExpandedAtom = atom(false);
+/** Float restores with the full detached Inspector. Explicit Collapse may set this false for the current session. */
+export const floatingInspectorExpandedAtom = atom(true);
 export const leftPaneOpenAtom = atom(
   (get) => {
     const mode = get(workspaceModeAtom);

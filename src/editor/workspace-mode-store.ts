@@ -62,12 +62,12 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
   set(floatingEntranceAtom, mode === 'floating' && previousMode !== 'floating');
   set(railRevealedAtom, false);
   set(floatingLeftHiddenAtom, false);
-  set(floatingPanelCollapsedAtom, mode === 'floating');
-  set(floatingInspectorExpandedAtom, false);
+  set(floatingPanelCollapsedAtom, false);
+  set(floatingInspectorExpandedAtom, mode === 'floating');
   set(compactPanelOpenAtom, false);
   set(compactInspectorOpenAtom, false);
   set(rightPaneDragOffsetAtom, { x: 0, y: 0 });
   set(detachedLeftPanelAtom, mode === 'floating'
-    ? { panelId: floatingPanel, expanded: false }
+    ? { panelId: floatingPanel, expanded: true }
     : null);
 });

@@ -42,7 +42,7 @@ export function CategoryHeader({ label, onToggle, right }: {
   right?: React.ReactNode;
 }) {
   return (
-    <div className="group flex items-center justify-between px-3 pt-3 pb-1.5 select-none">
+    <div data-preset-category-header className="group flex items-center justify-between px-2 h-7 select-none">
       <span
         onClick={onToggle}
         className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
@@ -345,7 +345,7 @@ export function CategorySection({
   }, [renamingFolderId, pendingNewFolderId, handleFolderDelete, handleFolderRenameCommit]);
 
   return (
-    <div className="mb-1">
+    <div data-preset-category={config.key}>
       <CategoryHeader
         label={config.label}
         onToggle={onToggleCollapse}
@@ -364,7 +364,7 @@ export function CategorySection({
       />
 
       {(!collapsed || creating) && (
-        <div className="px-2">
+        <div data-preset-category-body className="px-1.5 py-1">
           {effectiveRootOrder.length === 0 && !creating ? (
             <div className="text-[10px] text-[var(--text-tertiary,var(--text-disabled))] py-2 px-2">
               No {config.label.toLowerCase()} presets
@@ -462,10 +462,10 @@ export function DisplayCategorySection({ label, emptyLabel, collapsed, onToggleC
   onToggleCollapse: () => void;
 }) {
   return (
-    <div className="mb-1">
+    <div data-preset-category={label.toLowerCase().replace(/\s+/g, '-')}>
       <CategoryHeader label={label} onToggle={onToggleCollapse} />
       {!collapsed && (
-        <div className="px-2">
+        <div data-preset-category-body className="px-1.5 py-1">
           <div className="text-[10px] text-[var(--text-tertiary,var(--text-disabled))] py-2 px-2">
             {emptyLabel}
           </div>

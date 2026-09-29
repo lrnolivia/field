@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, interfaceContrastAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
@@ -69,16 +69,35 @@ function migrateNeutralScalePreference(value: unknown): unknown {
   }
 }
 
+function normalizeInterfaceContrast(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 28;
+  return Math.max(0, Math.min(100, numeric));
+}
+
 export function applyEditorChromePreferences(): void {
   const store = getDefaultStore();
   const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
   const level = normalizeEditorNeutralLevel(store.get(editorNeutralLevelAtom));
+  const interfaceContrast = normalizeInterfaceContrast(store.get(interfaceContrastAtom));
   const lowercaseHeadings = store.get(lowercaseHeadingsAtom);
   const root = document.documentElement;
   root.classList.toggle('dark', mode === 'dark');
   root.dataset.themeMode = mode;
   root.dataset.neutralLevel = level;
+  root.dataset.interfaceContrast = String(Math.round(interfaceContrast));
   root.dataset.lowercaseHeadings = lowercaseHeadings ? 'true' : 'false';
+
+  // One continuous control drives every field chrome surface. The canonical
+  // CSS lives in styles/field-chrome.css; these percentages are its only
+  // runtime inputs so Inspector, left panels and floating panel surfaces stay
+  // editable as one system.
+  root.style.setProperty('--field-chrome-section-mix', `${(0.8 + interfaceContrast * 0.055).toFixed(2)}%`);
+  root.style.setProperty('--field-chrome-raised-mix', `${(1.6 + interfaceContrast * 0.09).toFixed(2)}%`);
+  root.style.setProperty('--field-chrome-hover-mix', `${(3 + interfaceContrast * 0.11).toFixed(2)}%`);
+  root.style.setProperty('--field-chrome-active-mix', `${(5 + interfaceContrast * 0.14).toFixed(2)}%`);
+  root.style.setProperty('--field-chrome-border-mix', `${(2.5 + interfaceContrast * 0.075).toFixed(2)}%`);
+  root.style.setProperty('--field-chrome-border-strong-mix', `${(4.5 + interfaceContrast * 0.105).toFixed(2)}%`);
 }
 
 function currentTheme(): BuilderTheme {
@@ -222,6 +241,9 @@ export function subscribeBuilderTheme(): void {
   const storedNeutral = normalizeEditorNeutralLevel(
     migrateNeutralScalePreference(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom)),
   );
+  const storedInterfaceContrast = normalizeInterfaceContrast(
+    readStoredString('field:prefs:interfaceContrast') ?? store.get(interfaceContrastAtom),
+  );
   const storedLowercaseHeadingsRaw = readStoredString('field:prefs:lowercaseHeadings');
   // Compatibility with the short-lived Brand / Original / lowercase selector:
   // Original meant "do not auto-lowercase"; both other values meant "on".
@@ -233,6 +255,9 @@ export function subscribeBuilderTheme(): void {
       : true;
   if (store.get(editorThemeModeAtom) !== storedMode) store.set(editorThemeModeAtom, storedMode);
   if (store.get(editorNeutralLevelAtom) !== storedNeutral) store.set(editorNeutralLevelAtom, storedNeutral);
+  if (store.get(interfaceContrastAtom) !== storedInterfaceContrast) {
+    store.set(interfaceContrastAtom, storedInterfaceContrast);
+  }
   if (store.get(lowercaseHeadingsAtom) !== storedLowercaseHeadings) {
     store.set(lowercaseHeadingsAtom, storedLowercaseHeadings);
   }
@@ -267,6 +292,11 @@ export function subscribeBuilderTheme(): void {
   store.sub(editorNeutralLevelAtom, () => {
     applyEditorChromePreferences();
     trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
+  });
+
+  store.sub(interfaceContrastAtom, () => {
+    applyEditorChromePreferences();
+    trace.action('editor-interface-contrast:changed', { value: store.get(interfaceContrastAtom) });
   });
 
   store.sub(lowercaseHeadingsAtom, () => {

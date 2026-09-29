@@ -1,0 +1,569 @@
+/* field-chrome.css — canonical field editor chrome hierarchy.
+ *
+ * The Inspector is the visual source of truth. Left-panel content mirrors that
+ * hierarchy through this shared token layer, but this file must never remap
+ * the Inspector's native --bg/--border/control variables. That keeps Inspector
+ * geometry and contrast stable while making left chrome centrally editable.
+ *
+ * Runtime percentages are written by editor/builder-theme.ts from the
+ * Appearance > Interface contrast preference. The left icon rail is excluded.
+ */
+
+:root {
+  --field-chrome-section-mix: 2.34%;
+  --field-chrome-raised-mix: 4.12%;
+  --field-chrome-hover-mix: 6.08%;
+  --field-chrome-active-mix: 8.92%;
+  --field-chrome-border-mix: 4.60%;
+  --field-chrome-border-strong-mix: 7.44%;
+
+  --field-chrome-panel-bg: var(--bg-panel);
+  --field-chrome-section-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-section-mix)
+  );
+  --field-chrome-raised-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-raised-mix)
+  );
+  --field-chrome-hover-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-hover-mix)
+  );
+  --field-chrome-active-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-active-mix)
+  );
+  --field-chrome-border: color-mix(
+    in srgb,
+    var(--text-primary) var(--field-chrome-border-mix),
+    transparent
+  );
+  --field-chrome-border-strong: color-mix(
+    in srgb,
+    var(--text-primary) var(--field-chrome-border-strong-mix),
+    transparent
+  );
+  --field-chrome-control-bg: var(--field-chrome-raised-bg);
+  --field-chrome-popover-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-raised-mix)
+  );
+
+  --field-chrome-radius-control: 5px;
+  --field-chrome-radius-panel: 8px;
+  --field-chrome-header-height: 32px;
+  --field-chrome-section-gap: 2px;
+}
+
+/* Left-chrome compatibility boundary.
+ *
+ * Existing left-panel descendants still consume legacy --bg/--border/control
+ * variables. Remap them here so the whole left system follows field chrome
+ * without re-theming the Inspector itself. */
+:where(
+  [data-editor-panel="left-primary"],
+  [data-field-chrome-panel]
+) {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --bg-hover: var(--field-chrome-hover-bg);
+  --bg-active: var(--field-chrome-active-bg);
+  --control-bg: var(--field-chrome-control-bg);
+  --control-bg-hover: var(--field-chrome-hover-bg);
+  --control-bg-active: var(--field-chrome-active-bg);
+  --control-border: var(--field-chrome-border);
+  --control-border-hover: var(--field-chrome-border-strong);
+  --border-light: var(--field-chrome-border);
+  --border-default: var(--field-chrome-border-strong);
+  --dropdown-bg: var(--field-chrome-popover-bg);
+  --grid-line: var(--field-chrome-section-bg);
+  --bg-elevated: var(--field-chrome-raised-bg);
+  --bg-raised: var(--field-chrome-raised-bg);
+  --btn-secondary-bg: var(--field-chrome-control-bg);
+  --btn-secondary-hover: var(--field-chrome-hover-bg);
+  --btn-secondary-bg-hover: var(--field-chrome-hover-bg);
+  --button-secondary-bg: var(--field-chrome-control-bg);
+  --button-secondary-hover: var(--field-chrome-hover-bg);
+}
+
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel]) {
+  background: var(--field-chrome-panel-bg);
+  color: var(--text-primary);
+}
+
+[data-editor-panel="left-primary"] {
+  border-inline-end: 1px solid var(--field-chrome-border);
+}
+
+/* field chrome should read as precise, low-contrast structure, not nested cards. */
+[data-editor-panel="left-primary"] :where(input[type="text"], input[type="search"], input[type="url"], textarea, select) {
+  border-color: var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+  background: var(--field-chrome-control-bg);
+  color: var(--text-primary);
+}
+
+[data-editor-panel="left-primary"] :where(input, textarea, select):focus-visible {
+  outline: 1px solid var(--selection);
+  outline-offset: 0;
+}
+
+[data-editor-panel="left-primary"] :where(h1, h2, h3, [role="heading"]) {
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
+
+[data-editor-panel="left-primary"] :where(hr) {
+  border-color: var(--field-chrome-border);
+}
+
+/* Shared primitives for panel-owned sections and any new surfaces. */
+.field-chrome-header {
+  min-height: var(--field-chrome-header-height);
+  background: var(--field-chrome-section-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+.field-chrome-section {
+  background: var(--field-chrome-section-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+}
+
+.field-chrome-raised {
+  background: var(--field-chrome-raised-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+}
+
+.field-chrome-empty {
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.field-chrome-illustration {
+  color: var(--text-tertiary);
+  opacity: 0.82;
+  filter: saturate(0.72);
+}
+
+/* The accepted field illustration language stays quiet: line-led, neutral,
+ * low-saturation and subordinate to content. Accent may appear only as a tiny
+ * semantic detail, never as the illustration's dominant fill. */
+.field-chrome-empty .field-chrome-illustration :where(svg, img) {
+  max-inline-size: 132px;
+  max-block-size: 112px;
+}
+
+/* Appearance > Interface contrast. Deliberately neutral and compact. */
+.field-chrome-contrast-slider {
+  appearance: none;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.field-chrome-contrast-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--field-chrome-border-strong);
+}
+
+.field-chrome-contrast-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 50%;
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--field-chrome-popover-bg);
+}
+
+.field-chrome-contrast-slider::-moz-range-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--field-chrome-border-strong);
+}
+
+.field-chrome-contrast-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 50%;
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--field-chrome-popover-bg);
+}
+
+
+/* ── Shared sidebar primitives ──────────────────────────────────────────────
+ * These are intentionally shared by Pages/Layers, Library, Presets, CMS,
+ * Media, Locale, Branches and auxiliary chrome. Keep their visual decisions
+ * here rather than in the individual panel implementations. */
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-section-label] {
+  background: var(--field-chrome-section-bg);
+  box-shadow: inset 0 -1px 0 var(--field-chrome-border);
+}
+
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-searchbar] {
+  background: var(--field-chrome-control-bg) !important;
+  border-color: var(--field-chrome-border) !important;
+}
+
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-row] {
+  border-radius: var(--field-chrome-radius-control);
+}
+
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-add] {
+  border-radius: var(--field-chrome-radius-control);
+}
+
+/* ── Pages + Layers ─────────────────────────────────────────────────────── */
+[data-field-document-panel] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-document-pages],
+[data-document-layers] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-field-pages-splitter] {
+  position: relative;
+  min-height: 7px;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+[data-field-pages-splitter]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 8px;
+  top: 3px;
+  height: 1px;
+  background: var(--field-chrome-border);
+  transition: background 120ms ease;
+}
+
+[data-field-pages-splitter]:hover::after,
+[data-field-pages-splitter]:focus-visible::after {
+  background: var(--field-chrome-border-strong);
+}
+
+/* ── All left destinations ─────────────────────────────────────────────────
+ * Explicit route inventory: Insert, Pages/Layers, Library, Presets, Media,
+ * Locale, CMS, Branches, plus Vibe and toolbar/detached auxiliary surfaces. */
+:where(
+  [data-left-panel-surface="insert"],
+  [data-left-panel-surface="pages-layers"],
+  [data-left-panel-surface="layers"],
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"],
+  [data-left-panel-surface="media"],
+  [data-left-panel-surface="locale"],
+  [data-left-panel-surface="cms"],
+  [data-left-panel-surface="branches"],
+  [data-left-panel-surface="vibe"],
+  [data-left-panel-surface="plugins"]
+) [data-tool-divider] {
+  background: var(--field-chrome-border) !important;
+}
+
+:where(
+  [data-left-panel-surface="insert"],
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"],
+  [data-left-panel-surface="media"],
+  [data-left-panel-surface="cms"]
+) :where(.cut-corners) {
+  --button-secondary-bg: var(--field-chrome-raised-bg);
+  --button-secondary-hover: var(--field-chrome-hover-bg);
+}
+
+/* ── Empty states / illustration language ──────────────────────────────── */
+[data-field-empty-state],
+.field-chrome-empty {
+  color: var(--text-secondary);
+}
+
+[data-field-empty-state] [data-field-illustration],
+[data-field-empty-state] .field-chrome-illustration {
+  color: var(--text-tertiary) !important;
+  opacity: 0.82;
+  filter: saturate(0.72);
+}
+
+/* ── Floating/detached/toolbar panel parity ─────────────────────────────── */
+[data-floating-left-panel],
+[data-toolbar-panel] {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --bg-hover: var(--field-chrome-hover-bg);
+  --bg-active: var(--field-chrome-active-bg);
+  --border-light: var(--field-chrome-border);
+  --border-default: var(--field-chrome-border-strong);
+  background: var(--field-chrome-panel-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-toolbar-panel] > :first-child {
+  background: var(--field-chrome-section-bg);
+}
+
+
+/* Media is intentionally more object-heavy than the other left panels. Keep
+ * tiles as objects, but remove the old dashboard-card feeling from supporting
+ * strips and metadata panes. */
+[data-left-panel-surface="media"] :where([data-media-grid]) {
+  --control-border: var(--field-chrome-border);
+  --control-border-hover: var(--field-chrome-border-strong);
+}
+
+[data-left-panel-surface="media"] :where([data-media-grid] > *) {
+  border-color: var(--field-chrome-border);
+}
+
+/* CMS forms and collection rows inherit the same quiet raised/control tiers;
+ * semantic destructive/accent colors remain untouched. */
+[data-left-panel-surface="cms"] {
+  --bg-elevated: var(--field-chrome-raised-bg);
+  --grid-line: var(--field-chrome-section-bg);
+}
+
+/* Library + Presets use the same hierarchy. Their content models differ, the
+ * chrome does not. */
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-panel] {
+  background: var(--field-chrome-panel-bg) !important;
+}
+
+/* Toolbar-hosted Library/Insert/Media surfaces use the exact same tokens as
+ * their docked forms. */
+[data-toolbar-panel] [data-library-panel],
+[data-toolbar-panel] [data-media-grid],
+[data-toolbar-panel] [data-field-document-panel] {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --border-light: var(--field-chrome-border);
+}
+
+
+/* ── Visible left-panel parity pass ────────────────────────────────────────
+ * This is intentionally scoped to left-owned surfaces. Inspector and generic
+ * portaled primitives remain on their native design system. */
+[data-editor-panel="left-primary"] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-floating-left-panel] {
+  background: var(--field-chrome-panel-bg);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-section-label] {
+  background: var(--field-chrome-section-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+  box-shadow: none;
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row] {
+  border: 1px solid transparent;
+  border-radius: var(--field-chrome-radius-control);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row]:hover {
+  border-color: var(--field-chrome-border);
+}
+
+:where([data-editor-panel="left-primary"], [data-floating-left-panel])
+  [data-field-chrome-row][data-active="true"] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border-strong);
+  color: var(--text-primary);
+}
+
+/* Insert primary navigation: section headers carry hierarchy; rows stay quiet. */
+[data-left-panel-surface="insert"] [data-field-insert-search] {
+  margin-inline: 2px;
+  background: var(--field-chrome-section-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-search] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+  clip-path: none;
+}
+
+[data-left-panel-surface="insert"] .field-insert-group-header {
+  margin: 5px 2px 0;
+  border: 1px solid var(--field-chrome-border);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-category-list] {
+  margin-inline: 2px;
+  padding: 3px;
+  border: 1px solid var(--field-chrome-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1.1%);
+}
+
+[data-left-panel-surface="insert"] [data-field-insert-divider] {
+  margin-block: 4px 0;
+  border-color: transparent;
+}
+
+/* Insert detail panels are still object browsers, but no longer read like
+ * legacy Revyme card galleries. Tiles stay flat, compact and non-animated. */
+[data-field-insert-secondary] {
+  background: var(--field-chrome-panel-bg);
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+[data-field-insert-secondary] [data-field-insert-section] {
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-field-insert-secondary] .field-insert-detail-heading {
+  min-height: 28px;
+  margin: 0;
+  padding: 7px 8px 6px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+:where(
+  [data-left-panel-surface="insert-secondary"],
+  [data-toolbar-panel="insert"]
+) [data-toolbar-item] {
+  clip-path: none !important;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 5px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:where(
+  [data-left-panel-surface="insert-secondary"],
+  [data-toolbar-panel="insert"]
+) [data-toolbar-item]:hover {
+  border-color: var(--field-chrome-border-strong);
+  transform: none !important;
+}
+
+
+/* ── Library + Presets visible parity ───────────────────────────────────── */
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-panel] {
+  background: transparent !important;
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-search] {
+  margin: 0 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-search] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="library"] [data-library-section] {
+  margin: 5px 2px 0;
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="library"] .field-library-section-header {
+  height: 30px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+[data-left-panel-surface="library"] [data-library-section] > :not(.field-library-section-header) {
+  background: transparent;
+}
+
+[data-left-panel-surface="library"] [data-library-project-header] {
+  margin: 3px 3px 1px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1.2%);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-field-empty-state] {
+  margin: 3px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1%);
+}
+
+/* Presets are design-system data, not a settings form. Each category is one
+ * compact inspector-like disclosure zone; rows remain flat inside it. */
+[data-left-panel-surface="presets"] [data-preset-category],
+[data-left-panel-surface="library"] [data-preset-category] {
+  margin: 5px 2px 0;
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-header] {
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-body] {
+  background: transparent;
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-body] [data-field-chrome-row] {
+  min-height: 24px;
+}
