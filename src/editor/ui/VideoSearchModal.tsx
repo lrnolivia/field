@@ -5,10 +5,12 @@
 // Uses shared Modal shell for portal, backdrop, Escape key, and close button.
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSetAtom } from 'jotai';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
-import { backend } from '@/backend';
+import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
+import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 import { getProjectId } from '@/backend/project-id';
 
 // Pixabay video search. In CLOUD mode it goes through the backend proxy
@@ -73,6 +75,8 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
   const [urlInput, setUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const inputRef = useRef<HTMLInputElement>(null);
   const loadingMoreRef = useRef(false); // sync guard against concurrent page fetches
   const pageRef = useRef(1);            // sync last-fetched page
@@ -151,8 +155,11 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
     }
   }, [isOpen, searchPixabay]);
 
-  const handleSelect = (url: string) => {
-    trace.action('video-search:select', { url: url.slice(0, 80) });
+  const handleSelect = (url: string, registerExternal = true) => {
+    trace.action('video-search:select', { url: url.slice(0, 80), registerExternal });
+    if (registerExternal) {
+      rememberMediaAsset(mediaAssetFromExternalUrl(url, 'video'));
+    }
     onSelect(url);
     onClose();
   };
@@ -270,7 +277,15 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
                 setUploading(true);
                 setUploadError(null);
                 try {
-                  handleSelect(await backend.uploadAsset(getProjectId(), file));
+                  const result = await ingestMediaFile({
+                    file,
+                    projectId: getProjectId(),
+                    kind: 'video',
+                    upsert: upsertMediaUpload,
+                    idPrefix: 'video-picker',
+                    rememberAsset: rememberMediaAsset,
+                  });
+                  handleSelect(result.url, false);
                 } catch (error) {
                   setUploadError(error instanceof Error ? error.message : 'Video upload failed');
                 } finally {

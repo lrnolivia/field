@@ -32,6 +32,30 @@ export async function hashMediaFile(file: File): Promise<string | null> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+
+export function mediaAssetFromExternalUrl(
+  url: string,
+  kind: Exclude<MediaKind, 'all'>,
+  source: MediaAsset['source'] = 'external',
+): MediaAsset {
+  let name = kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'Image';
+  try {
+    const part = new URL(url).pathname.split('/').filter(Boolean).pop();
+    if (part) name = decodeURIComponent(part);
+  } catch {
+    // Keep the generic kind label for data/blob/custom schemes.
+  }
+
+  return {
+    id: 'external:' + kind + ':' + url,
+    url,
+    kind,
+    name,
+    source,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export interface MediaIngestResult {
   url: string;
   contentHash: string | null;

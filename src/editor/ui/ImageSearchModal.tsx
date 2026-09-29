@@ -5,12 +5,15 @@
 // Uses shared Modal shell for portal, backdrop, Escape key, and close button.
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
+import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
+import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 
 // Unsplash search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/unsplash`) so Revyme's key stays server-side and out of the
@@ -61,6 +64,9 @@ type Tab = 'unsplash' | 'upload' | 'create' | '3d';
 
 export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false, embedded = false }: ImageSearchModalProps) {
   const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
+  const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UnsplashImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -162,18 +168,27 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   // MediaGalleryPanel.fetchUploads — same endpoint + response shape, cloud-
   // gated). So the Upload tab shows the website's media, not just a drop zone.
   const fetchUploadedMedia = useCallback(async () => {
-    if (!CLOUD_ENABLED) return;
     try {
-      const res = await fetch(`/api/upload?websiteId=${getProjectId()}&type=image`);
-      if (res.ok) {
-        const data = await res.json();
-        setUploads(data.uploads || []);
-        trace.action('image-search:uploads-loaded', { count: data.uploads?.length ?? 0 });
+      const assets = await backend.listAssets(getProjectId(), 'image');
+      if (assets === null) {
+        setUploads(
+          sessionMediaAssets
+            .filter((item) => item.kind === 'image' || item.kind === 'vector')
+            .map((item) => ({ url: item.url, size: item.size })),
+        );
+      } else {
+        setUploads(assets.map((item) => ({ url: item.url, size: item.size })));
       }
+      trace.action('image-search:uploads-loaded', {
+        count: assets === null
+          ? sessionMediaAssets.filter((item) => item.kind === 'image' || item.kind === 'vector').length
+          : assets.length,
+        source: assets === null ? 'session' : 'backend',
+      });
     } catch (err) {
       trace.error('image-search:uploads-fetch-failed', err);
     }
-  }, []);
+  }, [sessionMediaAssets]);
 
   useEffect(() => {
     if (isOpen && tab === 'upload') fetchUploadedMedia();
@@ -227,30 +242,32 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
       a.keywords.some(k => k.toLowerCase().includes(q)));
   }, [assets3d, query3d]);
 
-  // Upload to the real backend (R2 in cloud mode, localStorage in
-  // local-backend mode) via the shared `backend.uploadAsset` API —
-  // exact same path the LeftPanel's MediaGalleryPanel uses. Without
-  // this the modal was reading the picked file as a `data:` URL via
-  // FileReader and dropping it straight into the style/attr, so the
-  // bytes lived only inside the page source — nothing ever hit the
-  // bucket and the file never appeared in the gallery. The returned
-  // URL is the canonical CDN URL, which we forward via `onSelect`.
+  // File uploads use the same Media ingest/dedup/queue path as toolbar, canvas,
+  // and the canonical Media browser.
   const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
     setUploadError(null);
     trace.action('image-search:upload-start', { name: file.name, size: file.size });
     try {
-      const projectId = getProjectId();
-      const url = await backend.uploadAsset(projectId, file);
-      trace.action('image-search:upload-success', { url });
+      const result = await ingestMediaFile({
+        file,
+        projectId: getProjectId(),
+        kind: file.type === 'image/svg+xml' ? 'vector' : 'image',
+        upsert: upsertMediaUpload,
+        idPrefix: 'image-picker',
+        rememberAsset: rememberMediaAsset,
+      });
+      trace.action('image-search:upload-success', {
+        url: result.url,
+        reusedExisting: result.reusedExisting,
+      });
       if (selectionMode === 'multiple') {
-        // Upload is still the canonical project-media backend. Keep the modal
-        // open, surface the new asset immediately, and include it in this
-        // Gallery add operation without uploading it a second time.
-        setUploads((prev) => prev.some((item) => item.url === url) ? prev : [{ url }, ...prev]);
-        setSelectedUrls((prev) => appendUniqueMedia(prev, url));
+        setUploads((prev) => prev.some((item) => item.url === result.url)
+          ? prev
+          : [{ url: result.url, size: file.size }, ...prev]);
+        setSelectedUrls((prev) => appendUniqueMedia(prev, result.url));
       } else {
-        onSelect(url);
+        onSelect(result.url);
         onClose();
       }
     } catch (err) {
@@ -259,12 +276,24 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
     } finally {
       setUploading(false);
     }
-  }, [onSelect, onClose, selectionMode]);
+  }, [
+    onSelect,
+    onClose,
+    selectionMode,
+    upsertMediaUpload,
+    rememberMediaAsset,
+  ]);
+
+  const registerExternalImage = useCallback((url: string) => {
+    if (uploads.some((item) => item.url === url)) return;
+    rememberMediaAsset(mediaAssetFromExternalUrl(url, 'image'));
+  }, [uploads, rememberMediaAsset]);
 
   const handleSelect = (url: string) => {
     trace.action('image-search:select', { url: url.slice(0, 80), selectionMode });
     const decision = chooseMedia(selectionMode, selectedUrls, url);
     if (decision.directUrl) {
+      registerExternalImage(decision.directUrl);
       onSelect(decision.directUrl);
       if (decision.close) onClose();
       return;
@@ -497,6 +526,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 type="button"
                 disabled={selectedUrls.length === 0}
                 onClick={() => {
+                  selectedUrls.forEach(registerExternalImage);
                   if (onSelectMany) onSelectMany(selectedUrls);
                   else selectedUrls.forEach(onSelect);
                   onClose();

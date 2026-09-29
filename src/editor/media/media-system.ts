@@ -49,7 +49,7 @@ export interface MediaAsset {
   width?: number;
   height?: number;
   duration?: number;
-  source?: 'upload' | 'generated' | 'figma' | 'embed' | 'code' | 'unknown';
+  source?: 'upload' | 'external' | 'generated' | 'figma' | 'embed' | 'code' | 'unknown';
   sourceId?: string;
   contentHash?: string;
   createdAt?: string;
