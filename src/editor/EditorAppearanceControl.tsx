@@ -49,7 +49,7 @@ export default function EditorAppearanceControl() {
           mode={mode}
           level={neutralLevel}
           anchorRef={anchorRef}
-          placement="above"
+          placement="right"
           onSelect={applyChoice}
           onClose={() => setOpen(false)}
         />

@@ -1,8 +1,8 @@
 // InspectorZoomControl.tsx — compact Inspector view controls.
 // FIGUI3_INSPECTOR_VIEW_CONTROLS_20260926
 //
-// Full zoom + editor appearance belong in the Inspector utility area.
-// BottomToolbar keeps only the one-click smart Fit action.
+// Full zoom and Inspector pane actions belong in the Inspector utility area.
+// Editor appearance lives on the canonical left rail.
 
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useEffect, useRef, useState } from 'react';
