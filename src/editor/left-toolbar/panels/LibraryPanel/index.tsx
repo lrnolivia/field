@@ -732,7 +732,7 @@ export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'a
           onClose={handleEditClose}
           title={formatTokenLabel(editingToken.name)}
           anchorRef={editAnchorRef}
-          width={editingToken.category === 'color' || editingToken.category === 'gradient' ? 480 : 280}
+          width={editingToken.category === 'color' || editingToken.category === 'gradient' ? 360 : 280}
           hideHeader={editingToken.category === 'color'}
           showNestedHeaderWhenHidden={editingToken.category === 'color'}
           radius={editingToken.category === 'color' ? 14 : undefined}

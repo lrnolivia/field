@@ -35,9 +35,10 @@ describe('universal PaintPicker', () => {
   });
 
   it('makes ColorInput a launcher for the same 480px picker even inside another popup', () => {
-    expect(colorInput).toContain('width={480}');
+    expect(colorInput).toContain('width={360}');
     expect(colorInput).toContain('nested={!!popupCtx}');
     expect(colorInput).toContain('<StandaloneColorPickerWithPresets');
+    expect(colorInput).not.toContain("!popupCtx &&");
     expect(colorInput).not.toContain("popupCtx.pushPanel('Color'");
   });
 

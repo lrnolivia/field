@@ -50,7 +50,7 @@ function GradientAtom() {
         title="Gradient"
         ariaLabel="Paint picker"
         anchorRef={rowRef}
-        width={480}
+        width={360}
         hideHeader
         showNestedHeaderWhenHidden
         radius={14}

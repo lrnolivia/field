@@ -236,7 +236,7 @@ export default function CreatePresetPopup({ isOpen, onClose, category, anchorRef
       onClose={onClose}
       title={CATEGORY_TITLES[category]}
       anchorRef={anchorRef}
-      width={category === 'color' || category === 'gradient' ? 480 : 260}
+      width={category === 'color' || category === 'gradient' ? 360 : 260}
       hideHeader={category === 'color'}
       showNestedHeaderWhenHidden={category === 'color'}
       radius={category === 'color' ? 14 : undefined}
