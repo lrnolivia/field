@@ -275,6 +275,7 @@ export default function LayersPanel() {
       const node = nodes.get(nodeId);
       if (!node) return;
       if (node.type === 'style') return;
+      if (node.attrs?.['data-field-shader-layer'] === 'true') return;
 
       // FIT text SVG wrapper: flatten to show the inner text element directly.
       // Skip the SVG and foreignObject layers — show the inner <p>/<h1>/etc at this depth.

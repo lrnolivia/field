@@ -33,7 +33,7 @@ import CreateVideoPresetPanel from '../../../ui/CreateVideoPresetPanel';
 import EditAssetPresetPanel from '../../../ui/EditAssetPresetPanel';
 import ColorPresetEditPanel from '../../../ui/ColorPresetEditPanel';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
-import { isComponentFileAtom, selectedIdsAtom } from '@/code/stores/store';
+import { isComponentFileAtom, selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { forSelectionTargets } from '../../../controls/multi-select-targets';
 import { isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
 import { fillClearStyles, isTransparentColor } from './fill-clear';
@@ -62,7 +62,8 @@ import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
 import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
 import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
-import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon } from '@/design-system/PropertyIcons';
+import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon, AnimationIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -309,9 +310,10 @@ function extractUrl(value: string): string | null {
 
 // ─── Single Mode Fill Popup Content ─────────────────────────────────────────
 
-type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video';
+type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video' | 'shader';
 
 function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
+  if (node?.attrs?.['data-field-shader-fill']) return 'shader';
   if (node?.attrs?.['data-field-pattern']) return 'pattern';
   // bg-video child on the node = Video tab. This is the new canonical state;
   // the legacy `backgroundVideo` style key was a no-op CSS prop that the parser
@@ -921,6 +923,11 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       if (tab === 'video' && nodeId) {
         forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
       }
+      if (tab === 'shader' && nodeId) {
+        const shaderLayerId = node?.children?.find((id) => getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true');
+        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } }));
+        if (shaderLayerId) queueMutation({ type: 'removeNode', nodeId: shaderLayerId });
+      }
     }
 
     if (newTab === 'pattern' && nodeId) {
@@ -958,6 +965,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     { id: 'pattern', title: 'Pattern', icon: <GridIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'pattern', onClick: () => changeFillType('pattern') },
     { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
     { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
+    { id: 'shader', title: 'Shader', icon: <AnimationIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'shader', onClick: () => changeFillType('shader') },
   ];
 
   return (
@@ -1062,6 +1070,10 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
 
       {tab === 'pattern' && (
         <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
+      )}
+
+      {tab === 'shader' && (
+        <ShaderFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'image' && (

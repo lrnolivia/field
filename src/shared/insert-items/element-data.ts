@@ -285,7 +285,7 @@ const BACKGROUND_ITEMS: InsertItem[] = [
 // vendored paper-design/shaders GLSL). No gradientColors: these cards render
 // full-bleed cover images from shader-thumb-map, like the sections library.
 // Gem Smoke and Liquid Metal accept an uploaded image (logo → glass/chrome).
-const SHADER_LIBRARY_ITEMS: InsertItem[] = [
+export const SHADER_LIBRARY_ITEMS: InsertItem[] = [
   { id: 'cs-shaderGemSmoke',      name: 'Gem Smoke',      iconKey: 'shaderMeshGradient' },
   { id: 'cs-shaderLiquidMetal',   name: 'Liquid Metal',   iconKey: 'shaderLiquidMetal' },
   { id: 'cs-shaderMeshGradient',  name: 'Mesh Gradient',  iconKey: 'shaderMeshGradient' },

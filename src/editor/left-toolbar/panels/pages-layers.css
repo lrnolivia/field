@@ -16,9 +16,8 @@
 @media (prefers-reduced-motion: reduce) {
   .field-layer-locate-flash { animation: none; background: color-mix(in srgb, var(--accent) 14%, transparent); }
 }
-[data-field-document-panel] {
-  --field-layer-selected-bg: color-mix(in srgb, var(--selection) 12%, var(--bg-active));
-}
+/* Layer selection inherits the canonical accent-derived tokens from
+ * loew-theme.css. Do not remap it to --selection (canvas blue). */
 
 [data-field-pages-splitter] {
   position: relative;
@@ -109,6 +108,11 @@
   border-radius: 4px;
 }
 
-[data-field-layer-row] > [aria-hidden="true"] {
+/* The scroll viewport already contributes 4px of horizontal padding. The
+ * viewport-pinned row background starts at left: 0 with a visible-width-based
+ * width, so the 8px left mask used to slice through its rounded cap. Add the
+ * missing 4px here: the pill now lands at 8px on both visible edges. */
+[data-field-layer-row] > [aria-hidden="true"]:not(.field-layer-locate-flash) {
+  left: 4px !important;
   clip-path: none !important;
 }
