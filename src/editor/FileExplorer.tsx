@@ -34,7 +34,8 @@ import {
 } from '@/design-system/FolderTree';
 import Modal from '@/design-system/Modal';
 import NameInputModal from '@/editor/ui/NameInputModal';
-import { settingsOverlayOpenAtom, settingsSectionAtom, selectedSeoPageAtom } from '@/code/stores/website-settings-store';
+import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
+import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { trace } from '../shared/debug-trace';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { buildPageEditorLink } from './page-menu-commands';
@@ -509,7 +510,7 @@ export default function FileExplorer() {
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
   const setSettingsSection = useSetAtom(settingsSectionAtom);
-  const setSelectedSeoPage = useSetAtom(selectedSeoPageAtom);
+  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
   // Pending variant-delete confirmation. Stored as the entry + message
   // so the ConfirmDeleteModal can render the right copy (variant vs.
   // whole-test cascade) and run the same delete logic on confirm.
@@ -1578,14 +1579,14 @@ export default function Page() {
               setMakeControlTarget(variantEntry);
             }}
             onOpenPageSettings={(filePath) => {
-              // Jump straight into the Pages SEO tab pre-selected to
-              // THIS page. The SettingsOverlay's URL-sync effect then
-              // writes `?settings=pages:<slug>` so the deep link
-              // round-trips on refresh.
+              // Page settings are contextual inspector state, not project-wide
+              // Settings. Navigate to the requested page, clear object
+              // selection so PropertiesPanel resolves to PageSettingsTool,
+              // and reveal the Inspector in every workspace presentation.
               trace.action('FileExplorer.pageSettings:open', { filePath });
-              setSelectedSeoPage(filePath);
-              setSettingsSection('pages');
-              setSettingsOpen(true);
+              if (filePath !== activeFile) switchFile(filePath);
+              setSelectedIds([]);
+              setRightPaneOpen(true);
             }}
           />
         ))}
@@ -1880,9 +1881,8 @@ interface TreeRowProps {
    *  (standard "Make as Control"). Only enabled for non-baseline
    *  variants — Control (variantId === 'a') IS the baseline. */
   onMakeAsControl?: (entry: PageTreeEntry) => void;
-  /** Open Settings → Pages with this page pre-selected. Wires the
-   *  "Settings" entry on each page row's ⋯ menu so the user can jump
-   *  straight to the per-page SEO form. */
+  /** Open the contextual Page Settings inspector for this page. Wires
+   *  the "Page settings…" entry on each page row's ⋯ menu. */
   onOpenPageSettings?: (filePath: string) => void;
   /** When set, this is the entry whose row should render the inline
    *  rename input instead of a static label. SidebarRow handles

@@ -51,7 +51,7 @@ import { shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
 import type { CanvasNode } from '@/code/parsing/parser';
 import TemplatePicker from './TemplatePicker';
 import { VariableModalHost } from './ui/VariableModalHost';
-import PageAppearanceTool from './tools/PageAppearanceTool';
+import PageSettingsTool from './tools/PageSettingsTool';
 import ScaleTool from './tools/ScaleTool';
 import { toolModeAtom } from '@/code/stores/tool-store';
 
@@ -64,6 +64,7 @@ export default React.memo(function PropertiesPanel() {
   const selectedId = useAtomValue(selectedNodeAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
+  const activeFile = useAtomValue(activeFilePathAtom);
 
   // TRANSLATION MODE (non-default locale active): the whole right panel
   // becomes per-locale text areas for translatable content — and nothing
@@ -73,9 +74,12 @@ export default React.memo(function PropertiesPanel() {
   }
 
   if (!selectedId) {
-    // FigUI3 no-selection state is a real Page inspector, not a blank slab.
-    // PageAppearanceTool edits only project _meta/editor canvas appearance;
-    // it never writes website source or Preview styles.
+    // No object selected = page-level context. Real page files surface the
+    // contextual Page Settings inspector (route, Template, canvas appearance,
+    // metadata, social cards, crawler controls). Component/template masters
+    // keep the neutral empty inspector shell rather than pretending they own
+    // page metadata.
+    const isPageContext = isPageClientFile(activeFile) || isPageServerFile(activeFile);
     return (
       <div
         data-properties-panel
@@ -84,7 +88,7 @@ export default React.memo(function PropertiesPanel() {
         style={{ willChange: 'transform', isolation: 'isolate' }}
       >
         <InspectorModeTabs />
-        <PageAppearanceTool />
+        {isPageContext ? <PageSettingsTool /> : null}
       </div>
     );
   }

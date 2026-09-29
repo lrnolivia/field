@@ -18,6 +18,7 @@ describe('settings sidebar categories', () => {
     expect(cats.map((c) => c.title)).toEqual(['General', 'Insights', 'AI']);
     expect(cats[0].items[0].id).toBe('website');
     expect(cats[0].items[0].label).toBe('General');
+    expect(cats[0].items.map((i) => i.id)).not.toContain('pages');
     expect(cats[2].items.map((i) => i.id)).toEqual(['connect-ai', 'skills']);
   });
 

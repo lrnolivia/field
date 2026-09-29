@@ -128,7 +128,7 @@ export function buildMenuCategories(
     // category from the pages instead — keeps the sidebar from showing
     // both an "A/B Tests" parent AND its child pages.
     const items = cat.items
-      .filter(s => !(s.id === 'ab-tests' && abTestPages.length > 0))
+      .filter(s => s.id !== 'pages' && !(s.id === 'ab-tests' && abTestPages.length > 0))
       .map<MenuItem>(s => ({ id: s.id, label: s.label, icon: s.icon }));
     if (items.length === 0) continue;
 
@@ -992,7 +992,8 @@ export default function SettingsOverlay() {
 
   const activeLabel = menuCategories
     .flatMap((cat) => cat.items)
-    .find((item) => item.id === activeSection)?.label;
+    .find((item) => item.id === activeSection)?.label
+    ?? (activeSection === 'pages' ? 'Page settings' : undefined);
 
   return createPortal(
     <div
