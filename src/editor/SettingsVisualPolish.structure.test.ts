@@ -11,6 +11,8 @@ describe('settings visual hierarchy', () => {
   it('uses the full General canvas for real editor preferences', () => {
     expect(settings).toContain("max-w-[920px]");
     expect(settings).toContain('data-general-appearance-preview');
+    expect(settings).toContain('data-general-theme-display');
+    expect(settings).toContain('aspect-[16/10]');
     expect(settings).toContain('data-general-settings-summary');
     expect(settings).toContain('SettingsGroup surface title="Appearance"');
     expect(settings).toContain('SettingsGroup surface title="Workspace"');
@@ -41,6 +43,10 @@ describe('settings visual hierarchy', () => {
   it('gives Page Settings a page context header and stacked metadata fields', () => {
     expect(page).toContain('data-page-settings-header');
     expect(page).toContain('data-page-settings-field');
+    expect(page).toContain('data-page-settings-preview');
+    expect(page).toContain('data-page-search-preview');
+    expect(page).toContain('data-page-social-preview');
+    expect(page).toContain('aspect-[16/10]');
     expect(page).toContain('Search preview');
     expect(page).toContain('Open Graph');
     expect(page).toContain('X / Twitter');
