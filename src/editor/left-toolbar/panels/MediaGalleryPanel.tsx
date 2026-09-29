@@ -395,72 +395,93 @@ export default function MediaGalleryPanel({
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [selectedKeys.size, confirmKeys]);
 
-  // Handle file upload
+  // Batch ingest belongs to the canonical Media browser. The toolbar launcher
+  // intentionally remains a one-item quick insert surface.
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const kind: 'image' | 'video' | null = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null;
-    if (!kind) {
-      setUploadError('Media currently accepts image and video files in this browser.');
-      return;
-    }
-    if (tab === 'images' && kind !== 'image') {
-      setUploadError('Choose an image for the Images view.');
-      return;
-    }
-    if (tab === 'videos' && kind !== 'video') {
-      setUploadError('Choose a video for the Videos view.');
-      return;
-    }
-    const uploadId = 'media-browser-' + Date.now() + '-' + file.name;
+    const input = e.currentTarget;
+    const files = Array.from(input.files ?? []);
+    if (files.length === 0) return;
+
     setUploading(true);
     setUploadError(null);
-    upsertMediaUpload({
-      id: uploadId,
-      name: file.name,
-      kind,
-      status: 'queued',
-      progress: 0,
-    });
-    trace.action('media:upload-start', { name: file.name, size: file.size, kind });
-    try {
+
+    const skipped: string[] = [];
+    let successful = 0;
+
+    for (const [index, file] of files.entries()) {
+      const kind: 'image' | 'video' | null = file.type.startsWith('image/')
+        ? 'image'
+        : file.type.startsWith('video/')
+          ? 'video'
+          : null;
+
+      if (!kind) {
+        skipped.push(file.name + ' · unsupported type');
+        continue;
+      }
+      if (tab === 'images' && kind !== 'image') {
+        skipped.push(file.name + ' · not an image');
+        continue;
+      }
+      if (tab === 'videos' && kind !== 'video') {
+        skipped.push(file.name + ' · not a video');
+        continue;
+      }
+
+      const uploadId = 'media-browser-' + Date.now() + '-' + index + '-' + file.name;
       upsertMediaUpload({
         id: uploadId,
         name: file.name,
         kind,
-        status: 'uploading',
+        status: 'queued',
         progress: 0,
       });
-      const url = await backend.uploadAsset(projectId, file);
-      setUploads(prev => [{ url, size: file.size, kind }, ...prev]);
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
-        kind,
-        status: 'complete',
-        progress: 1,
-        assetId: url,
-      });
-      trace.action('media:upload-success', { url, kind });
-      // Re-fetch only when the backend owns a durable catalog. Session-only
-      // backends keep the just-appended row in local component state.
-      if (durableInventory === true) void fetchUploads();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Upload failed';
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
-        kind,
-        status: 'error',
-        progress: 0,
-        error: message,
-      });
-      trace.error('media:upload-failed', err);
-      setUploadError(message);
+      trace.action('media:upload-start', { name: file.name, size: file.size, kind, batchSize: files.length });
+
+      try {
+        upsertMediaUpload({
+          id: uploadId,
+          name: file.name,
+          kind,
+          status: 'uploading',
+          progress: 0,
+        });
+        const url = await backend.uploadAsset(projectId, file);
+        setUploads((prev) => [{ url, size: file.size, kind }, ...prev]);
+        upsertMediaUpload({
+          id: uploadId,
+          name: file.name,
+          kind,
+          status: 'complete',
+          progress: 1,
+          assetId: url,
+        });
+        successful += 1;
+        trace.action('media:upload-success', { url, kind, batchSize: files.length });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Upload failed';
+        upsertMediaUpload({
+          id: uploadId,
+          name: file.name,
+          kind,
+          status: 'error',
+          progress: 0,
+          error: message,
+        });
+        trace.error('media:upload-failed', { name: file.name, error: message });
+      }
     }
+
+    if (durableInventory === true && successful > 0) await fetchUploads();
+
+    if (skipped.length > 0) {
+      const first = skipped[0];
+      const rest = skipped.length - 1;
+      setUploadError(rest > 0 ? first + ' · +' + rest + ' more skipped' : first);
+    }
+
     setUploading(false);
-    // Reset input so same file can be re-uploaded
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    input.value = '';
   }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
@@ -653,6 +674,7 @@ export default function MediaGalleryPanel({
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           accept={tab === 'all' ? 'image/*,video/*' : tab === 'images' ? 'image/*' : 'video/*'}
           onChange={handleUpload}
           className="hidden"

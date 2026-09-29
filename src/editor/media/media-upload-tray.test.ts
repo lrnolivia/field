@@ -58,4 +58,23 @@ describe('Media upload tray', () => {
     expect(browser).toContain('progress: 0');
   });
 
+
+  it('makes the canonical Media browser batch-capable while keeping toolbar Upload single-item', () => {
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    const toolbar = read('src/editor/media/MediaPanelController.tsx');
+
+    expect(browser).toContain('const files = Array.from(input.files ?? [])');
+    expect(browser).toContain('for (const [index, file] of files.entries())');
+    expect(browser).toContain('multiple');
+    expect(browser).toContain('batchSize: files.length');
+    expect(browser).toContain('more skipped');
+
+    const toolbarUpload = toolbar.slice(
+      toolbar.indexOf('ref={uploadInputRef}'),
+      toolbar.indexOf('<MediaToolbarPopover', toolbar.indexOf('ref={uploadInputRef}')),
+    );
+    expect(toolbarUpload).not.toContain('multiple');
+    expect(toolbarUpload).toContain('files?.[0]');
+  });
+
 });
