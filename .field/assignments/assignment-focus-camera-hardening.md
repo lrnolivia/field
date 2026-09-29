@@ -3,7 +3,7 @@ field_assignment: 1
 id: focus-camera-hardening
 status: active
 branch: field/focus-camera-hardening
-pr: null
+pr: 66
 base: 837a1dccc3d50e80f881fdda51ed5d496300ad5d
 kit: 2026-09-26.4
 type: plan-to-action
@@ -125,3 +125,48 @@ After implementation:
 ## Ownership extension — 2026-09-29
 
 Source trace found the bottom-toolbar Smart Zoom button as an additional explicit user camera-command surface. `src/editor/BottomToolbar.tsx` is added to this assignment; no active assignment owns that path.
+
+## Implementation checkpoint — 2026-09-29
+
+All three hardening batches are implemented and synced onto current main.
+
+Batch commits:
+- Batch 1 — explicit user camera authority: `c51ca8a3c18a3b39f1638a1bd6baf4f88693cbc2`
+- Batch 2 — workspace geometry awareness: `1d14e8add9ae0111ede9af4f5159fe7282c798f6`
+- Batch 3 — reduced motion: `29ee203e48b8cea6676f0f254c0e2197a17ba8a3`
+- current-main sync merge: `820f88a5b3737b20e88f913d4c43d5db146888b8`
+
+Draft PR: #66.
+
+Exact PR diff is limited to nine intended files:
+- `src/canvas/Canvas.tsx`
+- `src/canvas/shortcuts.ts`
+- `src/canvas/text-edit/text-focus-camera.test.ts`
+- `src/canvas/text-edit/text-focus-camera.ts`
+- `src/canvas/transform/CameraAnimator.test.ts`
+- `src/canvas/transform/CameraAnimator.ts`
+- `src/canvas/transform/camera-intent.ts`
+- `src/editor/BottomToolbar.tsx`
+- `src/editor/controls/InspectorZoomControl.tsx`
+
+
+Implementation result:
+- explicit keyboard/Inspector/Smart Zoom commands emit semantic user camera intent; active text-focus sessions yield permanently for that edit session
+- transform deltas are not used to infer user intent; automatic focus/follow/restore remain silent
+- workspace geometry changes are observed from the actual canvas/pane DOM surfaces and coalesced through the existing focus-session scheduler
+- window resize, pane resize, pane mount/unmount, and pane transition completion can trigger one delayed safe-envelope re-evaluation
+- manually interrupted sessions do not resume automation on later workspace changes
+- reduced motion is handled centrally in `CameraAnimator`; all camera paths preserve exact target transforms while skipping tween/blur under `prefers-reduced-motion: reduce`
+- normal-motion timing/easing and accepted focus blur remain unchanged
+
+Exact-head Cloudflare evidence:
+- tested head: `820f88a5b3737b20e88f913d4c43d5db146888b8`
+- tested main included: `8c42d6b5d291a9cef995b02cb8e955bc77b52199`
+- Workers Build: `a4b69b80-942d-49d0-b762-fdc832ed8d88`
+- build command: `npm run build:all`
+- deploy command: `npx wrangler preview`
+- build outcome: success
+- build log error scan: no compile/type failures found
+- branch Preview: `https://field-focus-camera-hardening.canvas-preview.loew.fi/builder/noauth`
+
+Focused Vitest coverage was added/updated but was NOT RUN in this Contract Worker environment. Final user visual QA is required before merge.
