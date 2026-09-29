@@ -4,7 +4,7 @@
 // Full zoom + editor appearance belong in the Inspector utility area.
 // BottomToolbar keeps only the one-click smart Fit action.
 
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { selectedNodeAtom } from '@/code/stores/store';
 import {
@@ -22,7 +22,7 @@ import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutra
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
-import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
+import { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { trace } from '@/shared/debug-trace';
 
 function MenuRow({ label, shortcut, onClick }: {
@@ -96,7 +96,7 @@ function InspectorThemeControl() {
 /** Compact zoom readout + appearance control in the Inspector mode bar. */
 export default function InspectorZoomControl() {
   const selectedId = useAtomValue(selectedNodeAtom);
-  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
   const ref = useRef<HTMLDivElement>(null);
@@ -135,6 +135,8 @@ export default function InspectorZoomControl() {
   return (
     <div data-inspector-view-controls className="relative ml-auto flex items-center gap-0.5">
       <InspectorThemeControl />
+      <WorkspaceCollapseButton side="right" collapsed={false}
+        onClick={() => setRightPaneOpen(false)} />
       <div ref={ref} className="relative">
         <button
           type="button"
@@ -170,8 +172,6 @@ export default function InspectorZoomControl() {
           </div>
         )}
       </div>
-      <WorkspaceCollapseButton side="right" collapsed={!rightPaneOpen} onClick={() => setRightPaneOpen(!rightPaneOpen)} />
-      <WorkspaceAutoHideButton side="right" />
     </div>
   );
 }

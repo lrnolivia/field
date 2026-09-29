@@ -28,13 +28,13 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { compactDockedInspectorOpenAtom, compactInspectorOpenAtom, floatingInspectorExpandedAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
-import { floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom, floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -52,13 +52,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const setInspectorMode = useSetAtom(inspectorModeAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
-  const setFloatingInspectorRevealed = useSetAtom(floatingInspectorRevealedAtom);
-  const setFloatingInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
-  const setFloatingInspectorExpanded = useSetAtom(floatingInspectorExpandedAtom);
-  const setCompactDockedInspectorOpen = useSetAtom(compactDockedInspectorOpenAtom);
-  const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
   const selectedCount = useAtomValue(selectedIdsAtom).length;
@@ -66,7 +61,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   useEffect(() => transformManager.subscribe(() => setCompactZoom(Math.round(transformManager.getTransform().scale * 100))), []);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
-  const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
@@ -321,6 +315,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
+          {!previewMode && <WorkspaceAutoHideButton side="right" className="relative ml-1" />}
           <div className="flex-1" />
 
           <button
@@ -396,37 +391,35 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
             top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y }}>×</button>
       )}
-      {rightPaneOpen && rightDetached && (autoHide || workspaceMode === 'compact') && !floatingInspectorVisible && !previewMode && (
-        <button type="button" data-floating-inspector-handle
-          aria-label="Reveal Inspector"
-          title="Reveal Inspector"
-          onClick={() => {
-            if (workspaceMode === 'compact') { setCompactInspectorOpen(true); return; }
-            setFloatingInspectorSuppressed(false);
-            setFloatingInspectorRevealed(true);
-          }}
-          className="fixed z-[10002] flex h-10 w-3 items-center justify-center rounded-l-[5px] border border-r-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,right] hover:w-5"
-          style={{
-            right: 0,
-            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 74,
-          }}>‹</button>
-      )}
       {!rightPaneOpen && !previewMode && (
-        <div data-workspace-right-toggle data-visible={workspaceMode === 'floating' && !floatingInspectorVisible ? 'false' : 'true'} data-workspace-mode="collapsed"
-          className={`fixed z-[9999] flex flex-col items-center gap-2 border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 ${workspaceMode === 'docked' || workspaceMode === 'compact-docked' ? 'inset-y-0 right-0 border-l border-[var(--border-light)]' : 'bottom-2 right-2 top-2 rounded-[8px] shadow-[var(--shadow-lg)]'}`}
-          style={{ width: workspaceMode === 'docked' || workspaceMode === 'compact-docked' ? 60 : rightCollapsedWidth,
-            ...(workspaceMode === 'floating' ? { top: 12, right: 12, bottom: 'auto', height: Math.min(rightFloatingHeight, window.innerHeight - 24) } : {}), opacity: floatingInspectorVisible ? 1 : 0, pointerEvents: floatingInspectorVisible ? 'auto' : 'none', transition: 'opacity 260ms ease' }}
-          onPointerEnter={() => setRightPaneOpen(true)}>
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+        <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
+          className="fixed z-[9999] flex flex-col items-center gap-2 py-2"
+          style={{
+            right: rightDetached ? 12 : 0,
+            top: rightDetached ? 12 : 0,
+            width: 60,
+            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - 24) : '100vh',
+            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+            border: rightDetached ? '1px solid var(--border-light)' : undefined,
+            borderLeft: '1px solid var(--border-light)',
+            borderRadius: rightDetached ? 8 : 0,
+            boxShadow: rightDetached ? 'var(--shadow-lg)' : 'none',
+            backgroundColor: 'var(--bg-left-rail)',
+            opacity: floatingInspectorVisible ? 1 : 0,
+            pointerEvents: floatingInspectorVisible ? 'auto' : 'none',
+            transition: 'opacity 260ms ease, transform 260ms ease',
+          }}
+          >
+          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
+          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
-          <div className="flex items-center gap-0.5">
-            <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
+          <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
+          <div data-inspector-compact-actions className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-2">
             <WorkspaceAutoHideButton side="right" />
+            <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
           </div>
-          <CollapsedSelectionColors onOpen={() => { if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} />
         </div>
       )}
 

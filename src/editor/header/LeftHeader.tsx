@@ -16,9 +16,10 @@ import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
-import { workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { workspaceTitlePresentation } from '@/editor/workspace-title-presentation';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -250,7 +251,9 @@ export default function LeftHeader() {
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
-  const headerVisible = leftPaneOpen || dockedShell;
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const headerVisible = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'embedded';
+  const collapsedTitle = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'compact-pill';
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
@@ -267,22 +270,29 @@ export default function LeftHeader() {
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: dockedShell ? 52 + leftContentWidth : workspace.left.width, left: dockedShell ? 0 : workspace.left.inset, top: dockedShell ? 0 : workspace.left.top }}
+      style={{
+        width: dockedShell ? leftContentWidth : workspace.left.width,
+        left: headerVisible ? LEFT_RAIL_WIDTH : collapsedTitle ? LEFT_RAIL_WIDTH + 12 : 12,
+        top: headerVisible ? 0 : 12,
+        height: headerVisible ? 52 : 44,
+        borderRadius: headerVisible ? 0 : 8,
+        boxShadow: headerVisible ? 'none' : 'var(--shadow-lg)',
+      }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
           Logo button is 32×32 (matches the VIBE / + buttons in
           LeftMenu) and centered inside. */}
-      <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
+      {!dockedShell && <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
         <LogoButton />
-      </div>
+      </div>}
 
       {/* Vertical rule at x=51 — visually adjacent to LeftMenu's own
           rule below the header. `paddingTop/Bottom` create breathing
           room so it doesn't touch the header's `border-b` or top edge.
           Wrapper carries the padding; the inner div is the actual rule
           (full-height inside the wrapper). */}
-      <div
+      {!dockedShell && <div
         aria-hidden
         style={{
           width: 1,
@@ -293,14 +303,14 @@ export default function LeftHeader() {
         }}
       >
         <div style={{ width: 1, height: '100%', backgroundColor: 'var(--border-light)' }} />
-      </div>
+      </div>}
 
       {/* In preview mode we swap the project chip for a single "Back"
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 7 }}>
-        <div className="flex-1 min-w-0 flex items-center">
+      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 35 }}>
+        <div data-title-identity className="flex-1 min-w-0 flex items-center">
           {previewMode ? (
             <Button
               variant="secondary"

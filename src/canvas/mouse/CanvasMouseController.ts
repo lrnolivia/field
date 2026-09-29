@@ -219,66 +219,35 @@ export class CanvasMouseController {
   private glossCandidate: string | null = null;
   private glossDelay: number | undefined;
   private glossExpiry: number | undefined;
-  private glossElement: HTMLDivElement | null = null;
+  private glossActive: { id: string; vpPrefix: string } | null = null;
 
-  /** A quiet preview for editable text inside the current selection. */
+  /** Preview the actual painted node under the pointer, independent of selection. */
   private updateTextGloss(clientX: number, clientY: number): void {
     const hit = getNodeHitsAtPoint(clientX, clientY)[0];
     const nodeId = hit ? stripGhostSuffix(hit.id) : null;
     const nodes = this.store.get(nodesAtom);
     const node = nodeId ? nodes.get(nodeId) : null;
-    const selected = this.store.get(selectedIdsAtom);
-    let ancestor: string | null | undefined = nodeId;
-    let insideSelection = false;
-    while (ancestor) {
-      if (selected.includes(ancestor)) { insideSelection = true; break; }
-      ancestor = nodes.get(ancestor)?.parentId;
-    }
-    const editable = node && node.children.length === 0
-      && (node.textContent?.trim() || node.hasMixedContent || ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button'].includes(node.type))
-      && node.binding?.property !== 'text' && !node.textVariable;
-    const candidate = insideSelection && editable && hit ? `${hit.vpPrefix}|${hit.id}` : null;
+    // The first hit is the painted frontmost node. Falling through to a lower
+    // hit can light up an object that is covered by the one the user sees.
+    const candidate = node && hit && nodeId !== 'root'
+      ? `${hit.vpPrefix}|${hit.id}` : null;
     if (candidate !== this.glossCandidate) {
       this.clearTextGloss();
       this.glossCandidate = candidate;
     }
-    if (!candidate || this.glossElement) return;
+    if (!candidate || this.glossActive) return;
     window.clearTimeout(this.glossDelay);
     this.glossDelay = window.setTimeout(() => {
       const rect = findNodeRect(hit!.id, vpIdFromPrefix(hit!.vpPrefix));
       if (!rect || rect.width <= 0 || rect.height <= 0 || this.glossCandidate !== candidate) return;
-      const gloss = document.createElement('div');
-      gloss.className = 'field-text-hover-gloss';
-      gloss.setAttribute('aria-hidden', 'true');
-      gloss.textContent = node?.textContent ?? '';
-      const vpId = vpIdFromPrefix(hit!.vpPrefix);
-      const fontSize = parseFloat(findNodeComputedStyle(hit!.id, vpId, 'font-size')) || 16;
-      const lineHeightRaw = findNodeComputedStyle(hit!.id, vpId, 'line-height');
-      const lineHeight = lineHeightRaw === 'normal' ? fontSize * 1.2 : (parseFloat(lineHeightRaw) || fontSize * 1.2);
-      const zoom = Math.max(0.05, transformManager.getTransform().scale || 1);
-      Object.assign(gloss.style, {
-        left: `${rect.left}px`, top: `${rect.top}px`,
-        width: `${rect.width}px`, height: `${rect.height}px`,
-        fontFamily: findNodeComputedStyle(hit!.id, vpId, 'font-family') || 'inherit',
-        fontSize: `${fontSize * zoom}px`,
-        fontWeight: findNodeComputedStyle(hit!.id, vpId, 'font-weight') || '400',
-        fontStyle: findNodeComputedStyle(hit!.id, vpId, 'font-style') || 'normal',
-        lineHeight: `${lineHeight * zoom}px`,
-        letterSpacing: findNodeComputedStyle(hit!.id, vpId, 'letter-spacing') || 'normal',
-        textAlign: findNodeComputedStyle(hit!.id, vpId, 'text-align') as CSSStyleDeclaration['textAlign'],
-        textTransform: findNodeComputedStyle(hit!.id, vpId, 'text-transform'),
-        whiteSpace: findNodeComputedStyle(hit!.id, vpId, 'white-space') || 'normal',
-        wordBreak: findNodeComputedStyle(hit!.id, vpId, 'word-break') || 'normal',
-        paddingTop: findNodeComputedStyle(hit!.id, vpId, 'padding-top'),
-        paddingRight: findNodeComputedStyle(hit!.id, vpId, 'padding-right'),
-        paddingBottom: findNodeComputedStyle(hit!.id, vpId, 'padding-bottom'),
-        paddingLeft: findNodeComputedStyle(hit!.id, vpId, 'padding-left'),
-      });
-      document.body.appendChild(gloss);
-      this.glossElement = gloss;
+      // Applying the cue inside the sandbox means text, SVGs, images, and
+      // effects keep their real rendering. Stored JSX/source text is never
+      // copied into a second element above the canvas.
+      this.opts.bridge.setAttribute(hit!.id, hit!.vpPrefix, 'data-field-hover-gloss', 'true');
+      this.glossActive = { id: hit!.id, vpPrefix: hit!.vpPrefix };
       this.glossExpiry = window.setTimeout(() => {
-        gloss.remove();
-        if (this.glossElement === gloss) this.glossElement = null;
+        this.opts.bridge.setAttribute(hit!.id, hit!.vpPrefix, 'data-field-hover-gloss', null);
+        if (this.glossActive?.id === hit!.id && this.glossActive.vpPrefix === hit!.vpPrefix) this.glossActive = null;
       }, 2100);
     }, 1100);
   }
@@ -286,8 +255,8 @@ export class CanvasMouseController {
   clearTextGloss(): void {
     window.clearTimeout(this.glossDelay);
     window.clearTimeout(this.glossExpiry);
-    this.glossElement?.remove();
-    this.glossElement = null;
+    if (this.glossActive) this.opts.bridge.setAttribute(this.glossActive.id, this.glossActive.vpPrefix, 'data-field-hover-gloss', null);
+    this.glossActive = null;
     this.glossCandidate = null;
   }
 

@@ -37,7 +37,6 @@ import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
 import ToolbarPanelHost from './editor/ToolbarPanelHost';
 import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
-import { detachedLeftPanelAtom } from './editor/detached-left-panel-store';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -51,18 +50,18 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
-import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
-import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import { deriveWorkspaceCameraInsets, deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
@@ -89,25 +88,18 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
-  const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
   const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached,
-    leftCollapsedWidth: !leftPaneOpen && !leftDetached ? leftCollapsedWidth + 8 : 0,
-    rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
-  // Expanding a compact pane is a reveal over the canvas. Keep the camera's
-  // safe area constant so hover never pans the user's current view.
-  const cameraInsets = workspaceMode === 'compact-docked'
-    ? { left: 60, right: 60, top: 0, bottom: 0 }
-    : workspaceMode === 'floating'
-      ? { left: 0, right: 0, top: 0, bottom: 0 }
-      : workspaceLayout.cameraInsets;
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
+    leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
+  });
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   const previousMode = useRef(workspaceMode);
 
@@ -265,11 +257,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       data-canvas-reveal-phase={canvasRevealPhase}
       onAnimationEnd={(event) => {
         if (event.animationName === 'field-canvas-reveal'
-          && (event.target as HTMLElement).hasAttribute('data-canvas-root')) {
+          && (event.target as HTMLElement).hasAttribute('data-canvas-iframe')) {
           onCanvasRevealComplete?.();
         }
       }}
-      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}
+      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
