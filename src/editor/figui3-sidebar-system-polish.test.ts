@@ -61,6 +61,7 @@ describe('FigUI3 sidebar system + document panel', () => {
 
   it('tightens Pages/Layers chrome without changing row rhythm', () => {
     const css = read('src/editor/left-toolbar/panels/pages-layers.css');
+    const theme = read('src/styles/loew-theme.css');
     const shell = read('src/editor/left-toolbar/panels/PagesLayersPanel.tsx');
     const pages = read('src/editor/FileExplorer.tsx');
     const layers = read('src/editor/LayersPanel.tsx');
@@ -71,7 +72,11 @@ describe('FigUI3 sidebar system + document panel', () => {
     expect(css).toContain('padding: 0 8px');
     expect(css).toContain('padding: 0 4px 4px');
     expect(css).toContain('min-height: 24px');
-    expect(css).toContain('var(--selection) 12%');
+    expect(css).not.toContain('var(--selection) 12%');
+    expect(css).toContain(':not(.field-layer-locate-flash)');
+    expect(css).toContain('left: 4px !important');
+    expect(theme).toContain('--field-layer-selected-bg: color-mix(in srgb, var(--accent)');
+    expect(theme).toContain('--field-layer-selected-border: color-mix(in srgb, var(--accent)');
 
     expect(shell).toContain('overflow-y-auto overscroll-contain');
     expect(pages).toContain('px-2 pb-1 shrink-0');
