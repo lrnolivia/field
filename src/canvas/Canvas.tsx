@@ -564,6 +564,18 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     // across origins).
     onTextEditSelectionChanged: (snapshot) => {
       jotaiStore.set(textEditSnapshotAtom, snapshot);
+      const caret = snapshot.caretRect;
+      if (!caret) {
+        textFocusCameraRef.current?.updateCaret(null);
+        return;
+      }
+      const offset = postMessageBridgeRef.current?.getIframeOffset() ?? { x: 0, y: 0 };
+      textFocusCameraRef.current?.updateCaret(new DOMRect(
+        caret.left + offset.x,
+        caret.top + offset.y,
+        caret.width,
+        caret.height,
+      ));
     },
     // Live HTML stream as the user types. The sandbox's ResizeObserver publishes
     // the resulting geometry alongside this stream; TextFocusCamera waits two

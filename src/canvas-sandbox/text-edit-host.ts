@@ -886,6 +886,22 @@ function removeEditOutline(): void {
 function buildSnapshot(editor: Editor): TextEditSnapshot {
   const { from, to } = editor.state.selection;
   const cursorMode = from === to;
+  let caretRect: TextEditSnapshot['caretRect'] = null;
+  if (cursorMode) {
+    try {
+      const coords = editor.view.coordsAtPos(from);
+      caretRect = {
+        left: coords.left,
+        top: coords.top,
+        width: Math.max(1, coords.right - coords.left),
+        height: Math.max(1, coords.bottom - coords.top),
+      };
+    } catch {
+      // A transaction can briefly point at a position whose DOM has not settled
+      // yet. The next TipTap transaction will refresh the snapshot.
+      caretRect = null;
+    }
+  }
 
   const marks: Record<string, TextEditValue> = {};
   const paragraph: Record<string, TextEditValue> = {};
@@ -940,6 +956,7 @@ function buildSnapshot(editor: Editor): TextEditSnapshot {
     cursorMode,
     from,
     to,
+    caretRect,
     marks,
     paragraph,
     highlight,

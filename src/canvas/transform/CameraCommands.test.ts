@@ -48,7 +48,7 @@ vi.mock('@/canvas/drag/helpers/coords', () => ({
     ({ left: r.left, top: r.top, width: r.width, height: r.height }),
 }));
 
-import { focusScreenRect, followScreenRect, getNodeBounds, getContentBounds } from './CameraCommands';
+import { focusScreenRect, followScreenRect, followCaretScreenRect, getNodeBounds, getContentBounds } from './CameraCommands';
 
 const ROOT = 'frame-root';
 
@@ -200,6 +200,38 @@ describe('followScreenRect — adaptive text focus', () => {
     expect(followScreenRect(liveRect(120, 280, 120, 44))).toBe(true);
     const [, , scale] = animateCanvasTo.mock.calls[0];
     expect(scale).toBe(1);
+  });
+
+  it('respects a session scale floor without ever zooming back in', () => {
+    expect(followScreenRect(liveRect(350, 160, 900, 700), 0.8)).toBe(true);
+    const [, , scale] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(0.8);
+  });
+});
+
+describe('followCaretScreenRect — oversized text caret follow', () => {
+  beforeEach(() => {
+    animateCanvasTo.mockClear();
+    moveCanvasTo.mockClear();
+  });
+
+  const caret = (left: number, top: number, width = 2, height = 20) => ({
+    left, top, width, height, right: left + width, bottom: top + height,
+    x: left, y: top, toJSON() {},
+  } as DOMRect);
+
+  it('stays still while the caret remains comfortably visible', () => {
+    expect(followCaretScreenRect(caret(520, 340))).toBe(false);
+    expect(animateCanvasTo).not.toHaveBeenCalled();
+  });
+
+  it('pans an edge-near caret inward without changing zoom', () => {
+    expect(followCaretScreenRect(caret(150, 700))).toBe(true);
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(1);
+    expect(duration).toBe(180);
+    expect(options).toBeUndefined();
   });
 });
 

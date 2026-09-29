@@ -232,6 +232,9 @@ export interface TextEditSnapshot {
   /** Range bounds as ProseMirror positions. Useful for diagnostics. */
   from: number;
   to: number;
+  /** Collapsed-cursor geometry in sandbox viewport coordinates. The parent
+   * translates this live rect into screen space for caret-aware camera follow. */
+  caretRect: { left: number; top: number; width: number; height: number } | null;
   /** Per-property values across textStyle marks (fontSize, fontWeight,
    *  fontFamily, color, letterSpacing, backgroundGradient, plus any
    *  text-decoration-* mark attrs). */

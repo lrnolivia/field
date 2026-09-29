@@ -310,7 +310,7 @@ export function focusScreenRect(screenRect: DOMRect, profile: FocusCameraProfile
  * a dead-zone, so line-wrap changes do not make the camera breathe.
  * Returns true when a camera adjustment was scheduled.
  */
-export function followScreenRect(screenRect: DOMRect): boolean {
+export function followScreenRect(screenRect: DOMRect, minScale: number = MIN_SCALE): boolean {
   const t = transformManager.getTransform();
   const area = getPaddedCanvasFocusArea();
   const areaLeft = area.centerX - area.width / 2;
@@ -341,8 +341,11 @@ export function followScreenRect(screenRect: DOMRect): boolean {
     settleW / Math.max(1, screenRect.width),
     settleH / Math.max(1, screenRect.height),
   );
-  // Never zoom in while typing. MIN_SCALE is still the global floor.
-  const targetScale = Math.max(MIN_SCALE, Math.min(t.scale, t.scale * ratio));
+  // Never zoom in while typing. A caller may provide a session floor (text
+  // editing uses the user's pre-edit scale) so whole-object fitting can hand
+  // off to caret-follow instead of shrinking forever.
+  const floorScale = Math.max(MIN_SCALE, Math.min(t.scale, minScale));
+  const targetScale = Math.max(floorScale, Math.min(t.scale, t.scale * ratio));
 
   const c = screenRectToCanvas(screenRect, t);
   const canvasCenterX = c.left + c.width / 2;
@@ -397,6 +400,42 @@ export function followScreenRect(screenRect: DOMRect): boolean {
   // Keep continuous typing quiet: same D3 camera motion, but no repeated focus
   // blur. The blur remains on deliberate focus entry / restore.
   animateCanvasTo(x, y, targetScale, 220);
+  return true;
+}
+
+/**
+ * Keep a live caret comfortably visible without changing zoom. Used after the
+ * edited text has grown beyond the user's pre-edit composition scale, where
+ * shrinking the whole object further would make editing less useful.
+ */
+export function followCaretScreenRect(caretRect: DOMRect): boolean {
+  const t = transformManager.getTransform();
+  const area = getPaddedCanvasFocusArea();
+  const left = area.centerX - area.width / 2;
+  const top = area.centerY - area.height / 2;
+  const right = left + area.width;
+  const bottom = top + area.height;
+
+  // Loose trigger + tighter settle region gives IDE-like caret scrolling: the
+  // camera stays still for ordinary cursor movement, then buys meaningful room
+  // in one quiet pan when the caret approaches an edge.
+  const triggerLeft = left + area.width * 0.10;
+  const triggerRight = right - area.width * 0.10;
+  const triggerTop = top + area.height * 0.12;
+  const triggerBottom = bottom - area.height * 0.12;
+  const caretRight = caretRect.left + caretRect.width;
+  const caretBottom = caretRect.top + caretRect.height;
+
+  let dx = 0;
+  let dy = 0;
+  if (caretRect.left < triggerLeft) dx = left + area.width * 0.20 - caretRect.left;
+  else if (caretRight > triggerRight) dx = right - area.width * 0.20 - caretRight;
+  if (caretRect.top < triggerTop) dy = top + area.height * 0.24 - caretRect.top;
+  else if (caretBottom > triggerBottom) dy = bottom - area.height * 0.26 - caretBottom;
+
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return false;
+  trace.fn('camera.followCaretScreenRect', { dx, dy, scale: t.scale });
+  animateCanvasTo(t.x + dx, t.y + dy, t.scale, 180);
   return true;
 }
 

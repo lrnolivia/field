@@ -1,16 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { animateCanvasTo, getTransform, focusScreenRect, followScreenRect } = vi.hoisted(() => ({
+const { animateCanvasTo, getTransform, focusScreenRect, followScreenRect, followCaretScreenRect, findNodeRect } = vi.hoisted(() => ({
   animateCanvasTo: vi.fn(),
   getTransform: vi.fn(() => ({ x: 20, y: 30, scale: 1 })),
   focusScreenRect: vi.fn(),
   followScreenRect: vi.fn(),
+  followCaretScreenRect: vi.fn(),
+  findNodeRect: vi.fn(() => ({ left: 100, top: 100, width: 80, height: 20 })),
 }));
 
 vi.mock('../transform/CameraAnimator', () => ({ animateCanvasTo }));
 vi.mock('../transform/TransformManager', () => ({ transformManager: { getTransform } }));
-vi.mock('../node-ops', () => ({ findNodeRect: () => ({ left: 100, top: 100, width: 80, height: 20 }) }));
-vi.mock('../transform/CameraCommands', () => ({ focusScreenRect, followScreenRect }));
+vi.mock('../node-ops', () => ({ findNodeRect }));
+vi.mock('../transform/CameraCommands', () => ({
+  focusScreenRect,
+  followScreenRect,
+  followCaretScreenRect,
+  getPaddedCanvasFocusArea: () => ({ width: 800, height: 600, centerX: 500, centerY: 400 }),
+}));
 
 import { TextFocusCamera } from './text-focus-camera';
 
@@ -20,6 +27,9 @@ describe('TextFocusCamera', () => {
     getTransform.mockClear();
     focusScreenRect.mockClear();
     followScreenRect.mockClear();
+    followCaretScreenRect.mockClear();
+    findNodeRect.mockReset();
+    findNodeRect.mockReturnValue({ left: 100, top: 100, width: 80, height: 20 });
   });
 
   it('delegates text-entry framing to the canonical camera focus primitive', () => {
@@ -73,15 +83,83 @@ describe('TextFocusCamera', () => {
     raf.mockRestore();
   });
 
+  it('switches oversized text to caret follow at the pre-edit camera floor', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
+    findNodeRect.mockReturnValue({ left: 20, top: 20, width: 1200, height: 1000 });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
+    focus.updateCaret(new DOMRect(760, 700, 2, 20));
+    callbacks.shift()?.(16);
+    callbacks.shift()?.(32);
+    expect(followCaretScreenRect).toHaveBeenCalledTimes(1);
+    expect(followScreenRect).not.toHaveBeenCalled();
+    focus.dispose();
+    raf.mockRestore();
+  });
+
+  it('keeps whole-object follow for ordinary text even when caret geometry exists', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
+    focus.updateCaret(new DOMRect(500, 400, 2, 20));
+    callbacks.shift()?.(16);
+    callbacks.shift()?.(32);
+    expect(followScreenRect).toHaveBeenCalledWith(expect.objectContaining({ width: 80, height: 20 }), 1);
+    expect(followCaretScreenRect).not.toHaveBeenCalled();
+    focus.dispose();
+    raf.mockRestore();
+  });
+
+  it('defers restore by one frame so a direct text-to-text handoff can cancel the bounce', () => {
+    const callbacks = new Map<number, FrameRequestCallback>();
+    let id = 0;
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { id += 1; callbacks.set(id, callback); return id; });
+    const caf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => { callbacks.delete(frameId); });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text-a', 'desktop');
+    for (const [frameId, cb] of [...callbacks]) { callbacks.delete(frameId); cb(0); }
+    focus.end();
+    focus.begin('text-b', 'desktop');
+    for (const [frameId, cb] of [...callbacks]) { callbacks.delete(frameId); cb(16); }
+    expect(animateCanvasTo).not.toHaveBeenCalledWith(20, 30, 1, 320, { focus: true });
+    focus.dispose();
+    raf.mockRestore();
+    caf.mockRestore();
+  });
+
+  it('restores the pre-edit camera after the deferred exit frame', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
+    focus.end();
+    expect(animateCanvasTo).not.toHaveBeenCalledWith(20, 30, 1, 320, { focus: true });
+    callbacks.shift()?.(16);
+    expect(animateCanvasTo).toHaveBeenCalledWith(20, 30, 1, 320, { focus: true });
+    focus.dispose();
+    raf.mockRestore();
+  });
+
   it('restores the previous view after a wheel gesture over chrome', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
     const chrome = document.createElement('div');
     const canvas = document.createElement('div');
     document.body.append(chrome, canvas);
     const focus = new TextFocusCamera(() => document.createElement('iframe'), (event) => event.target === canvas);
     focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
     chrome.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
     focus.end();
+    callbacks.shift()?.(16);
     expect(animateCanvasTo).toHaveBeenCalledWith(20, 30, 1, 320, { focus: true });
+    focus.dispose();
+    raf.mockRestore();
     chrome.remove();
     canvas.remove();
   });
