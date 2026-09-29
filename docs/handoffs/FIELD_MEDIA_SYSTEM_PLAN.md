@@ -43,7 +43,7 @@ Architecture guardrails:
 
 - Media is toolbar-owned. Do not reintroduce `Insert → Media`; the duplicate sidebar route created an oversized nested panel and visually broke the left-side shell.
 - The earlier `Insert → Media` guardrail is superseded by the current product decision: Media belongs in the main toolbar only.
-- the generic `media-gallery` toolbar compatibility panel still exists. Exact repository searches currently return incomplete results, so its callers are not proven dead. Do not delete it until that proof exists.
+- the generic `media-gallery` toolbar compatibility panel was proven caller-free across the toolbar store/host, bottom toolbar, left rail/panel, and canonical Media controller, then removed from the panel union and host.
 
 Validation status:
 

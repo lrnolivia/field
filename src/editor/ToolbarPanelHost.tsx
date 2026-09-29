@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 import { useAtom } from 'jotai';
 import { toolbarPanelAtom, type ToolbarPanel } from '@/editor/toolbar-panel-store';
 import LibraryPanel from '@/editor/left-toolbar/panels/LibraryPanel';
-import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 import { SecondaryPanelContent } from '@/editor/left-toolbar/panels/insert';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
 import ModalCloseButton from '@/design-system/ModalCloseButton';
@@ -17,7 +16,7 @@ const LIBRARY_TITLES = {
 
 function toolbarPanelOriginTool(panel: ToolbarPanel): string {
   if (panel.kind === 'library') return 'library';
-  if (panel.kind === 'media' || panel.kind === 'media-gallery') return 'media';
+  if (panel.kind === 'media') return 'media';
   if (panel.kind === 'insert') {
     if (panel.category === 'creative-text-effects') return 'text';
     if (panel.category === 'elements') return 'frame';
@@ -57,7 +56,7 @@ export default function ToolbarPanelHost() {
     setAnchoredToToolbar(true);
   }, [panel]);
   useEffect(() => {
-    if (!panel || (panel.kind !== 'insert' && panel.kind !== 'library' && panel.kind !== 'media-gallery')) return;
+    if (!panel || (panel.kind !== 'insert' && panel.kind !== 'library')) return;
     const closeAfterInsert = () => setPanel(null);
     window.addEventListener('field:insert-complete', closeAfterInsert);
     return () => window.removeEventListener('field:insert-complete', closeAfterInsert);
@@ -92,9 +91,8 @@ export default function ToolbarPanelHost() {
     ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
     : null;
   const title = panel.kind === 'library' ? LIBRARY_TITLES[panel.section]
-    : panel.kind === 'media-gallery' ? 'Media Gallery'
-      : panel.section ? category?.sections.find((entry) => entry.id === panel.section)?.label ?? category?.label
-        : category?.label ?? 'Insert';
+    : panel.section ? category?.sections.find((entry) => entry.id === panel.section)?.label ?? category?.label
+      : category?.label ?? 'Insert';
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
@@ -194,7 +192,6 @@ export default function ToolbarPanelHost() {
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {panel.kind === 'library' && <LibraryPanel mode="library" focusSection={panel.section} />}
-          {panel.kind === 'media-gallery' && <MediaGalleryPanel />}
           {panel.kind === 'insert' && category && <div className="flex h-full min-h-0 flex-col"><SecondaryPanelContent category={category} sectionId={panel.section} /></div>}
         </div>
         {anchoredToToolbar && !peeked && (
