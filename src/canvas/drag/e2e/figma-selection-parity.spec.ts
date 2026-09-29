@@ -3,6 +3,34 @@ import { EditorPage } from './helpers/editor-page';
 
 test.use({ viewport: { width: 1600, height: 950 } });
 
+type Rect = { x: number; y: number; width: number; height: number };
+
+function pointInside(rect: Rect, point: { x: number; y: number }, inset = 0): boolean {
+  return point.x >= rect.x + inset
+    && point.x <= rect.x + rect.width - inset
+    && point.y >= rect.y + inset
+    && point.y <= rect.y + rect.height - inset;
+}
+
+/** Pick a real empty-canvas point close to a target. The canvas input surface
+ * covers the whole workspace, while the page/root occupies only part of it
+ * after fit. Never guess a fixed corner: that can be inside the fitted page. */
+function emptyCanvasPoint(
+  surface: Rect,
+  root: Rect,
+  target: { x: number; y: number },
+): { x: number; y: number } {
+  const candidates = [
+    { x: root.x - 16, y: target.y },
+    { x: root.x + root.width + 16, y: target.y },
+    { x: target.x, y: root.y - 16 },
+    { x: target.x, y: root.y + root.height + 16 },
+  ];
+  const point = candidates.find(p => pointInside(surface, p, 6) && !pointInside(root, p));
+  if (!point) throw new Error('No empty canvas point exists around the fitted page');
+  return point;
+}
+
 async function marquee(
   page: import('@playwright/test').Page,
   start: { x: number; y: number },
@@ -27,13 +55,20 @@ test.describe('Figma selection parity — marquee depth', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
     await editor.fitCamera();
+    // Fit moves every cached canvas rect. Give the sandbox→parent rect bridge a
+    // short settle window before driving real pointer hit-testing.
+    await page.waitForTimeout(300);
 
+    const surface = await page.locator('[data-canvas-input-surface]').boundingBox();
+    if (!surface) throw new Error('canvas input surface has no bounding box');
+    const root = await editor.nodeBox('root');
     const hero = await editor.nodeBox('hero');
     const child = await editor.nodeBox('abs-child');
 
-    // Begin on open canvas just outside the page, then sweep across the
-    // nested child. The rectangle intersects both Hero and AbsChild.
-    const start = { x: hero.x - 24, y: hero.y + 12 };
+    // Begin on a point proven to be open canvas, then sweep through the nested
+    // child. The rectangle intersects both Hero and AbsChild.
+    const childCenter = { x: child.x + child.width / 2, y: child.y + child.height / 2 };
+    const start = emptyCanvasPoint(surface, root, childCenter);
     const end = { x: child.x + child.width + 12, y: child.y + child.height + 12 };
 
     await marquee(page, start, end);
@@ -56,6 +91,7 @@ test.describe('Figma selection parity — click and keyboard traversal', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
     await editor.fitCamera();
+    await page.waitForTimeout(300);
 
     const selection = async (): Promise<string[]> =>
       page.evaluate(() => (window as any).__e2e.selection?.() ?? []);
@@ -108,10 +144,16 @@ test.describe('Figma selection parity — click and keyboard traversal', () => {
     await page.keyboard.up('Shift');
     await expect.poll(selection).toEqual(['hero']);
 
-    // Empty canvas click clears selection.
+    // Empty canvas click clears selection. Pick a point proven to be outside
+    // the fitted page rather than assuming a viewport corner is empty.
     const surface = await page.locator('[data-canvas-input-surface]').boundingBox();
     if (!surface) throw new Error('canvas input surface has no bounding box');
-    await page.mouse.click(surface.x + 8, surface.y + 8);
+    const root = await editor.nodeBox('root');
+    const emptyPoint = emptyCanvasPoint(surface, root, {
+      x: root.x + root.width / 2,
+      y: root.y + root.height / 2,
+    });
+    await page.mouse.click(emptyPoint.x, emptyPoint.y);
     await expect.poll(selection).toEqual([]);
   });
 });
