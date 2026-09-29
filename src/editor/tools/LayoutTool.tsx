@@ -306,7 +306,7 @@ function GridLayoutControls({
       {/* ── Gap X / Y — two inputs in one row, labeled at the chevron. ── */}
       <div className="flex items-center justify-between w-full">
         <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Gap</span>
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput
             value={String(config.gapX)}
             onChange={v => apply({ ...config, gapX: Math.max(0, parseInt(v) || 0) })}
@@ -344,7 +344,7 @@ function GridLayoutControls({
           {/* Width: number + Min/Fixed dropdown */}
           <div className="flex items-center justify-between w-full">
             <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Width</span>
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput
                 value={String(config.width)}
                 onChange={v => apply({ ...config, width: Math.max(0, parseInt(v) || 0) })}
@@ -365,7 +365,7 @@ function GridLayoutControls({
           <div className="flex items-center justify-between w-full">
             <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">Height</span>
             {config.heightMode === 'fixed' ? (
-              <div className="flex items-center gap-1 w-full">
+              <div data-inspector-peer-row className="flex items-center gap-2 w-full">
                 <ToolInput
                   value={String(config.height)}
                   onChange={v => apply({ ...config, height: Math.max(0, parseInt(v) || 0) })}
@@ -674,7 +674,7 @@ function GridTrackControl({ label, property, list, onChange }: {
       {list.tracks.map((track, i) => (
         <div key={i} className="flex items-center justify-between w-full">
           <span className="w-3/4 text-xs font-bold text-[var(--text-secondary)] pl-[18px] -ml-[18px]">{i + 1}</span>
-          <div className="flex items-center gap-1 w-full">
+          <div data-inspector-peer-row className="flex items-center gap-2 w-full">
             {track.unit !== 'auto' && track.unit !== 'min-content' && track.unit !== 'max-content' ? (
               <ToolInput value={String(track.value || 1)} onChange={v => updateSingleTrack(i, { ...track, value: parseFloat(v) || 1 })} step={track.unit === 'fr' ? 1 : 10} />
             ) : (

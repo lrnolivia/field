@@ -265,7 +265,7 @@ function TransformAtom() {
           {/* Rotate 3D */}
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Rotate 3D" property="transform" plain forceShow />
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput value={String(t.rotateX)} {...fieldInputProps('rotateX', 0)} step={1} chevronLabel="X" />
               <ToolInput value={String(t.rotateY)} {...fieldInputProps('rotateY', 0)} step={1} chevronLabel="Y" />
             </div>
@@ -273,7 +273,7 @@ function TransformAtom() {
           {/* Skew */}
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Skew" property="transform" plain forceShow />
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput value={String(t.skewX)} {...fieldInputProps('skewX', 0)} step={1} chevronLabel="X" />
               <ToolInput value={String(t.skewY)} {...fieldInputProps('skewY', 0)} step={1} chevronLabel="Y" />
             </div>
@@ -281,7 +281,7 @@ function TransformAtom() {
           {/* Scale */}
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Scale" property="transform" plain forceShow />
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput value={String(t.scaleX)} {...fieldInputProps('scaleX', 1)} step={0.1} chevronLabel="X" />
               <ToolInput value={String(t.scaleY)} {...fieldInputProps('scaleY', 1)} step={0.1} chevronLabel="Y" />
             </div>

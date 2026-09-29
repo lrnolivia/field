@@ -342,7 +342,7 @@ function DimensionRow({ label, property, value, onChange, onChangeLive, onUnitCh
         // Height row (ControlLabel) sitting right above each other.
         : <span className="pr-2 text-xs font-bold text-[var(--text-secondary)]">{label}</span>
       }
-      <div className="flex items-center gap-1 w-full min-w-0">
+      <div data-inspector-peer-row className="flex items-center gap-2 w-full min-w-0">
         <div className="flex-1">
           <ToolInput
             value={displayValue}

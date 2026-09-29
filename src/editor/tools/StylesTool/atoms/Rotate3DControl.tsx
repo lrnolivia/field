@@ -14,7 +14,7 @@ function Rotate3DAtom() {
   const ry = allProps.rotateY || '0';
 
   return (
-    <div className="flex items-center gap-1 w-full">
+    <div data-inspector-peer-row className="flex items-center gap-2 w-full">
       <ToolInput value={rx} onChange={(v) => onChangeMultiple({ rotateX: v })} step={1} chevronLabel="X" />
       <ToolInput value={ry} onChange={(v) => onChangeMultiple({ rotateY: v })} step={1} chevronLabel="Y" />
     </div>

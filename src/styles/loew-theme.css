@@ -360,6 +360,10 @@ select {
   gap: var(--inspector-grid-gap);
 }
 
+[data-inspector-peer-row] {
+  gap: var(--inspector-grid-gap, 8px);
+}
+
 /* Inspector property rows share columns. The last track reserves a stable
  * action lane; the two value tracks divide the remaining resizable width. */
 .field-inspector-pair {
@@ -428,12 +432,14 @@ select {
   border-radius: var(--radius-lg);
 }
 
-/* Nested web-only tools live inside Advanced. Their own ToolSection
- * chrome becomes a subsection, so do not double-indent the inner headers. */
-[data-advanced-subtools] > [data-inspector-section] > [data-inspector-section-header],
-[data-advanced-subtools] > [data-inspector-section] > [data-inspector-section-content] {
-  padding-left: 0;
-  padding-right: 0;
+/* Nested web-only tools remain real category cards inside Advanced, but they
+ * align to the parent card's content edge instead of adding another outer inset. */
+[data-advanced-subtools] > [data-inspector-section] {
+  margin-left: 0;
+  margin-right: 0;
+}
+[data-advanced-subtools] > [data-inspector-section] + [data-inspector-section] {
+  margin-top: var(--inspector-grid-gap, 8px);
 }
 
 /* -------------------------------------------------------------------------- */

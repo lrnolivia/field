@@ -13,7 +13,7 @@ export default function ToolDivider() {
       // in more space, so it reads as a light punctuation mark between groups
       // rather than as the ruled-list rhythm. The eyebrow title carries the
       // rest of the grouping.
-      className="h-px bg-[var(--border-light)] mx-0 my-0 first:hidden [[data-tool-divider]+&]:hidden"
+      className="h-1 bg-transparent mx-0 my-0 first:hidden [[data-tool-divider]+&]:hidden"
     />
   );
 }

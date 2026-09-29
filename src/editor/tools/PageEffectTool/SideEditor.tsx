@@ -45,7 +45,7 @@ export default function SideEditor({ side, onChange }: {
       <SliderRow label="Scale" value={side.scale} min={0} max={4} step={0.1} onChange={(v) => set({ scale: v })} />
 
       <ToolRow label="Rotate">
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput value={String(side.rotateZ)} onChange={(v) => set({ rotateZ: parseFloat(v) || 0 })} />
           <ToolSegmentedControl value={side.rotate} onChange={(v) => set({ rotate: v as RotateMode })}
             options={[{ value: '2d', label: '2D' }, { value: '3d', label: '3D' }]} size="sm" />
@@ -53,7 +53,7 @@ export default function SideEditor({ side, onChange }: {
       </ToolRow>
       {side.rotate === '3d' && (
         <ToolRow label="">
-          <div className="flex items-center gap-1 w-full">
+          <div data-inspector-peer-row className="flex items-center gap-2 w-full">
             <ToolInput value={String(side.rotateX)} onChange={(v) => set({ rotateX: parseFloat(v) || 0 })} placeholder="X" />
             <ToolInput value={String(side.rotateY)} onChange={(v) => set({ rotateY: parseFloat(v) || 0 })} placeholder="Y" />
             <ToolInput value={String(side.rotateZ)} onChange={(v) => set({ rotateZ: parseFloat(v) || 0 })} placeholder="Z" />
@@ -62,13 +62,13 @@ export default function SideEditor({ side, onChange }: {
       )}
 
       <ToolRow label="Offset X">
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput value={String(side.offsetX)} onChange={(v) => set({ offsetX: parseFloat(v) || 0 })} />
           <ToolSelect value={side.offsetXUnit} onChange={(v) => set({ offsetXUnit: v as OffsetUnit })} options={OFFSET_UNIT_OPTIONS} />
         </div>
       </ToolRow>
       <ToolRow label="Offset Y">
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput value={String(side.offsetY)} onChange={(v) => set({ offsetY: parseFloat(v) || 0 })} />
           <ToolSelect value={side.offsetYUnit} onChange={(v) => set({ offsetYUnit: v as OffsetUnit })} options={OFFSET_UNIT_OPTIONS} />
         </div>

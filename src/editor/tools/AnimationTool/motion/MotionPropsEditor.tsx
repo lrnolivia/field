@@ -502,7 +502,7 @@ export default function MotionPropsEditor({ nodeId, props, onChange, preview, de
             return (
               <div className="flex items-center justify-between w-full">
                 <ControlLabel label="Offset" property="" plain />
-                <div className="flex items-center w-full gap-1">
+                <div data-inspector-peer-row className="flex items-center w-full gap-2">
                   <ToolInput value={xVal} onChange={(v) => handleChange({ ...localProps, [xKey]: v })} step={1} chevronLabel="X" />
                   <ToolInput value={yVal} onChange={(v) => handleChange({ ...localProps, [yKey]: v })} step={1} chevronLabel="Y" />
                   <button type="button" onClick={toggleUnit}
@@ -567,7 +567,7 @@ export default function MotionPropsEditor({ nodeId, props, onChange, preview, de
         return (
           <div key={key} className="flex items-center justify-between w-full">
             <ControlLabel label={key === 'width' ? 'Width' : 'Height'} property="" plain />
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <div className="flex-1">
                 <ToolInput value={num} onChange={(v) => handleChange({ ...localProps, [key]: `${v}${unit}` })} step={1} />
               </div>

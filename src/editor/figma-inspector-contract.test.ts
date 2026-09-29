@@ -8,6 +8,10 @@ describe('Figma inspector contract', () => {
   it('exposes one canonical section grammar', () => {
     const section = read('src/editor/controls/ToolSection.tsx');
     expect(section).toContain('data-inspector-section={sectionId}');
+    expect(section).toContain('data-inspector-section-card');
+    expect(section).toContain('data-inspector-section-kind={sectionVisualKind(title)}');
+    expect(section).toContain('data-inspector-section-glyph');
+    expect(section).toContain('rounded-[10px]');
     expect(section).toContain('data-inspector-section-header');
     expect(section).toContain('data-inspector-section-content');
   });

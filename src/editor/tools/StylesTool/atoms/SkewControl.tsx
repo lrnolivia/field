@@ -53,7 +53,7 @@ function SkewAtom() {
     <div className="w-full">
       {/* Keyframe mode: always individual (skewX/skewY only, no combined skew) */}
       {isKeyframe ? (
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput value={xVal} onChange={(v) => onChangeMultiple({ skewX: v, skew: '' })} step={1} chevronLabel="X" />
           <ToolInput value={yVal} onChange={(v) => onChangeMultiple({ skewY: v, skew: '' })} step={1} chevronLabel="Y" />
         </div>
@@ -102,7 +102,7 @@ function SkewAtom() {
 
           {/* Row 2: X/Y inputs when individual */}
           {showIndividual && (
-            <div className="mt-2 flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="mt-2 flex items-center gap-2 w-full">
               <ToolInput value={xVal} onChange={(v) => onChangeMultiple({ skewX: v, skew: '' })} step={1} chevronLabel="X" />
               <ToolInput value={yVal} onChange={(v) => onChangeMultiple({ skewY: v, skew: '' })} step={1} chevronLabel="Y" />
             </div>

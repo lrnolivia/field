@@ -28,7 +28,7 @@ export default function MaskEditor({ mask, onChange, onRemove }: {
   return (
     <div className="flex flex-col gap-2 p-1">
       <ToolRow label="Type">
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolSelect value={mask.type} onChange={(v) => onChange({ ...mask, type: v as MaskType })} options={TYPE_OPTIONS} />
           <RemoveButton onClick={onRemove} />
         </div>
@@ -36,13 +36,13 @@ export default function MaskEditor({ mask, onChange, onRemove }: {
       {isCircle && (
         <>
           <ToolRow label="Origin X">
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput value={String(mask.originX)} onChange={(v) => onChange({ ...mask, originX: parseFloat(v) || 0 })} />
               <ToolSelect value={mask.originXUnit} onChange={(v) => onChange({ ...mask, originXUnit: v as OriginUnit })} options={UNIT_OPTIONS} />
             </div>
           </ToolRow>
           <ToolRow label="Origin Y">
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput value={String(mask.originY)} onChange={(v) => onChange({ ...mask, originY: parseFloat(v) || 0 })} />
               <ToolSelect value={mask.originYUnit} onChange={(v) => onChange({ ...mask, originYUnit: v as OriginUnit })} options={UNIT_OPTIONS} />
             </div>

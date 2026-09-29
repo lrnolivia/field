@@ -93,7 +93,7 @@ function ScaleXYAtom() {
 
       {/* Row 2: X/Y/Z inputs when individual */}
       {showIndividual && (
-        <div className="mt-2 flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="mt-2 flex items-center gap-2 w-full">
           <ToolInput value={xVal} onChange={(v) => onChangeMultiple({ scaleX: v, scale: '' })} step={0.05} chevronLabel="X" />
           <ToolInput value={yVal} onChange={(v) => onChangeMultiple({ scaleY: v, scale: '' })} step={0.05} chevronLabel="Y" />
           <ToolInput value={allProps.scaleZ || '1'} onChange={(v) => onChangeMultiple({ scaleZ: v })} step={0.05} chevronLabel="Z" />

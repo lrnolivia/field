@@ -1000,7 +1000,7 @@ export function ComponentCursorEditor({
 
       <div className="flex items-center justify-between w-full">
         <ControlLabel label="Size" property="" plain />
-        <div className="flex items-center gap-1 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           <ToolInput
             value={state.width}
             onChange={(val) => writeNow({ ...state, width: val })}
@@ -1036,7 +1036,7 @@ export function ComponentCursorEditor({
           </div>
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Offset" property="" plain />
-            <div className="flex items-center gap-1 w-full">
+            <div data-inspector-peer-row className="flex items-center gap-2 w-full">
               <ToolInput
                 value={String(state.offsetX)}
                 onChange={(val) => writeNow({ ...state, offsetX: Number(val) || 0 })}

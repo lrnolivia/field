@@ -314,7 +314,7 @@ export function SpatialRow({ label, icon, children }: { label?: string; icon?: R
   return (
     <div data-option-spatial className={label ? 'grid grid-cols-[64px_minmax(0,1fr)] items-start gap-2' : 'w-full'}>
       {label ? <OptionLabel icon={icon}>{label}</OptionLabel> : null}
-      <div className="grid min-w-0 grid-cols-2 gap-1">{children}</div>
+      <div data-inspector-peer-row className="grid min-w-0 grid-cols-2 gap-2">{children}</div>
     </div>
   );
 }

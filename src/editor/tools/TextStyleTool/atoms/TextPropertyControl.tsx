@@ -557,7 +557,7 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
             overridden={isFitMode && fitScaleOverridden}
             onResetOverride={isFitMode && fitScaleOverridden ? resetFitScaleOverride : undefined}
           />
-          <div className="flex items-center gap-1 w-full">
+          <div data-inspector-peer-row className="flex items-center gap-2 w-full">
             <div className="flex-1 min-w-0">
               <ToolInput
                 value={isMixed ? '' : isFitMode ? String(fitScalePct) : isClamp ? '' : String(numValue)}
@@ -581,18 +581,18 @@ export function TextPropertyControl({ property, label, value: externalValue, onC
           </div>
         </div>
         {currentUnit === 'clamp' && (
-          <div className="flex flex-col gap-1.5 pl-[25%]">
-            <div className="flex items-center gap-1">
+          <div className="flex flex-col gap-2 pl-[25%]">
+            <div data-inspector-peer-row className="flex items-center gap-2">
               <span className="text-[10px] text-[var(--text-secondary)] w-8 shrink-0">Min</span>
               <ToolInput value={clampState.minVal} onChange={(v) => updateClamp({ minVal: v })} step={1} />
               <ToolSelect value={clampState.minUnit} onChange={(v) => updateClamp({ minUnit: v })} options={CLAMP_UNITS} />
             </div>
-            <div className="flex items-center gap-1">
+            <div data-inspector-peer-row className="flex items-center gap-2">
               <span className="text-[10px] text-[var(--text-secondary)] w-8 shrink-0">Pref</span>
               <ToolInput value={clampState.prefVal} onChange={(v) => updateClamp({ prefVal: v })} step={0.5} />
               <ToolSelect value={clampState.prefUnit} onChange={(v) => updateClamp({ prefUnit: v })} options={CLAMP_UNITS} />
             </div>
-            <div className="flex items-center gap-1">
+            <div data-inspector-peer-row className="flex items-center gap-2">
               <span className="text-[10px] text-[var(--text-secondary)] w-8 shrink-0">Max</span>
               <ToolInput value={clampState.maxVal} onChange={(v) => updateClamp({ maxVal: v })} step={1} />
               <ToolSelect value={clampState.maxUnit} onChange={(v) => updateClamp({ maxUnit: v })} options={CLAMP_UNITS} />

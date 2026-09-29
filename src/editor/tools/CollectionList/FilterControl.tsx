@@ -102,7 +102,7 @@ function FiltersPopupBody({
         ? <input type="date" value={v} onChange={(e) => on(e.target.value)} className={`${DATE_INPUT_CLASS} flex-1`} />
         : <ToolInput text value={v} onChange={on} className="flex-1" />;
       return (
-        <div className="flex items-center gap-1.5 w-full">
+        <div data-inspector-peer-row className="flex items-center gap-2 w-full">
           {mk(String(f.value?.[0] ?? ''), (v) => d.update(idx, { value: [v, f.value?.[1] ?? ''] }))}
           <span className="text-xs text-[var(--text-disabled)]">–</span>
           {mk(String(f.value?.[1] ?? ''), (v) => d.update(idx, { value: [f.value?.[0] ?? '', v] }))}
@@ -181,7 +181,7 @@ function FiltersPopupBody({
         <div className="w-3/4 pl-[18px] -ml-[18px] mr-[2px] pt-1.5">
           <span className="text-xs font-bold text-[var(--text-secondary)] select-none">Filters</span>
         </div>
-        <div className="flex flex-col gap-1.5 w-full min-w-0">
+        <div className="flex flex-col gap-2 w-full min-w-0">
           {filters.map((f, idx) => {
             const inactive = dataRef.current.isInactive(f.field);
             return (

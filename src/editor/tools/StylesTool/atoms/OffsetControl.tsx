@@ -15,7 +15,7 @@ function OffsetAtom() {
   const yVal = allProps.y || '0';
 
   return (
-    <div className="flex items-center gap-1 w-full">
+    <div data-inspector-peer-row className="flex items-center gap-2 w-full">
       <ToolInput value={xVal} onChange={(v) => onChangeMultiple({ x: v })} step={1} chevronLabel="X" />
       <ToolInput value={yVal} onChange={(v) => onChangeMultiple({ y: v })} step={1} chevronLabel="Y" />
     </div>
