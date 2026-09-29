@@ -347,7 +347,7 @@ export default function StylesTool({ scope = 'all', advancedExtras }: { scope?: 
         <>
           <ToolSection title="Appearance" action={<AppearanceHeaderActions canHide={!isViewportFrame} />}>
             {!isText && !isWrapper ? (
-              <div data-appearance-core-row className="grid grid-cols-2 gap-1">
+              <div data-appearance-core-row className="field-inspector-pair">
                 <OpacityControl compact />
                 <RadiusControl compact />
               </div>

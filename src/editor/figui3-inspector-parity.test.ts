@@ -88,6 +88,12 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(theme).not.toContain('[data-properties-panel] [data-layout-padding] > div:last-child');
   });
 
+  it('keeps Appearance peer controls on the canonical inspector pair gutter', () => {
+    const stylesTool = read('src/editor/tools/StylesTool/index.tsx');
+    expect(stylesTool).toContain('data-appearance-core-row className="field-inspector-pair"');
+    expect(stylesTool).not.toContain('data-appearance-core-row className="grid grid-cols-2 gap-1"');
+  });
+
   it('keeps Typography Basics and Details aligned to the FigUI3 information hierarchy', () => {
     const typography = read('src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx');
     for (const label of ['Basics', 'Details', 'Vertical trim', 'Paragraph spacing', 'Numbers', 'Position', 'Letterforms', 'Ordinals', 'Stylistic sets', 'Kerning', 'Horizontal spacing']) {
