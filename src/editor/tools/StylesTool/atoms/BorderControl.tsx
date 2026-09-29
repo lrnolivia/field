@@ -520,7 +520,7 @@ function BorderEditorPanel({ styles: s, nodeId, onChangeMultiple, onChangeMultip
       </OptionsPanel>
     </ShowControlLabels>
   );
-
+}
 
 function BorderAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, node, onChange, onChangeMultiple, onChangeMultipleLive, binding, mode, nodeId: ctxNodeId, allProps, hasVariable } = useControlContext();
