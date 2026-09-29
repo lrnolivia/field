@@ -36,7 +36,7 @@ import { chooseDashboardThumbnailPage } from '@/preview/dashboard-thumbnail-page
 import { collectPreviewProjectPayload, postPreviewProjectPayload } from '@/preview/preview-project-payload';
 import ToolInput from '@/editor/controls/ToolInput';
 import Button from '@/design-system/Button';
-import { previewFrameUrl } from './preview-frame-url';
+import { previewFrameUrl } from '@/preview/preview-frame-url';
 
 /** Final URL the Preview iframe loads.
  *
