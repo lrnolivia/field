@@ -6,19 +6,22 @@ import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { motion } from 'motion/react';
 import { useFieldReducedMotion } from '@/editor/motion';
 import { FieldGlyph } from '@/editor/glyph';
+import { useUiChromeText } from '@/design-system/useUiChromeText';
 
 type AddButtonProps = ComponentPropsWithoutRef<typeof motion.button>;
 
 const AddButton = forwardRef<HTMLButtonElement, AddButtonProps>(
-  function AddButton({ className = '', disabled, type = 'button', ...props }, ref) {
+  function AddButton({ className = '', disabled, type = 'button', title, 'aria-label': ariaLabel, ...props }, ref) {
     const reducedMotion = useFieldReducedMotion();
+    const uiText = useUiChromeText();
     const interactive = !disabled && !reducedMotion;
 
     return (
       <motion.button
         ref={ref}
         type={type}
-        aria-label={props['aria-label'] ?? props.title ?? 'Add'}
+        aria-label={uiText(typeof ariaLabel === 'string' ? ariaLabel : typeof title === 'string' ? title : 'Add') ?? undefined}
+        title={typeof title === 'string' ? uiText(title) ?? undefined : title}
         disabled={disabled}
         initial="rest"
         whileHover={interactive ? 'hover' : undefined}

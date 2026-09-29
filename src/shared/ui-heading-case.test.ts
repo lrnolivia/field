@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatUiHeading } from './ui-heading-case';
+import { formatUiChromeText, formatUiHeading } from './ui-heading-case';
 
 describe('UI heading grammar', () => {
   it('reconstructs normal sentence case when lowercase headings are off', () => {
@@ -12,6 +12,14 @@ describe('UI heading grammar', () => {
     expect(formatUiHeading('Components', true)).toBe('components');
     expect(formatUiHeading('Page settings', true)).toBe('page settings');
     expect(formatUiHeading('Custom Code', true)).toBe('custom code');
+  });
+
+  it('applies the same Brand grammar to menus, buttons, and tooltips', () => {
+    expect(formatUiChromeText('New Project', true)).toBe('new project');
+    expect(formatUiChromeText('AI Assistant', true)).toBe('AI assistant');
+    expect(formatUiChromeText('SEO Settings', true)).toBe('SEO settings');
+    expect(formatUiChromeText('A/B Tests', true)).toBe('A/B tests');
+    expect(formatUiChromeText('New Project', false)).toBe('New project');
   });
 
   it('preserves intentional casing in both modes', () => {

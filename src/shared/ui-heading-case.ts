@@ -1,11 +1,10 @@
-// ui-heading-case.ts — canonical editor heading grammar.
+// ui-heading-case.ts — canonical field chrome casing grammar.
 //
-// Source labels are not required to carry presentation casing. This formatter
-// reconstructs normal sentence-case UI names when the lowercase preference is
-// off, then derives loew.fi's lowercase presentation from that canonical form
-// when the preference is on.
+// Source labels are not required to carry presentation casing. Brand casing
+// reconstructs normal sentence-case UI names when disabled, then derives
+// loew.fi's lowercase presentation when enabled.
 //
-// Protected names keep their intentional casing in BOTH modes: acronyms,
+// Protected names keep their intentional casing in BOTH states: acronyms,
 // trademarks/product names, and structural name.FUNCTION identifiers.
 
 const PROTECTED_NAMES = [
@@ -105,11 +104,16 @@ function sentenceCase(value: string): string {
   return lower.replace(/[a-z]/, (letter) => letter.toUpperCase());
 }
 
-export function formatUiHeading(value: string, lowercase: boolean): string {
+export function formatUiChromeText(value: string, brand: boolean): string {
   const trimmed = value.trim();
   if (!trimmed) return value;
 
   const { text, protectedValues } = maskProtectedNames(trimmed);
-  const formatted = lowercase ? text.toLowerCase() : sentenceCase(text);
+  const formatted = brand ? text.toLowerCase() : sentenceCase(text);
   return restoreProtectedNames(formatted, protectedValues);
+}
+
+/** Backward-compatible name for existing heading-only callsites. */
+export function formatUiHeading(value: string, lowercase: boolean): string {
+  return formatUiChromeText(value, lowercase);
 }

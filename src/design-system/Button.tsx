@@ -5,6 +5,7 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { motion } from 'motion/react';
 import { buttonContentVariants, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import { useUiChromeText } from '@/design-system/useUiChromeText';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -38,9 +39,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   disabled,
   className = '',
   type = 'button',
+  title,
+  'aria-label': ariaLabel,
   ...props
 }, ref) {
   const reducedMotion = useFieldReducedMotion();
+  const uiText = useUiChromeText();
   const blocked = Boolean(disabled || loading);
 
   return (
@@ -48,6 +52,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
       ref={ref}
       type={type}
       aria-busy={loading || undefined}
+      aria-label={typeof ariaLabel === 'string' ? uiText(ariaLabel) ?? undefined : ariaLabel}
+      title={typeof title === 'string' ? uiText(title) ?? undefined : title}
       disabled={blocked}
       initial="rest"
       whileHover={!blocked && !reducedMotion ? 'hover' : undefined}
@@ -74,7 +80,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
             <circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" />
           </svg>
         ) : icon}
-        {children}
+        {typeof children === 'string' ? uiText(children) : children}
       </motion.span>
     </motion.button>
   );

@@ -14,7 +14,7 @@ export default function WebsitePreviewAppearanceControl() {
     <button
       type="button"
       data-website-preview-appearance
-      aria-label={`Website preview: ${mode}. Switch to ${nextMode}`}
+      aria-label={`site appearance: ${mode}. Switch to ${nextMode}`}
       title={`Website preview: ${mode === 'dark' ? 'Dark' : 'Light'} · switch to ${nextMode}`}
       onClick={() => {
         setMode(nextMode);
