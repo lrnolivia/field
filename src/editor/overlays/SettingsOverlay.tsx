@@ -761,10 +761,10 @@ export default function SettingsOverlay() {
           </header>
 
           <SettingsGroup surface title="Interface">
-            <SettingsRow label="Lowercase headings" align="top">
+            <SettingsRow label="Brand casing" align="top">
               <div className="flex items-start justify-between gap-4 py-0.5">
                 <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Use loew.fi lowercase styling for interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
+                  Use loew.fi lowercase styling across eligible field chrome, including headings, menus, buttons, tabs, and tooltips. Technical names keep their intended case. Turn it off for original UI casing.
                 </p>
                 <div className="shrink-0 pt-0.5">
                   <Toggle value={lowercaseHeadings} onChange={setLowercaseHeadings} />

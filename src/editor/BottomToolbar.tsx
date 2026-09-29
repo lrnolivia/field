@@ -44,6 +44,7 @@ import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import type { LibrarySection } from '@/editor/library-focus-store';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 import './bottom-toolbar-glyphs.css';
+import { useUiChromeText } from '@/design-system/useUiChromeText';
 
 // ─── Menu affordance ───────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   label: string; shortcut?: string; icon?: React.ReactNode; active?: boolean;
   onClick: () => void; disabled?: boolean;
 }) {
+  const uiText = useUiChromeText();
   return (
     <button
       onClick={disabled ? undefined : onClick}
@@ -89,7 +91,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
       style={{ border: 'none', fontFamily: 'Inter, system-ui, sans-serif', textAlign: 'left' }}
     >
       <span data-field-toolbar-glyph="menu" className="w-4 h-4 flex items-center justify-center shrink-0 overflow-hidden">{icon ?? null}</span>
-      <span>{label}</span>
+      <span>{uiText(label)}</span>
       {shortcut && <ShortcutHint text={shortcut} />}
     </button>
   );
@@ -114,10 +116,11 @@ function MenuViewToggle({ view, onChange }: { view: MenuView; onChange: (view: M
 }
 
 function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
+  const uiText = useUiChromeText();
   return <button type="button" data-toolbar-menu-tile onClick={onClick}
     className="flex flex-col items-center justify-center gap-2 overflow-hidden rounded-[6px] bg-[var(--button-secondary-bg)] px-1 py-2 text-center text-[11px] text-[var(--text-secondary)] hover:bg-[var(--button-secondary-hover)] hover:text-[var(--text-primary)]">
     <span data-toolbar-menu-tile-icon className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden">{icon}</span>
-    <span className="block max-w-full truncate">{label}</span>
+    <span className="block max-w-full truncate">{uiText(label)}</span>
   </button>;
 }
 
@@ -161,11 +164,12 @@ function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronCl
   active: boolean; icon: React.ReactNode; onClick: () => void;
   onChevronClick: () => void; title: string; dataTool?: string; open?: boolean; iconKey?: string;
 }) {
+  const uiText = useUiChromeText();
   return (
     <div className="flex items-center gap-px">
       <button
         onClick={onClick}
-        title={title}
+        title={uiText(title) ?? undefined}
         data-toolbar-tool={dataTool}
         aria-pressed={active || undefined}
         className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
@@ -186,7 +190,7 @@ function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronCl
       <button
         onClick={onChevronClick}
         data-toolbar-chevron-open={open || undefined}
-        aria-label={`${title} options`}
+        aria-label={uiText(`${title} options`) ?? undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         className={`flex items-center justify-center w-[20px] h-[36px] rounded-[6px] transition-colors ${
@@ -209,10 +213,11 @@ function ToolButton({ active, onClick, title, children, dataTutorial, dataTool, 
   active?: boolean; onClick: () => void; title: string; children: React.ReactNode;
   dataTutorial?: string; dataTool?: string; compact?: boolean;
 }) {
+  const uiText = useUiChromeText();
   return (
     <button
       onClick={onClick}
-      title={title}
+      title={uiText(title) ?? undefined}
       data-tutorial={dataTutorial}
       data-toolbar-tool={dataTool}
       aria-pressed={active || undefined}

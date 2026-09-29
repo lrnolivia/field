@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react';
 import { buttonContentVariants, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
+import { useUiChromeText } from '@/design-system/useUiChromeText';
 
 interface Props {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function ToolButton({ children, onClick, disabled, className }: Props) {
   const reducedMotion = useFieldReducedMotion();
+  const uiText = useUiChromeText();
 
   return (
     <motion.button
@@ -30,7 +32,7 @@ export default function ToolButton({ children, onClick, disabled, className }: P
         variants={buttonContentVariants}
         transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
       >
-        {children}
+        {typeof children === 'string' ? uiText(children) : children}
       </motion.span>
     </motion.button>
   );
