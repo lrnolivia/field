@@ -4,7 +4,7 @@
 // Inset mode awareness: when L+R pinned, W updates right inset.
 // Fill mode: maps to CSS `flex: N 0 0px` when parent is flex along that axis.
 
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { vectorSetLinkedWrite, vectorSetUnitAction, readFitDim, isFitRow, FIT_DIM_ATTR, VECTOR_SET_DISABLED_UNITS } from '@/code/icons/vector-set-fit';
 import { parseIconSetConfig } from '@/code/icons/icon-set-config';
 import { projectFS } from '@/code/project/project-fs';
@@ -393,7 +393,9 @@ interface Props {
   pxOnly?: boolean;
   /** Compose the size controls into another canonical inspector section. */
   bare?: boolean;
-  /** Active Auto layout owns Clip content at the bottom of its section. */
+  /** Layout-owned box spacing rendered beneath W/H without changing sizing semantics. */
+  paddingContent?: ReactNode;
+  /** Legacy composition escape hatch; normal Inspector Layout owns Clip content. */
   deferClipContent?: boolean;
 }
 
@@ -423,7 +425,7 @@ function clampNonNegative(v: string): string {
   return m ? `0${m[2] ?? 'px'}` : v;
 }
 
-export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly, bare = false, deferClipContent = false }: Props) {
+export default function SizeTool({ styles: stylesProp, nodeId: nodeIdProp, vpId, onUpdate: onUpdateProp, onUpdateMultiple: onUpdateMultipleProp, pxOnly, bare = false, paddingContent, deferClipContent = false }: Props) {
   const { parentLayout, parentFlexDirection, node, updateStyleLive, hasOverride } = useControl();
   // FIT-TEXT REDIRECT — selecting the INNER <p> of a fit pair (layers panel,
   // exiting text edit) must size the SVG WRAPPER. The inner's width/height
@@ -1770,6 +1772,8 @@ if (heightIsAuto) {
         )}
         </div>
       </div>
+
+      {paddingContent}
 
       {showClipContent && !deferClipContent && (
         <button

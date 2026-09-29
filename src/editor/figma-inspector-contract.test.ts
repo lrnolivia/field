@@ -22,19 +22,33 @@ describe('Figma inspector contract', () => {
     expect(panel).toContain("? 'Frame'");
   });
 
-  it('composes active frame sizing into the Auto layout section', () => {
+  it('keeps Layout permanent while Auto layout owns child arrangement only', () => {
     const size = read('src/editor/tools/SizeTool.tsx');
     const layout = read('src/editor/tools/LayoutTool.tsx');
     const panel = read('src/editor/PropertiesPanel.tsx');
+    const padding = read('src/editor/tools/LayoutPaddingControl.tsx');
+
     expect(size).toContain('<ToolSection title="Layout"');
-    expect(size).toContain('bare={bare}');
+    expect(size).toContain('{paddingContent}');
+    expect(size).toContain('data-layout-clip-content');
     expect(size).not.toContain('<ToolSection title="Dimensions"');
-    expect(layout).toContain('<ToolSection title="Auto layout"');
-    expect(layout).toContain('{sizeContent}');
-    expect(panel).toContain('composeSizeIntoAutoLayout');
-    expect(panel).toContain('sizeContent={composeSizeIntoAutoLayout');
-    expect(panel).toContain('<SizeTool');
-    expect(panel).toContain('bare');
+
+    expect(panel).toContain('<LayoutPaddingControl');
+    expect(panel).toContain('paddingContent={(isFrame || isViewportFrame)');
+    expect(panel).not.toContain('composeSizeIntoAutoLayout');
+    expect(panel).not.toContain('sizeContent={composeSizeIntoAutoLayout');
+
+    expect(layout).toContain('title="Auto layout"');
+    expect(layout).toContain('renderWhenEmpty');
+    expect(layout).not.toContain('sizeContent');
+    expect(layout).not.toContain('AutoLayoutPaddingControl');
+    expect(layout).not.toContain('data-auto-layout-clip-content');
+
+    expect(padding).toContain('data-layout-padding-view');
+    expect(padding).toContain("placeholder={allEqual ? undefined : 'Mixed'}");
+    expect(padding).toContain('data-layout-padding-equal');
+    expect(padding).toContain('data-layout-padding-axes');
+    expect(padding).toContain('data-layout-padding-sides');
   });
 
   it('keeps the text core stack in Figma order and tucks typography details away', () => {
@@ -103,6 +117,8 @@ describe('Figma inspector contract', () => {
     expect(alignment).toContain('data-position-alignment-groups');
     expect(pins).toContain('data-figma-constraints');
     expect(rotate).toContain('data-position-transform-row');
+    expect(rotate).toContain('data-position-rotation-field');
+    expect(rotate).toContain('chevronLabel="°"');
     expect(rotate).toContain('Flip horizontal');
     expect(rotate).toContain('Flip vertical');
     expect(rotate).toContain('Rotate 90°');
@@ -114,16 +130,14 @@ describe('Figma inspector contract', () => {
     expect(motif).toContain('data-inspector-icon-group');
     expect(layout).toContain('ariaLabel="Auto layout mode"');
     expect(layout).toContain('data-auto-layout-alignment');
-    expect(layout).toContain('data-auto-layout-clip-content');
     expect(layout).toContain('Distribution');
     expect(layout).not.toContain('ControlLabel label="Direction"');
     expect(layout).not.toContain('ControlLabel label="Wrap"');
-    // The normal Figma Auto layout branch owns Gap inside its compact
-    // alignment/spacing composition. Template-root layout intentionally keeps
-    // its simpler legacy Gap field, so do not assert against the whole file.
     expect(layout).toContain('{alignmentMatrix}');
-    expect(layout).toContain('<AutoLayoutPaddingControl styles={styles} onUpdateMultiple={onUpdateMultiple} />');
-    expect(layout).not.toContain('<PaddingControl />');
+    // Box geometry belongs to permanent Layout, never to Auto layout.
+    expect(layout).not.toContain('AutoLayoutPaddingControl');
+    expect(layout).not.toContain('data-auto-layout-clip-content');
+    expect(layout).not.toContain('sizeContent');
   });
 
   it('mounts core appearance separately from advanced web controls', () => {
