@@ -4,8 +4,8 @@ import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import {
   compactInspectorOpenAtom,
   floatingInspectorExpandedAtom,
-  compactDockedLeftOpenAtom,
-  compactDockedInspectorOpenAtom,
+  dockedLeftOpenAtom,
+  dockedInspectorOpenAtom,
   rightPaneDragOffsetAtom,
   workspaceModeAtom,
   type WorkspaceMode,
@@ -55,6 +55,11 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
   const floatingPanel = panel === 'vibe' ? 'layers' : panel;
   if (mode === 'floating' && panel === 'vibe') set(leftPanelAtom, floatingPanel);
   set(workspaceModeAtom, mode);
+  if (mode === 'docked' || mode === 'compact-docked') {
+    const expanded = mode === 'docked';
+    set(dockedLeftOpenAtom, expanded);
+    set(dockedInspectorOpenAtom, expanded);
+  }
   set(floatingEntranceAtom, mode === 'floating' && previousMode !== 'floating');
   set(railRevealedAtom, false);
   set(floatingLeftHiddenAtom, false);
@@ -62,8 +67,6 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
   set(floatingInspectorExpandedAtom, false);
   set(compactPanelOpenAtom, false);
   set(compactInspectorOpenAtom, false);
-  set(compactDockedLeftOpenAtom, false);
-  set(compactDockedInspectorOpenAtom, false);
   set(floatingInspectorRevealedAtom, false);
   set(floatingInspectorSuppressedAtom, false);
   set(rightPaneDragOffsetAtom, { x: 0, y: 0 });

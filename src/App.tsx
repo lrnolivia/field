@@ -37,7 +37,6 @@ import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
 import { CommandPalette } from './editor/command-palette/CommandPalette';
 import ToolbarPanelHost from './editor/ToolbarPanelHost';
 import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
-import { detachedLeftPanelAtom } from './editor/detached-left-panel-store';
 import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
 import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
 import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
@@ -51,11 +50,11 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, leftCollapsedWidthAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
-import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
@@ -89,25 +88,21 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const leftDetached = useAtomValue(detachedLeftPanelAtom);
   const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
-  const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
   const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached,
-    leftCollapsedWidth: !leftPaneOpen && !leftDetached ? leftCollapsedWidth + 8 : 0,
-    rightCollapsedWidth: !rightPaneOpen ? rightCollapsedWidth + 8 : 0 });
-  // Expanding a compact pane is a reveal over the canvas. Keep the camera's
-  // safe area constant so hover never pans the user's current view.
-  const cameraInsets = workspaceMode === 'compact-docked'
-    ? { left: 60, right: 60, top: 0, bottom: 0 }
-    : workspaceMode === 'floating'
-      ? { left: 0, right: 0, top: 0, bottom: 0 }
-      : workspaceLayout.cameraInsets;
+  const dockedChrome = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen && railVisible, rightPaneOpen && floatingInspectorVisible, {
+    leftContentWidth, rightPaneWidth, rightDetached,
+    leftCollapsedWidth: dockedChrome && railVisible && !leftPaneOpen ? LEFT_RAIL_WIDTH : 0,
+    rightCollapsedWidth: dockedChrome && floatingInspectorVisible && !rightPaneOpen ? rightCollapsedWidth : 0,
+  });
+  const cameraInsets = dockedChrome ? workspaceLayout.cameraInsets : { left: 0, right: 0, top: 0, bottom: 0 };
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   const previousMode = useRef(workspaceMode);
 

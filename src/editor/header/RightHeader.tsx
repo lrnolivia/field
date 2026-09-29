@@ -28,7 +28,7 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { compactDockedInspectorOpenAtom, compactInspectorOpenAtom, floatingInspectorExpandedAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, floatingInspectorExpandedAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
@@ -57,7 +57,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
   const setFloatingInspectorExpanded = useSetAtom(floatingInspectorExpandedAtom);
-  const setCompactDockedInspectorOpen = useSetAtom(compactDockedInspectorOpenAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
@@ -416,9 +415,9 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           className={`fixed z-[9999] flex flex-col items-center gap-2 border border-[var(--border-light)] bg-[var(--bg-panel)] py-2 ${workspaceMode === 'docked' || workspaceMode === 'compact-docked' ? 'inset-y-0 right-0 border-l border-[var(--border-light)]' : 'bottom-2 right-2 top-2 rounded-[8px] shadow-[var(--shadow-lg)]'}`}
           style={{ width: workspaceMode === 'docked' || workspaceMode === 'compact-docked' ? 60 : rightCollapsedWidth,
             ...(workspaceMode === 'floating' ? { top: 12, right: 12, bottom: 'auto', height: Math.min(rightFloatingHeight, window.innerHeight - 24) } : {}), opacity: floatingInspectorVisible ? 1 : 0, pointerEvents: floatingInspectorVisible ? 'auto' : 'none', transition: 'opacity 260ms ease' }}
-          onPointerEnter={() => setRightPaneOpen(true)}>
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
+          >
+          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
+          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
           {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
@@ -426,7 +425,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
             <WorkspaceAutoHideButton side="right" />
           </div>
-          <CollapsedSelectionColors onOpen={() => { if (workspaceMode === 'compact-docked') setCompactDockedInspectorOpen(true); else setCompactInspectorOpen(true); }} />
+          <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
         </div>
       )}
 

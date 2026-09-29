@@ -250,7 +250,7 @@ export default function LeftHeader() {
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
-  const headerVisible = leftPaneOpen || dockedShell;
+  const headerVisible = dockedShell && leftPaneOpen;
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
@@ -267,22 +267,22 @@ export default function LeftHeader() {
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: dockedShell ? 52 + leftContentWidth : workspace.left.width, left: dockedShell ? 0 : workspace.left.inset, top: dockedShell ? 0 : workspace.left.top }}
+      style={{ width: dockedShell ? leftContentWidth : workspace.left.width, left: dockedShell ? 52 : workspace.left.inset, top: dockedShell ? 0 : workspace.left.top }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
           Logo button is 32×32 (matches the VIBE / + buttons in
           LeftMenu) and centered inside. */}
-      <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
+      {!dockedShell && <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
         <LogoButton />
-      </div>
+      </div>}
 
       {/* Vertical rule at x=51 — visually adjacent to LeftMenu's own
           rule below the header. `paddingTop/Bottom` create breathing
           room so it doesn't touch the header's `border-b` or top edge.
           Wrapper carries the padding; the inner div is the actual rule
           (full-height inside the wrapper). */}
-      <div
+      {!dockedShell && <div
         aria-hidden
         style={{
           width: 1,
@@ -293,7 +293,7 @@ export default function LeftHeader() {
         }}
       >
         <div style={{ width: 1, height: '100%', backgroundColor: 'var(--border-light)' }} />
-      </div>
+      </div>}
 
       {/* In preview mode we swap the project chip for a single "Back"
           affordance — matches the settings-overlay top-left back

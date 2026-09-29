@@ -74,8 +74,8 @@ export default function WorkspaceModeCoordinator() {
   useEffect(() => {
     if (selectedIds.length === 0) return;
     setInspectorSuppressed(false);
-    setRightPaneOpen(true);
-  }, [selectedIds, setInspectorSuppressed, setRightPaneOpen]);
+    if (mode === 'floating') setRightPaneOpen(true);
+  }, [mode, selectedIds, setInspectorSuppressed, setRightPaneOpen]);
 
   useEffect(() => {
     const isTypingOrUsingControl = (target: EventTarget | null) => {

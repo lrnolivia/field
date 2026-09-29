@@ -60,11 +60,11 @@ export default function ChromeIslands() {
         className={dockedLeft ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
         style={{
           left: dockedLeft ? 0 : WORKSPACE_FLOAT_INSET,
-          top: dockedLeft ? 52 : WORKSPACE_FLOAT_LEFT_TOP,
+          top: dockedLeft ? 0 : WORKSPACE_FLOAT_LEFT_TOP,
           width: dockedLeft
             ? 52 + (leftOpen ? leftContentWidth : 0)
             : leftCollapsedWidth + ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen) ? leftContentWidth : 0),
-          height: dockedLeft ? 'calc(100vh - 52px)' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+          height: dockedLeft ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
           ...(dockedLeft ? { borderRadius: 0, boxShadow: 'none' } : {
             border: '1px solid var(--border-light)',
