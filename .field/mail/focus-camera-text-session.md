@@ -33,3 +33,7 @@ Visual QA URL:
 `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
 
 Batch 2 must not start until the user's Batch 1 visual QA is accepted or specific defects are reported.
+
+## 2026-09-29 — Batch 1 accepted
+
+User visual QA: PASS — "works great!". Batch 2 adaptive text focus is authorized.

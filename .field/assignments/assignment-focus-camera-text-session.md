@@ -193,3 +193,7 @@ Exact-head Cloudflare evidence:
 - branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
 
 Focused Vitest files were added/updated, but no repository test executor is exposed in this Contract Worker chat and GitHub has no check runs for this repository. Do not mark those tests as executed. User visual QA is pending and is the Batch 1 stop gate.
+
+## Batch 1 visual QA — PASS
+
+User accepted Batch 1 visual QA on 2026-09-29: "works great!". Batch 1 is visually accepted and Batch 2 is authorized to start.

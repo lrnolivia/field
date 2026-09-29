@@ -8,7 +8,7 @@ current_main_at_recording: 417e3aa43618d552ae12ef9cd3d2fc9a01424f4d
 environment: branch Preview /builder/noauth
 build: PASS — Cloudflare Workers Build ef426e06-80a8-437f-988a-f5f4ecfd56e4 ran npm run build:all
 tests: NOT RUN — focused Vitest coverage was added/updated but no repository test executor/check runner is exposed in this Contract Worker environment
-runtime_qa: PENDING USER VISUAL QA
+runtime_qa: PASS — USER VISUAL QA
 tested_at: 2026-09-29T03:25:37Z
 evidence:
   - https://github.com/lrnolivia/field/pull/60
@@ -20,7 +20,7 @@ evidence:
 
 ## Batch 1 — canonical focus camera
 
-Status: BUILD PASS / USER VISUAL QA PENDING
+Status: PASS — BUILD + USER VISUAL QA
 
 Verified source/build facts:
 - exact branch head is `63f514b464c2e83f19f3c966c18ea08252b12dd3`
@@ -49,12 +49,11 @@ Required visual checks:
 9. During text editing, manually wheel/pan the canvas: field must respect the manual interruption and not snap back on exit
 10. Selection Colors crosshair: should continue to locate/glow matching objects without moving camera or changing selection
 
-Stop gate:
-- Do not begin Batch 2 until the user accepts Batch 1 visual feel or reports corrections.
+Stop gate: CLEARED — user accepted Batch 1 visual feel on 2026-09-29.
 
 ## Batch 2 — adaptive text focus
 
-Status: NOT STARTED
+Status: IN PROGRESS
 
 ## Batch 3 — caret + session polish
 
