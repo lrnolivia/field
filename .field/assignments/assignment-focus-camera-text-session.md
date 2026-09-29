@@ -16,6 +16,9 @@ owned:
   - src/canvas/text-edit/CanvasTextEditController.ts
   - src/canvas/shortcuts.ts
   - src/canvas/Canvas.tsx
+  - src/canvas-sandbox/text-edit-host.ts
+  - src/canvas-sandbox/protocol.ts
+  - src/canvas-sandbox/bridge-host.ts
   - src/editor/LayersPanel.tsx
 approved_shared: []
 protected:
@@ -231,3 +234,16 @@ Exact-head Cloudflare evidence:
 - branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
 
 Focused Vitest coverage was updated for adaptive camera behavior and session delegation but was not executed in this Contract Worker environment. Batch 2 user visual QA is the stop gate before Batch 3.
+
+## Batch 2 visual QA — PASS
+
+User accepted Batch 2 visual QA on 2026-09-29: "this is perfect keep working". Batch 2 is visually accepted and Batch 3 is authorized.
+
+## Batch 3 ownership extension
+
+Caret-aware focus requires sandbox-side selection geometry because the parent cannot inspect the cross-origin TipTap DOM. Active ownership preflight found no conflicting active assignment on these exact paths. This assignment now also owns:
+- `src/canvas-sandbox/text-edit-host.ts`
+- `src/canvas-sandbox/protocol.ts`
+- `src/canvas-sandbox/bridge-host.ts`
+
+The extension is limited to caret/selection geometry transport needed by the existing text focus session.

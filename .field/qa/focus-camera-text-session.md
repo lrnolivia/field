@@ -8,7 +8,7 @@ current_main_at_recording: 417e3aa43618d552ae12ef9cd3d2fc9a01424f4d
 environment: branch Preview /builder/noauth
 build: PASS — Cloudflare Workers Build c616d7a5-f47e-4509-a250-18a0906168ce ran npm run build:all
 tests: NOT RUN — focused Vitest coverage was added/updated but no repository test executor/check runner is exposed in this Contract Worker environment
-runtime_qa: BATCH 1 PASS / BATCH 2 PENDING USER VISUAL QA
+runtime_qa: BATCH 1 PASS / BATCH 2 PASS / BATCH 3 IN PROGRESS
 tested_at: 2026-09-29T03:25:37Z
 evidence:
   - https://github.com/lrnolivia/field/pull/60
@@ -54,7 +54,7 @@ Stop gate: CLEARED — user accepted Batch 1 visual feel on 2026-09-29.
 
 ## Batch 2 — adaptive text focus
 
-Status: BUILD PASS / USER VISUAL QA PENDING
+Status: PASS — BUILD + USER VISUAL QA
 
 Exact-head evidence:
 - head: `9b49074a7565da822fdc898653128ad32ef8f010`
@@ -79,9 +79,8 @@ Required visual checks:
 11. Confirm the initial text-focus animation + blur still looks exactly like accepted Batch 1; adaptive follow itself should be quieter and should NOT repeatedly blur.
 12. Spot-check Shift+1/2/3 and Inspector Zoom for regressions.
 
-Stop gate:
-- Do not begin Batch 3 until the user accepts Batch 2 visual feel or reports corrections.
+Stop gate: CLEARED — user accepted Batch 2 visual feel on 2026-09-29.
 
 ## Batch 3 — caret + session polish
 
-Status: NOT STARTED
+Status: IN PROGRESS

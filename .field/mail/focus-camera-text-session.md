@@ -57,3 +57,9 @@ What to feel for:
 - Batch 1 Shift+/Inspector/double-click behavior remains unchanged
 
 Do not begin Batch 3 until the user's Batch 2 visual QA is accepted or specific corrections are reported.
+
+## 2026-09-29 — Batch 2 accepted
+
+User visual QA: PASS — "this is perfect keep working". Batch 3 caret/session polish is authorized.
+
+Batch 3 may extend the existing sandbox text-edit selection event with caret geometry. Ownership was checked before adding the three sandbox protocol paths to this assignment.
