@@ -12,7 +12,7 @@ assert version == "2026-09-29.1"
 assert manifest["version"] == version
 assert manifest["repository"] == "lrnolivia/field"
 assert manifest["universal_authority"]["repository"] == "lrnolivia/loew-runner"
-assert manifest["universal_authority"]["bible"] == "LOEW_CHAT_BIBLE.md"
+assert manifest["universal_authority"]["bible"] == "LOEW_CHAT_BIBLE_CURRENT.md"
 
 qa = manifest["runtime_qa"]
 assert qa["authority"] == "loew-runner-first"
