@@ -579,6 +579,7 @@ function primaryCategoryFor(property: string): PresetToken['category'] | null {
 
 const CATEGORY_CREATE_LABELS: Record<PresetToken['category'], string> = {
   color: 'Create color preset',
+  gradient: 'Create gradient preset',
   typography: 'Create typography preset',
   spacing: 'Create padding preset',
   margin: 'Create margin preset',
@@ -594,7 +595,7 @@ const CATEGORY_CREATE_LABELS: Record<PresetToken['category'], string> = {
 function presetDisplayLabel(token: PresetToken): string {
   if (token.label) return token.label;
   return token.name
-    .replace(/^(?:color|typo|space|margin|radius|shadow|border|image|video)-/, '')
+    .replace(/^(?:color|gradient|typo|space|margin|radius|shadow|border|image|video)-/, '')
     .split('-')
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');

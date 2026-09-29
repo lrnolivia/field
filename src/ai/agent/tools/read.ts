@@ -325,6 +325,7 @@ export function projectTokens(
  *  comment groups they are serialized from (preset-gen.ts CATEGORY_LABELS). */
 const TOKEN_CATEGORY_LABELS: Record<PresetToken['category'], string> = {
   color: 'colors',
+  gradient: 'gradients',
   typography: 'typography',
   spacing: 'spacing',
   margin: 'margin',
@@ -342,7 +343,7 @@ const TOKEN_CATEGORY_LABELS: Record<PresetToken['category'], string> = {
  * rest in the canonical globals.css order (preset-gen.ts CATEGORY_ORDER).
  */
 const TOKEN_CATEGORY_ORDER: PresetToken['category'][] = [
-  'color', 'spacing', 'typography', 'margin', 'radius', 'shadow', 'border', 'image', 'video', 'other',
+  'color', 'gradient', 'spacing', 'typography', 'margin', 'radius', 'shadow', 'border', 'image', 'video', 'other',
 ];
 
 /** The section header and usage directive heading every tokens block. */

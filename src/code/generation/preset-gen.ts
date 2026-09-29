@@ -17,6 +17,7 @@ type TokenCategory = PresetToken['category'];
 
 const PREFIX_MAP: [string, TokenCategory][] = [
   ['color-', 'color'],
+  ['gradient-', 'gradient'],
   ['typo-', 'typography'],
   ['space-', 'spacing'],
   ['margin-', 'margin'],
@@ -42,6 +43,8 @@ function categoryFromValue(value: string): TokenCategory | null {
   // (an .mp4 in url() is still a CSS url), so leave that disambiguation to the
   // name prefix; if neither prefix nor heuristic identifies it, fall through to 'image'.
   if (/^url\s*\(/i.test(v)) return 'image';
+  // Gradient paint tokens are first-class CSS custom properties.
+  if (/gradient\s*\(/i.test(v)) return 'gradient';
   // Color: hex, rgb, rgba, hsl, hsla, named colors
   if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return 'color';
   if (/^(?:rgb|rgba|hsl|hsla)\s*\(/.test(v)) return 'color';
@@ -65,7 +68,7 @@ function detectCategory(name: string, value: string): TokenCategory {
 
 // ─── Category Sort Order ────────────────────────────────────────────────────
 
-const CATEGORY_ORDER: TokenCategory[] = ['color', 'typography', 'spacing', 'margin', 'radius', 'shadow', 'border', 'image', 'video', 'other'];
+const CATEGORY_ORDER: TokenCategory[] = ['color', 'gradient', 'typography', 'spacing', 'margin', 'radius', 'shadow', 'border', 'image', 'video', 'other'];
 
 function categoryIndex(cat: TokenCategory): number {
   const idx = CATEGORY_ORDER.indexOf(cat);
@@ -76,6 +79,7 @@ function categoryIndex(cat: TokenCategory): number {
 
 const CATEGORY_LABELS: Record<TokenCategory, string> = {
   color: 'Colors',
+  gradient: 'Gradients',
   typography: 'Typography',
   spacing: 'Spacing',
   margin: 'Margin',
@@ -119,6 +123,7 @@ export function parsePresetTokens(css: string): PresetToken[] {
       const hint = commentMatch[1].toLowerCase();
       // Map comment text to category
       if (hint === 'colors' || hint === 'color') commentCategory = 'color';
+      else if (hint === 'gradients' || hint === 'gradient') commentCategory = 'gradient';
       else if (hint === 'typography') commentCategory = 'typography';
       else if (hint === 'spacing') commentCategory = 'spacing';
       else if (hint === 'margin' || hint === 'margins') commentCategory = 'margin';
