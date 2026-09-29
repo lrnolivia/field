@@ -3,7 +3,7 @@ field_assignment: 1
 id: mobile-focus-touch-camera-20260929
 status: active
 branch: field/mobile-focus-touch-camera-20260929
-pr: null
+pr: 123
 base: 710b02e769c904ff3ab852d095a812e8476e3e79
 kit: 2026-09-26.4
 type: plan-to-action
@@ -41,39 +41,37 @@ Add a deterministic first-class mobile camera gesture seam to the existing Focus
 ## verified current state
 
 - Focus is already usable in phone portrait/landscape and is the mobile workspace direction.
-- Existing InputHandler has an empty touch-state scaffold.
-- useCanvasTransform currently attaches wheel and middle-mouse camera listeners, but no native mobile touch camera listener.
-- user-observed current behavior: single-finger drag becomes marquee; resize/select already work; two-finger camera pan is absent.
-- active legacy ownership check found no active Owned reservation on these four paths. native-scale-tool-20260926 protects drag and owns scale-specific paths; this batch does not cross them.
-- open toolbar/media PRs exist; this batch does not touch BottomToolbar or editor media/chrome surfaces.
+- Existing InputHandler had an empty touch-state scaffold.
+- useCanvasTransform attached wheel and middle-mouse camera listeners, but no native mobile touch camera listener.
+- user-observed current behavior: single-finger drag becomes marquee; resize/select already work; two-finger camera pan was absent.
+- active legacy ownership check found no active Owned reservation on these four paths.
+- active toolbar/media work remains isolated; this batch does not touch BottomToolbar or editor media/chrome surfaces.
 
-## implementation intent
+## implemented
 
-Implement two-finger touch camera pan + pinch zoom on the canvas through InputHandler and useCanvasTransform.
+- two-finger camera ownership begins only when a second finger is present
+- midpoint movement pans the camera
+- finger-distance ratio applies multiplicative pinch zoom around the live midpoint
+- one-finger gestures remain unclaimed by the camera
+- 3→2 touch transitions rebase to prevent jumps
+- touchend/touchcancel reset camera ownership
+- native listeners are non-passive only for the owned two-finger camera gesture
+- focused touch geometry and attachment tests were added
 
-Gesture contract for this batch:
-- one touch: not claimed by camera; existing selection/marquee behavior remains untouched for now
-- second touch: camera acquires the gesture
-- two-finger midpoint movement pans
-- two-finger distance change zooms around the current midpoint
-- browser page pinch/scroll must be prevented only while the canvas owns the two-touch gesture
-- pointer/mouse/trackpad behavior remains unchanged
-- touch teardown/cancel must fully reset state
+Implementation head: 2fe58a9748cc769034e09ac93604d4a2581433d8
 
-Do not implement object move semantics, long-press marquee, text-keyboard entry, toolbar collapse, or sheets in this assignment. Those are successor batches.
+## acceptance status
 
-## acceptance
-
-1. Two fingers on the canvas can pan without browser-page scrolling.
-2. Pinch changes canvas scale around the gesture midpoint.
-3. Combined two-finger pan+pinch works in one gesture.
-4. Releasing/canceling either touch does not leave camera interaction stuck.
-5. A one-finger gesture is not stolen by the new camera listener.
-6. Existing wheel/trackpad/middle-mouse tests remain green.
-7. New focused touch tests cover midpoint pan, multiplicative pinch, transition into two-touch camera ownership, and reset.
-8. TypeScript/build checks pass.
-9. Runtime QA is performed against the exact PR head Preview before completion.
+1. Two-finger pan implementation: CODED / RUNTIME QA PENDING
+2. Pinch around midpoint: CODED / RUNTIME QA PENDING
+3. Combined pan+pinch: CODED / RUNTIME QA PENDING
+4. End/cancel reset: CODED / focused test added
+5. One finger not stolen: CODED / focused test added
+6. Existing desktop input paths: unchanged in implementation; exact-head build PASS
+7. New touch tests: ADDED, not executed in Contract Worker environment
+8. exact-head Cloudflare build: PASS
+9. physical mobile Preview verification: PENDING
 
 ## non-goals
 
-No toolbar, inspector, panel, drag, selection, source-model, backend, deployment, or dependency changes.
+No object move semantics, long-press marquee, text-keyboard entry, toolbar collapse, sheets, Inspector, source model, backend, deployment, or dependency changes.
