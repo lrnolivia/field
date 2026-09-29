@@ -714,7 +714,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             nodeId={node.id}
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
-            showPaddingWithoutLayout={isFrame}
+            showPaddingWithoutLayout={isFrame || isViewportFrame}
             templateRoot={isTemplateRootEdit}
             sizeContent={composeSizeIntoAutoLayout ? (
               <SizeTool

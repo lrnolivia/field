@@ -166,12 +166,12 @@ const TOOLBAR_ITEMS: Record<string, ToolbarItem> = {
   // ─── Basic ──────────────────────────────────────────────────────────
   frame: {
     id: 'frame', elementType: 'div',
-    defaultStyles: { width: '200px', height: '200px', backgroundColor: '#ffffff' },
+    defaultStyles: { width: 'min-content', height: 'min-content', minWidth: '200px', minHeight: '200px', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' },
     ghostSize: { width: 200, height: 200 },
   },
   text: {
     id: 'text', elementType: 'span', name: 'Text',
-    defaultStyles: { display: 'inline-block', fontSize: '16px', lineHeight: '1.4', color: '#111111' },
+    defaultStyles: { display: 'inline-block', width: 'max-content', height: 'auto', fontSize: '16px', lineHeight: '1.4', color: '#111111' },
     textContent: 'Text',
     ghostSize: { width: 48, height: 24 },
   },
