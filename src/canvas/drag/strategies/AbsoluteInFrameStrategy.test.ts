@@ -15,6 +15,14 @@ vi.mock('@/shared/debug-trace', () => ({
   trace: { action: vi.fn(), fn: vi.fn(), dom: vi.fn(), error: vi.fn() },
 }));
 
+const { mockIsSpaceBarDown } = vi.hoisted(() => ({
+  mockIsSpaceBarDown: vi.fn(() => false),
+}));
+
+vi.mock('@/canvas/transform', () => ({
+  isSpaceBarDown: mockIsSpaceBarDown,
+}));
+
 vi.mock('@/canvas/canvas-math', () => ({
   getCanvasDelta: (dx: number, dy: number, scale: number) => ({ x: dx / scale, y: dy / scale }),
   getAbsoluteCanvasRectById: vi.fn(() => ({ left: 0, top: 0, width: 100, height: 100 })),
@@ -261,6 +269,7 @@ describe('AbsoluteInFrameStrategy', () => {
   let strategy: AbsoluteInFrameStrategy;
 
   beforeEach(() => {
+    mockIsSpaceBarDown.mockReturnValue(false);
     strategy = new AbsoluteInFrameStrategy();
     vi.clearAllMocks();
     // Reset bridge mock defaults
@@ -635,6 +644,60 @@ describe('AbsoluteInFrameStrategy', () => {
   });
 
   // ─── Parent exit with inset resolution ────────────────────────────────
+
+  describe('Figma Space keep-parent override', () => {
+    test('holding Space suppresses parent exit until the key is released', () => {
+      const nodes = new Map([
+        ['parent-1', makeNode('parent-1', 'grandparent-1')],
+        ['node-1', { id: 'node-1', parentId: 'parent-1', type: 'div', tag: 'div', children: [], attrs: {},
+          styles: { position: 'absolute', left: '10px', top: '5px' } }],
+      ]) as any;
+      const ctx = makeContext({
+        nodes,
+        draggedNodes: [makeDraggedNode({ id: 'node-1', startParentId: 'parent-1' })],
+        startMouse: { x: 500, y: 300 },
+      });
+      strategy.onStart(ctx);
+      mockFindNodeRect.mockImplementation((nodeId: string) => {
+        if (nodeId === 'node-1') return new DOMRect(2000, 50, 200, 100);
+        if (nodeId === 'parent-1') return new DOMRect(0, 0, 400, 400);
+        return null;
+      });
+
+      mockIsSpaceBarDown.mockReturnValue(true);
+      for (let i = 0; i < 12; i++) strategy.onMove(ctx, { x: 2000 + i, y: 300 });
+
+      const moveWhileHeld = vi.mocked(queueMutation).mock.calls
+        .map(([m]) => m as any)
+        .find((m) => m.type === 'move' && m.nodeId === 'node-1' && m.newParentId !== 'parent-1');
+      expect(moveWhileHeld).toBeUndefined();
+
+      // The modifier is live, not latched at drag start. Once released, the
+      // same outside geometry is allowed to perform the normal exit.
+      mockIsSpaceBarDown.mockReturnValue(false);
+      strategy.onMove(ctx, { x: 2020, y: 300 });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'move',
+          nodeId: 'node-1',
+        }),
+      );
+    });
+
+    test('Space cancels a stale pending layout-sibling drop before mouseup', () => {
+      const ctx = makeContext({
+        draggedNodes: [makeDraggedNode({ id: 'node-1', startParentId: 'parent-1' })],
+      });
+      strategy.onStart(ctx);
+      (strategy as any).pendingLayoutDrop = { siblingId: 'layout-sibling', insertIndex: 0 };
+      mockIsSpaceBarDown.mockReturnValue(true);
+
+      const updates = strategy.onEnd(ctx) as any[];
+
+      expect(updates.some((u) => u.type === 'move' && u.newParentId === 'layout-sibling')).toBe(false);
+    });
+  });
 
   describe('parent exit resolves inset dimensions', () => {
     test('element with right+bottom insets gets width/height on exit, insets cleared', () => {

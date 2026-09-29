@@ -146,6 +146,14 @@ import { DOUBLE_CLICK_THRESHOLD, ZERO_WIDTH_SPACE } from '@/shared/constants';
 const DOUBLE_CLICK_MAX_DIST = 5;
 const TEXT_TYPES = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label', 'button']);
 
+function isCreatorToolMode(mode: string): boolean {
+  return mode === 'frame'
+    || mode === 'text'
+    || mode === 'sketch'
+    || isShapeMode(mode)
+    || isLayoutMode(mode);
+}
+
 type JotaiStore = ReturnType<typeof useStore>;
 
 export interface CanvasMouseControllerOpts {
@@ -647,9 +655,18 @@ export class CanvasMouseController {
     this.emptyCanvasClick = false;
     this.pendingShiftRemove = null;
 
-    // Space and explicit Hand own the gesture even when the pointer is over a
-    // node. Route through the normal canvas handler before selection/drag logic.
-    if (isSpaceBarDown() || this.store.get(toolModeAtom) === 'hand') {
+    // Space is contextual. In Select it still means temporary pan. While a
+    // creator tool is active, Figma uses the same held Space key to suppress
+    // automatic parenting, so route the gesture into the creator path instead
+    // of turning it into a pan merely because the pointer happens to be over a
+    // node.
+    const pointerToolMode = this.store.get(toolModeAtom);
+    const creatorOwnsSpace = !isViewerMode() && isCreatorToolMode(pointerToolMode);
+    if ((isSpaceBarDown() && !creatorOwnsSpace) || pointerToolMode === 'hand') {
+      this.handleMouseDown(e);
+      return;
+    }
+    if (isSpaceBarDown() && creatorOwnsSpace) {
       this.handleMouseDown(e);
       return;
     }
@@ -1769,6 +1786,7 @@ export class CanvasMouseController {
     commitFocusedPanelInput();
     // Read toolMode from store (not a closed-over ref) so we always get current value.
     const toolMode = this.store.get(toolModeAtom);
+    const creatorOwnsSpace = !isViewerMode() && isCreatorToolMode(toolMode);
     trace.action('canvas:mousedown', { button: e.button, toolMode, target: (e.target as HTMLElement).tagName });
     // Currently editing text? When clicks land inside the iframe, the
     // iframe's own outside-click listener decides whether to commit.
@@ -1784,8 +1802,13 @@ export class CanvasMouseController {
 
     // Middle mouse pan is handled natively (attachMiddleMousePan) — not here
     if (e.button === 1) return;
-    // Space+drag → pan
-    if (handleSpacePanDown(e)) { trace.action('canvas:pan-start', { source: 'space' }); this.opts.setPanCursor(true); return; }
+    // Space+drag → pan in navigation/select context. Creator tools own the
+    // same held key as a parenting override and must still receive pointerdown.
+    if (!creatorOwnsSpace && handleSpacePanDown(e)) {
+      trace.action('canvas:pan-start', { source: 'space' });
+      this.opts.setPanCursor(true);
+      return;
+    }
     // Hand tool → left-click pan
     if (toolMode === 'hand') {
       if (handleHandToolDown(e)) { this.opts.setPanCursor(true); return; }

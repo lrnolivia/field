@@ -49,6 +49,7 @@ import { motionPropsToCSSTransform, MOTION_TRANSFORM_PROPS, foldEffectiveTransfo
 import { calculateLayoutInsertIndexById } from '../reparent-utils';
 import { computeEntryParentLocalPosition, computeExitCanvasPosition } from '../transform-reparent';
 import { queueMutation, flushNow, flushNowDeferredDuringDrag, getCurrentCode } from '@/code/mutation/mutation-queue';
+import { isSpaceBarDown } from '@/canvas/transform';
 import { moveNodeInCache, updateNodeInCache, getVariantOverriddenKeys, getNodeFromCache, seedNodesForCode } from '@/code/stores/store';
 
 /** Frames the element must be poking outside the non-layout parent before exit
@@ -759,6 +760,11 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const screenDx = mouseScreen.x - startMouse.x;
     const screenDy = mouseScreen.y - startMouse.y;
     const primary = draggedNodes[0];
+    // Figma hierarchy override: while Space is held during an ordinary
+    // in-frame drag, the node may visually leave the frame but must keep its
+    // current parent. This is live state so the user can press/release Space
+    // after the drag has already started.
+    const keepCurrentParent = isSpaceBarDown();
 
     // Convert the SCREEN drag delta into the parent's LOCAL coord
     // system via PROJECTIVE inversion. Same approach handles affine
@@ -1528,6 +1534,16 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
                 || mouseScreen.y < pr.top || mouseScreen.y > pr.top + pr.height;
             }
           }
+        }
+        if (keepCurrentParent) {
+          if (out || this.framesOutsideParent > 0) {
+            trace.action('abs-in-frame:space-keep-parent', {
+              nodeId: primary.id,
+              parentId: this.parentId,
+            });
+          }
+          out = false;
+          this.framesOutsideParent = 0;
         }
         if (out) {
           this.framesOutsideParent++;
@@ -2647,6 +2663,17 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       };
     }
 
+    // A Space-held keep-parent gesture also cancels any sibling preview that
+    // may have been armed on the previous frame. Mouseup while Space is still
+    // held must not commit a stale pendingLayoutDrop.
+    if (keepCurrentParent) {
+      this.pendingLayoutDrop = null;
+      this.candidateSiblingId = null;
+      this.framesInCandidateSibling = 0;
+      this.siblingEntryConfirmed = false;
+      dropLineOps.hide();
+    }
+
     // Sibling entry detection — cursor-driven (NOT element-overlap-driven).
     // The earlier overlap rule (≥50% of dragged rect inside sibling) caused
     // surprise switches: dragging an absolute element across the parent meant
@@ -2656,7 +2683,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     //   layout sibling: cursor over → enter
     //   non-layout sibling: cursor over + dragged element fully inside → enter
     //   anything else: no candidate, suppress drop-line
-    if (!this.parentIsFlexGrid && !this.exitedParent && this.entryGraceCounter === 0 && this.parentId) {
+    if (!keepCurrentParent && !this.parentIsFlexGrid && !this.exitedParent && this.entryGraceCounter === 0 && this.parentId) {
       const elRect = findNodeRect(primary.id, this.vpId);
       if (elRect) {
         const esr: Rect = { left: elRect.left, top: elRect.top, width: elRect.width, height: elRect.height };
@@ -3360,7 +3387,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     // #11, 2026-09-07). `flex: '0 0 auto'` is baked on FLEX targets so the
     // new flow child never inherits flex-shrink: 1 (collapses to ~0 height in
     // a constrained column); on a GRID target it is meaningless and omitted.
-    if (this.pendingLayoutDrop && !this.exitedParent) {
+    if (this.pendingLayoutDrop && !this.exitedParent && !isSpaceBarDown()) {
       const { siblingId, insertIndex } = this.pendingLayoutDrop;
       const targetDisplay = resolveParentDisplay(siblingId, this.vpId, context.nodes.get(siblingId));
       const targetIsGrid = targetDisplay === 'grid' || targetDisplay === 'inline-grid';
