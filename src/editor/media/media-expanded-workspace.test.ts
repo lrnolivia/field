@@ -9,8 +9,11 @@ describe('expanded Media workspace', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');
 
     expect(browser).toContain('workspace?: boolean');
-    expect(browser).toContain('workspace ? "grid grid-cols-4 gap-2"');
+    expect(browser).toContain('workspace ? "grid grid-cols-3 gap-2.5"');
     expect(browser).toContain('data-media-details');
+    expect(browser).toContain('data-media-viewer-stage');
+    expect(browser).toContain('object-contain');
+    expect(browser).toContain('w-[274px]');
     expect(controller).toContain('workspace={expanded}');
     expect(controller).not.toContain('<MediaGalleryPanel chrome="embedded" workspace />');
   });
