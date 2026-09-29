@@ -47,6 +47,23 @@ export function setPaddingSide(
   return writePaddingSides(next);
 }
 
+
+export function paddingAllEqual(sides: PaddingSides): boolean {
+  const first = sides[0].trim();
+  return sides.every((side) => side.trim() === first);
+}
+
+export function setPaddingAll(raw: string): Record<string, string> {
+  const value = normalizePaddingPx(raw);
+  return {
+    padding: value,
+    paddingTop: '',
+    paddingRight: '',
+    paddingBottom: '',
+    paddingLeft: '',
+  };
+}
+
 export function paddingAxisCompatible(sides: PaddingSides): boolean {
   return (Number.parseFloat(sides[0]) || 0) === (Number.parseFloat(sides[2]) || 0)
     && (Number.parseFloat(sides[1]) || 0) === (Number.parseFloat(sides[3]) || 0);

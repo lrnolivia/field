@@ -16,9 +16,10 @@ import { trace } from '@/shared/debug-trace';
 import PanelErrorBoundary from '@/editor/ui/PanelErrorBoundary';
 import { LocalizeGate } from './controls/localize-gate';
 import SizeTool from './tools/SizeTool';
+import LayoutPaddingControl from './tools/LayoutPaddingControl';
 import PositionTool from './tools/PositionTool';
 import MultiAlignmentControl from './tools/PositionTool/MultiAlignmentControl';
-import LayoutTool, { GridChildControls, detectLayoutFlags } from './tools/LayoutTool';
+import LayoutTool, { GridChildControls } from './tools/LayoutTool';
 import { resolveMultiSelectLayoutType } from './multi-select-layout';
 import ComponentPropsTool from './tools/ComponentPropsTool';
 import IconSetTool from './tools/IconSetTool';
@@ -423,12 +424,6 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     && !isTemplatedViewport
     && !isInputElement
     && (!isMultiSelect || multiSelectLayoutType !== null);
-  const selectedHasLayout = detectLayoutFlags(s).hasLayout;
-  // A frame has ONE canonical container-layout section. Inactive it is
-  // "Layout"; enabling flex/grid transforms that same section into "Auto layout".
-  // Leaf/text objects still use standalone Layout sizing.
-  const composeSizeIntoAutoLayout = isFrame && canShowContainerLayout && !isMultiSelect;
-
   const inspectorContextTitle = isMultiSelect
     ? `${multiSelectSelIds.length} selected`
     : isImageElement
@@ -669,8 +664,10 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
           <MultiAlignmentControl vpId={vpId} />
         ))}
 
-        {/* Dimensions */}
-        {!isOverlayNode && !composeSizeIntoAutoLayout && (
+        {/* Layout — the selected object's own box. This section is permanent:
+            Auto layout may change how children flow, but it never absorbs W/H,
+            sizing modes, padding, or Clip content. */}
+        {!isOverlayNode && (
           <>
             <SizeTool
               styles={s}
@@ -678,6 +675,9 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
               vpId={vpId}
               onUpdate={updateStyle}
               onUpdateMultiple={updateMultipleStyles}
+              paddingContent={(isFrame || isViewportFrame) ? (
+                <LayoutPaddingControl styles={s} onUpdateMultiple={updateMultipleStyles} />
+              ) : undefined}
             />
             <ToolDivider />
           </>
@@ -718,19 +718,7 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
             nodeId={node.id}
             onUpdate={updateStyle}
             onUpdateMultiple={updateMultipleStyles}
-            showPaddingWithoutLayout={isFrame || isViewportFrame}
             templateRoot={isTemplateRootEdit}
-            sizeContent={composeSizeIntoAutoLayout ? (
-              <SizeTool
-                bare
-                deferClipContent={selectedHasLayout}
-                styles={s}
-                nodeId={node.id}
-                vpId={vpId}
-                onUpdate={updateStyle}
-                onUpdateMultiple={updateMultipleStyles}
-              />
-            ) : undefined}
           />
         )}
         </div>
