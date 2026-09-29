@@ -940,7 +940,7 @@ export default function SettingsOverlay() {
               <div className="min-w-0 max-w-[300px]">
                 <div className="text-[11px] font-medium text-[var(--text-primary)]">Editor chrome</div>
                 <div className="mt-1 text-[10px] leading-4 text-[var(--text-tertiary)]">
-                  A tiny preview of the current field appearance. The screen stays decorative so the controls remain the focus.
+                  A miniature preview of the current field appearance.
                 </div>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-[9px] text-[var(--text-disabled)]">
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: activeAccent }} />
@@ -951,7 +951,7 @@ export default function SettingsOverlay() {
               </div>
 
               <div data-general-theme-display className="shrink-0 self-center sm:self-auto">
-                <div className="mx-auto w-[214px] max-w-full rounded-[14px] border border-[var(--border-light)] bg-[var(--bg-active)] p-[5px] shadow-[0_5px_16px_rgba(0,0,0,0.10)]">
+                <div className="mx-auto w-[196px] max-w-full rounded-[14px] border border-[var(--border-light)] bg-[var(--bg-active)] p-[5px] shadow-[0_5px_16px_rgba(0,0,0,0.10)]">
                   <div
                     className="relative aspect-[16/10] overflow-hidden rounded-[9px] border border-black/10 dark:border-white/10"
                     style={{ backgroundColor: activeNeutral }}
@@ -966,12 +966,12 @@ export default function SettingsOverlay() {
                     </div>
                     <div className="absolute bottom-0 left-[11%] right-[27%] top-[14%] bg-black/[0.025] dark:bg-white/[0.025]">
                       <div className="absolute left-[14%] top-[16%] h-[52%] w-[48%] rounded-[3px] border border-black/10 bg-white/[0.08] dark:border-white/10 dark:bg-black/[0.12]" />
-                      <div className="absolute left-[21%] top-[29%] h-1.5 w-[34%] rounded-full bg-black/20" />
+                      <div className="absolute left-[21%] top-[29%] h-1.5 w-[34%] rounded-full bg-black/20 dark:bg-white/22" />
                       <div className="absolute left-[21%] top-[40%] h-1 w-[25%] rounded-full bg-black/15 dark:bg-white/16" />
                       <div className="absolute left-[21%] top-[54%] h-3 w-[20%] rounded-[2px] opacity-80" style={{ backgroundColor: activeAccent }} />
                     </div>
                     <div className="absolute bottom-0 right-0 top-[14%] w-[27%] border-l border-black/10 bg-black/[0.055] dark:border-white/10 dark:bg-white/[0.045] p-2">
-                      <div className="h-1.5 w-[55%] rounded-full bg-black/20" />
+                      <div className="h-1.5 w-[55%] rounded-full bg-black/20 dark:bg-white/22" />
                       <div className="mt-2.5 h-1 w-[78%] rounded-full bg-black/14 dark:bg-white/16" />
                       <div className="mt-1.5 h-1 w-[64%] rounded-full bg-black/12 dark:bg-white/13" />
                       <div className="mt-3 h-4 w-full rounded-[3px] border border-black/10 bg-white/[0.07] dark:border-white/10 dark:bg-black/[0.10]" />
