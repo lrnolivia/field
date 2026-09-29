@@ -1047,8 +1047,68 @@ export function setActiveFilePath(path: string): void {
   _activeFilePath = path;
 }
 
+/**
+ * Hard document boundary used when FieldShell mounts a DIFFERENT project in
+ * the same browser document. The outgoing project is flushed/saved before its
+ * id changes; anything still pending here after that point is stale machinery
+ * and must be dropped rather than allowed to write into the new project.
+ */
+export function resetMutationQueueForProject(path: string, code: string): void {
+  const dropped = queue.length;
+  if (flushTimer !== null) {
+    cancelAnimationFrame(flushTimer);
+    flushTimer = null;
+  }
+  cancelPendingIdleFlush();
+  cancelDeferredFanOut();
+  _deferNextFanOut = false;
+
+  if (animPumpRaf !== null) {
+    cancelAnimationFrame(animPumpRaf);
+    animPumpRaf = null;
+  }
+  deferredAnim = [];
+
+  if (_globalsCssBumpTimer !== null) {
+    clearTimeout(_globalsCssBumpTimer);
+    _globalsCssBumpTimer = null;
+  }
+
+  queue.length = 0;
+  isProcessing = false;
+  currentCode = code;
+  _activeFilePath = path;
+  _forceRenderThisFlush = false;
+  _forceRenderOnNextFlush = true;
+
+  // These callbacks belong to the unmounted outgoing Canvas. The newly mounted
+  // App re-registers them through initMutationQueue.
+  onFlush = null;
+  onBeforeFlush = null;
+  onAfterFlush = null;
+  onError = null;
+
+  trace.action('mutation-queue:project-boundary-reset', {
+    path,
+    codeLength: code.length,
+    dropped,
+  });
+}
+
 /** ID of the pending idle callback (so we can cancel it) */
 let idleCallbackId: number | null = null;
+let idleCallbackKind: 'idle' | 'timeout' | null = null;
+
+function cancelPendingIdleFlush(): void {
+  if (idleCallbackId === null) return;
+  if (idleCallbackKind === 'idle' && typeof cancelIdleCallback !== 'undefined') {
+    cancelIdleCallback(idleCallbackId);
+  } else {
+    clearTimeout(idleCallbackId as unknown as ReturnType<typeof setTimeout>);
+  }
+  idleCallbackId = null;
+  idleCallbackKind = null;
+}
 
 /**
  * Force immediate processing AND cancel any pending async flush.
@@ -1109,13 +1169,10 @@ export function flushNow(scope?: QueueScope): void {
     flushTimer = null;
   }
 
-  // Cancel any pending idle callback (prevents stale code from overwriting new page)
-  if (idleCallbackId !== null) {
-    if (typeof cancelIdleCallback !== 'undefined') {
-      cancelIdleCallback(idleCallbackId);
-    }
-    idleCallbackId = null;
-  }
+  // Cancel any pending async fan-out (prevents stale code from overwriting new page).
+  // Safari falls back to setTimeout, so cancellation must remember which scheduler
+  // created the handle instead of assuming cancelIdleCallback exists.
+  cancelPendingIdleFlush();
 
   // EMPTY-QUEUE flush with a deferred drop fan-out still pending: APPLY it now,
   // synchronously, while `currentCode` still belongs to the file it was
@@ -2326,6 +2383,7 @@ function processQueue(): void {
   // deadlock while still letting the browser breathe between flushes.
   const doFlush = () => {
     idleCallbackId = null;
+    idleCallbackKind = null;
     onFlush?.(code);
     onAfterFlush?.();
     isProcessing = false;
@@ -2335,9 +2393,13 @@ function processQueue(): void {
   };
 
   if (typeof requestIdleCallback !== 'undefined') {
+    idleCallbackKind = 'idle';
     idleCallbackId = requestIdleCallback(doFlush, { timeout: 16 });
   } else {
-    setTimeout(doFlush, 0);
+    // Safari: keep the timeout handle cancellable too. An untracked timeout
+    // here could flush project A's code after project B had already mounted.
+    idleCallbackKind = 'timeout';
+    idleCallbackId = setTimeout(doFlush, 0) as unknown as number;
   }
 }
 

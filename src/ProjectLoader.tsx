@@ -12,6 +12,8 @@ import { backend } from './backend';
 import { getProjectId } from './backend/project-id';
 import { userAtom } from './backend/user-store';
 import { projectFS, syncBuiltInCodeComponents, createEmptyProject } from './code/project/project-fs';
+import { resetProjectSession } from './code/project/project-session';
+import { clearBridgeReadCaches } from '@/canvas/canvas-bridge';
 import { hydrateCameras } from './canvas/transform';
 import { activeFilePathAtom, getPageFromUrl, getCmsFromUrl } from './code/project/active-file-store';
 import { healMissingInstanceDataIds } from './code/parsing/heal-data-ids';
@@ -61,7 +63,6 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   // remix only runs once the user chooses a workspace (see below).
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
   const setUser = useSetAtom(userAtom);
-  const setActiveFile = useSetAtom(activeFilePathAtom);
   const openCmsEditor = useSetAtom(openCmsEditorAtom);
 
   useEffect(() => {
@@ -82,7 +83,12 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
         window.location.pathname.split('/').filter(Boolean).includes('noauth');
       if (isNoAuthRoute) {
         trace.action('project-loader:noauth-route');
-        projectFS.loadSnapshot(createEmptyProject());
+        const emptyFiles = createEmptyProject();
+        const envelopeError = projectFS.fromEnvelope({
+          format: 'revyme-v1',
+          files: Object.fromEntries(emptyFiles),
+        });
+        if (envelopeError) throw new Error(envelopeError);
         syncBuiltInCodeComponents(projectFS);
         // Legacy i18n/{locale}.json text overrides → messages/*.json (one-shot,
         // idempotent — localization overhaul Phase 5).
@@ -103,6 +109,11 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
         try { migrateOutOfFlowSiblingOrders(); } catch (err) { trace.error('out-of-flow-order-migration-failed', err); }
         try { ensureIntlScaffold(); } catch (err) { trace.error('intl-scaffold-failed', err); }
         setUser(null);
+        const bootFile = 'app/page.client.tsx';
+        const bootCode = projectFS.readFile(bootFile) ?? '';
+        resetProjectSession(bootFile, bootCode);
+        clearBridgeReadCaches();
+        hydrateCameras();
         // Expose the dev introspection hook for E2E tests even in
         // noauth mode — without this, tests that need to peek at
         // projectFS / nodes get nothing back. Same shape as the
@@ -261,6 +272,7 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
         backend.getWebsiteName(id),
         backend.getWebsiteClosedSource(id),
       ]);
+      if (cancelled) return;
       trace.action('project-loader:load', { id, found: !!data, role, dbName, closedSource });
       setViewerMode(role === 'viewer');
       // Closed-source remix: the design is fully editable but the template
@@ -277,15 +289,15 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       // renders immediately, the indicator pops in when this resolves.
       void (async () => {
         const workspaceId = await backend.getWebsiteWorkspaceId(id);
+        if (cancelled) return;
         if (!workspaceId) {
           setCredits(null);
           return;
         }
         const balance = await backend.getCredits(workspaceId);
+        if (cancelled) return;
         setCredits(balance === null ? null : { balance, workspaceId });
       })();
-
-      if (cancelled) return;
 
       // 4. Hydrate ProjectFS.
       //    - Saved project with files → load that snapshot.
@@ -294,24 +306,22 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       //      so the user sees a blank single-viewport page instead of
       //      whatever the previous project (now stale) left in projectFS.
       const fileCount = data?.files ? Object.keys(data.files).length : 0;
+      const projectEnvelope = fileCount > 0
+        ? data!
+        : {
+            format: 'revyme-v1' as const,
+            files: Object.fromEntries(createEmptyProject()),
+          };
+      const envelopeError = projectFS.fromEnvelope(projectEnvelope);
+      if (envelopeError) throw new Error(envelopeError);
+
       if (fileCount > 0) {
-        projectFS.loadSnapshot(new Map(Object.entries(data!.files)));
-        trace.action('project-loader:snapshot-loaded', { fileCount });
-        // Restore branches when the envelope carries them (v2) and land on
-        // the branch the editor was last sitting on. A files-only envelope
-        // behaves exactly as before. Never a throw: a corrupt branch record
-        // must not brick the project — main is already loaded above.
-        try {
-          const raw = data as { branches?: unknown; activeBranchId?: unknown } | null | undefined;
-          if (raw && typeof raw === 'object' && raw.branches) {
-            projectFS.hydrateBranches(raw.branches, raw.activeBranchId);
-            trace.action('project-loader:branches-loaded', { branches: projectFS.listBranches().length - 1, active: projectFS.getActiveBranchId() });
-          }
-        } catch (err) {
-          trace.error('project-loader:branches-hydrate-failed', { error: String(err) });
-        }
+        trace.action('project-loader:snapshot-loaded', {
+          fileCount,
+          branches: projectFS.listBranches().length - 1,
+          active: projectFS.getActiveBranchId(),
+        });
       } else {
-        projectFS.loadSnapshot(createEmptyProject());
         trace.action('project-loader:seeded-empty', { fileCount: projectFS.listFiles().length });
         // Brand-new cloud website (dashboard creates rows with zero files):
         // arm the "start from a template" prompt so the user can begin from
@@ -346,11 +356,6 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
         try { migrateOutOfFlowSiblingOrders(); } catch (err) { trace.error('out-of-flow-order-migration-failed', err); }
         try { ensureIntlScaffold(); } catch (err) { trace.error('intl-scaffold-failed', err); }
 
-      // 4c. Restore each file's saved camera (pan/zoom) from `_meta/page-camera.json`
-      // into the in-memory cameraStash, and apply the active file's camera on the
-      // first render — so a reload lands where you left it.
-      hydrateCameras();
-
       // Freshly remixed: ask which workspace the copy should live in, now that
       // the real site is open behind the modal. Strip the flag first so a
       // refresh doesn't re-ask.
@@ -366,9 +371,11 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       // both halves of the home pair so a slug param that resolves to
       // the bare home doesn't trigger a redundant setActiveFile.
       const pageFromUrl = getPageFromUrl();
-      if (pageFromUrl !== 'app/page.client.tsx' && pageFromUrl !== 'app/page.tsx' && projectFS.exists(pageFromUrl)) {
-        setActiveFile(pageFromUrl);
-        trace.action('project-loader:restore-page', { page: pageFromUrl });
+      const bootFile = (pageFromUrl !== 'app/page.client.tsx' && pageFromUrl !== 'app/page.tsx' && projectFS.exists(pageFromUrl))
+        ? pageFromUrl
+        : 'app/page.client.tsx';
+      if (bootFile !== 'app/page.client.tsx') {
+        trace.action('project-loader:restore-page', { page: bootFile });
       }
 
       // Self-heal missing instance data-ids on the BOOT-active page — the
@@ -377,16 +384,21 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       // silently no-ops (drag-out reverts on the next parse). Direct FS
       // write is safe here: the mutation queue initializes AFTER load with
       // this file's (healed) content.
-      const bootFile = (pageFromUrl !== 'app/page.client.tsx' && pageFromUrl !== 'app/page.tsx' && projectFS.exists(pageFromUrl))
-        ? pageFromUrl : 'app/page.client.tsx';
-      const bootCode = projectFS.readFile(bootFile);
-      if (bootCode) {
-        const healedBoot = healMissingInstanceDataIds(bootCode);
-        if (healedBoot.code !== bootCode) {
+      const bootCodeBeforeHeal = projectFS.readFile(bootFile);
+      if (bootCodeBeforeHeal) {
+        const healedBoot = healMissingInstanceDataIds(bootCodeBeforeHeal);
+        if (healedBoot.code !== bootCodeBeforeHeal) {
           projectFS.writeFile(bootFile, healedBoot.code);
           trace.action('project-loader:boot-heal-data-ids', { file: bootFile, healed: healedBoot.healed, strippedJunk: healedBoot.strippedJunk });
         }
       }
+
+      const bootCode = projectFS.readFile(bootFile) ?? '';
+      resetProjectSession(bootFile, bootCode);
+      clearBridgeReadCaches();
+      // Cameras are project-scoped metadata. Hydrate only after the active file
+      // belongs to the new project so the first Canvas render uses its camera.
+      hydrateCameras();
 
       // 7. Restore CMS overlay from ?cms= URL param. Item/field set if present;
       //    the overlay's auto-clear timer drops the field highlight after a moment.
@@ -553,7 +565,7 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
     });
 
     return () => { cancelled = true; };
-  }, [setUser, setActiveFile, openCmsEditor]);
+  }, [setUser, openCmsEditor]);
 
   useEffect(() => {
     if (!ready || canvasPainted) return;
