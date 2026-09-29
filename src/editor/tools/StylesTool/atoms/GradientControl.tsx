@@ -1,69 +1,89 @@
-// GradientControl.tsx — Granular `background` (gradient) ToolAtom.
-//
-// Used by the variable-editor registry: when the user creates a Gradient
-// variable from the Fill submenu (or edits an existing one in the modal),
-// the modal mounts this atom in `variableDefault` mode so they get the full
-// GradientEditor — same UI as the Fill popup's Gradient tab.
-//
-// The atom binds to the `background` CSS property because that's how the
-// FillControl writes gradients (`background: linear-gradient(...)`). Image
-// fills bind to `backgroundImage` instead — see ImageControl for that.
-//
-// Stays minimal on purpose: editing the gradient via the modal updates a
-// buffer; the actual node application + overlay handling live in FillControl
-// where the original full-feature implementation belongs.
+// GradientControl.tsx — granular gradient ToolAtom using the universal PaintPicker shell.
 
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useAtomValue } from 'jotai';
 import { UnifiedControlProvider, useControlContext, ControlRow } from '../../../controls/unified';
 import { ControlActionRow, ColorSwatch } from '../../../controls';
 import GradientEditor from '../../../ui/GradientEditor';
-import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import AssetPresetGrid from '../../../ui/AssetPresetGrid';
+import ToolPopup, { useToolPopupOptional } from '../../../ui/ToolPopup';
+import PaintPickerShell, { type PaintPickerSurface, type PaintType } from '../../../ui/PaintPickerShell';
 import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
+import { presetTokensAtom } from '@/code/stores/preset-store';
+import { parseVarRef } from '@/shared/css-utils';
+import { resolveCssTokens } from '@/code/project/preset-ops';
 import type { AtomProps } from '../../../controls/unified/types';
 import { trace } from '@/shared/debug-trace';
 
-// Compact row: swatch + label, clicking opens the GradientEditor in a popup.
-// Same shape in every mode; only the label's `plain` flag flips.
+const GRADIENT_ONLY = new Set<PaintType>(['gradient']);
+
 function GradientAtom() {
   const { value, onChange } = useControlContext();
-  const { openPanel, panelPopup } = useEditorPanel('Gradient', () => (
-    <GradientEditor value={editorValue} onChange={onChange} hideOverlay />
-  ));
+  const parentPopup = useToolPopupOptional();
   const rowRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [surface, setSurface] = useState<PaintPickerSurface>('custom');
+  const tokens = useAtomValue(presetTokensAtom);
+  const gradientPresets = tokens.filter(token => token.category === 'gradient');
 
   const css = value || '';
-  const isGradient = /^(linear|radial|conic)-gradient/.test(css);
-  const editorValue = css || formatGradient(createDefaultGradient());
+  const presetName = css.startsWith('var(--') ? parseVarRef(css) || '' : '';
+  const editorValue = presetName
+    ? resolveCssTokens(css, gradientPresets)
+    : (css || formatGradient(createDefaultGradient()));
+  const isGradient = /gradient\s*\(/.test(editorValue);
 
-  const handleClick = () => {
-    trace.action('gradient-control:open', { hasValue: isGradient });
-    openPanel();
-  };
+  const preview = useMemo(() => ({ background: editorValue }), [editorValue]);
 
   return (
     <>
       <div ref={rowRef} className="w-full min-w-0">
-        <ControlActionRow onClick={handleClick}>
-          {isGradient ? (
-            <ColorSwatch style={{ background: css }} />
-          ) : (
-            <ColorSwatch className="bg-[var(--bg-hover)]" />
-          )}
-          <span className="text-xs text-[var(--text-primary)] truncate flex-1 text-left">
-            {isGradient ? 'Gradient' : 'Add gradient'}
-          </span>
+        <ControlActionRow onClick={() => { trace.action('gradient-control:open-universal-picker', { hasValue: isGradient }); setOpen(true); }}>
+          {isGradient ? <ColorSwatch style={preview} /> : <ColorSwatch className="bg-[var(--bg-hover)]" />}
+          <span className="text-xs text-[var(--text-primary)] truncate flex-1 text-left">{isGradient ? 'Gradient' : 'Add gradient'}</span>
         </ControlActionRow>
       </div>
-      {panelPopup(rowRef)}
+
+      <ToolPopup
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title="Gradient"
+        ariaLabel="Paint picker"
+        anchorRef={rowRef}
+        width={480}
+        hideHeader
+        showNestedHeaderWhenHidden
+        radius={14}
+        nested={!!parentPopup}
+        outsidePointerMode="close"
+      >
+        <PaintPickerShell
+          surface={surface}
+          onSurfaceChange={setSurface}
+          activeType="gradient"
+          onTypeChange={() => {}}
+          supportedTypes={GRADIENT_ONLY}
+          contextLabel="this gradient property"
+          onPlus={() => setSurface('libraries')}
+          onClose={() => setOpen(false)}
+        >
+          {surface === 'custom' ? (
+            <GradientEditor value={editorValue} onChange={onChange} hideOverlay canonicalFill />
+          ) : (
+            <AssetPresetGrid
+              presets={gradientPresets}
+              type="gradient"
+              activePresetName={presetName || undefined}
+              onApplyPreset={onChange}
+            />
+          )}
+        </PaintPickerShell>
+      </ToolPopup>
     </>
   );
 }
 
 export function GradientControl({ mode = 'direct', ...mp }: AtomProps) {
-  // Route through the SHARED ControlRow (same as the color/image atoms): the row's
-  // variable name + "Gradient" sub-line, the exact same value-column width as every
-  // other row, and the chevron / "Set Variable" menu on instance rows. ControlRow's
-  // `(plain || !isDirect) && !hoistItem` keeps it plain inside the Variable modal.
   return (
     <UnifiedControlProvider property="background" defaultValue="" mode={mode} {...mp}>
       <ControlRow label="Gradient"><GradientAtom /></ControlRow>

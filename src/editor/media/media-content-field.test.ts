@@ -39,6 +39,7 @@ describe('Content Media fields', () => {
     const image = field.slice(start, end);
 
     expect(image).toContain('onChange(picked)');
-    expect(image).toContain('CMS image fields');
+    expect(field).toContain('CMS image fields');
+    expect(image).toContain("source: 'media-context'");
   });
 });

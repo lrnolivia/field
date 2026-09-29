@@ -7,10 +7,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLivePreview } from '../../../hooks/useLivePreview';
 import { useAtomValue } from 'jotai';
 import { ControlLabel, ControlActionRow, ColorSwatch, PaintRow } from '../../../controls';
-import ToolSegmentedControl from '../../../controls/ToolSegmentedControl';
 import ToolPopup, { useToolPopupOptional, useToolPopup } from '../../../ui/ToolPopup';
 import ColorPicker from '../../../ui/ColorPicker';
 import GradientEditor from '../../../ui/GradientEditor';
+import PaintPickerShell, { type PaintPickerSurface, type PaintType } from '../../../ui/PaintPickerShell';
+import AssetPresetGrid from '../../../ui/AssetPresetGrid';
+import { CreatePresetPopupBody } from '../../../ui/CreatePresetPopup';
 import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
 import ColorPresetEditPanel from '../../../ui/ColorPresetEditPanel';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
@@ -32,6 +34,7 @@ import LocaleBoundPill, { useLocaleStyleOverrides } from '@/editor/controls/Loca
 import { parseVarRef } from '@/shared/css-utils';
 
 type ColorTab = 'solid' | 'gradient';
+const TEXT_COLOR_PAINT_TYPES = new Set<PaintType>(['solid', 'gradient']);
 
 /** Detect if current element has gradient text applied */
 function detectTab(styles: Record<string, string>): ColorTab {
@@ -147,7 +150,7 @@ const GRADIENT_CLEAR: Record<string, string> = {
 };
 
 /** Popup content: Solid/Gradient tabs + picker with color presets */
-function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit, onGradientChange, onGradientLiveChange, onClearGradient, currentValue, initialTab, gradientContext, gradientCSS: gradientCSSProp }: {
+function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit, onGradientChange, onGradientLiveChange, onClearGradient, currentValue, initialTab, gradientContext, gradientCSS: gradientCSSProp, onClose }: {
   styles: Record<string, string>;
   isEditing: boolean;
   /** Tab seeded from the live SELECTION state (edit mode: a gradient mark on
@@ -173,10 +176,13 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
    *  reference (e.g. `var(--color-brand-light)`) so the matching preset row
    *  highlights and the SV/hue picker lands on the resolved hex. */
   currentValue: string;
+  onClose?: () => void;
 }) {
   const [tab, setTab] = useState<ColorTab>(() => initialTab ?? detectTab(styles));
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter(t => t.category === 'color');
+  const gradientPresets = allTokens.filter(t => t.category === 'gradient');
+  const [surface, setSurface] = useState<PaintPickerSurface>('custom');
   const popupCtx = useToolPopup();
 
   // LIVE selection sync (edit mode): pushed panels get FROZEN props, so the
@@ -267,21 +273,28 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
   const resolvedSolid = rawSolid.startsWith('var(') ? (resolveTokenValue(rawSolid, allTokens) ?? rawSolid) : rawSolid;
   const solidColor = isFullyTransparentColor(resolvedSolid) ? '#ffffff' : resolvedSolid;
 
-  return (
-    <div className="flex flex-col gap-2">
-      <ToolSegmentedControl
-        value={tab}
-        onChange={handleTabChange}
-        options={[
-          { value: 'solid', label: 'Solid' },
-          { value: 'gradient', label: 'Gradient' },
-        ]}
-        size="sm"
-      />
+  const activeGradientPreset = gradientValue.startsWith('var(--') ? parseVarRef(gradientValue) || '' : '';
+  const resolvedGradient = activeGradientPreset
+    ? (gradientPresets.find(token => token.name === activeGradientPreset)?.value || gradientValue)
+    : gradientValue;
 
+  return (
+    <PaintPickerShell
+      surface={surface}
+      onSurfaceChange={setSurface}
+      activeType={tab}
+      onTypeChange={(type) => handleTabChange(type === 'gradient' ? 'gradient' : 'solid')}
+      supportedTypes={TEXT_COLOR_PAINT_TYPES}
+      contextLabel="text color"
+      onPlus={() => setSurface('libraries')}
+      onClose={onClose ?? (popupCtx.canGoBack ? popupCtx.popPanel : undefined)}
+    >
       {tab === 'solid' && (
         <ColorPicker
+          embeddedBody
           value={solidColor}
+          libraryOnly={surface === 'libraries'}
+          showPresets={surface === 'libraries'}
           onChange={onColorChange}
           onChangeEnd={onColorCommit}
           showAlpha
@@ -293,15 +306,35 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
         />
       )}
 
-      {tab === 'gradient' && (
+      {tab === 'gradient' && surface === 'libraries' && (
+        <AssetPresetGrid
+          presets={gradientPresets}
+          type="gradient"
+          activePresetName={activeGradientPreset || undefined}
+          onApplyPreset={onGradientChange}
+          onCreatePreset={() => {
+            popupCtx.pushPanel('New Gradient Preset', (
+              <CreatePresetPopupBody
+                category="gradient"
+                initialValue={resolvedGradient || 'linear-gradient(180deg, #000000 0%, #ffffff 100%)'}
+                onClose={() => popupCtx.popPanel()}
+                onApply={onGradientChange}
+              />
+            ));
+          }}
+        />
+      )}
+
+      {tab === 'gradient' && surface === 'custom' && (
         <GradientEditor
-          value={gradientValue}
+          value={resolvedGradient}
+          canonicalFill
           onChange={onGradientChange}
           onLiveChange={onGradientLiveChange}
           hideOverlay={isEditing}
         />
       )}
-    </div>
+    </PaintPickerShell>
   );
 }
 
@@ -511,33 +544,8 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   }, [text, updateMultipleStyles, nodeHasGradientText, flattenSpanPaint, clearLiveSpanRule]);
 
   const handleClick = () => {
-    if (popupCtx) {
-      // Seed the tab from the live SELECTION (edit mode), not just the node
-      // styles: a selected solid run inside gradient text opens on Solid with
-      // the run's color; an unmarked selection inside gradient text opens on
-      // Gradient — same sync contract as the other text controls.
-      const nodeFallbackTab: ColorTab = nodeHasGradientText ? 'gradient' : 'solid';
-      const selectionTab: ColorTab = text.isEditing
-        ? (tiptapGradient ? 'gradient' : (selectionSolid ? 'solid' : nodeFallbackTab))
-        : nodeFallbackTab;
-      popupCtx.pushPanel('Color', (
-        <TextColorPopupContent
-          styles={styles}
-          isEditing={text.isEditing}
-          initialTab={selectionTab}
-          gradientContext={nodeHasGradientText}
-          gradientCSS={gradientCSS}
-          onColorChange={handleColorChange}
-          onColorCommit={handleColorCommit}
-          onGradientChange={handleGradientChange}
-          onGradientLiveChange={handleGradientLive}
-          onClearGradient={handleClearGradient}
-          currentValue={solidPaint.base}
-        />
-      ));
-    } else {
-      setIsOpen(true);
-    }
+    trace.action('text-color:open-universal-picker', { nodeId: node?.id });
+    setIsOpen(true);
   };
 
   // NODE-selected (not editing) with gradient + solid runs mixed in one text:
@@ -665,8 +673,19 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
           />
         </div>
       </div>
-      {!popupCtx && (
-        <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title="Color" anchorRef={rowRef}>
+      <ToolPopup
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Color"
+        ariaLabel="Paint picker"
+        anchorRef={rowRef}
+        width={480}
+        hideHeader
+        showNestedHeaderWhenHidden
+        radius={14}
+        nested={!!popupCtx}
+        outsidePointerMode="close"
+      >
           <TextColorPopupContent
             styles={styles}
             isEditing={false}
@@ -676,9 +695,9 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
             onGradientLiveChange={handleGradientLive}
             onClearGradient={handleClearGradient}
             currentValue={solidPaint.base}
+            onClose={() => setIsOpen(false)}
           />
         </ToolPopup>
-      )}
     </>
   );
 }

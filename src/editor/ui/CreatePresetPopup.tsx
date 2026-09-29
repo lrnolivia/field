@@ -93,13 +93,14 @@ function formatShorthand([t, r, b, l]: [string, string, string, string]): string
 
 // ─── Inner editor switch ────────────────────────────────────────────────────
 
-function PresetValueEditor({ category, value, onChange }: {
+function PresetValueEditor({ category, value, onChange, onClose }: {
   category: PresetToken['category'];
   value: string;
   onChange: (v: string) => void;
+  onClose?: () => void;
 }) {
   if (category === 'color') {
-    return <ColorPicker value={value || '#000000'} onChange={onChange} showAlpha />;
+    return <ColorPicker value={value || '#000000'} onChange={onChange} showAlpha onClose={onClose} capabilityLabel="color preset" />;
   }
   if (category === 'gradient') {
     return <GradientEditor value={value || CATEGORY_DEFAULTS.gradient} onChange={onChange} />;
@@ -230,7 +231,16 @@ export default function CreatePresetPopup({ isOpen, onClose, category, anchorRef
   }
 
   return (
-    <ToolPopup isOpen={isOpen} onClose={onClose} title={CATEGORY_TITLES[category]} anchorRef={anchorRef} width={260}>
+    <ToolPopup
+      isOpen={isOpen}
+      onClose={onClose}
+      title={CATEGORY_TITLES[category]}
+      anchorRef={anchorRef}
+      width={category === 'color' || category === 'gradient' ? 480 : 260}
+      hideHeader={category === 'color'}
+      showNestedHeaderWhenHidden={category === 'color'}
+      radius={category === 'color' ? 14 : undefined}
+    >
       <CreatePresetPopupBody
         category={category}
         initialValue={initialValue}
@@ -288,7 +298,7 @@ export function CreatePresetPopupBody({ category, initialValue, onClose, onApply
         className="w-full bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] focus:border-[var(--border-focus)] cut-corners cut-border focus:[--cut-border-color:var(--border-focus)] px-2.5 py-2 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-disabled)]"
       />
 
-      <PresetValueEditor category={category} value={value} onChange={setValue} />
+      <PresetValueEditor category={category} value={value} onChange={setValue} onClose={onClose} />
 
       <button
         onClick={handleSave}
