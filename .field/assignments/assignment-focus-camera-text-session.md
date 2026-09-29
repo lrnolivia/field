@@ -3,7 +3,7 @@ field_assignment: 1
 id: focus-camera-text-session
 status: active
 branch: field/focus-camera-text-session
-pr: null
+pr: 60
 base: edc43eb951f5077e5e0ea58904f7ab95122e81df
 kit: 2026-09-26.4
 type: plan-to-action
@@ -161,3 +161,35 @@ User conversation on 2026-09-28/29: text zoom QOL planning, inherited Shift+ cam
 - do not push implementation directly to main
 - update this assignment, its mailbox, and QA record with exact branch/PR/SHA evidence
 - final merge only after exact-sha validation and the user's visual QA
+
+## Batch 1 implementation checkpoint — 2026-09-29
+
+Implementation branch head under visual QA: `63f514b464c2e83f19f3c966c18ea08252b12dd3`.
+Draft PR: #60.
+
+Changed implementation paths:
+- `src/canvas/transform/CameraCommands.ts`
+- `src/canvas/transform/CameraCommands.test.ts`
+- `src/canvas/text-edit/text-focus-camera.ts`
+- `src/canvas/text-edit/text-focus-camera.test.ts`
+
+Batch 1 result:
+- added canonical `focusScreenRect(..., profile)` camera framing in `CameraCommands`
+- existing layer/canvas double-click callers remain routed through `panToNode(..., true)`
+- Inspector Zoom remains a UI surface over the established Shift+ camera commands
+- `TextFocusCamera` now delegates initial framing to the canonical camera primitive while retaining snapshot/restore, retry, and interruption semantics
+- `CameraAnimator` was not changed; the established D3 focus animation and transient iframe blur chokepoint remain intact
+- Shift+1/2/3 and zoom in/out callers were not rewritten
+- source trace corrected one earlier assumption: the Selection Colors crosshair/target action is locate-only; its contract intentionally does not move selection or camera, so it remains outside this camera assignment
+
+Exact-head Cloudflare evidence:
+- Workers Build: `ef426e06-80a8-437f-988a-f5f4ecfd56e4`
+- commit: `63f514b464c2e83f19f3c966c18ea08252b12dd3`
+- branch: `field/focus-camera-text-session`
+- source: push_event
+- build command: `npm run build:all`
+- deploy command: `npx wrangler preview`
+- outcome: success
+- branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+
+Focused Vitest files were added/updated, but no repository test executor is exposed in this Contract Worker chat and GitHub has no check runs for this repository. Do not mark those tests as executed. User visual QA is pending and is the Batch 1 stop gate.
