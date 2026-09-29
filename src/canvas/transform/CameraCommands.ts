@@ -253,6 +253,192 @@ export function zoomToFitSelection(
   fitBoundsInView(bounds, FIT_PADDING, instant ? 0 : ANIM_ZOOM_TO_FIT);
 }
 
+// ─── Focus Commands ─────────────────────────────────────────────────────────
+
+/**
+ * Canonical camera framing for an already-resolved screen-space rect.
+ *
+ * Callers keep ownership of semantic target resolution (selection, layer, text
+ * edit, viewport replica), while this function owns the camera mechanics so
+ * every focus surface shares the same available-area math and animation path.
+ */
+export type FocusCameraProfile = 'center' | 'quick' | 'text-edit';
+
+export function focusScreenRect(screenRect: DOMRect, profile: FocusCameraProfile = 'quick'): void {
+  const t = transformManager.getTransform();
+  const c = screenRectToCanvas(screenRect, t);
+  const canvasCenterX = c.left + c.width / 2;
+  const canvasCenterY = c.top + c.height / 2;
+  const area = profile === 'center' ? getAvailableArea() : getPaddedCanvasFocusArea();
+
+  let targetScale = t.scale;
+  let duration = ANIM_PAN_TO_NODE;
+  let focus = false;
+
+  if (profile === 'quick') {
+    // Layer/canvas double-click: bring the target to a useful editing size from
+    // any starting zoom without repeatedly ratcheting on subsequent clicks.
+    const fitScale = Math.min(
+      2.5,
+      (area.width * 0.72) / Math.max(1, c.width),
+      (area.height * 0.72) / Math.max(1, c.height),
+    );
+    targetScale = Math.max(MIN_SCALE, Math.min(fitScale, Math.max(0.65, t.scale * 1.55)));
+    const zoomRatio = Math.max(targetScale / t.scale, t.scale / targetScale);
+    duration = zoomRatio > 4 ? 253 : 180;
+    focus = true;
+  } else if (profile === 'text-edit') {
+    // Text edit: preserve the existing readable-focus behavior. Entering text
+    // edit may zoom in, but it never starts the session by zooming out.
+    const maxForWidth = (area.width * 0.82) / Math.max(1, c.width);
+    const maxForHeight = (area.height * 0.76) / Math.max(1, c.height);
+    targetScale = Math.max(t.scale, Math.min(3.5, t.scale * 2.25, maxForWidth, maxForHeight));
+    duration = 360;
+    focus = true;
+  }
+
+  const x = area.centerX - canvasCenterX * targetScale;
+  const y = area.centerY - canvasCenterY * targetScale;
+  animateCanvasTo(x, y, targetScale, duration, { focus });
+}
+
+/**
+ * Keep a live screen-space rect inside the text-edit comfort envelope.
+ *
+ * This is intentionally asymmetric: it may pan and it may zoom OUT, but it
+ * never zooms in. The wider trigger envelope and tighter settle envelope form
+ * a dead-zone, so line-wrap changes do not make the camera breathe.
+ * Returns true when a camera adjustment was scheduled.
+ */
+export function followScreenRect(screenRect: DOMRect, minScale: number = MIN_SCALE): boolean {
+  const t = transformManager.getTransform();
+  const area = getPaddedCanvasFocusArea();
+  const areaLeft = area.centerX - area.width / 2;
+  const areaTop = area.centerY - area.height / 2;
+
+  // Trigger only near the viewport edge. Once triggered, settle farther inside
+  // the view to buy enough slack that the next line/word does not immediately
+  // retrigger another camera move.
+  const triggerW = area.width * 0.90;
+  const triggerH = area.height * 0.86;
+  const triggerLeft = area.centerX - triggerW / 2;
+  const triggerRight = area.centerX + triggerW / 2;
+  const triggerTop = area.centerY - triggerH / 2;
+  const triggerBottom = area.centerY + triggerH / 2;
+
+  const right = screenRect.left + screenRect.width;
+  const bottom = screenRect.top + screenRect.height;
+  const breaches =
+    screenRect.left < triggerLeft || right > triggerRight ||
+    screenRect.top < triggerTop || bottom > triggerBottom ||
+    screenRect.width > triggerW || screenRect.height > triggerH;
+  if (!breaches) return false;
+
+  const settleW = area.width * 0.82;
+  const settleH = area.height * 0.76;
+  const ratio = Math.min(
+    1,
+    settleW / Math.max(1, screenRect.width),
+    settleH / Math.max(1, screenRect.height),
+  );
+  // Never zoom in while typing. A caller may provide a session floor (text
+  // editing uses the user's pre-edit scale) so whole-object fitting can hand
+  // off to caret-follow instead of shrinking forever.
+  const floorScale = Math.max(MIN_SCALE, Math.min(t.scale, minScale));
+  const targetScale = Math.max(floorScale, Math.min(t.scale, t.scale * ratio));
+
+  const c = screenRectToCanvas(screenRect, t);
+  const canvasCenterX = c.left + c.width / 2;
+  const canvasCenterY = c.top + c.height / 2;
+  const screenCenterX = screenRect.left + screenRect.width / 2;
+  const screenCenterY = screenRect.top + screenRect.height / 2;
+
+  // First preserve the target's apparent screen position while changing scale.
+  // Then apply only the minimum pan required to bring it into the settle zone.
+  let x = screenCenterX - canvasCenterX * targetScale;
+  let y = screenCenterY - canvasCenterY * targetScale;
+
+  const settleLeft = area.centerX - settleW / 2;
+  const settleRight = area.centerX + settleW / 2;
+  const settleTop = area.centerY - settleH / 2;
+  const settleBottom = area.centerY + settleH / 2;
+
+  let projectedLeft = c.left * targetScale + x;
+  let projectedRight = (c.left + c.width) * targetScale + x;
+  let projectedTop = c.top * targetScale + y;
+  let projectedBottom = (c.top + c.height) * targetScale + y;
+  const projectedW = projectedRight - projectedLeft;
+  const projectedH = projectedBottom - projectedTop;
+
+  if (projectedW <= settleW) {
+    if (projectedLeft < settleLeft) x += settleLeft - projectedLeft;
+    else if (projectedRight > settleRight) x -= projectedRight - settleRight;
+  } else {
+    x += area.centerX - (projectedLeft + projectedRight) / 2;
+  }
+  if (projectedH <= settleH) {
+    if (projectedTop < settleTop) y += settleTop - projectedTop;
+    else if (projectedBottom > settleBottom) y -= projectedBottom - settleBottom;
+  } else {
+    y += area.centerY - (projectedTop + projectedBottom) / 2;
+  }
+
+  // Avoid rescheduling an effectively identical transform when huge text has
+  // already reached the global minimum zoom. Batch 3 will add caret-follow for
+  // that oversized-text case.
+  if (
+    Math.abs(targetScale - t.scale) < 0.0005 &&
+    Math.abs(x - t.x) < 0.5 &&
+    Math.abs(y - t.y) < 0.5
+  ) return false;
+
+  trace.fn('camera.followScreenRect', {
+    fromScale: t.scale, toScale: targetScale,
+    width: screenRect.width, height: screenRect.height,
+    areaLeft, areaTop,
+  });
+  // Keep continuous typing quiet: same D3 camera motion, but no repeated focus
+  // blur. The blur remains on deliberate focus entry / restore.
+  animateCanvasTo(x, y, targetScale, 220);
+  return true;
+}
+
+/**
+ * Keep a live caret comfortably visible without changing zoom. Used after the
+ * edited text has grown beyond the user's pre-edit composition scale, where
+ * shrinking the whole object further would make editing less useful.
+ */
+export function followCaretScreenRect(caretRect: DOMRect): boolean {
+  const t = transformManager.getTransform();
+  const area = getPaddedCanvasFocusArea();
+  const left = area.centerX - area.width / 2;
+  const top = area.centerY - area.height / 2;
+  const right = left + area.width;
+  const bottom = top + area.height;
+
+  // Loose trigger + tighter settle region gives IDE-like caret scrolling: the
+  // camera stays still for ordinary cursor movement, then buys meaningful room
+  // in one quiet pan when the caret approaches an edge.
+  const triggerLeft = left + area.width * 0.10;
+  const triggerRight = right - area.width * 0.10;
+  const triggerTop = top + area.height * 0.12;
+  const triggerBottom = bottom - area.height * 0.12;
+  const caretRight = caretRect.left + caretRect.width;
+  const caretBottom = caretRect.top + caretRect.height;
+
+  let dx = 0;
+  let dy = 0;
+  if (caretRect.left < triggerLeft) dx = left + area.width * 0.20 - caretRect.left;
+  else if (caretRight > triggerRight) dx = right - area.width * 0.20 - caretRight;
+  if (caretRect.top < triggerTop) dy = top + area.height * 0.24 - caretRect.top;
+  else if (caretBottom > triggerBottom) dy = bottom - area.height * 0.26 - caretBottom;
+
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return false;
+  trace.fn('camera.followCaretScreenRect', { dx, dy, scale: t.scale });
+  animateCanvasTo(t.x + dx, t.y + dy, t.scale, 180);
+  return true;
+}
+
 // ─── Pan Commands ───────────────────────────────────────────────────────────
 
 /**
@@ -287,28 +473,7 @@ export function panToNode(_contentEl: HTMLElement, nodeId: string, quickFocus = 
   const screenRect = bridge.getRect(resolvedNodeId, resolvedPrefix!);
   if (!screenRect) return;
 
-  const t = transformManager.getTransform();
-  const c = screenRectToCanvas(screenRect, t);
-  const canvasCenterX = c.left + c.width / 2;
-  const canvasCenterY = c.top + c.height / 2;
-
-  const { centerX, centerY, width, height } = quickFocus ? getPaddedCanvasFocusArea() : getAvailableArea();
-  // Double-click should bring the item into a useful editing size from any
-  // starting zoom. A fixed 1.28× step barely moved a layer when the canvas
-  // was zoomed far out, and repeated double-clicks kept ratcheting forever.
-  const fitScale = Math.min(
-    2.5,
-    (width * 0.72) / Math.max(1, c.width),
-    (height * 0.72) / Math.max(1, c.height),
-  );
-  const targetScale = quickFocus
-    ? Math.max(MIN_SCALE, Math.min(fitScale, Math.max(0.65, t.scale * 1.55)))
-    : t.scale;
-  const x = centerX - canvasCenterX * targetScale;
-  const y = centerY - canvasCenterY * targetScale;
-
-  const zoomRatio = Math.max(targetScale / t.scale, t.scale / targetScale);
-  animateCanvasTo(x, y, targetScale, quickFocus ? (zoomRatio > 4 ? 253 : 180) : ANIM_PAN_TO_NODE, { focus: quickFocus });
+  focusScreenRect(screenRect, quickFocus ? 'quick' : 'center');
 }
 
 /**

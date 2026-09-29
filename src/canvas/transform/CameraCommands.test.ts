@@ -12,6 +12,13 @@ import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
 
+const { animateCanvasTo, moveCanvasTo } = vi.hoisted(() => ({
+  animateCanvasTo: vi.fn(),
+  moveCanvasTo: vi.fn(),
+}));
+
+vi.mock('./CameraAnimator', () => ({ animateCanvasTo, moveCanvasTo }));
+
 // Controllable bridge: rectCache holds the keys (`vpPrefix:dataId`), getRect
 // returns the matching rect. Tests populate both before calling getNodeBounds.
 const rectCache = new Map<string, DOMRect>();
@@ -41,7 +48,7 @@ vi.mock('@/canvas/drag/helpers/coords', () => ({
     ({ left: r.left, top: r.top, width: r.width, height: r.height }),
 }));
 
-import { getNodeBounds, getContentBounds } from './CameraCommands';
+import { focusScreenRect, followScreenRect, followCaretScreenRect, getNodeBounds, getContentBounds } from './CameraCommands';
 
 const ROOT = 'frame-root';
 
@@ -125,6 +132,106 @@ describe('getNodeBounds — variant-tile scoping', () => {
     rects.set(`|${ROOT}`, rect(0, 1440));
     getDefaultStore().set(interactingViewportIdAtom, 'variant-9'); // no rect at this prefix
     expect(getNodeBounds(null as any, [ROOT])).toEqual({ minX: 0, minY: 0, maxX: 1440, maxY: 148 });
+  });
+});
+
+
+
+describe('focusScreenRect — canonical camera focus mechanics', () => {
+  beforeEach(() => {
+    animateCanvasTo.mockClear();
+    moveCanvasTo.mockClear();
+  });
+
+  it('preserves quick-focus motion for layer/canvas double-click', () => {
+    focusScreenRect(rect(100, 80), 'quick');
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBeGreaterThanOrEqual(0.65);
+    expect(scale).toBeLessThanOrEqual(2.5);
+    expect(duration).toBe(180);
+    expect(options).toEqual({ focus: true });
+  });
+
+  it('preserves current scale for center-only focus', () => {
+    focusScreenRect(rect(100, 80), 'center');
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, , options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(1);
+    expect(options).toEqual({ focus: false });
+  });
+
+  it('uses the text-edit profile without zooming out on entry', () => {
+    focusScreenRect(rect(100, 80), 'text-edit');
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBeGreaterThanOrEqual(1);
+    expect(duration).toBe(360);
+    expect(options).toEqual({ focus: true });
+  });
+});
+
+describe('followScreenRect — adaptive text focus', () => {
+  beforeEach(() => {
+    animateCanvasTo.mockClear();
+    moveCanvasTo.mockClear();
+  });
+
+  const liveRect = (left: number, top: number, width: number, height: number) => ({
+    left, top, width, height, right: left + width, bottom: top + height,
+    x: left, y: top, toJSON() {},
+  } as DOMRect);
+
+  it('does nothing while text remains inside the comfort envelope', () => {
+    expect(followScreenRect(liveRect(430, 260, 120, 44))).toBe(false);
+    expect(animateCanvasTo).not.toHaveBeenCalled();
+  });
+
+  it('pulls back when growing text breaches the envelope and never zooms in', () => {
+    expect(followScreenRect(liveRect(350, 220, 560, 180))).toBe(true);
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBeLessThanOrEqual(1);
+    expect(duration).toBe(220);
+    expect(options).toBeUndefined();
+  });
+
+  it('can pan a displaced text box without increasing scale', () => {
+    expect(followScreenRect(liveRect(120, 280, 120, 44))).toBe(true);
+    const [, , scale] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(1);
+  });
+
+  it('respects a session scale floor without ever zooming back in', () => {
+    expect(followScreenRect(liveRect(350, 160, 900, 700), 0.8)).toBe(true);
+    const [, , scale] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(0.8);
+  });
+});
+
+describe('followCaretScreenRect — oversized text caret follow', () => {
+  beforeEach(() => {
+    animateCanvasTo.mockClear();
+    moveCanvasTo.mockClear();
+  });
+
+  const caret = (left: number, top: number, width = 2, height = 20) => ({
+    left, top, width, height, right: left + width, bottom: top + height,
+    x: left, y: top, toJSON() {},
+  } as DOMRect);
+
+  it('stays still while the caret remains comfortably visible', () => {
+    expect(followCaretScreenRect(caret(520, 340))).toBe(false);
+    expect(animateCanvasTo).not.toHaveBeenCalled();
+  });
+
+  it('pans an edge-near caret inward without changing zoom', () => {
+    expect(followCaretScreenRect(caret(150, 700))).toBe(true);
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(1);
+    expect(duration).toBe(180);
+    expect(options).toBeUndefined();
   });
 });
 
