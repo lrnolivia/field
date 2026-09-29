@@ -1401,7 +1401,7 @@ export default function ComponentPropsTool() {
     <div className="px-2.5 pt-1.5">
       {/* Component identity — same compact card language as Inspector categories. */}
       <div className="mb-1 flex items-center gap-2 py-2">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]">
           {hasComponentControls ? (
             <svg width="13" height="13" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
           ) : (
@@ -2117,7 +2117,7 @@ export default function ComponentPropsTool() {
         data-inspector-section-title="Component"
         data-inspector-section-card
         data-inspector-section-kind="content"
-        className={`mx-2 my-0.5 overflow-hidden rounded-[10px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
+        className={`mx-2 my-0.5 overflow-hidden rounded-[8px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
         style={revealFlash ? {
           backgroundColor: 'color-mix(in srgb, var(--accent) 8%, var(--bg-surface))',
         } : undefined}
@@ -2323,7 +2323,7 @@ export default function ComponentPropsTool() {
         data-inspector-section-title="Component"
         data-inspector-section-card
         data-inspector-section-kind="content"
-        className={`mx-2 my-0.5 overflow-hidden rounded-[10px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
+        className={`mx-2 my-0.5 overflow-hidden rounded-[8px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
         style={revealFlash ? {
           backgroundColor: 'color-mix(in srgb, var(--accent) 8%, var(--bg-surface))',
         } : undefined}

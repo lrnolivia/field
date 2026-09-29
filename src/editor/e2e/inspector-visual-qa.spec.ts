@@ -175,6 +175,19 @@ test('Inspector category cards visual sweep', async ({ page }) => {
 
   for (const [name, ids] of states) {
     await select(page, ids);
+
+    if (name === 'code-component-dark') {
+      await expect(
+        page.locator('[data-properties-panel] [data-inspector-section-card]').first(),
+      ).toHaveAttribute('data-inspector-section', 'component');
+    }
+
+    if (name === 'svg-dark') {
+      await expect(
+        page.locator('[data-properties-panel] [data-inspector-section="export"]'),
+      ).toBeVisible();
+    }
+
     await capture(page, name);
   }
 
