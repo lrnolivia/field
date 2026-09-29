@@ -4,6 +4,7 @@ import { findNodeRect } from '../node-ops';
 import { stripGhostSuffix } from '@/shared/ghost-id';
 import type { Transform } from '@/shared/types';
 import { focusScreenRect, followScreenRect, followCaretScreenRect, getPaddedCanvasFocusArea } from '../transform/CameraCommands';
+import { cameraIntentOps } from '../transform/camera-intent';
 
 /** A temporary camera focus for typing. Canvas zoom/pan gestures keep the new
  * view; clicking away to finish editing restores the view from before typing. */
@@ -16,16 +17,23 @@ export class TextFocusCamera {
   private nodeId: string | null = null;
   private vpId = 'desktop';
   private caretRect: DOMRect | null = null;
+  private readonly unsubscribeCameraIntent: () => void;
 
   constructor(
     private readonly getIframe: () => HTMLIFrameElement | null,
     private readonly isCanvasWheel: (event: WheelEvent) => boolean,
-  ) {}
+  ) {
+    this.unsubscribeCameraIntent = cameraIntentOps.subscribe((intent) => {
+      if (intent.origin === 'user' && (this.original || this.restoreFrame)) this.markInterrupted();
+    });
+  }
 
   private markInterrupted(): void {
     this.interrupted = true;
     cancelAnimationFrame(this.followFrame);
+    cancelAnimationFrame(this.restoreFrame);
     this.followFrame = 0;
+    this.restoreFrame = 0;
   }
 
   private interrupt = (event: WheelEvent) => {
@@ -151,5 +159,6 @@ export class TextFocusCamera {
     cancelAnimationFrame(this.restoreFrame);
     this.restoreFrame = 0;
     this.end(false);
+    this.unsubscribeCameraIntent();
   }
 }

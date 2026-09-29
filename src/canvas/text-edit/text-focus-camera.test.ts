@@ -19,6 +19,7 @@ vi.mock('../transform/CameraCommands', () => ({
   getPaddedCanvasFocusArea: () => ({ width: 800, height: 600, centerX: 500, centerY: 400 }),
 }));
 
+import { signalUserCameraIntent } from '../transform/camera-intent';
 import { TextFocusCamera } from './text-focus-camera';
 
 describe('TextFocusCamera', () => {
@@ -80,6 +81,27 @@ describe('TextFocusCamera', () => {
     expect(followScreenRect).not.toHaveBeenCalled();
     focus.dispose();
     canvas.remove();
+    raf.mockRestore();
+  });
+
+  it('yields permanently to an explicit user camera command during text editing', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
+
+    signalUserCameraIntent('test:user-command');
+    focus.update();
+    focus.updateCaret(new DOMRect(760, 700, 2, 20));
+    callbacks.splice(0).forEach((cb) => cb(16));
+    focus.end();
+    callbacks.splice(0).forEach((cb) => cb(32));
+
+    expect(followScreenRect).not.toHaveBeenCalled();
+    expect(followCaretScreenRect).not.toHaveBeenCalled();
+    expect(animateCanvasTo).not.toHaveBeenCalledWith(20, 30, 1, 320, { focus: true });
+    focus.dispose();
     raf.mockRestore();
   });
 

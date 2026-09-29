@@ -17,6 +17,7 @@ import {
 } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { signalUserCameraIntent } from '@/canvas/transform/camera-intent';
 
 
 function MenuRow({ label, shortcut, onClick }: {
@@ -68,9 +69,18 @@ export default function InspectorZoomControl() {
     return () => window.removeEventListener('pointerdown', close, true);
   }, [open]);
 
-  const withCanvas = (fn: (root: HTMLElement) => void) => {
+  const withCanvas = (source: string, fn: (root: HTMLElement) => void) => {
     const root = getContentRoot();
-    if (root) fn(root);
+    if (root) {
+      signalUserCameraIntent(source);
+      fn(root);
+    }
+    setOpen(false);
+  };
+
+  const runCameraCommand = (source: string, fn: () => void) => {
+    signalUserCameraIntent(source);
+    fn();
     setOpen(false);
   };
 
@@ -102,12 +112,12 @@ export default function InspectorZoomControl() {
             className="absolute right-0 top-full mt-1 min-w-[190px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] p-1 shadow-[var(--shadow-lg)]"
             style={{ zIndex: fieldSurfaceZ('menu', ref.current) }}
           >
-            <MenuRow label="Fit canvas" shortcut="⇧1" onClick={() => withCanvas(root => zoomToFit(root))} />
-            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas(root => zoomToFitSelection(root, selectedId ? [selectedId] : []))} />
-            <MenuRow label="Zoom to 100%" shortcut="⇧3" onClick={() => { zoomTo100(); setOpen(false); }} />
+            <MenuRow label="Fit canvas" shortcut="⇧1" onClick={() => withCanvas('inspector:fit-canvas', root => zoomToFit(root))} />
+            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas('inspector:fit-selection', root => zoomToFitSelection(root, selectedId ? [selectedId] : []))} />
+            <MenuRow label="Zoom to 100%" shortcut="⇧3" onClick={() => runCameraCommand('inspector:zoom-100', zoomTo100)} />
             <div className="h-px bg-[var(--border-light)] my-1" />
-            <MenuRow label="Zoom in" onClick={() => { zoomIn(); setOpen(false); }} />
-            <MenuRow label="Zoom out" onClick={() => { zoomOut(); setOpen(false); }} />
+            <MenuRow label="Zoom in" onClick={() => runCameraCommand('inspector:zoom-in', zoomIn)} />
+            <MenuRow label="Zoom out" onClick={() => runCameraCommand('inspector:zoom-out', zoomOut)} />
           </div>
         )}
       </div>
