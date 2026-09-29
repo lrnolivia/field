@@ -6,12 +6,14 @@ import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutra
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { trace } from '@/shared/debug-trace';
 import { applyEditorChromePreferences } from '@/editor/builder-theme';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 export default function EditorAppearanceControl() {
   const [mode, setMode] = useAtom(editorThemeModeAtom);
   const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const uiCase = useUiChromeCase();
 
   const applyChoice = useCallback((nextMode: EditorThemeMode, nextLevel: EditorNeutralLevel) => {
     const root = document.documentElement;
@@ -33,8 +35,8 @@ export default function EditorAppearanceControl() {
         type="button"
         data-editor-appearance
         aria-expanded={open}
-        aria-label={'Editor appearance: ' + mode + ', neutral ' + neutralLevel}
-        title={'Editor appearance: ' + mode + ' · Neutral ' + neutralLevel}
+        aria-label={uiCase('field appearance: ' + mode + ', neutral ' + neutralLevel) ?? undefined}
+        title={uiCase('field appearance: ' + mode + ' · Neutral ' + neutralLevel) ?? undefined}
         onClick={() => setOpen((value) => !value)}
         className={`flex h-7 w-7 items-center justify-center rounded-[5px] border-none transition-colors ${
           open

@@ -5,7 +5,7 @@ export type DashboardView = 'recents' | 'all' | 'starred' | 'trash';
 export function formatDashboardActionError(cause: unknown): string {
   const message = cause instanceof Error ? cause.message : String(cause);
   if (/^Project metadata update failed: 412\b/.test(message)) {
-    return 'This project changed elsewhere. Reload the dashboard, then try that action again.';
+    return 'This project changed elsewhere. Reload home, then try that action again.';
   }
   return message;
 }

@@ -1,11 +1,22 @@
 // FIELD_INSPECTOR_COMMAND_MENU_006
 // @vitest-environment jsdom
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import React, { useRef, useState } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { getDefaultStore } from 'jotai';
+import { caseManagementAtom } from '@/code/stores/user-preferences-store';
 import DropdownMenu, { type DropdownMenuEntry } from './DropdownMenu';
 
-afterEach(cleanup);
+const store = getDefaultStore();
+
+beforeEach(() => {
+  store.set(caseManagementAtom, false);
+});
+
+afterEach(() => {
+  cleanup();
+  store.set(caseManagementAtom, true);
+});
 
 const item = (id: string, label: string, extra: Partial<Extract<DropdownMenuEntry, { id: string }>> = {}): DropdownMenuEntry => ({
   id,

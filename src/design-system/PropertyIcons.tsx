@@ -26,11 +26,11 @@ const W = ({ bg, iconColor, ...props }: P, children: (c: string) => React.ReactN
 
 // ─── Color & Fill ──────────────────────────────────────────────────────────
 
-const ColorIcon: React.FC<P> = (p) => W(p, c =>
+export const ColorIcon: React.FC<P> = (p) => W(p, c =>
   <circle cx={8} cy={8} r={4} fill={c} />
 );
 
-const GradientIcon: React.FC<P> = (p) => W(p, c => <>
+export const GradientIcon: React.FC<P> = (p) => W(p, c => <>
   <circle cx={8} cy={8} r={4} fill={c} opacity={0.4} />
   <path d="M8 4a4 4 0 0 0 0 8V4Z" fill={c} />
 </>);
@@ -333,7 +333,7 @@ const PointerEventsIcon: React.FC<P> = (p) => W(p, c => <>
 
 // ─── Grid ──────────────────────────────────────────────────────────────────
 
-const GridIcon: React.FC<P> = (p) => W(p, c => <>
+export const GridIcon: React.FC<P> = (p) => W(p, c => <>
   <rect x={3} y={3} width={10} height={10} rx={1} stroke={c} strokeWidth={1.2} fill="none" />
   <line x1={3} y1={7.5} x2={13} y2={7.5} stroke={c} strokeWidth={1} />
   <line x1={7.5} y1={3} x2={7.5} y2={13} stroke={c} strokeWidth={1} />

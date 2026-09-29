@@ -16,10 +16,11 @@ import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
 import { toHexDisplay } from '../../../ui/color-utils';
 import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow } from '../../../controls';
+import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, InspectorIconButtonGroup, ToolRow, ToolInput, ColorInput } from '../../../controls';
 import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
 import { useToolPopup } from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import { OptionsPanel, OptionSection, ChoiceRow } from '../../../ui/OptionsPanel';
 import ColorPicker from '../../../ui/ColorPicker';
 import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
 import GradientEditor from '../../../ui/GradientEditor';
@@ -59,6 +60,8 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, type PatternFillConfig, type PatternKind } from '@/editor/ui/pattern-fill-utils';
+import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -115,7 +118,7 @@ const BLEND_MODE_OPTIONS = [
 
 // ─── Image Fill Tab (shared between Single and Multiple) ────────────────────
 
-function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void }) {
+function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; libraryOnly?: boolean }) {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const { pushPanel, popPanel } = useToolPopup();
@@ -157,6 +160,8 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
 
   return (
     <div className="flex flex-col gap-2">
+      {!libraryOnly && (
+        <>
       {/* Image preview + Choose button */}
       {hasImage ? (
         <div className="flex flex-col gap-2">
@@ -212,9 +217,13 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
         </>
       )}
 
+        </>
+      )}
+
       {/* Image preset grid + Create new entry */}
-      <AssetPresetGrid
-        presets={imagePresets}
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={imagePresets}
         type="image"
         activePresetName={activePresetName}
         onApplyPreset={(varVal) => {
@@ -235,8 +244,9 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
           trace.action('fill:image-preset-applied', { var: varVal });
         }}
         onCreatePreset={handleCreatePreset}
-        onEditPreset={handleEditPreset}
-      />
+          onEditPreset={handleEditPreset}
+        />
+      )}
 
       {/* Image Search Modal */}
       <ImageSearchModal
@@ -286,9 +296,10 @@ function extractUrl(value: string): string | null {
 
 // ─── Single Mode Fill Popup Content ─────────────────────────────────────────
 
-type FillTab = 'color' | 'gradient' | 'image' | 'video';
+type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video';
 
 function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
+  if (node?.attrs?.['data-field-pattern']) return 'pattern';
   // bg-video child on the node = Video tab. This is the new canonical state;
   // the legacy `backgroundVideo` style key was a no-op CSS prop that the parser
   // now strips silently, so we don't check it here.
@@ -315,6 +326,126 @@ const ALPHA_CHECKER_STYLE: React.CSSProperties = {
   backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0',
 };
 
+function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+  const nodeId = node?.id ?? null;
+  const raw = node?.attrs?.['data-field-pattern'] || '';
+  const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
+
+  useEffect(() => {
+    setConfig(parsePatternFillConfig(raw));
+  }, [nodeId, raw]);
+
+  const applyPattern = useCallback((next: PatternFillConfig) => {
+    setConfig(next);
+    if (!nodeId) return;
+    const compiled = buildPatternFillStyles(next);
+    forSelectionTargets(nodeId, (tid) => {
+      queueMutation({
+        type: 'updateStyles',
+        nodeId: tid,
+        styles: {
+          background: '',
+          backgroundColor: compiled.backgroundColor,
+          backgroundImage: compiled.backgroundImage,
+          backgroundSize: compiled.backgroundSize,
+          backgroundPosition: compiled.backgroundPosition,
+          backgroundRepeat: compiled.backgroundRepeat,
+          backgroundAttachment: '',
+          WebkitMaskImage: compiled.WebkitMaskImage,
+          maskImage: compiled.maskImage,
+        },
+      });
+      queueMutation({
+        type: 'updateHtmlAttrs',
+        nodeId: tid,
+        attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
+      });
+    });
+    trace.action('fill:pattern-applied', { nodeId, kind: next.kind });
+  }, [nodeId]);
+
+  const patch = <K extends keyof PatternFillConfig>(key: K, value: PatternFillConfig[K]) => {
+    applyPattern({ ...config, [key]: value });
+  };
+
+  if (libraryOnly) {
+    return (
+      <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
+        Open-source pattern library is coming in the next batch.
+      </div>
+    );
+  }
+
+  const preview = buildPatternFillStyles(config);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className="w-full h-24 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)]"
+        style={preview as React.CSSProperties}
+        aria-label={`${PATTERN_KIND_OPTIONS.find(o => o.value === config.kind)?.label || 'Pattern'} preview`}
+      />
+
+      <ToolRow label="Pattern" hideCreateVariable>
+        <ToolSelect
+          value={config.kind}
+          onChange={(value) => patch('kind', value as PatternKind)}
+          options={PATTERN_KIND_OPTIONS}
+          ariaLabel="Pattern kind"
+        />
+      </ToolRow>
+
+      <ToolRow label="Color">
+        <ColorInput value={config.color} onChange={(value) => patch('color', value)} showAlpha />
+      </ToolRow>
+
+      <ToolRow label="Background">
+        <ColorInput
+          value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background}
+          onChange={(value) => patch('background', value)}
+          showAlpha
+        />
+      </ToolRow>
+
+      <ToolRow label="Opacity" hideCreateVariable>
+        <ToolInput
+          value={String(Math.round(config.opacity * 100))}
+          onChange={(value) => patch('opacity', Math.max(0, Math.min(100, Number(value) || 0)) / 100)}
+          min={0}
+          max={100}
+          step={1}
+          chevronLabel="%"
+          ariaLabel="Pattern opacity"
+        />
+      </ToolRow>
+
+      <ToolRow label="Tile size" hideCreateVariable>
+        <ToolInput
+          value={String(config.tileSize)}
+          onChange={(value) => patch('tileSize', Math.max(4, Math.min(120, Number(value) || 4)))}
+          min={4}
+          max={120}
+          step={1}
+          chevronLabel="px"
+          ariaLabel="Pattern tile size"
+        />
+      </ToolRow>
+
+      <ToolRow label="Thickness" hideCreateVariable>
+        <ToolInput
+          value={String(config.thickness)}
+          onChange={(value) => patch('thickness', Math.max(0.5, Math.min(12, Number(value) || 0.5)))}
+          min={0.5}
+          max={12}
+          step={0.5}
+          chevronLabel="px"
+          ariaLabel="Pattern thickness"
+        />
+      </ToolRow>
+    </div>
+  );
+}
+
 const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'cover', label: 'Cover' },
   { value: 'contain', label: 'Contain' },
@@ -323,7 +454,7 @@ const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'scale-down', label: 'Scale Down' },
 ];
 
-function VideoFillTab({ node }: { node: CanvasNode | null }) {
+function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const posterInputRef = useRef<HTMLInputElement>(null);
   const { pushPanel, popPanel } = useToolPopup();
@@ -397,6 +528,8 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {!libraryOnly && (
+        <>
       {hasVideo ? (
         <div className="flex flex-col gap-2">
           <div
@@ -518,9 +651,13 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
         </div>
       )}
 
+        </>
+      )}
+
       {/* Video preset grid */}
-      <AssetPresetGrid
-        presets={videoPresets}
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={videoPresets}
         type="video"
         activePresetName={activePresetName}
         onApplyPreset={(varVal) => {
@@ -533,8 +670,9 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
           if (token) applyVideoSrc(token.value);
         }}
         onCreatePreset={handleCreatePreset}
-        onEditPreset={handleEditPreset}
-      />
+          onEditPreset={handleEditPreset}
+        />
+      )}
 
       <VideoSearchModal
         isOpen={videoModalOpen}
@@ -553,6 +691,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   const nodeId = ctx?.nodeId ?? null;
   const node = ctx?.node ?? null;
   const [tab, setTab] = useState<FillTab>(() => (solidOnly ? 'color' : detectFillTab(styles, node)));
+  const [surface, setSurface] = useState<'custom' | 'libraries'>('custom');
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter(t => t.category === 'color');
@@ -570,38 +709,84 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId, solidOnly]);
 
+  const changeFillType = (newTab: FillTab) => {
+    trace.action('fill:tab-change', { from: tab, to: newTab });
+    if (newTab !== tab) {
+      if (tab === 'color') onUpdate('backgroundColor', '');
+      if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
+      if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
+      if (tab === 'pattern') {
+        onUpdate('backgroundColor', '');
+        onUpdate('backgroundImage', '');
+        onUpdate('backgroundSize', '');
+        onUpdate('backgroundPosition', '');
+        onUpdate('backgroundRepeat', '');
+        onUpdate('WebkitMaskImage', '');
+        onUpdate('maskImage', '');
+        if (nodeId) {
+          forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '' } }));
+        }
+      }
+      if (tab === 'video' && nodeId) {
+        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
+      }
+    }
+
+    if (newTab === 'pattern' && nodeId) {
+      const compiled = buildPatternFillStyles(DEFAULT_PATTERN_FILL);
+      forSelectionTargets(nodeId, (tid) => {
+        queueMutation({
+          type: 'updateStyles',
+          nodeId: tid,
+          styles: {
+            background: '',
+            backgroundColor: compiled.backgroundColor,
+            backgroundImage: compiled.backgroundImage,
+            backgroundSize: compiled.backgroundSize,
+            backgroundPosition: compiled.backgroundPosition,
+            backgroundRepeat: compiled.backgroundRepeat,
+            backgroundAttachment: '',
+            WebkitMaskImage: compiled.WebkitMaskImage,
+            maskImage: compiled.maskImage,
+          },
+        });
+        queueMutation({
+          type: 'updateHtmlAttrs',
+          nodeId: tid,
+          attrs: { 'data-field-pattern': serializePatternFillConfig(DEFAULT_PATTERN_FILL) },
+        });
+      });
+    }
+
+    setTab(newTab);
+  };
+
+  const paintTypeButtons = [
+    { id: 'color', title: 'Solid', icon: <ColorIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'color', onClick: () => changeFillType('color') },
+    { id: 'gradient', title: 'Gradient', icon: <GradientIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'gradient', onClick: () => changeFillType('gradient') },
+    { id: 'pattern', title: 'Pattern', icon: <GridIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'pattern', onClick: () => changeFillType('pattern') },
+    { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
+    { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
+  ];
+
   return (
     <>
-      {/* Tabs at top of popup — hidden for form controls (solid color only). */}
-      {!solidOnly && <ToolSegmentedControl
-        value={tab}
-        onChange={(v) => {
-          const newTab = v as FillTab;
-          trace.action('fill:tab-change', { from: tab, to: newTab });
+      {!solidOnly && (
+        <div className="flex flex-col gap-2">
+          <ToolSegmentedControl
+            value={surface}
+            onChange={(v) => setSurface(v as 'custom' | 'libraries')}
+            options={[
+              { value: 'custom', label: 'Custom' },
+              { value: 'libraries', label: 'Libraries' },
+            ]}
+            size="sm"
+          />
+          <InspectorIconButtonGroup ariaLabel="Fill type" buttons={paintTypeButtons} />
+        </div>
+      )}
 
-          // Clear conflicting fill properties when switching tabs
-          if (newTab !== tab) {
-            if (tab === 'color') onUpdate('backgroundColor', '');
-            if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
-            if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
-            // Leaving the Video tab — remove the bg-video child via the
-            // dedicated mutation, since it lives on the node, not in styles.
-            if (tab === 'video' && nodeId) {
-              forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
-            }
-          }
-          setTab(newTab);
-        }}
-        options={[
-          { value: 'color', label: 'Color' },
-          { value: 'gradient', label: 'Gradient' },
-          { value: 'image', label: 'Image' },
-          { value: 'video', label: 'Video' },
-        ]}
-        size="sm"
-      />}
-
-      {/* Tab content */}
+      {/* Paint content */}
       {tab === 'color' && (() => {
         // solidOnly: a color COMMIT also clears any lingering image/gradient
         // channels — there are no tabs to clear them from, and a stale
@@ -622,6 +807,8 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         return (
           <ColorPicker
             value={resolvedBg}
+            libraryOnly={!solidOnly && surface === 'libraries'}
+            showPresets={!solidOnly && surface === 'libraries'}
             // Smooth drag: onChange LIVE-PATCHES the canvas DOM every frame (no
             // per-frame code write); onChangeEnd commits once on release (and
             // immediately for one-shot edits: hex input, eyedropper). Falls back
@@ -665,28 +852,33 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       })()}
 
       {tab === 'gradient' && (
-        <GradientEditor
-          value={styles.backgroundImage || styles.background || ''}
-          onChange={(css) => {
-            // Clear conflicting props FIRST — `background: ''` wipes every
-            // background-* longhand from the inline DOM (CSSOM shorthand
-            // semantics), so it must precede the backgroundImage write.
-            if (styles.background) onUpdate('background', '');
-            if (styles.backgroundColor) onUpdate('backgroundColor', '');
-            onUpdate('backgroundImage', css);
-          }}
-          // Smooth drag: patch the canvas DOM directly every frame (no code
-          // re-parse); GradientEditor fires onChange once on release to commit.
-          onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
-        />
+        surface === 'libraries' && !solidOnly ? (
+          <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
+            No saved gradient fills yet.
+          </div>
+        ) : (
+          <GradientEditor
+            value={styles.backgroundImage || styles.background || ''}
+            onChange={(css) => {
+              if (styles.background) onUpdate('background', '');
+              if (styles.backgroundColor) onUpdate('backgroundColor', '');
+              onUpdate('backgroundImage', css);
+            }}
+            onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
+          />
+        )
+      )}
+
+      {tab === 'pattern' && (
+        <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'image' && (
-        <ImageFillTab styles={styles} onUpdate={onUpdate} />
+        <ImageFillTab styles={styles} onUpdate={onUpdate} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'video' && (
-        <VideoFillTab node={node} />
+        <VideoFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
     </>
   );
@@ -1192,25 +1384,28 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
   }, [mode, styles, onChangeMultiple]);
 
   return (
-    // Force the image sub-field labels (Size / Position / Repeat / Attachment / Blend) visible inside the
-    // popup even when the atom carries `hideLabel` from the Variable modal's Default row.
+    // Rich color/gradient/image/video editors remain their own content, but the
+    // outer composition follows the canonical Inspector Options Panel hierarchy.
     <ShowControlLabels>
-      {/* Mode toggle — hidden for form controls (solid color only). */}
-      {!solidOnly && <ToolSegmentedControl
-        value={mode}
-        onChange={handleModeChange}
-        options={[
-          { value: 'single', label: 'Single' },
-          { value: 'multiple', label: 'Multiple' },
-        ]}
-        size="sm"
-      />}
-
-      {solidOnly || mode === 'single' ? (
-        <SingleModeFillContent styles={styles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onLivePreview={onLivePreview} solidOnly={solidOnly} />
-      ) : (
-        <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
-      )}
+      <OptionsPanel>
+        {!solidOnly && (
+          <OptionSection title="Fill mode">
+            <ChoiceRow
+              label="Mode"
+              value={mode}
+              onChange={handleModeChange}
+              options={[{ value: 'single', label: 'Single' }, { value: 'multiple', label: 'Multiple' }]}
+            />
+          </OptionSection>
+        )}
+        <OptionSection title={solidOnly || mode === 'single' ? 'Appearance' : 'Layers'} divided={!solidOnly}>
+          {solidOnly || mode === 'single' ? (
+            <SingleModeFillContent styles={styles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onLivePreview={onLivePreview} solidOnly={solidOnly} />
+          ) : (
+            <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
+          )}
+        </OptionSection>
+      </OptionsPanel>
     </ShowControlLabels>
   );
 }
@@ -1236,7 +1431,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   const allTokens = useAtomValue(presetTokensAtom);
   const { openPanel, panelPopup } = useEditorPanel('Fill', () => (
     <FillPopupContent styles={popupStyles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onChangeMultiple={onChangeMultiple} onLivePreview={(color) => setLivePreviewColor(color ? serializePaintOpacity(color, fillPaint.opacity) : color)} />
-  ), { width: 280 });
+  ), { width: 288, kind: 'options' });
   // File-aware accent: purple ("--accent-secondary") on component master files,
   // standard accent (blue) on regular pages — same convention applied across
   // the menu items + bound pill.

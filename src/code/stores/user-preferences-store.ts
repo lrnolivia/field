@@ -97,10 +97,13 @@ export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
   'revyme:prefs:neutralLevel', '3',
 );
 
-/** Editor-only loew.fi lowercase treatment for opted-in UI headings.
- *  ON by default. Turning it off restores normal sentence-case grammar.
- *  Acronyms, trademarks, product names, and structural names are preserved
- *  by the shared heading formatter in either mode. */
-export const lowercaseHeadingsAtom = atomWithStorage<boolean>(
+/** Editor-only loew.fi case management for eligible field chrome.
+ *  ON by default. Turning it off leaves authored UI casing untouched.
+ *  The legacy storage key is retained so the preference survives the
+ *  expansion from headings to menus, buttons, tooltips, tabs, and labels. */
+export const caseManagementAtom = atomWithStorage<boolean>(
   'field:prefs:lowercaseHeadings', true, undefined, { getOnInit: true },
 );
+
+/** Compatibility alias for heading-only callsites while they migrate. */
+export const lowercaseHeadingsAtom = caseManagementAtom;

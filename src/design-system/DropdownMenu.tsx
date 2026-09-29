@@ -16,6 +16,7 @@
 import { useRef, useEffect, useLayoutEffect, useState, useMemo, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { FIELD_SURFACE_Z, fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 export interface DropdownMenuItem {
   id: string;
@@ -220,6 +221,7 @@ function MenuPanel({
   density = 'default', fitContentHeight = false, autoFocusFirst = false, preferredFocusItemId, onArrowLeft,
   zIndex = FIELD_SURFACE_Z.menu,
 }: MenuPanelProps) {
+  const uiCase = useUiChromeCase();
   const compact = density === 'compact';
   const [openSubId, setOpenSubId] = useState<string | null>(null);
   const [keyboardSubId, setKeyboardSubId] = useState<string | null>(null);
@@ -386,7 +388,7 @@ function MenuPanel({
                 setOpenSubId(v.trim() ? SEARCH_SUB_ID : null);
                 setKeyboardSubId(null);
               }}
-              placeholder="Type to search..."
+              placeholder={uiCase('Type to search...') ?? undefined}
               spellCheck={false}
               className="flex-1 min-w-0 bg-transparent border-none outline-none text-xs font-medium text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
             />
@@ -425,7 +427,7 @@ function MenuPanel({
               aria-disabled={entry.disabled || undefined}
               aria-haspopup={hasSubmenu ? 'menu' : undefined}
               aria-expanded={hasSubmenu ? isOpen : undefined}
-              title={entry.title}
+              title={entry.title ? uiCase(entry.title) ?? undefined : undefined}
               ref={(el) => {
                 if (el) itemRefs.current.set(entry.id, el);
                 else itemRefs.current.delete(entry.id);
@@ -466,7 +468,7 @@ function MenuPanel({
               `}
             >
               {entry.icon && <span className="shrink-0 w-4 flex items-center justify-center opacity-80 group-hover:opacity-100">{entry.icon}</span>}
-              <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? entry.label : undefined}>{entry.label}</span>
+              <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? uiCase(entry.label) ?? undefined : undefined}>{uiCase(entry.label)}</span>
               {entry.trailingIcon && <span className="shrink-0 min-w-4 flex items-center justify-center opacity-90 group-hover:opacity-100">{entry.trailingIcon}</span>}
               {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)]/70">{entry.shortcut}</span>}
               {hasSubmenu && (
