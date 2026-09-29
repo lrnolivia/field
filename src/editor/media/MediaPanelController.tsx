@@ -322,7 +322,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   } else if (session.route.kind === 'audio') {
     content = audioContent;
   } else {
-    content = <MediaGalleryPanel />;
+    content = <MediaGalleryPanel chrome="embedded" />;
   }
 
   const title = routeTitle(session.route, session.intent);
@@ -334,7 +334,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     return (
       <Modal isOpen title={isLauncher ? 'Media' : title} width={fullBrowser ? 720 : 520} onClose={onClose}>
         <div className={fullBrowser ? 'h-[min(70vh,680px)] min-h-[420px]' : 'max-h-[70vh] overflow-y-auto'}>
-          {isLauncher ? <MediaGalleryPanel /> : content}
+          {isLauncher ? <MediaGalleryPanel chrome="embedded" /> : content}
         </div>
       </Modal>
     );

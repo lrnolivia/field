@@ -29,13 +29,17 @@ import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
 
+type MediaGalleryTab = 'all' | 'images' | 'videos';
+
 const TAB_OPTIONS = [
+  { value: 'all', label: 'All' },
   { value: 'images', label: 'Images' },
   { value: 'videos', label: 'Videos' },
 ];
 
 interface UploadedFile {
   url: string;
+  kind: 'image' | 'video';
   key?: string;
   size?: number;
   lastModified?: string;
@@ -272,8 +276,14 @@ interface StorageInfo {
   storageLimitMB: string;
 }
 
-export default function MediaGalleryPanel() {
-  const [tab, setTab] = useState('images');
+export default function MediaGalleryPanel({
+  chrome = 'full',
+  initialTab = 'all',
+}: {
+  chrome?: 'full' | 'embedded';
+  initialTab?: MediaGalleryTab;
+} = {}) {
+  const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
@@ -292,18 +302,22 @@ export default function MediaGalleryPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const projectId = getProjectId();
   const isCloud = !!CLOUD_ENABLED;
-  const noun: 'image' | 'video' = tab === 'images' ? 'image' : 'video';
+  const noun: 'image' | 'video' | 'asset' = tab === 'images' ? 'image' : tab === 'videos' ? 'video' : 'asset';
+  const visibleUploads = React.useMemo(
+    () => tab === 'all' ? uploads : uploads.filter((item) => item.kind === (tab === 'images' ? 'image' : 'video')),
+    [uploads, tab],
+  );
   const filteredUploads = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return uploads;
-    return uploads.filter((item) => {
+    if (!query) return visibleUploads;
+    return visibleUploads.filter((item) => {
       const key = item.key ?? deriveUploadKey(item) ?? '';
       return key.toLowerCase().includes(query) || item.url.toLowerCase().includes(query);
     });
-  }, [uploads, searchQuery]);
+  }, [visibleUploads, searchQuery]);
   const selectedImageUrls = React.useMemo(
-    () => tab === 'images' ? selectedGalleryMediaUrls(filteredUploads, selectedKeys) : [],
-    [tab, filteredUploads, selectedKeys],
+    () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image'), selectedKeys),
+    [filteredUploads, selectedKeys],
   );
   const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
@@ -315,20 +329,29 @@ export default function MediaGalleryPanel() {
     searchActive: searchQuery.trim().length > 0,
   });
 
-  // Fetch existing uploads + storage info
+  // Fetch the project inventory. `All` deliberately merges the existing
+  // image + video endpoints instead of inventing a second asset store.
   const fetchUploads = useCallback(async () => {
     if (!isCloud) { setLoadingList(false); return; }
     setLoadingList(true);
     try {
-      const [uploadsRes, storageRes] = await Promise.all([
-        fetch(`/api/upload?websiteId=${projectId}&type=${tab === 'images' ? 'image' : 'video'}`),
+      const kinds: Array<'image' | 'video'> = tab === 'all'
+        ? ['image', 'video']
+        : [tab === 'images' ? 'image' : 'video'];
+      const [storageRes, ...assetResponses] = await Promise.all([
         fetch(`/api/upload?websiteId=${projectId}&type=storage`),
+        ...kinds.map((kind) => fetch(`/api/upload?websiteId=${projectId}&type=${kind}`)),
       ]);
-      if (uploadsRes.ok) {
-        const data = await uploadsRes.json();
-        setUploads(data.uploads || []);
-        trace.action('media:fetched', { type: tab, count: data.uploads?.length ?? 0 });
+      const merged: UploadedFile[] = [];
+      for (let index = 0; index < assetResponses.length; index += 1) {
+        const response = assetResponses[index];
+        if (!response.ok) continue;
+        const data = await response.json();
+        const kind = kinds[index];
+        for (const item of data.uploads || []) merged.push({ ...item, kind });
       }
+      setUploads(merged);
+      trace.action('media:fetched', { type: tab, count: merged.length });
       if (storageRes.ok) {
         const data = await storageRes.json();
         setStorage({ currentUsageMB: data.currentUsageMB, storageLimitMB: data.storageLimitMB });
@@ -341,10 +364,14 @@ export default function MediaGalleryPanel() {
 
   useEffect(() => { fetchUploads(); }, [fetchUploads]);
 
-  // Tab switch invalidates the selection AND the visible list — without the
-  // clear, the previous tab's items linger under the new tab until its own
-  // fetch lands (images briefly shown under Videos).
-  useEffect(() => { setSelectedKeys(new Set()); setUploads([]); }, [tab]);
+  // Cloud inventory is fetched per tab; standalone inventory stays in memory
+  // so switching filters never destroys files uploaded during this session.
+  useEffect(() => {
+    setSelectedKeys(new Set());
+    if (isCloud) setUploads([]);
+  }, [tab, isCloud]);
+
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   // Escape clears the multi-selection (the ConfirmModal handles its own).
   useEffect(() => {
@@ -379,15 +406,28 @@ export default function MediaGalleryPanel() {
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const kind: 'image' | 'video' | null = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null;
+    if (!kind) {
+      setUploadError('Media currently accepts image and video files in this browser.');
+      return;
+    }
+    if (tab === 'images' && kind !== 'image') {
+      setUploadError('Choose an image for the Images view.');
+      return;
+    }
+    if (tab === 'videos' && kind !== 'video') {
+      setUploadError('Choose a video for the Videos view.');
+      return;
+    }
     setUploading(true);
     setUploadError(null);
-    trace.action('media:upload-start', { name: file.name, size: file.size });
+    trace.action('media:upload-start', { name: file.name, size: file.size, kind });
     try {
       const url = await backend.uploadAsset(projectId, file);
-      setUploads(prev => [{ url, size: file.size }, ...prev]);
-      trace.action('media:upload-success', { url });
-      // Re-fetch storage so the usage chip updates immediately.
-      fetchUploads();
+      setUploads(prev => [{ url, size: file.size, kind }, ...prev]);
+      trace.action('media:upload-success', { url, kind });
+      // Re-fetch durable cloud inventory + storage; standalone keeps the row.
+      if (isCloud) fetchUploads();
     } catch (err) {
       trace.error('media:upload-failed', err);
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
@@ -395,7 +435,7 @@ export default function MediaGalleryPanel() {
     setUploading(false);
     // Reset input so same file can be re-uploaded
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [projectId, fetchUploads]);
+  }, [projectId, fetchUploads, isCloud, tab]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a
@@ -549,15 +589,19 @@ export default function MediaGalleryPanel() {
     setDeleting(false);
   }, [confirmKeys, deleting, projectId, fetchUploads]);
 
-  const storageLabel = storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : '0.0 / 500 MB';
+  const storageLabel = isCloud
+    ? storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : '0.0 / 500 MB'
+    : 'Session';
 
   return (
     <div className="flex flex-col h-full">
-      <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+      {chrome === 'full' && (
+        <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+      )}
 
       {/* Tabs */}
-      <div className="px-3 mt-3">
-        <ToolSegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
+      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2'}`}>
+        <ToolSegmentedControl value={tab} onChange={(value) => setTab(value as MediaGalleryTab)} options={TAB_OPTIONS} />
       </div>
 
       {/* Dynamic inventory: canonical minimal search row. */}
@@ -565,7 +609,7 @@ export default function MediaGalleryPanel() {
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder={tab === 'images' ? 'Search images…' : 'Search videos…'}
+          placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : 'Search videos…'}
         />
       </div>
 
@@ -583,7 +627,7 @@ export default function MediaGalleryPanel() {
         <input
           ref={fileInputRef}
           type="file"
-          accept={tab === 'images' ? 'image/*' : 'video/*'}
+          accept={tab === 'all' ? 'image/*,video/*' : tab === 'images' ? 'image/*' : 'video/*'}
           onChange={handleUpload}
           className="hidden"
         />
@@ -597,14 +641,14 @@ export default function MediaGalleryPanel() {
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          {uploading ? 'Uploading...' : `Upload ${tab === 'images' ? 'image' : 'video'}`}
+          {uploading ? 'Uploading…' : `Upload ${tab === 'all' ? 'media' : tab === 'images' ? 'image' : 'video'}`}
         </button>
       </div>
 
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
         <div ref={scrollRef} onPointerDown={onGridPointerDown} className="flex-1 overflow-y-auto scrollbar-hide p-3">
-          {tab === 'images' && selectedImageUrls.length >= 2 && (
+          {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
               className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-2 border border-[var(--border-light)] bg-[var(--bg-surface)] px-2 py-1.5"
@@ -633,7 +677,7 @@ export default function MediaGalleryPanel() {
               <MediaTile
                 key={item.url + i}
                 url={item.url}
-                kind={tab === 'images' ? 'image' : 'video'}
+                kind={item.kind}
                 mediaKey={deriveUploadKey(item)}
                 isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
                 canDelete={isCloud}
@@ -670,9 +714,9 @@ export default function MediaGalleryPanel() {
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <p className="text-xs text-[var(--text-secondary)]">No {tab} uploaded yet</p>
+          <p className="text-xs text-[var(--text-secondary)]">No {tab === 'all' ? 'media' : tab} uploaded yet</p>
           <p className="text-[10px] text-[var(--text-disabled)] max-w-[180px] leading-relaxed">
-            Upload {tab} to see them here
+            Upload {tab === 'all' ? 'images or videos' : tab} to see them here
           </p>
         </div>
       )}
