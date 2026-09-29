@@ -65,6 +65,8 @@ export interface MediaUploadItem {
   progress: number;
   assetId?: string;
   error?: string;
+  contentHash?: string;
+  reusedExisting?: boolean;
 }
 
 export const DEFAULT_MEDIA_ROUTE: MediaRoute = {

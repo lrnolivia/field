@@ -42,7 +42,7 @@ import NameInputModal from '@/editor/ui/NameInputModal';
 import { getImageDimensions, fitFrameBox } from '@/canvas/image-dims';
 import { trace } from '@/shared/debug-trace';
 import { upsertMediaUploadAtom } from '@/editor/media/media-state';
-import type { MediaUploadItem } from '@/editor/media/media-system';
+import { ingestMediaFile, type MediaQueueWriter } from '@/editor/media/media-ingest';
 
 /** Classification of a file by its mime/extension. */
 type FileKind = 'svg' | 'image' | 'unknown';
@@ -506,58 +506,36 @@ async function handleImageFileDrops(
   canvasX: number,
   canvasY: number,
   setSelectedIds: (ids: string[]) => void,
-  upsertMediaUpload: (item: MediaUploadItem) => void,
+  upsertMediaUpload: MediaQueueWriter,
 ): Promise<void> {
   const projectId = getProjectId();
   let xOffset = 0;
   let lastId: string | null = null;
-  for (const [index, file] of imageFiles.entries()) {
-    const uploadId = 'canvas-' + Date.now() + '-' + index + '-' + file.name;
-    upsertMediaUpload({
-      id: uploadId,
-      name: file.name,
-      kind: 'image',
-      status: 'queued',
-      progress: 0,
-    });
-
+  for (const file of imageFiles) {
     // Read natural dimensions before ingest so placement preserves aspect ratio.
     const objectUrl = URL.createObjectURL(file);
     const dims = await getImageDimensions(objectUrl);
     URL.revokeObjectURL(objectUrl);
 
     try {
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
-        kind: 'image',
-        status: 'uploading',
-        progress: 0,
-      });
       trace.action('canvas-file-drop:image-upload-start', { name: file.name, size: file.size });
-      const url = await backend.uploadAsset(projectId, file);
-      const { width } = fitFrameBox(dims);
-      lastId = queueImageFrame(url, dims, canvasX + xOffset, canvasY);
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
+      const result = await ingestMediaFile({
+        file,
+        projectId,
         kind: 'image',
-        status: 'complete',
-        progress: 1,
-        assetId: url,
+        upsert: upsertMediaUpload,
+        idPrefix: 'canvas',
       });
-      trace.action('canvas-file-drop:image-dropped', { id: lastId, url });
+      const { width } = fitFrameBox(dims);
+      lastId = queueImageFrame(result.url, dims, canvasX + xOffset, canvasY);
+      trace.action('canvas-file-drop:image-dropped', {
+        id: lastId,
+        url: result.url,
+        reusedExisting: result.reusedExisting,
+      });
       xOffset += width + 20;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
-        kind: 'image',
-        status: 'error',
-        progress: 0,
-        error: message,
-      });
       trace.error('canvas-file-drop:image-upload-failed', {
         name: file.name,
         error: message,

@@ -29,6 +29,7 @@ import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
 import { upsertMediaUploadAtom } from '@/editor/media/media-state';
+import { ingestMediaFile } from '@/editor/media/media-ingest';
 
 type MediaGalleryTab = 'all' | 'images' | 'videos';
 
@@ -457,46 +458,30 @@ export default function MediaGalleryPanel({
         continue;
       }
 
-      const uploadId = 'media-browser-' + Date.now() + '-' + index + '-' + file.name;
-      upsertMediaUpload({
-        id: uploadId,
-        name: file.name,
-        kind,
-        status: 'queued',
-        progress: 0,
-      });
       trace.action('media:upload-start', { name: file.name, size: file.size, kind, batchSize: files.length });
 
       try {
-        upsertMediaUpload({
-          id: uploadId,
-          name: file.name,
+        const result = await ingestMediaFile({
+          file,
+          projectId,
           kind,
-          status: 'uploading',
-          progress: 0,
+          upsert: upsertMediaUpload,
+          idPrefix: 'media-browser',
         });
-        const url = await backend.uploadAsset(projectId, file);
-        setUploads((prev) => [{ url, size: file.size, kind }, ...prev]);
-        upsertMediaUpload({
-          id: uploadId,
-          name: file.name,
+        setUploads((prev) => (
+          prev.some((item) => item.url === result.url)
+            ? prev
+            : [{ url: result.url, size: file.size, kind }, ...prev]
+        ));
+        if (!result.reusedExisting) successful += 1;
+        trace.action('media:upload-success', {
+          url: result.url,
           kind,
-          status: 'complete',
-          progress: 1,
-          assetId: url,
+          batchSize: files.length,
+          reusedExisting: result.reusedExisting,
         });
-        successful += 1;
-        trace.action('media:upload-success', { url, kind, batchSize: files.length });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Upload failed';
-        upsertMediaUpload({
-          id: uploadId,
-          name: file.name,
-          kind,
-          status: 'error',
-          progress: 0,
-          error: message,
-        });
         trace.error('media:upload-failed', { name: file.name, error: message });
       }
     }

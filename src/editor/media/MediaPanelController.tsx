@@ -21,8 +21,8 @@ import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutati
 import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
-import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
+import { ingestMediaFile } from './media-ingest';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 
@@ -81,36 +81,17 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       return;
     }
 
-    const id = `media-${Date.now()}-${file.name}`;
-    upsertUpload({
-      id,
-      name: file.name,
-      kind: mediaKind,
-      status: 'uploading',
-      progress: 0,
-    });
-
     try {
-      const url = await backend.uploadAsset(getProjectId(), file);
-      upsertUpload({
-        id,
-        name: file.name,
+      const result = await ingestMediaFile({
+        file,
+        projectId: getProjectId(),
         kind: mediaKind,
-        status: 'complete',
-        progress: 1,
-        assetId: url,
+        upsert: upsertUpload,
+        idPrefix: 'toolbar',
       });
-      insertUrl(elementKind, url);
+      insertUrl(elementKind, result.url);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
-      upsertUpload({
-        id,
-        name: file.name,
-        kind: mediaKind,
-        status: 'error',
-        progress: 0,
-        error: message,
-      });
       setTransientError(message);
     }
   };

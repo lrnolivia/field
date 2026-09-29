@@ -16,7 +16,7 @@ function statusLabel(item: MediaUploadItem): string {
       ? Math.round(item.progress * 100) + '%'
       : 'Uploading…';
     case 'processing': return 'Preparing…';
-    case 'complete': return 'Added';
+    case 'complete': return item.reusedExisting ? 'Already in Media · using existing' : 'Added';
     case 'error': return item.error || 'Upload failed';
     case 'cancelled': return 'Cancelled';
   }
@@ -50,6 +50,11 @@ export default function MediaUploadTray() {
     () => queue.filter((item) => item.status === 'complete').length,
     [queue],
   );
+  const reusedCount = useMemo(
+    () => queue.filter((item) => item.status === 'complete' && item.reusedExisting).length,
+    [queue],
+  );
+  const addedCount = completeCount - reusedCount;
 
   useEffect(() => {
     if (activeCount > 0) {
@@ -82,7 +87,13 @@ export default function MediaUploadTray() {
           className="flex items-center gap-1.5 text-[var(--text-primary)]"
         >
           <span aria-hidden>✓</span>
-          <span>{completeCount} {completeCount === 1 ? 'media item' : 'media items'} added</span>
+          <span>
+            {addedCount > 0 && reusedCount > 0
+              ? addedCount + ' added · ' + reusedCount + ' reused'
+              : reusedCount > 0
+                ? reusedCount + ' reused'
+                : addedCount + ' ' + (addedCount === 1 ? 'media item' : 'media items') + ' added'}
+          </span>
         </button>
         <button
           type="button"
