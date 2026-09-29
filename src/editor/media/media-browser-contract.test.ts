@@ -7,8 +7,10 @@ describe('canonical Media browser', () => {
   it('offers one All / Images / Video / Audio inventory instead of separate browser silos', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
     expect(media).toContain("type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio'");
-    expect(media).toContain("{ value: 'all', label: 'All' }");
-    expect(media).toContain("{ value: 'audio', label: 'Audio' }");
+    expect(media).toContain("value: 'all'");
+    expect(media).toContain("label: 'All'");
+    expect(media).toContain("value: 'audio'");
+    expect(media).toContain("label: 'Audio'");
     expect(media).toContain("type BrowserMediaKind = 'image' | 'video' | 'audio' | 'vector'");
     expect(media).toContain('availableUploads');
     expect(media).toContain('kind={item.kind}');
@@ -36,6 +38,8 @@ describe('canonical Media browser', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');
     expect(media).toContain("chrome?: 'full' | 'embedded'");
     expect(media).toContain("chrome === 'full'");
-    expect(controller).toContain('<MediaGalleryPanel chrome="embedded" />');
+    expect(controller).toContain('<MediaGalleryPanel');
+    expect(controller).toContain('chrome="embedded"');
+    expect(controller).toContain('onPick={pickFromProjectMedia}');
   });
 });

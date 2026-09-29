@@ -57,7 +57,7 @@ describe('toolbar Media contextual placement', () => {
       'utf8',
     );
     const placementIndex = controller.indexOf('const placement = resolvePlacement(elementKind)');
-    const ingestIndex = controller.indexOf('const result = await ingestMediaFile({');
+    const ingestIndex = controller.indexOf('await ingestMediaFile({');
     const placeIndex = controller.indexOf('placeUrl(elementKind, result.url, placement)');
 
     expect(placementIndex).toBeGreaterThan(-1);

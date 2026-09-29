@@ -20,15 +20,15 @@ describe('contextual Media in image Fill', () => {
     expect(imageFill).not.toContain('setImageModalOpen');
   });
 
-  it('uses the compact Media row instead of the legacy giant dashed chooser', () => {
+  it('uses the canonical Image source preview instead of the legacy dashed chooser', () => {
     const fill = read('src/editor/tools/StylesTool/atoms/FillControl.tsx');
     const start = fill.indexOf('function ImageFillTab');
     const end = fill.indexOf('function extractUrl', start);
     const imageFill = fill.slice(start, end);
 
-    expect(imageFill).toContain('Choose media');
-    expect(imageFill).toContain('h-9 flex items-center gap-2');
-    expect(imageFill).not.toContain('w-full h-20');
+    expect(imageFill).toContain('onClick={openMedia}');
+    expect(imageFill).toContain('aspect-square max-h-[360px]');
+    expect(imageFill).toContain("hasImage ? 'Replace source…' : 'Select source…'");
     expect(imageFill).not.toContain('border-2 border-dashed');
   });
 
@@ -61,16 +61,16 @@ describe('contextual Media in image Fill', () => {
     expect(videoFill).not.toContain('type="file"');
   });
 
-  it('uses compact Media rows for Video instead of the legacy dashed chooser', () => {
+  it('uses the canonical Video source preview while keeping contextual Media actions', () => {
     const fill = read('src/editor/tools/StylesTool/atoms/FillControl.tsx');
     const start = fill.indexOf('function VideoFillTab');
     const end = fill.indexOf('function SingleModeFillContent', start);
     const videoFill = fill.slice(start, end);
 
-    expect(videoFill).toContain('Choose media');
     expect(videoFill).toContain('onClick={openVideoMedia}');
     expect(videoFill).toContain('onClick={openPosterMedia}');
-    expect(videoFill).not.toContain('w-full h-20');
+    expect(videoFill).toContain('aspect-square max-h-[360px]');
+    expect(videoFill).toContain("hasVideo ? 'Replace source…' : 'Select source…'");
     expect(videoFill).not.toContain('border-2 border-dashed');
   });
 

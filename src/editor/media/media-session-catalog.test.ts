@@ -39,10 +39,10 @@ describe('shared session Media catalog', () => {
     expect(browser).toContain('rememberAsset: rememberMediaAsset');
   });
 
-  it('mirrors shared session assets only when the backend has no durable catalog', () => {
+  it('merges shared session assets with durable catalog rows without losing provenance', () => {
     const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(browser).toContain('if (durableInventory !== false) return');
-    expect(browser).toContain("item.kind === 'image' || item.kind === 'video'");
+    expect(browser).toContain("item.kind === 'image' || item.kind === 'video' || item.kind === 'audio' || item.kind === 'vector'");
+    expect(browser).toContain('return [...sessionRows, ...uploads].filter');
     expect(browser).toContain('lastModified: item.createdAt');
   });
 });

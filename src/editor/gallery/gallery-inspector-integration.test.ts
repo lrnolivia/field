@@ -44,9 +44,10 @@ describe('Gallery inspector integration', () => {
     const crop = source('src/editor/gallery/GalleryCropOverlay.tsx');
     const media = source('src/editor/ui/ImageSearchModal.tsx');
 
-    expect(tool).toContain('}, [currentView, galleryId, items]);');
+    expect(tool).toContain('}, [bridge, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);');
     expect(tool).not.toContain('}, [currentView, galleryId, items.length]);');
-    expect(tool).toContain('getGalleryIndexGeometryPatch(currentView, index)');
+    expect(tool).toContain('getGalleryIndexGeometryPatch(');
+    expect(tool).toContain('normalizeGallerySourceRatio(item.sourceRatio)');
     expect(content).toContain('role="list" aria-label="Gallery media"');
     expect(view).not.toContain('Terra Prime strip items');
     expect(crop).toContain('role="dialog"');
