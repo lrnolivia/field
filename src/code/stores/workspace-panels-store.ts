@@ -2,7 +2,6 @@
 // field workspace chrome: visibility derives docked / floating / hidden presentation.
 import { atomWithStorage } from 'jotai/utils';
 import { atom } from 'jotai';
-import { selectedIdsAtom } from './store';
 
 // The layout preset and docked pane states persist independently. Selecting a
 // preset seeds the panes; restoring it must not overwrite later pane changes.
@@ -10,9 +9,14 @@ export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked'
 export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
 export const dockedLeftOpenAtom = atomWithStorage('field:prefs:dockedLeftOpen:v1', true, undefined, { getOnInit: true });
 export const dockedInspectorOpenAtom = atomWithStorage('field:prefs:dockedInspectorOpen:v1', true, undefined, { getOnInit: true });
+/** Auto-hide is independent of the left rail and of the layout preset. */
+export const rightInspectorAutoHideAtom = atomWithStorage('field:prefs:rightInspectorAutoHide:v1', false, undefined, { getOnInit: true });
+export const rightInspectorTemporaryRevealAtom = atom(false);
+/** An explicit Collapse wins over selection-driven temporary reveal. */
+export const rightInspectorExplicitCollapseAtom = atom(false);
 /** Temporary Inspector reveal in Compact; never changes the workspace mode. */
 export const compactInspectorOpenAtom = atom(false);
-/** Hover expands the floating Inspector; selection keeps it expanded. */
+/** Explicitly pinned floating Inspector expansion. */
 export const floatingInspectorExpandedAtom = atom(false);
 export const leftPaneOpenAtom = atom(
   (get) => {
@@ -29,13 +33,16 @@ export const leftPaneOpenAtom = atom(
 export const rightPaneOpenAtom = atom(
   (get) => {
     const mode = get(workspaceModeAtom);
-    if (mode === 'docked' || mode === 'compact-docked') return get(dockedInspectorOpenAtom);
-    if (mode === 'floating') return get(floatingInspectorExpandedAtom) || get(selectedIdsAtom).length > 0;
-    if (mode === 'compact') return get(compactInspectorOpenAtom);
+    if (mode === 'docked' || mode === 'compact-docked') return get(dockedInspectorOpenAtom) || get(rightInspectorTemporaryRevealAtom);
+    if (mode === 'floating') return get(floatingInspectorExpandedAtom) || get(rightInspectorTemporaryRevealAtom);
+    if (mode === 'compact') return get(compactInspectorOpenAtom) || get(rightInspectorTemporaryRevealAtom);
     return false;
   },
   (get, set, open: boolean) => {
     const mode = get(workspaceModeAtom);
+    set(rightInspectorTemporaryRevealAtom, false);
+    set(rightInspectorExplicitCollapseAtom, !open);
+    if (open) set(rightInspectorAutoHideAtom, false);
     if (mode === 'docked' || mode === 'compact-docked') { set(dockedInspectorOpenAtom, open); return; }
     if (mode === 'floating') { set(floatingInspectorExpandedAtom, open); return; }
     if (mode === 'compact') { set(compactInspectorOpenAtom, open); return; }

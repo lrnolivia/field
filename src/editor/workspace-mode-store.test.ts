@@ -1,9 +1,9 @@
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { compactInspectorOpenAtom, dockedInspectorOpenAtom, dockedLeftOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, dockedInspectorOpenAtom, dockedLeftOpenAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from './detached-left-panel-store';
-import { compactPanelOpenAtom, floatingEntranceAtom, floatingInspectorRevealedAtom, floatingInspectorVisibleAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { compactPanelOpenAtom, floatingEntranceAtom, floatingInspectorVisibleAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { selectedIdsAtom } from '@/code/stores/store';
 
 describe('workspace mode', () => {
@@ -58,18 +58,25 @@ describe('workspace mode', () => {
     expect(store.get(leftRailVisibleAtom)).toBe(true);
   });
 
-  it('auto-shows the floating inspector for a selection', () => {
+  it('temporarily reveals the Inspector and keeps an explicit collapse', () => {
     const store = createStore();
     store.set(setWorkspaceModeAtom, 'floating');
     expect(store.get(floatingEntranceAtom)).toBe(true);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(true);
-    store.set(workspaceAutoHideAtom, true);
-    store.set(floatingInspectorRevealedAtom, false);
+    store.set(rightInspectorAutoHideAtom, true);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
-    store.set(selectedIdsAtom, ['shape-1']);
+    store.set(rightInspectorTemporaryRevealAtom, true);
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(true);
-    store.set(selectedIdsAtom, []);
+    store.set(selectedIdsAtom, ['shape-1']);
+    store.set(rightPaneOpenAtom, false);
+    expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(true);
+    expect(store.get(rightPaneOpenAtom)).toBe(false);
     expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
+    store.set(rightPaneOpenAtom, true);
+    expect(store.get(rightInspectorAutoHideAtom)).toBe(false);
+    expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(false);
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
   });
 
   it('reveals the Inspector temporarily without leaving Compact mode', () => {

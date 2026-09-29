@@ -6,12 +6,15 @@ import {
   floatingInspectorExpandedAtom,
   dockedLeftOpenAtom,
   dockedInspectorOpenAtom,
+  rightInspectorAutoHideAtom,
+  rightInspectorTemporaryRevealAtom,
+  rightInspectorExplicitCollapseAtom,
+  rightPaneOpenAtom,
   rightPaneDragOffsetAtom,
   workspaceModeAtom,
   type WorkspaceMode,
 } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from './detached-left-panel-store';
-import { selectedIdsAtom } from '@/code/stores/store';
 
 export { workspaceModeAtom } from '@/code/stores/workspace-panels-store';
 export type { WorkspaceMode } from '@/code/stores/workspace-panels-store';
@@ -32,13 +35,9 @@ export const compactPanelOpenAtom = atom(false);
 export const floatingInspectorRevealedAtom = atom(false);
 export const floatingInspectorSuppressedAtom = atom(false);
 export const floatingInspectorVisibleAtom = atom((get) => {
-  const mode = get(workspaceModeAtom);
-  const autoHide = get(workspaceAutoHideAtom);
-  if ((mode === 'docked' || mode === 'floating' || mode === 'compact-docked') && autoHide) {
-    return !get(floatingInspectorSuppressedAtom)
-      && (get(selectedIdsAtom).length > 0 || get(floatingInspectorRevealedAtom));
-  }
-  return true;
+  if (!get(rightInspectorAutoHideAtom)) return true;
+  return !get(floatingInspectorSuppressedAtom)
+    && (get(rightPaneOpenAtom) || get(rightInspectorTemporaryRevealAtom));
 });
 export const leftRailVisibleAtom = atom((get) => {
   const mode = get(workspaceModeAtom);
@@ -60,6 +59,9 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
     set(dockedLeftOpenAtom, expanded);
     set(dockedInspectorOpenAtom, expanded);
   }
+  set(rightInspectorAutoHideAtom, false);
+  set(rightInspectorTemporaryRevealAtom, false);
+  set(rightInspectorExplicitCollapseAtom, false);
   set(floatingEntranceAtom, mode === 'floating' && previousMode !== 'floating');
   set(railRevealedAtom, false);
   set(floatingLeftHiddenAtom, false);

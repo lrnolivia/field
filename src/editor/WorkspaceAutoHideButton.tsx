@@ -1,5 +1,6 @@
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { floatingEntranceAtom, workspaceAutoHideAtom } from './workspace-mode-store';
+import { rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 
 export function AutoHideEyeIcon({ enabled }: { enabled: boolean }) {
   return <svg aria-hidden viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -9,13 +10,19 @@ export function AutoHideEyeIcon({ enabled }: { enabled: boolean }) {
 }
 
 export default function WorkspaceAutoHideButton({ side = 'left', className = '' }: { side?: 'left' | 'right'; className?: string }) {
-  const [enabled, setEnabled] = useAtom(workspaceAutoHideAtom);
+  const [enabled, setEnabled] = useAtom(side === 'right' ? rightInspectorAutoHideAtom : workspaceAutoHideAtom);
+  const setRightOpen = useSetAtom(rightPaneOpenAtom);
+  const setTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
+  const setExplicitCollapse = useSetAtom(rightInspectorExplicitCollapseAtom);
   const entrance = useAtomValue(floatingEntranceAtom);
-  const label = side === 'right' ? 'Auto-hide Inspector' : 'Auto-hide panels';
+  const label = `${enabled ? 'Turn off' : 'Turn on'} ${side === 'right' ? 'Inspector' : 'left panel'} auto-hide`;
   return <div className={`z-10 ${className || 'relative'}`}>
     <button type="button" data-workspace-autohide data-side={side} aria-label={label}
-      aria-pressed={enabled} title={`${label}: ${enabled ? 'on' : 'off'}`}
-      onClick={() => setEnabled(!enabled)}
+      aria-pressed={enabled} title={label}
+      onClick={() => {
+        if (side === 'right') { setRightOpen(false); setTemporaryReveal(false); setExplicitCollapse(false); }
+        setEnabled(!enabled);
+      }}
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] transition-colors hover:bg-[var(--bg-hover)] ${enabled ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'} ${entrance ? 'animate-pulse ring-1 ring-[var(--accent)]' : ''}`}>
       <AutoHideEyeIcon enabled={enabled} />
     </button>
@@ -30,16 +37,18 @@ export function WorkspaceCollapseButton({
   side = 'left',
   collapsed,
   onClick,
+  actionLabel,
   className = '',
 }: {
   side?: 'left' | 'right';
   collapsed: boolean;
   onClick: () => void;
+  actionLabel?: string;
   className?: string;
 }) {
-  const label = collapsed
+  const label = actionLabel ?? (collapsed
     ? (side === 'right' ? 'Expand Inspector' : 'Expand panel')
-    : (side === 'right' ? 'Collapse Inspector' : 'Collapse panel');
+    : (side === 'right' ? 'Collapse Inspector' : 'Collapse panel'));
   const path = side === 'right'
     ? (collapsed ? 'M2 2v12M11 4 7 8l4 4' : 'M14 2v12M5 4l4 4-4 4')
     : (collapsed ? 'M14 2v12M5 4l4 4-4 4' : 'M2 2v12M11 4 7 8l4 4');
