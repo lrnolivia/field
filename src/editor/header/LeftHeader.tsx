@@ -35,6 +35,7 @@ import { getProjectId } from '@/backend/project-id';
 import { buildTabs, buildPreferencesSubmenu, buildThemeSubmenu } from './menu-builders';
 import ProjectChip from './ProjectChip';
 import KeyboardShortcutsModal from '@/editor/ui/KeyboardShortcutsModal';
+import AboutFieldModal from '@/editor/ui/AboutFieldModal';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import Button from '@/design-system/Button';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
@@ -76,6 +77,7 @@ function FieldIcon() {
 
 export function LogoButton() {
   const [open, setOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
   // Viewers keep "Go to Dashboard" + "Your Account" (account-level,
   // harmless) but every menubar tab (File / Edit / Insert / View) is
@@ -206,6 +208,16 @@ export function LogoButton() {
         submenuItems: buildThemeSubmenu(builderTheme, setBuilderTheme),
         onClick: () => {},
       },
+      { type: 'separator' as const },
+      {
+        id: 'logo-about',
+        label: 'About field',
+        onClick: () => {
+          trace.action('left-header:about');
+          setOpen(false);
+          setAboutOpen(true);
+        },
+      },
     ];
   }, [
     isViewer, hasActiveSubscription, setSettingsOpen, setSettingsSection,
@@ -240,6 +252,7 @@ export function LogoButton() {
         hoverStyle="accent"
         searchable
       />
+      <AboutFieldModal isOpen={aboutOpen} onClose={() => setAboutOpen(false)} />
     </>
   );
 }

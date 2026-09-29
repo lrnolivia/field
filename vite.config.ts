@@ -4,9 +4,81 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+type FieldBuildAsset = {
+  version: string;
+  commitSha: string;
+  shortSha: string;
+  builtAt: string;
+};
+
+function readFieldBuildAsset(): FieldBuildAsset {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8')) as { version?: string };
+  let commitSha = process.env.GITHUB_SHA
+    ?? process.env.CF_PAGES_COMMIT_SHA
+    ?? process.env.FIELD_COMMIT_SHA
+    ?? '';
+
+  if (!commitSha) {
+    try {
+      commitSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: __dirname,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      commitSha = 'unknown';
+    }
+  }
+
+  return {
+    version: packageJson.version ?? '0.0.0',
+    commitSha,
+    shortSha: commitSha === 'unknown' ? commitSha : commitSha.slice(0, 8),
+    builtAt: process.env.FIELD_BUILD_TIME ?? new Date().toISOString(),
+  };
+}
+
+function fieldBuildMetadataPlugin(): Plugin {
+  const metadata = readFieldBuildAsset();
+  const source = JSON.stringify(metadata);
+
+  return {
+    name: 'field-build-metadata',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = new URL(req.url ?? '/', 'http://field.local').pathname;
+        if (pathname !== '/api/build') return next();
+        if (req.method !== 'GET') {
+          res.statusCode = 405;
+          res.setHeader('Allow', 'GET');
+          res.end();
+          return;
+        }
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify({
+          ...metadata,
+          environment: 'Local',
+          deployedAt: metadata.builtAt,
+          deploymentId: null,
+        }));
+      });
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'build.json',
+        source,
+      });
+    },
+  };
+}
 
 
 /**
@@ -372,7 +444,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const cloudMode = env.VITE_REVYME_CLOUD === 'true';
   return {
-  plugins: [react(), tailwindcss(), debugTracePlugin()],
+  plugins: [react(), tailwindcss(), fieldBuildMetadataPlugin(), debugTracePlugin()],
   // In cloud mode assets must be served under /builder/ so Next.js rewrite proxy can forward them.
   // Standalone mode uses root path (no proxy).
   base: cloudMode ? '/builder/' : '/',
