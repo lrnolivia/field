@@ -19,6 +19,7 @@ import {
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { trace } from '@/shared/debug-trace';
+import { createFieldRafCoalescer } from '@/editor/motion';
 
 interface Props {
   hidden?: boolean;
@@ -48,26 +49,35 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
     document.documentElement.dataset.workspaceResizing = 'true';
     const startX = event.clientX;
     const startWidth = side === 'left' ? leftContentWidth : rightPaneWidth;
+    let finalWidth = startWidth;
+    const coalescer = createFieldRafCoalescer((width: number) => {
+      if (side === 'left') setLeftContentWidth(width);
+      else setRightPaneWidth(width);
+    });
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
 
     const move = (e: PointerEvent) => {
       const delta = e.clientX - startX;
-      if (side === 'left') setLeftContentWidth(clampLeftContentWidth(startWidth + delta));
-      else setRightPaneWidth(clampRightPaneWidth(startWidth - delta));
+      finalWidth = side === 'left'
+        ? clampLeftContentWidth(startWidth + delta)
+        : clampRightPaneWidth(startWidth - delta);
+      coalescer.schedule(finalWidth);
     };
     const finish = (e: PointerEvent) => {
+      const delta = e.clientX - startX;
+      finalWidth = side === 'left'
+        ? clampLeftContentWidth(startWidth + delta)
+        : clampRightPaneWidth(startWidth - delta);
+      coalescer.schedule(finalWidth);
+      coalescer.flush();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       delete document.documentElement.dataset.workspaceResizing;
-      const delta = e.clientX - startX;
-      const width = side === 'left'
-        ? clampLeftContentWidth(startWidth + delta)
-        : clampRightPaneWidth(startWidth - delta);
-      trace.action('workspace:pane-resize', { side, width });
+      trace.action('workspace:pane-resize', { side, width: finalWidth });
     };
 
     window.addEventListener('pointermove', move);
@@ -80,12 +90,18 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
     document.documentElement.dataset.workspaceResizing = 'true';
     const startX = event.clientX;
     const initial = side === 'left' ? leftCollapsedWidth : rightCollapsedWidth;
+    let finalWidth = initial;
+    const coalescer = createFieldRafCoalescer((width: number) => {
+      if (side === 'left') setLeftCollapsedWidth(width);
+      else setRightCollapsedWidth(width);
+    });
     const move = (next: PointerEvent) => {
       const width = initial + (next.clientX - startX) * (side === 'left' ? 1 : -1);
-      if (side === 'left') setLeftCollapsedWidth(Math.max(52, Math.min(104, width)));
-      else setRightCollapsedWidth(Math.max(60, Math.min(112, width)));
+      finalWidth = side === 'left' ? Math.max(52, Math.min(104, width)) : Math.max(60, Math.min(112, width));
+      coalescer.schedule(finalWidth);
     };
     const stop = () => {
+      coalescer.flush();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
