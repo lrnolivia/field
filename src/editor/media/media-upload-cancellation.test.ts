@@ -41,9 +41,10 @@ describe('Media upload cancellation plumbing', () => {
     expect(ingest).toContain('activeMediaUploads.delete(uploadId)');
   });
 
-  it('does not fake retry at the byte-upload layer', () => {
+  it('keeps retry above raw bytes by replaying the retained Media operation', () => {
     const ingest = read('src/editor/media/media-ingest.ts');
-    expect(ingest).not.toContain('retryMediaUpload');
-    expect(ingest).not.toContain('retryMediaIngest');
+    expect(ingest).toContain('const retryMediaUploads = new Map');
+    expect(ingest).toContain('onSuccess?: MediaIngestSuccessHandler');
+    expect(ingest).toContain('export async function retryMediaUpload');
   });
 });

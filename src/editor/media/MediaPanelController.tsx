@@ -17,6 +17,7 @@ import VideoSearchModal from '@/editor/ui/VideoSearchModal';
 import GalleryCreationWizard from '@/editor/gallery/GalleryCreationWizard';
 import type { GalleryWizardConfig } from '@/editor/gallery/gallery-wizard-model';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
+import { measureGallerySourceRatio } from '@/code/gallery/gallery-source-ratio';
 import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutations';
 import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
@@ -128,17 +129,17 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
     const placement = resolvePlacement(elementKind);
     try {
-      const result = await ingestMediaFile({
+      await ingestMediaFile({
         file,
         projectId: getProjectId(),
         kind: mediaKind,
         upsert: upsertUpload,
         idPrefix: 'toolbar',
         rememberAsset,
+        // Placement is captured before the async upload begins. Retry replays
+        // this exact operation instead of consulting whatever is selected later.
+        onSuccess: (result) => placeUrl(elementKind, result.url, placement),
       });
-      // Placement is captured before the async upload begins so a later
-      // selection change cannot unexpectedly replace a different node.
-      placeUrl(elementKind, result.url, placement);
     } catch (error) {
       if (isMediaUploadCancelled(error)) return;
       const message = error instanceof Error ? error.message : 'Upload failed.';
@@ -188,27 +189,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
     try {
       const ratios = config.frameSizing === 'source'
-        ? await Promise.all(config.mediaUrls.map((url) => new Promise<number | null>((resolve) => {
-            const image = new Image();
-            let settled = false;
-            const finish = (ratio: number | null) => {
-              if (settled) return;
-              settled = true;
-              window.clearTimeout(timeout);
-              image.onload = null;
-              image.onerror = null;
-              resolve(ratio);
-            };
-            const timeout = window.setTimeout(() => {
-              image.src = '';
-              finish(null);
-            }, 8000);
-            image.onload = () => finish(
-              image.naturalHeight ? image.naturalWidth / image.naturalHeight : null,
-            );
-            image.onerror = () => finish(null);
-            image.src = url;
-          })))
+        ? await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))
         : undefined;
 
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });

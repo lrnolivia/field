@@ -32,7 +32,93 @@ import { parsePx, formatPx } from '../style-helpers';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { trace } from '@/shared/debug-trace';
 import { resolvePresetColor } from '@/shared/css-utils';
-import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+import { EffectPreviewFrame, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+
+// ─── Functional preview ─────────────────────────────────────────────────────
+
+function ShadowLivePreview({
+  entry,
+  layer,
+  count,
+  onOffsetLive,
+  onOffsetCommit,
+}: {
+  entry: ShadowEntry;
+  layer: number;
+  count: number;
+  onOffsetLive: (x: number, y: number) => void;
+  onOffsetCommit: (x: number, y: number) => void;
+}) {
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null);
+  const clampOffset = (value: number) => Math.max(-48, Math.min(48, Math.round(value)));
+  const shadowValue = entry.type === 'box'
+    ? `${entry.inset ? 'inset ' : ''}${entry.x}px ${entry.y}px ${entry.blur}px ${entry.spread}px ${entry.color}`
+    : undefined;
+  const dropFilter = entry.type === 'drop'
+    ? `drop-shadow(${entry.x}px ${entry.y}px ${entry.blur}px ${entry.color})`
+    : undefined;
+
+  const nudge = (dx: number, dy: number) => {
+    onOffsetCommit(clampOffset(entry.x + dx), clampOffset(entry.y + dy));
+  };
+
+  return (
+    <EffectPreviewFrame
+      details={<>Layer {layer}/{count} · X {entry.x} · Y {entry.y} · Blur {entry.blur}</>}
+      hint="Drag the object or use arrow keys to change shadow offset."
+    >
+      <button
+        type="button"
+        data-shadow-live-preview
+        aria-label="Shadow preview. Drag or use arrow keys to change offset."
+        className="relative h-10 w-14 cursor-move rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] outline-none transition-[border-color,transform] focus-visible:border-[var(--border-focus)] active:scale-[0.98]"
+        style={{ boxShadow: shadowValue, filter: dropFilter }}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 10 : 1;
+          if (event.key === 'ArrowLeft') { event.preventDefault(); nudge(-step, 0); }
+          if (event.key === 'ArrowRight') { event.preventDefault(); nudge(step, 0); }
+          if (event.key === 'ArrowUp') { event.preventDefault(); nudge(0, -step); }
+          if (event.key === 'ArrowDown') { event.preventDefault(); nudge(0, step); }
+        }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            startX: entry.x,
+            startY: entry.y,
+          };
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          onOffsetLive(
+            clampOffset(drag.startX + event.clientX - drag.x),
+            clampOffset(drag.startY + event.clientY - drag.y),
+          );
+        }}
+        onPointerUp={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          const x = clampOffset(drag.startX + event.clientX - drag.x);
+          const y = clampOffset(drag.startY + event.clientY - drag.y);
+          dragRef.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          onOffsetCommit(x, y);
+        }}
+        onPointerCancel={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          dragRef.current = null;
+          onOffsetCommit(entry.x, entry.y);
+        }}
+      >
+        <span className="absolute inset-2 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45" />
+      </button>
+    </EffectPreviewFrame>
+  );
+}
 
 // ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
 
@@ -109,7 +195,13 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   return (
     <ShowControlLabels>
       <EffectOptionsPanel>
-        <EffectIllustration kind="shadow" />
+        <ShadowLivePreview
+          entry={activeEntry}
+          layer={activeIdx + 1}
+          count={entries.length}
+          onOffsetLive={(x, y) => updateEntryLive(activeIdx, { x, y })}
+          onOffsetCommit={(x, y) => updateEntry(activeIdx, { x, y })}
+        />
         <EffectOptionSection title="Style" glyph={<InspectorSectionGlyph kind="style" />}>
           <ChoiceRow
             label="Type"

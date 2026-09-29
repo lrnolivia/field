@@ -22,6 +22,7 @@ import { claimGalleryCreationSession, completeGalleryCreationSession, hasGallery
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
 import { buildGalleryMediaAddPlan } from '@/code/gallery/gallery-media-add-plan';
+import { measureGallerySourceRatio } from '@/code/gallery/gallery-source-ratio';
 import {
   galleryRootAttrs,
   getGalleryCarouselControls,
@@ -79,30 +80,7 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
     : { type: 'updateStyles', nodeId, styles };
 }
 
-function measureGallerySourceRatio(src: string): Promise<number | null> {
-  if (!src || typeof Image === 'undefined') return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const image = new Image();
-    let settled = false;
-    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
-    const finish = (ratio: number | null) => {
-      if (settled) return;
-      settled = true;
-      if (timeout !== undefined) globalThis.clearTimeout(timeout);
-      resolve(ratio);
-    };
-    const read = () => finish(
-      image.naturalWidth > 0 && image.naturalHeight > 0
-        ? image.naturalWidth / image.naturalHeight
-        : null,
-    );
-    timeout = globalThis.setTimeout(() => finish(null), 8000);
-    image.onload = read;
-    image.onerror = () => finish(null);
-    image.src = src;
-    if (image.complete && image.naturalWidth > 0) read();
-  });
-}
+
 
 /**
  * A Gallery view is one global semantic choice, while detail settings may have

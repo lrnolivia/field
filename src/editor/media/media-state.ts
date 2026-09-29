@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { cancelMediaUpload } from './media-ingest';
+import { cancelMediaUpload, discardMediaUploadRetry, retryMediaUpload } from './media-ingest';
 import { getProjectId } from '@/backend/project-id';
 import {
   createMediaSession,
@@ -163,13 +163,43 @@ export const cancelAllActiveMediaUploadsAtom = atom(null, (get) => {
   return cancelled;
 });
 
+export const retryMediaUploadAtom = atom(null, async (get, _set, id: string) => {
+  const projectId = get(mediaProjectIdAtom);
+  const queue = get(mediaUploadQueuesByProjectAtom)[projectId] ?? EMPTY_MEDIA_UPLOADS;
+  const item = queue.find((entry) => entry.id === id);
+  if (
+    !item
+    || !item.retryable
+    || (item.status !== 'error' && item.status !== 'cancelled')
+  ) {
+    return false;
+  }
+
+  try {
+    return (await retryMediaUpload(id)) !== null;
+  } catch {
+    // The shared ingest path already wrote the refreshed error/cancelled row.
+    return false;
+  }
+});
+
 export const removeMediaUploadAtom = atom(null, (get, set, id: string) => {
   const projectId = get(mediaProjectIdAtom);
   const buckets = get(mediaUploadQueuesByProjectAtom);
   const queue = buckets[projectId] ?? EMPTY_MEDIA_UPLOADS;
+  const item = queue.find((entry) => entry.id === id);
+
+  if (item && (item.status === 'queued' || item.status === 'uploading' || item.status === 'processing')) {
+    // "Remove" on active work means cancel first. The ingest catch will update
+    // the same row to cancelled; callers can then dismiss it deliberately.
+    cancelMediaUpload(id);
+    return;
+  }
+
+  discardMediaUploadRetry(id);
   set(mediaUploadQueuesByProjectAtom, {
     ...buckets,
-    [projectId]: queue.filter((item) => item.id !== id),
+    [projectId]: queue.filter((entry) => entry.id !== id),
   });
 });
 
@@ -177,10 +207,14 @@ export const clearFinishedMediaUploadsAtom = atom(null, (get, set) => {
   const projectId = get(mediaProjectIdAtom);
   const buckets = get(mediaUploadQueuesByProjectAtom);
   const queue = buckets[projectId] ?? EMPTY_MEDIA_UPLOADS;
+  const active = queue.filter((item) => (
+    item.status === 'queued' || item.status === 'uploading' || item.status === 'processing'
+  ));
+  for (const item of queue) {
+    if (!active.includes(item)) discardMediaUploadRetry(item.id);
+  }
   set(mediaUploadQueuesByProjectAtom, {
     ...buckets,
-    [projectId]: queue.filter((item) => (
-      item.status === 'queued' || item.status === 'uploading' || item.status === 'processing'
-    )),
+    [projectId]: active,
   });
 });

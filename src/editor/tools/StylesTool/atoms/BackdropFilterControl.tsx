@@ -8,7 +8,7 @@ import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../
 import type { AtomProps } from '../../../controls/unified/types';
 import { FilterIcon } from '@/design-system/PropertyIcons';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
-import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, EffectOptionAction, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
+import { EffectOptionsPanel, EffectOptionSection, EffectOptionAction, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
 import { trace } from '@/shared/debug-trace';
 
@@ -25,7 +25,6 @@ function BackdropBlurEditor({
 }) {
   return (
     <EffectOptionsPanel>
-      <EffectIllustration kind="background-blur" />
       <EffectOptionSection
         title="Background blur"
         glyph={<InspectorSectionGlyph kind="blur" />}

@@ -257,6 +257,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         upsert: upsertMediaUpload,
         idPrefix: 'image-picker',
         rememberAsset: rememberMediaAsset,
+        retryable: false,
       });
       trace.action('image-search:upload-success', {
         url: result.url,
