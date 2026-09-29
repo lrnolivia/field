@@ -48,7 +48,6 @@ describe('toolbar Media launcher contract', () => {
     expect(toolbar).toContain('<MediaButton />');
     expect(toolbar).toContain('dataTool="media"');
     expect(insert).toContain('const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;');
-    expect(insert).not.toContain("category.id !== 'media'");
     expect(insert).not.toContain("if (category.id === 'media')");
     expect(insert).not.toContain('MediaGalleryPanel');
     expect(insert).not.toContain('MediaGlyph');

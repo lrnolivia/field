@@ -882,17 +882,27 @@ export default function MediaGalleryPanel({
 
       {/* Tabs */}
       <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2.5'}`}>
-        <ToolSegmentedControl value={tab} onChange={(value) => setTab(value as MediaGalleryTab)} options={TAB_OPTIONS} />
+        <ToolSegmentedControl
+          value={tab}
+          onChange={(value) => setTab(value as MediaGalleryTab)}
+          options={TAB_OPTIONS}
+          size={chrome === 'full' ? 'compact' : 'md'}
+          layout={chrome === 'full' ? 'grid' : 'inline'}
+        />
       </div>
 
       {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}
       <div className="px-3 mt-2">
-        <div data-media-browser-commandbar className="flex items-center gap-1.5">
+        <div
+          data-media-browser-commandbar
+          data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}
+          className={chrome === 'full' ? 'grid grid-cols-1 gap-1.5' : 'flex items-center gap-1.5'}
+        >
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : tab === 'videos' ? 'Search videos…' : 'Search audio…'}
-            className="min-w-0 flex-1"
+            className="min-w-0 w-full flex-1"
           />
           <input
             ref={fileInputRef}
@@ -906,7 +916,7 @@ export default function MediaGalleryPanel({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50"
+            className={`flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50 ${chrome === 'full' ? 'w-full justify-center' : ''}`}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
               <path d="M8 11V3M5 6l3-3 3 3" />
@@ -1150,7 +1160,7 @@ export default function MediaGalleryPanel({
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
+        <div className={`flex-1 flex flex-col items-center gap-2 px-4 text-center ${chrome === 'full' ? 'justify-start pt-12' : 'justify-center'}`}>
           <span className="relative flex h-11 w-14 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 text-[13px] text-[var(--text-tertiary)] shadow-[0_2px_8px_rgba(0,0,0,0.04)]" aria-hidden>
             <span className="absolute left-2 top-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/55" />
             <span className="absolute bottom-2 right-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--accent)] opacity-[0.12]" />
