@@ -25,7 +25,11 @@ export default function WorkspaceModeCoordinator() {
   const groupEditingId = useAtomValue(groupEditingIdAtom);
   const previewMode = useAtomValue(previewModeAtom);
 
-  useLayoutEffect(() => { setMode(mode === 'compact' ? 'floating' : mode); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only migrate the retired floating Compact preset. Restoring a docked
+  // preset must leave its separately persisted pane choices untouched.
+  useLayoutEffect(() => {
+    if (mode === 'compact') setMode('floating');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (mode !== 'floating' || !entrance) return;
