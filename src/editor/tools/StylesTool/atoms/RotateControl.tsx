@@ -319,19 +319,19 @@ function RotateAtom({ compact = false }: { compact?: boolean } = {}) {
   if (compact) {
     return (
       <div data-position-transform-row className="field-inspector-pair w-full">
-        <div data-position-rotation-field className="grid grid-cols-[22px_minmax(0,1fr)] items-center gap-1 min-w-0">
-          <span className="h-[var(--control-height)] flex items-center justify-center text-[var(--text-secondary)]" title="Rotation" aria-hidden>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.5 6.25A5 5 0 1 0 13 9" />
-              <path d="M10.5 3.5h3v3" />
-            </svg>
-          </span>
+        <div data-position-rotation-field className="min-w-0">
           <ToolInput
             value={String(Math.round(shownNum * 10) / 10)}
             onChange={writeRaw}
             step={1}
             chevronLabel="°"
             ariaLabel="Rotation"
+            leadingGlyph={
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.5 6.25A5 5 0 1 0 13 9" />
+                <path d="M10.5 3.5h3v3" />
+              </svg>
+            }
           />
         </div>
         <InspectorIconButtonGroup

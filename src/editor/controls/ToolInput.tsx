@@ -2,7 +2,7 @@
 // Does NOT include label — use ToolRow for label + input layout.
 // Exact input styling from old builder's ToolInput.tsx.
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { useScrubInteracting } from '@/editor/hooks/useScrubInteracting';
@@ -48,6 +48,10 @@ interface Props {
   ariaLabel?: string;
   /** Keep numeric increment/decrement chevrons visible at rest. Typography opts in; other controls keep hover/focus behavior. */
   alwaysShowStepper?: boolean;
+  /** Optional field prefix rendered inside the input chrome. */
+  leadingGlyph?: ReactNode;
+  /** Compact text prefix rendered inside the input chrome (e.g. T/R/B/L). */
+  leadingLabel?: string;
 }
 
 /** Resting display of a LENGTH: whole numbers. The source keeps its full
@@ -70,7 +74,7 @@ function parseNumeric(v: string): { num: number; unit: string } | null {
   return { num: parseFloat(match[1]), unit: match[2] || '' };
 }
 
-export default function ToolInput({ value, onChange, onChangeLive, onCommit, step = 1, text, chevronLabel, className, disabled, placeholder, min, max, mirrorNegative, ariaLabel, alwaysShowStepper = false }: Props) {
+export default function ToolInput({ value, onChange, onChangeLive, onCommit, step = 1, text, chevronLabel, className, disabled, placeholder, min, max, mirrorNegative, ariaLabel, alwaysShowStepper = false, leadingGlyph, leadingLabel }: Props) {
   // Viewers see every ToolInput in the read-only disabled state. The
   // parent <fieldset disabled> already blocks the native input, but the
   // ToolInput wrapper's dimmed look keys off this flag — without it the
@@ -356,9 +360,20 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
         onBlur={() => { setIsFocused(false); commit(localValue); }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        style={alwaysShowStepper ? { paddingRight: '20px' } : undefined}
+        style={{
+          ...(alwaysShowStepper ? { paddingRight: '20px' } : {}),
+          ...(leadingGlyph || leadingLabel ? { paddingLeft: '28px' } : {}),
+        }}
         className={`w-full h-[var(--control-height)] px-[var(--control-pad-x)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] ${isAutoOrFill ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'} cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
       />
+      {(leadingGlyph || leadingLabel) && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-2 z-10 flex w-4 items-center justify-center text-[var(--text-secondary)]"
+        >
+          {leadingGlyph ?? <span className="text-[9px] font-semibold">{leadingLabel}</span>}
+        </span>
+      )}
       {isNumeric && <span aria-hidden data-touch-scrub="number" data-field-no-canvas-input data-value-wheel="vertical" title="Drag or scroll vertically to adjust"
         onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
         className="absolute inset-y-0 right-0 z-10 block w-1/2 cursor-ns-resize touch-none" />}

@@ -93,7 +93,7 @@ export default function ChromeTabBar<T extends string>({
               </span>
             )}
             <span className="truncate">{item.label}</span>
-            {active && <span aria-hidden className="absolute inset-x-2 -bottom-[2px] h-[2px] rounded-full bg-[var(--accent)] opacity-70" />}
+            {active && <span aria-hidden className="absolute inset-x-2.5 bottom-[2px] h-[2px] rounded-full bg-[var(--accent)] opacity-70" />}
           </button>
         );
       })}
