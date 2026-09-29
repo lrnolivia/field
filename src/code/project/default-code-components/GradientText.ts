@@ -41,6 +41,20 @@ function GradientText({
 }) {
   const textRef = useRef(null);
   const isStatic = useStaticCanvas();
+  const rootStyle = props.style || {};
+  // GradientText's visible glyphs live on this inner span. Most typography
+  // inherits through the outer component root, but text-shadow on transparent
+  // clipped text is browser-sensitive and can disappear when it only lives on
+  // the wrapper. Mirror text paint onto the actual glyph host while keeping
+  // box/layout effects on the outer root.
+  const glyphPaintStyle = {
+    textShadow: rootStyle.textShadow,
+    WebkitTextStroke: rootStyle.WebkitTextStroke,
+    textDecoration: rootStyle.textDecoration,
+    textDecorationColor: rootStyle.textDecorationColor,
+    textDecorationStyle: rootStyle.textDecorationStyle,
+    textDecorationThickness: rootStyle.textDecorationThickness,
+  };
 
   useEffect(() => {
     const el = textRef.current;
@@ -92,13 +106,15 @@ function GradientText({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        ...props.style,
+        ...rootStyle,
       }}
     >
       <span
         ref={textRef}
+        data-gradient-text-glyph
         style={{
           lineHeight: 1.15,
+          ...glyphPaintStyle,
           WebkitBackgroundClip: 'text',
           backgroundClip: 'text',
           color: 'transparent',
