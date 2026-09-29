@@ -61,6 +61,15 @@ export const floatingLeftHeightAtom = atomWithStorage('field:prefs:floatingLeftH
 export const leftCollapsedWidthAtom = atomWithStorage('field:prefs:leftCollapsedWidth', 52, undefined, { getOnInit: true });
 export const rightCollapsedWidthAtom = atomWithStorage('field:prefs:rightCollapsedWidth', 60, undefined, { getOnInit: true });
 
+/** Prevents accidental horizontal pane resizing from the editor drag handles.
+ *  Settings can still intentionally apply a width preset while locked. */
+export const workspacePanelWidthsLockedAtom = atomWithStorage(
+  'field:prefs:workspacePanelWidthsLocked:v1',
+  false,
+  undefined,
+  { getOnInit: true },
+);
+
 export const LEFT_RAIL_WIDTH = 52;
 export const DEFAULT_LEFT_CONTENT_WIDTH = 256;
 export const DEFAULT_RIGHT_PANE_WIDTH = 328;
@@ -68,6 +77,30 @@ export const MIN_LEFT_CONTENT_WIDTH = 220;
 export const MAX_LEFT_CONTENT_WIDTH = 420;
 export const MIN_RIGHT_PANE_WIDTH = 300;
 export const MAX_RIGHT_PANE_WIDTH = 480;
+
+export type WorkspacePanelWidthPresetId = 'compact' | 'balanced' | 'roomy';
+
+export interface WorkspacePanelWidthPreset {
+  id: WorkspacePanelWidthPresetId;
+  label: string;
+  description: string;
+  left: number;
+  right: number;
+}
+
+export const WORKSPACE_PANEL_WIDTH_PRESETS: readonly WorkspacePanelWidthPreset[] = [
+  { id: 'compact', label: 'Compact', description: 'More room for Canvas', left: 232, right: 300 },
+  { id: 'balanced', label: 'Balanced', description: 'field defaults', left: 256, right: 328 },
+  { id: 'roomy', label: 'Roomy', description: 'More panel breathing room', left: 320, right: 380 },
+] as const;
+
+export function getWorkspacePanelWidthPresetId(
+  left: number,
+  right: number,
+): WorkspacePanelWidthPresetId | null {
+  const preset = WORKSPACE_PANEL_WIDTH_PRESETS.find((item) => item.left === left && item.right === right);
+  return preset?.id ?? null;
+}
 
 export function clampLeftContentWidth(width: number): number {
   return Math.min(MAX_LEFT_CONTENT_WIDTH, Math.max(MIN_LEFT_CONTENT_WIDTH, Math.round(width)));

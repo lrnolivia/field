@@ -15,6 +15,7 @@ import {
   rightPaneWidthAtom,
   clampLeftContentWidth,
   clampRightPaneWidth,
+  workspacePanelWidthsLockedAtom,
 } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
@@ -32,13 +33,14 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
+  const panelWidthsLocked = useAtomValue(workspacePanelWidthsLockedAtom);
   const [leftContentWidth, setLeftContentWidth] = useAtom(leftContentWidthAtom);
   const [rightPaneWidth, setRightPaneWidth] = useAtom(rightPaneWidthAtom);
   const [leftCollapsedWidth, setLeftCollapsedWidth] = useAtom(leftCollapsedWidthAtom);
   const [rightCollapsedWidth, setRightCollapsedWidth] = useAtom(rightCollapsedWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
 
-  if (hidden) return null;
+  if (hidden || panelWidthsLocked) return null;
 
   const beginResize = (
     side: 'left' | 'right',

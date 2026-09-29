@@ -17,6 +17,7 @@ describe('General Settings surfaced preferences', () => {
       'rightInspectorAutoHideAtom',
       'leftContentWidthAtom',
       'rightPaneWidthAtom',
+      'workspacePanelWidthsLockedAtom',
       'autoFocusLayersAtom',
       'showRulersAtom',
       'showPixelGridAtom',
@@ -33,7 +34,9 @@ describe('General Settings surfaced preferences', () => {
     expect(settings).toContain('function SegmentedChoice');
     expect(settings).toContain('BUILDER_THEMES.map');
     expect(settings).toContain('EDITOR_NEUTRAL_SWATCHES');
-    expect(settings).toContain('type="range"');
+    expect(settings).toContain('WORKSPACE_PANEL_WIDTH_PRESETS.map');
+    expect(settings).toContain('data-panel-width-presets');
+    expect(settings).toContain('Lock widths');
   });
 
   it('keeps website preview appearance source-safe', () => {
