@@ -1,0 +1,33 @@
+name: Apply universal Fill picker patch
+
+on:
+  push:
+    branches:
+      - feat/universal-paint-picker-20260929
+    paths:
+      - .github/workflows/apply-universal-fill-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply verified Fill patch and clean transport files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .field/tmp/universal-fill.part-* > /tmp/universal-fill.patch
+          git apply --check /tmp/universal-fill.patch
+          git apply /tmp/universal-fill.patch
+          rm -f .field/tmp/universal-fill.part-* .github/workflows/apply-universal-fill-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Apply canonical Fill picker correction"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
