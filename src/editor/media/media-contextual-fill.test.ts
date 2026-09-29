@@ -43,4 +43,35 @@ describe('contextual Media in image Fill', () => {
     expect(apply).toContain("onUpdate('backgroundPosition', styles.backgroundPosition || 'center')");
     expect(apply).toContain("onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat')");
   });
+
+  it('routes Video and poster replacement through contextual Media too', () => {
+    const fill = read('src/editor/tools/StylesTool/atoms/FillControl.tsx');
+    const start = fill.indexOf('function VideoFillTab');
+    const end = fill.indexOf('function SingleModeFillContent', start);
+    const videoFill = fill.slice(start, end);
+
+    expect(videoFill).toContain('data-contextual-media-picker="fill-video"');
+    expect(videoFill).toContain('data-contextual-media-picker="fill-video-poster"');
+    expect(videoFill).toContain('<VideoSearchModal');
+    expect(videoFill).toContain('<ImageSearchModal');
+    expect(videoFill).toContain('embedded');
+    expect(videoFill).toContain('compact');
+    expect(videoFill).not.toContain('videoModalOpen');
+    expect(videoFill).not.toContain('posterInputRef');
+    expect(videoFill).not.toContain('type="file"');
+  });
+
+  it('uses compact Media rows for Video instead of the legacy dashed chooser', () => {
+    const fill = read('src/editor/tools/StylesTool/atoms/FillControl.tsx');
+    const start = fill.indexOf('function VideoFillTab');
+    const end = fill.indexOf('function SingleModeFillContent', start);
+    const videoFill = fill.slice(start, end);
+
+    expect(videoFill).toContain('Choose media');
+    expect(videoFill).toContain('onClick={openVideoMedia}');
+    expect(videoFill).toContain('onClick={openPosterMedia}');
+    expect(videoFill).not.toContain('w-full h-20');
+    expect(videoFill).not.toContain('border-2 border-dashed');
+  });
+
 });

@@ -336,8 +336,6 @@ const VIDEO_OBJECT_FIT_OPTIONS = [
 ];
 
 function VideoFillTab({ node }: { node: CanvasNode | null }) {
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
-  const posterInputRef = useRef<HTMLInputElement>(null);
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const videoPresets = allTokens.filter(t => t.category === 'video');
@@ -376,6 +374,34 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
     trace.action('fill:video-src-applied', { nodeId, urlLength: url.length });
   }, [nodeId]);
 
+  const openVideoMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video" className="min-h-0">
+        <VideoSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={applyVideoSrc}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, applyVideoSrc]);
+
+  const openPosterMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video-poster" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={(url) => patchVideo({ poster: url })}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, patchVideo]);
+
   const handleCreatePreset = useCallback(() => {
     pushPanel('New Video Preset', (
       <CreateVideoPresetPanel initialValue={currentUrl} onCreated={() => popPanel()} />
@@ -410,33 +436,27 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
   return (
     <div className="flex flex-col gap-3">
       {hasVideo ? (
-        <div className="flex flex-col gap-2">
-          <div
-            className="w-full h-28 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] overflow-hidden bg-black cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setVideoModalOpen(true)}
-          >
-            <video
-              src={currentUrl}
-              muted
-              loop
-              autoPlay
-              playsInline
-              preload="metadata"
-              className="w-full h-full object-cover pointer-events-none"
-            />
-          </div>
-          <button onClick={() => setVideoModalOpen(true)}
-            className="w-full h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer">
-            Change
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={openVideoMedia}
+          className="w-full h-9 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-1.5 text-left hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] transition-colors"
+          title={currentUrl}
+        >
+          <span className="h-6 w-9 shrink-0 overflow-hidden rounded-[3px] border border-[var(--border-light)] bg-black">
+            <video src={currentUrl} muted playsInline preload="metadata" className="h-full w-full object-cover pointer-events-none" />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">Video</span>
+          <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">Change</span>
+        </button>
       ) : (
-        <button onClick={() => setVideoModalOpen(true)}
-          className="w-full h-20 cut-corners cut-border border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-          </svg>
-          Choose Video
+        <button
+          type="button"
+          onClick={openVideoMedia}
+          className="w-full h-8 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] px-2 text-left text-[11px] text-[var(--text-secondary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          <span className="flex h-4 w-4 items-center justify-center text-[10px]" aria-hidden>▶</span>
+          <span className="min-w-0 flex-1 truncate">Choose media</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">Video</span>
         </button>
       )}
 
@@ -479,14 +499,13 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
               options={VIDEO_OBJECT_FIT_OPTIONS}
             />
           </div>
-          {/* Poster — single ControlActionRow matching the Fill row pattern.
-              Swatch shows the image when set (or a transparent-checker pattern
-              when empty), label reads "Upload…" when empty / a short caption
-              when set. Whole row triggers the OS file picker; × clears. */}
+          {/* Poster uses the same contextual Media picker as image Fill.
+              Swatch shows the current poster; the row opens Media and minus
+              clears without introducing a second upload path. */}
           <div className="flex items-center justify-between w-full">
             <ControlLabel label="Poster" property="poster" plain />
             <ControlActionRow
-              onClick={() => posterInputRef.current?.click()}
+              onClick={openPosterMedia}
               className="justify-between"
             >
               <span className="flex items-center gap-2 truncate">
@@ -496,7 +515,7 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
                     : ALPHA_CHECKER_STYLE}
                 />
                 <span className={`text-xs truncate ${cfg.poster ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                  {cfg.poster ? 'Poster set' : 'Upload…'}
+                  {cfg.poster ? 'Poster set' : 'Choose media'}
                 </span>
               </span>
               {cfg.poster && (
@@ -508,24 +527,7 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
                 </span>
               )}
             </ControlActionRow>
-            <input
-              ref={posterInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    patchVideo({ poster: reader.result });
-                  }
-                };
-                reader.readAsDataURL(file);
-                e.target.value = '';
-              }}
-            />
+
           </div>
         </div>
       )}
@@ -548,11 +550,6 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
         onEditPreset={handleEditPreset}
       />
 
-      <VideoSearchModal
-        isOpen={videoModalOpen}
-        onClose={() => setVideoModalOpen(false)}
-        onSelect={applyVideoSrc}
-      />
     </div>
   );
 }
