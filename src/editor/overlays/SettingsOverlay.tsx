@@ -42,8 +42,8 @@ import {
 } from './settings-shared';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
-import { uiHeadingCaseAtom, type UiHeadingCase } from '@/code/stores/user-preferences-store';
-import { getUiHeadingRole } from '@/shared/ui-heading-case';
+import { uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
+import { getUiHeadingRole, type UiHeadingCase } from '@/shared/ui-heading-case';
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
 
