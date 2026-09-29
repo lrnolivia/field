@@ -18,6 +18,9 @@ owned:
   - src/editor/editor-entrance.ts
   - src/editor/EditorEntranceCoordinator.tsx
   - src/editor/editor-entrance.test.ts
+  - src/editor/header/LeftHeader.tsx
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/PropertiesPanel.tsx
 protected:
   - src/field-shell-motion.ts
   - src/canvas/**
@@ -162,3 +165,12 @@ User explicitly confirmed the editor-entrance work is complete and authorized th
 ## Ownership extension — completed entrance unit
 
 Per the user's explicit confirmation that editor-entrance work is complete, this assignment now owns the full entrance unit: src/editor/editor-entrance.ts, src/editor/EditorEntranceCoordinator.tsx, and src/editor/editor-entrance.test.ts.
+
+## Ownership extension — persistent chrome surfaces
+
+Active ownership preflight found no conflicting assignment for:
+- src/editor/header/LeftHeader.tsx
+- src/editor/left-toolbar/LeftMenu.tsx
+- src/editor/PropertiesPanel.tsx
+
+These are now owned for the final structural motion pass: persistent workspace-title morph, left rail motion, and right Inspector movement/direct manipulation.
