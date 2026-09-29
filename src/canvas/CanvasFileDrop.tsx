@@ -41,6 +41,8 @@ import { modifyProjectFile } from '@/code/project/modify-file';
 import NameInputModal from '@/editor/ui/NameInputModal';
 import { getImageDimensions, fitFrameBox } from '@/canvas/image-dims';
 import { trace } from '@/shared/debug-trace';
+import { upsertMediaUploadAtom } from '@/editor/media/media-state';
+import type { MediaUploadItem } from '@/editor/media/media-system';
 
 /** Classification of a file by its mime/extension. */
 type FileKind = 'svg' | 'image' | 'unknown';
@@ -251,6 +253,7 @@ interface PendingDrop {
 export default function CanvasFileDrop() {
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSelectedIds = useSetAtom(selectedIdsAtom);
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
   const [dropFeedback, setDropFeedback] = useState<CanvasMediaDropFeedback | null>(null);
 
@@ -340,13 +343,13 @@ export default function CanvasFileDrop() {
         if (pre.valid.length === 0) {
           // every "SVG" was junk — say so, and still honor any images
           toast.error(`No valid SVG files in the drop (${pre.skipped.length} skipped).`);
-          if (imageFiles.length > 0) await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds);
+          if (imageFiles.length > 0) await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload);
           return;
         }
         setPendingDrop({ validSvgs: pre.valid, skipped: pre.skipped, imageFiles, canvasX, canvasY });
         return;
       }
-      await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds);
+      await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload);
       return;
     }
 
@@ -359,7 +362,7 @@ export default function CanvasFileDrop() {
     }
     trace.action('canvas-file-drop:url-drop', { url: extracted.url.slice(0, 120), canvasX, canvasY });
     await handleImageUrlDrop(extracted.url, extracted.name, canvasX, canvasY, setSelectedIds);
-  }, [setSelectedIds]);
+  }, [setSelectedIds, upsertMediaUpload]);
 
   // Window-level listeners suppress browser navigation for external Media,
   // while the canvas rect itself remains the only valid insertion target.
@@ -432,9 +435,9 @@ export default function CanvasFileDrop() {
 
     // Also drop any images that came alongside the SVGs.
     if (imageFiles.length > 0) {
-      await handleImageFileDrops(imageFiles, canvasX + 280, canvasY, setSelectedIds);
+      await handleImageFileDrops(imageFiles, canvasX + 280, canvasY, setSelectedIds, upsertMediaUpload);
     }
-  }, [pendingDrop, activeFilePath, setSelectedIds]);
+  }, [pendingDrop, activeFilePath, setSelectedIds, upsertMediaUpload]);
 
   // Cancelling the set must NOT swallow images dropped alongside the
   // SVGs — the user dropped them; insert them anyway.
@@ -442,9 +445,9 @@ export default function CanvasFileDrop() {
     const stash = pendingDrop;
     setPendingDrop(null);
     if (stash && stash.imageFiles.length > 0) {
-      void handleImageFileDrops(stash.imageFiles, stash.canvasX, stash.canvasY, setSelectedIds);
+      void handleImageFileDrops(stash.imageFiles, stash.canvasX, stash.canvasY, setSelectedIds, upsertMediaUpload);
     }
-  }, [pendingDrop, setSelectedIds]);
+  }, [pendingDrop, setSelectedIds, upsertMediaUpload]);
 
   // Honest dialog copy: what will be created, what rode along, what was skipped.
   const dropSummary = pendingDrop
@@ -503,27 +506,61 @@ async function handleImageFileDrops(
   canvasX: number,
   canvasY: number,
   setSelectedIds: (ids: string[]) => void,
+  upsertMediaUpload: (item: MediaUploadItem) => void,
 ): Promise<void> {
   const projectId = getProjectId();
   let xOffset = 0;
   let lastId: string | null = null;
-  for (const file of imageFiles) {
-    // Read natural dimensions off a local object URL (instant, no network).
+  for (const [index, file] of imageFiles.entries()) {
+    const uploadId = 'canvas-' + Date.now() + '-' + index + '-' + file.name;
+    upsertMediaUpload({
+      id: uploadId,
+      name: file.name,
+      kind: 'image',
+      status: 'queued',
+      progress: 0,
+    });
+
+    // Read natural dimensions before ingest so placement preserves aspect ratio.
     const objectUrl = URL.createObjectURL(file);
     const dims = await getImageDimensions(objectUrl);
     URL.revokeObjectURL(objectUrl);
 
     try {
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind: 'image',
+        status: 'uploading',
+        progress: 0,
+      });
       trace.action('canvas-file-drop:image-upload-start', { name: file.name, size: file.size });
       const url = await backend.uploadAsset(projectId, file);
       const { width } = fitFrameBox(dims);
       lastId = queueImageFrame(url, dims, canvasX + xOffset, canvasY);
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind: 'image',
+        status: 'complete',
+        progress: 1,
+        assetId: url,
+      });
       trace.action('canvas-file-drop:image-dropped', { id: lastId, url });
       xOffset += width + 20;
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind: 'image',
+        status: 'error',
+        progress: 0,
+        error: message,
+      });
       trace.error('canvas-file-drop:image-upload-failed', {
         name: file.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
       });
       toast.error(err instanceof Error ? err.message : 'Image upload failed');
     }

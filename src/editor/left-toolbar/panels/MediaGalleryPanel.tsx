@@ -1,6 +1,6 @@
-// MediaGalleryPanel.tsx — Media gallery with upload support.
-// Cloud mode: uploads to R2 via /api/upload, lists existing uploads.
-// Standalone mode: uses object URLs (session-only).
+// MediaGalleryPanel.tsx — canonical project Media browser.
+// Durable inventory comes from the active backend when supported; otherwise
+// uploaded source/runtime URLs remain session-local without faking durability.
 //
 // Drop into canvas: tiles use the same toolbar-drag pipeline the Library
 // and Insert panels use (`startToolbarDrag` + 5 px movement threshold +
@@ -15,6 +15,7 @@
 // standalone object URLs have no server object to delete).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSetAtom } from 'jotai';
 import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
@@ -27,6 +28,7 @@ import { ConfirmModal } from '@/editor/overlays/settings-shared';
 import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
+import { upsertMediaUploadAtom } from '@/editor/media/media-state';
 
 type MediaGalleryTab = 'all' | 'images' | 'videos';
 
@@ -282,6 +284,7 @@ export default function MediaGalleryPanel({
   chrome?: 'full' | 'embedded';
   initialTab?: MediaGalleryTab;
 } = {}) {
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
@@ -409,24 +412,56 @@ export default function MediaGalleryPanel({
       setUploadError('Choose a video for the Videos view.');
       return;
     }
+    const uploadId = 'media-browser-' + Date.now() + '-' + file.name;
     setUploading(true);
     setUploadError(null);
+    upsertMediaUpload({
+      id: uploadId,
+      name: file.name,
+      kind,
+      status: 'queued',
+      progress: 0,
+    });
     trace.action('media:upload-start', { name: file.name, size: file.size, kind });
     try {
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind,
+        status: 'uploading',
+        progress: 0,
+      });
       const url = await backend.uploadAsset(projectId, file);
       setUploads(prev => [{ url, size: file.size, kind }, ...prev]);
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind,
+        status: 'complete',
+        progress: 1,
+        assetId: url,
+      });
       trace.action('media:upload-success', { url, kind });
       // Re-fetch only when the backend owns a durable catalog. Session-only
       // backends keep the just-appended row in local component state.
       if (durableInventory === true) void fetchUploads();
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Upload failed';
+      upsertMediaUpload({
+        id: uploadId,
+        name: file.name,
+        kind,
+        status: 'error',
+        progress: 0,
+        error: message,
+      });
       trace.error('media:upload-failed', err);
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(message);
     }
     setUploading(false);
     // Reset input so same file can be re-uploaded
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [projectId, fetchUploads, durableInventory, tab]);
+  }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a

@@ -30,4 +30,32 @@ describe('Media upload tray', () => {
     expect(state).toContain("item.status === 'processing'");
     expect(state).toContain('removeMediaUploadAtom');
   });
+
+  it('receives lifecycle updates from canvas file drops and the Media browser', () => {
+    const canvas = read('src/canvas/CanvasFileDrop.tsx');
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+
+    expect(canvas).toContain('upsertMediaUploadAtom');
+    expect(canvas).toContain("status: 'queued'");
+    expect(canvas).toContain("status: 'uploading'");
+    expect(canvas).toContain("status: 'complete'");
+    expect(canvas).toContain("status: 'error'");
+
+    expect(browser).toContain('upsertMediaUploadAtom');
+    expect(browser).toContain("status: 'queued'");
+    expect(browser).toContain("status: 'uploading'");
+    expect(browser).toContain("status: 'complete'");
+    expect(browser).toContain("status: 'error'");
+  });
+
+  it('does not invent percentage progress when the backend exposes no byte progress', () => {
+    const canvas = read('src/canvas/CanvasFileDrop.tsx');
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+
+    expect(canvas).toContain("status: 'uploading'");
+    expect(browser).toContain("status: 'uploading'");
+    expect(canvas).toContain('progress: 0');
+    expect(browser).toContain('progress: 0');
+  });
+
 });
