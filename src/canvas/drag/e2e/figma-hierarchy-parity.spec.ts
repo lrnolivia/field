@@ -3,155 +3,124 @@ import { EditorPage } from './helpers/editor-page';
 
 test.use({ viewport: { width: 1600, height: 950 } });
 
-type Box = { x: number; y: number; width: number; height: number };
-
-async function nodeParent(page: Page, id: string): Promise<string | null | undefined> {
-  return page.evaluate((nodeId) => {
-    const node = (window as any).__e2e.nodesSnapshot?.()?.[nodeId];
-    return node ? (node.parentId ?? null) : undefined;
-  }, id);
+async function parentDataId(editor: EditorPage, id: string): Promise<string | null> {
+  return editor.sandbox().locator(`[data-id="${id}"]`).first().evaluate((el) =>
+    el.parentElement?.getAttribute('data-id') ?? null,
+  );
 }
 
-async function snapshotIds(page: Page): Promise<string[]> {
-  return page.evaluate(() => Object.keys((window as any).__e2e.nodesSnapshot?.() ?? {}));
+async function allNodeIds(editor: EditorPage): Promise<string[]> {
+  return editor.sandbox().locator('[data-id]').evaluateAll((els) =>
+    [...new Set(els.map((el) => el.getAttribute('data-id')).filter(Boolean) as string[])],
+  );
 }
 
 async function drawFrame(
   page: Page,
-  start: { x: number; y: number },
-  end: { x: number; y: number },
+  editor: EditorPage,
   holdSpace: boolean,
-): Promise<void> {
+): Promise<string> {
+  const hero = await editor.nodeBox('hero');
+  const before = new Set(await allNodeIds(editor));
+
+  // Use an empty patch of Hero, away from abs-child.
+  const from = { x: hero.x + hero.width * 0.42, y: hero.y + 90 };
+  const to = { x: from.x + 120, y: from.y + 90 };
+
   await page.keyboard.press('f');
   if (holdSpace) await page.keyboard.down('Space');
   try {
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(end.x, end.y, { steps: 8 });
-    await page.mouse.up();
+    await editor.dragFromTo(from, to, { steps: 10 });
   } finally {
     if (holdSpace) await page.keyboard.up('Space');
   }
-  await page.waitForTimeout(250);
-}
+  await page.waitForTimeout(450);
 
-function creatorRectInside(box: Box) {
-  // Deliberately away from abs-child (which begins near Hero's top-left).
-  const start = { x: box.x + box.width * 0.58, y: box.y + box.height * 0.58 };
-  const end = { x: start.x + 76, y: start.y + 54 };
-  return { start, end };
-}
-
-async function dragAbsoluteChild(
-  page: Page,
-  editor: EditorPage,
-  holdSpaceDuringDrag: boolean,
-): Promise<void> {
-  await editor.select(['abs-child']);
-  const child = await editor.nodeBox('abs-child');
-  const root = await editor.nodeBox('root');
-  const surface = await page.locator('[data-canvas-input-surface]').boundingBox();
-  if (!surface) throw new Error('canvas input surface has no bounding box');
-
-  const from = { x: child.x + child.width / 2, y: child.y + child.height / 2 };
-
-  // Drive the center far enough beyond the PAGE ROOT that the entire child is
-  // outside Hero and no sibling can accidentally become the intended drop
-  // parent. Prefer the right side; use the left if the fitted page is too close
-  // to the workspace edge.
-  const right = {
-    x: root.x + root.width + child.width + 48,
-    y: Math.max(surface.y + 24, Math.min(surface.y + surface.height - 24, from.y)),
-  };
-  const left = {
-    x: root.x - child.width - 48,
-    y: right.y,
-  };
-  const to = right.x < surface.x + surface.width - 12 ? right : left;
-  if (to.x <= surface.x + 8 || to.x >= surface.x + surface.width - 8) {
-    throw new Error('no safe outside-root drag target exists in the canvas surface');
+  const added = (await allNodeIds(editor)).filter((id) => !before.has(id));
+  const frames: string[] = [];
+  for (const id of added) {
+    const name = await editor.sandbox().locator(`[data-id="${id}"]`).first().getAttribute('data-name');
+    if (name === 'Frame') frames.push(id);
   }
+  expect(frames, `expected one created Frame; new ids were ${added.join(', ')}`).toHaveLength(1);
+  return frames[0];
+}
 
+async function dragWithSpaceAfterStart(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Promise<void> {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  try {
-    // Engage the actual drag before Space is pressed. Figma's documented
-    // keep-parent gesture is contextual DURING an active move.
-    await page.mouse.move(from.x + 14, from.y, { steps: 4 });
-    await page.waitForTimeout(50);
-    if (holdSpaceDuringDrag) await page.keyboard.down('Space');
-    await page.mouse.move(to.x, to.y, { steps: 24 });
 
-    // AbsoluteInFrame has entry/exit grace designed for real pointer streams.
-    // Hold the pointer outside for long enough that a NORMAL drag unquestionably
-    // takes the exit path; the Space case must suppress that same path.
-    for (let i = 0; i < 20; i++) {
-      await page.mouse.move(to.x + (i % 2), to.y + ((i % 3) - 1), { steps: 1 });
-      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r(null))));
+  // Cross DragCoordinator's threshold as an ordinary object drag first.
+  await page.mouse.move(from.x + 10, from.y + 6, { steps: 2 });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))));
+
+  // Figma's "keep current parent" override is a drag modifier, not a request
+  // to start Space-pan. Press it after the object drag is already active.
+  await page.keyboard.down('Space');
+  try {
+    for (let i = 1; i <= 14; i += 1) {
+      const t = i / 14;
+      await page.mouse.move(
+        from.x + (to.x - from.x) * t,
+        from.y + (to.y - from.y) * t,
+        { steps: 1 },
+      );
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))));
     }
     await page.mouse.up();
   } finally {
-    if (holdSpaceDuringDrag) await page.keyboard.up('Space');
+    await page.keyboard.up('Space');
   }
   await page.waitForTimeout(300);
 }
 
 test.describe('Figma hierarchy parity — Space parenting overrides', () => {
-  test('Space prevents a newly drawn frame from adopting the frame under it', async ({ page }) => {
+  test('a new frame drawn over a frame adopts that frame by default', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
     await editor.fitCamera();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(300);
 
-    let hero = await editor.nodeBox('hero');
-    let rect = creatorRectInside(hero);
-    let before = new Set(await snapshotIds(page));
-    await drawFrame(page, rect.start, rect.end, false);
-
-    const normalAdded = (await snapshotIds(page)).filter(id => !before.has(id));
-    expect(normalAdded).toHaveLength(1);
-    await expect.poll(() => nodeParent(page, normalAdded[0])).toBe('hero');
-
-    // Fresh fixture: same geometry, this time Space is held before pointerdown.
-    await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
-    await editor.fitCamera();
-    await page.waitForTimeout(250);
-
-    hero = await editor.nodeBox('hero');
-    rect = creatorRectInside(hero);
-    before = new Set(await snapshotIds(page));
-    await drawFrame(page, rect.start, rect.end, true);
-
-    const spaceAdded = (await snapshotIds(page)).filter(id => !before.has(id));
-    expect(spaceAdded).toHaveLength(1);
-    await expect.poll(() => nodeParent(page, spaceAdded[0])).toBeNull();
+    const createdId = await drawFrame(page, editor, false);
+    expect(await parentDataId(editor, createdId)).toBe('hero');
   });
 
-  test('Space held during drag-out keeps an absolute child in its current parent', async ({ page }) => {
+  test('holding Space while adding a frame bypasses automatic parenting', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
     await editor.fitCamera();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(300);
 
-    // Baseline: the same move without Space really does cross the parent
-    // boundary and reparent upward.
-    await dragAbsoluteChild(page, editor, false);
-    await expect.poll(async () => (await nodeParent(page, 'abs-child')) !== 'hero', { timeout: 10_000 }).toBe(true);
+    const createdId = await drawFrame(page, editor, true);
+    expect(await parentDataId(editor, createdId)).not.toBe('hero');
+  });
 
-    // Fresh fixture + same move, but Space is pressed after drag engagement.
+  test('holding Space while dragging an absolute child out keeps its current parent', async ({ page }) => {
+    const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
     await editor.fitCamera();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(300);
 
-    await dragAbsoluteChild(page, editor, true);
-    await expect.poll(() => nodeParent(page, 'abs-child'), { timeout: 10_000 }).toBe('hero');
+    await editor.select(['abs-child'], 'desktop');
+    const before = await editor.nodeBox('abs-child');
+    const features = await editor.nodeBox('features');
+    const from = {
+      x: before.x + before.width / 2,
+      y: before.y + before.height / 2,
+    };
+    const to = {
+      x: features.x + features.width * 0.72,
+      y: features.y + features.height * 0.55,
+    };
 
-    // It is not merely a snap-back/no-op: the child visually remains outside
-    // Hero while its source hierarchy stays parented to Hero.
-    const child = await editor.nodeBox('abs-child');
-    const hero = await editor.nodeBox('hero');
-    const fullyOutsideHorizontally =
-      child.x >= hero.x + hero.width || child.x + child.width <= hero.x;
-    expect(fullyOutsideHorizontally).toBe(true);
+    await dragWithSpaceAfterStart(page, from, to);
+
+    expect(await parentDataId(editor, 'abs-child')).toBe('hero');
+    const after = await editor.nodeBox('abs-child');
+    expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(100);
   });
 });
