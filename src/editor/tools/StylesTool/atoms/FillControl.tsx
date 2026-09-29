@@ -1,4 +1,4 @@
-// FillControl.tsx — Self-contained fill ToolAtom (compound: color/gradient/image/video).
+// FillControl.tsx — Self-contained fill ToolAtom (solid/gradient/pattern/image/video/shader).
 // Supports Single mode (current behavior) and Multiple mode (stacked background layers).
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -327,6 +327,24 @@ function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null)
   if (/^var\(\s*--image-/.test(bgImage)) return 'image';
   if (styles.background?.includes('gradient') || bgImage.includes('gradient')) return 'gradient';
   return 'color';
+}
+
+function fillTypeSignature(styles: Record<string, string>, node?: CanvasNode | null): string {
+  const type = detectFillTab(styles, node);
+  return [
+    type,
+    node?.attrs?.['data-field-pattern'] ? 'pattern' : '',
+    node?.attrs?.['data-field-shader-fill'] ? 'shader' : '',
+    node?.bgVideo ? 'video' : '',
+  ].join('|');
+}
+
+function hasSemanticSingleFill(node?: CanvasNode | null): boolean {
+  return !!(
+    node?.attrs?.['data-field-pattern']
+    || node?.attrs?.['data-field-shader-fill']
+    || node?.bgVideo
+  );
 }
 
 /** Transparent-checker pattern for the empty poster swatch — matches the
@@ -896,11 +914,14 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     trace.action('fill-control:create-preset-panel', { color });
   }, [pushPanel, popPanel]);
 
-  // Re-detect tab ONLY when selected node changes (not during editing)
+  // Re-detect only when the semantic fill TYPE changes. This catches undo/redo
+  // on the same node without resetting the tab while a color/gradient value is
+  // merely being edited inside its current type.
+  const typeSig = solidOnly ? 'color' : fillTypeSignature(styles, node);
   useEffect(() => {
     setTab(solidOnly ? 'color' : detectFillTab(styles, node));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeId, solidOnly]);
+  }, [nodeId, solidOnly, typeSig]);
 
   const changeFillType = (newTab: FillTab) => {
     trace.action('fill:tab-change', { from: tab, to: newTab });
@@ -928,6 +949,12 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } }));
         if (shaderLayerId) queueMutation({ type: 'removeNode', nodeId: shaderLayerId });
       }
+    }
+
+    if (newTab === 'shader' && !node?.attrs?.['data-field-shader-fill']) {
+      // Shader is library-backed: opening an empty Shader fill should land on
+      // the existing shader gallery instead of a dead-end "choose from Libraries" state.
+      setSurface('libraries');
     }
 
     if (newTab === 'pattern' && nodeId) {
@@ -1529,23 +1556,25 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
   const ctx = useControlContextOptional();
   const nodeId = ctx?.nodeId ?? nodeIdProp ?? null;
   const solidOnly = isFormControlNode(ctx?.node);
+  const semanticSingleFill = hasSemanticSingleFill(ctx?.node);
   const [mode, setMode] = useState<FillMode>(() =>
-    isMultiLayerBackground(styles) ? 'multiple' : 'single'
+    semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single')
   );
 
   // Re-detect mode on node change AND on external style changes (an undo
   // that reverts multi-layer → single must flip the tab back).
-  const modeSig = `${nodeId}|${isMultiLayerBackground(styles)}`;
+  const modeSig = `${nodeId}|${semanticSingleFill}|${isMultiLayerBackground(styles)}`;
   const prevModeSigRef = useRef(modeSig);
   useEffect(() => {
     if (modeSig === prevModeSigRef.current) return;
     prevModeSigRef.current = modeSig;
-    setMode(isMultiLayerBackground(styles) ? 'multiple' : 'single');
+    setMode(semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modeSig]);
 
   const handleModeChange = useCallback((v: string) => {
     const newMode = v as FillMode;
+    if (semanticSingleFill && newMode === 'multiple') return;
     trace.action('fill:mode-change', { from: mode, to: newMode });
 
     if (newMode === 'multiple' && mode === 'single') {
@@ -1584,14 +1613,14 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
     }
 
     setMode(newMode);
-  }, [mode, styles, onChangeMultiple]);
+  }, [mode, styles, onChangeMultiple, semanticSingleFill]);
 
   return (
     // Rich color/gradient/image/video editors remain their own content, but the
     // outer composition follows the canonical Inspector Options Panel hierarchy.
     <ShowControlLabels>
       <OptionsPanel>
-        {!solidOnly && (
+        {!solidOnly && !semanticSingleFill && (
           <OptionSection title="Fill mode">
             <ChoiceRow
               label="Mode"
