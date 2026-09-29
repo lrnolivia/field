@@ -35,6 +35,7 @@ import { backend } from '@/backend/index';
 import { getProjectId } from '@/backend/project-id';
 import { toast } from 'sonner';
 import type { AutoPanSpeed } from '@/code/stores/user-preferences-store';
+import { projectSettingsModalOpenAtom } from '@/code/stores/website-settings-store';
 import { previewModeAtom, shortcutsModalOpenAtom, exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import { paletteOpenAtom } from '@/code/stores/palette-store';
 import { BUILDER_THEMES } from '@/shared/builder-themes';
@@ -281,14 +282,6 @@ function menuZoomFit(): void {
 
 // ─── Submenu definitions (kept-as-submenu items only) ───────────────────────
 
-// Site Settings keeps a submenu — multi-page domain / SEO / analytics
-// surfaces, each likely to grow.
-const siteSettingsSubmenu: DropdownMenuEntry[] = [
-  { id: 'site-domain', label: 'Domain', onClick: stub('site-domain') },
-  { id: 'site-seo', label: 'SEO', onClick: stub('site-seo') },
-  { id: 'site-analytics', label: 'Analytics', onClick: stub('site-analytics') },
-];
-
 // Plugins keeps a submenu — browse vs manage are clearly distinct entry points.
 const pluginsSubmenu: DropdownMenuEntry[] = [
   { id: 'plugins-browse', label: 'Browse plugins…', onClick: stub('plugins-browse') },
@@ -443,8 +436,16 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
         },
       },
       { type: 'separator' },
-      // Project-scoped configuration — kept as submenus.
-      { id: 'site-settings', label: 'Site Settings', submenuItems: siteSettingsSubmenu, onClick: () => {} },
+      // Project-scoped configuration. Project settings is one canonical
+      // compact modal; Plugins keeps its own submenu.
+      {
+        id: 'project-settings',
+        label: 'Project settings…',
+        onClick: () => {
+          trace.action('menu:project-settings');
+          getDefaultStore().set(projectSettingsModalOpenAtom, true);
+        },
+      },
       { id: 'plugins', label: 'Plugins', submenuItems: pluginsSubmenu, onClick: () => {} },
       // "Go to Dashboard" + "Your Account" live in the LeftHeader's
       // Revyme-logo dropdown — they're account-level actions that

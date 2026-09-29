@@ -39,6 +39,7 @@ import PageAppearanceTool from './PageAppearanceTool';
 import TemplatePicker from '@/editor/TemplatePicker';
 import ImageSearchModal from '@/editor/ui/ImageSearchModal';
 import { PageHomeIcon, PageDocumentIcon } from '@/shared/icons';
+import UiHeadingText from '@/design-system/UiHeadingText';
 
 interface PageMeta {
   title: string;
@@ -324,7 +325,7 @@ export default function PageSettingsTool() {
         </PageSettingField>
 
         <div className="mt-0.5 cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-2.5 py-2">
-          <div data-ui-heading="brand" className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Search preview</div>
+          <div className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Search preview</UiHeadingText></div>
           <div className="mt-1 text-[9px] leading-3 text-[var(--text-tertiary)] truncate">{routeValue}</div>
           <div className="mt-0.5 text-[12px] leading-4 font-medium text-[var(--accent-text)] truncate">
             {form.title || pageTitle}
@@ -338,7 +339,7 @@ export default function PageSettingsTool() {
       <ToolDivider />
 
       <ToolSection title="Social" defaultOpen={false}>
-        <div data-ui-heading="brand" className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Open Graph</div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>Open Graph</UiHeadingText></div>
         <PageSettingField label="Title">
           <ToolInput
             value={form.ogTitle}
@@ -377,7 +378,7 @@ export default function PageSettingsTool() {
         </PageSettingField>
 
         <ToolDivider />
-        <div data-ui-heading="standard" className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">X / Twitter</div>
+        <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><UiHeadingText>X / Twitter</UiHeadingText></div>
         <PageSettingField label="Card">
           <ToolSelect
             value={form.twitterCard || 'summary_large_image'}

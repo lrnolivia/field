@@ -1,35 +1,115 @@
-// ui-heading-case.ts — semantic case policy for editor chrome headings.
+// ui-heading-case.ts — canonical editor heading grammar.
 //
-// Casing is a presentation preference, not a string mutation. Components opt
-// headings into one of two semantic roles:
-//   brand    — human/editorial headings that may lowercase in Brand mode.
-//   standard — functional/technical headings that Brand mode preserves.
-// "lowercase" lowers both roles. Unmarked text (user content, filenames,
-// controls, data, etc.) is never touched.
+// Source labels are not required to carry presentation casing. This formatter
+// reconstructs normal sentence-case UI names when the lowercase preference is
+// off, then derives loew.fi's lowercase presentation from that canonical form
+// when the preference is on.
+//
+// Protected names keep their intentional casing in BOTH modes: acronyms,
+// trademarks/product names, and structural name.FUNCTION identifiers.
 
-export type UiHeadingCase = 'brand' | 'original' | 'lowercase';
-export type UiHeadingRole = 'brand' | 'standard';
+const PROTECTED_NAMES = [
+  'field.ENGINE',
+  'loew.fi',
+  'Open Graph',
+  'OpenAI',
+  'ChatGPT',
+  'GitHub',
+  'YouTube',
+  'LinkedIn',
+  'iPhone',
+  'iPad',
+  'iOS',
+  'macOS',
+  'Next.js',
+  'TypeScript',
+  'JavaScript',
+  'Cloudflare',
+  'Figma',
+  'Revyme',
+  'Twitter',
+  'X',
+  'Adobe',
+  'Apple',
+  'Google',
+  'Microsoft',
+  'Meta',
+  'Stripe',
+  'Supabase',
+  'Vercel',
+  'WordPress',
+  'Shopify',
+  'Framer',
+  'Webflow',
+  'React',
+  'HTML',
+  'CSS',
+  'JSON',
+  'JSX',
+  'TSX',
+  'HTTP',
+  'HTTPS',
+  'API',
+  'URL',
+  'SEO',
+  'MCP',
+  'CMS',
+  'UI',
+  'UX',
+  'AI',
+  'A/B',
+] as const;
 
-export const DEFAULT_UI_HEADING_CASE: UiHeadingCase = 'brand';
-
-export function normalizeUiHeadingCase(value: unknown): UiHeadingCase {
-  return value === 'brand' || value === 'original' || value === 'lowercase'
-    ? value
-    : DEFAULT_UI_HEADING_CASE;
+function escapeRegExp(value: string): string {
+  return value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
-/** Preserve deliberate functional casing in Brand mode.
- *  Examples: SEO, AI, A/B Tests, X / Twitter, field.ENGINE. */
-export function getUiHeadingRole(value: string): UiHeadingRole {
-  const text = value.trim();
-  if (!text) return 'standard';
+function canonicalizeProtectedNames(value: string): string {
+  let next = value;
+  for (const name of PROTECTED_NAMES) {
+    const pattern = new RegExp('\\b' + escapeRegExp(name) + '\\b', 'gi');
+    next = next.replace(pattern, name);
+  }
+  return next;
+}
 
-  const hasAcronym = /\b[A-Z]{2,}\b/.test(text);
-  const hasSlashInitialism = /\b[A-Z](?:\/[A-Z])+\b/.test(text);
-  const hasFunctionalSuffix = /[a-z0-9]\.[A-Z]{2,}\b/.test(text);
-  const hasSingleLetterBrand = /^[A-Z]\s*\/\s*/.test(text);
+function maskProtectedNames(value: string): { text: string; protectedValues: string[] } {
+  let text = canonicalizeProtectedNames(value);
+  const protectedValues: string[] = [];
 
-  return hasAcronym || hasSlashInitialism || hasFunctionalSuffix || hasSingleLetterBrand
-    ? 'standard'
-    : 'brand';
+  const protect = (match: string) => {
+    const index = protectedValues.push(match) - 1;
+    return '§' + index + '§';
+  };
+
+  for (const name of PROTECTED_NAMES) {
+    const pattern = new RegExp('\\b' + escapeRegExp(name) + '\\b', 'g');
+    text = text.replace(pattern, protect);
+  }
+
+  text = text.replace(/\b[A-Z]{2,}(?:\/[A-Z]{1,})*\b/g, protect);
+  // Unknown trademarks with deliberate internal capitalization (e.g. iCloud)
+  // keep their authored casing even when not yet in the explicit dictionary.
+  text = text.replace(/\b(?:[a-z]+[A-Z][A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z0-9]*)\b/g, protect);
+  text = text.replace(/\b[a-z][a-z0-9-]*\.[A-Z]{2,}\b/g, protect);
+
+  return { text, protectedValues };
+}
+
+function restoreProtectedNames(value: string, protectedValues: string[]): string {
+  return value.replace(/§(\d+)§/g, (_, index: string) => protectedValues[Number(index)] ?? '');
+}
+
+function sentenceCase(value: string): string {
+  const lower = value.toLowerCase();
+  return lower.replace(/[a-z]/, (letter) => letter.toUpperCase());
+}
+
+export function formatUiHeading(value: string, lowercase: boolean): string {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  const { text, protectedValues } = maskProtectedNames(trimmed);
+  const formatted = lowercase ? text.toLowerCase() : sentenceCase(text);
+  return restoreProtectedNames(formatted, protectedValues);
 }

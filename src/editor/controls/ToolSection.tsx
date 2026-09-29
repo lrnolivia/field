@@ -7,7 +7,7 @@ import React, { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { trace } from '@/shared/debug-trace';
-import { getUiHeadingRole } from '@/shared/ui-heading-case';
+import UiHeadingText from '@/design-system/UiHeadingText';
 
 interface Props {
   title: string;
@@ -97,7 +97,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
           // and semibold so the heading role still reads.
           className={`min-h-0 p-0 bg-transparent border-0 text-xs font-semibold text-[var(--text-primary)] text-left inline-flex items-center gap-1.5 transition-colors ${collapsible && hasContent ? 'cursor-pointer hover:text-[var(--accent)]' : 'cursor-default'} ${collapsible && !isOpen ? 'opacity-50' : ''} focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
         >
-          <span data-ui-heading={getUiHeadingRole(title)}>{title}</span>
+          <span><UiHeadingText>{title}</UiHeadingText></span>
         </button>
         <span ref={actionRef} className="flex items-center">{action}</span>
       </div>

@@ -12,7 +12,6 @@
 
 import { atomWithStorage } from 'jotai/utils';
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
-import type { UiHeadingCase } from '@/shared/ui-heading-case';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -98,8 +97,10 @@ export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
   'revyme:prefs:neutralLevel', '3',
 );
 
-/** Editor-only case treatment for opted-in UI headings. This never rewrites
- *  website/project content; it only changes presentation of field chrome. */
-export const uiHeadingCaseAtom = atomWithStorage<UiHeadingCase>(
-  'field:prefs:uiHeadingCase', 'brand', undefined, { getOnInit: true },
+/** Editor-only loew.fi lowercase treatment for opted-in UI headings.
+ *  ON by default. Turning it off restores normal sentence-case grammar.
+ *  Acronyms, trademarks, product names, and structural names are preserved
+ *  by the shared heading formatter in either mode. */
+export const lowercaseHeadingsAtom = atomWithStorage<boolean>(
+  'field:prefs:lowercaseHeadings', true, undefined, { getOnInit: true },
 );

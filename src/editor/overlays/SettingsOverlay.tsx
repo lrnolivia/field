@@ -42,8 +42,16 @@ import {
 } from './settings-shared';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
-import { uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
-import { getUiHeadingRole, type UiHeadingCase } from '@/shared/ui-heading-case';
+import {
+  lowercaseHeadingsAtom,
+  autoPanSpeedAtom,
+  autoFocusLayersAtom,
+  showRulersAtom,
+  useSmoothZoomAtom,
+  showPixelGridAtom,
+  type AutoPanSpeed,
+} from '@/code/stores/user-preferences-store';
+import UiHeadingText from '@/design-system/UiHeadingText';
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
 
@@ -184,7 +192,12 @@ export default function SettingsOverlay() {
   const [isOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
   const [websiteSettings, setWebsiteSettings] = useAtom(websiteSettingsAtom);
   const [activeSection, setActiveSection] = useAtom(settingsSectionAtom);
-  const [uiHeadingCase, setUiHeadingCase] = useAtom(uiHeadingCaseAtom);
+  const [lowercaseHeadings, setLowercaseHeadings] = useAtom(lowercaseHeadingsAtom);
+  const [autoPanSpeed, setAutoPanSpeed] = useAtom(autoPanSpeedAtom);
+  const [autoFocusLayers, setAutoFocusLayers] = useAtom(autoFocusLayersAtom);
+  const [showRulers, setShowRulers] = useAtom(showRulersAtom);
+  const [useSmoothZoom, setUseSmoothZoom] = useAtom(useSmoothZoomAtom);
+  const [showPixelGrid, setShowPixelGrid] = useAtom(showPixelGridAtom);
 
   // ─── Mobile nav dropdown (sidebar replacement on small screens) ─────
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -735,254 +748,54 @@ export default function SettingsOverlay() {
       </div>;
     }
     // Website section is inline (uses parent state: websiteSettings atom, mutation queue)
+    // General is field/editor-level. Project/site source configuration lives
+    // in ProjectSettingsModal and is intentionally not rendered full-screen.
     if (activeSection === 'website') {
       return (
         <div className="space-y-5">
           <header className="pb-4 border-b border-[var(--border-light)]">
-            <h1 data-ui-heading="brand" className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]">General</h1>
+            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]"><UiHeadingText>General</UiHeadingText></h1>
             <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
-              Project-wide defaults for identity, branding, appearance, and site behavior.
+              field preferences that follow you across projects.
             </p>
           </header>
 
-          {/* ─── Site metadata ─── */}
-          <SettingsGroup
-            surface
-            title="Site metadata"
-            action={
-              <SaveButton
-                onClick={handleSaveSiteMetadata}
-                saving={false}
-                dirty={hasMetadataChanges}
-              />
-            }
-          >
-            <SettingsRow label="Name" htmlFor="site-name">
-              <input
-                id="site-name"
-                type="text"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                className={ROW_INPUT_CLS}
-                placeholder="My Amazing Website"
-              />
-            </SettingsRow>
-
-            <SettingsRow label="Default language" htmlFor="site-language">
-              <RowSelect
-                id="site-language"
-                value={defaultLanguage}
-                options={LANGUAGE_OPTIONS}
-                onChange={handleDefaultLanguageChange}
-              />
-            </SettingsRow>
-
-            <SettingsRow label="Description" htmlFor="site-description" align="top">
-              <textarea
-                id="site-description"
-                rows={3}
-                value={siteDescription}
-                onChange={(e) => setSiteDescription(e.target.value)}
-                className={`${ROW_INPUT_CLS} resize-none min-h-[56px]`}
-                placeholder="A brief description of your website..."
-              />
-            </SettingsRow>
-
-            <SettingsRow label="Search preview" align="top" interactive={false}>
-              <div className="cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-3 py-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
-                  <span className="truncate">{subdomain ? `${subdomain}.revyme.app` : 'yoursite.revyme.app'}</span>
-                  <MoreVerticalIcon />
-                </div>
-                <div className="mt-1 text-[14px] text-[#8ab4f8] font-medium leading-tight truncate">
-                  {siteName || 'My Website'}
-                </div>
-                <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-4 max-w-2xl">
-                  {siteDescription || 'Made with Revyme'}
-                </div>
-              </div>
-            </SettingsRow>
-          </SettingsGroup>
-
-          {/* ─── Branding ─── */}
-          <SettingsGroup surface title="Branding">
-            <input
-              ref={faviconLightInputRef}
-              type="file"
-              accept="image/png,image/x-icon,image/vnd.microsoft.icon"
-              onChange={handleFaviconLightUpload}
-              className="hidden"
-            />
-            <input
-              ref={socialShareInputRef}
-              type="file"
-              accept="image/jpeg,image/jpg,image/png"
-              onChange={handleSocialShareUpload}
-              className="hidden"
-            />
-
-            <SettingsRow label="Favicon" align="top">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 shrink-0 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-hover)]/50 flex items-center justify-center overflow-hidden">
-                    {websiteSettings.faviconLight ? (
-                      <img src={websiteSettings.faviconLight} alt="Favicon" className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">32×32</span>
-                    )}
-                  </div>
-                  <RowButton
-                    onClick={() => faviconLightInputRef.current?.click()}
-                    loading={isUploadingFaviconLight}
-                  >
-                    <UploadIcon />
-                    Upload
-                  </RowButton>
-                  {websiteSettings.faviconLight && (
-                    <RowButton
-                      onClick={handleRemoveFavicon}
-                      loading={isDeletingFavicon}
-                      variant="danger"
-                      title="Remove favicon"
-                    >
-                      <Trash2Icon />
-                    </RowButton>
-                  )}
-                </div>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  32×32px or 64×64px PNG or ICO format.
-                </p>
-              </div>
-            </SettingsRow>
-
-            <SettingsRow label="Social image" align="top">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-28 h-[59px] shrink-0 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-hover)]/50 flex items-center justify-center overflow-hidden">
-                    {websiteSettings.socialShareImage ? (
-                      <img src={websiteSettings.socialShareImage} alt="Social share" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">1200×630</span>
-                    )}
-                  </div>
-                  <RowButton
-                    onClick={() => socialShareInputRef.current?.click()}
-                    loading={isUploadingSocialShare}
-                  >
-                    <UploadIcon />
-                    Upload
-                  </RowButton>
-                  {websiteSettings.socialShareImage && (
-                    <RowButton
-                      onClick={handleRemoveSocialShare}
-                      loading={isDeletingSocialShare}
-                      variant="danger"
-                      title="Remove social share image"
-                    >
-                      <Trash2Icon />
-                    </RowButton>
-                  )}
-                </div>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  1200×630px JPG or PNG. Appears when sharing on social media.
-                </p>
-              </div>
-            </SettingsRow>
-
-            {/* "Made in Revyme" badge — a free choice on every plan. Saves
-                immediately (no Save button): the backend flips the column and
-                rewrites the site's edge KV, so the live site follows within
-                seconds. Hidden entirely in OSS/self-hosted builds — there is
-                no worker injecting a badge there. */}
-            {CLOUD_ENABLED && (
-              <SettingsRow label="Made in Revyme badge">
-                <div className="flex items-center justify-between gap-3 py-1">
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    Show the small &ldquo;Made in Revyme&rdquo; badge on your published site.
-                  </p>
-                  <div className={badgeLoaded ? '' : 'opacity-40 pointer-events-none'}>
-                    <Toggle value={showBadge} onChange={handleToggleBadge} />
-                  </div>
-                </div>
-              </SettingsRow>
-            )}
-          </SettingsGroup>
-
-          {/* ─── Appearance ─── */}
-          <SettingsGroup
-            surface
-            title="Appearance"
-            action={
-              <SaveButton onClick={handleSaveTheme} saving={false} dirty={hasThemeChanges} />
-            }
-          >
-            <SettingsRow label="Default theme" htmlFor="default-theme" align="top">
-              <div className="flex flex-col gap-1">
-                <RowSelect
-                  id="default-theme"
-                  value={defaultTheme}
-                  options={[
-                    { value: 'light', label: 'Light' },
-                    { value: 'dark', label: 'Dark' },
-                    { value: 'system', label: 'System' },
-                  ]}
-                  onChange={(v) => setDefaultTheme(v as 'light' | 'dark' | 'system')}
-                />
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Initial theme when visitors load your site.
-                </p>
-              </div>
-            </SettingsRow>
-
-            <SettingsRow label="UI heading case" htmlFor="ui-heading-case" align="top">
-              <div className="flex flex-col gap-1">
-                <RowSelect
-                  id="ui-heading-case"
-                  value={uiHeadingCase}
-                  options={[
-                    { value: 'brand', label: 'Brand' },
-                    { value: 'original', label: 'Original' },
-                    { value: 'lowercase', label: 'lowercase' },
-                  ]}
-                  onChange={(value) => setUiHeadingCase(value as UiHeadingCase)}
-                />
+          <SettingsGroup surface title="Interface">
+            <SettingsRow label="Lowercase headings" align="top">
+              <div className="flex items-start justify-between gap-4 py-0.5">
                 <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Brand follows loew.fi casing rules; Original keeps authored UI case; lowercase forces eligible headings lower. Editor only · applies instantly.
+                  Use loew.fi lowercase styling for interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
                 </p>
+                <div className="shrink-0 pt-0.5">
+                  <Toggle value={lowercaseHeadings} onChange={setLowercaseHeadings} />
+                </div>
               </div>
             </SettingsRow>
           </SettingsGroup>
 
-          {/* ─── Custom code ─── */}
-          <SettingsGroup
-            surface
-            title="Custom code"
-            action={
-              <SaveButton
-                onClick={handleSaveCustomCode}
-                saving={false}
-                dirty={hasCustomCodeChanges}
-              />
-            }
-          >
-            <SettingsRow label="End of <head> tag" htmlFor="custom-head" align="top">
-              <textarea
-                id="custom-head"
-                rows={5}
-                value={customCodeHead}
-                onChange={(e) => setCustomCodeHead(e.target.value)}
-                className={`${ROW_INPUT_CLS} resize-none font-mono text-xs min-h-[80px]`}
-                placeholder={`<!-- Analytics, meta tags, or custom CSS -->\n<script>\n  // Your custom code here\n</script>`}
-              />
+          <SettingsGroup surface title="Canvas">
+            <SettingsRow label="Auto focus layers">
+              <Toggle value={autoFocusLayers} onChange={setAutoFocusLayers} />
             </SettingsRow>
-            <SettingsRow label="End of <body> tag" htmlFor="custom-body" align="top">
-              <textarea
-                id="custom-body"
-                rows={5}
-                value={customCodeBody}
-                onChange={(e) => setCustomCodeBody(e.target.value)}
-                className={`${ROW_INPUT_CLS} resize-none font-mono text-xs min-h-[80px]`}
-                placeholder={`<!-- Scripts, tracking codes -->\n<script>\n  // Your custom code here\n</script>`}
+            <SettingsRow label="Show rulers">
+              <Toggle value={showRulers} onChange={setShowRulers} />
+            </SettingsRow>
+            <SettingsRow label="Smooth zoom">
+              <Toggle value={useSmoothZoom} onChange={setUseSmoothZoom} />
+            </SettingsRow>
+            <SettingsRow label="Pixel grid">
+              <Toggle value={showPixelGrid} onChange={setShowPixelGrid} />
+            </SettingsRow>
+            <SettingsRow label="Auto pan speed" htmlFor="general-auto-pan-speed">
+              <RowSelect
+                id="general-auto-pan-speed"
+                value={autoPanSpeed}
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'mid', label: 'Medium' },
+                  { value: 'high', label: 'High' },
+                ]}
+                onChange={(value) => setAutoPanSpeed(value as AutoPanSpeed)}
               />
             </SettingsRow>
           </SettingsGroup>
@@ -1073,7 +886,6 @@ export default function SettingsOverlay() {
           </Button>
         </div>
         <div
-          data-ui-heading="brand"
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--text-primary)] truncate"
           style={{ pointerEvents: 'none' }}
         >
@@ -1097,10 +909,9 @@ export default function SettingsOverlay() {
                       case) so the settings sidebar and the right tool panel
                       read as the same visual language. */}
                   <div
-                    data-ui-heading={getUiHeadingRole(category.title)}
                     className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"
                   >
-                    {category.title}
+                    <UiHeadingText>{category.title}</UiHeadingText>
                   </div>
                   <div className="space-y-0.5">
                     {category.items.map((item) => {
@@ -1164,7 +975,7 @@ export default function SettingsOverlay() {
                               }`}
                             >
                               <Icon className="w-3.5 h-3.5" />
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate"><UiHeadingText>{item.label}</UiHeadingText></span>
                             </button>
                           )}
                           {showEllipsis && item.pagePath && !isRenaming && (
@@ -1215,10 +1026,9 @@ export default function SettingsOverlay() {
               <div className="relative">
                 <button
                   onClick={() => setMobileNavOpen((p) => !p)}
-                  data-ui-heading={activeLabel ? getUiHeadingRole(activeLabel) : 'brand'}
                   className="flex items-center gap-1.5 text-base font-semibold text-[var(--text-primary)] cursor-pointer"
                 >
-                  {activeLabel}
+                  {activeLabel ? <UiHeadingText>{activeLabel}</UiHeadingText> : null}
                   <ChevronDownIcon />
                 </button>
                 {mobileNavOpen && (
@@ -1228,10 +1038,9 @@ export default function SettingsOverlay() {
                       {menuCategories.map((category, ci) => (
                         <div key={ci}>
                           <div
-                            data-ui-heading={getUiHeadingRole(category.title)}
                             className="px-3 py-1 text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider"
                           >
-                            {category.title}
+                            <UiHeadingText>{category.title}</UiHeadingText>
                           </div>
                           {category.items.map((item) => {
                             const Icon = item.icon;
@@ -1250,7 +1059,7 @@ export default function SettingsOverlay() {
                                 }`}
                               >
                                 <Icon className="w-4 h-4" />
-                                <span>{item.label}</span>
+                                <span><UiHeadingText>{item.label}</UiHeadingText></span>
                               </button>
                             );
                           })}

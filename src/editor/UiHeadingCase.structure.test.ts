@@ -4,27 +4,27 @@ import { describe, expect, it } from 'vitest';
 
 const prefs = fs.readFileSync(path.resolve(process.cwd(), 'src/code/stores/user-preferences-store.ts'), 'utf8');
 const theme = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/builder-theme.ts'), 'utf8');
-const css = fs.readFileSync(path.resolve(process.cwd(), 'src/styles/globals.css'), 'utf8');
 const settings = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/overlays/SettingsOverlay.tsx'), 'utf8');
+const heading = fs.readFileSync(path.resolve(process.cwd(), 'src/design-system/UiHeadingText.tsx'), 'utf8');
 const toolSection = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/controls/ToolSection.tsx'), 'utf8');
 
-describe('system UI heading case preference', () => {
-  it('persists per-user and paints a root case mode', () => {
-    expect(prefs).toContain('uiHeadingCaseAtom');
-    expect(prefs).toContain("'field:prefs:uiHeadingCase'");
-    expect(theme).toContain('root.dataset.uiHeadingCase');
+describe('lowercase headings preference', () => {
+  it('is a persisted per-user boolean that defaults on', () => {
+    expect(prefs).toContain('lowercaseHeadingsAtom');
+    expect(prefs).toContain("'field:prefs:lowercaseHeadings', true");
+    expect(theme).toContain('root.dataset.lowercaseHeadings');
   });
 
-  it('exposes the selector in General → Appearance', () => {
-    expect(settings).toContain('label="UI heading case"');
-    expect(settings).toContain("value: 'brand', label: 'Brand'");
-    expect(settings).toContain("value: 'original', label: 'Original'");
-    expect(settings).toContain("value: 'lowercase', label: 'lowercase'");
+  it('is exposed as one toggle in General → Appearance', () => {
+    expect(settings).toContain('label="Lowercase headings"');
+    expect(settings).toContain('value={lowercaseHeadings}');
+    expect(settings).not.toContain('UI heading case');
+    expect(settings).not.toContain("label: 'Brand'");
+    expect(settings).not.toContain("label: 'Original'");
   });
 
-  it('limits case transforms to explicitly marked headings', () => {
-    expect(css).toContain("[data-ui-heading='brand']");
-    expect(css).toContain("[data-ui-heading='standard']");
-    expect(toolSection).toContain('data-ui-heading={getUiHeadingRole(title)}');
+  it('formats canonical heading text through a shared presentation primitive', () => {
+    expect(heading).toContain('formatUiHeading(children, lowercase)');
+    expect(toolSection).toContain('<UiHeadingText>{title}</UiHeadingText>');
   });
 });
