@@ -16,6 +16,8 @@ owned:
   - src/editor/FloatingLeftPanelHost.tsx
   - src/editor/ToolbarPanelHost.tsx
   - src/editor/editor-entrance.ts
+  - src/editor/EditorEntranceCoordinator.tsx
+  - src/editor/editor-entrance.test.ts
 protected:
   - src/field-shell-motion.ts
   - src/canvas/**
@@ -156,3 +158,7 @@ Validate exact branch head:
 User explicitly confirmed the editor-entrance work is complete and authorized this assignment to take it over.
 
 `src/editor/editor-entrance.ts` moved from protected/read-only to owned. Preserve its accepted choreography as the structural motion reference; changes should consolidate primitives or improve motion quality, not gratuitously retune the approved sequence.
+
+## Ownership extension — completed entrance unit
+
+Per the user's explicit confirmation that editor-entrance work is complete, this assignment now owns the full entrance unit: src/editor/editor-entrance.ts, src/editor/EditorEntranceCoordinator.tsx, and src/editor/editor-entrance.test.ts.
