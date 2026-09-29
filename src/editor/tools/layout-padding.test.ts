@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   collapsePaddingToAxes,
   normalizePaddingPx,
+  paddingAllEqual,
   paddingAxisCompatible,
+  setPaddingAll,
   setPaddingAxis,
   setPaddingSide,
 } from './layout-padding';
@@ -25,6 +27,19 @@ describe('Auto layout padding source writes', () => {
   it('writes one independent side while preserving the other three', () => {
     expect(setPaddingSide(sides, 3, '30')).toEqual({
       padding: '', paddingTop: '8px', paddingRight: '16px', paddingBottom: '8px', paddingLeft: '30px',
+    });
+  });
+
+
+  it('detects the one-value representation only when all four sides match', () => {
+    expect(paddingAllEqual(['12px', '12px', '12px', '12px'])).toBe(true);
+    expect(paddingAllEqual(['12px', '16px', '12px', '16px'])).toBe(false);
+    expect(paddingAllEqual(['12px', '12em', '12px', '12px'])).toBe(false);
+  });
+
+  it('sets all four sides through one shorthand write', () => {
+    expect(setPaddingAll('24')).toEqual({
+      padding: '24px', paddingTop: '', paddingRight: '', paddingBottom: '', paddingLeft: '',
     });
   });
 
