@@ -1,0 +1,33 @@
+name: Apply compact PaintPicker v3
+
+on:
+  push:
+    branches:
+      - fix/compact-paint-picker-v3-20260929
+    paths:
+      - .github/workflows/apply-compact-picker-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply verified compact PaintPicker patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .field/tmp/compact-picker-v3.part-* > /tmp/compact-picker-v3.patch
+          git apply --check /tmp/compact-picker-v3.patch
+          git apply /tmp/compact-picker-v3.patch
+          rm -f .field/tmp/compact-picker-v3.part-* .github/workflows/apply-compact-picker-v3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Compact universal PaintPicker and fix nested color launchers"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
