@@ -39,6 +39,7 @@ import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom }
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
 import WebsitePreviewAppearanceControl from '@/editor/WebsitePreviewAppearanceControl';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export default function RightHeader({ previewMode, onTogglePreview }: Props) {
+  const uiCase = useUiChromeCase();
   const isViewer = useIsViewer();
   const isClosedSource = useIsClosedSource();
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
@@ -316,7 +318,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           }}
         >
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
-            aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
+            aria-label={uiCase('Move inspector') ?? undefined} title={uiCase('Drag to move') ?? undefined} className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
@@ -330,8 +332,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
 
           <button
             type="button"
-            aria-label={previewMode ? 'Exit preview' : 'Preview'}
-            title={previewMode ? 'Exit preview' : 'Preview'}
+            aria-label={uiCase(previewMode ? 'Exit preview' : 'Preview') ?? undefined}
+            title={uiCase(previewMode ? 'Exit preview' : 'Preview') ?? undefined}
             data-tutorial="header-preview-button"
             onClick={onTogglePreview}
             className={`ml-2 flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
@@ -364,7 +366,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
                 />
               )}
               <span className="relative tabular-nums">
-                {publishing && !open ? `${Math.round(progress * 100)}%` : 'Publish'}
+                {publishing && !open ? `${Math.round(progress * 100)}%` : uiCase('Publish')}
               </span>
             </button>
             <LiveDropdown
@@ -396,7 +398,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         </div>
       )}
       {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
-        <button type="button" aria-label="Close compact Inspector" title="Close Inspector"
+        <button type="button" aria-label={uiCase('Close compact Inspector') ?? undefined} title={uiCase('Close Inspector') ?? undefined}
           onClick={() => setCompactInspectorOpen(false)}
           className="fixed z-[10002] flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
@@ -421,10 +423,10 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             transition: 'opacity 260ms ease, transform 260ms ease',
           }}
           >
-          <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
-          <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
-          {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={`${selectedCount} selected`}>{selectedCount}</span>}
-          <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
+          <button type="button" aria-label={uiCase('Open Design inspector') ?? undefined} title={uiCase('Design') ?? undefined} onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">{uiCase('Design')}</span></button>
+          <button type="button" aria-label={uiCase('Open Prototype inspector') ?? undefined} title={uiCase('Prototype') ?? undefined} onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">{uiCase('Proto')}</span></button>
+          {selectedCount > 0 && <span className="rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={uiCase(`${selectedCount} selected`) ?? undefined}>{selectedCount}</span>}
+          <button type="button" aria-label={uiCase(`Zoom ${compactZoom} percent; reset to 100 percent`) ?? undefined} title={uiCase('Zoom to 100%') ?? undefined} onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
           <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
           <div data-inspector-compact-actions className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-2">
