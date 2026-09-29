@@ -30,4 +30,11 @@ describe('Pattern Fill source contract', () => {
     expect(library).toContain('provenance.name');
     expect(library).toContain('provenance.license');
   });
+  it('reuses the canonical Media picker for custom SVG/image tiles', () => {
+    expect(fill).toContain('data-contextual-media-picker="fill-pattern"');
+    expect(fill).toContain('<ImageSearchModal');
+    expect(fill).toContain('defaultAssetPatternFill(url)');
+    expect(fill).toContain('Choose Media tile…');
+  });
+
 });

@@ -55,7 +55,22 @@ export interface PatternMonsterFillConfig {
   moveTop: number;
 }
 
-export type PatternFillConfig = FieldPatternFillConfig | PatternMonsterFillConfig;
+export type AssetPatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat';
+
+/** A project Media asset used directly as a web-native repeating tile. SVG is
+ * ideal because it stays crisp at any tile size, but raster project media is
+ * accepted too. The URL comes from field's canonical Media ingest/picker path. */
+export interface AssetPatternFillConfig {
+  v: 1;
+  source: 'asset';
+  assetUrl: string;
+  tileSize: number;
+  repeat: AssetPatternRepeat;
+  position: string;
+  background: string;
+}
+
+export type PatternFillConfig = FieldPatternFillConfig | PatternMonsterFillConfig | AssetPatternFillConfig;
 
 export const PATTERN_KIND_OPTIONS: Array<{ value: PatternKind; label: string }> = [
   { value: 'grid', label: 'Grid' },
@@ -112,6 +127,18 @@ export function parsePatternFillConfig(raw?: string | null): PatternFillConfig {
   if (!raw) return { ...DEFAULT_PATTERN_FILL };
   try {
     const value = JSON.parse(raw) as Record<string, unknown>;
+    if (value.source === 'asset' && typeof value.assetUrl === 'string' && value.assetUrl) {
+      const repeat = value.repeat;
+      return {
+        v: 1,
+        source: 'asset',
+        assetUrl: value.assetUrl,
+        tileSize: clampNumber(value.tileSize, 4, 1024, 64),
+        repeat: repeat === 'repeat-x' || repeat === 'repeat-y' || repeat === 'no-repeat' ? repeat : 'repeat',
+        position: typeof value.position === 'string' && value.position ? value.position : 'center',
+        background: typeof value.background === 'string' && value.background ? value.background : 'transparent',
+      };
+    }
     if (value.source === 'pattern-monster' && typeof value.patternId === 'string' && value.patternId) {
       const colors = Array.isArray(value.colors)
         ? value.colors.filter((color): color is string => typeof color === 'string' && !!color)
@@ -181,10 +208,38 @@ export function buildPatternFillStyles(
   definition?: PatternMonsterDefinition | null,
 ): PatternFillStyles {
   const config = parsePatternFillConfig(JSON.stringify(input));
+  if (config.source === 'asset') return buildAssetPatternFillStyles(config);
   if (config.source === 'pattern-monster') {
     return definition ? buildPatternMonsterFillStyles(config, definition) : EMPTY_PATTERN_STYLES;
   }
   return buildFieldPatternFillStyles(config);
+}
+
+export function defaultAssetPatternFill(assetUrl: string): AssetPatternFillConfig {
+  return {
+    v: 1,
+    source: 'asset',
+    assetUrl,
+    tileSize: 64,
+    repeat: 'repeat',
+    position: 'center',
+    background: 'transparent',
+  };
+}
+
+function buildAssetPatternFillStyles(config: AssetPatternFillConfig): PatternFillStyles {
+  return {
+    backgroundColor: config.background,
+    // JSON.stringify produces a quoted/escaped URL suitable for a CSS url().
+    // The browser fetches the canonical Media asset directly; no second asset
+    // pipeline or data-URI copy is introduced here.
+    backgroundImage: `url(${JSON.stringify(config.assetUrl)})`,
+    backgroundSize: `${config.tileSize}px auto`,
+    backgroundPosition: config.position,
+    backgroundRepeat: config.repeat,
+    WebkitMaskImage: '',
+    maskImage: '',
+  };
 }
 
 function buildFieldPatternFillStyles(config: FieldPatternFillConfig): PatternFillStyles {

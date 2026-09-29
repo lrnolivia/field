@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PATTERN_FILL,
   buildPatternFillStyles,
+  defaultAssetPatternFill,
   defaultPatternMonsterFill,
   parsePatternFillConfig,
   serializePatternFillConfig,
@@ -48,4 +49,15 @@ describe('native pattern fill compiler', () => {
     const parsed = parsePatternFillConfig(serializePatternFillConfig(config));
     expect(parsed).toMatchObject({ source: 'pattern-monster', patternId: definition.slug, angle: 45, spacing: [1, 2] });
   });
+  it('compiles project Media assets to ordinary repeating CSS without copying the asset', () => {
+    const config = { ...defaultAssetPatternFill('/media/tile.svg'), tileSize: 48, repeat: 'repeat-x' as const, position: 'top left' };
+    const styles = buildPatternFillStyles(config);
+    expect(styles.backgroundImage).toBe('url("/media/tile.svg")');
+    expect(styles.backgroundSize).toBe('48px auto');
+    expect(styles.backgroundRepeat).toBe('repeat-x');
+    expect(styles.backgroundPosition).toBe('top left');
+    const parsed = parsePatternFillConfig(serializePatternFillConfig(config));
+    expect(parsed).toMatchObject({ source: 'asset', assetUrl: '/media/tile.svg', tileSize: 48, repeat: 'repeat-x' });
+  });
+
 });
