@@ -15,8 +15,6 @@ export default function InspectorModeTabs() {
     <div
       data-inspector-mode-tabs
       className="shrink-0 h-10 px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center gap-1"
-      role="tablist"
-      aria-label={uiCase('Inspector mode') ?? undefined}
     >
       <ChromeTabBar
         value={mode}
@@ -24,8 +22,8 @@ export default function InspectorModeTabs() {
         ariaLabel={uiCase('Inspector mode') ?? 'Inspector mode'}
         compact
         items={[
-          { value: 'design', label: uiCase('Design'), glyph: 'design' },
-          { value: 'prototype', label: uiCase('Prototype'), glyph: 'prototype' },
+          { value: 'design', label: uiCase('Design') ?? 'Design', glyph: 'design' },
+          { value: 'prototype', label: uiCase('Prototype') ?? 'Prototype', glyph: 'prototype' },
         ]}
       />
       <div data-inspector-pane-actions className="ml-auto flex items-center gap-1">
