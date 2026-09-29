@@ -19,6 +19,7 @@ owned:
   - src/canvas/Canvas.tsx
   - src/canvas/shortcuts.ts
   - src/editor/controls/InspectorZoomControl.tsx
+  - src/editor/BottomToolbar.tsx
 approved_shared: []
 protected:
   - src/canvas/scale/**
@@ -120,3 +121,7 @@ After implementation:
 - exact-head Cloudflare branch Preview `npm run build:all`
 - one final user visual QA pass
 - do not merge without explicit user acceptance
+
+## Ownership extension — 2026-09-29
+
+Source trace found the bottom-toolbar Smart Zoom button as an additional explicit user camera-command surface. `src/editor/BottomToolbar.tsx` is added to this assignment; no active assignment owns that path.
