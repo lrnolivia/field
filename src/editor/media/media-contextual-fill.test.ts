@@ -27,7 +27,7 @@ describe('contextual Media in image Fill', () => {
     const imageFill = fill.slice(start, end);
 
     expect(imageFill).toContain('onClick={openMedia}');
-    expect(imageFill).toContain('aspect-square max-h-[360px]');
+    expect(imageFill).toContain('aspect-square max-h-[300px]');
     expect(imageFill).toContain("hasImage ? 'Replace source…' : 'Select source…'");
     expect(imageFill).not.toContain('border-2 border-dashed');
   });
@@ -69,7 +69,7 @@ describe('contextual Media in image Fill', () => {
 
     expect(videoFill).toContain('onClick={openVideoMedia}');
     expect(videoFill).toContain('onClick={openPosterMedia}');
-    expect(videoFill).toContain('aspect-square max-h-[360px]');
+    expect(videoFill).toContain('aspect-square max-h-[300px]');
     expect(videoFill).toContain("hasVideo ? 'Replace source…' : 'Select source…'");
     expect(videoFill).not.toContain('border-2 border-dashed');
   });
