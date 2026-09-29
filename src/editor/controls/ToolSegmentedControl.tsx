@@ -1,7 +1,8 @@
-// ToolSegmentedControl.tsx — Button group with animated highlight.
-// FIGUI3_CORRECTIVE_SEGMENTED_20260925
+// ToolSegmentedControl.tsx — Compact segmented choice control.
+// Shares field's chrome-tab visual language: inset accent, glyph-aware,
+// no detached/sliding highlight slab.
 
-import { useRef, useLayoutEffect, useState, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { trace } from '@/shared/debug-trace';
@@ -21,8 +22,6 @@ interface Props {
 
 export default function ToolSegmentedControl({ value, onChange, options, size = 'md' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [highlight, setHighlight] = useState({ left: 0, width: 0 });
-  const hasMounted = useRef(false);
 
   const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -33,86 +32,61 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
       : event.key === 'End'
         ? options.length - 1
         : (index + (event.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
-    const target = containerRef.current?.querySelectorAll<HTMLButtonElement>('button')[next];
-    target?.focus();
+    containerRef.current?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
   };
 
-  // Measure the active button and move the highlight onto it.
-  //
-  // LAYOUT effect, not a passive one: `useEffect` runs AFTER paint, so the
-  // browser painted one frame with the highlight still at its initial
-  // `{left: 0, width: 0}` and only then jumped it into place. On a panel that
-  // mounts fresh every time it opens (the Layers/Pages switcher) that read as
-  // the thumb sliding/growing onto the active tab on every open. Measuring
-  // before paint means the first frame is already correct.
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const idx = options.findIndex(o => o.value === value);
-    if (idx === -1) return;
-    const buttons = containerRef.current.querySelectorAll('button');
-    const btn = buttons[idx] as HTMLElement;
-    if (btn) {
-      // ANIMATE ONLY WHEN MOVING FROM A REAL POSITION.
-      //
-      // Timing-based gating ("skip the transition on first mount") did not
-      // hold: measured on a fresh panel mount, the first pass reports
-      // `offsetWidth: 0` and the real width lands on a LATER commit, by which
-      // point transitions were long enabled — so the thumb animated 0 → full
-      // width every time the panel opened. Whether that first measurement is
-      // zero depends on layout/StrictMode/font timing, so don't reason about
-      // when it happens: reason about whether there is anything to move FROM.
-      // Width 0 means "no position yet" → place it silently. Non-zero means a
-      // real user switch → animate.
-      //
-      // Set BEFORE `setHighlight` so the re-render it triggers reads the value
-      // meant for that commit.
-      hasMounted.current = highlight.width > 0;
-      setHighlight({ left: btn.offsetLeft, width: btn.offsetWidth });
-    }
-  }, [value, options, highlight.width]);
-
-
-
-  const py = size === 'compact' ? 'py-0.5' : size === 'sm' ? 'py-1' : 'py-1.5';
-  const px = size === 'compact' ? 'px-1' : 'px-3';
+  const height = size === 'compact' ? 'h-7' : 'h-8';
+  const padding = size === 'compact' ? 'px-1.5' : 'px-2.5';
+  const text = size === 'compact' ? 'text-[10px]' : 'text-[11px]';
 
   return (
-    // Outlined like the inputs and selects: the track was a bare fill with no
-    // border, so when the other controls moved to outlined-and-recessed this
-    // one stayed a filled slab and stood out as the odd control.
-    <div ref={containerRef} role="group" className="relative flex w-full bg-[var(--control-bg)] border border-transparent cut-corners p-0.5">
-      {/* Animated highlight */}
-      <div
-        className="absolute cut-corners cut-sm"
-        style={{
-          left: highlight.left,
-          width: highlight.width,
-          top: 2, bottom: 2,
-          backgroundColor: 'var(--bg-active)',
-          // The track is close to the panel now, so the thumb carries the
-          // "raised" reading on its own. Matters most on light, where the
-          // thumb is white on a near-white track.
-          boxShadow: 'none',
-          transition: hasMounted.current ? 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-          zIndex: 1,
-        }}
-      />
-      {options.map((opt, index) => (
-        <motion.button
-          key={opt.value}
-          type="button"
-          aria-pressed={value === opt.value}
-          initial="rest"
-          whileHover="hover"
-          whileTap="tap"
-          onClick={() => { trace.action('tool-segmented:change', { from: value, to: opt.value }); onChange(opt.value); }}
-          onKeyDown={(event) => moveFocus(event, index)}
-          className={`flex-1 flex items-center justify-center gap-2 text-xs ${py} ${px} cut-corners transition-colors relative z-10 ${value === opt.value ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-        >
-          {opt.icon && <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>}
-          {opt.label && <span>{opt.label}</span>}
-        </motion.button>
-      ))}
+    <div
+      ref={containerRef}
+      role="group"
+      data-tool-segmented
+      className="relative flex w-full items-center gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5"
+    >
+      {options.map((opt, index) => {
+        const active = value === opt.value;
+        return (
+          <motion.button
+            key={opt.value}
+            type="button"
+            aria-pressed={active}
+            initial="rest"
+            whileHover="hover"
+            whileTap="tap"
+            onClick={() => {
+              trace.action('tool-segmented:change', { from: value, to: opt.value });
+              onChange(opt.value);
+            }}
+            onKeyDown={(event) => moveFocus(event, index)}
+            className={`relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[6px] border border-transparent font-medium transition-[background-color,color,border-color,box-shadow] ${height} ${padding} ${text} ${active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]/70 hover:text-[var(--text-primary)]'}`}
+            style={active ? {
+              background: 'var(--accent-surface)',
+              borderColor: 'color-mix(in srgb, var(--accent) 28%, var(--border-light))',
+              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent)',
+            } : undefined}
+          >
+            {opt.icon && (
+              <span
+                aria-hidden
+                className="flex h-4 w-4 shrink-0 items-center justify-center"
+                style={{ color: active ? 'var(--accent)' : 'var(--text-tertiary)' }}
+              >
+                <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>
+              </span>
+            )}
+            {opt.label && <span className="truncate">{opt.label}</span>}
+            {active && (
+              <span
+                aria-hidden
+                className="absolute inset-x-2.5 bottom-[2px] h-[2px] rounded-full bg-[var(--accent)] opacity-70"
+              />
+            )}
+          </motion.button>
+        );
+      })}
     </div>
   );
 }

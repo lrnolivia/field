@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import MediaGlyph from './MediaGlyph';
@@ -47,7 +47,7 @@ export default function MediaToolbarPopover({
   const ref = useRef<HTMLDivElement>(null);
   const [anchor, setAnchor] = useState({ left: 24, bottom: 76, arrow: 112, width: 224 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const position = () => {
       const rect = document.querySelector('[data-toolbar-tool="media"]')?.getBoundingClientRect();
       if (!rect) return;
@@ -100,7 +100,7 @@ export default function MediaToolbarPopover({
       initial={{ opacity: 0, scale: 0.94, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 430, damping: 30, mass: 0.72 }}
-      className="fixed z-[15000] flex flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.025] transition-[left,bottom,width,max-height] duration-200 ease-out"
+      className="fixed z-[15000] overflow-visible text-[var(--text-primary)]"
       style={{
         left: anchor.left,
         bottom: anchor.bottom,
@@ -110,38 +110,45 @@ export default function MediaToolbarPopover({
         transformOrigin: `${Math.max(18, Math.min(anchor.arrow, anchor.width - 18))}px calc(100% + 7px)`,
       }}
     >
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
-        {onBack ? (
+      <div
+        data-media-toolbar-surface
+        className="relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.025]"
+        style={{ maxHeight: 'inherit', height: expanded ? '100%' : undefined }}
+      >
+        <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to Media"
+              className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              <BackGlyph />
+            </button>
+          ) : (
+            <span className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]" aria-hidden>
+              <MediaGlyph size={14} />
+            </span>
+          )}
+          <strong className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[-0.005em]">{title}</strong>
           <button
             type="button"
-            onClick={onBack}
-            aria-label="Back to Media"
-            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            onClick={onExpand}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
+            title={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
+            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
-            <BackGlyph />
+            {expanded ? <CollapseGlyph /> : <ExpandGlyph />}
           </button>
-        ) : (
-          <span className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]" aria-hidden>
-            <MediaGlyph size={14} />
-          </span>
-        )}
-        <strong className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[-0.005em]">{title}</strong>
-        <button
-          type="button"
-          onClick={onExpand}
-          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
-          title={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
-          className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          {expanded ? <CollapseGlyph /> : <ExpandGlyph />}
-        </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-panel)]">{children}</div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-panel)]">{children}</div>
       <span
-          aria-hidden
-          className="absolute -bottom-[6px] h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
-          style={{ left: Math.max(14, Math.min(anchor.arrow - 5, anchor.width - 24)) }}
-        />
+        data-media-origin-pointer
+        aria-hidden
+        className="absolute -bottom-[5px] z-0 h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
+        style={{ left: Math.max(14, Math.min(anchor.arrow - 5, anchor.width - 24)) }}
+      />
     </motion.div>,
     document.body,
   );
