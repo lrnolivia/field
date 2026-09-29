@@ -51,7 +51,7 @@ describe('Gallery inspector integration', () => {
     expect(content).toContain('role="list" aria-label="Gallery media"');
     expect(view).not.toContain('Terra Prime strip items');
     expect(crop).toContain('role="dialog"');
-    expect(crop).toContain('Shift for 5%');
+    expect(crop).toContain('Hold Shift for larger keyboard steps.');
     expect(media).toContain('aria-live="polite"');
     expect(media).toContain('Select Unsplash image');
   });
