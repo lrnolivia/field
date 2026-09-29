@@ -1,82 +1,137 @@
-// BackdropFilterControl.tsx — Self-contained backdrop-filter (blur) ToolAtom.
-//
-// Mirrors OpacityControl: a single slider + number input. The underlying CSS
-// value is a function string (`blur(NNpx)`), so we parse the px radius out for
-// the slider and re-emit `blur(NNpx)` on change. Unlike Opacity (one property),
-// we write BOTH `backdropFilter` and the Safari-prefixed `WebkitBackdropFilter`
-// together via `onChangeMultiple`, so editing the blur never leaves the two
-// prefixes pointing at different radii.
+// BackdropFilterControl.tsx — backdrop-filter blur ToolAtom.
+// Compact Effects rows open the canonical Inspector Options Panel instead of
+// exposing a one-off numeric field in the list.
 
-import { useState } from 'react';
-import { ToolSlider, ToolInput, EffectRow } from '../../../controls';
+import { useRef, useState } from 'react';
+import { ControlActionRow, EffectRow } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import type { AtomProps } from '../../../controls/unified/types';
+import { FilterIcon } from '@/design-system/PropertyIcons';
+import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import { OptionsPanel, OptionSection, ScalarRow } from '../../../ui/OptionsPanel';
 import { parseBackdropBlur, formatBackdropBlur } from '../style-helpers';
 import { trace } from '@/shared/debug-trace';
+
+function BackdropBlurEditor({
+  value,
+  onChangeLive,
+  onCommit,
+  onReset,
+}: {
+  value: number;
+  onChangeLive: (value: number) => void;
+  onCommit: (value: number) => void;
+  onReset: () => void;
+}) {
+  return (
+    <OptionsPanel>
+      <OptionSection>
+        <ScalarRow
+          label="Blur"
+          value={value}
+          min={0}
+          max={80}
+          step={0.5}
+          unit="px"
+          onChange={onCommit}
+          onChangeLive={onChangeLive}
+          onCommit={onCommit}
+        />
+      </OptionSection>
+      <button
+        type="button"
+        data-options-reset
+        onClick={onReset}
+        className="self-end h-[var(--control-height-sm)] rounded-[4px] px-2 text-[10px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+      >
+        Reset blur
+      </button>
+    </OptionsPanel>
+  );
+}
 
 function BackdropFilterAtom({ compactSection = false }: { compactSection?: boolean }) {
   const { value, onChangeMultiple, onChangeLive } = useControlContext();
   const committedNum = parseBackdropBlur(value);
-  // Live drag value: while the slider is being dragged the committed code value
-  // isn't written per-tick (only on mouseup), so we mirror the slider's value
-  // here to keep the number input on the right moving with the thumb. Cleared
-  // on commit, when the committed code value takes over again.
   const [dragNum, setDragNum] = useState<number | null>(null);
   const displayNum = dragNum ?? committedNum;
+  const rowRef = useRef<HTMLDivElement>(null);
 
-  // Commit writes both the standard + prefixed properties so a later edit
-  // never leaves WebkitBackdropFilter stuck at a stale blur radius.
   const commit = (n: number) => {
-    const v = formatBackdropBlur(n);
-    trace.action('backdrop-filter:set', { blur: n, value: v });
+    const next = Math.max(0, Number.isFinite(n) ? n : 0);
+    const v = formatBackdropBlur(next);
+    trace.action('backdrop-filter:set', { blur: next, value: v });
     onChangeMultiple({ backdropFilter: v, WebkitBackdropFilter: v });
+    setDragNum(null);
   };
+
+  const reset = () => {
+    trace.action('backdrop-filter:reset');
+    onChangeMultiple({ backdropFilter: '', WebkitBackdropFilter: '' });
+    setDragNum(null);
+  };
+
+  const { openPanel, panelPopup } = useEditorPanel(
+    'Background blur',
+    () => (
+      <BackdropBlurEditor
+        value={displayNum}
+        onChangeLive={(n) => {
+          setDragNum(n);
+          onChangeLive(formatBackdropBlur(n));
+        }}
+        onCommit={commit}
+        onReset={reset}
+      />
+    ),
+    { kind: 'options' },
+  );
 
   if (compactSection) {
     return (
-      <EffectRow
-        control={
-          <div className="grid grid-cols-[minmax(0,1fr)_56px] h-full items-center min-w-0">
-            <span className="px-2 truncate text-xs text-[var(--text-primary)]">Background blur</span>
-            <div className="h-full border-l border-[var(--control-border)] overflow-hidden">
-              <ToolInput
-                value={String(displayNum)}
-                onChange={(v) => commit(parseFloat(v) || 0)}
-                step={0.5}
-                className="min-w-0 !h-full !border-0 !bg-transparent !rounded-none ![clip-path:none]"
-                ariaLabel="Background blur"
-              />
-            </div>
-          </div>
-        }
-        onRemove={() => onChangeMultiple({ backdropFilter: '', WebkitBackdropFilter: '' })}
-      />
+      <>
+        <div ref={rowRef} className="w-full min-w-0">
+          <EffectRow
+            control={
+              <ControlActionRow onClick={() => openPanel()} embedded>
+                <FilterIcon width={16} height={16} bg="var(--control-border)" className="shrink-0 opacity-70" />
+                <span className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]">Background blur</span>
+                <span className="shrink-0 pr-1 text-[10px] tabular-nums text-[var(--text-secondary)]">{displayNum}px</span>
+              </ControlActionRow>
+            }
+            onRemove={reset}
+          />
+        </div>
+        {panelPopup(rowRef)}
+      </>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 w-full">
-      <ToolSlider value={displayNum} min={0} max={30} step={0.5}
-        // Live tick → DOM-only canvas preview + move the number on the right
-        // (no code write per frame).
-        onChange={(v) => { setDragNum(v); onChangeLive(formatBackdropBlur(v)); }}
-        // Mouseup → commit both prefixes to code, then release the live value.
-        onCommit={(v) => { commit(v); setDragNum(null); }} />
-      <ToolInput value={String(displayNum)} onChange={(v) => commit(parseFloat(v) || 0)} step={0.5} />
-    </div>
+    <ControlRow label="Backdrop">
+      <ScalarRow
+        label="Blur"
+        hideLabel
+        value={displayNum}
+        min={0}
+        max={80}
+        step={0.5}
+        unit="px"
+        onChange={commit}
+        onChangeLive={(n) => {
+          setDragNum(n);
+          onChangeLive(formatBackdropBlur(n));
+        }}
+        onCommit={commit}
+      />
+    </ControlRow>
   );
 }
 
 export function BackdropFilterControl({ mode = 'direct', compactSection = false, ...modeProps }: AtomProps & { compactSection?: boolean }) {
   return (
     <UnifiedControlProvider property="backdropFilter" defaultValue="" mode={mode} {...modeProps}>
-      {compactSection ? (
-        <BackdropFilterAtom compactSection />
-      ) : (
-        <ControlRow label="Backdrop">
-          <BackdropFilterAtom />
-        </ControlRow>
-      )}
+      <BackdropFilterAtom compactSection={compactSection} />
     </UnifiedControlProvider>
   );
 }

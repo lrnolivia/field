@@ -7,12 +7,12 @@
 // properties panel it opens the control's own anchored ToolPopup.
 
 import { useState, type ReactNode, type RefObject } from 'react';
-import ToolPopup, { useToolPopupOptional } from '../ui/ToolPopup';
+import ToolPopup, { useToolPopupOptional, type ToolPopupKind } from '../ui/ToolPopup';
 
 export function useEditorPanel(
   title: string,
   render: () => ReactNode,
-  options?: { width?: number },
+  options?: { width?: number; kind?: ToolPopupKind },
 ) {
   const parentPopup = useToolPopupOptional();
   const [isOpen, setIsOpen] = useState(false);
@@ -34,7 +34,7 @@ export function useEditorPanel(
    *  hosts the panel instead). */
   const panelPopup = (anchorRef: RefObject<HTMLElement | null>): ReactNode => (
     !parentPopup && (
-      <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title={title} anchorRef={anchorRef} width={options?.width}>
+      <ToolPopup isOpen={isOpen} onClose={() => setIsOpen(false)} title={title} anchorRef={anchorRef} width={options?.width} kind={options?.kind}>
         {render()}
       </ToolPopup>
     )
