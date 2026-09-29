@@ -21,4 +21,12 @@ describe('FigUI3 grouped toolbar shortcuts', () => {
     expect(shortcuts).toContain("!isCreatorToolMode(toolModeRef.current)");
     expect(store).toContain("export function isCreatorToolMode");
   });
+
+
+  it('keeps Figma Frame Selection as the visible shortcut and the legacy chord as a compatibility alias', () => {
+    expect(shortcuts).toContain("key: 'g', ctrl: true, alt: true");
+    expect(shortcuts).toContain("label: 'Frame Selection'");
+    expect(shortcuts).toContain("key: 'a', shift: true, alt: true");
+    expect(shortcuts).toContain("hideFromHelp: true");
+  });
 });

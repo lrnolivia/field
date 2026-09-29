@@ -327,7 +327,7 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     if (frameId) { flushNow(); setSelectedIds([frameId]); }
   }}));
 
-  cleanups.push(keyboard.register({ key: 'a', shift: true, alt: true, label: 'Create Frame', category: 'structure', handler: () => {
+  const frameSelection = () => {
     const ids = selectedIdsRef.current.length > 0
       ? selectedIdsRef.current
       : (selectedIdRef.current ? [selectedIdRef.current] : []);
@@ -335,7 +335,20 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     if (ids.length === 0 || !contentEl) return;
     const frameId = wrapInFrame(ids, nodesRef.current, contentEl, handleNodeMouseDown);
     if (frameId) { flushNow(); setSelectedIds([frameId]); }
-  }}));
+  };
+
+  // Figma-standard Frame selection shortcut. Keep Field's historical
+  // Shift+Alt+A as a compatibility alias, but advertise the Figma chord.
+  cleanups.push(keyboard.register({
+    key: 'g', ctrl: true, alt: true,
+    label: 'Frame Selection', category: 'structure',
+    handler: frameSelection,
+  }));
+  cleanups.push(keyboard.register({
+    key: 'a', shift: true, alt: true,
+    label: 'Create Frame', category: 'structure', hideFromHelp: true,
+    handler: frameSelection,
+  }));
 
   // Native Figma-style Group / Ungroup own the standard structural shortcuts.
   // SVG combination remains a separate explicit command in menus/palette.

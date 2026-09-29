@@ -4998,6 +4998,37 @@ export default function Page({ params }: { params: { slug: string } }) {
   },
 };
 
+export const GROUP_FRAME_SEMANTICS = project(`
+/** @canvas { "viewports": [{"id":"desktop","width":900}] } */
+'use client';
+export default function Page() {
+  return (
+    <div data-id="root" data-name="Page" style={{ position: 'relative', width: '900px', minHeight: '650px', background: '#ffffff' }}>
+      <div
+        data-id="native-group"
+        data-name="Group"
+        data-field-group="true"
+        style={{ position: 'absolute', left: '100px', top: '100px', width: '160px', height: '80px' }}
+      >
+        <div data-id="g-a" data-name="Group A" style={{ position: 'absolute', left: '0px', top: '0px', width: '40px', height: '40px', background: '#ef4444' }} />
+        <div data-id="g-b" data-name="Group B" style={{ position: 'absolute', left: '120px', top: '40px', width: '40px', height: '40px', background: '#3b82f6' }} />
+      </div>
+
+      <div
+        data-id="fixed-frame"
+        data-name="Frame"
+        style={{ position: 'absolute', left: '400px', top: '100px', width: '220px', height: '180px', overflow: 'visible', background: '#f3f4f6' }}
+      >
+        <div data-id="f-a" data-name="Frame Child" style={{ position: 'absolute', left: '20px', top: '20px', width: '40px', height: '40px', background: '#22c55e' }} />
+      </div>
+
+      <div data-id="loose-a" data-name="Loose A" style={{ position: 'absolute', left: '100px', top: '380px', width: '70px', height: '50px', background: '#a855f7' }} />
+      <div data-id="loose-b" data-name="Loose B" style={{ position: 'absolute', left: '220px', top: '420px', width: '80px', height: '60px', background: '#f59e0b' }} />
+    </div>
+  );
+}
+`);
+
 export const LAYER_PREVIEW_PARITY = (() => {
   const seed = project(`
 /** @canvas { "viewports": [{ "id": "desktop", "width": 1440 }] } */
@@ -5043,6 +5074,7 @@ export default function Page() {
 
 export const SEEDS = {
   LAYER_PREVIEW_PARITY,
+  GROUP_FRAME_SEMANTICS,
   REPLICA_EXIT_TO_FRAME,
   NEGATIVE_MARGIN_ROW,
   HANDOFF_TWO_VP,
