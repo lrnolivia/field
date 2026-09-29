@@ -1,9 +1,10 @@
 // src/canvas/hooks/useCanvasTransform.ts
 //
 // Attaches the camera transform listeners (wheel zoom, middle-mouse pan).
-// Registers contentRef + vpOverlayRef with the transformManager so it can
-// apply transforms automatically and forward the viewport transform to the
-// sandbox iframe on every pan/zoom tick.
+// Registers the hidden contentRef with TransformManager. The viewport-header
+// overlay is deliberately applied from the transform subscriber AFTER the
+// same camera sample is forwarded to the sandbox, so parent chrome cannot
+// advance on a separate transform-manager pass ahead of iframe content.
 //
 // Also owns:
 //   - transformManager subscribe → viewport header position updates + bridge forwarding
@@ -121,31 +122,28 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       hasVpOverlay: !!vpOverlay,
     });
 
-    // Register elements with TransformManager — it applies transforms automatically.
-    // contentRef is a hidden parent-frame anchor (kept for SelectionBox/DragCoordinator refs);
-    // sandbox transforms are forwarded via postMessage below.
+    // Register only the hidden parent-frame anchor. The visible viewport-header
+    // overlay must not be an independently flushed TransformManager element:
+    // that flush happens before subscribers run, while the sandbox camera is
+    // forwarded from the subscriber. Registering both created a guaranteed
+    // ordering where the header could move before the viewport below it.
     if (content) {
       transformManager.addElement(content);
     }
-    if (vpOverlay) transformManager.addElement(vpOverlay);
 
     // Subscribe for transform updates:
-    // 1. Update viewport header positions continuously — the viewport header is
-    //    persistent canvas chrome and must remain visible while panning/zooming.
-    // 2. Mark camera interaction so node-scoped helpers can suppress themselves.
-    // 3. Forward transform to sandbox iframe.
+    // 1. Forward the authoritative camera sample to the sandbox.
+    // 2. Apply that SAME sample to the parent viewport-header overlay.
+    // 3. Update header geometry and interaction state.
     let interactTimeout: ReturnType<typeof setTimeout> | null = null;
     const unsub = transformManager.subscribe(() => {
-      if (vpOverlay) {
-        updateViewportHeaderPositions(vpOverlay);
-      }
       setCanvasInteracting(true);
       // …and specifically that the CAMERA is what's moving, so node-scoped
       // overlays can hide (SelectionOverlay's InteractionOutline).
       cameraMoveOps.set(true);
 
+      const t = transformManager.getTransform();
       if (postMessageBridgeRef.current?.isReady) {
-        const t = transformManager.getTransform();
         trace.action('canvas-transform:bridge-forward', { x: t.x, y: t.y, scale: t.scale });
         // Per-tick live forwarding for BOTH pan and zoom. A surface-freeze
         // experiment (compositing zoom gestures on the iframe element,
@@ -157,11 +155,21 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
         postMessageBridgeRef.current.setViewportTransform(t.x, t.y, t.scale);
       }
 
+      // The header overlay consumes the exact camera sample just forwarded
+      // above instead of participating in TransformManager's earlier element
+      // flush. This keeps the viewport label on the same camera transaction
+      // as the iframe surface and removes the visible "viewport slides behind
+      // its header" lead during pan/zoom.
+      if (vpOverlay) {
+        transformManager.applyToElement(vpOverlay);
+        updateViewportHeaderPositions(vpOverlay);
+      }
+
       if (interactTimeout) clearTimeout(interactTimeout);
       interactTimeout = setTimeout(() => {
         // While a drag is in flight, leave canvasInteracting alone — the
-        // drag's own start/end transitions own the flag. This debounce
-        // used to fire 100 ms after the last auto-pan tick (i.e. when
+        // drag's own start/end transitions own the flag. This debounce used
+        // to fire 100 ms after the last auto-pan tick (i.e. when
         // the user moved the cursor back off the edge mid-drag).
         // Letting it run flipped `canvasInteracting` to false MID-DRAG,
         // which propagated through the
@@ -181,11 +189,20 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       }, 100);
     });
 
-    // Send initial transform to sandbox
+    // Initialize both surfaces from one camera sample, preserving the same
+    // sandbox-first ordering used for live pan/zoom.
+    const initialTransform = transformManager.getTransform();
     if (postMessageBridgeRef.current?.isReady) {
-      const t = transformManager.getTransform();
-      trace.action('canvas-transform:initial-forward', { x: t.x, y: t.y, scale: t.scale });
-      postMessageBridgeRef.current.setViewportTransform(t.x, t.y, t.scale);
+      trace.action('canvas-transform:initial-forward', initialTransform);
+      postMessageBridgeRef.current.setViewportTransform(
+        initialTransform.x,
+        initialTransform.y,
+        initialTransform.scale,
+      );
+    }
+    if (vpOverlay) {
+      transformManager.applyToElement(vpOverlay);
+      updateViewportHeaderPositions(vpOverlay);
     }
 
     return () => {
@@ -193,8 +210,8 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
         hasContent: !!content,
         hasVpOverlay: !!vpOverlay,
       });
+      if (interactTimeout) clearTimeout(interactTimeout);
       if (content) transformManager.removeElement(content);
-      if (vpOverlay) transformManager.removeElement(vpOverlay);
       unsub();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -209,7 +226,7 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     return startViewportHeaderTracking(vpOverlay);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── DOM mutation observer for debug trace ──────────────────────────────
+  // ─── DOM mutation observer for debug trace ─────────────────────────────
   useEffect(() => {
     const content = contentRef.current;
     if (!content) return;
@@ -217,7 +234,7 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     return observeDOM(content);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Wheel + middle-mouse pan: native event listeners ───────────────────
+  // ─── Wheel + middle-mouse pan: native event listeners ──────────────────
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
