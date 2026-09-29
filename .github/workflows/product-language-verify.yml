@@ -1,0 +1,25 @@
+name: Product language verify
+
+on:
+  push:
+    branches:
+      - field/product-language-sweep
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Tests
+        run: npm run test:run
+      - name: Build all
+        run: npm run build:all
