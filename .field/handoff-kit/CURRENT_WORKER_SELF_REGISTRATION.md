@@ -1,6 +1,6 @@
 # Current Worker self-registration
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
 Use this when an existing field Worker/chat has already prepared a handoff/export and now has Composio access.
 
