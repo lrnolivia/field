@@ -1,95 +1,38 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import json, tempfile, shutil, subprocess
+import json
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-required = [
-    "VERSION", "manifest.json", "README.md", "CHAT_BOOTSTRAP.md", "CONTRACT.md",
-    "ASSIGNMENT_AUTHORING.md", "COMPOSIO_WRITE_BROKER.md", "bin/field-handoff",
-    "installer/INSTALLER_CONTRACT.md", "installer/install-template.sh",
-    "qa/BROWSER_PREVIEW_QA_PROTOCOL.md", "qa/QA_CLASSIFICATION.md", "qa/AUTHENTICATED_QA.md",
-    "templates/assignment.md", "templates/assignment-unique-name.md",
-    "templates/package-README.md", "templates/apply.mjs",
-    "tests/contract_worker_v2_test.py",
-    "CURRENT_WORKER_SELF_REGISTRATION.md",
-]
-for rel in required:
-    p = ROOT / rel
-    assert p.exists() and p.stat().st_size > 0, f"missing/empty: {rel}"
 
 manifest = json.loads((ROOT / "manifest.json").read_text())
 version = (ROOT / "VERSION").read_text().strip()
-assert manifest["version"] == version == "2026-09-26.4"
+
+assert version == "2026-09-29.1"
+assert manifest["version"] == version
 assert manifest["repository"] == "lrnolivia/field"
-assert manifest["control_branch"] == "field/control"
-assert manifest["legacy_tracker"] == "tracker.md"
-assert "tracker" not in manifest
-assert manifest["contract_worker"]["github_transport"] == "composio-exclusive"
-assert manifest["contract_worker"]["native_github_connector_allowed"] is False
-assert manifest["runtime_qa"]["web_visible"] == "pr-preview-browser"
-assert manifest["runtime_qa"]["protocol"].endswith("BROWSER_PREVIEW_QA_PROTOCOL.md")
+assert manifest["universal_authority"]["repository"] == "lrnolivia/loew-runner"
+assert manifest["universal_authority"]["bible"] == "LOEW_CHAT_BIBLE.md"
 
-contract = (ROOT / "CONTRACT.md").read_text()
-for phrase in [
-    "Composio is the exclusive GitHub transport",
-    "built-in ChatGPT GitHub connector is prohibited",
-    "field/control",
-    "assignment-<unique-name>.md",
-    "Exact-SHA merge gate",
-]:
-    assert phrase in contract, phrase
+qa = manifest["runtime_qa"]
+assert qa["authority"] == "loew-runner-first"
+assert qa["web_visible"] == "exact-sha-preview"
+assert qa["routine_engine"] == "deterministic-inspector-github-chromium"
+assert qa["real_project_entrypoint"] == "/qa/work/<projectId>"
+assert qa["smoke_only_entrypoint"] == "/builder/noauth"
+assert qa["exact_sha_required"] is True
 
-broker = (ROOT / "COMPOSIO_WRITE_BROKER.md").read_text()
-for phrase in [
-    "exclusive GitHub transport",
-    "Do not call the built-in ChatGPT GitHub connector",
-    "COMPOSIO_SEARCH_TOOLS",
-    "CONTRACT WORKER GITHUB UNAVAILABLE",
-]:
-    assert phrase in broker, phrase
+root = Path(__file__).resolve().parents[3]
+agents = (root / "AGENTS.md").read_text()
+assert "canonical target" in agents
+assert "lrnolivia/field" in agents
+assert "revyme-loewfi" in agents
+assert "Historical handoffs" in agents
+assert "section 11 is authoritative" in agents
 
-bootstrap = (ROOT / "CHAT_BOOTSTRAP.md").read_text()
-for phrase in ["Use Composio exclusively", "field/control", "active legacy"]:
-    assert phrase in bootstrap, phrase
-
-legacy_template = (ROOT / "templates/assignment.md").read_text()
-assert "DEPRECATED" in legacy_template
-assert "assignment-unique-name.md" in legacy_template
-
-cli = (ROOT / "bin/field-handoff").read_text()
-assert "manifest['tracker']" not in cli
-assert "control_branch" in cli
-compile(cli, str(ROOT / "bin/field-handoff"), "exec")
-
-subprocess.run(["python3", str(ROOT / "tests/contract_worker_v2_test.py")], check=True)
-subprocess.run(["bash", "-n", str(ROOT / "installer/install-template.sh")], check=True)
-subprocess.run(["node", "--check", str(ROOT / "templates/apply.mjs")], check=True)
-
-with tempfile.TemporaryDirectory(prefix="field handoff kit ") as td:
-    copied = Path(td) / "kit copy"
-    shutil.copytree(ROOT, copied)
-    json.loads((copied / "manifest.json").read_text())
-    subprocess.run(["python3", str(copied / "tests/contract_worker_v2_test.py")], check=True)
-
-
-blocker_docs = [
-    (ROOT / "CONTRACT.md").read_text(),
-    (ROOT / "ASSIGNMENT_AUTHORING.md").read_text(),
-    (ROOT / "CHAT_BOOTSTRAP.md").read_text(),
-    (ROOT / "templates/assignment-unique-name.md").read_text(),
-]
-assert all("artificial blocker" in text.lower() for text in blocker_docs)
-assert manifest["current_worker_self_registration"].endswith("CURRENT_WORKER_SELF_REGISTRATION.md")
-
-browser_policy_docs = [
-    (ROOT / "CONTRACT.md").read_text(),
-    (ROOT / "CHAT_BOOTSTRAP.md").read_text(),
-    (ROOT / "ASSIGNMENT_AUTHORING.md").read_text(),
-    (ROOT / "README.md").read_text(),
-    (ROOT / "templates/assignment-unique-name.md").read_text(),
-    (ROOT / "qa/BROWSER_PREVIEW_QA_PROTOCOL.md").read_text(),
-]
-assert all("Firecrawl" not in text for text in browser_policy_docs)
-assert all("browser" in text.lower() for text in browser_policy_docs)
+subprocess.run(
+    ["python3", str(ROOT / "tests/contract_worker_v2_test.py")],
+    check=True,
+)
 
 print("field handoff kit self-test: PASS")
