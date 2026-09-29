@@ -111,6 +111,23 @@ export function ScalarRow({
   );
 }
 
+export function OptionFieldRow({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div data-option-field className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2">
+      <OptionLabel icon={icon}>{label}</OptionLabel>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
 export function ChoiceRow({
   label,
   icon,
