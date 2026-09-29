@@ -52,4 +52,19 @@ describe('ProjectLoader canvas readiness contract', () => {
     expect(canvasRevealCss).not.toContain("[data-canvas-reveal-phase='entering'] [data-canvas-root]");
     expect(appSource).toContain("hasAttribute('data-canvas-iframe')");
   });
+  it('hydrates a clean project session before exposing the new Canvas', () => {
+    expect(projectLoaderSource).toContain('projectFS.fromEnvelope(projectEnvelope)');
+    expect(projectLoaderSource).toContain('resetProjectSession(bootFile, bootCode)');
+    expect(projectLoaderSource).not.toContain('projectFS.hydrateBranches(raw.branches, raw.activeBranchId)');
+    expect(projectLoaderSource.indexOf('resetProjectSession(bootFile, bootCode)'))
+      .toBeLessThan(projectLoaderSource.lastIndexOf('setReady(true)'));
+  });
+
+  it('drops stale loader results before they can rewrite project-global identity', () => {
+    const loaded = projectLoaderSource.indexOf("trace.action('project-loader:load'");
+    const cancelled = projectLoaderSource.lastIndexOf('if (cancelled) return;', loaded);
+    expect(cancelled).toBeGreaterThan(-1);
+    expect(cancelled).toBeLessThan(loaded);
+  });
+
 });

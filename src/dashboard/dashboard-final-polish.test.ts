@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 describe('Dashboard final visual polish contract', () => {
   const card = fs.readFileSync(path.join(process.cwd(), 'src/dashboard/ProjectCard.tsx'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(process.cwd(), 'src/Dashboard.tsx'), 'utf8');
+  const header = fs.readFileSync(path.join(process.cwd(), 'src/dashboard/DashboardHeader.tsx'), 'utf8');
+  const backfill = fs.readFileSync(path.join(process.cwd(), 'src/dashboard/dashboard-thumbnail-backfill.ts'), 'utf8');
   const dashboardCss = fs.readFileSync(path.join(process.cwd(), 'src/styles/dashboard.css'), 'utf8');
   const shellCss = fs.readFileSync(path.join(process.cwd(), 'src/styles/field-shell.css'), 'utf8');
 
@@ -28,4 +31,16 @@ describe('Dashboard final visual polish contract', () => {
     expect(shellCss).toContain('.field-new-project-actions-right .field-new-project-secondary');
     expect(shellCss).toContain('width: 168px;');
   });
+  it('offers an explicit server-truth refresh that force rebuilds thumbnails', () => {
+    expect(header).toContain('FigmaReloadIcon');
+    expect(header).toContain('Refresh projects and thumbnails');
+    expect(dashboard).toContain('const fresh = await listFieldProjects()');
+    expect(dashboard).toContain('{ ...project, thumbnail: null }');
+    expect(dashboard).toContain('force={forceThumbnailRefresh}');
+    expect(backfill).toContain('force = false');
+    expect(backfill).toContain('if (!force)');
+    expect(dashboardCss).toContain(".field-dashboard-refresh[data-refreshing='true'] svg");
+    expect(dashboardCss).toContain('field-dashboard-refresh-spin');
+  });
+
 });

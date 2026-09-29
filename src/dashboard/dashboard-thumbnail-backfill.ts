@@ -126,6 +126,7 @@ export async function backfillDashboardThumbnails(
   onReady: (projectId: string, url: string) => void,
   signal: AbortSignal,
   fetchImpl: typeof fetch = fetch,
+  force = false,
 ): Promise<void> {
   let renderer: PreviewThumbnailRenderer | null = null;
   try {
@@ -133,8 +134,10 @@ export async function backfillDashboardThumbnails(
       if (signal.aborted) break;
       if (project.trashedAt) continue;
       try {
-        const state = await getFieldProjectThumbnailState(project.id, fetchImpl);
-        if (!state.stale) continue;
+        if (!force) {
+          const state = await getFieldProjectThumbnailState(project.id, fetchImpl);
+          if (!state.stale) continue;
+        }
         const files = await loadSavedFiles(project.id, signal, fetchImpl);
         if (!files || !chooseDashboardThumbnailPage(Object.keys(files))) continue;
         let repaired = false;
