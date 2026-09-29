@@ -3,6 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
+import { motion } from 'motion/react';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
@@ -13,6 +14,7 @@ import {
   type WorkspaceSideLayout,
 } from './workspace-layout';
 import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from './motion';
 
 const SURFACE = {
   background: 'var(--bg-panel)',
@@ -50,10 +52,16 @@ export default function ChromeIslands() {
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
 
   return (
     <>
-      <div
+      <motion.div
+        layout={reducedMotion ? false : true}
+        initial={false}
+        animate={{ opacity: railVisible || leftOpen ? 1 : 0, x: !dockedLeft && !railVisible ? -18 : 0 }}
+        transition={structuralTransition}
         aria-hidden
         data-workspace-island="left"
         data-visible={railVisible ? 'true' : 'false'}
@@ -71,9 +79,7 @@ export default function ChromeIslands() {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
-          opacity: railVisible || leftOpen ? 1 : 0,
-          transform: !dockedLeft && !railVisible ? 'translateX(-18px)' : undefined,
-          transition: 'width 260ms ease, transform 260ms ease, opacity 260ms ease',
+          transformOrigin: 'left center',
         }}
       />
 
