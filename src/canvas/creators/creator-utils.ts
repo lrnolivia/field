@@ -117,6 +117,29 @@ export function findParentAtPoint(
   return null;
 }
 
+
+/**
+ * Creator-tool parent resolution with the Figma Space override.
+ *
+ * Holding Space while adding an object means "do not adopt the frame under
+ * the cursor". Returning null deliberately routes the new object through the
+ * existing canvas-level creation path. Parent hit-testing itself remains
+ * centralized in findParentAtPoint so every creator shares the same safety
+ * rules for instances, overlays, layout chrome, and non-container nodes.
+ */
+export function findCreatorParentAtPoint(
+  screenX: number,
+  screenY: number,
+  nodes: Map<string, CanvasNode>,
+  bypassParenting: boolean,
+): { nodeId: string; vpPrefix: string } | null {
+  if (bypassParenting) {
+    trace.fn('creator.findParentAtPoint:space-bypass', { screenX, screenY });
+    return null;
+  }
+  return findParentAtPoint(screenX, screenY, nodes);
+}
+
 // ─── Layout Detection ───────────────────────────────────────────────────────
 
 export type InsertionMode = 'absolute' | 'flex-row' | 'flex-column' | 'grid';

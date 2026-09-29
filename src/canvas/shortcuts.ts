@@ -47,6 +47,7 @@ import { nudgeSelection, flushPendingNudge, type NudgeDirection } from './arrow-
 import { selectAllPageNodeIds } from './selection/select-all';
 import { interactingViewportIdAtom } from '../code/stores/viewport-store';
 import { hoveredNodeIdAtom, hoveredViewportIdAtom } from '../code/stores/store';
+import { isCreatorToolMode } from '../code/stores/tool-store';
 
 
 export interface ShortcutRefs {
@@ -173,10 +174,13 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
   }}));
 
   // ─── Navigation ──────────────────────────────────────────────────
-  cleanups.push(keyboard.register({ key: ' ', label: 'Pan (hold)', category: 'navigation', allowRepeat: true, handler: () => {
+  cleanups.push(keyboard.register({ key: ' ', label: 'Pan / parenting override (hold)', category: 'navigation', allowRepeat: true, handler: () => {
     if (!editingNodeIdRef.current) {
       setSpaceBarDown(true);
-      setPanHighlight?.(true);
+      // Space is still the physical hold state, but creator tools consume it
+      // as Figma's "bypass automatic parenting" modifier. Do not light the Hand
+      // tool while the key is serving that different interaction.
+      setPanHighlight?.(!isCreatorToolMode(toolModeRef.current));
     }
   }}));
   cleanups.push(keyboard.registerKeyUp(' ', () => {

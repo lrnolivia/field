@@ -7,7 +7,7 @@
 // Supports rectangle, line, ellipse, triangle, plus the Pen/path editor.
 // Each generates an <svg> wrapper with the appropriate inner shape child.
 
-import { transformManager } from '@/canvas/transform';
+import { transformManager, isSpaceBarDown } from '@/canvas/transform';
 import { ellipsePathD } from '@/shared/svg-geometry';
 import { screenToCanvas, absoluteToRelativeById } from '@/canvas/canvas-math';
 import { vpIdFromPrefix, getActiveFilePath } from '@/canvas/node-ops';
@@ -16,7 +16,7 @@ import { attachDragListeners } from '@/shared/dom-utils';
 import { el } from '@/shared/dom-utils';
 import { queueMutation, flushNow, setForceRender } from '@/code/mutation/mutation-queue';
 import {
-  findParentAtPoint,
+  findCreatorParentAtPoint,
   getInsertionMode,
   ensureAbsChildContainingBlock,
   getFlexInsertIndex,
@@ -222,7 +222,7 @@ export function startShapeCreation(
   const transform = transformManager.getTransform();
 
   // Detect parent under cursor using bridge-based hit testing
-  const parent = findParentAtPoint(e.clientX, e.clientY, nodes);
+  const parent = findCreatorParentAtPoint(e.clientX, e.clientY, nodes, isSpaceBarDown());
   const vpId = parent ? vpIdFromPrefix(parent.vpPrefix) : 'desktop';
   const isReplica = parent ? parent.vpPrefix !== '' : false;
   const isCanvasNode = !parent;

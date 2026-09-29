@@ -1,7 +1,7 @@
 // CanvasMouseController.test.ts — Characterization tests for redirect chain, dblclick paths,
 // and shape-edit click-outside behaviour.
 
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'jotai';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -152,6 +152,8 @@ import { codeAtom } from '@/code/stores/store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { projectFS } from '@/code/project/project-fs';
 import { CanvasMouseController } from './CanvasMouseController';
+import { handleSpacePanDown, isSpaceBarDown } from '@/canvas/transform';
+import { startFrameCreation } from '@/canvas/creators/FrameCreator';
 
 // ─── Factory helper ───────────────────────────────────────────────────────────
 
@@ -343,6 +345,45 @@ describe('CanvasMouseController', () => {
     expect(store.get(shapeEditingIdAtom)).toBeNull();
     // The new node must be selected
     expect(store.get(selectedIdsAtom)).toEqual(['other-node']);
+  });
+});
+
+describe('CanvasMouseController — contextual Space for creator tools', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isSpaceBarDown).mockReturnValue(true);
+    vi.mocked(handleSpacePanDown).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    // vi.clearAllMocks() clears calls, not implementations. Restore the shared
+    // transform mocks so unrelated mouse characterizations do not inherit a
+    // permanently-held Space key.
+    vi.mocked(isSpaceBarDown).mockReturnValue(false);
+    vi.mocked(handleSpacePanDown).mockReturnValue(false);
+  });
+
+  test('Space + Frame tool starts creation instead of temporary pan', () => {
+    const { controller, store } = makeController();
+    store.set(toolModeAtom, 'frame' as any);
+
+    controller.handleMouseDown(makeMouseEvent());
+
+    expect(handleSpacePanDown).not.toHaveBeenCalled();
+    expect(startFrameCreation).toHaveBeenCalled();
+  });
+
+  test('Space over a node still reaches the creator path instead of panning', () => {
+    const { controller, store } = makeController();
+    store.set(toolModeAtom, 'frame' as any);
+    store.set(nodesAtom, new Map([
+      ['frame', { id: 'frame', parentId: null, type: 'div', children: [], styles: {}, attrs: {} }],
+    ]) as never);
+
+    controller.handleNodeMouseDown('frame', makeMouseEvent(), 'desktop');
+
+    expect(handleSpacePanDown).not.toHaveBeenCalled();
+    expect(startFrameCreation).toHaveBeenCalled();
   });
 });
 

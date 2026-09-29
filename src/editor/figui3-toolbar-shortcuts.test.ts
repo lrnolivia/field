@@ -15,4 +15,10 @@ describe('FigUI3 grouped toolbar shortcuts', () => {
     expect(menu).toContain("label: 'Pen', shortcut: 'P'");
     expect(menu).toContain("label: 'Pencil', shortcut: 'Shift+P'");
   });
+
+  it('keeps Space pan highlighting contextual while creator tools own the parenting override', () => {
+    expect(shortcuts).toContain("Pan / parenting override (hold)");
+    expect(shortcuts).toContain("!isCreatorToolMode(toolModeRef.current)");
+    expect(store).toContain("export function isCreatorToolMode");
+  });
 });

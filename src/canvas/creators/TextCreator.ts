@@ -5,14 +5,14 @@
 //
 // Flow: pointerdown → draw preview → pointerup → create node → enter edit mode
 
-import { transformManager } from '@/canvas/transform';
+import { transformManager, isSpaceBarDown } from '@/canvas/transform';
 import { screenToCanvas, absoluteToRelativeById } from '@/canvas/canvas-math';
 import { createNode, vpIdFromPrefix, getActiveFilePath } from '@/canvas/node-ops';
 import { isComponentFilePath } from '@/code/project/active-file-store';
 import { el, attachDragListeners } from '@/shared/dom-utils';
 import { flushNow, setForceRender } from '@/code/mutation/mutation-queue';
 import {
-  findParentAtPoint,
+  findCreatorParentAtPoint,
   getInsertionMode,
   ensureAbsChildContainingBlock,
   getFlexInsertIndex,
@@ -110,7 +110,7 @@ export function startTextCreation(
   const transform = transformManager.getTransform();
 
   // Detect parent under cursor using bridge-based hit testing
-  const parent = findParentAtPoint(e.clientX, e.clientY, nodes);
+  const parent = findCreatorParentAtPoint(e.clientX, e.clientY, nodes, isSpaceBarDown());
   const vpId = parent ? vpIdFromPrefix(parent.vpPrefix) : 'desktop';
   const isReplica = parent ? parent.vpPrefix !== '' : false;
   const isCanvasNode = !parent;
