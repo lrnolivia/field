@@ -1,0 +1,134 @@
+diff --git a/src/editor/controls/ColorInput.tsx b/src/editor/controls/ColorInput.tsx
+index 44de95d..f5eb5fa 100644
+--- a/src/editor/controls/ColorInput.tsx
++++ b/src/editor/controls/ColorInput.tsx
+@@ -1,5 +1,6 @@
+ // ColorInput.tsx — Color swatch + value label as a single button.
+-// Clicking opens ColorPicker in a ToolPopup (standalone) or pushes a panel (inside ToolPopup).
++// Clicking always opens the universal PaintPicker in its own anchored ToolPopup.
++// When nested inside another ToolPopup (Effects, Shadow, etc.), it is a nested floating surface rather than the legacy pushed child panel.
+ // The whole thing is one clickable row — swatch square + hex/rgb value text.
+ 
+ import { useState, useRef, useCallback, type CSSProperties } from 'react';
+@@ -236,15 +237,14 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
+           <RemoveButton label="Remove color" onClick={() => onRemove()} />
+         )}
+       </div>
+-      {/* Standalone popup — only when NOT inside a ToolPopup */}
+-      {!popupCtx && (
+-        <ToolPopup
++      {/* Universal picker — nested ToolPopups keep the parent editor open and float above it. */}
++      <ToolPopup
+           isOpen={open}
+           onClose={() => setOpen(false)}
+           title="Color"
+           ariaLabel="Paint picker"
+           anchorRef={btnRef}
+-          width={480}
++          width={360}
+           hideHeader
+           showNestedHeaderWhenHidden
+           radius={14}
+@@ -262,7 +262,6 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
+             onClose={() => setOpen(false)}
+           />
+         </ToolPopup>
+-      )}
+     </>
+   );
+ }
+diff --git a/src/editor/fill-picker-shell-contract.test.ts b/src/editor/fill-picker-shell-contract.test.ts
+index 2d4640f..4982b0e 100644
+--- a/src/editor/fill-picker-shell-contract.test.ts
++++ b/src/editor/fill-picker-shell-contract.test.ts
+@@ -14,7 +14,7 @@ describe('fill picker shell contract', () => {
+     expect(fillSource).toContain('const [fillPopupOpen, setFillPopupOpen] = useState(false)');
+     expect(fillSource).toContain('isOpen={fillPopupOpen}');
+     expect(fillSource).toContain('anchorRef={btnRef}');
+-    expect(fillSource).toContain('width={480}');
++    expect(fillSource).toContain('width={360}');
+     expect(fillSource).toContain('hideHeader');
+     expect(fillSource).not.toContain("useEditorPanel('Fill'");
+     expect(fillSource).not.toContain('<OptionsPanel>');
+diff --git a/src/editor/left-toolbar/panels/LibraryPanel/index.tsx b/src/editor/left-toolbar/panels/LibraryPanel/index.tsx
+index 7eacac1..ae77d75 100644
+--- a/src/editor/left-toolbar/panels/LibraryPanel/index.tsx
++++ b/src/editor/left-toolbar/panels/LibraryPanel/index.tsx
+@@ -732,7 +732,7 @@ export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'a
+           onClose={handleEditClose}
+           title={formatTokenLabel(editingToken.name)}
+           anchorRef={editAnchorRef}
+-          width={editingToken.category === 'color' || editingToken.category === 'gradient' ? 480 : 280}
++          width={editingToken.category === 'color' || editingToken.category === 'gradient' ? 360 : 280}
+           hideHeader={editingToken.category === 'color'}
+           showNestedHeaderWhenHidden={editingToken.category === 'color'}
+           radius={editingToken.category === 'color' ? 14 : undefined}
+diff --git a/src/editor/left-toolbar/panels/cms/FieldControl.tsx b/src/editor/left-toolbar/panels/cms/FieldControl.tsx
+index 87b35d8..2fdee45 100644
+--- a/src/editor/left-toolbar/panels/cms/FieldControl.tsx
++++ b/src/editor/left-toolbar/panels/cms/FieldControl.tsx
+@@ -264,7 +264,7 @@ function ColorFieldControl({ value, onChange, name }: { value: string; onChange:
+         title={name}
+         ariaLabel="Paint picker"
+         anchorRef={swatchRef}
+-        width={480}
++        width={360}
+         hideHeader
+         showNestedHeaderWhenHidden
+         radius={14}
+diff --git a/src/editor/tools/SelectionTool.tsx b/src/editor/tools/SelectionTool.tsx
+index faf8189..efe8d51 100644
+--- a/src/editor/tools/SelectionTool.tsx
++++ b/src/editor/tools/SelectionTool.tsx
+@@ -297,7 +297,7 @@ function SelectionColorRow({
+         title="Color"
+         ariaLabel={'Edit selection color ' + labelText}
+         anchorRef={btnRef}
+-        width={480}
++        width={360}
+         hideHeader
+         showNestedHeaderWhenHidden
+         radius={14}
+diff --git a/src/editor/tools/StylesTool/atoms/FillControl.tsx b/src/editor/tools/StylesTool/atoms/FillControl.tsx
+index 36b6628..a5560d8 100644
+--- a/src/editor/tools/StylesTool/atoms/FillControl.tsx
++++ b/src/editor/tools/StylesTool/atoms/FillControl.tsx
+@@ -202,7 +202,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
+               disabled={!hasImage}
+               aria-label="Crop image"
+               title="Crop image"
+-              className="w-10 h-10 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
++              className="w-9 h-9 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
+             >
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                 <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
+@@ -213,7 +213,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
+           <button
+             type="button"
+             onClick={openMedia}
+-            className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
++            className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+             title={previewUrl || 'Select image source'}
+           >
+             <span
+@@ -224,7 +224,7 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
+               aria-hidden
+             />
+             <span className="absolute inset-0 flex items-center justify-center">
+-              <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
++              <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+                 {hasImage ? 'Replace source…' : 'Select source…'}
+               </span>
+@@ -450,13 +450,13 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
+         <button
+           type="button"
+           onClick={openPatternMedia}
+-          className="relative w-full aspect-square max-h-[360px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
++          className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+           aria-label="Replace pattern source"
+           title={config.assetUrl}
+         >
+           <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
+           <span className="absolute inset-0 flex items-center justify-center">
+-            <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
