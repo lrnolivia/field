@@ -277,17 +277,19 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     const target = e.target as HTMLElement;
     if (!containerEl) return;
     const isCanvasContainer = target === containerEl;
+    const isCanvasInputSurface = target.hasAttribute('data-canvas-input-surface');
     const isContentRoot = target === contentElRef.current;
     const isViewportRoot = target.hasAttribute('data-viewport') && !target.hasAttribute('data-id');
+    const passed = isCanvasContainer || isCanvasInputSurface || isContentRoot || isViewportRoot;
     trace.action('selection-box:pointerdown-check', {
       source: 'host',
       tagName: target.tagName,
       dataId: target.getAttribute('data-id'),
       dataViewport: target.getAttribute('data-viewport'),
-      isCanvasContainer, isContentRoot, isViewportRoot,
-      passed: isCanvasContainer || isContentRoot || isViewportRoot,
+      isCanvasContainer, isCanvasInputSurface, isContentRoot, isViewportRoot,
+      passed,
     });
-    if (!isCanvasContainer && !isContentRoot && !isViewportRoot) return;
+    if (!passed) return;
     beginGesture(e.clientX, e.clientY, e.metaKey || e.ctrlKey ? 'deep' : 'surface');
   }, [beginGesture, canBegin, containerEl]);
 

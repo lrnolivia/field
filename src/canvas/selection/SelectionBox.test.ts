@@ -289,6 +289,40 @@ describe('getIntersectingNodeIds', () => {
     host.remove();
   });
 
+  test('the real canvas input surface can start a host-pointer marquee', () => {
+    installBridge({
+      ':hero': { left: 20, top: 20, width: 40, height: 40 },
+    });
+    const host = document.createElement('div');
+    const inputSurface = document.createElement('div');
+    inputSurface.setAttribute('data-canvas-input-surface', '');
+    host.appendChild(inputSurface);
+    document.body.appendChild(host);
+    const onSelectionChange = vi.fn();
+    const view = render(React.createElement(SelectionBox, {
+      containerEl: host,
+      contentEl: host,
+      onSelectionChange,
+      isActive: true,
+    }));
+
+    act(() => {
+      inputSurface.dispatchEvent(new MouseEvent('pointerdown', {
+        clientX: 0, clientY: 0, button: 0, bubbles: true,
+      }));
+      window.dispatchEvent(new MouseEvent('pointermove', {
+        clientX: 100, clientY: 100, bubbles: true,
+      }));
+    });
+
+    expect(onSelectionChange).toHaveBeenCalled();
+    act(() => window.dispatchEvent(new MouseEvent('pointerup', {
+      clientX: 100, clientY: 100, button: 0, bubbles: true,
+    })));
+    view.unmount();
+    host.remove();
+  });
+
   test('Cmd/Ctrl sandbox drag starts a marquee instead of being rejected', () => {
     installBridge({
       ':hero': { left: 20, top: 20, width: 40, height: 40 },
