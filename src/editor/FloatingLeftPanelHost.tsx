@@ -1,4 +1,5 @@
 import { useEffect, type PointerEvent as ReactPointerEvent } from 'react';
+import { motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { useAtom, useAtomValue } from 'jotai';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
@@ -6,6 +7,7 @@ import { leftContentWidthAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom, c
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
 import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from './workspace-layout';
+import { createFieldRafCoalescer, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from './motion';
 
 /** Content half of the floating left island. The icon rail sits flush to its
  * left; both live below the stationary project pill. */
@@ -21,6 +23,8 @@ export default function FloatingLeftPanelHost() {
   const railWidth = useAtomValue(leftCollapsedWidthAtom);
   const Panel = PANEL_MAP[panelId];
   const visible = (mode === 'floating' && (!autoHide || !hidden) && !collapsed) || (mode === 'compact' && compactOpen);
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
 
   useEffect(() => {
     setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET)));
@@ -32,12 +36,30 @@ export default function FloatingLeftPanelHost() {
     event.preventDefault();
     event.stopPropagation();
     const start = { x: event.clientX, y: event.clientY, width: contentWidth, height };
+    const host = event.currentTarget.closest('[data-floating-left-panel]') as HTMLElement | null;
+    const backing = document.querySelector<HTMLElement>('[data-workspace-island="left"]');
+    let finalWidth = start.width;
+    let finalHeight = start.height;
+    const coalescer = createFieldRafCoalescer((geometry: { width: number; height: number }) => {
+      if (host) {
+        host.style.width = geometry.width + 'px';
+        host.style.height = geometry.height + 'px';
+      }
+      if (backing) {
+        backing.style.width = (railWidth + geometry.width) + 'px';
+        backing.style.height = geometry.height + 'px';
+      }
+    });
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
-      setContentWidth(clampLeftContentWidth(start.width + next.clientX - start.x));
-      setHeight(Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y)));
+      finalWidth = clampLeftContentWidth(start.width + next.clientX - start.x);
+      finalHeight = Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y));
+      coalescer.schedule({ width: finalWidth, height: finalHeight });
     };
     const stop = () => {
+      coalescer.flush();
+      setContentWidth(finalWidth);
+      setHeight(finalHeight);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
@@ -49,11 +71,13 @@ export default function FloatingLeftPanelHost() {
   };
 
   return createPortal(
-    <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
+    <motion.div layout={reducedMotion ? false : 'position'} initial={false}
+      animate={{ opacity: visible ? 1 : 0, x: visible ? 0 : -18 }} transition={structuralTransition}
+      data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
       aria-hidden={!visible} inert={!visible}
-      className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
+      className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)]"
       style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
-        opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
+        pointerEvents: visible ? 'auto' : 'none' }}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
       <button type="button"
         aria-label="Resize floating left panel"
@@ -64,6 +88,6 @@ export default function FloatingLeftPanelHost() {
           <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />
         </svg>
       </button>
-    </div>, document.body,
+    </motion.div>, document.body,
   );
 }

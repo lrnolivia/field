@@ -20,6 +20,7 @@ import { leftPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { workspaceTitlePresentation } from '@/editor/workspace-title-presentation';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import {
   autoPanSpeedAtom,
   autoFocusLayersAtom,
@@ -270,15 +271,20 @@ export default function LeftHeader() {
   const compactTitle = titlePresentation === 'compact-pill';
   const fullTitle = titlePresentation === 'full-pill';
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
   trace.fn('LeftHeader:render', { previewMode, presentation: titlePresentation });
 
   return (
     <>
-      <div
+      <motion.div
+      layout={reducedMotion ? false : true}
+      initial={false}
+      transition={structuralTransition}
       data-workspace-left-header
       data-visible="true"
       data-title-presentation={titlePresentation}
-      className="h-[52px] border border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex transition-[left,top,width,height,border-radius,box-shadow] duration-300 ease-out"
+      className="h-[52px] border border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex"
       // One persistent title surface owns project/page identity in every
       // workspace preset. Layout changes only morph this shell's geometry;
       // they never swap to a second ProjectChip/WorkspaceModeButton tree.
@@ -323,7 +329,8 @@ export default function LeftHeader() {
           affordance — matches the settings-overlay top-left back
           button. Reads as "you're in preview, here's the way out"
           without the project chip competing for attention. */}
-      <div className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 35 }}>
+      <motion.div layout={reducedMotion ? false : 'position'} transition={structuralTransition}
+        className="flex-1 min-w-0 flex items-center gap-1" style={{ paddingLeft: 10, paddingRight: 35 }}>
         <div data-title-identity className="flex-1 min-w-0 flex items-center">
           {previewMode ? (
             <Button
@@ -346,9 +353,9 @@ export default function LeftHeader() {
         </div>
 
         <WorkspaceModeButton />
-      </div>
+      </motion.div>
 
-    </div>
+    </motion.div>
 
       {/* Keyboard Shortcuts overview — opened via the logo menu's
           View → "Keyboard shortcuts" item (shortcutsModalOpenAtom).

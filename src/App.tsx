@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import { useAtom, useAtomValue } from 'jotai';
 import { Toaster } from 'sonner';
 import Canvas from './canvas/Canvas';
@@ -61,6 +62,7 @@ import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
+import { createFieldRafCoalescer, fieldMotion, fieldOpacityTransition, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { deriveWorkspaceCameraInsets, deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
@@ -97,6 +99,9 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
+  const opacityTransition = fieldOpacityTransition(reducedMotion);
   const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
     leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
   });
@@ -325,7 +330,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
         {!previewMode && rightPaneOpen && (
-          <div
+          <motion.div
+            layout={reducedMotion || rightDetached ? false : 'position'}
+            initial={false}
+            animate={{ opacity: floatingInspectorVisible ? 1 : 0, x: rightDetached && !floatingInspectorVisible ? 24 : 0 }}
+            transition={{ layout: structuralTransition, x: structuralTransition, opacity: opacityTransition }}
             data-workspace-right-body
             data-visible={floatingInspectorVisible ? 'true' : 'false'}
             aria-hidden={!floatingInspectorVisible}
@@ -336,12 +345,9 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               top: workspaceBodyTop(workspaceLayout.right),
               width: workspaceLayout.right.width,
               height: rightDetached ? Math.min(rightFloatingHeight - 52, window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 12 - 52) : workspaceBodyHeightCss(workspaceLayout.right),
-              transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+              translate: rightDetached ? `${rightDragOffset.x}px ${rightDragOffset.y}px` : undefined,
               borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
-              opacity: floatingInspectorVisible ? 1 : 0,
-              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
-              transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
             <RightSidebar />
@@ -350,9 +356,26 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
                 event.preventDefault();
                 const startY = event.clientY;
                 const startHeight = rightFloatingHeight;
+                let finalHeight = startHeight;
+                const body = document.querySelector<HTMLElement>('[data-workspace-right-body]');
+                const backing = document.querySelector<HTMLElement>('[data-workspace-island="right"]');
+                const coalescer = createFieldRafCoalescer((height: number) => {
+                  if (body) body.style.height = Math.max(0, height - 52) + 'px';
+                  if (backing) backing.style.height = height + 'px';
+                });
                 document.documentElement.dataset.workspaceResizing = 'true';
-                const move = (next: PointerEvent) => setRightFloatingHeight(Math.max(320, Math.min(window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 8, startHeight + next.clientY - startY)));
-                const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); delete document.documentElement.dataset.workspaceResizing; };
+                const move = (next: PointerEvent) => {
+                  finalHeight = Math.max(320, Math.min(window.innerHeight - workspaceLayout.right.top - rightDragOffset.y - 8, startHeight + next.clientY - startY));
+                  coalescer.schedule(finalHeight);
+                };
+                const stop = () => {
+                  coalescer.flush();
+                  setRightFloatingHeight(finalHeight);
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', stop);
+                  window.removeEventListener('pointercancel', stop);
+                  delete document.documentElement.dataset.workspaceResizing;
+                };
                 window.addEventListener('pointermove', move);
                 window.addEventListener('pointerup', stop, { once: true });
                 window.addEventListener('pointercancel', stop, { once: true });
@@ -360,7 +383,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               className="absolute bottom-0 left-0 z-10 h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
               <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M2 5 11 14M2 10l4 4" stroke="currentColor" fill="none" /></svg>
             </button>}
-          </div>
+          </motion.div>
         )}
         {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,
             design components and icon sets alike: the surface tells it what

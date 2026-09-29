@@ -30,6 +30,7 @@ import {
 import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { useIsClosedSource } from '@/code/stores/closed-source-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
+import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { LogoButton } from '@/editor/header/LeftHeader';
 
 function SettingsGearIcon() {
@@ -261,6 +262,8 @@ export default function LeftMenu() {
 
   const sharedMode = workspaceMode === 'docked' || workspaceMode === 'floating' || workspaceMode === 'compact-docked';
   const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
   const panelCollapsed = workspaceMode === 'floating' ? floatingPanelCollapsed : !leftPaneOpen;
   const togglePanelCollapsed = () => {
     if (workspaceMode === 'floating') { setFloatingPanelCollapsed(!floatingPanelCollapsed); return; }
@@ -268,7 +271,11 @@ export default function LeftMenu() {
   };
   return (
     <>
-    <div
+    <motion.div
+      layout={reducedMotion ? false : 'position'}
+      initial={false}
+      animate={{ opacity: railVisible ? 1 : 0, x: railVisible ? 0 : -18 }}
+      transition={structuralTransition}
       data-left-menu-rail
       data-visible={railVisible ? 'true' : 'false'}
       data-workspace-mode={leftPaneOpen ? 'docked' : leftDetached ? 'floating' : 'collapsed'}
@@ -277,7 +284,7 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5002] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: dockedShell ? 0 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
+      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, isolation: 'isolate', paddingTop: dockedShell ? 0 : 10 }}
     >
       {dockedShell && <div className="flex h-[52px] w-full shrink-0 items-center justify-center"><LogoButton /></div>}
       {/* Right border */}
@@ -485,7 +492,7 @@ export default function LeftMenu() {
         </AnimatePresence>,
         document.body,
       )}
-    </div>
+    </motion.div>
     </>
   );
 }

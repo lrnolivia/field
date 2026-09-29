@@ -39,6 +39,7 @@ import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom }
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
 import WebsitePreviewAppearanceControl from '@/editor/WebsitePreviewAppearanceControl';
+import { createFieldRafCoalescer, fieldMotion, fieldOpacityTransition, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -65,6 +66,9 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
+  const opacityTransition = fieldOpacityTransition(reducedMotion);
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
@@ -271,22 +275,32 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     const startY = event.clientY;
     const startOffset = rightDragOffset;
     let dragged = false;
-    let latestX = startOffset.x;
+    let finalOffset = startOffset;
+    const targets = [
+      document.querySelector<HTMLElement>('[data-workspace-right-header]'),
+      document.querySelector<HTMLElement>('[data-workspace-right-body]'),
+      document.querySelector<HTMLElement>('[data-workspace-island="right"]'),
+    ].filter((target): target is HTMLElement => Boolean(target));
+    const coalescer = createFieldRafCoalescer((offset: { x: number; y: number }) => {
+      for (const target of targets) target.style.translate = offset.x + 'px ' + offset.y + 'px';
+    });
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       const baseLeft = window.innerWidth - 24 - rightPaneWidth;
       const x = Math.max(8 - baseLeft, Math.min(window.innerWidth - 8 - rightPaneWidth - baseLeft, startOffset.x + next.clientX - startX));
-      latestX = x;
       if (Math.abs(next.clientX - startX) + Math.abs(next.clientY - startY) > 8) dragged = true;
       const y = Math.max(-workspace.right.top, Math.min(window.innerHeight - workspace.right.top - Math.min(rightFloatingHeight, window.innerHeight - 90) - 8, startOffset.y + next.clientY - startY));
-      setRightDragOffset({ x, y });
+      finalOffset = { x, y };
+      coalescer.schedule(finalOffset);
     };
     const stop = () => {
+      coalescer.flush();
+      setRightDragOffset(finalOffset);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
       delete document.documentElement.dataset.workspaceResizing;
-      if (dragged && latestX >= -12 && latestX > startOffset.x + 8) {
+      if (dragged && finalOffset.x >= -12 && finalOffset.x > startOffset.x + 8) {
         setWorkspaceMode('docked');
       }
     };
@@ -298,7 +312,11 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   return (
     <>
       {rightPaneOpen && (
-        <div
+        <motion.div
+          layout={reducedMotion || rightDetached ? false : 'position'}
+          initial={false}
+          animate={{ opacity: floatingInspectorVisible ? 1 : 0, x: rightDetached && !floatingInspectorVisible ? 24 : 0 }}
+          transition={{ layout: structuralTransition, x: structuralTransition, opacity: opacityTransition }}
           data-workspace-right-header
           data-visible={floatingInspectorVisible ? 'true' : 'false'}
           aria-hidden={!floatingInspectorVisible}
@@ -309,10 +327,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             top: workspace.right.top,
             right: workspace.right.inset,
             isolation: 'isolate',
-            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
-            opacity: floatingInspectorVisible ? 1 : 0,
-            translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
-            transition: 'translate 260ms ease, opacity 260ms ease',
+            translate: rightDetached ? `${rightDragOffset.x}px ${rightDragOffset.y}px` : undefined,
           }}
         >
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
@@ -393,7 +408,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             />
           </div>
           </div>
-        </div>
+        </motion.div>
       )}
       {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
         <button type="button" aria-label="Close compact Inspector" title="Close Inspector"

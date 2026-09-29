@@ -21,6 +21,7 @@ import {
   type FieldDashboardLayerState,
 } from './editor-entrance';
 import { trace } from '@/shared/debug-trace';
+import { prefersFieldReducedMotion } from './motion';
 
 type PreparedTarget = EditorEntranceTarget & {
   previous: {
@@ -101,7 +102,7 @@ export default function EditorEntranceCoordinator() {
   useLayoutEffect(() => {
     const root = document.documentElement;
     const shell = document.querySelector<HTMLElement>(FIELD_SHELL_SELECTOR);
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const reducedMotion = prefersFieldReducedMotion();
 
     if (reducedMotion) {
       root.dataset.editorEntranceState = 'settled';

@@ -1,4 +1,19 @@
+import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion, type Transition, type Variants } from 'motion/react';
+
+export type FieldMotionAxis = 'horizontal' | 'vertical';
+export type FieldMotionDiagnosis =
+  | 'perceptual-judder'
+  | 'main-thread-jank'
+  | 'paint-filter-cost'
+  | 'geometric-discontinuity'
+  | 'reduced-motion-mismatch';
+
+export const fieldStructuralSpringPhysics = Object.freeze({
+  stiffness: 520,
+  damping: 42.3,
+  mass: 0.86,
+});
 
 /**
  * field.MOTION
@@ -16,6 +31,9 @@ export const fieldMotion = {
   disclosure: { type: 'spring', stiffness: 420, damping: 23, mass: 0.6 } satisfies Transition,
   spatial: { type: 'spring', stiffness: 360, damping: 25, mass: 0.72 } satisfies Transition,
   expressive: { type: 'spring', stiffness: 330, damping: 21, mass: 0.78 } satisfies Transition,
+  structural: { type: 'spring', ...fieldStructuralSpringPhysics } satisfies Transition,
+  morph: { type: 'spring', ...fieldStructuralSpringPhysics } satisfies Transition,
+  utilityOpacity: { duration: 0.12, ease: [0.2, 0.8, 0.2, 1] } satisfies Transition,
   buttonHoverScale: 1.02,
   buttonHoverY: -1.25,
   buttonTapScale: 0.955,
@@ -26,6 +44,82 @@ export const fieldMotion = {
 
 export function useFieldReducedMotion(): boolean {
   return Boolean(useReducedMotion());
+}
+
+export function prefersFieldReducedMotion(): boolean {
+  return typeof window !== 'undefined'
+    && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+export function fieldMotionBlurFilter(
+  axis: FieldMotionAxis,
+  reducedMotion = false,
+): string {
+  return reducedMotion ? 'none' : 'url(#field-motion-blur-' + axis + ')';
+}
+
+export function fieldOpacityTransition(reducedMotion: boolean): Transition {
+  return reducedMotion ? { duration: 0.08 } : fieldMotion.utilityOpacity;
+}
+
+/**
+ * Optical blur is a short acceleration cue, never a full-duration softening.
+ * The first render is intentionally quiet, direct workspace resizing is exempt,
+ * and reduced motion disables the effect entirely.
+ */
+export function useFieldOpticalMotion(
+  signal: string,
+  reducedMotion: boolean,
+  activeMs = 180,
+): boolean {
+  const first = useRef(true);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (reducedMotion || document.documentElement.dataset.workspaceResizing === 'true') {
+      setActive(false);
+      return;
+    }
+    setActive(true);
+    const timer = window.setTimeout(() => setActive(false), activeMs);
+    return () => window.clearTimeout(timer);
+  }, [activeMs, reducedMotion, signal]);
+
+  return active;
+}
+
+export function createFieldRafCoalescer<T>(apply: (value: T) => void) {
+  let frame = 0;
+  let latest: T | undefined;
+
+  const applyLatest = () => {
+    frame = 0;
+    if (latest === undefined) return;
+    const value = latest;
+    latest = undefined;
+    apply(value);
+  };
+
+  return {
+    schedule(value: T) {
+      latest = value;
+      if (!frame) frame = requestAnimationFrame(applyLatest);
+    },
+    flush() {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      applyLatest();
+    },
+    cancel() {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      latest = undefined;
+    },
+  };
 }
 
 export function fieldSpatialTransition(

@@ -3,6 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
+import { motion } from 'motion/react';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
@@ -13,6 +14,7 @@ import {
   type WorkspaceSideLayout,
 } from './workspace-layout';
 import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { fieldMotion, fieldMotionBlurFilter, fieldSpatialTransition, useFieldOpticalMotion, useFieldReducedMotion } from './motion';
 
 const SURFACE = {
   background: 'var(--bg-panel)',
@@ -50,10 +52,20 @@ export default function ChromeIslands() {
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
+  const reducedMotion = useFieldReducedMotion();
+  const structuralTransition = fieldSpatialTransition(reducedMotion, fieldMotion.structural);
+  const leftOpticalSignal = [mode, leftOpen ? '1' : '0', railVisible ? '1' : '0', compactPanelOpen ? '1' : '0', floatingPanelCollapsed ? '1' : '0', autoHide ? '1' : '0'].join(':');
+  const leftOpticalActive = useFieldOpticalMotion(leftOpticalSignal, reducedMotion);
+  const rightOpticalSignal = [mode, rightDetached ? '1' : '0', rightOpen ? '1' : '0', inspectorVisible ? '1' : '0'].join(':');
+  const rightOpticalActive = useFieldOpticalMotion(rightOpticalSignal, reducedMotion);
 
   return (
     <>
-      <div
+      <motion.div
+        layout={reducedMotion ? false : true}
+        initial={false}
+        animate={{ opacity: railVisible || leftOpen ? 1 : 0, x: !dockedLeft && !railVisible ? -18 : 0 }}
+        transition={structuralTransition}
         aria-hidden
         data-workspace-island="left"
         data-visible={railVisible ? 'true' : 'false'}
@@ -71,14 +83,17 @@ export default function ChromeIslands() {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
-          opacity: railVisible || leftOpen ? 1 : 0,
-          transform: !dockedLeft && !railVisible ? 'translateX(-18px)' : undefined,
-          transition: 'width 260ms ease, transform 260ms ease, opacity 260ms ease',
+          transformOrigin: 'left center',
+          filter: leftOpticalActive ? fieldMotionBlurFilter('horizontal') : 'none',
         }}
       />
 
       {rightOpen && (
-        <div
+        <motion.div
+          layout={reducedMotion || rightDetached ? false : true}
+          initial={false}
+          animate={{ opacity: inspectorVisible ? 1 : 0, x: rightDetached && !inspectorVisible ? 24 : 0 }}
+          transition={structuralTransition}
           aria-hidden
           data-workspace-island="right"
           className={layout.right.presentation === 'docked' ? 'fixed z-[4998] border-l border-[var(--border-light)]' : 'fixed z-[4998]'}
@@ -87,13 +102,11 @@ export default function ChromeIslands() {
             top: layout.right.top,
             width: layout.right.width,
             height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
-            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+            translate: rightDetached ? `${rightDragOffset.x}px ${rightDragOffset.y}px` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),
-            opacity: inspectorVisible ? 1 : 0,
             pointerEvents: 'none',
-            translate: rightDetached && !inspectorVisible ? 'calc(100% + 24px) 0' : undefined,
-            transition: 'translate 260ms ease, opacity 260ms ease',
+            filter: rightOpticalActive ? fieldMotionBlurFilter('horizontal') : 'none',
           }}
         />
       )}
