@@ -459,22 +459,31 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
           </div>
         )}
 
-        {/* ─── Create Tab (AI placeholder) ─── */}
+        {/* Create remains discoverable, but this build has no generation backend.
+            Do not present a fake Generate action until the provider contract exists. */}
         {tab === 'create' && (
-          <div className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
-            {/* Generate button */}
-            <button className="aspect-square cut-corners bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              <span className="text-xs text-white font-medium">Generate</span>
-            </button>
-
-            {/* Placeholder message */}
-            <div className="col-span-5 flex items-center justify-center">
-              <p className="text-xs text-[var(--text-secondary)]">
-                AI image generation requires a backend API. Connect your Replicate or DALL-E API key to enable this feature.
-              </p>
+          <div
+            data-media-create-unavailable="image"
+            className={`flex items-center justify-center ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}
+          >
+            <div className="w-full max-w-[320px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-3">
+              <div className="flex items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[13px] text-[var(--text-tertiary)]"
+                >
+                  ◇
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-[var(--text-primary)]">Create image</p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                    Image generation is not connected in this build yet.
+                  </p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                    Use Upload, a URL, or Unsplash for now.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
