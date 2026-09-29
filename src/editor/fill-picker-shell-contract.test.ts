@@ -14,7 +14,7 @@ describe('fill picker shell contract', () => {
     expect(fillSource).toContain('const [fillPopupOpen, setFillPopupOpen] = useState(false)');
     expect(fillSource).toContain('isOpen={fillPopupOpen}');
     expect(fillSource).toContain('anchorRef={btnRef}');
-    expect(fillSource).toContain('width={480}');
+    expect(fillSource).toContain('width={360}');
     expect(fillSource).toContain('hideHeader');
     expect(fillSource).not.toContain("useEditorPanel('Fill'");
     expect(fillSource).not.toContain('<OptionsPanel>');

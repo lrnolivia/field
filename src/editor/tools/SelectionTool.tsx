@@ -297,7 +297,7 @@ function SelectionColorRow({
         title="Color"
         ariaLabel={'Edit selection color ' + labelText}
         anchorRef={btnRef}
-        width={480}
+        width={360}
         hideHeader
         showNestedHeaderWhenHidden
         radius={14}
