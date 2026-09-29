@@ -19,11 +19,11 @@ describe('media system routing', () => {
     });
   });
 
-  it('deep-links launcher actions into one browser model', () => {
+  it('deep-links launcher actions into one media model', () => {
     expect(routeForLauncherAction('image')).toEqual({ view: 'browser', kind: 'image' });
     expect(routeForLauncherAction('video')).toEqual({ view: 'browser', kind: 'video' });
     expect(routeForLauncherAction('audio')).toEqual({ view: 'browser', kind: 'audio' });
-    expect(routeForLauncherAction('gallery')).toEqual({ view: 'browser', kind: 'image' });
+    expect(routeForLauncherAction('gallery')).toEqual({ view: 'create', kind: 'image', provider: 'gallery' });
     expect(intentForLauncherAction('gallery')).toBe('gallery');
   });
 

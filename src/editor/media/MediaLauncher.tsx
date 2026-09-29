@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import MediaGlyph from './MediaGlyph';
 import {
   intentForLauncherAction,
   routeForLauncherAction,
@@ -56,11 +55,6 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
 
   return (
     <div data-media-launcher className="w-[224px] p-1">
-      <div className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)]">
-        <MediaGlyph size={14} />
-        <span>Media</span>
-      </div>
-
       {groups.map((rows, groupIndex) => (
         <div
           key={groupIndex}

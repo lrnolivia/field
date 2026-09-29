@@ -92,7 +92,7 @@ export function routeForLauncherAction(action: MediaLauncherAction): MediaRoute 
     case 'image':
       return { view: 'browser', kind: 'image' };
     case 'gallery':
-      return { view: 'browser', kind: 'image' };
+      return { view: 'create', kind: 'image', provider: 'gallery' };
     case 'video':
       return { view: 'browser', kind: 'video' };
     case 'audio':
@@ -132,7 +132,7 @@ export function acceptedMimeTypes(kind: MediaKind): string {
   }
 }
 
-export function mediaKindFromMime(mimeType: string): Exclude<MediaKind, 'all'> | null {
+export function mediaKindFromMime(mimeType: string): Exclude<MediaKind, 'all' | 'embed'> | null {
   const normalized = mimeType.trim().toLowerCase();
   if (normalized === 'image/svg+xml') return 'vector';
   if (normalized.startsWith('image/')) return 'image';

@@ -5,16 +5,18 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 Library and Media placement', () => {
-  it('keeps Media independent of Shape and opens Library choices as toolbar panels', () => {
+  it('keeps Media independent of Shape and opens its anchored launcher without using the left sidebar', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     const shape = toolbar.indexOf('<ShapeDropdown');
-    const media = toolbar.indexOf('<MediaDropdown');
+    const media = toolbar.indexOf('<MediaButton');
     const library = toolbar.indexOf('<LibraryDropdown');
     const pen = toolbar.indexOf('<PenDropdown');
     expect(toolbar).toContain("useState<ShapeToolChoice>('rectangle')");
     expect(toolbar).not.toContain('label="Image/video…"');
     expect(toolbar).toContain('title="Library"');
     expect(toolbar).toContain("setToolbarPanel({ kind: 'library', section })");
+    expect(toolbar).toContain("setPanel({ kind: 'media' })");
+    expect(toolbar).toContain("createMediaSession({ surface: 'toolbar' })");
     expect(media).toBeGreaterThan(shape);
     expect(library).toBeGreaterThan(media);
     expect(library).toBeLessThan(pen);
