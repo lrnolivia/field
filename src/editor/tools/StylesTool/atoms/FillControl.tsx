@@ -61,7 +61,7 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
 import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
 import ShaderFillTab from '@/editor/ui/ShaderFillTab';
 import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon, AnimationIcon } from '@/design-system/PropertyIcons';
@@ -361,6 +361,7 @@ const ALPHA_CHECKER_STYLE: React.CSSProperties = {
 };
 
 function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+  const { pushPanel, popPanel } = useToolPopup();
   const nodeId = node?.id ?? null;
   const raw = node?.attrs?.['data-field-pattern'] || '';
   const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
@@ -415,7 +416,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     trace.action('fill:pattern-applied', {
       nodeId,
       source: next.source,
-      pattern: next.source === 'field' ? next.kind : next.patternId,
+      pattern: next.source === 'field' ? next.kind : next.source === 'pattern-monster' ? next.patternId : next.assetUrl,
     });
   }, [nodeId, monsterDefinition]);
 
@@ -428,6 +429,110 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
           applyPattern(next, definition);
         }}
       />
+    );
+  }
+
+  const openPatternMedia = () => {
+    pushPanel('Pattern source', (
+      <div data-contextual-media-picker="fill-pattern" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={(url) => {
+            applyPattern(defaultAssetPatternFill(url));
+            // ImageSearchModal closes its own single-select flow through onClose.
+          }}
+        />
+      </div>
+    ));
+  };
+
+  if (config.source === 'asset') {
+    const preview = buildPatternFillStyles(config);
+    const updateAsset = (next: Partial<AssetPatternFillConfig>) => {
+      applyPattern({ ...config, ...next });
+    };
+    const repeatOptions: Array<{ value: AssetPatternRepeat; label: string }> = [
+      { value: 'repeat', label: 'Tile' },
+      { value: 'repeat-x', label: 'X only' },
+      { value: 'repeat-y', label: 'Y only' },
+      { value: 'no-repeat', label: 'Once' },
+    ];
+
+    return (
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={openPatternMedia}
+          className="relative w-full h-24 overflow-hidden cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] cursor-pointer group"
+          aria-label="Replace pattern source"
+          title="Replace pattern source from Media"
+        >
+          <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
+          <span className="absolute inset-x-0 bottom-0 h-7 px-2 flex items-center justify-between bg-black/55 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>Media tile</span><span>Replace</span>
+          </span>
+        </button>
+
+        <ToolRow label="Source" hideCreateVariable>
+          <button
+            type="button"
+            onClick={openPatternMedia}
+            className="w-full h-[var(--control-height)] px-2 cut-corners border border-[var(--control-border)] [--cut-border-color:var(--control-border)] bg-[var(--control-bg)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:[--cut-border-color:var(--control-border-hover)] transition-colors truncate text-left"
+            title={config.assetUrl}
+          >
+            {config.assetUrl.split('/').pop()?.split('?')[0] || 'Project media'}
+          </button>
+        </ToolRow>
+
+        <ToolRow label="Tile size" hideCreateVariable>
+          <ToolInput
+            value={String(config.tileSize)}
+            onChange={(value) => updateAsset({ tileSize: Math.max(4, Math.min(1024, Number(value) || 4)) })}
+            min={4}
+            max={1024}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern tile size"
+          />
+        </ToolRow>
+
+        <ToolRow label="Repeat" hideCreateVariable>
+          <ToolSelect
+            value={config.repeat}
+            onChange={(value) => updateAsset({ repeat: value as AssetPatternRepeat })}
+            options={repeatOptions}
+            ariaLabel="Pattern repeat"
+          />
+        </ToolRow>
+
+        <ToolRow label="Position" hideCreateVariable>
+          <ToolSelect
+            value={config.position}
+            onChange={(value) => updateAsset({ position: value })}
+            options={POSITION_OPTIONS}
+            ariaLabel="Pattern position"
+          />
+        </ToolRow>
+
+        <ToolRow label="Background" hideCreateVariable>
+          <ColorInput
+            value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background}
+            onChange={(value) => updateAsset({ background: value })}
+            showAlpha
+          />
+        </ToolRow>
+
+        <button
+          type="button"
+          onClick={() => applyPattern({ ...DEFAULT_PATTERN_FILL })}
+          className="h-[var(--control-height-sm)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+        >
+          Use field pattern instead
+        </button>
+      </div>
     );
   }
 
@@ -606,6 +711,16 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
           options={PATTERN_KIND_OPTIONS}
           ariaLabel="Pattern kind"
         />
+      </ToolRow>
+
+      <ToolRow label="Source" hideCreateVariable>
+        <button
+          type="button"
+          onClick={openPatternMedia}
+          className="w-full h-[var(--control-height)] px-2 cut-corners border border-[var(--control-border)] [--cut-border-color:var(--control-border)] bg-[var(--control-bg)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:[--cut-border-color:var(--control-border-hover)] transition-colors"
+        >
+          Choose Media tile…
+        </button>
       </ToolRow>
 
       <ToolRow label="Color" hideCreateVariable>
