@@ -8,12 +8,34 @@ const page = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/tools/PageS
 const appearance = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/tools/PageAppearanceTool.tsx'), 'utf8');
 
 describe('settings visual hierarchy', () => {
-  it('keeps General compact, grouped, and field-native', () => {
-    expect(settings).toContain('max-w-[760px]');
-    expect(settings).toContain('surface\n            title="Site metadata"');
-    expect(settings).toContain('tracking-[0.08em] text-[var(--text-tertiary)]');
+  it('uses the full General canvas for real editor preferences', () => {
+    expect(settings).toContain("max-w-[920px]");
+    expect(settings).toContain('data-general-appearance-preview');
+    expect(settings).toContain('data-general-settings-summary');
+    expect(settings).toContain('SettingsGroup surface title="Appearance"');
+    expect(settings).toContain('SettingsGroup surface title="Workspace"');
+    expect(settings).toContain('SettingsGroup surface title="Canvas"');
+    expect(settings).toContain('builderThemeAtom');
+    expect(settings).toContain('editorThemeModeAtom');
+    expect(settings).toContain('editorNeutralLevelAtom');
+    expect(settings).toContain('websitePreviewThemeAtom');
+    expect(settings).toContain('workspaceAutoHideAtom');
+    expect(settings).toContain('rightInspectorAutoHideAtom');
+    expect(settings).toContain('leftContentWidthAtom');
+    expect(settings).toContain('rightPaneWidthAtom');
     expect(shared).toContain('surface = false');
     expect(shared).toContain('cut-corners cut-lg cut-border');
+  });
+
+  it('keeps project-scoped controls out of field General', () => {
+    const start = settings.indexOf("if (activeSection === 'website')");
+    const end = settings.indexOf('// Look up registered section', start);
+    const block = settings.slice(start, end);
+    expect(block).not.toContain('Site metadata');
+    expect(block).not.toContain('Custom code');
+    expect(block).not.toContain('Default theme');
+    expect(block).toContain('Lowercase headings');
+    expect(block).toContain('Website preview');
   });
 
   it('gives Page Settings a page context header and stacked metadata fields', () => {
