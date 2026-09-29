@@ -35,7 +35,7 @@ import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
-import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
 import WebsitePreviewAppearanceControl from '@/editor/WebsitePreviewAppearanceControl';
@@ -59,7 +59,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
-  const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
   const selectedCount = useAtomValue(selectedIdsAtom).length;
   const [compactZoom, setCompactZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
@@ -297,8 +296,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     const startX = event.clientX;
     const startY = event.clientY;
     const startOffset = rightDragOffset;
-    let dragged = false;
-    let latestX = startOffset.x;
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       const candidate = {
@@ -312,8 +309,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight),
         candidate,
       );
-      latestX = clamped.x;
-      if (Math.abs(next.clientX - startX) + Math.abs(next.clientY - startY) > 8) dragged = true;
       setRightDragOffset(clamped);
     };
     const stop = () => {
@@ -321,9 +316,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
       delete document.documentElement.dataset.workspaceResizing;
-      if (dragged && latestX >= -12 && latestX > startOffset.x + 8) {
-        setWorkspaceMode('docked');
-      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });

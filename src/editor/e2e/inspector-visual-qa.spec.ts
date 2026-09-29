@@ -320,6 +320,28 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   await expect(body).toBeVisible();
   await expect(toolbar).toBeVisible();
 
+  const floatChrome = await body.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      background: style.backgroundColor,
+      borderTop: style.borderTopWidth,
+      borderRight: style.borderRightWidth,
+      borderBottom: style.borderBottomWidth,
+      borderLeft: style.borderLeftWidth,
+      radius: style.borderRadius,
+      shadow: style.boxShadow,
+      boxSizing: style.boxSizing,
+    };
+  });
+  expect(floatChrome.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(floatChrome.borderTop).toBe('1px');
+  expect(floatChrome.borderRight).toBe('1px');
+  expect(floatChrome.borderBottom).toBe('1px');
+  expect(floatChrome.borderLeft).toBe('1px');
+  expect(parseFloat(floatChrome.radius)).toBeGreaterThanOrEqual(7);
+  expect(floatChrome.shadow).not.toBe('none');
+  expect(floatChrome.boxSizing).toBe('border-box');
+
   await page.waitForTimeout(450);
   const expanded = await page.evaluate(() => {
     const header = document.querySelector<HTMLElement>('[data-workspace-right-header]')!.getBoundingClientRect();

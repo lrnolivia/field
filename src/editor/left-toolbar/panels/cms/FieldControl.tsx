@@ -264,7 +264,7 @@ function ColorFieldControl({ value, onChange, name }: { value: string; onChange:
         title={name}
         ariaLabel="Paint picker"
         anchorRef={swatchRef}
-        width={480}
+        width={360}
         hideHeader
         showNestedHeaderWhenHidden
         radius={14}

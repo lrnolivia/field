@@ -1,5 +1,6 @@
 // ColorInput.tsx — Color swatch + value label as a single button.
-// Clicking opens ColorPicker in a ToolPopup (standalone) or pushes a panel (inside ToolPopup).
+// Clicking always opens the universal PaintPicker in its own anchored ToolPopup.
+// When nested inside another ToolPopup (Effects, Shadow, etc.), it is a nested floating surface rather than the legacy pushed child panel.
 // The whole thing is one clickable row — swatch square + hex/rgb value text.
 
 import { useState, useRef, useCallback, type CSSProperties } from 'react';
@@ -236,15 +237,14 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           <RemoveButton label="Remove color" onClick={() => onRemove()} />
         )}
       </div>
-      {/* Standalone popup — only when NOT inside a ToolPopup */}
-      {!popupCtx && (
-        <ToolPopup
+      {/* Universal picker — nested ToolPopups keep the parent editor open and float above it. */}
+      <ToolPopup
           isOpen={open}
           onClose={() => setOpen(false)}
           title="Color"
           ariaLabel="Paint picker"
           anchorRef={btnRef}
-          width={480}
+          width={360}
           hideHeader
           showNestedHeaderWhenHidden
           radius={14}
@@ -262,7 +262,6 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             onClose={() => setOpen(false)}
           />
         </ToolPopup>
-      )}
     </>
   );
 }

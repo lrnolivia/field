@@ -10,7 +10,10 @@ describe('toolbar mixed menu composition', () => {
   });
   it('uses small visual cards selectively inside otherwise list-based menus', () => {
     expect(source).toContain('data-toolbar-mixed-cards');
-    expect(source).toContain('h-8 w-10');
+    expect(source).toContain('data-toolbar-card-style="media"');
+    expect(source).toContain('flex h-9 min-w-0 items-center gap-1.5');
+    expect(source).toContain('h-6 w-6 shrink-0 items-center justify-center rounded-[7px]');
+    expect(source).not.toContain('flex-col items-center justify-center gap-1.5');
     expect((source.match(/data-toolbar-mixed-cards/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(source).toContain('<MenuItem label="Section library…"');
     expect(source).toContain('<MenuItem label="Text Effects…"');

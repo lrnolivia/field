@@ -29,6 +29,9 @@ describe('toolbar Media launcher contract', () => {
     expect(launcher).toContain('data-media-launcher-featured');
     expect(launcher).toContain('Browse media');
     expect(launcher).toContain('grid grid-cols-2 gap-1.5');
+    expect(launcher).toContain('data-media-launcher-card');
+    expect(launcher).toContain('flex h-10 min-w-0 items-center gap-1.5');
+    expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
   });
 
   it('expands the same Media shell without swapping to a second modal', () => {
