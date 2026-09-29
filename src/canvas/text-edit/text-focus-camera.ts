@@ -86,6 +86,13 @@ export class TextFocusCamera {
     this.scheduleFollow();
   }
 
+  /** Re-evaluate the same safe envelope after editor chrome/window geometry
+   * changes. Manual camera interruption remains authoritative because the shared
+   * scheduler exits immediately for interrupted sessions. */
+  updateViewport(): void {
+    this.scheduleFollow();
+  }
+
   /** Fresh caret geometry arrives with every TipTap selection transaction, so
    * arrow-key navigation through oversized text can move the camera even when
    * the content itself did not change. */

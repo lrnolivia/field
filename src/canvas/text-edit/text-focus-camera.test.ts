@@ -67,6 +67,21 @@ describe('TextFocusCamera', () => {
     raf.mockRestore();
   });
 
+  it('re-evaluates the focus envelope after workspace geometry changes', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
+    const focus = new TextFocusCamera(() => document.createElement('iframe'), () => false);
+    focus.begin('text', 'desktop');
+    callbacks.shift()?.(0);
+    focus.updateViewport();
+    callbacks.shift()?.(16);
+    expect(followScreenRect).not.toHaveBeenCalled();
+    callbacks.shift()?.(32);
+    expect(followScreenRect).toHaveBeenCalledWith(expect.objectContaining({ width: 80, height: 20 }), 1);
+    focus.dispose();
+    raf.mockRestore();
+  });
+
   it('stops adaptive follow after a manual canvas wheel gesture', () => {
     const callbacks: FrameRequestCallback[] = [];
     const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { callbacks.push(callback); return callbacks.length; });
@@ -93,6 +108,7 @@ describe('TextFocusCamera', () => {
 
     signalUserCameraIntent('test:user-command');
     focus.update();
+    focus.updateViewport();
     focus.updateCaret(new DOMRect(760, 700, 2, 20));
     callbacks.splice(0).forEach((cb) => cb(16));
     focus.end();
