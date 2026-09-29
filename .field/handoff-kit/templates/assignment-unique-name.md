@@ -25,7 +25,7 @@ qa:
 
 Use Composio exclusively for all GitHub reads and writes in the Contract Worker lane.
 
-Before interpreting this assignment, re-read current `lrnolivia/loew-runner@main/contracts/manifest.json` and `LOEW_CHAT_BIBLE.md`, resolve field from Runner as `lrnolivia/field`, then read the current repo-hosted handoff kit from `main`. After that, read the canonical assignment/mail/QA records from `field/control`, current `main`, the assignment branch/PR, and active legacy tracker ownership while migration remains.
+Before interpreting this assignment, re-read current `lrnolivia/loew-runner@main/contracts/manifest.json` and `LOEW_CHAT_BIBLE_CURRENT.md`, resolve field from Runner as `lrnolivia/field`, then read the current repo-hosted handoff kit from `main`. After that, read the canonical assignment/mail/QA records from `field/control`, current `main`, the assignment branch/PR, and active legacy tracker ownership while migration remains.
 
 Current Runner law and repo process rules supersede stale process instructions from the source chat.
 
