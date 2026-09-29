@@ -197,3 +197,37 @@ Focused Vitest files were added/updated, but no repository test executor is expo
 ## Batch 1 visual QA — PASS
 
 User accepted Batch 1 visual QA on 2026-09-29: "works great!". Batch 1 is visually accepted and Batch 2 is authorized to start.
+
+## Batch 2 implementation checkpoint — 2026-09-29
+
+Implementation head under visual QA: `9b49074a7565da822fdc898653128ad32ef8f010`.
+
+Changed paths in Batch 2:
+- `src/canvas/Canvas.tsx`
+- `src/canvas/transform/CameraCommands.ts`
+- `src/canvas/transform/CameraCommands.test.ts`
+- `src/canvas/text-edit/text-focus-camera.ts`
+- `src/canvas/text-edit/text-focus-camera.test.ts`
+
+Batch 2 behavior:
+- added geometry-driven `followScreenRect` adaptive camera follow
+- live sandbox text-change events now ask the active `TextFocusCamera` session to re-evaluate after two animation frames, allowing sandbox ResizeObserver rect updates to settle first
+- trigger envelope is deliberately looser than settle envelope, providing hysteresis/dead-zone and preventing camera breathing
+- automatic follow may pan or zoom out, but never zooms in
+- fixed-size text naturally avoids camera motion when its runtime rect does not grow
+- fixed-width/auto-height and auto-width growth are handled by actual runtime rect geometry rather than duplicated sizing-mode inference
+- parent/layout movement is handled when the edited rect is displaced outside the comfort envelope
+- wheel/trackpad camera gestures and middle-mouse pan mark the session interrupted, suspend adaptive follow, and preserve manual camera authority
+- automatic follow uses the existing D3 camera animator without repeated focus blur; deliberate focus entry/restore keep the accepted blur treatment
+- oversized-text caret fallback remains intentionally deferred to Batch 3
+
+Exact-head Cloudflare evidence:
+- Workers Build: `c616d7a5-f47e-4509-a250-18a0906168ce`
+- commit: `9b49074a7565da822fdc898653128ad32ef8f010`
+- branch: `field/focus-camera-text-session`
+- build command: `npm run build:all`
+- deploy command: `npx wrangler preview`
+- outcome: success
+- branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+
+Focused Vitest coverage was updated for adaptive camera behavior and session delegation but was not executed in this Contract Worker environment. Batch 2 user visual QA is the stop gate before Batch 3.

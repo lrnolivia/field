@@ -37,3 +37,23 @@ Batch 2 must not start until the user's Batch 1 visual QA is accepted or specifi
 ## 2026-09-29 — Batch 1 accepted
 
 User visual QA: PASS — "works great!". Batch 2 adaptive text focus is authorized.
+
+## 2026-09-29 — Batch 2 ready for visual QA
+
+Adaptive text focus is implemented at exact head `9b49074a7565da822fdc898653128ad32ef8f010`.
+
+Cloudflare Workers Build `c616d7a5-f47e-4509-a250-18a0906168ce` passed `npm run build:all` and deployed the branch Preview.
+
+Visual QA URL:
+`https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+
+What to feel for:
+- text can grow inside the comfort envelope without camera motion
+- once growth approaches an edge, the camera quietly creates room
+- follow only zooms out; deleting text must not zoom back in
+- the settle zone creates visible slack, so adding/removing one line should not pulse
+- automatic follow does not re-run the focus blur on every adjustment
+- trackpad/wheel or middle-mouse camera movement suspends follow and remains authoritative
+- Batch 1 Shift+/Inspector/double-click behavior remains unchanged
+
+Do not begin Batch 3 until the user's Batch 2 visual QA is accepted or specific corrections are reported.
