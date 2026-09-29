@@ -9,7 +9,7 @@ Shipped on `main`:
 - one canonical project Media model across toolbar, floating, sidebar, contextual, Content, and canvas ingest surfaces
 - project-scoped Media session/catalog/upload state; project switching cannot leak session Media between projects
 - toolbar Media → anchored launcher → same-shell typed browser → expandable free-standing Media
-- `Insert → Media` remains the dedicated sidebar Media route and is intentionally independent from toolbar Media
+- Media is a first-class bottom-toolbar surface; it is intentionally removed from `Insert` to avoid a duplicate nested sidebar/browser surface
 - canonical All / Images / Video / Audio inventory with SVG/vector coverage, shared search, selection, source/sort controls, and durable/session inventory merging
 - shared ingest lifecycle with exact-content session deduplication, upload queue, cancellation, safe retry, duplicate handling, Finder/Desktop drop ingest, and persistent upload tray
 - contextual placement: matching selected image/video/audio = replace source; selected structural container = place inside; otherwise insert
@@ -41,8 +41,8 @@ Upload behavior audit:
 
 Architecture guardrails:
 
-- `Insert → Media` is required. Toolbar Media must never become the only Media entry point or hijack the sidebar.
-- PR #107 is still open at this status point; a guardrail comment was added explicitly requiring it to preserve `Insert → Media` while retaining compatible visual polish.
+- Media is toolbar-owned. Do not reintroduce `Insert → Media`; the duplicate sidebar route created an oversized nested panel and visually broke the left-side shell.
+- The earlier `Insert → Media` guardrail is superseded by the current product decision: Media belongs in the main toolbar only.
 - the generic `media-gallery` toolbar compatibility panel still exists. Exact repository searches currently return incomplete results, so its callers are not proven dead. Do not delete it until that proof exists.
 
 Validation status:
