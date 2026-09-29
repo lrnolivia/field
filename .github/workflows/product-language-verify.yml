@@ -1,0 +1,25 @@
+name: Product language verify
+
+on:
+  push:
+    branches:
+      - field/product-language-sweep
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Focused tests
+        run: npx vitest run src/shared/ui-heading-case.test.ts src/editor/UiHeadingCase.structure.test.ts src/editor/product-language.test.ts src/design-system/DropdownMenu.separators.test.ts src/design-system/DropdownMenu.keyboard.test.tsx src/dashboard/project-meta.test.ts src/editor/figui3-toolbar-shortcuts.test.ts
+      - name: Build all
+        run: npm run build:all
