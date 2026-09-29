@@ -28,8 +28,9 @@ jobs:
       - name: Record known lockfile drift and install without rewriting it
         if: steps.npm_ci.outcome == 'failure'
         run: |
-          echo "::warning::npm ci is blocked by pre-existing package-lock drift; validating product code with npm install --no-package-lock instead."
-          npm install --no-audit --no-fund --no-package-lock
+          echo "::warning::npm ci is blocked by pre-existing package-lock drift; validating product code with the repository's existing npm install path."
+          rm -rf node_modules
+          npm install --no-audit --no-fund
       - name: Build all
         run: npm run build:all
       - name: Test
