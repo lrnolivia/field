@@ -16,7 +16,7 @@ import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
 import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
 import { agentStatusAtom } from '@/code/stores/agent-chat-store';
-import { ChatImageIcon, SettingsConnectAiIcon } from '@/shared/icons';
+import { SettingsConnectAiIcon } from '@/shared/icons';
 import EditorAppearanceControl from '@/editor/EditorAppearanceControl';
 import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import {
@@ -398,11 +398,6 @@ export default function LeftMenu() {
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className="w-[18px] h-[18px]">
             <path fill="currentColor" d="M19 11.5s-2 2.17-2 3.5a2 2 0 0 0 2 2a2 2 0 0 0 2-2c0-1.33-2-3.5-2-3.5M5.21 10L10 5.21L14.79 10m1.77-1.06L7.62 0L6.21 1.41l2.38 2.38l-5.15 5.15c-.59.56-.59 1.53 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.59.59-1.56 0-2.12" />
           </svg>
-        </MenuButton>
-
-        {/* Media Gallery */}
-        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="Media Gallery" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="media-button">
-          <ChatImageIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 
         {/* CMS */}

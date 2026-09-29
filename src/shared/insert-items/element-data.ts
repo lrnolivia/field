@@ -58,10 +58,10 @@ const BASIC_ITEMS: InsertItem[] = [
   { id: 'frame', name: 'Frame', iconKey: 'frame' },
   { id: 'text', name: 'Text', iconKey: 'text' },
   { id: 'button', name: 'Button', iconKey: 'button' },
-  { id: 'image', name: 'Image', iconKey: 'image' },
 ];
 
 const MEDIA_ITEMS: InsertItem[] = [
+  { id: 'image', name: 'Image', iconKey: 'image' },
   { id: 'gallery', name: 'Gallery', iconKey: 'image' },
   { id: 'video', name: 'Video', iconKey: 'video' },
   { id: 'audio', name: 'Audio', iconKey: 'audio' },
@@ -315,7 +315,6 @@ export const CATEGORIES: InsertCategory[] = [
     columns: 3,
     sections: [
       { id: 'basic', label: 'Basic', items: BASIC_ITEMS },
-      { id: 'media', label: 'Media', items: MEDIA_ITEMS },
       { id: 'typography', label: 'Typography', items: TYPOGRAPHY_ITEMS },
       // Cards + Layouts merged — both are pre-arranged structural
       // templates (a wrapper + child frames). Layout primitives come first
@@ -324,6 +323,15 @@ export const CATEGORIES: InsertCategory[] = [
       // Product / etc.) at the bottom of the section.
       { id: 'layouts', label: 'Layouts', items: [...LAYOUT_ITEMS, ...CARD_ITEMS] },
       { id: 'shapes', label: 'Shapes', items: SHAPE_ITEMS },
+    ],
+  },
+  {
+    id: 'media',
+    label: 'Media',
+    iconKey: 'media',
+    columns: 2,
+    sections: [
+      { id: 'media-library', label: 'Media', items: MEDIA_ITEMS },
     ],
   },
   // Sections — the source-level blueprint library (shared/sections-library).

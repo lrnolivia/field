@@ -504,10 +504,8 @@ function MediaDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boole
     else insertToolbarItemAtVisibleCenter(id);
   };
   useClickOutside(ref, open, () => setOpen(false));
-  const mediaItems = [
-    ...(CATEGORIES.find((category) => category.id === 'elements')?.sections.find((section) => section.id === 'basic')?.items.filter((item) => item.id === 'image') ?? []),
-    ...(CATEGORIES.find((category) => category.id === 'elements')?.sections.find((section) => section.id === 'media')?.items ?? []),
-  ];
+  const mediaItems = CATEGORIES.find((category) => category.id === 'media')
+    ?.sections.flatMap((section) => section.items) ?? [];
   const embedItems = CATEGORIES.find((category) => category.id === 'integrations')
     ?.sections.find((section) => section.id === 'embeds')?.items ?? [];
   return (
