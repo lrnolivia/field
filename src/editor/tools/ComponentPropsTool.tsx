@@ -1398,18 +1398,19 @@ export default function ComponentPropsTool() {
     // Layout / Position labels (ControlLabel's `pl-[18px] -ml-[18px]` trick
     // anchors text at the section's content edge — only ToolSection-aligned
     // siblings will line up with it).
-    <div className="px-2">
-      {/* Component name + icon */}
-      <div className="flex items-center justify-between py-2 mb-1">
-        <span className="text-xs font-bold" style={{ color: 'var(--accent-secondary, #a855f7)' }}>
-          {componentLabel}
-        </span>
-        <span style={{ color: 'var(--accent-secondary, #a855f7)' }}>
+    <div className="px-2.5 pt-1.5">
+      {/* Component identity — same compact card language as Inspector categories. */}
+      <div className="mb-1 flex items-center gap-2 py-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]">
           {hasComponentControls ? (
-            <svg width="14" height="14" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24"><g fill="none"><path d="M0 0h24v24H0z" /><path fill="currentColor" d="M14.62 2.662a1.5 1.5 0 0 1 1.04 1.85l-4.431 15.787a1.5 1.5 0 0 1-2.889-.81L12.771 3.7a1.5 1.5 0 0 1 1.85-1.039ZM7.56 6.697a1.5 1.5 0 0 1 0 2.12L4.38 12l3.182 3.182a1.5 1.5 0 1 1-2.122 2.121L1.197 13.06a1.5 1.5 0 0 1 0-2.12l4.242-4.243a1.5 1.5 0 0 1 2.122 0Zm8.88 2.12a1.5 1.5 0 1 1 2.12-2.12l4.243 4.242a1.5 1.5 0 0 1 0 2.121l-4.242 4.243a1.5 1.5 0 1 1-2.122-2.121L19.621 12z" /></g></svg>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24"><path fill="currentColor" d="M12.53 2.47a.75.75 0 0 0-1.06 0L8.32 5.62a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zm5.85 6.3a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zm-5.85 5.4a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zM6.68 8.32a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06z" /></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24"><path fill="currentColor" d="M12.53 2.47a.75.75 0 0 0-1.06 0L8.32 5.62a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zm5.85 6.3a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zm-5.85 5.4a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06zM6.68 8.32a.75.75 0 0 0-1.06 0l-3.15 3.15a.75.75 0 0 0 0 1.06l3.15 3.15a.75.75 0 0 0 1.06 0l3.15-3.15a.75.75 0 0 0 0-1.06z" /></svg>
           )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-semibold text-[var(--text-primary)]">{componentLabel}</span>
+          <span className="mt-0.5 block text-[9px] text-[var(--text-tertiary)]">{hasComponentControls ? 'Code component' : 'Component'}</span>
         </span>
       </div>
 
@@ -2112,14 +2113,13 @@ export default function ComponentPropsTool() {
       <>
       <div
         ref={revealRef}
-        // Cut-corner shell: the clip-path slices any shadow/outline ring at the
-        // two diagonals (the flash ring showed square corners cut off). A real
-        // `border` + the `.cut-border` diagonal stroke (accent as
-        // --cut-border-color) follows the clip — same rule as every other cut
-        // shell in the editor (2026-09-06).
-        className={`cut-corners cut-border border transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent-secondary,#a855f7)] [--cut-border-color:var(--accent-secondary,#a855f7)]' : 'border-transparent [--cut-border-color:transparent]'}`}
+        data-inspector-section="component"
+        data-inspector-section-title="Component"
+        data-inspector-section-card
+        data-inspector-section-kind="content"
+        className={`mx-2 my-0.5 overflow-hidden rounded-[10px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
         style={revealFlash ? {
-          backgroundColor: 'color-mix(in srgb, var(--accent-secondary, #a855f7) 8%, transparent)',
+          backgroundColor: 'color-mix(in srgb, var(--accent) 8%, var(--bg-surface))',
         } : undefined}
       >
         {componentHeader}
@@ -2317,9 +2317,20 @@ export default function ComponentPropsTool() {
 
   return (
     <>
-      {componentHeader}
+      <div
+        ref={revealRef}
+        data-inspector-section="component"
+        data-inspector-section-title="Component"
+        data-inspector-section-card
+        data-inspector-section-kind="content"
+        className={`mx-2 my-0.5 overflow-hidden rounded-[10px] border bg-[var(--bg-surface)] transition-[border-color,background-color] duration-500 ${revealFlash ? 'border-[var(--accent)]' : 'border-[var(--border-light)]'}`}
+        style={revealFlash ? {
+          backgroundColor: 'color-mix(in srgb, var(--accent) 8%, var(--bg-surface))',
+        } : undefined}
+      >
+        {componentHeader}
 
-      {hasRegularProps && (
+        {hasRegularProps && (
         // mt-2 separates the prop list from the Variant selector above so
         // the two read as distinct groupings — Variant is component-level,
         // the prop rows below are the per-instance variable values.
@@ -3045,7 +3056,8 @@ export default function ComponentPropsTool() {
             })}
           </div>
         </div>
-      )}
+        )}
+      </div>
       <ToolDivider />
       {/* Shared "Create / Hoist Variable" modal (see `variableModal` above).
           For design-component prop rows this is the hoist flow; the modal's

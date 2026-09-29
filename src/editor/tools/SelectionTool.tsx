@@ -315,7 +315,6 @@ function SelectionColorRow({
 
 export default function SelectionTool() {
   const selectedIds = useAtomValue(selectedIdsAtom);
-  const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const selectionData = useNodesComputed(
@@ -340,18 +339,18 @@ export default function SelectionTool() {
 
   return (
     <>
-      <div data-inspector-section="selection-colors" data-inspector-section-title="Selection colors" data-selection-colors-figui3>
-        <button type="button" aria-expanded={expanded} aria-label={`Selection colors, ${groups.length} colors`}
-          onClick={() => setExpanded(value => !value)}
-          className="flex h-10 w-full items-center justify-between gap-2 px-[var(--panel-inset)] text-left text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
-          <span>Selection colors</span>
-          <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
+      <ToolSection
+        title="Selection colors"
+        defaultOpen={false}
+        action={(
+          <span data-selection-colors-preview className="flex shrink-0 items-center gap-1.5" aria-hidden>
             {groups.slice(0, 3).map(group => <span key={group.value}
               className="h-4 w-4 rounded-[4px] border border-[var(--border-light)]" style={{ background: group.value }} />)}
             {groups.length > 3 && <span className="text-xs font-normal text-[var(--text-secondary)]">+{groups.length - 3}</span>}
           </span>
-        </button>
-        {expanded && <div className="flex flex-col gap-2 px-[var(--panel-inset)] pb-3 pt-1">
+        )}
+      >
+        <div data-selection-colors-figui3 className="flex flex-col gap-2">
           {visibleGroups.map((group) => <SelectionColorRow key={group.value} group={group} />)}
 
           {hasOverflow && (
@@ -359,7 +358,7 @@ export default function SelectionTool() {
               type="button"
               data-selection-colors-overflow
               onClick={() => setShowAll((value) => !value)}
-              className="h-7 mt-1 flex items-center justify-center gap-2 text-xs text-[var(--text-disabled)] hover:text-[var(--text-secondary)] transition-colors"
+              className="mt-1 flex h-7 items-center justify-center gap-2 text-xs text-[var(--text-disabled)] transition-colors hover:text-[var(--text-secondary)]"
             >
               <span aria-hidden className="tracking-[-1px]">⋮</span>
               <span>
@@ -369,8 +368,8 @@ export default function SelectionTool() {
               </span>
             </button>
           )}
-        </div>}
-      </div>
+        </div>
+      </ToolSection>
       <ToolDivider />
     </>
   );

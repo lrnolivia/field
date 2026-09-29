@@ -49,6 +49,19 @@ describe('Inspector cards and spacing contract', () => {
     for (const file of files) expect(read(file), file).toContain('data-inspector-peer-row');
   });
 
+  it('cards selected-item categories that historically bypassed ToolSection', () => {
+    const selection = read('src/editor/tools/SelectionTool.tsx');
+    const component = read('src/editor/tools/ComponentPropsTool.tsx');
+    expect(selection).toContain('<ToolSection');
+    expect(selection).toContain('title="Selection colors"');
+    expect(selection).toContain('data-selection-colors-preview');
+    expect(selection).not.toContain('aria-expanded={expanded}');
+    expect(component).toContain('data-inspector-section-card');
+    expect(component).toContain('data-inspector-section="component"');
+    expect(component).toContain('data-inspector-section-kind="content"');
+    expect(component).not.toContain("var(--accent-secondary, #a855f7)");
+  });
+
   it('keeps spatial and picker micro-grids intentionally compact', () => {
     expect(read('src/editor/tools/LayoutTool.tsx')).toContain('field-alignment-matrix grid grid-cols-3 grid-rows-3 gap-0.5');
     expect(read('src/editor/tools/PositionTool/PinControl.tsx')).toContain('grid grid-cols-3 grid-rows-3 gap-2');
