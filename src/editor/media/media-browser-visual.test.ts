@@ -31,4 +31,27 @@ describe('Media browser visual contract', () => {
     expect(media).toContain('Add media');
     expect(media).not.toContain('width="40" height="40"');
   });
+
+  it('accepts Finder/Desktop file drops through the same batch-ingest path', () => {
+    const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(media).toContain('const ingestFiles = useCallback(async (files: File[])');
+    expect(media).toContain('await ingestFiles(files)');
+    expect(media).toContain('await ingestFiles(Array.from(event.dataTransfer.files ?? []))');
+    expect(media).toContain('data-media-browser-drop-target');
+    expect(media).toContain('Add to Media');
+  });
+
+  it('uses restrained local drag feedback instead of a giant dashed dropzone', () => {
+    const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(media).toContain("background: 'color-mix(in srgb, var(--accent) 5%, transparent)'");
+    expect(media).toContain('border border-[var(--accent)]');
+    expect(media).not.toContain('border-dashed');
+    expect(media).not.toContain('fixed inset-0');
+  });
+
+  it('ignores internal Media drags by requiring native Files data', () => {
+    const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(media).toContain("Array.from(event.dataTransfer.types).includes('Files')");
+  });
+
 });

@@ -325,6 +325,7 @@ export default function MediaGalleryPanel({
   const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dropActive, setDropActive] = useState(false);
   const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
   const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: 'image' | 'video' }>>([]);
@@ -451,11 +452,10 @@ export default function MediaGalleryPanel({
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [selectedKeys.size, confirmKeys]);
 
-  // Batch ingest belongs to the canonical Media browser. The toolbar launcher
-  // intentionally remains a one-item quick insert surface.
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-    const files = Array.from(input.files ?? []);
+  // Batch ingest belongs to the canonical Media browser. File picker and OS
+  // drag/drop both use this exact path so validation, dedup, and queue state
+  // cannot diverge.
+  const ingestFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     setUploading(true);
@@ -526,7 +526,6 @@ export default function MediaGalleryPanel({
     }
 
     setUploading(false);
-    input.value = '';
   }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload, rememberMediaAsset]);
 
   const keepDuplicateUploads = useCallback(async () => {
@@ -568,6 +567,34 @@ export default function MediaGalleryPanel({
     rememberMediaAsset,
     fetchUploads,
   ]);
+
+
+  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const files = Array.from(input.files ?? []);
+    await ingestFiles(files);
+    input.value = '';
+  }, [ingestFiles]);
+
+  const handleBrowserDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDropActive(true);
+  }, []);
+
+  const handleBrowserDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) return;
+    setDropActive(false);
+  }, []);
+
+  const handleBrowserDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    setDropActive(false);
+    await ingestFiles(Array.from(event.dataTransfer.files ?? []));
+  }, [ingestFiles]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a
@@ -726,7 +753,24 @@ export default function MediaGalleryPanel({
     : durableInventory === false ? 'Session' : 'Loading…';
 
   return (
-    <div className="flex flex-col h-full">
+    <div
+      className="relative flex h-full flex-col"
+      onDragOver={handleBrowserDragOver}
+      onDragLeave={handleBrowserDragLeave}
+      onDrop={(event) => { void handleBrowserDrop(event); }}
+    >
+      {dropActive && (
+        <div
+          data-media-browser-drop-target
+          className="pointer-events-none absolute inset-1 z-50 flex items-start justify-center rounded-[5px] border border-[var(--accent)] pt-3"
+          style={{ background: 'color-mix(in srgb, var(--accent) 5%, transparent)' }}
+          aria-hidden
+        >
+          <span className="rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1 text-[10px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
+            Add to Media
+          </span>
+        </div>
+      )}
       {chrome === 'full' && (
         <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
       )}
