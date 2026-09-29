@@ -316,9 +316,24 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   const header = page.locator('[data-workspace-right-header]').first();
   const body = page.locator('[data-workspace-right-body]').first();
   const toolbar = page.locator('#bottom-toolbar-container').first();
+  const collapsedRail = page.locator('[data-workspace-right-toggle]').first();
   await expect(header).toBeVisible();
   await expect(body).toBeVisible();
+  await expect(page.locator('[data-properties-panel]').first()).toBeVisible();
+  await expect(collapsedRail).toBeHidden();
   await expect(toolbar).toBeVisible();
+
+  const floatClip = await page.evaluate(() => {
+    const h = document.querySelector<HTMLElement>('[data-workspace-right-header]')!.getBoundingClientRect();
+    const b = document.querySelector<HTMLElement>('[data-workspace-right-body]')!.getBoundingClientRect();
+    const x = Math.min(h.left, b.left);
+    const y = Math.min(h.top, b.top);
+    const right = Math.max(h.right, b.right);
+    const bottom = Math.max(h.bottom, b.bottom);
+    return { x, y, width: right - x, height: bottom - y };
+  });
+  const floatImage = await page.screenshot({ type: 'jpeg', quality: 72, clip: floatClip });
+  console.log('FIELD_QA_IMAGE:floating-inspector-expanded-dark:' + floatImage.toString('base64'));
 
   const expanded = await page.evaluate(() => {
     const header = document.querySelector<HTMLElement>('[data-workspace-right-header]')!.getBoundingClientRect();
@@ -354,6 +369,8 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   const collapse = page.locator('[data-workspace-collapse][data-side="right"]').first();
   await collapse.click();
   const compact = page.locator('[data-workspace-right-toggle]').first();
+  await expect(header).toBeHidden();
+  await expect(body).toBeHidden();
   await expect(compact).toBeVisible();
   const compactBox = await compact.boundingBox();
   if (!compactBox) throw new Error('missing compact floating Inspector');

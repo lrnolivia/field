@@ -92,7 +92,6 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
 
           {/* Panel */}
           <motion.div
-            data-field-chrome-surface="modal"
             initial={reducedMotion ? false : { opacity: 0, scale: 0.97, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 3 }}

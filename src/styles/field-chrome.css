@@ -161,20 +161,6 @@
   max-block-size: 112px;
 }
 
-/* Only surfaces explicitly opted into field chrome are themed here.
- * Generic floating surfaces belong to their owning system; in particular,
- * Inspector popovers keep their native chrome. */
-[data-field-chrome-surface] {
-  background: var(--field-chrome-popover-bg);
-  border-color: var(--field-chrome-border-strong);
-}
-
-[data-field-chrome-surface="modal"] {
-  --bg-surface: var(--field-chrome-popover-bg);
-  --border-light: var(--field-chrome-border);
-  --border-default: var(--field-chrome-border-strong);
-}
-
 /* Appearance > Interface contrast. Deliberately neutral and compact. */
 .field-chrome-contrast-slider {
   appearance: none;
@@ -242,25 +228,6 @@
 :where([data-editor-panel="left-primary"], [data-field-chrome-panel])
   [data-field-chrome-add] {
   border-radius: var(--field-chrome-radius-control);
-}
-
-[data-field-chrome-combobox-trigger] {
-  background: var(--field-chrome-control-bg) !important;
-  border: 1px solid var(--field-chrome-border) !important;
-  border-radius: var(--field-chrome-radius-control) !important;
-}
-
-[data-field-chrome-combobox-trigger]:hover {
-  background: var(--field-chrome-hover-bg) !important;
-}
-
-[data-field-chrome-combobox-panel] {
-  --bg-hover: var(--field-chrome-hover-bg);
-  --bg-active: var(--field-chrome-active-bg);
-  --border-light: var(--field-chrome-border);
-  --dropdown-bg: var(--field-chrome-popover-bg);
-  background: var(--field-chrome-popover-bg);
-  border-color: var(--field-chrome-border);
 }
 
 /* ── Pages + Layers ─────────────────────────────────────────────────────── */
@@ -356,23 +323,6 @@
 }
 
 
-/* SearchableDropdown callers historically injected their own black/white tint
- * classes. The marker wins those local tints so PageSelector, CMS collection
- * selectors and agent-side searchable menus stay on the same chrome controls. */
-[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]) {
-  background: var(--field-chrome-control-bg) !important;
-  border: 1px solid var(--field-chrome-border) !important;
-  border-radius: var(--field-chrome-radius-control) !important;
-}
-
-[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]):hover {
-  background: var(--field-chrome-hover-bg) !important;
-}
-
-[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]):focus {
-  background: var(--field-chrome-active-bg) !important;
-}
-
 /* Media is intentionally more object-heavy than the other left panels. Keep
  * tiles as objects, but remove the old dashboard-card feeling from supporting
  * strips and metadata panes. */
@@ -409,10 +359,4 @@
   --bg-surface: var(--field-chrome-raised-bg);
   --bg-tertiary: var(--field-chrome-section-bg);
   --border-light: var(--field-chrome-border);
-}
-
-/* Modal headers are chrome sections, not independent cards. */
-[data-field-chrome-surface="modal"] > :first-child {
-  background: var(--field-chrome-section-bg);
-  border-color: var(--field-chrome-border);
 }

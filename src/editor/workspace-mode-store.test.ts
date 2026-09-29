@@ -1,7 +1,7 @@
 import { createStore } from 'jotai';
 import { describe, expect, it } from 'vitest';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
-import { compactInspectorOpenAtom, dockedInspectorOpenAtom, dockedLeftOpenAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, dockedInspectorOpenAtom, dockedLeftOpenAtom, floatingInspectorExpandedAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom, rightPaneDetachedAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from './detached-left-panel-store';
 import { compactPanelOpenAtom, floatingEntranceAtom, floatingInspectorVisibleAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, railRevealedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { selectedIdsAtom } from '@/code/stores/store';
@@ -14,9 +14,11 @@ describe('workspace mode', () => {
     store.set(setWorkspaceModeAtom, 'floating');
     expect(store.get(workspaceModeAtom)).toBe('floating');
     expect(store.get(leftPaneOpenAtom)).toBe(false);
-    expect(store.get(rightPaneOpenAtom)).toBe(false);
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
     expect(store.get(rightPaneDetachedAtom)).toBe(true);
-    expect(store.get(detachedLeftPanelAtom)?.panelId).toBe('layers');
+    expect(store.get(floatingInspectorExpandedAtom)).toBe(true);
+    expect(store.get(floatingPanelCollapsedAtom)).toBe(false);
+    expect(store.get(detachedLeftPanelAtom)).toEqual({ panelId: 'layers', expanded: true });
 
     store.set(setWorkspaceModeAtom, 'compact');
     expect(store.get(leftPaneOpenAtom)).toBe(false);
@@ -29,6 +31,24 @@ describe('workspace mode', () => {
     expect(store.get(rightPaneOpenAtom)).toBe(true);
     expect(store.get(rightPaneDetachedAtom)).toBe(false);
     expect(store.get(detachedLeftPanelAtom)).toBeNull();
+  });
+
+  it('keeps Float expanded until the user explicitly collapses it', () => {
+    const store = createStore();
+    store.set(leftPanelAtom, 'layers');
+    store.set(setWorkspaceModeAtom, 'floating');
+
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
+    expect(store.get(floatingInspectorExpandedAtom)).toBe(true);
+    expect(store.get(detachedLeftPanelAtom)).toEqual({ panelId: 'layers', expanded: true });
+
+    store.set(rightPaneOpenAtom, false);
+    expect(store.get(rightPaneOpenAtom)).toBe(false);
+    expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(true);
+
+    store.set(rightPaneOpenAtom, true);
+    expect(store.get(rightPaneOpenAtom)).toBe(true);
+    expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(false);
   });
 
   it('keeps the compact rail visible and separates panel collapse from auto-hide', () => {
