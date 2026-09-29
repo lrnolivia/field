@@ -5,7 +5,7 @@
 // state (route path + server-wrapper metadata) and composes existing native
 // page tools (canvas appearance + Template assignment).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import {
@@ -38,6 +38,7 @@ import {
 import PageAppearanceTool from './PageAppearanceTool';
 import TemplatePicker from '@/editor/TemplatePicker';
 import ImageSearchModal from '@/editor/ui/ImageSearchModal';
+import { PageHomeIcon, PageDocumentIcon } from '@/shared/icons';
 
 interface PageMeta {
   title: string;
@@ -105,6 +106,32 @@ function normalizeRouteInput(value: string): string {
     .join('/');
 }
 
+function formatPageTitle(slug: string): string {
+  if (slug === 'home') return 'Home';
+  const segment = slug.split('/').filter(Boolean).pop() || 'Page';
+  return segment
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function PageSettingField({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div data-page-settings-field className="flex flex-col gap-1.5">
+      <div className="text-[10px] font-medium text-[var(--text-secondary)]">{label}</div>
+      {children}
+      {hint && <div className="text-[9px] leading-[12px] text-[var(--text-tertiary)]">{hint}</div>}
+    </div>
+  );
+}
+
 function PageImageField({
   value,
   onChange,
@@ -170,6 +197,8 @@ export default function PageSettingsTool() {
   const pageSlug = isPage ? filePathToSlug(clientPath) : '';
   const routeValue = pageSlug === 'home' ? '/' : `/${pageSlug}`;
   const isHome = pageSlug === 'home';
+  const pageTitle = formatPageTitle(pageSlug);
+  const PageIcon = isHome ? PageHomeIcon : PageDocumentIcon;
 
   const initial = useMemo<PageMeta>(() => {
     void version;
@@ -223,16 +252,29 @@ export default function PageSettingsTool() {
   };
 
   return (
-    <div data-page-settings-panel className="w-full pb-3">
-      {/* Existing no-selection Page surface remains the first thing the user
-          sees; it owns editor-only canvas paint and keeps that state clearly
-          separate from website/runtime metadata below. */}
+    <div data-page-settings-panel className="w-full pb-5">
+      <div
+        data-page-settings-header
+        className="h-[52px] px-[var(--panel-inset)] border-b border-[var(--border-light)] flex items-center gap-2.5"
+      >
+        <div className="w-7 h-7 shrink-0 flex items-center justify-center cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]">
+          <PageIcon className="w-3.5 h-3.5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[12px] leading-4 font-semibold text-[var(--text-primary)] truncate">{pageTitle}</div>
+          <div className="text-[9px] leading-3 font-mono text-[var(--text-tertiary)] truncate">{routeValue}</div>
+        </div>
+      </div>
+
       <PageAppearanceTool />
 
       <ToolDivider />
 
       <ToolSection title="Route">
-        <ToolRow label="Path">
+        <PageSettingField
+          label="Published path"
+          hint={isHome ? 'Home always publishes at /.' : 'Changing this path moves the page and its server metadata together.'}
+        >
           <ToolInput
             value={routeValue}
             onChange={renameRoute}
@@ -241,12 +283,7 @@ export default function PageSettingsTool() {
             ariaLabel="Page path"
             placeholder="/about"
           />
-        </ToolRow>
-        {isHome && (
-          <p className="text-[10px] leading-[13px] text-[var(--text-tertiary)]">
-            Home always publishes at /.
-          </p>
-        )}
+        </PageSettingField>
       </ToolSection>
 
       <ToolDivider />
@@ -255,7 +292,7 @@ export default function PageSettingsTool() {
       <ToolDivider />
 
       <ToolSection title="SEO">
-        <ToolRow label="Title">
+        <PageSettingField label="Title">
           <ToolInput
             value={form.title}
             onChange={(value) => commitMeta({ title: value }, { title: value }, 'title')}
@@ -263,16 +300,16 @@ export default function PageSettingsTool() {
             ariaLabel="SEO title"
             placeholder="Page title"
           />
-        </ToolRow>
-        <ToolRow label="Description">
+        </PageSettingField>
+        <PageSettingField label="Description">
           <ToolTextArea
             value={form.description}
             onChange={(value) => commitMeta({ description: value }, { description: value }, 'description')}
             rows={3}
             placeholder="Search result description"
           />
-        </ToolRow>
-        <ToolRow label="Canonical">
+        </PageSettingField>
+        <PageSettingField label="Canonical URL">
           <ToolInput
             value={form.canonical}
             onChange={(value) => commitMeta(
@@ -284,13 +321,25 @@ export default function PageSettingsTool() {
             ariaLabel="Canonical URL"
             placeholder="https://example.com/about"
           />
-        </ToolRow>
+        </PageSettingField>
+
+        <div className="mt-0.5 cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-2.5 py-2">
+          <div className="text-[9px] font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Search preview</div>
+          <div className="mt-1 text-[9px] leading-3 text-[var(--text-tertiary)] truncate">{routeValue}</div>
+          <div className="mt-0.5 text-[12px] leading-4 font-medium text-[var(--accent-text)] truncate">
+            {form.title || pageTitle}
+          </div>
+          <div className="mt-0.5 max-h-8 overflow-hidden text-[10px] leading-4 text-[var(--text-secondary)]">
+            {form.description || 'Add a description to control how this page appears in search results.'}
+          </div>
+        </div>
       </ToolSection>
 
       <ToolDivider />
 
       <ToolSection title="Social" defaultOpen={false}>
-        <ToolRow label="OG title">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Open Graph</div>
+        <PageSettingField label="Title">
           <ToolInput
             value={form.ogTitle}
             onChange={(value) => commitMeta(
@@ -302,8 +351,8 @@ export default function PageSettingsTool() {
             ariaLabel="Open Graph title"
             placeholder="Falls back to page title"
           />
-        </ToolRow>
-        <ToolRow label="OG description">
+        </PageSettingField>
+        <PageSettingField label="Description">
           <ToolTextArea
             value={form.ogDescription}
             onChange={(value) => commitMeta(
@@ -314,8 +363,8 @@ export default function PageSettingsTool() {
             rows={3}
             placeholder="Falls back to page description"
           />
-        </ToolRow>
-        <ToolRow label="OG image">
+        </PageSettingField>
+        <PageSettingField label="Image">
           <PageImageField
             label="Open Graph image"
             value={form.ogImage}
@@ -325,9 +374,11 @@ export default function PageSettingsTool() {
               'og-image',
             )}
           />
-        </ToolRow>
+        </PageSettingField>
+
         <ToolDivider />
-        <ToolRow label="X card">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">X / Twitter</div>
+        <PageSettingField label="Card">
           <ToolSelect
             value={form.twitterCard || 'summary_large_image'}
             onChange={(value) => commitMeta(
@@ -341,8 +392,8 @@ export default function PageSettingsTool() {
             ]}
             ariaLabel="X card type"
           />
-        </ToolRow>
-        <ToolRow label="X title">
+        </PageSettingField>
+        <PageSettingField label="Title">
           <ToolInput
             value={form.twitterTitle}
             onChange={(value) => commitMeta(
@@ -354,8 +405,8 @@ export default function PageSettingsTool() {
             ariaLabel="X title"
             placeholder="Falls back to OG title"
           />
-        </ToolRow>
-        <ToolRow label="X description">
+        </PageSettingField>
+        <PageSettingField label="Description">
           <ToolTextArea
             value={form.twitterDescription}
             onChange={(value) => commitMeta(
@@ -366,8 +417,8 @@ export default function PageSettingsTool() {
             rows={3}
             placeholder="Falls back to OG description"
           />
-        </ToolRow>
-        <ToolRow label="X image">
+        </PageSettingField>
+        <PageSettingField label="Image">
           <PageImageField
             label="X image"
             value={form.twitterImage}
@@ -377,7 +428,7 @@ export default function PageSettingsTool() {
               'x-image',
             )}
           />
-        </ToolRow>
+        </PageSettingField>
       </ToolSection>
 
       <ToolDivider />

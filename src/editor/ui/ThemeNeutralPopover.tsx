@@ -56,11 +56,12 @@ export default function ThemeNeutralPopover({
 
   const moveFocus = (index: number, key: string) => {
     const cols = EDITOR_NEUTRAL_LEVELS.length;
+    const total = EDITOR_THEME_MODES.length * cols;
     let next = index;
-    if (key === 'ArrowLeft') next = (index + 5) % 6;
-    if (key === 'ArrowRight') next = (index + 1) % 6;
-    if (key === 'ArrowUp') next = (index - cols + 6) % 6;
-    if (key === 'ArrowDown') next = (index + cols) % 6;
+    if (key === 'ArrowLeft') next = (index + total - 1) % total;
+    if (key === 'ArrowRight') next = (index + 1) % total;
+    if (key === 'ArrowUp') next = (index - cols + total) % total;
+    if (key === 'ArrowDown') next = (index + cols) % total;
     if (next !== index) optionRefs.current[next]?.focus();
   };
 
@@ -76,12 +77,12 @@ export default function ThemeNeutralPopover({
       data-theme-neutral-popover=""
       data-field-floating-surface
       data-field-no-canvas-input
-      className={`${placementClass} w-[168px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-1.5`}
+      className={`${placementClass} w-[228px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-[var(--shadow-lg)] p-1.5`}
       style={{ zIndex: fieldSurfaceZ('menu', anchorRef.current) }}
       role="radiogroup"
       aria-label="Editor neutral appearance"
     >
-      <div className="grid grid-cols-[38px_repeat(3,1fr)] gap-x-1 gap-y-1 items-center">
+      <div className="grid grid-cols-[38px_repeat(5,minmax(0,1fr))] gap-x-1 gap-y-1 items-center">
         {EDITOR_THEME_MODES.map((themeMode, row) => (
           <div key={themeMode} className="contents">
             <span className="text-[10px] leading-none text-[var(--text-secondary)] capitalize pl-0.5">

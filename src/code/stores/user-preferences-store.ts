@@ -92,7 +92,7 @@ export const websitePreviewThemeAtom = atomWithStorage<EditorThemeMode>(
   'field:prefs:websitePreviewTheme', 'light', undefined, { getOnInit: true },
 );
 
-/** Three neutral chrome levels per Light/Dark mode. Level 2 is Default. */
+/** Five neutral chrome levels per Light/Dark mode. Level 3 is Default. */
 export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
-  'revyme:prefs:neutralLevel', '2',
+  'revyme:prefs:neutralLevel', '3',
 );

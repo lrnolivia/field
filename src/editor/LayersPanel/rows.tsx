@@ -737,7 +737,8 @@ export const LayerRow = React.memo(function LayerRow({
   const bgStyle: React.CSSProperties = {};
   if (isSelected) {
     s.color = selFg;
-    bgStyle.backgroundColor = 'var(--field-layer-selected-bg, var(--bg-active))';
+    bgStyle.backgroundColor = 'var(--field-layer-selected-bg)';
+    bgStyle.boxShadow = 'inset 0 0 0 1px var(--field-layer-selected-border)';
   }
 
   const bgShape = 'rounded-[4px]';
