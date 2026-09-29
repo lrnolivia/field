@@ -1265,14 +1265,14 @@ export default function LayersPanel() {
       <div
         ref={listRef}
         className="flex-1 px-1 overflow-y-auto overflow-x-auto overscroll-contain scrollbar-hide"
-        // Hard-cut the scrolling content at the 8px left inset (matching the
-        // selection pill's inset) so names never bleed into the left margin /
+        // Hard-cut the scrolling content at the panel's 4px tree inset so names
+        // never bleed into the left margin /
         // over the toolbar as the tree scrolls. The mask is fixed to the
         // viewport, so the inset stays clean at every scroll position.
         style={{
           minHeight: 0,
-          WebkitMaskImage: 'linear-gradient(to right, transparent 8px, #000 8px)',
-          maskImage: 'linear-gradient(to right, transparent 8px, #000 8px)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 4px, #000 4px)',
+          maskImage: 'linear-gradient(to right, transparent 4px, #000 4px)',
         }}
         data-layers-scroll
       >

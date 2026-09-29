@@ -65,6 +65,7 @@ describe('FigUI3 sidebar system + document panel', () => {
     const shell = read('src/editor/left-toolbar/panels/PagesLayersPanel.tsx');
     const pages = read('src/editor/FileExplorer.tsx');
     const layers = read('src/editor/LayersPanel.tsx');
+    const layerRows = read('src/editor/LayersPanel/rows.tsx');
 
     expect(css).toContain('FIGUI3_DOCUMENT_PANEL_DENSITY_20260925');
     expect(css).toContain('flex: 0 0 5px');
@@ -74,7 +75,9 @@ describe('FigUI3 sidebar system + document panel', () => {
     expect(css).toContain('min-height: 24px');
     expect(css).not.toContain('var(--selection) 12%');
     expect(css).toContain(':not(.field-layer-locate-flash)');
-    expect(css).toContain('left: 4px !important');
+    expect(css).not.toContain('left: 4px !important');
+    expect(layerRows).toContain("width: 'calc(var(--layers-vw, 100%) - 8px)'");
+    expect(layers).toContain("transparent 4px, #000 4px");
     expect(theme).toContain('--field-layer-selected-bg: color-mix(in srgb, var(--accent)');
     expect(theme).toContain('--field-layer-selected-border: color-mix(in srgb, var(--accent)');
 

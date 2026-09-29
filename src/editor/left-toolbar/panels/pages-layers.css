@@ -108,11 +108,8 @@
   border-radius: 4px;
 }
 
-/* The scroll viewport already contributes 4px of horizontal padding. The
- * viewport-pinned row background starts at left: 0 with a visible-width-based
- * width, so the 8px left mask used to slice through its rounded cap. Add the
- * missing 4px here: the pill now lands at 8px on both visible edges. */
+/* Keep the viewport-pinned selection/hover surface rounded. Horizontal inset
+ * is owned by the 4px Layers scroll padding + rows.tsx viewport-width math. */
 [data-field-layer-row] > [aria-hidden="true"]:not(.field-layer-locate-flash) {
-  left: 4px !important;
   clip-path: none !important;
 }
