@@ -4,7 +4,7 @@
 
 Canonical repository-owned process infrastructure for field execution work.
 
-Version: `2026-09-26.4`
+Version: `2026-09-29.1`
 
 ## Two execution lanes
 
@@ -90,13 +90,21 @@ The legacy `templates/assignment.md` file remains only as a deprecation pointer.
 
 ## QA
 
-QA evidence is assignment-specific and exact-SHA grounded.
+This kit does **not** own universal QA policy. Re-read current `loew-runner/LOEW_CHAT_BIBLE.md` section 11 before runtime QA.
 
-A successful build is not automatically runtime QA.
+Runner owns engine routing, exact-artifact evidence, classifications, retry/watchdog limits, fallbacks, self-correction, danger-zone handoff, and promotion boundaries. field's QA files only add field-specific targets and criteria.
 
-For web-visible field work, use the exact PR-head Cloudflare Preview and browser-driven QA as the canonical runtime verification path. The browser should interact with the real rendered site when the acceptance criteria require it; screenshots, visible state, semantic/runtime observations, and interaction results are evidence. Use `/builder/noauth` when authentication is not under test.
+For field web-visible work:
 
-Do not use production to validate an unmerged branch. A head-SHA change invalidates prior runtime evidence. For non-web work, use the environment-specific harness defined by the assignment.
+- test the exact PR-head Cloudflare Preview
+- use HTTP/read-only inspection for cheap infrastructure truth
+- use deterministic Inspector/GitHub Chromium recipes for routine visual/runtime criteria when capable
+- use Browser Run only when exploratory/session behavior uniquely requires it
+- use `/qa/work/<projectId>` for read-only real saved-project truth
+- use `/builder/noauth` for smoke/isolation checks only
+- use authenticated/project-native harnesses for protected state, persistence, account metadata, or auth behavior
+
+A successful build is not runtime QA. Production cannot validate an unmerged branch. A head-SHA change invalidates affected runtime evidence.
 
 ## Updating this kit
 

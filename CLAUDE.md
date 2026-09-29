@@ -2,13 +2,23 @@
 
 field is the product. Revyme is the technical origin.
 
-Start with `README.md` for product/runtime orientation.
+The active repository is **`lrnolivia/field`**. Historical targets such as `revyme-loewfi`, `revyme-loew`, `revyme-löew`, and old local Revyme checkout paths are not current repositories. Preserve Revyme-prefixed identifiers only when they are real compatibility, protocol, dependency, storage, or attribution contracts inside field.
 
-For any execution chat, also read:
+Before any execution work, refresh directions in this order:
+
+1. `lrnolivia/loew-runner@main/contracts/manifest.json`
+2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
+3. this repository's current `AGENTS.md`
+4. the applicable role contract and current assignment/control/QA state
+5. fresh Git/runtime truth
+
+Then use `README.md` for product/runtime orientation and the repo-hosted handoff kit only as a **field-specific overlay**:
 
 - `.field/handoff-kit/CHAT_BOOTSTRAP.md`
 - `.field/handoff-kit/CONTRACT.md`
 - the current assignment/control records for your execution lane
+
+Runner universal law outranks copied/stale local process guidance. Do not continue from an old handoff without rehydrating from Runner and live `lrnolivia/field` state.
 
 ## Product principles
 
@@ -53,6 +63,21 @@ Do not stop merely because our own workflow is broken.
 If stale coordination, metadata, instructions, deterministic tooling, or QA harness behavior blocks the assignment and the repair is bounded, safe, and within current authority, fix it, validate it, record it, and continue.
 
 Do not cross another active assignment's ownership, weaken Git safety, change product direction, or bypass authorization to clear a blocker.
+
+## QA authority
+
+`loew-runner/LOEW_CHAT_BIBLE.md` section 11 is the law for QA engine selection, exact-SHA evidence, classification, bounded retries, fallbacks, self-correction, danger-zone handoff, and promotion.
+
+field only adds target-specific runtime semantics:
+
+- exact branch Preview represents the branch artifact under test
+- `/qa/work/<projectId>` is the read-only real-project QA surface
+- `/builder/noauth` is a disposable **smoke-only** harness
+- deterministic Inspector/GitHub Chromium is the routine web-visible QA workhorse when it can prove the criterion
+- Browser Run is reserved for exploratory or session behavior that deterministic recipes cannot prove
+- authenticated/project-native harnesses are required when state, credentials, persistence, or platform behavior matter
+
+A build is not runtime QA. Production does not prove an unmerged branch. Head changes stale affected runtime evidence.
 
 ## Runtime architecture
 

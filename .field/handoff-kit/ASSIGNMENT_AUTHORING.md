@@ -99,7 +99,7 @@ Every assignment should include:
 - Out of scope
 - Known traps / prior findings
 - Validation
-- Runtime QA — for web-visible work, specify the exact branch Preview and browser-driven acceptance actions/evidence
+- Runtime QA — for web-visible work, specify the exact branch Preview and Runner-selected harness, field target path, and exact-SHA evidence
 - Authenticated/human QA where needed
 - Handoff source
 - Completion contract
@@ -170,12 +170,17 @@ A real external dependency remains a blocker. A defect in our own process should
 
 ## Canonical web runtime QA
 
-For web-visible field work, author assignments around the real branch runtime:
+Do not invent a QA engine in the assignment. Start from current Runner Bible section 11 and name the smallest capable harness for each criterion.
 
-1. exact PR head SHA
-2. successful Cloudflare branch Preview
-3. browser-driven QA on that Preview, normally at `/builder/noauth` unless auth is under test
-4. interaction with the real UI when the acceptance criteria require it
-5. screenshots/semantic/runtime evidence recorded against that exact SHA
+For web-visible field work, author assignments around:
 
-Do not substitute production for an unmerged branch. Do not treat a successful build as runtime QA. If the branch head changes, previous runtime evidence is stale.
+1. exact PR head SHA and exact branch Preview
+2. HTTP/read-only checks when they can prove cheap infrastructure facts
+3. deterministic Inspector/GitHub Chromium recipes for routine visual/runtime acceptance where capable
+4. `/qa/work/<projectId>` when real saved-project state is required
+5. `/builder/noauth` only for smoke/isolation checks
+6. Browser Run only for exploratory/session behavior deterministic recipes cannot prove
+7. authenticated/project-native harnesses when credentials, persistence, account state, or protected APIs matter
+8. evidence and classification recorded against that exact SHA using current Runner vocabulary
+
+Do not substitute production for an unmerged branch. Do not treat a successful build as runtime QA. If the branch head changes, affected runtime evidence is stale.
