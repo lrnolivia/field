@@ -9,6 +9,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FIELD_SURFACE_Z } from '@/shared/field-surface-elevation';
 import ModalCloseButton from './ModalCloseButton';
+import { getUiHeadingRole } from '@/shared/ui-heading-case';
 
 interface ModalProps {
   isOpen: boolean;
@@ -101,7 +102,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-light)] shrink-0">
-              <h3 className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
+              <h3 data-ui-heading={getUiHeadingRole(title)} className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
               <div className="flex items-center gap-1">
                 {headerAction}
                 {!hideClose && dismissible && (

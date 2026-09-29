@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
@@ -17,6 +17,7 @@ import {
 } from '@/shared/builder-themes';
 import { trace } from '@/shared/debug-trace';
 import { normalizeEditorNeutralLevel, normalizeEditorThemeMode } from '@/shared/editor-neutral-theme';
+import { normalizeUiHeadingCase } from '@/shared/ui-heading-case';
 
 const OWNED_VARS = [
   '--accent',
@@ -73,10 +74,12 @@ export function applyEditorChromePreferences(): void {
   const store = getDefaultStore();
   const mode = normalizeEditorThemeMode(store.get(editorThemeModeAtom));
   const level = normalizeEditorNeutralLevel(store.get(editorNeutralLevelAtom));
+  const headingCase = normalizeUiHeadingCase(store.get(uiHeadingCaseAtom));
   const root = document.documentElement;
   root.classList.toggle('dark', mode === 'dark');
   root.dataset.themeMode = mode;
   root.dataset.neutralLevel = level;
+  root.dataset.uiHeadingCase = headingCase;
 }
 
 function currentTheme(): BuilderTheme {
@@ -220,8 +223,12 @@ export function subscribeBuilderTheme(): void {
   const storedNeutral = normalizeEditorNeutralLevel(
     migrateNeutralScalePreference(readStoredString('revyme:prefs:neutralLevel') ?? store.get(editorNeutralLevelAtom)),
   );
+  const storedHeadingCase = normalizeUiHeadingCase(
+    readStoredString('field:prefs:uiHeadingCase') ?? store.get(uiHeadingCaseAtom),
+  );
   if (store.get(editorThemeModeAtom) !== storedMode) store.set(editorThemeModeAtom, storedMode);
   if (store.get(editorNeutralLevelAtom) !== storedNeutral) store.set(editorNeutralLevelAtom, storedNeutral);
+  if (store.get(uiHeadingCaseAtom) !== storedHeadingCase) store.set(uiHeadingCaseAtom, storedHeadingCase);
   applyEditorChromePreferences();
 
   // One-time compatibility migration:
@@ -253,6 +260,11 @@ export function subscribeBuilderTheme(): void {
   store.sub(editorNeutralLevelAtom, () => {
     applyEditorChromePreferences();
     trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
+  });
+
+  store.sub(uiHeadingCaseAtom, () => {
+    applyEditorChromePreferences();
+    trace.action('ui-heading-case:changed', { value: store.get(uiHeadingCaseAtom) });
   });
 
   if (observer || typeof MutationObserver === 'undefined') return;

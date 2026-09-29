@@ -12,6 +12,7 @@
 
 import { atomWithStorage } from 'jotai/utils';
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
+import type { UiHeadingCase } from '@/shared/ui-heading-case';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -95,4 +96,10 @@ export const websitePreviewThemeAtom = atomWithStorage<EditorThemeMode>(
 /** Five neutral chrome levels per Light/Dark mode. Level 3 is Default. */
 export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
   'revyme:prefs:neutralLevel', '3',
+);
+
+/** Editor-only case treatment for opted-in UI headings. This never rewrites
+ *  website/project content; it only changes presentation of field chrome. */
+export const uiHeadingCaseAtom = atomWithStorage<UiHeadingCase>(
+  'field:prefs:uiHeadingCase', 'brand', undefined, { getOnInit: true },
 );

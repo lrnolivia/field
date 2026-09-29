@@ -42,6 +42,8 @@ import {
 } from './settings-shared';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
+import { uiHeadingCaseAtom } from '@/code/stores/user-preferences-store';
+import { getUiHeadingRole, type UiHeadingCase } from '@/shared/ui-heading-case';
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
 
@@ -182,6 +184,7 @@ export default function SettingsOverlay() {
   const [isOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
   const [websiteSettings, setWebsiteSettings] = useAtom(websiteSettingsAtom);
   const [activeSection, setActiveSection] = useAtom(settingsSectionAtom);
+  const [uiHeadingCase, setUiHeadingCase] = useAtom(uiHeadingCaseAtom);
 
   // ─── Mobile nav dropdown (sidebar replacement on small screens) ─────
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -736,7 +739,7 @@ export default function SettingsOverlay() {
       return (
         <div className="space-y-5">
           <header className="pb-4 border-b border-[var(--border-light)]">
-            <h1 className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]">General</h1>
+            <h1 data-ui-heading="brand" className="text-xl leading-6 font-semibold tracking-[-0.01em] text-[var(--text-primary)]">General</h1>
             <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-[var(--text-secondary)]">
               Project-wide defaults for identity, branding, appearance, and site behavior.
             </p>
@@ -930,6 +933,24 @@ export default function SettingsOverlay() {
                 </p>
               </div>
             </SettingsRow>
+
+            <SettingsRow label="UI heading case" htmlFor="ui-heading-case" align="top">
+              <div className="flex flex-col gap-1">
+                <RowSelect
+                  id="ui-heading-case"
+                  value={uiHeadingCase}
+                  options={[
+                    { value: 'brand', label: 'Brand' },
+                    { value: 'original', label: 'Original' },
+                    { value: 'lowercase', label: 'lowercase' },
+                  ]}
+                  onChange={(value) => setUiHeadingCase(value as UiHeadingCase)}
+                />
+                <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
+                  Brand follows loew.fi casing rules; Original keeps authored UI case; lowercase forces eligible headings lower. Editor only · applies instantly.
+                </p>
+              </div>
+            </SettingsRow>
           </SettingsGroup>
 
           {/* ─── Custom code ─── */}
@@ -1052,6 +1073,7 @@ export default function SettingsOverlay() {
           </Button>
         </div>
         <div
+          data-ui-heading="brand"
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--text-primary)] truncate"
           style={{ pointerEvents: 'none' }}
         >
@@ -1074,7 +1096,10 @@ export default function SettingsOverlay() {
                       header style (text-xs font-bold, primary color, mixed
                       case) so the settings sidebar and the right tool panel
                       read as the same visual language. */}
-                  <div className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                  <div
+                    data-ui-heading={getUiHeadingRole(category.title)}
+                    className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"
+                  >
                     {category.title}
                   </div>
                   <div className="space-y-0.5">
@@ -1190,6 +1215,7 @@ export default function SettingsOverlay() {
               <div className="relative">
                 <button
                   onClick={() => setMobileNavOpen((p) => !p)}
+                  data-ui-heading={activeLabel ? getUiHeadingRole(activeLabel) : 'brand'}
                   className="flex items-center gap-1.5 text-base font-semibold text-[var(--text-primary)] cursor-pointer"
                 >
                   {activeLabel}
@@ -1201,7 +1227,10 @@ export default function SettingsOverlay() {
                     <div className="absolute top-full left-0 mt-1 min-w-[200px] bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] shadow-lg py-1.5 z-[2]">
                       {menuCategories.map((category, ci) => (
                         <div key={ci}>
-                          <div className="px-3 py-1 text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                          <div
+                            data-ui-heading={getUiHeadingRole(category.title)}
+                            className="px-3 py-1 text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider"
+                          >
                             {category.title}
                           </div>
                           {category.items.map((item) => {

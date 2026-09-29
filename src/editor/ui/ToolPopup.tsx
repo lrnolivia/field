@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { trace } from '@/shared/debug-trace';
 import { fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { getUiHeadingRole } from '@/shared/ui-heading-case';
 
 // ─── Context for child components to push/pop panels ────────────────────────
 
@@ -541,7 +542,7 @@ export default function ToolPopup({
                   </svg>
                 </button>
               )}
-              <span className="text-[11px] font-semibold text-[var(--text-primary)]">{currentTitle}</span>
+              <span data-ui-heading={getUiHeadingRole(currentTitle)} className="text-[11px] font-semibold text-[var(--text-primary)]">{currentTitle}</span>
             </div>
             <button
               onClick={closeAndRestoreFocus}

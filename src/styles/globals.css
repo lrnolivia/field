@@ -8,6 +8,17 @@
    light mode whenever the OS is set to dark. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Editor heading case is presentation-only. Components must explicitly opt a
+   heading into semantic casing with data-ui-heading. Brand mode lowercases
+   human/editorial headings while preserving functional casing (SEO, AI,
+   A/B Tests, name.FUNCTION). Lowercase mode lowers both opted-in roles.
+   Unmarked text is never transformed. */
+html[data-ui-heading-case='brand'] [data-ui-heading='brand'],
+html[data-ui-heading-case='lowercase'] [data-ui-heading='brand'],
+html[data-ui-heading-case='lowercase'] [data-ui-heading='standard'] {
+  text-transform: lowercase;
+}
+
 /* ─── Design Tokens ────────────────────────────────────────────────────
    MUST be inside @layer theme so they don't override Tailwind utilities.
    In CSS Cascade Layers, unlayered styles ALWAYS beat layered styles.
