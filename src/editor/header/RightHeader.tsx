@@ -439,11 +439,11 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
-          className="fixed z-[9999] flex flex-col items-center overflow-hidden py-2"
+          className="fixed z-[9999] flex flex-col items-center overflow-hidden px-[9px] pb-3 pt-[10px]"
           style={{
             right: rightDetached ? 12 : 0,
             top: rightDetached ? 12 : 0,
-            width: 60,
+            width: 52,
             height: rightDetached ? floatingInspectorHeight : '100vh',
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             border: rightDetached ? '1px solid var(--border-light)' : undefined,
@@ -464,12 +464,12 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             data-inspector-compact-main-tools
             className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto scrollbar-hide pb-2"
           >
-            <button type="button" aria-label={uiCase('Open Design inspector') ?? undefined} title={uiCase('Design') ?? undefined} onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">{uiCase('Design')}</span></button>
-            <button type="button" aria-label={uiCase('Open Prototype inspector') ?? undefined} title={uiCase('Prototype') ?? undefined} onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">{uiCase('Proto')}</span></button>
+            <button type="button" aria-label={uiCase('Open Design inspector') ?? undefined} title={uiCase('Design') ?? undefined} onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-8 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">{uiCase('Design')}</span></button>
+            <button type="button" aria-label={uiCase('Open Prototype inspector') ?? undefined} title={uiCase('Prototype') ?? undefined} onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-8 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">{uiCase('Proto')}</span></button>
             {selectedCount > 0 && <span className="shrink-0 rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={uiCase(`${selectedCount} selected`) ?? undefined}>{selectedCount}</span>}
             <button type="button" aria-label={uiCase(`Zoom ${compactZoom} percent; reset to 100 percent`) ?? undefined} title={uiCase('Zoom to 100%') ?? undefined} onClick={zoomTo100}
-              className="w-12 shrink-0 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
-            <div className="shrink-0">
+              className="w-8 shrink-0 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
+            <div className="w-full shrink-0">
               <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
             </div>
           </div>

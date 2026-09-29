@@ -361,6 +361,19 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   const viewportHeight = await page.evaluate(() => window.innerHeight);
   expect(viewportHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
 
+  // The compact Inspector should visually mirror the left command rail:
+  // same shell width, same 32px control width, same effective side inset.
+  const leftRail = page.locator('[data-left-menu-rail]').first();
+  const leftRailBox = await leftRail.boundingBox();
+  const leftRailButton = await leftRail.locator('button').first().boundingBox();
+  const designButton = await compact.getByRole('button', { name: /open design inspector/i }).boundingBox();
+  if (!leftRailBox || !leftRailButton || !designButton) throw new Error('missing rail geometry for symmetry check');
+
+  expect(compactBox.width).toBeCloseTo(leftRailBox.width, 0);
+  expect(designButton.width).toBeCloseTo(leftRailButton.width, 0);
+  expect((compactBox.width - designButton.width) / 2)
+    .toBeCloseTo((leftRailBox.width - leftRailButton.width) / 2, 0);
+
   // Short windows must behave like the left command rail: the middle tools
   // yield/scroll first while the auto-hide + expand controls remain visible.
   for (const height of [620, 440]) {
