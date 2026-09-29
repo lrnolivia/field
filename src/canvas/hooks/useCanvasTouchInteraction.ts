@@ -19,6 +19,7 @@ import { trace } from '@/shared/debug-trace';
 
 export const SINGLE_TOUCH_PAN_THRESHOLD_PX = 4;
 export const TOUCH_MARQUEE_HOLD_MS = 420;
+export const TOUCH_CONTEXT_MENU_HOLD_MS = 420;
 
 const TOUCH_MARQUEE_START_EVENT = 'field:touch-marquee-start';
 const TOUCH_MARQUEE_MOVE_EVENT = 'field:touch-marquee-move';
@@ -112,6 +113,24 @@ function dispatchTouchMarquee(
   doc.dispatchEvent(new EventCtor(type, { detail: { clientX, clientY } }));
 }
 
+function dispatchTouchContextMenu(
+  target: HTMLElement,
+  clientX: number,
+  clientY: number,
+): void {
+  const doc = target.ownerDocument;
+  const MouseEventCtor = doc.defaultView?.MouseEvent ?? MouseEvent;
+  target.dispatchEvent(new MouseEventCtor('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+    view: doc.defaultView,
+    clientX,
+    clientY,
+    button: 2,
+    buttons: 0,
+  }));
+}
+
 function mouseLike(
   clientX: number,
   clientY: number,
@@ -139,7 +158,7 @@ function mouseLike(
 }
 
 interface GestureState {
-  kind: 'pan' | 'object' | 'marquee';
+  kind: 'pan' | 'object' | 'marquee' | 'context-menu';
   startX: number;
   startY: number;
   lastX: number;
@@ -171,16 +190,16 @@ export function useCanvasTouchInteraction({
 
     let gesture: GestureState | null = null;
     let releaseKeyboardPrimer: (() => void) | null = null;
-    let touchMarqueeHoldTimer: number | null = null;
+    let longPressTimer: number | null = null;
 
-    const clearTouchMarqueeHold = () => {
-      if (touchMarqueeHoldTimer === null) return;
-      window.clearTimeout(touchMarqueeHoldTimer);
-      touchMarqueeHoldTimer = null;
+    const clearLongPressTimer = () => {
+      if (longPressTimer === null) return;
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
     };
 
     const cancelOneFinger = (keepCameraCursor = false) => {
-      clearTouchMarqueeHold();
+      clearLongPressTimer();
       if (gesture?.kind === 'marquee') {
         dispatchTouchMarquee(
           container.ownerDocument,
@@ -245,9 +264,34 @@ export function useCanvasTouchInteraction({
         target,
       };
 
-      if (gesture.kind === 'pan') {
-        touchMarqueeHoldTimer = window.setTimeout(() => {
-          touchMarqueeHoldTimer = null;
+      if (gesture.kind === 'object') {
+        longPressTimer = window.setTimeout(() => {
+          longPressTimer = null;
+          if (!gesture || gesture.kind !== 'object') return;
+
+          const coordinatorNow = dragCoordinatorRef.current;
+          if (coordinatorNow?.isDragging) return;
+
+          // A stationary object hold opens the exact same menu as right-click.
+          // Cancel deferred click/drag bookkeeping first so lifting the finger
+          // cannot perform a second action behind the open menu.
+          mouseControllerRef.current?.cancelTouchInteraction();
+          if (coordinatorNow?.isPending) coordinatorNow.cancel();
+          gesture.kind = 'context-menu';
+          dispatchTouchContextMenu(
+            gesture.target,
+            gesture.startX,
+            gesture.startY,
+          );
+          trace.action('input:touch-context-menu', {
+            x: gesture.startX,
+            y: gesture.startY,
+            holdMs: TOUCH_CONTEXT_MENU_HOLD_MS,
+          });
+        }, TOUCH_CONTEXT_MENU_HOLD_MS);
+      } else if (gesture.kind === 'pan') {
+        longPressTimer = window.setTimeout(() => {
+          longPressTimer = null;
           if (!gesture || gesture.kind !== 'pan' || gesture.panStarted) return;
 
           // Empty-space long press deliberately switches from the primary
@@ -289,11 +333,18 @@ export function useCanvasTouchInteraction({
       event.preventDefault();
 
       if (gesture.kind === 'object') {
+        const totalX = touch.clientX - gesture.startX;
+        const totalY = touch.clientY - gesture.startY;
+        if (shouldStartSingleTouchPan(totalX, totalY)) clearLongPressTimer();
         dragCoordinatorRef.current?.handleMouseMove(
           mouseLike(touch.clientX, touch.clientY, gesture.target, 'mousemove'),
         );
         gesture.lastX = touch.clientX;
         gesture.lastY = touch.clientY;
+        return;
+      }
+
+      if (gesture.kind === 'context-menu') {
         return;
       }
 
@@ -313,7 +364,7 @@ export function useCanvasTouchInteraction({
       const totalY = touch.clientY - gesture.startY;
       if (!gesture.panStarted) {
         if (!shouldStartSingleTouchPan(totalX, totalY)) return;
-        clearTouchMarqueeHold();
+        clearLongPressTimer();
         gesture.panStarted = true;
         mouseControllerRef.current?.cancelEmptyCanvasClick();
         setPanCursor(true);
@@ -334,7 +385,7 @@ export function useCanvasTouchInteraction({
       if (event.touches.length > 0) return;
 
       event.preventDefault();
-      clearTouchMarqueeHold();
+      clearLongPressTimer();
       const finished = gesture;
       gesture = null;
 
@@ -352,6 +403,9 @@ export function useCanvasTouchInteraction({
         // pending window listeners exist; touch then commits explicitly.
         controller?.handleMouseUp(up);
         coordinator?.handleMouseUp();
+      } else if (finished.kind === 'context-menu') {
+        // The long-press path already cancelled pending mouse/drag state before
+        // opening the canonical menu. Finger-up must not click or drag again.
       } else if (finished.kind === 'marquee') {
         controller?.handleMouseUp(up);
         dispatchTouchMarquee(
@@ -388,7 +442,7 @@ export function useCanvasTouchInteraction({
       container.removeEventListener('touchmove', onTouchMove, opts);
       container.removeEventListener('touchend', onTouchEnd, opts);
       container.removeEventListener('touchcancel', onTouchCancel, opts);
-      clearTouchMarqueeHold();
+      clearLongPressTimer();
       if (gesture) cancelOneFinger(false);
       releaseKeyboardPrimer?.();
       releaseKeyboardPrimer = null;

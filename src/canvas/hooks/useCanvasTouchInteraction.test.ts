@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   SINGLE_TOUCH_PAN_THRESHOLD_PX,
   TOUCH_MARQUEE_HOLD_MS,
+  TOUCH_CONTEXT_MENU_HOLD_MS,
   shouldStartSingleTouchPan,
   singleTouchPanDelta,
 } from './useCanvasTouchInteraction';
@@ -22,9 +23,10 @@ describe('mobile single-touch interaction helpers', () => {
       .toEqual({ dx: 7, dy: -6 });
   });
 
-  it('keeps deliberate touch marquee behind a real long press', () => {
+  it('keeps deliberate touch gestures behind a real long press', () => {
     expect(TOUCH_MARQUEE_HOLD_MS).toBeGreaterThanOrEqual(350);
     expect(TOUCH_MARQUEE_HOLD_MS).toBeLessThanOrEqual(600);
+    expect(TOUCH_CONTEXT_MENU_HOLD_MS).toBe(TOUCH_MARQUEE_HOLD_MS);
   });
 });
 
@@ -48,6 +50,16 @@ describe('mobile touch wiring contract', () => {
     expect(mouse).toContain('cancelTouchInteraction(): void');
     expect(mouse).toContain('this.pendingMultiSelectChild = null');
     expect(mouse).toContain('this.pendingShiftRemove = null');
+  });
+
+  it('reuses the canonical right-click context menu for stationary object long press', () => {
+    const source = fs.readFileSync(
+      path.resolve(root, 'src/canvas/hooks/useCanvasTouchInteraction.ts'),
+      'utf8',
+    );
+    expect(source).toContain("new MouseEventCtor('contextmenu'");
+    expect(source).toContain("gesture.kind = 'context-menu'");
+    expect(canvas).toContain('onContextMenu={(e) => {');
   });
 
   it('routes deliberate long-press marquee through canonical SelectionBox', () => {
