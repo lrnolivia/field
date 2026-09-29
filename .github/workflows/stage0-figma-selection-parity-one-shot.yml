@@ -1,0 +1,64 @@
+name: Stage 0 Figma selection parity one-shot
+
+on:
+  push:
+    branches:
+      - stage0/figma-selection-parity
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage0-figma-selection-parity
+  cancel-in-progress: true
+
+jobs:
+  selection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Repair known lock drift in CI only
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Clean install
+        run: npm ci
+      - name: Selection unit contracts
+        run: |
+          npx vitest run \
+            src/canvas/selection/SelectionBox.test.ts \
+            src/canvas/mouse/CanvasMouseController.test.ts
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Figma selection Chromium parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          VITE_REVYME_CLOUD=false npx vite --port 4333 --strictPort --host localhost > /tmp/field-editor-vite.log 2>&1 &
+          EDITOR_PID=$!
+          npx vite --config vite.sandbox.config.ts --host localhost > /tmp/field-sandbox-vite.log 2>&1 &
+          SANDBOX_PID=$!
+          npx vite --config vite.preview.config.ts --host localhost > /tmp/field-preview-vite.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$EDITOR_PID" "$SANDBOX_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
+
+          for port in 4333 5174 5175; do
+            ready=0
+            for _ in $(seq 1 60); do
+              if curl -fsS "http://localhost:${port}/" >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" != "1" ]; then
+              echo "::error::Vite server on port ${port} did not become ready"
+              cat /tmp/field-editor-vite.log || true
+              cat /tmp/field-sandbox-vite.log || true
+              cat /tmp/field-preview-vite.log || true
+              exit 1
+            fi
+          done
+
+          env -u CI npx playwright test src/canvas/drag/e2e/figma-selection-parity.spec.ts --project=chromium --reporter=list
