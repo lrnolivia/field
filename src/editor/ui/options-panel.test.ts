@@ -1,3 +1,4 @@
+// OPTIONS_PANEL_BATCH1_SYNCED
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
