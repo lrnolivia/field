@@ -37,6 +37,7 @@ import { trace } from '@/shared/debug-trace';
 import type { CanvasNode } from '@/code/parsing/parser';
 
 const MIN_DRAW_SIZE = 5;
+const DEFAULT_CLICK_FRAME_SIZE = 100;
 const PREVIEW_BORDER = SELECTION_COLOR;
 const PREVIEW_FILL = 'rgba(59, 130, 246, 0.1)';
 // FALLBACK for encapsulating over a ROTATED parent (where the clip-path holes
@@ -281,7 +282,7 @@ export function startFrameCreation(
       autoPanCleanup = null;
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
-      const placeholder = previewEl;
+      let placeholder = previewEl;
       previewEl = null;
       cleanupFn = null;
       styleHelperOps.hide();
@@ -331,7 +332,7 @@ export function startFrameCreation(
       // different origins and could essentially never match: five texts drawn
       // fully over, none adopted (user report 2026-08-08). Derived from the same
       // start/end screen points, so it needs no inverse map.
-      const canvasRect = (() => {
+      let canvasRect = (() => {
         let l = Math.min(startCanvas.x, endCanvas.x);
         let tp = Math.min(startCanvas.y, endCanvas.y);
         let w = Math.abs(endCanvas.x - startCanvas.x);
@@ -345,22 +346,54 @@ export function startFrameCreation(
         return { left: l, top: tp, width: w, height: h };
       })();
 
-      // Validate minimum size (scale-adjusted so small frames work when zoomed in)
+      // Figma frame semantics: a click with the Frame tool creates a fixed
+      // 100×100 frame at the click point. A tiny/no-movement gesture is not a
+      // cancelled draw. If the click began inside a frame, the existing parent
+      // resolver already makes the new frame nested there; Space can bypass
+      // that parenting through findCreatorParentAtPoint.
       const minSize = MIN_DRAW_SIZE / t.scale;
-      if (width < minSize || height < minSize) {
-        trace.action('frame-creator:too-small', { width, height });
+      const clickDefault = width < minSize || height < minSize;
+      if (clickDefault) {
+        if (useLocalSpace && parentMapInv) {
+          left = startLocal.x;
+          top = startLocal.y;
+        } else {
+          left = startCanvas.x;
+          top = startCanvas.y;
+        }
+        width = DEFAULT_CLICK_FRAME_SIZE;
+        height = DEFAULT_CLICK_FRAME_SIZE;
+
+        // Canvas-space size is only used by drag-over encapsulation, which a
+        // click-created frame intentionally does not perform. Keep a truthful
+        // origin/nominal box for logging and slot calculations.
+        canvasRect = {
+          left: startCanvas.x,
+          top: startCanvas.y,
+          width: DEFAULT_CLICK_FRAME_SIZE,
+          height: DEFAULT_CLICK_FRAME_SIZE,
+        };
+
+        // The draw preview is zero-sized for a click. Remove it rather than
+        // holding a misleading 0×0 placeholder during the source commit.
         placeholder?.remove();
-        callbacks.onToolReset();
-        return;
+        placeholder = null;
+        trace.action('frame-creator:click-default', {
+          width: DEFAULT_CLICK_FRAME_SIZE,
+          height: DEFAULT_CLICK_FRAME_SIZE,
+          parentId: parent?.nodeId ?? null,
+        });
       }
 
       const nodeId = generateNodeId();
       const styles: Record<string, string> = {
         position: 'absolute',
-        width: FIT_SIZE,
-        height: FIT_SIZE,
-        minWidth: `${Math.round(width)}px`,
-        minHeight: `${Math.round(height)}px`,
+        width: clickDefault ? `${DEFAULT_CLICK_FRAME_SIZE}px` : FIT_SIZE,
+        height: clickDefault ? `${DEFAULT_CLICK_FRAME_SIZE}px` : FIT_SIZE,
+        ...(clickDefault ? {} : {
+          minWidth: `${Math.round(width)}px`,
+          minHeight: `${Math.round(height)}px`,
+        }),
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: nextFrameColor(),
@@ -418,7 +451,7 @@ export function startFrameCreation(
         // newly-drawn frame: reparent them as absolute children of the frame
         // and rewrite their `left`/`top` to be frame-relative so they stay
         // visually pinned in place.
-        encapsulatedIds = encapsulateAbsoluteSiblings({
+        if (!clickDefault) encapsulatedIds = encapsulateAbsoluteSiblings({
           newFrameId: nodeId,
           // Canvas node: inline left/top ARE canvas coords → both rects match.
           newFrameRect: { left, top, width, height },
@@ -496,7 +529,7 @@ export function startFrameCreation(
         // which is why only the layout case broke. Candidates are resolved here,
         // against the layout the user actually drew on; the moves are queued
         // after the node exists.
-        const flowCaptures = mode !== 'absolute'
+        const flowCaptures = !clickDefault && mode !== 'absolute'
           ? collectFlowCaptures({
               newFrameId: nodeId,
               newFrameRect: canvasRect,
@@ -533,7 +566,7 @@ export function startFrameCreation(
         // can compare against siblings' inline left/top/width/height
         // directly. Only fires when the frame was committed as absolute —
         // flex children don't have a concept of containment to begin with.
-        if (mode === 'absolute') {
+        if (mode === 'absolute' && !clickDefault) {
           const newFrameLeft = parseFloat(styles.left ?? '0') || 0;
           const newFrameTop = parseFloat(styles.top ?? '0') || 0;
           encapsulatedIds = encapsulateAbsoluteSiblings({
@@ -549,7 +582,7 @@ export function startFrameCreation(
             candidates: collectAbsoluteSiblings(nodes, parentId, nodeId),
             intoCanvasNode: false,
           });
-        } else {
+        } else if (!clickDefault) {
           // LAYOUT parent: fully-covered FLOW siblings become children too —
           // same draw-over-to-capture contract as the absolute path. Queued from
           // the pre-insert measurement above.
