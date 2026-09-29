@@ -40,6 +40,17 @@ Do not invent a feature brand when the ordinary word is already good.
 
 Preserve deliberate technical casing inside the lowercase voice. Initialisms and functional terms such as `AI`, `SEO`, `CMS`, `API`, and `A/B` stay uppercase; lowercase the surrounding editorial words instead.
 
+### Brand / Original casing
+
+field exposes exactly two editor-chrome casing modes:
+
+- **Brand** — the default. Eligible field-owned chrome uses the loew.fi lowercase editorial voice across headings, panel labels, menus, buttons, tabs, tooltips, placeholders, and contextual actions while preserving technical terms such as `AI`, `SEO`, `CMS`, `API`, `A/B`, and `field.RUNTIME`.
+- **Original** — renders eligible chrome strings exactly as authored.
+
+There is no separate forced-lowercase mode. Brand is the lowercase house treatment.
+
+Casing is presentation, not content mutation. Project names, page names, filenames, user-authored text, code, and website content must keep their own casing.
+
 ### 1.2 interaction and QoL features
 
 A user action or interaction-quality feature may earn a verb or a more editorial lowercase name when:

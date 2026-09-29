@@ -36,5 +36,8 @@ describe('field product language', () => {
     expect(about).toContain('title="About field"');
     const menu = read('src/editor/header/menu-builders.tsx');
     expect(menu).toContain("label: 'SEO'");
+    const settings = read('src/editor/overlays/SettingsOverlay.tsx');
+    expect(settings).toContain('label="UI casing"');
+    expect(settings).not.toContain("value: 'lowercase'");
   });
 });

@@ -8,14 +8,11 @@
    light mode whenever the OS is set to dark. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Editor heading case is presentation-only. Components must explicitly opt a
-   heading into semantic casing with data-ui-heading. Brand mode lowercases
-   human/editorial headings while preserving functional casing (SEO, AI,
-   A/B Tests, name.FUNCTION). Lowercase mode lowers both opted-in roles.
-   Unmarked text is never transformed. */
-html[data-ui-heading-case='brand'] [data-ui-heading='brand'],
-html[data-ui-heading-case='lowercase'] [data-ui-heading='brand'],
-html[data-ui-heading-case='lowercase'] [data-ui-heading='standard'] {
+/* Editor chrome casing is presentation-only. Existing heading opt-ins retain
+   their CSS path; shared buttons, menus, labels, and tooltips use the same
+   Brand / Original preference through useUiChromeCase. Brand preserves
+   deliberate technical casing such as SEO, AI, A/B, and name.FUNCTION. */
+html[data-ui-heading-case='brand'] [data-ui-heading='brand'] {
   text-transform: lowercase;
 }
 

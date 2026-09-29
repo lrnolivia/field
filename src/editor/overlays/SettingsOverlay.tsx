@@ -934,7 +934,7 @@ export default function SettingsOverlay() {
               </div>
             </SettingsRow>
 
-            <SettingsRow label="UI heading case" htmlFor="ui-heading-case" align="top">
+            <SettingsRow label="UI casing" htmlFor="ui-heading-case" align="top">
               <div className="flex flex-col gap-1">
                 <RowSelect
                   id="ui-heading-case"
@@ -942,12 +942,11 @@ export default function SettingsOverlay() {
                   options={[
                     { value: 'brand', label: 'Brand' },
                     { value: 'original', label: 'Original' },
-                    { value: 'lowercase', label: 'lowercase' },
                   ]}
                   onChange={(value) => setUiHeadingCase(value as UiHeadingCase)}
                 />
                 <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Brand follows loew.fi casing rules; Original keeps authored UI case; lowercase forces eligible headings lower. Editor only · applies instantly.
+                  Brand applies loew.fi casing across eligible field chrome while preserving technical terms. Original keeps authored UI case. Editor only · applies instantly.
                 </p>
               </div>
             </SettingsRow>

@@ -31,6 +31,7 @@ import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { useIsClosedSource } from '@/code/stores/closed-source-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { LogoButton } from '@/editor/header/LeftHeader';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 function SettingsGearIcon() {
   return (
@@ -217,6 +218,7 @@ export default function LeftMenu() {
   // back onto the clicked icon shows the tooltip again).
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [suppressedKey, setSuppressedKey] = useState<string | null>(null);
+  const uiCase = useUiChromeCase();
   // Refs hold the latest values so the memoised handlers below stay
   // stable identity-wise (matters because `MenuButton` is `React.memo`'d
   // — a new handler object every render would defeat that memoisation).
@@ -235,7 +237,7 @@ export default function LeftMenu() {
     if (suppressedRef.current !== null) setSuppressedKey(null);
     const rect = btn.getBoundingClientRect();
     setTooltip({
-      label,
+      label: uiCase(label) ?? label,
       top: rect.top + rect.height / 2,
       // Sits well clear of the icon strip — 20 px gap reads as a
       // floating chip in the gutter between LeftMenu and LeftPanel,
@@ -244,7 +246,7 @@ export default function LeftMenu() {
       // strip and the panel's left border.
       left: rect.right + 8,
     });
-  }, []);
+  }, [uiCase]);
   const handleLeave = useCallback(() => setTooltip(null), []);
   const handleClick = useCallback((key: string) => {
     // Click hides the tooltip AND marks this icon's tooltip suppressed

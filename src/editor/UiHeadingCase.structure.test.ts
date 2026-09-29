@@ -7,24 +7,29 @@ const theme = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/builder-th
 const css = fs.readFileSync(path.resolve(process.cwd(), 'src/styles/globals.css'), 'utf8');
 const settings = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/overlays/SettingsOverlay.tsx'), 'utf8');
 const toolSection = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/controls/ToolSection.tsx'), 'utf8');
+const button = fs.readFileSync(path.resolve(process.cwd(), 'src/design-system/Button.tsx'), 'utf8');
+const menu = fs.readFileSync(path.resolve(process.cwd(), 'src/design-system/DropdownMenu.tsx'), 'utf8');
+const sectionLabel = fs.readFileSync(path.resolve(process.cwd(), 'src/design-system/SectionLabel.tsx'), 'utf8');
 
-describe('system UI heading case preference', () => {
+describe('field UI casing preference', () => {
   it('persists per-user and paints a root case mode', () => {
     expect(prefs).toContain('uiHeadingCaseAtom');
     expect(prefs).toContain("'field:prefs:uiHeadingCase'");
     expect(theme).toContain('root.dataset.uiHeadingCase');
   });
 
-  it('exposes the selector in General → Appearance', () => {
-    expect(settings).toContain('label="UI heading case"');
+  it('offers only Brand and Original', () => {
+    expect(settings).toContain('label="UI casing"');
     expect(settings).toContain("value: 'brand', label: 'Brand'");
     expect(settings).toContain("value: 'original', label: 'Original'");
-    expect(settings).toContain("value: 'lowercase', label: 'lowercase'");
+    expect(settings).not.toContain("value: 'lowercase'");
   });
 
-  it('limits case transforms to explicitly marked headings', () => {
+  it('keeps existing heading opt-ins and extends Brand casing to shared chrome', () => {
     expect(css).toContain("[data-ui-heading='brand']");
-    expect(css).toContain("[data-ui-heading='standard']");
     expect(toolSection).toContain('data-ui-heading={getUiHeadingRole(title)}');
+    expect(button).toContain('useUiChromeCase');
+    expect(menu).toContain('useUiChromeCase');
+    expect(sectionLabel).toContain('useUiChromeCase');
   });
 });
