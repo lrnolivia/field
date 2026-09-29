@@ -49,6 +49,7 @@ export default function ChromeIslands() {
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const dockedLeft = mode === 'docked' || mode === 'compact-docked';
 
   return (
     <>
@@ -56,25 +57,23 @@ export default function ChromeIslands() {
         aria-hidden
         data-workspace-island="left"
         data-visible={railVisible ? 'true' : 'false'}
-        className={layout.left.presentation === 'docked' ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
+        className={dockedLeft ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
         style={{
-          left: leftOpen || mode === 'compact-docked' ? layout.left.inset : WORKSPACE_FLOAT_INSET,
-          top: leftOpen || mode === 'compact-docked' ? layout.left.top : WORKSPACE_FLOAT_LEFT_TOP,
-          // One border/shadow wraps rail AND content in Floating/Compact.
-          width: leftOpen ? layout.left.width
-            : mode === 'compact-docked' ? 52
-            : leftCollapsedWidth + ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)
-              ? leftContentWidth : 0),
-          height: leftOpen ? railVisible ? `calc(100vh - ${layout.left.top + layout.left.bottom}px)` : 52 : mode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+          left: dockedLeft ? 0 : WORKSPACE_FLOAT_INSET,
+          top: dockedLeft ? 52 : WORKSPACE_FLOAT_LEFT_TOP,
+          width: dockedLeft
+            ? 52 + (leftOpen ? leftContentWidth : 0)
+            : leftCollapsedWidth + ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen) ? leftContentWidth : 0),
+          height: dockedLeft ? 'calc(100vh - 52px)' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
-          ...(leftOpen || mode === 'compact-docked' ? floatingStyle(layout.left) : {
+          ...(dockedLeft ? { borderRadius: 0, boxShadow: 'none' } : {
             border: '1px solid var(--border-light)',
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: WORKSPACE_FLOAT_SHADOW,
           }),
           opacity: railVisible || leftOpen ? 1 : 0,
-          transform: !leftOpen && !railVisible ? 'translateX(-18px)' : undefined,
-          transition: 'transform 260ms ease, opacity 260ms ease',
+          transform: !dockedLeft && !railVisible ? 'translateX(-18px)' : undefined,
+          transition: 'width 260ms ease, transform 260ms ease, opacity 260ms ease',
         }}
       />
 

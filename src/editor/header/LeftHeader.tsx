@@ -18,6 +18,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
+import { workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
@@ -247,6 +248,9 @@ export function LogoButton() {
 export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
+  const headerVisible = leftPaneOpen || dockedShell;
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
@@ -256,14 +260,14 @@ export default function LeftHeader() {
     <>
       <div
       data-workspace-left-header
-      data-visible={leftPaneOpen ? 'true' : 'false'}
-      aria-hidden={leftPaneOpen ? undefined : true}
-      inert={!leftPaneOpen}
-      className="h-[52px] border-b border-[var(--border-light)] fixed top-0 left-0 z-[9999] flex"
+      data-visible={headerVisible ? 'true' : 'false'}
+      aria-hidden={headerVisible ? undefined : true}
+      inert={!headerVisible}
+      className="h-[52px] border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex"
       // Sits on the left ChromeIsland (12px margins) — the island backdrop
       // carries surface/glass/outer border; this keeps only the bottom
       // divider between header row and rail/panel.
-      style={{ width: workspace.left.width, left: workspace.left.inset, top: workspace.left.top }}
+      style={{ width: dockedShell ? 52 + leftContentWidth : workspace.left.width, left: dockedShell ? 0 : workspace.left.inset, top: dockedShell ? 0 : workspace.left.top }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
