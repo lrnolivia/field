@@ -123,6 +123,12 @@ export function useRendererSync(
   const cmsPageMeta = useAtomValue(cmsPageMetaAtom);
   const previewItem = useAtomValue(activePreviewItemAtom);
   const vpPositions = useAtomValue(viewportPositionsAtom);
+  // Viewport chrome is only valid for the file whose iframe geometry has
+  // actually rendered. On a file switch, require one NEW renderComplete tick
+  // before recreating headers so stale/old rects can never flash as the new
+  // file's viewport chrome.
+  const viewportHeaderFileRef = useRef(activeFilePath);
+  const viewportHeaderReadyTickRef = useRef(1);
 
   const setSelectedIds = useSetAtom(selectedIdsAtom);
   const setHoveredId = useSetAtom(hoveredIdAtom);
@@ -347,16 +353,30 @@ export function useRendererSync(
   useEffect(() => {
     const vpOverlay = vpOverlayRef.current;
     if (!vpOverlay) return;
+    const fileChanged = viewportHeaderFileRef.current !== activeFilePath;
+    if (fileChanged) {
+      viewportHeaderFileRef.current = activeFilePath;
+      viewportHeaderReadyTickRef.current = iframeRenderTick + 1;
+    }
+
+    const waitingForRenderedViewport = !sandboxReady
+      || iframeRenderTick < viewportHeaderReadyTickRef.current;
+
     trace.action('renderer:viewport-headers', {
+      activeFilePath,
       isComponentFile,
       isIconSetMaster,
       viewportCount: activeViewports.length,
       iframeRenderTick,
+      readyTick: viewportHeaderReadyTickRef.current,
+      waitingForRenderedViewport,
     });
-    // Master files (component variants AND icon-set vectors) don't show
-    // viewport headers — variant labels live inline on the canvas, and
-    // icon sets have a single anonymous master canvas.
-    if (isComponentFile || isIconSetMaster) {
+
+    // Header chrome belongs to a rendered viewport. Clear it while the iframe
+    // is not ready, before its first renderComplete, and across a file switch
+    // until the NEW file has produced a render tick. Master files never show
+    // viewport headers either.
+    if (waitingForRenderedViewport || isComponentFile || isIconSetMaster) {
       vpOverlay.querySelectorAll('[data-viewport-header]').forEach(el => el.remove());
       return;
     }
@@ -401,7 +421,7 @@ export function useRendererSync(
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeViewports, vpPositions, isComponentFile, isIconSetMaster, sandboxReady, iframeRenderTick]);
+  }, [activeViewports, vpPositions, isComponentFile, isIconSetMaster, sandboxReady, iframeRenderTick, activeFilePath]);
 
   return { hoverSuppressUntilRef };
 }

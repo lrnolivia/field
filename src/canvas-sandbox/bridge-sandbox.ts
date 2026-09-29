@@ -17,7 +17,6 @@ import type { SandboxApi, RenderInput } from './sandbox-api';
 import {
   deserializeNodeMap,
   isCanvasHostMessage,
-  type CanvasHostViewportTransformMessage,
 } from './protocol';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
@@ -99,12 +98,13 @@ export function initSandbox(_containerEl: HTMLElement, contentRootEl: HTMLElemen
   // nodeMouseDown — see the api.render method below.)
 
   // Camera transforms are the one parent→sandbox hot path that intentionally
-  // bypasses Comlink. A one-way message avoids RPC acknowledgement traffic,
-  // and latest-wins RAF coalescing prevents stale camera positions from
-  // replaying as visible "stop motion" when the iframe is busy.
+  // bypasses Comlink. TransformManager already emits at most one latest camera
+  // sample per parent RAF, so apply that sample immediately here. A second
+  // iframe RAF used to put the rendered viewport one frame behind parent
+  // viewport chrome, letting the artboard visibly slide behind its header.
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent || !isCanvasHostMessage(event.data)) return;
-    scheduleHostViewportTransform(event.data);
+    applyViewportTransform(event.data.x, event.data.y, event.data.scale, true);
   });
 
   // Forward generic mouse down/up as well as RAF-throttled movement. The
@@ -180,28 +180,6 @@ function hintCameraGesture(): void {
     _gestureHintTimer = null;
     if (contentRoot) contentRoot.style.willChange = '';
   }, 250);
-}
-
-let pendingHostViewportTransform: CanvasHostViewportTransformMessage | null = null;
-let hostViewportTransformRaf: number | null = null;
-
-function cancelPendingHostViewportTransform(): void {
-  pendingHostViewportTransform = null;
-  if (hostViewportTransformRaf !== null) {
-    cancelAnimationFrame(hostViewportTransformRaf);
-    hostViewportTransformRaf = null;
-  }
-}
-
-function scheduleHostViewportTransform(message: CanvasHostViewportTransformMessage): void {
-  pendingHostViewportTransform = message;
-  if (hostViewportTransformRaf !== null) return;
-  hostViewportTransformRaf = requestAnimationFrame(() => {
-    hostViewportTransformRaf = null;
-    const next = pendingHostViewportTransform;
-    pendingHostViewportTransform = null;
-    if (next) applyViewportTransform(next.x, next.y, next.scale, true);
-  });
 }
 
 function applyViewportTransform(
@@ -299,9 +277,7 @@ const api: SandboxApi = {
       // lists render real ghost copies instead of the empty-state placeholder.
       if (input.cmsCollections) setSandboxCmsCollections(input.cmsCollections);
       // Apply transform BEFORE render so getBoundingClientRect includes pan/zoom.
-      // A full render is authoritative over any previously queued camera frame.
       if (input.transform) {
-        cancelPendingHostViewportTransform();
         applyViewportTransform(input.transform.x, input.transform.y, input.transform.scale, false);
       }
       trace.action('canvas-sandbox:render', { nodeCount: nodes.size, vpCount: input.viewports.length, codeLen: input.code ? input.code.length : 0 });
@@ -504,8 +480,7 @@ const api: SandboxApi = {
 
   setViewportTransform(x: number, y: number, scale: number): void {
     // Compatibility fallback for callers that still reach this through
-    // Comlink. An RPC transform is authoritative over a queued raw frame.
-    cancelPendingHostViewportTransform();
+    // Comlink. The raw one-way path above is the normal camera transport.
     applyViewportTransform(x, y, scale, true);
   },
 

@@ -3,7 +3,6 @@
 // Creates header bars above each viewport with drag, hover, click, snap.
 
 import type { ViewportConfig, SnapGuide, SpacingGuide, Rect } from '@/shared/types';
-import { renderWidth } from '@/shared/types';
 import { transformManager } from './transform';
 import { calculateSnap, getMouseVelocity } from './drag/handlers/snap-handler';
 import { getActiveRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
@@ -134,18 +133,12 @@ export function renderViewportHeaders(
 
   for (const vp of viewports) {
     const vpEl = findViewportElement(vp.id);
-    // In iframe mode vpEl might be null, but we can still get position from bridge
-    let posData = getViewportPositionData(vp.id, vpEl);
-    // Bridge cache empty (a file switch just wiped it and the new file's
-    // allRects hasn't landed yet) → fall back to the viewport CONFIG, which
-    // always knows x/y/width. Skipping instead left the template view with NO
-    // headers at all: this effect re-runs on render ticks, not on cache
-    // fills, so one empty-cache pass blanked them until the next full render
-    // (user report 2026-07-27). Height 0 is fine — headers sit ABOVE the
-    // tile; only the drag preview reads height, and it re-derives live.
-    if (!posData && typeof vp.x === 'number' && vp.width > 0) {
-      posData = { left: vp.x, top: vp.y ?? 0, width: renderWidth(vp), height: 0 };
-    }
+    // In iframe mode vpEl might be null, but the bridge still provides the
+    // authoritative rendered rect. Never synthesize a header from viewport
+    // config while that rect is missing: doing so lets the label paint before
+    // the iframe viewport exists (fresh load / file switch), creating an
+    // orphan header that visibly precedes the surface it belongs to.
+    const posData = getViewportPositionData(vp.id, vpEl);
     if (!posData) continue;
 
     const header = createHeader(vp, vpEl, posData, viewports, callbacks);
