@@ -37,7 +37,11 @@ describe('field product language', () => {
     const menu = read('src/editor/header/menu-builders.tsx');
     expect(menu).toContain("label: 'SEO'");
     const settings = read('src/editor/overlays/SettingsOverlay.tsx');
-    expect(settings).toContain('label="UI casing"');
+    expect(settings).toContain('label="Case management"');
+    expect(settings).toContain("value={uiHeadingCase === 'brand'}");
+    expect(settings).toContain("enabled ? 'brand' : 'off'");
+    expect(settings).not.toContain("label: 'Brand'");
+    expect(settings).not.toContain("label: 'Original'");
     expect(settings).not.toContain("value: 'lowercase'");
   });
 });

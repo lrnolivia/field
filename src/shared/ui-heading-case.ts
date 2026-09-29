@@ -2,20 +2,23 @@
 //
 // The persisted preference intentionally has only two user-facing modes:
 //   brand    — loew.fi editorial casing across eligible field chrome.
-//   original — render strings exactly as authored.
+//   off      — leave authored chrome casing untouched.
 //
 // Brand lowercases ordinary UI language while preserving deliberate technical
 // tokens such as AI, SEO, CMS, API, A/B, and field.RUNTIME. Project/user/site
 // content is never passed through this formatter.
 
-export type UiHeadingCase = 'brand' | 'original';
+export type UiHeadingCase = 'brand' | 'off';
 export type UiHeadingRole = 'brand' | 'standard';
 
 export const DEFAULT_UI_HEADING_CASE: UiHeadingCase = 'brand';
 
 export function normalizeUiHeadingCase(value: unknown): UiHeadingCase {
-  // Migrate the short-lived third "lowercase" option to Brand.
-  return value === 'original' ? 'original' : DEFAULT_UI_HEADING_CASE;
+  // Compatibility migration from the short-lived selector:
+  //   original  -> off
+  //   lowercase -> brand
+  if (value === 'off' || value === 'original') return 'off';
+  return DEFAULT_UI_HEADING_CASE;
 }
 
 const TECHNICAL_TOKEN = /field\.[A-Z][A-Z0-9_]*|\b[A-Z](?:\/[A-Z])+\b|\b[A-Z]{2,}(?:\d+)?\b|\bX\s*\/\s*Twitter\b/g;
@@ -30,7 +33,7 @@ const TECHNICAL_TOKEN = /field\.[A-Z][A-Z0-9_]*|\b[A-Z](?:\/[A-Z])+\b|\b[A-Z]{2,
  * "field.RUNTIME Diagnostics" -> "field.RUNTIME diagnostics"
  */
 export function formatUiChromeText(value: string, mode: UiHeadingCase): string {
-  if (mode === 'original' || !value) return value;
+  if (mode === 'off' || !value) return value;
 
   const preserved: string[] = [];
   const protectedValue = value.replace(TECHNICAL_TOKEN, token => {

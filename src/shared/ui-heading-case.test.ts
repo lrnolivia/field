@@ -7,11 +7,12 @@ import {
 } from './ui-heading-case';
 
 describe('UI case policy', () => {
-  it('defaults to Brand and migrates the retired lowercase mode to Brand', () => {
+  it('defaults on and migrates retired casing values', () => {
     expect(DEFAULT_UI_HEADING_CASE).toBe('brand');
     expect(normalizeUiHeadingCase(undefined)).toBe('brand');
     expect(normalizeUiHeadingCase('lowercase')).toBe('brand');
-    expect(normalizeUiHeadingCase('original')).toBe('original');
+    expect(normalizeUiHeadingCase('original')).toBe('off');
+    expect(normalizeUiHeadingCase('off')).toBe('off');
   });
 
   it('lowercases editorial chrome while preserving technical tokens in Brand', () => {
@@ -23,9 +24,9 @@ describe('UI case policy', () => {
     expect(formatUiChromeText('field.RUNTIME Diagnostics', 'brand')).toBe('field.RUNTIME diagnostics');
   });
 
-  it('keeps authored casing in Original', () => {
-    expect(formatUiChromeText('New Project', 'original')).toBe('New Project');
-    expect(formatUiChromeText('AI Assistant', 'original')).toBe('AI Assistant');
+  it('keeps authored casing when case management is off', () => {
+    expect(formatUiChromeText('New Project', 'off')).toBe('New Project');
+    expect(formatUiChromeText('AI Assistant', 'off')).toBe('AI Assistant');
   });
 
   it('keeps heading roles for existing CSS-only opt-ins', () => {

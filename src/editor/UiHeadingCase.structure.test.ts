@@ -18,10 +18,12 @@ describe('field UI casing preference', () => {
     expect(theme).toContain('root.dataset.uiHeadingCase');
   });
 
-  it('offers only Brand and Original', () => {
-    expect(settings).toContain('label="UI casing"');
-    expect(settings).toContain("value: 'brand', label: 'Brand'");
-    expect(settings).toContain("value: 'original', label: 'Original'");
+  it('exposes casing as one on/off switch', () => {
+    expect(settings).toContain('label="Case management"');
+    expect(settings).toContain("value={uiHeadingCase === 'brand'}");
+    expect(settings).toContain("enabled ? 'brand' : 'off'");
+    expect(settings).not.toContain("label: 'Brand'");
+    expect(settings).not.toContain("label: 'Original'");
     expect(settings).not.toContain("value: 'lowercase'");
   });
 

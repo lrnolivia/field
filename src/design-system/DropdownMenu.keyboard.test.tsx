@@ -11,7 +11,7 @@ const store = getDefaultStore();
 
 beforeEach(() => {
   // Keyboard tests assert authored labels; Brand casing has its own contract tests.
-  store.set(uiHeadingCaseAtom, 'original');
+  store.set(uiHeadingCaseAtom, 'off');
 });
 
 afterEach(() => {
