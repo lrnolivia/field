@@ -116,3 +116,15 @@ describe('deriveWorkspaceLayout', () => {
     });
   });
 });
+
+
+describe('floating Inspector drag contract', () => {
+  it('treats the viewport padding as a hard margin instead of an edge-dock trigger', async () => {
+    const source = await import('node:fs/promises').then(({ readFile }) =>
+      readFile(new URL('./header/RightHeader.tsx', import.meta.url), 'utf8'),
+    );
+    expect(source).toContain('clampRightFloatingOffset(');
+    expect(source).not.toContain("setWorkspaceMode('docked')");
+    expect(source).not.toContain('latestX >= -12');
+  });
+});
