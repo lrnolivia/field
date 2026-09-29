@@ -19,6 +19,7 @@ export default function ToolPlusMinus({ value, onChange, min = 0, max = 10000, s
   const reducedMotion = useFieldReducedMotion();
   const hoverState = reducedMotion ? undefined : 'hover';
   const tapState = reducedMotion ? undefined : 'tap';
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
   const wheelValueRef = useRef(value);
 
@@ -26,7 +27,7 @@ export default function ToolPlusMinus({ value, onChange, min = 0, max = 10000, s
     wheelValueRef.current = value;
   }, [value]);
 
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+  const handleWheel = (event: WheelEvent) => {
     event.preventDefault();
     event.stopPropagation();
     const result = takeVerticalWheelSteps(wheelDeltaRef.current, event.deltaY, event.deltaMode);
@@ -39,11 +40,19 @@ export default function ToolPlusMinus({ value, onChange, min = 0, max = 10000, s
     onChange(next);
   };
 
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const onWheel = (event: WheelEvent) => handleWheel(event);
+    wrapper.addEventListener('wheel', onWheel, { passive: false });
+    return () => wrapper.removeEventListener('wheel', onWheel);
+  });
+
   return (
     <div
+      ref={wrapperRef}
       data-field-no-canvas-input
       data-value-wheel="vertical"
-      onWheel={handleWheel}
       className="flex w-full items-center border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border overflow-hidden cursor-ns-resize"
     >
       <motion.button

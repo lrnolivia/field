@@ -70,7 +70,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     expect(numberSurface.hasAttribute('data-field-no-canvas-input')).toBe(true);
 
     const numberWheel = new WheelEvent('wheel', { deltaY: -24, bubbles: true, cancelable: true });
-    numberSurface.dispatchEvent(numberWheel);
+    fireEvent(numberSurface, numberWheel);
     expect(numberWheel.defaultPrevented).toBe(true);
     expect(numericChange).toHaveBeenCalledWith('11px');
 
@@ -85,7 +85,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     expect(trigger.hasAttribute('data-field-no-canvas-input')).toBe(true);
 
     const selectWheel = new WheelEvent('wheel', { deltaY: 24, bubbles: true, cancelable: true });
-    trigger.dispatchEvent(selectWheel);
+    fireEvent(trigger, selectWheel);
     expect(selectWheel.defaultPrevented).toBe(true);
     expect(selectChange).toHaveBeenCalledWith('b');
   });
@@ -98,7 +98,7 @@ describe('pointer scrub on the right half of inspector fields', () => {
     expect(stepper.className).toContain('cursor-ns-resize');
 
     const event = new WheelEvent('wheel', { deltaY: -24, bubbles: true, cancelable: true });
-    stepper.dispatchEvent(event);
+    fireEvent(stepper, event);
     expect(event.defaultPrevented).toBe(true);
     expect(onChange).toHaveBeenCalledWith(6);
   });

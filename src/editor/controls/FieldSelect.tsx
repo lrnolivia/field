@@ -306,7 +306,7 @@ export default function FieldSelect({
     boxShadow: 'var(--menu-shadow, 0 12px 32px rgba(0, 0, 0, 0.28))',
   } : undefined;
 
-  const handleValueWheel = useCallback((event: React.WheelEvent<HTMLButtonElement>) => {
+  const handleValueWheel = useCallback((event: WheelEvent) => {
     if (disabled || options.length < 2) return;
     event.preventDefault();
     event.stopPropagation();
@@ -329,6 +329,14 @@ export default function FieldSelect({
     const option = options[index];
     if (option && !option.disabled && option.value !== value) onChange(option.value);
   }, [disabled, isOpen, onChange, options, value]);
+
+  useEffect(() => {
+    const trigger = triggerRef.current;
+    if (!trigger || disabled || options.length < 2) return;
+    const onWheel = (event: WheelEvent) => handleValueWheel(event);
+    trigger.addEventListener('wheel', onWheel, { passive: false });
+    return () => trigger.removeEventListener('wheel', onWheel);
+  }, [disabled, handleValueWheel, options.length]);
 
   return (
     <div className={`relative min-w-0 ${className}`}>
@@ -355,7 +363,6 @@ export default function FieldSelect({
           setOpen(!isOpen);
         }}
         onKeyDown={handleTriggerKeyDown}
-        onWheel={handleValueWheel}
         className={`
           group w-full min-w-0 flex items-center ${showSelectedLabel ? 'justify-between' : 'justify-center'} gap-1.5
           ${triggerDensity}

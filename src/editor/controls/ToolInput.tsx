@@ -80,6 +80,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
   const [localValue, setLocalValue] = useState(value);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   // Panel value scrub: flips interacting + panelScrub (hides the InteractionOutline).
   const setCanvasInteracting = useScrubInteracting();
 
@@ -292,7 +293,7 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
     else onChange(finalValue);
   };
 
-  const handleValueWheel = useCallback((event: React.WheelEvent<HTMLElement>) => {
+  const handleValueWheel = useCallback((event: WheelEvent) => {
     if (!isNumeric || !parsed || effectiveDisabled) return;
     event.preventDefault();
     event.stopPropagation();
@@ -309,8 +310,20 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
     trace.action('tool-input:wheel-step', { from: base, to: next, steps: result.steps });
   }, [applyValue, clampNum, effectiveDisabled, isNumeric, parsed, step]);
 
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || !isNumeric || effectiveDisabled) return;
+    const onWheel = (event: WheelEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('[data-value-wheel="vertical"]')) return;
+      handleValueWheel(event);
+    };
+    wrapper.addEventListener('wheel', onWheel, { passive: false });
+    return () => wrapper.removeEventListener('wheel', onWheel);
+  }, [effectiveDisabled, handleValueWheel, isNumeric]);
+
   return (
-    <div className={`relative group w-full ${effectiveDisabled ? 'opacity-40 pointer-events-none' : ''} ${className || ''}`}>
+    <div ref={wrapperRef} className={`relative group w-full ${effectiveDisabled ? 'opacity-40 pointer-events-none' : ''} ${className || ''}`}>
       <input
         ref={inputRef}
         type="text"
@@ -348,7 +361,6 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
       />
       {isNumeric && <span aria-hidden data-touch-scrub="number" data-field-no-canvas-input data-value-wheel="vertical" title="Drag or scroll vertically to adjust"
         onPointerDown={beginTouchScrub} onPointerMove={moveTouchScrub} onPointerUp={endTouchScrub} onPointerCancel={endTouchScrub}
-        onWheel={handleValueWheel}
         className="absolute inset-y-0 right-0 z-10 block w-1/2 cursor-ns-resize touch-none" />}
       {/* Chevron label — shown when not hovering/focused, hidden when chevrons appear */}
       {chevronLabel && isNumeric && (
@@ -372,7 +384,6 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
             data-field-no-canvas-input
             data-value-wheel="vertical"
             onMouseDown={(e) => startChevronDrag('up', e)}
-            onWheel={handleValueWheel}
             className="flex-1 flex items-center justify-center cursor-ns-resize group/chevron"
           >
             <FieldGlyph behavior="step-up">
@@ -391,7 +402,6 @@ export default function ToolInput({ value, onChange, onChangeLive, onCommit, ste
             data-field-no-canvas-input
             data-value-wheel="vertical"
             onMouseDown={(e) => startChevronDrag('down', e)}
-            onWheel={handleValueWheel}
             className="flex-1 flex items-center justify-center cursor-ns-resize group/chevron"
           >
             <FieldGlyph behavior="step-down">
