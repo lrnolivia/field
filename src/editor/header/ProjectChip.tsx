@@ -7,7 +7,7 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { projectNameAtom, setProjectName } from '@/code/stores/project-store';
 import { activeFilePathAtom, getFileDisplayName } from '@/code/project/active-file-store';
-import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
+import { projectSettingsModalOpenAtom } from '@/code/stores/website-settings-store';
 import { exportDropdownOpenAtom } from '@/code/stores/editor-store';
 import NameInputModal from '@/editor/ui/NameInputModal';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
@@ -22,8 +22,7 @@ import { getHeaderPageLabel } from './project-chip-label';
 function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } = {}) {
   const name = useAtomValue(projectNameAtom);
   const activeFilePath = useAtomValue(activeFilePathAtom);
-  const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
-  const setSettingsSection = useSetAtom(settingsSectionAtom);
+  const setProjectSettingsOpen = useSetAtom(projectSettingsModalOpenAtom);
   const setExportOpen = useSetAtom(exportDropdownOpenAtom);
   const isViewer = useIsViewer();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -40,12 +39,11 @@ function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } 
 
   const menuItems = useMemo<DropdownMenuEntry[]>(() => [
     {
-      id: 'website-settings',
-      label: 'Website settings…',
+      id: 'project-settings',
+      label: 'Project settings…',
       onClick: () => {
-        trace.action('project-chip:website-settings');
-        setSettingsSection('website');
-        setSettingsOpen(true);
+        trace.action('project-chip:project-settings');
+        setProjectSettingsOpen(true);
       },
     },
     {
@@ -76,7 +74,7 @@ function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } 
         void showFieldDashboard();
       },
     },
-  ], [isViewer, setExportOpen, setSettingsOpen, setSettingsSection]);
+  ], [isViewer, setExportOpen, setProjectSettingsOpen]);
 
   trace.fn('ProjectChip.render', { name: displayName, pageLabel, renameOpen, menuOpen });
 
