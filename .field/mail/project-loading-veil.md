@@ -35,3 +35,7 @@ Successor:
 - diff: only `src/loading/ProjectLoadingVeil.tsx` and focused test
 
 The implementation now uses actual ReShaders Mesh Flow · Mono mechanics and preset values, Multiply over the Figma gray base, and a mathematically centered field mark with a separate circular bloom.
+
+## 2026-09-29 control reconciliation
+
+PR #37 is merged. Final merge commit: d424f8126b0b11b98777c6fc0d18a73e7813f8ee. Reservation closed so ProjectLoader can be reassigned from fresh repository truth.

@@ -3,14 +3,15 @@
 ---
 field_assignment: 1
 id: project-loading-veil
-status: active
+status: complete
 branch: field/project-loading-veil-figma-match
 pr: 37
 base: 12d1fb9c64165482d4bfcaa1553a1daaf9fd4049
 implementation_head: e334b2fac13a8e81cb2a52fe1e4e21ff22217960
-merge_commit: b7b32070e98f29c0a14cd3048047ef1d13400b68
+merge_commit: d424f8126b0b11b98777c6fc0d18a73e7813f8ee
 revision_head: 5cdab405114687c590ffa58092dee9b8c7b6280e
 revision_base: b647b558a3a4078dcff3bb7134b24dbf6af367e5
+completed_at: 2026-09-27T08:24:15Z
 type: loading-experience
 execution_class: contract-worker
 owned:
