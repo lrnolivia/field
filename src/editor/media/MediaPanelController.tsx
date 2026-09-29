@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import MediaLauncher from './MediaLauncher';
 import MediaToolbarPopover from './MediaToolbarPopover';
 import { mediaSessionAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from './media-state';
@@ -20,9 +20,13 @@ import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan
 import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutations';
 import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
+import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
+import { getCanvasBridge } from '@/canvas/canvas-bridge';
+import { viewportPrefixesForNode } from '@/canvas/node-ops';
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { getProjectId } from '@/backend/project-id';
 import { ingestMediaFile } from './media-ingest';
+import { resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 
@@ -42,6 +46,7 @@ function uploadElementKind(kind: ReturnType<typeof mediaKindFromMime>): 'image' 
 
 export default function MediaPanelController({ onClose }: { onClose: () => void }) {
   const [session, setSession] = useAtom(mediaSessionAtom);
+  const selectedIds = useAtomValue(selectedIdsAtom);
   const upsertUpload = useSetAtom(upsertMediaUploadAtom);
   const rememberAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [expanded, setExpanded] = useState(false);
@@ -69,9 +74,39 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     setSession(createMediaSession({ surface: 'toolbar' }));
   };
 
-  const insertUrl = (kind: 'image' | 'video' | 'audio', url: string) => {
-    insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
+  const resolvePlacement = (kind: 'image' | 'video' | 'audio'): ToolbarMediaPlacement => (
+    resolveToolbarMediaPlacement(
+      selectedIds,
+      kind,
+      (nodeId) => getNodeFromCache(nodeId)?.type,
+    )
+  );
+
+  const placeUrl = (
+    kind: 'image' | 'video' | 'audio',
+    url: string,
+    placement: ToolbarMediaPlacement = resolvePlacement(kind),
+  ) => {
+    if (placement.type === 'replace') {
+      queueMutations([
+        { type: 'updateHtmlAttrs', nodeId: placement.nodeId, attrs: { src: url } },
+      ]);
+
+      // Keep every rendered viewport copy visually aligned with the source
+      // mutation immediately; flushNow remains the source-of-truth commit.
+      const bridge = getCanvasBridge();
+      for (const vpPrefix of viewportPrefixesForNode(placement.nodeId)) {
+        bridge.setAttribute(placement.nodeId, vpPrefix, 'src', url);
+      }
+      flushNow();
+    } else {
+      insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
+    }
     onClose();
+  };
+
+  const insertUrl = (kind: 'image' | 'video' | 'audio', url: string) => {
+    placeUrl(kind, url);
   };
 
   const ingestFile = async (file: File) => {
@@ -82,6 +117,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       return;
     }
 
+    const placement = resolvePlacement(elementKind);
     try {
       const result = await ingestMediaFile({
         file,
@@ -91,7 +127,9 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         idPrefix: 'toolbar',
         rememberAsset,
       });
-      insertUrl(elementKind, result.url);
+      // Placement is captured before the async upload begins so a later
+      // selection change cannot unexpectedly replace a different node.
+      placeUrl(elementKind, result.url, placement);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
       setTransientError(message);
