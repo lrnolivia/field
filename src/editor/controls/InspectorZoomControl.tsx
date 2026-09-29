@@ -75,7 +75,7 @@ export default function InspectorZoomControl() {
   };
 
   return (
-    <div data-inspector-view-controls className="relative ml-auto flex items-center gap-0.5">
+    <div data-inspector-view-controls className="relative flex items-center gap-0.5">
       <div ref={ref} className="relative">
         <button
           type="button"
