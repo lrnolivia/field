@@ -928,7 +928,7 @@ export default function MediaGalleryPanel({
           {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
-              className="sticky top-0 z-20 mb-2.5 flex items-center justify-between gap-2 rounded-[7px] border border-[var(--border-light)] bg-[color-mix(in_srgb,var(--bg-panel)_92%,transparent)] px-2.5 py-2 shadow-[0_3px_12px_rgba(0,0,0,0.07)] backdrop-blur-md"
+              className="sticky top-0 z-20 mb-2.5 flex items-center justify-between gap-2 rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-panel)]/95 px-2.5 py-2 shadow-[0_3px_12px_rgba(0,0,0,0.07)] backdrop-blur-md"
             >
               <span className="min-w-0 truncate text-[10px] tabular-nums text-[var(--text-secondary)]">
                 {selectedImageUrls.length} images selected
@@ -1003,6 +1003,8 @@ export default function MediaGalleryPanel({
                     </div>
 
                     <dl className="mt-4 grid grid-cols-[70px_minmax(0,1fr)] gap-x-2 gap-y-2.5 text-[9px]">
+                      <dt className="text-[var(--text-tertiary)]">File size</dt>
+                      <dd className="text-right text-[var(--text-primary)]">{formatMediaBytes(inspectedAsset.size)}</dd>
                       <dt className="text-[var(--text-tertiary)]">Source</dt>
                       <dd className="text-right text-[var(--text-primary)]">
                         {inspectedAsset.source === 'external'
@@ -1042,7 +1044,6 @@ export default function MediaGalleryPanel({
                 </div>
               )}
             </aside>
-          )}
           )}
         </div>
       ) : !loadingList && uploads.length > 0 && searchQuery.trim().length > 0 ? (

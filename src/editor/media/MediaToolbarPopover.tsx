@@ -85,7 +85,7 @@ export default function MediaToolbarPopover({
     };
   }, [compact, expanded, onClose]);
 
-  const requestedWidth = expanded ? 760 : compact ? 224 : 480;
+  const requestedWidth = expanded ? 840 : compact ? 224 : 480;
 
   return createPortal(
     <div
