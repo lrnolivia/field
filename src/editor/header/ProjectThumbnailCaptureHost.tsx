@@ -29,6 +29,7 @@ import {
 } from '@/preview/preview-project-payload';
 import { trace } from '@/shared/debug-trace';
 import { shouldScheduleThumbnailCapture } from './project-thumbnail-capture-state';
+import { previewFrameUrl } from '@/preview/preview-frame-url';
 
 const UPDATE_BATCH_MS = 140;
 const CAPTURE_AFTER_SAVE_MS = 120;
@@ -38,11 +39,9 @@ const STANDBY_IDLE_MS = 8000;
 const DESTROY_IDLE_MS = 90000;
 const MAX_CAPTURE_RETRIES = 1;
 
-function previewOrigin(): string {
-  if (typeof window === 'undefined') return 'http://localhost:5175';
-  return window.location.port
-    ? `${window.location.protocol}//${window.location.hostname}:5175`
-    : `${window.location.protocol}//preview.${window.location.hostname}`;
+function previewUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:5175/';
+  return previewFrameUrl(window.location);
 }
 
 function requestId(prefix = 'field-thumb'): string {
@@ -639,7 +638,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     <iframe
       key={rendererEpoch}
       ref={iframeRef}
-      src={`${previewOrigin()}/`}
+      src={previewUrl()}
       aria-hidden="true"
       tabIndex={-1}
       title=""

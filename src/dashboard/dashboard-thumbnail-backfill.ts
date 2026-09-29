@@ -6,14 +6,9 @@ import type { FieldProjectMeta } from '@/backend/field-projects';
 import { getFieldProjectThumbnailState, uploadFieldProjectThumbnail } from '@/backend/field-projects';
 import { buildPreviewProjectPayloadFromFiles, postPreviewProjectPayload } from '@/preview/preview-project-payload';
 import { chooseDashboardThumbnailPage, dashboardThumbnailPageUrl } from '@/preview/dashboard-thumbnail-page';
+import { previewFrameUrl } from '@/preview/preview-frame-url';
 
 type PreviewMessage = Record<string, unknown>;
-
-function previewOrigin(): string {
-  return window.location.port
-    ? `${window.location.protocol}//${window.location.hostname}:5175`
-    : `${window.location.protocol}//preview.${window.location.hostname}`;
-}
 
 function projectFiles(value: unknown): Record<string, string> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -35,7 +30,8 @@ async function loadSavedFiles(id: string, signal: AbortSignal, fetchImpl: typeof
 
 class PreviewThumbnailRenderer {
   private readonly iframe: HTMLIFrameElement;
-  private readonly origin = previewOrigin();
+  private readonly url = previewFrameUrl(window.location);
+  private readonly origin = new URL(this.url).origin;
   private generation = 0;
   private readonly signal: AbortSignal;
 
@@ -75,7 +71,7 @@ class PreviewThumbnailRenderer {
 
   async mount(): Promise<void> {
     const ready = this.waitForMessage(message => message.type === 'preview:ready', 12000);
-    this.iframe.src = `${this.origin}/`;
+    this.iframe.src = this.url;
     document.body.appendChild(this.iframe);
     const probe = setInterval(() => this.iframe.contentWindow?.postMessage({ type: 'preview:probe-ready' }, this.origin), 250);
     try { await ready; } finally { clearInterval(probe); }
