@@ -1,6 +1,6 @@
 {
   "name": "field-handoff-kit",
-  "version": "2026-09-26.4",
+  "version": "2026-09-29.1",
   "repository": "lrnolivia/field",
   "default_branch": "main",
   "control_branch": "field/control",
@@ -20,9 +20,11 @@
     "qa_dir": ".field/qa"
   },
   "production_qa": {
-    "noauth_builder": "https://field.loew.fi/builder/noauth",
+    "editor_host": "https://field.loew.fi",
     "canvas_host": "https://canvas.field.loew.fi",
-    "preview_host": "https://preview.field.loew.fi"
+    "preview_host": "https://preview.field.loew.fi",
+    "real_project_entrypoint": "/qa/work/<projectId>",
+    "smoke_only_entrypoint": "/builder/noauth"
   },
   "installer": {
     "primary_lane": "codex-local",
@@ -31,9 +33,20 @@
   },
   "current_worker_self_registration": ".field/handoff-kit/CURRENT_WORKER_SELF_REGISTRATION.md",
   "runtime_qa": {
-    "web_visible": "pr-preview-browser",
+    "authority": "loew-runner-first",
+    "web_visible": "exact-sha-preview",
     "protocol": ".field/handoff-kit/qa/BROWSER_PREVIEW_QA_PROTOCOL.md",
-    "default_entrypoint": "/builder/noauth",
+    "real_project_entrypoint": "/qa/work/<projectId>",
+    "smoke_only_entrypoint": "/builder/noauth",
+    "routine_engine": "deterministic-inspector-github-chromium",
+    "browser_run": "exploratory-or-session-only",
     "exact_sha_required": true
+  },
+  "universal_authority": {
+    "repository": "lrnolivia/loew-runner",
+    "branch": "main",
+    "manifest": "contracts/manifest.json",
+    "bible": "LOEW_CHAT_BIBLE_CURRENT.md",
+    "qa_section": "11"
   }
 }

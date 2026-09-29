@@ -221,6 +221,23 @@ export function mergeFilterWithDropShadows(existingFilter: string, dropShadowFil
   return parts.join(' ');
 }
 
+/**
+ * Build the style patch owned by the Shadow editor.
+ * Box-shadow edits do not own the shared filter channel. Touch filter only
+ * when adding/editing/removing a drop-shadow(), preserving unrelated effects.
+ */
+export function buildShadowStylePatch(entries: ShadowEntry[], existingFilter: string): Record<string, string> {
+  const { boxShadow, dropShadowFilter } = formatShadowEntries(entries);
+  const patch: Record<string, string> = { boxShadow };
+  const ownsDropShadowChannel =
+    entries.some((entry) => entry.type === 'drop')
+    || /drop-shadow\s*\(/i.test(existingFilter || '');
+  if (ownsDropShadowChannel) {
+    patch.filter = mergeFilterWithDropShadows(existingFilter, dropShadowFilter);
+  }
+  return patch;
+}
+
 /** Format a shadow entry as a short summary string for the panel list. */
 export function shadowSummary(e: ShadowEntry): string {
   return `${e.x}, ${e.y}, ${e.blur}`;

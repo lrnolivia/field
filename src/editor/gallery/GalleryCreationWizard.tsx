@@ -45,7 +45,7 @@ function Preview({
   const urls = mediaUrls.slice(0, view === 'carousel' ? 1 : view === 'natural' ? 4 : 6);
   const rootStyle = useMemo<CSSProperties>(() => {
     const base: CSSProperties = {
-      minHeight: 132,
+      minHeight: 112,
       overflow: 'hidden',
       border: '1px solid var(--border-light)',
       borderRadius: 9,
@@ -102,7 +102,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
 
   return (
     <>
-      <section className="space-y-4 p-3" aria-labelledby="gallery-creation-title">
+      <section className="space-y-3 p-3" aria-labelledby="gallery-creation-title">
         <div className="flex items-center justify-between gap-2">
           <h3 id="gallery-creation-title" className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</h3>
           <div className="text-[10px] tabular-nums text-[var(--text-disabled)]" aria-live="polite">
@@ -134,7 +134,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               Choose media
             </button>
             {mediaUrls.length === 0 ? (
-              <div data-gallery-empty-state className="flex min-h-[118px] flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-5 text-center">
+              <div data-gallery-empty-state className="flex min-h-[92px] flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-4 text-center">
                 <span className="flex h-9 w-11 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/40 text-[var(--accent)]">
                   <svg aria-hidden width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="m4 11 2.7-2.7L9 10.5l1.5-1.5 2.1 2.1"/></svg>
                 </span>

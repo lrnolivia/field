@@ -26,11 +26,11 @@ export default function MediaGlyph({
       strokeLinejoin="round"
       aria-hidden={props['aria-label'] ? undefined : true}
       {...props}
+      data-media-glyph="library"
     >
-      <rect x="2.25" y="3" width="8.5" height="7.5" rx="1" />
-      <path d="M5.25 12.75h7.5a1 1 0 0 0 1-1V5.25" opacity=".72" />
-      <circle cx="8.35" cy="5.55" r=".72" />
-      <path d="m3.5 9.25 2.05-2.05 1.45 1.4 1.05-1.05 1.45 1.45" />
+      <rect x="2.25" y="2.5" width="8.5" height="8" rx="1" />
+      <path d="M5.25 13h7.25a1.25 1.25 0 0 0 1.25-1.25V5.25" opacity=".72" />
+      <path d="m5.75 5.15 2.75 1.6-2.75 1.6Z" fill="currentColor" stroke="none" />
     </svg>
   );
 }

@@ -7,7 +7,7 @@ status: active
 branch: field/<unique-name>
 pr: null
 base: <main-sha>
-kit: 2026-09-26.4
+kit: 2026-09-29.1
 type: handoff | plan-to-action | repair | follow-up | qa-closeout
 execution_class: contract-worker
 owned:
@@ -23,11 +23,11 @@ qa:
 
 ## Mandatory rehydration
 
-Use Composio exclusively for all GitHub reads and writes.
+Use Composio exclusively for all GitHub reads and writes in the Contract Worker lane.
 
-Read the current repo-hosted handoff kit from `main`, then read the canonical assignment/mail/QA records from `field/control`, current `main`, the assignment branch/PR, and active legacy tracker ownership while migration remains.
+Before interpreting this assignment, re-read current `lrnolivia/loew-runner@main/contracts/manifest.json` and `LOEW_CHAT_BIBLE_CURRENT.md`, resolve field from Runner as `lrnolivia/field`, then read the current repo-hosted handoff kit from `main`. After that, read the canonical assignment/mail/QA records from `field/control`, current `main`, the assignment branch/PR, and active legacy tracker ownership while migration remains.
 
-Current repo process rules supersede stale process instructions from the source chat.
+Current Runner law and repo process rules supersede stale process instructions from the source chat.
 
 ## Goal
 
@@ -88,10 +88,20 @@ Protected:
 
 ## Runtime QA
 
+Apply current Runner Bible section 11 first.
+
 Primary evidence:
 - exact PR head SHA
 - live branch Preview URL
-- browser-driven acceptance actions and resulting evidence
+- selected Runner-approved harness and resulting evidence
+- `/qa/work/<projectId>` when real saved-project truth matters
+- `/builder/noauth` only when a smoke/isolation harness is sufficient
+
+Engine routing:
+- HTTP/read-only for cheap infrastructure facts
+- deterministic Inspector/GitHub Chromium for routine visual/runtime criteria when capable
+- Browser Run only for exploratory/session behavior deterministic recipes cannot prove
+- authenticated/project-native harnesses when protected state or persistence is part of the criterion
 
 Secondary evidence:
 - <supporting evidence>

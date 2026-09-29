@@ -22,7 +22,7 @@ type LauncherActionCard = {
 
 function IconFrame({ children }: { children: ReactNode }) {
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       {children}
     </span>
   );
@@ -91,12 +91,12 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
   };
 
   return (
-    <div data-media-launcher className="w-[224px] p-2">
+    <div data-media-launcher className="w-[224px] p-1.5">
       <button
         type="button"
         onClick={() => activate('browse')}
         data-media-launcher-featured
-        className="group relative w-full overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-2.5 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
+        className="group relative w-full overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-2 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
       >
         <div className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 rounded-full bg-[var(--accent)] opacity-[0.07] blur-xl" />
         <div className="flex items-center gap-2.5">
@@ -107,7 +107,7 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
           </div>
           <span aria-hidden className="text-[13px] text-[var(--text-disabled)] transition-transform group-hover:translate-x-0.5">›</span>
         </div>
-        <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
           <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)]/55" />
           <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-active)]/55" />
           <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--accent)] opacity-[0.12]" />
@@ -131,10 +131,10 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
             key={card.action}
             type="button"
             onClick={() => activate(card.action)}
-            className="group min-w-0 rounded-[7px] border border-transparent px-2 py-2 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
+            className="group min-w-0 rounded-[7px] border border-transparent px-1.5 py-1.5 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
           >
             <IconFrame>{card.glyph}</IconFrame>
-            <div className="mt-2 text-[10px] font-medium text-[var(--text-primary)]">{card.label}</div>
+            <div className="mt-1.5 text-[10px] font-medium text-[var(--text-primary)]">{card.label}</div>
             <div className="mt-0.5 truncate text-[8px] text-[var(--text-tertiary)]">{card.description}</div>
           </button>
         ))}

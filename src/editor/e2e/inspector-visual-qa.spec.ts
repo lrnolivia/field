@@ -360,4 +360,43 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   expect(compactBox.y).toBeGreaterThanOrEqual(11.5);
   const viewportHeight = await page.evaluate(() => window.innerHeight);
   expect(viewportHeight - (compactBox.y + compactBox.height)).toBeCloseTo(expanded.toolbarBottom, 0);
+
+  // The compact Inspector should visually mirror the left command rail:
+  // same shell width, same 32px control width, same effective side inset.
+  const leftRail = page.locator('[data-left-menu-rail]').first();
+  const leftRailBox = await leftRail.boundingBox();
+  const leftRailButton = await leftRail.locator('button').first().boundingBox();
+  const designButton = await compact.getByRole('button', { name: /open design inspector/i }).boundingBox();
+  if (!leftRailBox || !leftRailButton || !designButton) throw new Error('missing rail geometry for symmetry check');
+
+  expect(compactBox.width).toBeCloseTo(leftRailBox.width, 0);
+  expect(designButton.width).toBeCloseTo(leftRailButton.width, 0);
+  expect((compactBox.width - designButton.width) / 2)
+    .toBeCloseTo((leftRailBox.width - leftRailButton.width) / 2, 0);
+
+  // Short windows must behave like the left command rail: the middle tools
+  // yield/scroll first while the auto-hide + expand controls remain visible.
+  for (const height of [620, 440]) {
+    await page.setViewportSize({ width: 1000, height });
+    await page.waitForTimeout(180);
+
+    const shell = await compact.boundingBox();
+    const main = await page.locator('[data-inspector-compact-main-tools]').first().boundingBox();
+    const actions = await page.locator('[data-inspector-compact-actions]').first().boundingBox();
+    if (!shell || !main || !actions) throw new Error(`missing compact Inspector geometry at ${height}px`);
+
+    expect(actions.y).toBeGreaterThanOrEqual(shell.y - 0.5);
+    expect(actions.y + actions.height).toBeLessThanOrEqual(shell.y + shell.height + 0.5);
+    expect(main.y + main.height).toBeLessThanOrEqual(actions.y + 0.5);
+
+    await expect(page.locator('[data-inspector-compact-actions] [data-workspace-autohide]').first()).toBeVisible();
+    await expect(page.locator('[data-inspector-compact-actions] [data-workspace-collapse]').first()).toBeVisible();
+
+    const overflow = await page.locator('[data-inspector-compact-main-tools]').first().evaluate((el) => ({
+      clientHeight: el.clientHeight,
+      scrollHeight: el.scrollHeight,
+    }));
+    expect(overflow.clientHeight).toBeGreaterThan(0);
+    expect(overflow.scrollHeight).toBeGreaterThanOrEqual(overflow.clientHeight);
+  }
 });

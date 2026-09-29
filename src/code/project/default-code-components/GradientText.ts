@@ -5,10 +5,8 @@
 // Motion comes from sliding `background-position` across a background sized
 // wider than the box, so the colour ramp travels through the letterforms.
 //
-// Driven by rAF rather than CSS `@keyframes` so each instance can carry its
-// own speed without colliding on a shared animation name, and so
-// `useStaticCanvas()` can freeze it to one representative frame on the
-// editor canvas instead of burning a rAF per placed instance.
+// Driven by a compositor-friendly CSS background-position animation so
+// Design and Preview show the same travelling highlight.
 
 export const GRADIENT_TEXT_COMPONENT = `'use client';
 
@@ -26,8 +24,7 @@ export const GRADIENT_TEXT_COMPONENT = `'use client';
   "spread": { "type": "number", "label": "Spread", "min": 120, "max": 500, "step": 10, "default": 240, "unit": "%" }
 } */
 
-import { useEffect, useRef } from 'react';
-import { withResponsiveProps, useStaticCanvas } from '@revyme/runtime';
+import { withResponsiveProps } from '@revyme/runtime';
 
 function GradientText({
   text = 'Gradient',
@@ -39,50 +36,12 @@ function GradientText({
   spread = 240,
   ...props
 }) {
-  const textRef = useRef(null);
-  const isStatic = useStaticCanvas();
-
-  useEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-
-    // The ramp is mirrored (A B C B A) so a full traversal wraps seamlessly
-    // without a visible seam where the background repeats.
-    const ramp =
-      'linear-gradient(' + angle + 'deg, ' +
-      colorA + ' 0%, ' + colorB + ' 25%, ' + colorC + ' 50%, ' +
-      colorB + ' 75%, ' + colorA + ' 100%)';
-
-    el.style.backgroundImage = ramp;
-    el.style.backgroundSize = spread + '% 100%';
-    el.style.backgroundRepeat = 'repeat-x';
-
-    function paint(offsetPct) {
-      el.style.backgroundPosition = offsetPct.toFixed(2) + '% 50%';
-    }
-
-    // Static canvas: land on an off-centre frame so the still reads as a
-    // gradient rather than a flat colour.
-    if (isStatic || speed <= 0) {
-      paint(isStatic ? 35 : 0);
-      return;
-    }
-
-    let raf = 0;
-    const start = performance.now();
-
-    function tick(now) {
-      const cycleMs = 6000 / Math.max(0.05, speed);
-      const phase = ((now - start) % cycleMs) / cycleMs;
-      paint(phase * 100);
-      raf = requestAnimationFrame(tick);
-    }
-
-    raf = requestAnimationFrame(tick);
-    return function () {
-      cancelAnimationFrame(raf);
-    };
-  }, [colorA, colorB, colorC, angle, speed, spread, isStatic]);
+  const ramp =
+    'linear-gradient(' + angle + 'deg, ' +
+    colorA + ' 0%, ' + colorB + ' 25%, ' + colorC + ' 50%, ' +
+    colorB + ' 75%, ' + colorA + ' 100%)';
+  const duration = 6 / Math.max(0.05, speed || 0.05);
+  const rootStyle = props.style || {};
 
   return (
     <div
@@ -96,18 +55,25 @@ function GradientText({
       }}
     >
       <span
-        ref={textRef}
         style={{
           lineHeight: 1.15,
+          backgroundImage: ramp,
+          backgroundSize: spread + '% 100%',
+          backgroundRepeat: 'repeat-x',
+          backgroundPosition: speed > 0 ? '0% 50%' : '35% 50%',
           WebkitBackgroundClip: 'text',
           backgroundClip: 'text',
           color: 'transparent',
           WebkitTextFillColor: 'transparent',
           whiteSpace: 'pre-wrap',
+          textShadow: rootStyle.textShadow,
+          WebkitTextStroke: rootStyle.WebkitTextStroke || rootStyle.webkitTextStroke,
+          animation: speed > 0 ? 'field-gradient-text-shimmer ' + duration + 's linear infinite' : undefined,
         }}
       >
         {text}
       </span>
+      <style>{'@keyframes field-gradient-text-shimmer { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }'}</style>
     </div>
   );
 }

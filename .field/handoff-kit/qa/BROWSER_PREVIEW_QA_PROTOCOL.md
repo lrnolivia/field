@@ -1,8 +1,10 @@
-# Browser Preview QA protocol
+# field Preview QA overlay
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> **Runner-first law:** read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` section 11 and `contracts/manifest.json` before using this file. This overlay defines field runtime targets; it does **not** choose the universal QA engine or override Runner retry/watchdog/danger-zone rules.
 
-Use the real field branch Preview as the canonical runtime for web-visible Contract Worker QA.
+For routine loew web QA, follow Runner routing: HTTP/read-only inspection → deterministic Inspector/GitHub Chromium when capable → Browser Run only for exploratory/session behavior → project-native/authenticated harnesses where required.
+
+Use the real field branch Preview as the canonical artifact runtime for web-visible field QA.
 
 ## Canonical runtime target
 
@@ -13,9 +15,10 @@ For Contract Worker branch work:
 1. identify the exact PR head SHA
 2. wait for the Cloudflare branch Preview build for that SHA
 3. resolve the branch-specific Preview URL
-4. open the Preview with a browser-capable QA tool
+4. select the harness using current Runner section 11; routine interaction/screenshots should use deterministic Inspector/GitHub Chromium when capable
 5. when real saved project state matters, open `/qa/work/<projectId>`; this loads the production project snapshot read-only into the exact branch Preview
-6. use `/builder/noauth` only for isolated editor/canvas interaction checks that do not depend on saved project state
+6. use `/builder/noauth` only for smoke/isolation checks that do not depend on saved project state
+7. use Browser Run only when the criterion genuinely needs exploratory interaction or live session behavior that deterministic recipes cannot express
 
 Do not use production to claim that an unmerged branch head was runtime-tested.
 

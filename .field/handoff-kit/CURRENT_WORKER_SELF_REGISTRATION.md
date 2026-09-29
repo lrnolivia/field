@@ -1,6 +1,6 @@
 # Current Worker self-registration
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
 Use this when an existing field Worker/chat has already prepared a handoff/export and now has Composio access.
 
@@ -61,9 +61,11 @@ If the blocker is an ownership collision or requires changes outside current aut
 
 ## Web runtime QA
 
-For web-visible work, treat the live PR Preview as the branch runtime. After the Preview build succeeds, use a browser-capable tool to exercise the acceptance criteria against the exact branch SHA, normally through `/builder/noauth` when auth is not under test. Record the Preview URL and runtime evidence in the assignment QA record.
+Re-read current Runner Bible section 11 before carrying old QA conclusions forward. Engine routing, bounded retries, classifications, fallbacks, danger-zone handoff, and promotion rules come from Runner, not the old worker.
 
-A build alone is not runtime QA. Do not validate an unmerged branch against production. If the branch moves, rerun the affected browser QA.
+For field web-visible work, test the exact live PR Preview and SHA. Use deterministic Inspector/GitHub Chromium for routine visual/runtime criteria where capable; use `/qa/work/<projectId>` for read-only real saved-project truth; treat `/builder/noauth` as smoke-only; reserve Browser Run for exploratory/session behavior; and use authenticated/project-native harnesses for protected state or persistence.
+
+Record the Preview URL, harness, actions/evidence, classification, and exact tested SHA in the assignment QA record. A build alone is not runtime QA. Do not validate an unmerged branch against production. If the branch moves, rerun affected runtime QA.
 
 ## Finish
 
