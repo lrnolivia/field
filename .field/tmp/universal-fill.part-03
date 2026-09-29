@@ -1,0 +1,214 @@
++              <span className="h-11 px-4 rounded-[8px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
++                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m10 8 6 4-6 4Z" /></svg>
++                {hasVideo ? 'Replace source…' : 'Select source…'}
++              </span>
++            </span>
++          </button>
++
++          {hasVideo && cfg && (
++            <div className="border-t border-[var(--border-light)] pt-4 grid grid-cols-2 gap-x-4 gap-y-3">
++              <div className="flex flex-col gap-1.5">
++                <span className="text-[11px] text-[var(--text-secondary)]">Autoplay</span>
++                <ToolSegmentedControl size="sm" value={cfg.autoPlay ? 'yes' : 'no'} onChange={(v) => patchVideo({ autoPlay: v === 'yes' })} options={YES_NO_OPTIONS} />
++              </div>
++              <div className="flex flex-col gap-1.5">
++                <span className="text-[11px] text-[var(--text-secondary)]">Muted</span>
++                <ToolSegmentedControl size="sm" value={cfg.muted ? 'yes' : 'no'} onChange={(v) => patchVideo({ muted: v === 'yes' })} options={YES_NO_OPTIONS} />
++              </div>
++              <div className="flex flex-col gap-1.5">
++                <span className="text-[11px] text-[var(--text-secondary)]">Loop</span>
++                <ToolSegmentedControl size="sm" value={cfg.loop ? 'yes' : 'no'} onChange={(v) => patchVideo({ loop: v === 'yes' })} options={YES_NO_OPTIONS} />
++              </div>
++              <div className="flex flex-col gap-1.5">
++                <span className="text-[11px] text-[var(--text-secondary)]">Controls</span>
++                <ToolSegmentedControl size="sm" value={cfg.controls ? 'yes' : 'no'} onChange={(v) => patchVideo({ controls: v === 'yes' })} options={YES_NO_OPTIONS} />
++              </div>
++              <div className="col-span-2 grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 pt-1">
++                <span className="text-[12px] text-[var(--text-secondary)]">Poster</span>
++                <ControlActionRow onClick={openPosterMedia} className="justify-between">
++                  <span className="flex items-center gap-2 truncate">
++                    <ColorSwatch
++                      style={cfg.poster
++                        ? { backgroundImage: `url(${cfg.poster})`, backgroundSize: 'cover', backgroundPosition: 'center' }
++                        : ALPHA_CHECKER_STYLE}
++                    />
++                    <span className={`text-xs truncate ${cfg.poster ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
++                      {cfg.poster ? 'Poster set' : 'Choose media'}
++                    </span>
++                  </span>
++                  {cfg.poster && (
++                    <span
++                      onClick={(event) => { event.stopPropagation(); patchVideo({ poster: '' }); }}
++                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm leading-none cursor-pointer shrink-0 px-1"
++                    >
++                      &minus;
++                    </span>
++                  )}
++                </ControlActionRow>
++              </div>
++            </div>
++          )}
+         </>
+       )}
+ 
+-      {/* Video preset grid */}
+       {libraryOnly && (
+         <AssetPresetGrid
+           presets={videoPresets}
+-        type="video"
+-        activePresetName={activePresetName}
+-        onApplyPreset={(varVal) => {
+-          // Bake the preset URL into <video src> at apply-time. <video src>
+-          // can't resolve CSS vars, so storing `var(--video-foo)` wouldn't
+-          // work — see design notes.
+-          const m = varVal.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+-          const tokenName = m?.[1];
+-          const token = tokenName ? videoPresets.find(p => p.name === tokenName) : undefined;
+-          if (token) applyVideoSrc(token.value);
+-        }}
+-        onCreatePreset={handleCreatePreset}
++          type="video"
++          activePresetName={activePresetName}
++          onApplyPreset={(varVal) => {
++            const match = varVal.match(/^var\(\s*--([^\)\s,]+)\s*\)$/);
++            const tokenName = match?.[1];
++            const token = tokenName ? videoPresets.find(p => p.name === tokenName) : undefined;
++            if (token) applyVideoSrc(token.value);
++          }}
++          onCreatePreset={handleCreatePreset}
+           onEditPreset={handleEditPreset}
+         />
+       )}
+-
+     </div>
+   );
+ }
+ 
+-function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, solidOnly }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; onUpdateLive?: (k: string, v: string) => void; onLivePreview?: (color: string | null) => void; solidOnly?: boolean }) {
++function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, solidOnly, onClose }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; onUpdateLive?: (k: string, v: string) => void; onLivePreview?: (color: string | null) => void; solidOnly?: boolean; onClose: () => void }) {
+   const ctx = useControlContextOptional();
+   // Legacy control ctx exposes `updateStyleLive` — the fast canvas-only DOM
+   // patch used for smooth drags (commit via onUpdate on release).
+@@ -1020,7 +928,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview,
+   const nodeId = ctx?.nodeId ?? null;
+   const node = ctx?.node ?? null;
+   const [tab, setTab] = useState<FillTab>(() => (solidOnly ? 'color' : detectFillTab(styles, node)));
+-  const [surface, setSurface] = useState<'custom' | 'libraries'>('custom');
++  const [surface, setSurface] = useState<PaintPickerSurface>('custom');
+   const { pushPanel, popPanel } = useToolPopup();
+   const allTokens = useAtomValue(presetTokensAtom);
+   const colorPresets = allTokens.filter(t => t.category === 'color');
+@@ -1117,33 +1025,23 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview,
+     setTab(newTab);
+   };
+ 
+-  const paintTypeButtons = [
+-    { id: 'color', title: 'Solid', icon: <ColorIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'color', onClick: () => changeFillType('color') },
+-    { id: 'gradient', title: 'Gradient', icon: <GradientIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'gradient', onClick: () => changeFillType('gradient') },
+-    { id: 'pattern', title: 'Pattern', icon: <GridIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'pattern', onClick: () => changeFillType('pattern') },
+-    { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
+-    { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
+-    { id: 'shader', title: 'Shader', icon: <AnimationIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'shader', onClick: () => changeFillType('shader') },
+-  ];
++  const activePaintType: PaintType = tab === 'color' ? 'solid' : tab;
++  const supportedPaintTypes = solidOnly ? SOLID_ONLY_PAINT_TYPES : ALL_PAINT_TYPES;
++  const changePaintType = (type: PaintType) => changeFillType(type === 'solid' ? 'color' : type as FillTab);
+ 
+-  return (
+-    <>
+-      {!solidOnly && (
+-        <div className="flex flex-col gap-2">
+-          <ToolSegmentedControl
+-            value={surface}
+-            onChange={(v) => setSurface(v as 'custom' | 'libraries')}
+-            options={[
+-              { value: 'custom', label: 'Custom' },
+-              { value: 'libraries', label: 'Libraries' },
+-            ]}
+-            size="sm"
+-          />
+-          <InspectorIconButtonGroup ariaLabel="Fill type" buttons={paintTypeButtons} />
+-        </div>
+-      )}
+ 
+-      {/* Paint content */}
++  return (
++    <PaintPickerShell
++      surface={surface}
++      onSurfaceChange={setSurface}
++      activeType={activePaintType}
++      onTypeChange={changePaintType}
++      supportedTypes={supportedPaintTypes}
++      contextLabel={solidOnly ? 'this property' : 'Fill'}
++      onPlus={() => setSurface('libraries')}
++      onClose={onClose}
++    >
++      {/* Canonical editor view for the selected paint type */}
+       {tab === 'color' && (() => {
+         // solidOnly: a color COMMIT also clears any lingering image/gradient
+         // channels — there are no tabs to clear them from, and a stale
+@@ -1164,8 +1062,9 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview,
+         return (
+           <ColorPicker
+             value={resolvedBg}
+-            libraryOnly={!solidOnly && surface === 'libraries'}
+-            showPresets={!solidOnly && surface === 'libraries'}
++            embeddedBody
++            libraryOnly={surface === 'libraries'}
++            showPresets={surface === 'libraries'}
+             // Smooth drag: onChange LIVE-PATCHES the canvas DOM every frame (no
+             // per-frame code write); onChangeEnd commits once on release (and
+             // immediately for one-shot edits: hex input, eyedropper). Falls back
+@@ -1249,6 +1148,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview,
+         return (
+           <GradientEditor
+             value={resolvedGradient}
++            canonicalFill
+             onChange={applyGradient}
+             onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
+           />
+@@ -1256,21 +1156,26 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview,
+       })()}
+ 
+       {tab === 'pattern' && (
+-        <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
++        <PatternFillTab node={node} libraryOnly={surface === 'libraries'} />
+       )}
+ 
+       {tab === 'shader' && (
+-        <ShaderFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
++        <ShaderFillTab
++          node={node}
++          libraryOnly={surface === 'libraries'}
++          onSelected={() => setSurface('custom')}
++          onDismissLibrary={() => setSurface('custom')}
++        />
+       )}
+ 
+       {tab === 'image' && (
+-        <ImageFillTab styles={styles} onUpdate={onUpdate} libraryOnly={!solidOnly && surface === 'libraries'} />
++        <ImageFillTab styles={styles} onUpdate={onUpdate} libraryOnly={surface === 'libraries'} />
+       )}
+ 
+       {tab === 'video' && (
+-        <VideoFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
++        <VideoFillTab node={node} libraryOnly={surface === 'libraries'} />
+       )}
+-    </>
++    </PaintPickerShell>
+   );
+ }
+ 
+@@ -1704,7 +1609,7 @@ function isFormControlNode(node: { type?: string } | null | undefined): boolean
+   return node?.type === 'input' || node?.type === 'textarea' || node?.type === 'select';
+ }
+ 
+-function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, nodeId: nodeIdProp, onLivePreview }: {
++function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, nodeId: nodeIdProp, onLivePreview, onClose }: {
+   styles: Record<string, string>;
+   onUpdate: (k: string, v: string) => void;
+   onUpdateLive?: (k: string, v: string) => void;
+@@ -1712,6 +1617,7 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
+   nodeId?: string | null;
+   /** Per-frame solid-color preview for the row swatch during a picker drag. */
+   onLivePreview?: (color: string | null) => void;
