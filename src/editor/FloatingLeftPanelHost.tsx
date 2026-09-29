@@ -35,7 +35,9 @@ export default function FloatingLeftPanelHost() {
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       setContentWidth(clampLeftContentWidth(start.width + next.clientX - start.x));
-      setHeight(Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y)));
+      if (mode !== 'floating') {
+        setHeight(Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y)));
+      }
     };
     const stop = () => {
       window.removeEventListener('pointermove', move);
@@ -52,12 +54,19 @@ export default function FloatingLeftPanelHost() {
     <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
       aria-hidden={!visible} inert={!visible}
       className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
-      style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+      style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: mode === 'floating' ? `calc(100vh - ${WORKSPACE_FLOAT_LEFT_TOP + WORKSPACE_FLOAT_INSET}px)` : Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
         opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
-      <button type="button" aria-label="Resize floating left panel" title="Resize panel" onPointerDown={beginResize}
-        className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none text-[var(--text-tertiary)]">
-        <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" /></svg>
+      <button type="button"
+        aria-label={mode === 'floating' ? 'Resize floating left panel width' : 'Resize floating left panel'}
+        title={mode === 'floating' ? 'Resize panel width' : 'Resize panel'}
+        onPointerDown={beginResize}
+        className={`absolute bottom-0 right-0 z-10 h-5 w-5 touch-none text-[var(--text-tertiary)] ${mode === 'floating' ? 'cursor-ew-resize' : 'cursor-nwse-resize'}`}>
+        <svg aria-hidden viewBox="0 0 16 16" width="16" height="16">
+          {mode === 'floating'
+            ? <path d="M6 4 3 8l3 4M10 4l3 4-3 4" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            : <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />}
+        </svg>
       </button>
     </div>, document.body,
   );

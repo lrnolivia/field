@@ -23,6 +23,7 @@ import { interactingViewportIdAtom, interactingViewportRenderWidthAtom } from '@
 import { parseVariantConfig } from '@/code/variants/variant-config';
 import { previewComponentFileOverrideAtom } from '@/code/stores/editor-store';
 import { activeLocaleAtom } from '@/code/stores/locale-store';
+import { websitePreviewThemeAtom } from '@/code/stores/user-preferences-store';
 import {
   DesktopViewportIcon,
   TabletViewportIcon,
@@ -97,6 +98,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   const [readyTick, setReadyTick] = useState(0);
   const projectVersion = useAtomValue(projectVersionAtom);
   const activeLocale = useAtomValue(activeLocaleAtom);
+  const websitePreviewTheme = useAtomValue(websitePreviewThemeAtom);
   // ─── Re-push on ANY file write ────────────────────────────────────────────
   // `projectVersionAtom` is bumped by `modifyProjectFile` and by history
   // restores — NOT by an ordinary mutation-queue flush, which is how almost
@@ -331,7 +333,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
       version: projectVersion,
       tokenBlocks: payload.tokenBlockCount,
     });
-  }, [open, iframeReady, projectVersion, reloadKey, readyTick, fsTick, activeLocale]);
+  }, [open, iframeReady, projectVersion, reloadKey, readyTick, fsTick, activeLocale, websitePreviewTheme]);
 
   // Open the preview on the user's currently active page (e.g. /page-3),
   // not always /. Fires only when ready transitions to true (per open cycle

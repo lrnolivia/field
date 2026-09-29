@@ -277,7 +277,7 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: dockedShell ? 0 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
+      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : workspaceMode === 'floating' ? `calc(100vh - ${WORKSPACE_FLOAT_LEFT_TOP + WORKSPACE_FLOAT_INSET}px)` : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: dockedShell ? 0 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
     >
       {dockedShell && <div className="flex h-[52px] w-full shrink-0 items-center justify-center"><LogoButton /></div>}
       {/* Right border */}
@@ -311,7 +311,7 @@ export default function LeftMenu() {
       )}
 
       {/* Top section */}
-      <div className="flex items-center flex-col gap-2 relative z-10">
+      <div className="flex min-h-0 flex-1 w-full items-center flex-col gap-2 relative z-10 overflow-y-auto scrollbar-hide pb-40">
         {/* Vibe AI — brand accent. Opens the docked AI chat panel. Hidden while the
             chat is detached into its floating popup OR a code / plugin
             overlay is open; scales + slides in/out (and collapses its row

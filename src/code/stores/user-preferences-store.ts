@@ -80,9 +80,16 @@ export const builderThemeAtom = atomWithStorage<string>(
   'revyme:prefs:builderTheme', 'monochrome',
 );
 
-/** Editor chrome mode; independent from the builder accent palette. */
+/** Editor chrome mode; independent from the builder accent palette and from the website preview. */
 export const editorThemeModeAtom = atomWithStorage<EditorThemeMode>(
   'revyme:prefs:themeMode', 'dark',
+);
+
+/** Website appearance shown in Canvas + Preview.
+ *  This is a per-user viewing preference only: it never rewrites project source
+ *  or the published site's own theme/default behavior. */
+export const websitePreviewThemeAtom = atomWithStorage<EditorThemeMode>(
+  'field:prefs:websitePreviewTheme', 'light', undefined, { getOnInit: true },
 );
 
 /** Three neutral chrome levels per Light/Dark mode. Level 2 is Default. */
