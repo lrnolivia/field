@@ -52,9 +52,32 @@ test('Layers are front-to-back and Canvas computed styles match Preview', async 
     }, SIZING_STYLE_KEYS)),
   );
 
-  await page.locator('[data-tutorial="header-preview-button"]').click({ force: true });
+  const previewButton = page.locator('[data-tutorial="header-preview-button"]');
+  await expect(previewButton).toHaveCount(1);
+  // The editor chrome can still be completing its entrance transform in E2E.
+  // Invoke the real button handler without coupling Preview parity to whether
+  // that header happens to be inside the current viewport on this frame.
+  await previewButton.evaluate((el) => (el as HTMLButtonElement).click());
+
+  const previewIframe = page.locator('iframe[src*="5175"]');
+  await expect(previewIframe).toHaveCount(1, { timeout: 10_000 });
   const previewText = page.frameLocator('iframe[src*="5175"]').locator('[data-id="headline"]');
-  await expect(previewText).toBeVisible({ timeout: 30_000 });
+  try {
+    await expect(previewText).toBeVisible({ timeout: 30_000 });
+  } catch (error) {
+    const diagnostic = await previewIframe.evaluate((iframe: HTMLIFrameElement) => ({
+      src: iframe.src,
+      rect: iframe.getBoundingClientRect().toJSON(),
+    })).catch(() => null);
+    const frame = page.frames().find((candidate) => candidate.url().includes('5175'));
+    const frameState = frame ? await frame.evaluate(() => ({
+      href: location.href,
+      text: document.body?.innerText?.slice(0, 2000) ?? '',
+      html: document.body?.innerHTML?.slice(0, 4000) ?? '',
+    })).catch(() => null) : null;
+    console.error('PREVIEW_PARITY_DIAGNOSTIC', JSON.stringify({ diagnostic, frameState }, null, 2));
+    throw error;
+  }
   const previewStyles = await previewText.evaluate((el, keys) => {
     const cs = getComputedStyle(el);
     return Object.fromEntries(keys.map(key => [key, cs[key]]));
