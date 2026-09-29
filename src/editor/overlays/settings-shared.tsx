@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FlagIcon } from '@/shared/flag-icon';
 import UiHeadingText from '@/design-system/UiHeadingText';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 // ─── LoadingSpinner ────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ export function SettingsRow({
           align === 'top' ? 'sm:pt-1.5' : ''
         }`}
       >
-        {label}
+        <UiHeadingText>{label}</UiHeadingText>
       </label>
       <div className="flex-1 min-w-0">{children}</div>
     </div>
@@ -135,6 +136,7 @@ export function SaveButton({
   label?: string;
 }) {
   const enabled = dirty && !saving;
+  const uiCase = useUiChromeCase();
   return (
     <button
       onClick={onClick}
@@ -147,7 +149,7 @@ export function SaveButton({
             : 'bg-[var(--bg-hover)] text-[var(--text-disabled)] cursor-not-allowed'
       }`}
     >
-      {saving ? <SettingsSpinner /> : label}
+      {saving ? <SettingsSpinner /> : uiCase(label)}
     </button>
   );
 }
@@ -198,6 +200,7 @@ export function RowButton({
   title?: string;
   children: ReactNode;
 }) {
+  const uiCase = useUiChromeCase();
   const tint =
     variant === 'danger'
       ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
@@ -208,10 +211,10 @@ export function RowButton({
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      title={title}
+      title={typeof title === 'string' ? uiCase(title) ?? undefined : title}
       className={`inline-flex items-center justify-center gap-1.5 px-2.5 h-7 cut-corners cut-border border border-[var(--control-border)] [--cut-border-color:var(--control-border)] text-[11px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${tint}`}
     >
-      {loading ? <SettingsSpinner /> : children}
+      {loading ? <SettingsSpinner /> : typeof children === 'string' ? uiCase(children) : children}
     </button>
   );
 }
