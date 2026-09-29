@@ -44,3 +44,30 @@ Exact-head checks:
 Physical phone runtime QA remains pending.
 
 Sheets are deferred only because field-motion-quality currently owns the required panel-host files. The hourly continuation must recheck ownership and proceed as soon as those paths are released.
+
+## batches 5–6
+
+Batch 5 landed at b64ec64a806fe1ac33398c563202d174759268b2:
+deliberate long-press empty-canvas marquee through the canonical SelectionBox.
+
+Batch 6 landed at 213646f5273908bad9658aa3794a3c75440c2056:
+stationary object long press opens the canonical context menu while movement
+continues to direct-manipulation drag.
+
+Both exact heads passed Workers Builds and Media tests + editor build.
+
+## Preview QA classification
+
+The mobile branch Preview is blank at /work/noauth, but this is not currently
+classified as a mobile regression: unrelated green PR #124 reproduces the same
+empty application-root behavior, while production https://field.loew.fi/work/noauth
+renders normally. Branch Preview runtime QA is therefore blocked by shared
+Preview-host behavior.
+
+## sole-worker ownership transfer
+
+Per the user's explicit directive that this is the sole continuing worker,
+src/App.tsx, src/editor/FloatingLeftPanelHost.tsx, and
+src/editor/ToolbarPanelHost.tsx transfer from field-motion-quality to this
+assignment for portrait sheets / landscape edge overlays. Preserve existing
+motion semantics; change presentation only.

@@ -20,6 +20,11 @@ owned:
   - src/canvas/Canvas.tsx
   - src/editor/BottomToolbar.tsx
   - src/editor/mobile-toolbar.test.ts
+  - src/App.tsx
+  - src/editor/FloatingLeftPanelHost.tsx
+  - src/editor/ToolbarPanelHost.tsx
+  - src/editor/mobile-workspace-presentation.ts
+  - src/editor/mobile-workspace-presentation.test.ts
 approved_shared: []
 protected:
   - src/canvas/drag/**
@@ -122,3 +127,17 @@ Do not edit through that ownership. Recheck each hourly batch. When released:
 - narrow toolbar-origin panels -> bottom sheet
 - narrow Inspector -> bottom sheet
 - landscape/wide Focus -> floating edge overlays
+
+## batches 5–6 + ownership transfer — 2026-09-29
+
+- batch 5: empty-canvas long press enters canonical SelectionBox marquee; normal empty drag remains pan.
+- batch 6: stationary object long press opens the canonical context menu; movement preserves direct drag.
+- exact head 213646f5273908bad9658aa3794a3c75440c2056: Workers build PASS; Media tests + editor build PASS.
+- branch Preview runtime QA is blocked by a shared branch-preview blank-state also reproduced on unrelated green PR #124; production main renders.
+- user designated this worker as sole continuing worker. src/App.tsx, src/editor/FloatingLeftPanelHost.tsx, and src/editor/ToolbarPanelHost.tsx are transferred here for the adaptive panel batch.
+
+Next:
+- portrait left/Insert/Library/Inspector surfaces -> bottom sheets
+- landscape phone -> edge-anchored floating overlays
+- regular/wide workspace -> preserve existing presentation
+- reuse existing panel content; no mobile fork

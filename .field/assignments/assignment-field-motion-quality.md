@@ -13,15 +13,12 @@ owned:
   - src/styles/field-shell.css
   - src/editor/motion/**
   - src/editor/ChromeIslands.tsx
-  - src/editor/FloatingLeftPanelHost.tsx
-  - src/editor/ToolbarPanelHost.tsx
   - src/editor/editor-entrance.ts
   - src/editor/EditorEntranceCoordinator.tsx
   - src/editor/editor-entrance.test.ts
   - src/editor/header/LeftHeader.tsx
   - src/editor/left-toolbar/LeftMenu.tsx
   - src/editor/PropertiesPanel.tsx
-  - src/App.tsx
   - src/editor/header/RightHeader.tsx
   - src/editor/WorkspacePaneResizeHandles.tsx
 protected:
@@ -186,3 +183,17 @@ Active ownership preflight found no conflicting assignment for:
 - src/editor/WorkspacePaneResizeHandles.tsx
 
 These are owned to remove raw-pointer Jotai churn from Inspector drag/height/width resizing and to align live right-side chrome with the shared structural motion policy.
+
+## Ownership release — 2026-09-29 mobile Focus continuation
+
+The user explicitly designated the mobile Focus worker as the sole continuing worker.
+
+The following paths are released from this assignment and transferred to
+mobile-focus-touch-camera-20260929 for adaptive mobile panel presentation:
+- src/App.tsx
+- src/editor/FloatingLeftPanelHost.tsx
+- src/editor/ToolbarPanelHost.tsx
+
+This assignment retains its remaining owned paths and history. No existing
+motion implementation is discarded; the mobile worker must preserve accepted
+motion behavior while adapting presentation geometry.
