@@ -3,7 +3,7 @@
 // Architecture quirks the helpers paper over:
 //   1. Canvas content lives in a sandboxed iframe at :5174. Its
 //      `pointer-events: none` style routes all pointer events to the
-//      parent (:5173) where DragCoordinator captures them. So tests
+//      parent (:4333 in E2E) where DragCoordinator captures them. So tests
 //      use the parent-frame `mouse` API for drag, but query the iframe
 //      for canvas-element rects (data-id="hero" etc.).
 //   2. Drop-line / hover-outline / snap-guide overlays render in the
@@ -51,7 +51,9 @@ export class EditorPage {
       },
       project,
     );
-    await this._page.goto('/');
+    // `/` is the Dashboard in field. Enter the canonical standalone
+    // project route so FieldShell actually mounts ProjectLoader + Canvas.
+    await this._page.goto('/work/local');
     await waitForCanvasReady(this._page);
     // One animation frame so Renderer has painted everything we'll
     // assert against.

@@ -1,6 +1,9 @@
-// E2E seed pages. These are minimal but realistic JSX trees we can drag
-// against. Each seed sets only `app/page.tsx` — every other file is
-// supplied by `createDefaultProject` at boot, so the seeds stay short.
+// E2E seed pages. These are minimal but realistic project snapshots.
+//
+// IMPORTANT: a saved local project is loaded EXACTLY as stored. ProjectLoader
+// does not merge createDefaultProject() into snapshots that already contain
+// files. Keep each seed self-contained for every file its assertion depends
+// on (for example globals.css when testing design tokens).
 //
 // localStorage key is `revyme-project-local` (see local-backend.ts).
 // Format must match `ProjectData`: `{ format: 'revyme-v1', files: { ... } }`.
@@ -4995,7 +4998,8 @@ export default function Page({ params }: { params: { slug: string } }) {
   },
 };
 
-export const LAYER_PREVIEW_PARITY = project(`
+export const LAYER_PREVIEW_PARITY = (() => {
+  const seed = project(`
 /** @canvas { "viewports": [{ "id": "desktop", "width": 1440 }] } */
 'use client';
 export default function Page() {
@@ -5003,10 +5007,39 @@ export default function Page() {
     <div data-id="root" data-name="Page" style={{ position: 'relative', width: '1440px', minHeight: '900px', background: '#ffffff' }}>
       <div data-id="ellipse" data-name="Ellipse" style={{ position: 'absolute', left: '90px', top: '70px', width: '230px', height: '140px', borderRadius: '50%', background: '#b2a6e8' }} />
       <p data-id="headline" data-name="Headline" style={{ position: 'absolute', left: '120px', top: '80px', width: '360px', transform: 'rotate(3deg)', fontFamily: 'Georgia, serif', fontSize: '32px', fontWeight: 700, lineHeight: '1.2', letterSpacing: '-0.5px', textAlign: 'left', color: '#151515' }}>Canvas Preview</p>
+      <div data-id="layout-frame" data-name="Layout frame" style={{
+        position: 'absolute', left: '620px', top: '80px',
+        width: '520px', height: '180px',
+        display: 'flex', flexDirection: 'row',
+        alignItems: 'center', justifyContent: 'flex-start',
+        gap: '16px', padding: '20px 28px', overflow: 'hidden',
+        backgroundColor: 'var(--color-surface)', color: 'var(--color-text)',
+        fontFamily: 'Inter, sans-serif',
+      }}>
+        <div data-id="fixed-box" data-name="Fixed" style={{
+          width: '80px', height: '40px', flex: '0 0 auto',
+          backgroundColor: '#d8d8df',
+        }} />
+        <div data-id="hug-box" data-name="Hug" style={{
+          width: 'min-content', height: '40px', flex: '0 0 auto',
+          whiteSpace: 'nowrap', backgroundColor: '#c4e4d2',
+        }}>Hug</div>
+        <div data-id="fill-box" data-name="Fill" style={{
+          height: '40px', flex: '1 0 0px',
+          backgroundColor: '#bfd4f4',
+        }} />
+      </div>
     </div>
   );
-}
+} 
 `);
+  seed.files['app/globals.css'] = `:root {
+  --color-surface: #ffffff;
+  --color-text: #111111;
+}
+`;
+  return seed;
+})();
 
 export const SEEDS = {
   LAYER_PREVIEW_PARITY,
