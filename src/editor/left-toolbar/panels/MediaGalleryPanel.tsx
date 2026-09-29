@@ -321,6 +321,7 @@ export default function MediaGalleryPanel({
   const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: 'image' | 'video' }>>([]);
   const [inspectedIdentity, setInspectedIdentity] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -473,7 +474,11 @@ export default function MediaGalleryPanel({
             ? prev
             : [{ url: result.url, size: file.size, kind }, ...prev]
         ));
-        if (!result.reusedExisting) successful += 1;
+        if (!result.reusedExisting) {
+          successful += 1;
+        } else if (durableInventory === true) {
+          setDuplicateCandidates((current) => [...current, { file, kind }]);
+        }
         trace.action('media:upload-success', {
           url: result.url,
           kind,
@@ -497,6 +502,44 @@ export default function MediaGalleryPanel({
     setUploading(false);
     input.value = '';
   }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload]);
+
+  const keepDuplicateUploads = useCallback(async () => {
+    if (durableInventory !== true || duplicateCandidates.length === 0 || uploading) return;
+
+    const candidates = duplicateCandidates;
+    setDuplicateCandidates([]);
+    setUploading(true);
+    setUploadError(null);
+    let created = 0;
+
+    for (const { file, kind } of candidates) {
+      try {
+        const result = await ingestMediaFile({
+          file,
+          projectId,
+          kind,
+          upsert: upsertMediaUpload,
+          idPrefix: 'media-duplicate',
+          allowDuplicate: true,
+        });
+        setUploads((prev) => [{ url: result.url, size: file.size, kind }, ...prev]);
+        created += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not keep duplicate';
+        setUploadError(message);
+      }
+    }
+
+    if (created > 0) await fetchUploads();
+    setUploading(false);
+  }, [
+    durableInventory,
+    duplicateCandidates,
+    uploading,
+    projectId,
+    upsertMediaUpload,
+    fetchUploads,
+  ]);
 
   // ─── Shift+click toggle / shift+drag marquee sweep ───────────────────────
   // A shift pointerdown arms BOTH: released within the drag threshold it's a
@@ -702,6 +745,35 @@ export default function MediaGalleryPanel({
         <div className="px-3 mt-2">
           <div className="rounded-[4px] border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-[10px] leading-snug text-red-500 dark:text-red-400">
             {uploadError}
+          </div>
+        </div>
+      )}
+
+      {durableInventory === true && duplicateCandidates.length > 0 && (
+        <div className="px-3 mt-2">
+          <div
+            data-media-duplicate-notice
+            className="flex min-h-8 items-center gap-2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] px-2 py-1.5"
+          >
+            <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">
+              {duplicateCandidates.length > 1 ? duplicateCandidates.length + ' files · ' : ''}
+              Already in Media · using existing
+            </span>
+            <button
+              type="button"
+              onClick={() => { void keepDuplicateUploads(); }}
+              className="h-6 shrink-0 rounded-[3px] px-1.5 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-active)]"
+            >
+              Keep {duplicateCandidates.length > 1 ? 'duplicates' : 'duplicate'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDuplicateCandidates([])}
+              aria-label="Dismiss duplicate notice"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] text-[var(--text-tertiary)] hover:bg-[var(--bg-active)] hover:text-[var(--text-primary)]"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}
