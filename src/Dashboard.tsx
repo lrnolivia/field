@@ -35,6 +35,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [creating, setCreating] = useState(false);
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const [manualRefreshGeneration, setManualRefreshGeneration] = useState(0);
+  const [forceThumbnailRefresh, setForceThumbnailRefresh] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [openingProjectId, setOpeningProjectId] = useState<string | null>(null);
@@ -136,9 +137,11 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
         setManualRefreshing(false);
         return;
       }
+      setForceThumbnailRefresh(true);
       setManualRefreshGeneration((value) => value + 1);
     } catch (cause) {
       setRefreshingProjectIds(new Set());
+      setForceThumbnailRefresh(false);
       setManualRefreshing(false);
       setError(cause instanceof Error ? cause.message : String(cause));
     }
@@ -302,7 +305,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
         <DashboardThumbnailBackfill
           projects={projects}
           generation={manualRefreshGeneration}
-          force={manualRefreshGeneration > 0}
+          force={forceThumbnailRefresh}
           onReady={(projectId, url) => {
             const separator = url.includes('?') ? '&' : '?';
             const freshUrl = url + separator + 'field_refresh=' + manualRefreshGeneration;
@@ -317,8 +320,9 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
             });
           }}
           onComplete={() => {
-            if (manualRefreshGeneration > 0) {
+            if (forceThumbnailRefresh) {
               setRefreshingProjectIds(new Set());
+              setForceThumbnailRefresh(false);
               setManualRefreshing(false);
             }
           }}

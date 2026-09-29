@@ -36,7 +36,7 @@ describe('Dashboard final visual polish contract', () => {
     expect(header).toContain('Refresh projects and thumbnails');
     expect(dashboard).toContain('const fresh = await listFieldProjects()');
     expect(dashboard).toContain('{ ...project, thumbnail: null }');
-    expect(dashboard).toContain('force={manualRefreshGeneration > 0}');
+    expect(dashboard).toContain('force={forceThumbnailRefresh}');
     expect(backfill).toContain('force = false');
     expect(backfill).toContain('if (!force)');
     expect(dashboardCss).toContain(".field-dashboard-refresh[data-refreshing='true'] svg");
