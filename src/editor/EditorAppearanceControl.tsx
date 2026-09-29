@@ -39,10 +39,12 @@ export default function EditorAppearanceControl() {
             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         }`}
       >
-        {mode === 'dark'
-          ? <FigmaMoonIcon className="h-3.5 w-3.5" size={14} />
-          : <FigmaSunIcon className="h-3.5 w-3.5" size={14} />
-        }
+        <span className="flex h-4 w-4 items-center justify-center">
+          {mode === 'dark'
+            ? <FigmaMoonIcon className="h-[13px] w-[13px] translate-x-[1px]" size={13} />
+            : <FigmaSunIcon className="h-[13px] w-[13px]" size={13} />
+          }
+        </span>
       </button>
       {open && (
         <ThemeNeutralPopover
