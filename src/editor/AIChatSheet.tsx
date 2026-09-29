@@ -124,17 +124,19 @@ export default function AIChatSheet({ headerAccessory, contextLabel, onClose, ch
   return (
     <motion.div
       data-ai-chat-sheet
+      data-vibe-detached
       // Same fade-in as the ⌘K command palette.
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', bounce: 0.15, duration: 0.25 }}
-      className="fixed z-[9990] flex flex-col overflow-hidden cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-2xl"
+      className="fixed z-[9990] flex flex-col overflow-hidden rounded-[8px] border text-[var(--text-primary)]"
       style={{ left: pos.x, top: pos.y, width: size.width, height: size.height }}
     >
       {/* Header — drag anywhere on it to move the panel. */}
       <div
         onPointerDown={startMove}
-        className="relative shrink-0 flex items-center justify-between px-3 h-9 cursor-grab active:cursor-grabbing select-none border-b border-[var(--border-light)]"
+        data-vibe-detached-header
+        className="relative shrink-0 flex items-center justify-between px-3 h-9 cursor-grab active:cursor-grabbing select-none border-b"
       >
         <div className="flex items-center gap-1.5 leading-none min-w-0">
           <span className="text-xs font-semibold text-[var(--text-primary)] shrink-0">Vibe</span>
@@ -166,7 +168,7 @@ export default function AIChatSheet({ headerAccessory, contextLabel, onClose, ch
       </div>
 
       {/* Body */}
-      <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+      <div data-vibe-detached-content className="flex-1 min-h-0 flex flex-col">{children}</div>
 
       {/* Bottom-right resize handle. */}
       <div

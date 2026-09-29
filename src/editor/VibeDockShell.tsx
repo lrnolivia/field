@@ -42,15 +42,16 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
       data-editor-panel="left-primary"
       data-field-chrome-panel
       data-left-panel-surface="vibe"
-      className="field-chrome-panel fixed z-[5000] flex flex-col overflow-hidden"
+      className="field-chrome-panel fixed z-[5000] flex flex-col overflow-hidden p-[6px]"
       style={{
         left: workspace.left.inset + LEFT_RAIL_WIDTH,
         top: workspaceBodyTop(workspace.left),
         width: LEFT_CONTENT_WIDTH,
         height: workspaceBodyHeightCss(workspace.left),
+        boxSizing: 'border-box',
       }}
     >
-      <div className="relative shrink-0 flex items-center justify-between px-3 h-9 select-none border-b border-[var(--border-light)]">
+      <div data-vibe-dock-header className="relative shrink-0 flex items-center justify-between px-2.5 h-8 select-none">
         <div className="flex items-center gap-1.5 leading-none min-w-0">
           <span className="text-xs font-semibold text-[var(--text-primary)] shrink-0">Vibe</span>
           {surfaceLabel && (
@@ -70,7 +71,7 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+      <div data-vibe-dock-content className="flex-1 min-h-0 flex flex-col mt-[5px] overflow-hidden">{children}</div>
     </div>
   );
 }

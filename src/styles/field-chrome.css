@@ -820,3 +820,34 @@
   background: var(--field-chrome-raised-bg);
   border-bottom: 1px solid var(--field-chrome-border);
 }
+
+
+/* ── Vibe + auxiliary left-origin surfaces ──────────────────────────────── */
+[data-left-panel-surface="vibe"] [data-vibe-dock-header] {
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-raised-bg);
+}
+
+[data-left-panel-surface="vibe"] [data-vibe-dock-content] {
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+/* Detached Vibe is explicitly owned by Vibe, so it may use the same neutral
+ * hierarchy without changing generic floating windows or Inspector chrome. */
+[data-vibe-detached] {
+  background: var(--field-chrome-panel-bg);
+  border-color: var(--field-chrome-border-strong);
+  box-shadow: 0 16px 40px rgba(0,0,0,.18);
+}
+
+[data-vibe-detached-header] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-vibe-detached-content] {
+  background: var(--field-chrome-section-bg);
+}

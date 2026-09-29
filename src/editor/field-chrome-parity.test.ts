@@ -71,4 +71,17 @@ describe('shared field chrome architecture', () => {
     expect(read('src/design-system/Modal.tsx')).not.toContain('data-field-chrome-surface="modal"');
     expect(read('src/editor/left-toolbar/panels/insert/index.tsx')).toContain('data-field-insert-secondary');
   });
+  it('audits every left-origin route without inventing a standalone Plugins panel', () => {
+    const panel = read('src/editor/left-toolbar/LeftPanel.tsx');
+    for (const id of ['insert', "'pages-layers'", 'layers', 'library', 'presets', 'media', 'locale', 'cms', 'branches']) {
+      expect(panel).toContain(id);
+    }
+    expect(panel).not.toContain("plugins: Plugins");
+    expect(read('src/editor/left-toolbar/panels/LibraryPanel/index.tsx')).toContain('<PluginsSection');
+    expect(read('src/editor/VibeDockShell.tsx')).toContain('data-left-panel-surface="vibe"');
+    expect(read('src/editor/AIChatSheet.tsx')).toContain('data-vibe-detached');
+    expect(read('src/editor/ToolbarPanelHost.tsx')).toContain('data-toolbar-panel={panel.kind}');
+  });
+
+
 });
