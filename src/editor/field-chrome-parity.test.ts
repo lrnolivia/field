@@ -14,9 +14,10 @@ describe('shared field chrome architecture', () => {
     expect(chrome).toBeGreaterThan(theme);
   });
 
-  it('shares the chrome variable boundary between Inspector and left panels', () => {
+  it('keeps Inspector as the source of truth instead of remapping its native chrome', () => {
     const css = read('src/styles/field-chrome.css');
-    expect(css).toContain('[data-properties-panel]');
+    expect(css).not.toContain('[data-properties-panel]');
+    expect(css).not.toContain('[data-field-floating-surface]');
     expect(css).toContain('[data-editor-panel="left-primary"]');
     expect(css).toContain('--field-chrome-section-bg');
     expect(css).toContain('--field-chrome-border');

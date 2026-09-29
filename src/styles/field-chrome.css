@@ -1,10 +1,12 @@
 /* field-chrome.css — canonical field editor chrome hierarchy.
  *
- * Inspector and left-panel content intentionally consume the SAME variables.
- * Change hierarchy here, not panel-by-panel. The left icon rail is excluded.
+ * The Inspector is the visual source of truth. Left-panel content mirrors that
+ * hierarchy through this shared token layer, but this file must never remap
+ * the Inspector's native --bg/--border/control variables. That keeps Inspector
+ * geometry and contrast stable while making left chrome centrally editable.
  *
  * Runtime percentages are written by editor/builder-theme.ts from the
- * Appearance > Interface contrast preference.
+ * Appearance > Interface contrast preference. The left icon rail is excluded.
  */
 
 :root {
@@ -59,14 +61,14 @@
   --field-chrome-section-gap: 2px;
 }
 
-/* Shared variable boundary. Existing Inspector and left-panel descendants use
- * the normal --bg/--border/control variables, so remapping them here gives us
- * one editable system without duplicating CSS in every panel. */
+/* Left-chrome compatibility boundary.
+ *
+ * Existing left-panel descendants still consume legacy --bg/--border/control
+ * variables. Remap them here so the whole left system follows field chrome
+ * without re-theming the Inspector itself. */
 :where(
-  [data-properties-panel],
   [data-editor-panel="left-primary"],
-  [data-field-chrome-panel],
-  [data-field-floating-surface]
+  [data-field-chrome-panel]
 ) {
   --bg-surface: var(--field-chrome-raised-bg);
   --bg-tertiary: var(--field-chrome-section-bg);
@@ -90,7 +92,7 @@
   --button-secondary-hover: var(--field-chrome-hover-bg);
 }
 
-:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel]) {
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel]) {
   background: var(--field-chrome-panel-bg);
   color: var(--text-primary);
 }
@@ -159,9 +161,9 @@
   max-block-size: 112px;
 }
 
-/* Popovers/menus opened by either Inspector or left-panel surfaces share the
- * same raised chrome rather than inventing independent background values. */
-[data-field-floating-surface]:not([data-modal-root]),
+/* Only surfaces explicitly opted into field chrome are themed here.
+ * Generic floating surfaces belong to their owning system; in particular,
+ * Inspector popovers keep their native chrome. */
 [data-field-chrome-surface] {
   background: var(--field-chrome-popover-bg);
   border-color: var(--field-chrome-border-strong);
@@ -220,24 +222,24 @@
  * These are intentionally shared by Pages/Layers, Library, Presets, CMS,
  * Media, Locale, Branches and auxiliary chrome. Keep their visual decisions
  * here rather than in the individual panel implementations. */
-:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
   [data-field-chrome-section-label] {
   background: var(--field-chrome-section-bg);
   box-shadow: inset 0 -1px 0 var(--field-chrome-border);
 }
 
-:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
   [data-field-searchbar] {
   background: var(--field-chrome-control-bg) !important;
   border-color: var(--field-chrome-border) !important;
 }
 
-:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
   [data-field-chrome-row] {
   border-radius: var(--field-chrome-radius-control);
 }
 
-:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+:where([data-editor-panel="left-primary"], [data-field-chrome-panel])
   [data-field-chrome-add] {
   border-radius: var(--field-chrome-radius-control);
 }
