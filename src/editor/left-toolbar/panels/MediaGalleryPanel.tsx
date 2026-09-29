@@ -242,15 +242,16 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
   };
   return (
     <div
+      data-media-tile
       data-media-key={mediaKey ?? undefined}
       onPointerDown={onPointerDown}
       // Selected: border snaps to accent with NO transition — with the base
       // white border + `transition-colors`, every tile joining the selection
       // flashed white→blue under the instant outline (the reported fringe).
-      className={`group relative aspect-[4/3] overflow-hidden rounded-[7px] border bg-[var(--bg-hover)]/35 cursor-grab shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:cursor-grabbing ${
+      className={`group relative aspect-[4/3] overflow-hidden rounded-[5px] border bg-[var(--bg-hover)]/35 cursor-grab active:cursor-grabbing ${
         isSelected
           ? 'border-[var(--accent)] transition-none'
-          : 'border-[var(--border-light)] transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-[var(--control-border-hover)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.09)]'
+          : 'border-[var(--border-light)] transition-colors hover:border-[var(--control-border-hover)]'
       }`}
       style={isSelected ? MULTI_SELECT_OUTLINE : undefined}
       title="Drag to canvas"
@@ -260,14 +261,14 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
           src={url}
           alt=""
           className={kind === 'vector'
-            ? 'w-full h-full object-contain p-3 pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]'
-            : 'w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]'}
+            ? 'w-full h-full object-contain p-3 pointer-events-none'
+            : 'w-full h-full object-cover pointer-events-none'}
           loading="lazy"
           draggable={false}
           onLoad={(event) => rememberMediaImageRatio(url, event.currentTarget)}
         />
       ) : kind === 'video' ? (
-        <video src={url} className="w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]" muted />
+        <video src={url} className="w-full h-full object-cover pointer-events-none" muted />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[var(--text-secondary)]">
           <span aria-hidden className="text-[20px] leading-none">♫</span>
@@ -859,6 +860,7 @@ export default function MediaGalleryPanel({
 
   return (
     <div
+      data-media-panel
       className="relative flex h-full flex-col"
       onDragOver={handleBrowserDragOver}
       onDragLeave={handleBrowserDragLeave}
@@ -877,16 +879,16 @@ export default function MediaGalleryPanel({
         </div>
       )}
       {chrome === 'full' && (
-        <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+        <SectionLabel size="md" className="field-media-header" right={<span className="text-[10px] text-[var(--text-tertiary)]">{storageLabel}</span>}>Media</SectionLabel>
       )}
 
       {/* Tabs */}
-      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2.5'}`}>
+      <div data-media-tabs className={`px-2 ${chrome === 'full' ? 'mt-2' : 'mt-2'}`}>
         <ToolSegmentedControl value={tab} onChange={(value) => setTab(value as MediaGalleryTab)} options={TAB_OPTIONS} />
       </div>
 
       {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}
-      <div className="px-3 mt-2">
+      <div data-media-command-zone className="px-2 mt-1.5">
         <div data-media-browser-commandbar className="flex items-center gap-1.5">
           <SearchBar
             value={searchQuery}
@@ -991,7 +993,7 @@ export default function MediaGalleryPanel({
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
         <div className="flex min-h-0 flex-1">
-          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-3.5">
+          <div ref={scrollRef} onPointerDown={onGridPointerDown} className="min-w-0 flex-1 overflow-y-auto scrollbar-hide p-2.5">
           {selectedImageUrls.length >= 2 && (
             <div
               data-media-gallery-bulk-insert
@@ -1150,8 +1152,8 @@ export default function MediaGalleryPanel({
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
-          <span className="relative flex h-11 w-14 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 text-[13px] text-[var(--text-tertiary)] shadow-[0_2px_8px_rgba(0,0,0,0.04)]" aria-hidden>
+        <div data-field-empty-state className="field-chrome-empty flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
+          <span data-field-illustration className="field-chrome-illustration relative flex h-11 w-14 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--field-chrome-section-bg)] text-[13px] text-[var(--text-tertiary)]" aria-hidden>
             <span className="absolute left-2 top-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/55" />
             <span className="absolute bottom-2 right-2 h-4 w-5 rounded-[3px] border border-[var(--border-light)] bg-[var(--accent)] opacity-[0.12]" />
           </span>

@@ -567,3 +567,143 @@
 ) [data-preset-category-body] [data-field-chrome-row] {
   min-height: 24px;
 }
+
+
+/* ── Media + Locale visible parity ──────────────────────────────────────── */
+[data-left-panel-surface="media"] .field-media-header {
+  height: 30px;
+  margin: 0 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-raised-bg);
+}
+
+[data-left-panel-surface="media"] [data-media-tabs] {
+  margin-inline: 2px;
+}
+
+[data-left-panel-surface="media"] [data-media-browser-commandbar] {
+  margin-inline: 2px;
+  padding: 4px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="media"] [data-media-browser-commandbar] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="media"] [data-media-tile] {
+  box-shadow: none;
+  transform: none;
+}
+
+[data-left-panel-surface="media"] [data-media-tile]:hover {
+  border-color: var(--field-chrome-border-strong);
+  box-shadow: none;
+  transform: none;
+}
+
+[data-left-panel-surface="media"] [data-media-workspace-controls] {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="locale"] [data-locale-search] {
+  margin: 0 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="locale"] [data-locale-search] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="locale"] .field-locale-header {
+  height: 30px;
+  margin: 5px 2px 0;
+  border: 1px solid var(--field-chrome-border);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--field-chrome-raised-bg);
+}
+
+[data-left-panel-surface="locale"] [data-locale-list] {
+  margin: 0 2px 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="locale"] [data-locale-manage] {
+  clip-path: none;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 5px;
+  background: var(--field-chrome-control-bg);
+  color: var(--text-primary);
+}
+
+[data-left-panel-surface="locale"] [data-locale-manage]:hover {
+  border-color: var(--field-chrome-border-strong);
+  background: var(--field-chrome-hover-bg);
+}
+
+/* Add Language is Locale-owned but still uses the generic Modal shell. Only
+ * its interior opts into field chrome; generic modals remain untouched. */
+[data-add-locale-surface] {
+  --grid-line: var(--field-chrome-section-bg);
+  --control-border: var(--field-chrome-border);
+  --control-border-hover: var(--field-chrome-border-strong);
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-add-locale-list] {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-add-locale-search] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-add-locale-surface] :where(input, select) {
+  clip-path: none !important;
+  border-color: var(--field-chrome-border) !important;
+  border-radius: 5px !important;
+  background: var(--field-chrome-control-bg) !important;
+}
+
+/* Translation management is a Locale-owned work surface, so it follows the
+ * same quiet hierarchy without changing the generic editor overlay system. */
+[data-localization-overlay] [data-localization-header] {
+  background: var(--field-chrome-raised-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-localization-overlay] [data-localization-body] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-localization-overlay] [data-localization-section] > button {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-localization-overlay] [data-localization-row] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-localization-overlay] [data-localization-row] textarea {
+  clip-path: none;
+  border-color: var(--field-chrome-border);
+  border-radius: 5px;
+  background: var(--field-chrome-control-bg);
+}
+
+[data-localization-overlay] [data-localization-row] textarea:hover {
+  border-color: var(--field-chrome-border-strong);
+}

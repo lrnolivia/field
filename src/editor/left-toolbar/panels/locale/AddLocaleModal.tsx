@@ -108,11 +108,11 @@ export default function AddLocaleModal({ isOpen, onClose, existingCodes, existin
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Language" width={700}>
-      <div className="flex h-[500px]">
+      <div data-add-locale-surface className="flex h-[500px]">
         {/* ── Left Column: Language Search + List ────────────────────────── */}
-        <div className="w-80 flex flex-col border-r border-[var(--border-light)]">
+        <div data-add-locale-list className="w-80 flex flex-col border-r border-[var(--border-light)]">
           {/* Search input */}
-          <div className="p-3 border-b border-[var(--border-light)]">
+          <div data-add-locale-search className="p-3 border-b border-[var(--border-light)]">
             <div className="relative">
               <svg
                 width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -128,7 +128,7 @@ export default function AddLocaleModal({ isOpen, onClose, existingCodes, existin
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search languages..."
-                className="w-full h-[var(--control-height)] pl-8 pr-3 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border focus:[--cut-border-color:var(--accent)] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+                className="w-full h-7 pl-8 pr-3 text-[11px] border text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-colors"
               />
             </div>
           </div>

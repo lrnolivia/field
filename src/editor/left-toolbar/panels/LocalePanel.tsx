@@ -111,12 +111,12 @@ export default function LocalePanel() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-locale-panel className="flex flex-col h-full">
       {/* Top-of-panel search — matches Library / CMS chrome (SearchBar +
           thin divider) for consistent header pattern across left-toolbar
           panels. Spacing math is identical: pt-3 / pb-1.5 / mt-1.5 / mb-0
           so the divider docks directly against the SectionLabel below. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div data-locale-search className="px-2 pt-2 pb-1.5 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={(v) => {
@@ -126,18 +126,19 @@ export default function LocalePanel() {
           placeholder="Search languages…"
         />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-2 mt-1 mb-1" />
 
-      <SectionLabel size="md" right={
+      <SectionLabel size="md" className="field-locale-header" right={
         <AddButton onClick={() => { setShowAddModal(true); trace.action('locale-panel:open-add-modal'); }} title="Add language" />
       }>Localization</SectionLabel>
 
       {/* Manage Translations Button (2+ locales) */}
       {hasMultipleLocales && (
-        <div className="px-3 mb-1.5">
+        <div className="px-2 mb-1.5">
           <button
+            data-locale-manage
             onClick={handleManageTranslations}
-            className="w-full h-7 bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-medium cut-corners hover:opacity-90 transition-opacity cursor-pointer"
+            className="w-full h-7 text-[11px] font-medium transition-colors cursor-pointer"
           >
             Manage Translations
           </button>
@@ -145,7 +146,7 @@ export default function LocalePanel() {
       )}
 
       {/* Language List */}
-      <div className="flex-1 overflow-y-auto px-2">
+      <div data-locale-list className="flex-1 overflow-y-auto px-1.5 pb-1.5">
         {filteredLocales.length === 0 ? (
           // Two empty-states, same shape as CmsPanel: "no languages at
           // all" (onboarding copy) vs "search hid them all" (search-only

@@ -255,7 +255,8 @@ export default function TranslationsOverlay() {
     <div data-localization-overlay data-app-undo>
       {/* Header bar — CMS-overlay geometry */}
       <div
-        className="fixed z-[10000] border-b border-[var(--border-light)] bg-[var(--bg-surface)] flex items-center gap-3 px-4"
+        data-localization-header
+        className="fixed z-[10000] border-b flex items-center gap-3 px-4"
         style={{ top: 0, left: 308, right: 260, height: 52 }}
       >
         <Breadcrumb segments={[
@@ -340,7 +341,7 @@ export default function TranslationsOverlay() {
       </div>
 
       {/* Body — column headers + accordion scroll pane */}
-      <div className="fixed z-[9000] bg-[var(--bg-panel)] flex flex-col" style={{ top: 52, left: 308, right: 0, bottom: 0 }}>
+      <div data-localization-body className="fixed z-[9000] flex flex-col" style={{ top: 52, left: 308, right: 0, bottom: 0 }}>
         <div className="grid grid-cols-2 gap-6 px-6 py-2.5 border-b border-[var(--border-light)] shrink-0">
           <span className="text-xs text-[var(--text-disabled)]">{defaultLabel}</span>
           <span className="text-xs text-[var(--text-disabled)]">{targetLabel}</span>
@@ -387,7 +388,7 @@ function SectionBlock({ section, collapsed, onToggle, target, savedTick, onSaved
     <div data-localization-section={section.id}>
       <button
         onClick={onToggle}
-        className="sticky top-0 z-10 flex items-center gap-2.5 w-full px-6 py-2.5 [background:linear-gradient(var(--bg-hover),var(--bg-hover)),var(--bg-panel)] border-y border-[var(--border-light)] transition-colors cursor-pointer text-left focus:outline-none"
+        className="sticky top-0 z-10 flex items-center gap-2.5 w-full px-6 py-2.5 border-y transition-colors cursor-pointer text-left focus:outline-none"
       >
         <span className={`text-[var(--text-secondary)] transition-transform ${collapsed ? '' : 'rotate-90'}`}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -453,7 +454,7 @@ function TranslationRow({ row, target, onSaved }: { row: Row; target: string; on
             if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) return;
             e.stopPropagation();
           }}
-          className="w-full px-2.5 py-2 text-sm bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none transition-colors resize-none leading-relaxed"
+          className="w-full px-2.5 py-2 text-sm border text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:outline-none transition-colors resize-none leading-relaxed"
         />
       </div>
     </div>
