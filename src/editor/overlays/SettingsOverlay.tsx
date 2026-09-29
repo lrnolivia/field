@@ -118,7 +118,7 @@ export function buildMenuCategories(
   // Website is always first in General
   const result: Array<{ title: string; items: MenuItem[] }> = [
     { title: 'General', items: [
-      { id: 'website', label: 'Website', icon: SettingsWebsiteIcon },
+      { id: 'website', label: 'General', icon: SettingsWebsiteIcon },
       { id: 'localization', label: 'Localization', icon: GlobeInternationalIcon },
     ] },
   ];
@@ -128,7 +128,7 @@ export function buildMenuCategories(
     // category from the pages instead — keeps the sidebar from showing
     // both an "A/B Tests" parent AND its child pages.
     const items = cat.items
-      .filter(s => !(s.id === 'ab-tests' && abTestPages.length > 0))
+      .filter(s => s.id !== 'pages' && !(s.id === 'ab-tests' && abTestPages.length > 0))
       .map<MenuItem>(s => ({ id: s.id, label: s.label, icon: s.icon }));
     if (items.length === 0) continue;
 
@@ -735,6 +735,13 @@ export default function SettingsOverlay() {
     if (activeSection === 'website') {
       return (
         <div className="space-y-8">
+          <header className="pb-1">
+            <h1 className="text-lg font-semibold text-[var(--text-primary)]">General</h1>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+              Project-wide defaults, branding, and site metadata.
+            </p>
+          </header>
+
           {/* ─── Site metadata ─── */}
           <SettingsGroup
             title="Site metadata"
@@ -985,7 +992,8 @@ export default function SettingsOverlay() {
 
   const activeLabel = menuCategories
     .flatMap((cat) => cat.items)
-    .find((item) => item.id === activeSection)?.label;
+    .find((item) => item.id === activeSection)?.label
+    ?? (activeSection === 'pages' ? 'Page settings' : undefined);
 
   return createPortal(
     <div

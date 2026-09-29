@@ -1,4 +1,4 @@
-// The settings sidebar's groups: Website first in General, the registered
+// The settings sidebar's groups: General first, the registered
 // categories in order, AI last, and A/B test pages kept beside Insights.
 import { describe, it, expect } from 'vitest';
 import { buildMenuCategories } from './SettingsOverlay';
@@ -13,10 +13,12 @@ const registered = [
 ];
 
 describe('settings sidebar categories', () => {
-  it('General (Website first), Insights, then AI with Connect AI and Skills', () => {
+  it('General settings first, Insights, then AI with Connect AI and Skills', () => {
     const cats = buildMenuCategories(registered, []);
     expect(cats.map((c) => c.title)).toEqual(['General', 'Insights', 'AI']);
     expect(cats[0].items[0].id).toBe('website');
+    expect(cats[0].items[0].label).toBe('General');
+    expect(cats[0].items.map((i) => i.id)).not.toContain('pages');
     expect(cats[2].items.map((i) => i.id)).toEqual(['connect-ai', 'skills']);
   });
 
