@@ -1,16 +1,22 @@
 # project-switch-isolation
 
-P0 correctness repair activated from a live user report: every Dashboard project could show its own title while Canvas/Layers retained the same prior project's document.
+P0 correctness repair for the live bug where every Dashboard project could show its own title while Canvas/Layers retained the prior project's document.
 
 Fresh-source diagnosis:
 - ProjectFS is a same-document singleton.
-- loadSnapshot() could load a new project's main files into the previous project's active branch.
-- hydrateBranches() accumulated prior branches.
-- activeCodeAtom / nodesAtom are version-gated and project hydration did not bump the version when the active path stayed app/page.client.tsx.
-- mutation queue state and deferred fan-outs survive React remounts; Safari's setTimeout fallback was not tracked for cancellation.
+- `loadSnapshot()` could load a new project's main files into the previous project's active branch.
+- `hydrateBranches()` accumulated prior branches.
+- `activeCodeAtom` / `nodesAtom` are version-gated and project hydration did not bump the version when the active path stayed `app/page.client.tsx`.
+- mutation queue state and deferred fan-outs survive React remounts; Safari's `setTimeout` fallback was not tracked for cancellation.
 - ProjectLoader wrote project-global metadata before checking whether the old loader had been cancelled.
 
-Branch: field/project-switch-isolation
-Base: 348c25d54a5acf60e96c6093bfefdcfd6e2d747b
+Shipped:
+- PR #53
+- merge commit `790789c2c94d0ad2cb7742c1285b00c48ad3aa48`
+- focused regression + production build passed on the product-code head
+- Cloudflare Workers build passed on the tested head
+- temporary verification workflow removed before merge
 
-Keep this batch strictly to project isolation. Manual Save UI is a separate next batch after this ships.
+Runtime QA is delegated to Codex per user instruction.
+
+Manual Save UI remains a separate next batch and was not mixed into this P0 repair.

@@ -3,10 +3,12 @@
 ---
 field_assignment: 1
 id: project-switch-isolation
-status: active
+status: complete
 branch: field/project-switch-isolation
-pr: null
+pr: 53
 base: 348c25d54a5acf60e96c6093bfefdcfd6e2d747b
+merge_commit: 790789c2c94d0ad2cb7742c1285b00c48ad3aa48
+completed_at: 2026-09-29T02:14:00Z
 type: p0-correctness-repair
 execution_class: contract-worker
 owner: night-shift
@@ -31,20 +33,23 @@ protected:
   - package.json
   - package-lock.json
 qa:
-  browser_preview: true
-  authenticated: preferred
+  browser_preview: delegated-to-codex
+  authenticated: delegated-to-codex
 ---
 
 ## Goal
 
 Fix same-document project isolation so selecting project B cannot retain project A's files, branches, derived nodes/layers, queued code, selection/edit state, or deferred writes.
 
-## Acceptance
+## Result
+
+Merged in PR #53 as `790789c2c94d0ad2cb7742c1285b00c48ad3aa48`.
 
 - Project B's envelope replaces project A's main + branch state atomically.
-- Same-path app/page.client.tsx swaps invalidate active code and node derivations.
-- Mutation queue/deferred fan-outs are reseeded to B and stale A callbacks cannot write into B.
-- Stale async ProjectLoader results cannot rewrite the newly active project's global identity state.
-- Regression coverage proves A -> B isolation with different content at the same file path.
-- Exact-head build/checks pass before merge.
-- Browser QA verifies A -> Dashboard -> B when the authenticated harness is available; harness absence is recorded, not confused with product failure.
+- Same-path `app/page.client.tsx` swaps invalidate active code and node derivations.
+- Mutation queue/deferred fan-outs are reseeded to B and stale A callbacks are cancelled.
+- Stale async ProjectLoader results are fenced from rewriting newly active project-global state.
+- Focused regression coverage for A -> B same-path isolation passed.
+- Production build passed on the tested product-code head.
+- Temporary verification workflow was removed before merge.
+- Runtime/browser QA was explicitly delegated to Codex by the user.
