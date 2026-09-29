@@ -457,6 +457,10 @@ export default function MediaGalleryPanel({
       if (assets === null) {
         setDurableInventory(false);
         setStorage(null);
+        // Session-only projects read their inventory from the project-scoped
+        // Media catalog. Never leave durable/local rows from the previously
+        // mounted project in component state.
+        setUploads([]);
         trace.action('media:fetched', { source: 'session' });
       } else {
         setDurableInventory(true);
@@ -470,6 +474,17 @@ export default function MediaGalleryPanel({
     } finally {
       setLoadingList(false);
     }
+  }, [projectId]);
+
+  useEffect(() => {
+    // FieldShell can switch mounted projects without reloading the document.
+    // Clear browser-local state before hydrating the next project so project A
+    // can never flash or leak into project B.
+    setUploads([]);
+    setSelectedKeys(new Set());
+    setInspectedIdentity(null);
+    setDuplicateCandidates([]);
+    setUploadError(null);
   }, [projectId]);
 
   useEffect(() => { void fetchUploads(); }, [fetchUploads]);
