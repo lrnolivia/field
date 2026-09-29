@@ -337,7 +337,7 @@ export default function ProjectSettingsModal() {
         onConfirm={() => void removeFavicon()}
         title="Remove favicon?"
         message="This removes the favicon from the current project."
-        confirmLabel="Remove"
+        confirmText="Remove"
         variant="danger"
         isLoading={deletingFavicon}
       />
@@ -347,7 +347,7 @@ export default function ProjectSettingsModal() {
         onConfirm={() => void removeSocial()}
         title="Remove social image?"
         message="This removes the social share image from the current project."
-        confirmLabel="Remove"
+        confirmText="Remove"
         variant="danger"
         isLoading={deletingSocial}
       />
