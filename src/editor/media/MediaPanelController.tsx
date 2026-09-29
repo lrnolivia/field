@@ -17,6 +17,7 @@ import VideoSearchModal from '@/editor/ui/VideoSearchModal';
 import GalleryCreationWizard from '@/editor/gallery/GalleryCreationWizard';
 import type { GalleryWizardConfig } from '@/editor/gallery/gallery-wizard-model';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
+import { measureGallerySourceRatio } from '@/code/gallery/gallery-source-ratio';
 import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutations';
 import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
@@ -188,27 +189,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
     try {
       const ratios = config.frameSizing === 'source'
-        ? await Promise.all(config.mediaUrls.map((url) => new Promise<number | null>((resolve) => {
-            const image = new Image();
-            let settled = false;
-            const finish = (ratio: number | null) => {
-              if (settled) return;
-              settled = true;
-              window.clearTimeout(timeout);
-              image.onload = null;
-              image.onerror = null;
-              resolve(ratio);
-            };
-            const timeout = window.setTimeout(() => {
-              image.src = '';
-              finish(null);
-            }, 8000);
-            image.onload = () => finish(
-              image.naturalHeight ? image.naturalWidth / image.naturalHeight : null,
-            );
-            image.onerror = () => finish(null);
-            image.src = url;
-          })))
+        ? await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))
         : undefined;
 
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
