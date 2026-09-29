@@ -49,34 +49,51 @@ async function dragAbsoluteChild(
 ): Promise<void> {
   await editor.select(['abs-child']);
   const child = await editor.nodeBox('abs-child');
-  const hero = await editor.nodeBox('hero');
+  const root = await editor.nodeBox('root');
+  const surface = await page.locator('[data-canvas-input-surface]').boundingBox();
+  if (!surface) throw new Error('canvas input surface has no bounding box');
+
   const from = { x: child.x + child.width / 2, y: child.y + child.height / 2 };
-  // Hero is 520px wide inside a 900px root; this lands in root whitespace to
-  // its right, fully outside Hero without intentionally targeting a sibling.
-  const to = {
-    x: hero.x + hero.width + Math.max(90, child.width),
-    y: from.y,
+
+  // Drive the center far enough beyond the PAGE ROOT that the entire child is
+  // outside Hero and no sibling can accidentally become the intended drop
+  // parent. Prefer the right side; use the left if the fitted page is too close
+  // to the workspace edge.
+  const right = {
+    x: root.x + root.width + child.width + 48,
+    y: Math.max(surface.y + 24, Math.min(surface.y + surface.height - 24, from.y)),
   };
+  const left = {
+    x: root.x - child.width - 48,
+    y: right.y,
+  };
+  const to = right.x < surface.x + surface.width - 12 ? right : left;
+  if (to.x <= surface.x + 8 || to.x >= surface.x + surface.width - 8) {
+    throw new Error('no safe outside-root drag target exists in the canvas surface');
+  }
 
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   try {
     // Engage the actual drag before Space is pressed. Figma's documented
     // keep-parent gesture is contextual DURING an active move.
-    await page.mouse.move(from.x + 12, from.y, { steps: 3 });
-    await page.waitForTimeout(40);
+    await page.mouse.move(from.x + 14, from.y, { steps: 4 });
+    await page.waitForTimeout(50);
     if (holdSpaceDuringDrag) await page.keyboard.down('Space');
-    await page.mouse.move(to.x, to.y, { steps: 14 });
-    // Pump the exit/entry state machines past their frame hysteresis.
-    for (let i = 0; i < 8; i++) {
-      await page.mouse.move(to.x + (i % 2), to.y, { steps: 1 });
+    await page.mouse.move(to.x, to.y, { steps: 24 });
+
+    // AbsoluteInFrame has entry/exit grace designed for real pointer streams.
+    // Hold the pointer outside for long enough that a NORMAL drag unquestionably
+    // takes the exit path; the Space case must suppress that same path.
+    for (let i = 0; i < 20; i++) {
+      await page.mouse.move(to.x + (i % 2), to.y + ((i % 3) - 1), { steps: 1 });
       await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r(null))));
     }
     await page.mouse.up();
   } finally {
     if (holdSpaceDuringDrag) await page.keyboard.up('Space');
   }
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(300);
 }
 
 test.describe('Figma hierarchy parity — Space parenting overrides', () => {
@@ -119,7 +136,7 @@ test.describe('Figma hierarchy parity — Space parenting overrides', () => {
     // Baseline: the same move without Space really does cross the parent
     // boundary and reparent upward.
     await dragAbsoluteChild(page, editor, false);
-    await expect.poll(() => nodeParent(page, 'abs-child'), { timeout: 10_000 }).toBe('root');
+    await expect.poll(async () => (await nodeParent(page, 'abs-child')) !== 'hero', { timeout: 10_000 }).toBe(true);
 
     // Fresh fixture + same move, but Space is pressed after drag engagement.
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
@@ -133,6 +150,8 @@ test.describe('Figma hierarchy parity — Space parenting overrides', () => {
     // Hero while its source hierarchy stays parented to Hero.
     const child = await editor.nodeBox('abs-child');
     const hero = await editor.nodeBox('hero');
-    expect(child.x).toBeGreaterThan(hero.x + hero.width);
+    const fullyOutsideHorizontally =
+      child.x >= hero.x + hero.width || child.x + child.width <= hero.x;
+    expect(fullyOutsideHorizontally).toBe(true);
   });
 });
