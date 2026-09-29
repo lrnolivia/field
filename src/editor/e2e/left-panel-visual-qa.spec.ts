@@ -180,8 +180,12 @@ test('floating and detached left-origin surfaces preserve parity', async ({ page
   await layersButton.click();
   await expect(floating).toHaveAttribute('data-visible', 'true');
 
-  // Vibe owns a second left-origin surface when detached. Its window must use
-  // the same hierarchy without restyling generic floating surfaces.
+  // Vibe owns a second left-origin surface when detached. Return to the
+  // docked workspace first so this checks Vibe's canonical left host rather
+  // than carrying Float state forward from the previous assertion.
+  await page.evaluate(() => {
+    localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked'));
+  });
   await show(page, 'vibe', 'dark', 28);
   await page.getByTitle('Detach into a floating window').click();
   const vibeSheet = page.locator('[data-vibe-detached]').first();
