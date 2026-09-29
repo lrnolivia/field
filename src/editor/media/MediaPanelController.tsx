@@ -182,31 +182,44 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     if (galleryBusy) return;
     setGalleryBusy(true);
     setGalleryError(null);
+
+    let galleryId: string | null = null;
+    let committed = false;
+
     try {
       const ratios = config.frameSizing === 'source'
         ? await Promise.all(config.mediaUrls.map((url) => new Promise<number | null>((resolve) => {
             const image = new Image();
-            const timeout = window.setTimeout(() => resolve(null), 8000);
-            image.onload = () => {
+            let settled = false;
+            const finish = (ratio: number | null) => {
+              if (settled) return;
+              settled = true;
               window.clearTimeout(timeout);
-              resolve(image.naturalHeight ? image.naturalWidth / image.naturalHeight : null);
+              image.onload = null;
+              image.onerror = null;
+              resolve(ratio);
             };
-            image.onerror = () => {
-              window.clearTimeout(timeout);
-              resolve(null);
-            };
+            const timeout = window.setTimeout(() => {
+              image.src = '';
+              finish(null);
+            }, 8000);
+            image.onload = () => finish(
+              image.naturalHeight ? image.naturalWidth / image.naturalHeight : null,
+            );
+            image.onerror = () => finish(null);
             image.src = url;
           })))
         : undefined;
+
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
       const created = insertToolbarItemAtVisibleCenter('gallery');
-      const galleryId = created[0];
+      galleryId = created[0] ?? null;
       if (!galleryId) throw new Error('Could not place the Gallery on the canvas.');
 
       const mutations: Mutation[] = [
         { type: 'updateStyles', nodeId: galleryId, styles: plan.rootPatch },
         { type: 'updateHtmlAttrs', nodeId: galleryId, attrs: plan.rootAttrs },
-        ...plan.itemNodes.map((node) => ({ type: 'addNode' as const, parentId: galleryId, node })),
+        ...plan.itemNodes.map((node) => ({ type: 'addNode' as const, parentId: galleryId!, node })),
       ];
       if (plan.stripHoverPatch) {
         plan.itemNodes.forEach((node) => {
@@ -218,11 +231,25 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
           plan.itemNodes.map((node) => ({ itemId: node.id, controlIds: [] })),
         ));
       }
+
       queueMutations(mutations);
       flushNow();
       completeGalleryCreationSession(galleryId);
+      committed = true;
       onClose();
     } catch (error) {
+      if (galleryId && !committed) {
+        try {
+          queueMutations([{ type: 'removeNode', nodeId: galleryId }]);
+          flushNow();
+        } catch (rollbackError) {
+          // Preserve the original creation error, but make rollback failure
+          // observable instead of silently hiding a potentially partial node.
+          console.error('[field] Gallery creation rollback failed', rollbackError);
+        } finally {
+          completeGalleryCreationSession(galleryId);
+        }
+      }
       setGalleryError(error instanceof Error ? error.message : 'Could not create Gallery.');
     } finally {
       setGalleryBusy(false);
