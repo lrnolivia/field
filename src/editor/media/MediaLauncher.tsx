@@ -130,12 +130,15 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
           <button
             key={card.action}
             type="button"
+            data-media-launcher-card
             onClick={() => activate(card.action)}
-            className="group min-w-0 rounded-[7px] border border-transparent px-1.5 py-1.5 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
+            className="group flex h-10 min-w-0 items-center gap-1.5 rounded-[7px] border border-transparent px-1.5 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
           >
             <IconFrame>{card.glyph}</IconFrame>
-            <div className="mt-1.5 text-[10px] font-medium text-[var(--text-primary)]">{card.label}</div>
-            <div className="mt-0.5 truncate text-[8px] text-[var(--text-tertiary)]">{card.description}</div>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[10px] font-medium text-[var(--text-primary)]">{card.label}</span>
+              <span className="mt-0.5 block truncate text-[8px] leading-3 text-[var(--text-tertiary)]">{card.description}</span>
+            </span>
           </button>
         ))}
       </div>
