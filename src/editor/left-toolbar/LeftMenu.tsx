@@ -246,6 +246,7 @@ export default function LeftMenu() {
   };
 
   const sharedMode = workspaceMode === 'docked' || workspaceMode === 'floating' || workspaceMode === 'compact-docked';
+  const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
   const railCanHide = sharedMode && autoHide;
   const panelCollapsed = workspaceMode === 'floating' ? floatingPanelCollapsed : !leftPaneOpen;
   const togglePanelCollapsed = () => {
@@ -265,8 +266,8 @@ export default function LeftMenu() {
       className="fixed z-[10002] flex h-10 w-3 items-center justify-center rounded-r-[5px] border border-l-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,left] hover:w-5"
       style={{
         left: 0,
-        top: leftPaneOpen ? undefined : railBottom - 74,
-        bottom: leftPaneOpen ? 48 : undefined,
+        top: dockedShell ? undefined : railBottom - 74,
+        bottom: dockedShell ? 48 : undefined,
       }}
     ><svg aria-hidden viewBox="0 0 8 16" width="7" height="14" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="m2 3 3 5-3 5" /></svg></button>}
     <div
@@ -278,7 +279,7 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5000] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: leftPaneOpen || workspaceMode === 'compact-docked' ? workspace.left.inset : WORKSPACE_FLOAT_INSET, top: leftPaneOpen ? workspaceBodyTop(workspace.left) : workspaceMode === 'compact-docked' ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: leftPaneOpen || workspaceMode === 'compact-docked' ? 52 : collapsedWidth, height: leftPaneOpen ? workspaceBodyHeightCss(workspace.left) : workspaceMode === 'compact-docked' ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderBottomLeftRadius: leftPaneOpen || workspaceMode === 'compact-docked' ? 0 : 8, borderTopRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: !leftPaneOpen && workspaceMode !== 'compact-docked' && (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: workspaceMode === 'compact-docked' && !leftPaneOpen ? 70 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
+      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 52 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? 'calc(100vh - 52px)' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
     >
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
