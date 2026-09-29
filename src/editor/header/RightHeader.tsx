@@ -11,6 +11,7 @@
 // dropdown so the 25 s deploy doesn't feel dead.
 
 import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { LayoutGroup, motion } from 'motion/react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, useAtomValue, useAtom } from 'jotai';
 import { exportDropdownOpenAtom, inspectorModeAtom } from '@/code/stores/editor-store';
@@ -36,6 +37,7 @@ import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
 import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
+import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -293,7 +295,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   };
 
   return (
-    <>
+    <LayoutGroup id="right-inspector-pane-actions">
       {rightPaneOpen && (
         <div
           data-workspace-right-header
@@ -317,16 +319,9 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
-          {!previewMode && (
-            <div data-inspector-header-pane-actions className="mr-2 flex items-center gap-1">
-              <WorkspaceAutoHideButton side="right" />
-              <WorkspaceCollapseButton
-                side="right"
-                collapsed={false}
-                onClick={() => setRightPaneOpen(false)}
-              />
-            </div>
-          )}
+          <div data-inspector-header-actions className="flex h-full flex-col items-end py-px">
+            <div className="flex h-7 items-center">
+              {!previewMode && <InspectorZoomControl />}
 
           <button
             type="button"
@@ -334,7 +329,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             title={previewMode ? 'Exit preview' : 'Preview'}
             data-tutorial="header-preview-button"
             onClick={onTogglePreview}
-            className={`flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
+            className={`ml-2 flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
               previewMode
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
                 : 'bg-[var(--button-secondary-bg,rgba(255,255,255,0.06))] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -392,6 +387,28 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
               }}
             />
           </div>
+            </div>
+            {!previewMode && (
+              <div data-inspector-header-pane-actions className="mt-0.5 flex h-5 items-center gap-1">
+                <motion.div
+                  layoutId="right-inspector-autohide"
+                  transition={{ duration: 0.2, ease: 'easeInOut' }}
+                >
+                  <WorkspaceAutoHideButton side="right" />
+                </motion.div>
+                <motion.div
+                  layoutId="right-inspector-collapse"
+                  transition={{ duration: 0.2, ease: 'easeInOut' }}
+                >
+                  <WorkspaceCollapseButton
+                    side="right"
+                    collapsed={false}
+                    onClick={() => setRightPaneOpen(false)}
+                  />
+                </motion.div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {rightPaneOpen && rightDetached && workspaceMode === 'compact' && floatingInspectorVisible && !previewMode && (
@@ -427,8 +444,18 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
           <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
           <div data-inspector-compact-actions className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-2">
-            <WorkspaceAutoHideButton side="right" />
-            <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
+            <motion.div
+              layoutId="right-inspector-autohide"
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+            >
+              <WorkspaceAutoHideButton side="right" />
+            </motion.div>
+            <motion.div
+              layoutId="right-inspector-collapse"
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+            >
+              <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
+            </motion.div>
           </div>
         </div>
       )}
@@ -482,6 +509,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
         confirmLabel={publishError?.upgradable ? 'See plans' : publishError?.retryable === false ? 'Close' : 'Try again'}
         cancelLabel={publishError?.upgradable ? 'Not now' : publishError?.retryable === false ? 'Keep editing' : 'Close'}
       />
-    </>
+    </LayoutGroup>
   );
 }
