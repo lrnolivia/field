@@ -48,7 +48,7 @@ vi.mock('@/canvas/drag/helpers/coords', () => ({
     ({ left: r.left, top: r.top, width: r.width, height: r.height }),
 }));
 
-import { focusScreenRect, getNodeBounds, getContentBounds } from './CameraCommands';
+import { focusScreenRect, followScreenRect, getNodeBounds, getContentBounds } from './CameraCommands';
 
 const ROOT = 'frame-root';
 
@@ -168,6 +168,38 @@ describe('focusScreenRect — canonical camera focus mechanics', () => {
     expect(scale).toBeGreaterThanOrEqual(1);
     expect(duration).toBe(360);
     expect(options).toEqual({ focus: true });
+  });
+});
+
+describe('followScreenRect — adaptive text focus', () => {
+  beforeEach(() => {
+    animateCanvasTo.mockClear();
+    moveCanvasTo.mockClear();
+  });
+
+  const liveRect = (left: number, top: number, width: number, height: number) => ({
+    left, top, width, height, right: left + width, bottom: top + height,
+    x: left, y: top, toJSON() {},
+  } as DOMRect);
+
+  it('does nothing while text remains inside the comfort envelope', () => {
+    expect(followScreenRect(liveRect(430, 260, 120, 44))).toBe(false);
+    expect(animateCanvasTo).not.toHaveBeenCalled();
+  });
+
+  it('pulls back when growing text breaches the envelope and never zooms in', () => {
+    expect(followScreenRect(liveRect(350, 220, 560, 180))).toBe(true);
+    expect(animateCanvasTo).toHaveBeenCalledTimes(1);
+    const [, , scale, duration, options] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBeLessThanOrEqual(1);
+    expect(duration).toBe(220);
+    expect(options).toBeUndefined();
+  });
+
+  it('can pan a displaced text box without increasing scale', () => {
+    expect(followScreenRect(liveRect(120, 280, 120, 44))).toBe(true);
+    const [, , scale] = animateCanvasTo.mock.calls[0];
+    expect(scale).toBe(1);
   });
 });
 

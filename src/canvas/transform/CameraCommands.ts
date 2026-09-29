@@ -302,6 +302,104 @@ export function focusScreenRect(screenRect: DOMRect, profile: FocusCameraProfile
   animateCanvasTo(x, y, targetScale, duration, { focus });
 }
 
+/**
+ * Keep a live screen-space rect inside the text-edit comfort envelope.
+ *
+ * This is intentionally asymmetric: it may pan and it may zoom OUT, but it
+ * never zooms in. The wider trigger envelope and tighter settle envelope form
+ * a dead-zone, so line-wrap changes do not make the camera breathe.
+ * Returns true when a camera adjustment was scheduled.
+ */
+export function followScreenRect(screenRect: DOMRect): boolean {
+  const t = transformManager.getTransform();
+  const area = getPaddedCanvasFocusArea();
+  const areaLeft = area.centerX - area.width / 2;
+  const areaTop = area.centerY - area.height / 2;
+
+  // Trigger only near the viewport edge. Once triggered, settle farther inside
+  // the view to buy enough slack that the next line/word does not immediately
+  // retrigger another camera move.
+  const triggerW = area.width * 0.90;
+  const triggerH = area.height * 0.86;
+  const triggerLeft = area.centerX - triggerW / 2;
+  const triggerRight = area.centerX + triggerW / 2;
+  const triggerTop = area.centerY - triggerH / 2;
+  const triggerBottom = area.centerY + triggerH / 2;
+
+  const right = screenRect.left + screenRect.width;
+  const bottom = screenRect.top + screenRect.height;
+  const breaches =
+    screenRect.left < triggerLeft || right > triggerRight ||
+    screenRect.top < triggerTop || bottom > triggerBottom ||
+    screenRect.width > triggerW || screenRect.height > triggerH;
+  if (!breaches) return false;
+
+  const settleW = area.width * 0.82;
+  const settleH = area.height * 0.76;
+  const ratio = Math.min(
+    1,
+    settleW / Math.max(1, screenRect.width),
+    settleH / Math.max(1, screenRect.height),
+  );
+  // Never zoom in while typing. MIN_SCALE is still the global floor.
+  const targetScale = Math.max(MIN_SCALE, Math.min(t.scale, t.scale * ratio));
+
+  const c = screenRectToCanvas(screenRect, t);
+  const canvasCenterX = c.left + c.width / 2;
+  const canvasCenterY = c.top + c.height / 2;
+  const screenCenterX = screenRect.left + screenRect.width / 2;
+  const screenCenterY = screenRect.top + screenRect.height / 2;
+
+  // First preserve the target's apparent screen position while changing scale.
+  // Then apply only the minimum pan required to bring it into the settle zone.
+  let x = screenCenterX - canvasCenterX * targetScale;
+  let y = screenCenterY - canvasCenterY * targetScale;
+
+  const settleLeft = area.centerX - settleW / 2;
+  const settleRight = area.centerX + settleW / 2;
+  const settleTop = area.centerY - settleH / 2;
+  const settleBottom = area.centerY + settleH / 2;
+
+  let projectedLeft = c.left * targetScale + x;
+  let projectedRight = (c.left + c.width) * targetScale + x;
+  let projectedTop = c.top * targetScale + y;
+  let projectedBottom = (c.top + c.height) * targetScale + y;
+  const projectedW = projectedRight - projectedLeft;
+  const projectedH = projectedBottom - projectedTop;
+
+  if (projectedW <= settleW) {
+    if (projectedLeft < settleLeft) x += settleLeft - projectedLeft;
+    else if (projectedRight > settleRight) x -= projectedRight - settleRight;
+  } else {
+    x += area.centerX - (projectedLeft + projectedRight) / 2;
+  }
+  if (projectedH <= settleH) {
+    if (projectedTop < settleTop) y += settleTop - projectedTop;
+    else if (projectedBottom > settleBottom) y -= projectedBottom - settleBottom;
+  } else {
+    y += area.centerY - (projectedTop + projectedBottom) / 2;
+  }
+
+  // Avoid rescheduling an effectively identical transform when huge text has
+  // already reached the global minimum zoom. Batch 3 will add caret-follow for
+  // that oversized-text case.
+  if (
+    Math.abs(targetScale - t.scale) < 0.0005 &&
+    Math.abs(x - t.x) < 0.5 &&
+    Math.abs(y - t.y) < 0.5
+  ) return false;
+
+  trace.fn('camera.followScreenRect', {
+    fromScale: t.scale, toScale: targetScale,
+    width: screenRect.width, height: screenRect.height,
+    areaLeft, areaTop,
+  });
+  // Keep continuous typing quiet: same D3 camera motion, but no repeated focus
+  // blur. The blur remains on deliberate focus entry / restore.
+  animateCanvasTo(x, y, targetScale, 220);
+  return true;
+}
+
 // ─── Pan Commands ───────────────────────────────────────────────────────────
 
 /**

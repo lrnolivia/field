@@ -404,6 +404,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
   // ─── Iframe sandbox ─────────────────────────────────────────────────────
   // Canvas content always renders inside the cross-origin sandbox iframe.
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const textFocusCameraRef = useRef<TextFocusCamera | null>(null);
 
   // Render coordination: a single object owns the bridge.render() call and
   // the should-skip-this-render predicate. Replaces the previous 4-ref
@@ -564,10 +565,10 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     onTextEditSelectionChanged: (snapshot) => {
       jotaiStore.set(textEditSnapshotAtom, snapshot);
     },
-    // Live HTML stream as the user types. Currently unused by parent (the
-    // canvas element shows the latest content because the editor mounts on
-    // it directly); kept for future preview / dirty-state hooks.
-    onTextEditContentChanged: () => { /* no-op for now */ },
+    // Live HTML stream as the user types. The sandbox's ResizeObserver publishes
+    // the resulting geometry alongside this stream; TextFocusCamera waits two
+    // frames, then follows only if the edited rect breaches its comfort zone.
+    onTextEditContentChanged: () => { textFocusCameraRef.current?.update(); },
     // User clicked outside the editor or pressed Escape → commit. The HTML
     // we get is the final value we persist through the existing mutation
     // pipeline.
@@ -966,6 +967,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
         return !!container && shouldRouteCanvasWheel(event.target, event.clientX, event.clientY, container);
       },
     );
+    textFocusCameraRef.current = focusCamera;
     const unsubscribeFocus = jotaiStore.sub(isTextEditingAtom, () => {
       if (jotaiStore.get(isTextEditingAtom)) {
         const id = controller.getEditingNodeId();
@@ -979,6 +981,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     return () => {
       unsubscribeFocus();
       focusCamera.dispose();
+      if (textFocusCameraRef.current === focusCamera) textFocusCameraRef.current = null;
       if (textEditControllerRef.current) {
         textEditControllerRef.current.dispose();
         textEditControllerRef.current = null;
