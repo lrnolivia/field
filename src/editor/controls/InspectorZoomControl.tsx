@@ -1,11 +1,11 @@
 // InspectorZoomControl.tsx — compact Inspector view controls.
 // FIGUI3_INSPECTOR_VIEW_CONTROLS_20260926
 //
-// Full zoom + editor appearance belong in the Inspector utility area.
-// BottomToolbar keeps only the one-click smart Fit action.
+// Full zoom and Inspector pane actions belong in the Inspector utility area.
+// Editor appearance lives on the canonical left rail.
 
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { useEffect, useRef, useState } from 'react';
 import { selectedNodeAtom } from '@/code/stores/store';
 import {
   transformManager,
@@ -15,15 +15,10 @@ import {
   zoomToFit,
   zoomToFitSelection,
 } from '@/canvas/transform';
-import { getContentRoot, refreshCanvasTokens } from '@/canvas/node-ops';
-import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
-import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
-import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
-import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
+import { getContentRoot } from '@/canvas/node-ops';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
-import { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
-import { trace } from '@/shared/debug-trace';
+import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 
 function MenuRow({ label, shortcut, onClick }: {
   label: string;
@@ -42,58 +37,7 @@ function MenuRow({ label, shortcut, onClick }: {
   );
 }
 
-function InspectorThemeControl() {
-  const [mode, setMode] = useAtom(editorThemeModeAtom);
-  const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
-
-  const applyChoice = useCallback((nextMode: EditorThemeMode, nextLevel: EditorNeutralLevel) => {
-    const root = document.documentElement;
-    root.classList.add('theme-transition');
-    setMode(nextMode);
-    setNeutralLevel(nextLevel);
-    window.setTimeout(() => root.classList.remove('theme-transition'), 200);
-    requestAnimationFrame(() => refreshCanvasTokens());
-    setOpen(false);
-    trace.action('inspector:theme-neutral', { mode: nextMode, level: nextLevel });
-  }, [setMode, setNeutralLevel]);
-
-  return (
-    <div ref={anchorRef} className="relative">
-      <button
-        type="button"
-        data-inspector-theme
-        aria-expanded={open}
-        aria-label={'Editor appearance: ' + mode + ', neutral ' + neutralLevel}
-        title={'Editor appearance: ' + mode + ' · Neutral ' + neutralLevel}
-        onClick={() => setOpen((value) => !value)}
-        className={`flex h-6 w-6 items-center justify-center rounded-[4px] border-none transition-colors ${
-          open
-            ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
-            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-        }`}
-      >
-        {mode === 'dark'
-          ? <FigmaMoonIcon className="h-3.5 w-3.5" size={14} />
-          : <FigmaSunIcon className="h-3.5 w-3.5" size={14} />
-        }
-      </button>
-      {open && (
-        <ThemeNeutralPopover
-          mode={mode}
-          level={neutralLevel}
-          anchorRef={anchorRef}
-          placement="below"
-          onSelect={applyChoice}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Compact zoom readout + appearance control in the Inspector mode bar. */
+/** Compact zoom readout + Inspector pane controls. */
 export default function InspectorZoomControl() {
   const selectedId = useAtomValue(selectedNodeAtom);
   const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
@@ -134,7 +78,7 @@ export default function InspectorZoomControl() {
 
   return (
     <div data-inspector-view-controls className="relative ml-auto flex items-center gap-0.5">
-      <InspectorThemeControl />
+      <WorkspaceAutoHideButton side="right" />
       <WorkspaceCollapseButton side="right" collapsed={false}
         onClick={() => setRightPaneOpen(false)} />
       <div ref={ref} className="relative">

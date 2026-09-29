@@ -17,7 +17,7 @@ interface ThemeNeutralPopoverProps {
   anchorRef: RefObject<HTMLElement | null>;
   onSelect: (mode: EditorThemeMode, level: EditorNeutralLevel) => void;
   onClose: () => void;
-  placement?: 'above' | 'below';
+  placement?: 'above' | 'below' | 'right';
 }
 
 export default function ThemeNeutralPopover({
@@ -66,7 +66,9 @@ export default function ThemeNeutralPopover({
 
   const placementClass = placement === 'below'
     ? 'absolute right-0 top-full mt-1'
-    : 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2';
+    : placement === 'right'
+      ? 'absolute left-full bottom-0 ml-2'
+      : 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2';
 
   return (
     <div

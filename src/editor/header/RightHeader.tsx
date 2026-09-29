@@ -315,7 +315,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
-          {!previewMode && <WorkspaceAutoHideButton side="right" className="relative ml-1" />}
           <div className="flex-1" />
 
           <button

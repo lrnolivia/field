@@ -17,6 +17,8 @@ import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store
 import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
 import { agentStatusAtom } from '@/code/stores/agent-chat-store';
 import { ChatImageIcon, SettingsConnectAiIcon } from '@/shared/icons';
+import EditorAppearanceControl from '@/editor/EditorAppearanceControl';
+import { settingsOverlayOpenAtom, settingsSectionAtom } from '@/code/stores/website-settings-store';
 import {
   FigmaPlusIcon as InsertPlusIcon,
   FigmaCmsIcon as CmsIcon,
@@ -29,6 +31,16 @@ import { useIsViewer, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { useIsClosedSource } from '@/code/stores/closed-source-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { LogoButton } from '@/editor/header/LeftHeader';
+
+function SettingsGearIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="2.35" />
+      <path d="M8 1.5v1.65M8 12.85v1.65M1.5 8h1.65M12.85 8h1.65M3.4 3.4l1.17 1.17M11.43 11.43l1.17 1.17M12.6 3.4l-1.17 1.17M4.57 11.43 3.4 12.6" />
+      <circle cx="8" cy="8" r="5.15" opacity=".55" />
+    </svg>
+  );
+}
 
 // ─── Code Icon ──────────────────────────────────────────────────────────────
 
@@ -142,6 +154,8 @@ export default function LeftMenu() {
   const collapsedWidth = useAtomValue(leftCollapsedWidthAtom);
   const floatingLeftHeight = useAtomValue(floatingLeftHeightAtom);
   const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
+  const setSettingsSection = useSetAtom(settingsSectionAtom);
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen);
   const [codeOpen, setCodeOpen] = useAtom(codeEditorOpenAtom);
   // Viewer mode — only Pages + Layers stay interactive (navigation /
@@ -269,10 +283,32 @@ export default function LeftMenu() {
       {/* Right border */}
       <div className="absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
 
-      {sharedMode && railVisible && <>
-        <WorkspaceAutoHideButton side="left" className="absolute bottom-20" />
-        <WorkspaceCollapseButton side="left" collapsed={panelCollapsed} onClick={togglePanelCollapsed} className="absolute bottom-10" />
-      </>}
+      {sharedMode && railVisible && (
+        <div data-left-rail-bottom-controls className="absolute bottom-3 left-0 right-0 z-10 flex flex-col items-center">
+          <WorkspaceAutoHideButton side="left" />
+          <div className="mt-2">
+            <WorkspaceCollapseButton side="left" collapsed={panelCollapsed} onClick={togglePanelCollapsed} />
+          </div>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <EditorAppearanceControl />
+            <button
+              type="button"
+              data-left-rail-settings
+              aria-label="Open General settings"
+              title="General settings"
+              disabled={isViewer}
+              onClick={() => {
+                if (isViewer) return;
+                setSettingsSection('website');
+                setSettingsOpen(true);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <SettingsGearIcon />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top section */}
       <div className="flex items-center flex-col gap-2 relative z-10">
