@@ -1,43 +1,25 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+name: Product language verify
 
-const settings = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/overlays/SettingsOverlay.tsx'), 'utf8');
+on:
+  push:
+    branches:
+      - field/product-language-rebase
 
-describe('General Settings surfaced preferences', () => {
-  it('surfaces only existing cross-project preferences', () => {
-    for (const symbol of [
-      'builderThemeAtom',
-      'editorThemeModeAtom',
-      'editorNeutralLevelAtom',
-      'websitePreviewThemeAtom',
-      'caseManagementAtom',
-      'workspaceModeAtom',
-      'workspaceAutoHideAtom',
-      'rightInspectorAutoHideAtom',
-      'leftContentWidthAtom',
-      'rightPaneWidthAtom',
-      'autoFocusLayersAtom',
-      'showRulersAtom',
-      'showPixelGridAtom',
-      'useSmoothZoomAtom',
-      'autoPanSpeedAtom',
-    ]) {
-      expect(settings).toContain(symbol);
-    }
-  });
+permissions:
+  contents: read
 
-  it('uses visual selectors for visual choices and compact toggles for behaviors', () => {
-    expect(settings).toContain('function ChoiceTile');
-    expect(settings).toContain('function WorkspaceChoiceGlyph');
-    expect(settings).toContain('function SegmentedChoice');
-    expect(settings).toContain('BUILDER_THEMES.map');
-    expect(settings).toContain('EDITOR_NEUTRAL_SWATCHES');
-    expect(settings).toContain('type="range"');
-  });
-
-  it('keeps website preview appearance source-safe', () => {
-    expect(settings).toContain('refreshCanvasTokens()');
-    expect(settings).toContain('never rewrites project source');
-  });
-});
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Focused tests
+        run: npx vitest run src/shared/ui-heading-case.test.ts src/editor/UiHeadingCase.structure.test.ts src/editor/product-language.test.ts src/design-system/DropdownMenu.keyboard.test.tsx src/design-system/DropdownMenu.separators.test.ts src/dashboard/project-meta.test.ts src/editor/figui3-toolbar-shortcuts.test.ts src/editor/GeneralSettingsSurface.structure.test.ts
+      - name: Build all
+        run: npm run build:all
