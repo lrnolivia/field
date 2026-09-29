@@ -14,6 +14,35 @@ interface SessionMediaIdentity {
 
 const sessionMediaIdentity = new Map<string, SessionMediaIdentity>();
 
+interface ActiveMediaUpload {
+  controller: AbortController;
+}
+
+const activeMediaUploads = new Map<string, ActiveMediaUpload>();
+
+export class MediaUploadCancelledError extends Error {
+  readonly uploadId: string;
+
+  constructor(uploadId: string) {
+    super('Upload cancelled');
+    this.name = 'MediaUploadCancelledError';
+    this.uploadId = uploadId;
+  }
+}
+
+export function isMediaUploadCancelled(error: unknown): error is MediaUploadCancelledError {
+  return error instanceof MediaUploadCancelledError
+    || (error instanceof DOMException && error.name === 'AbortError');
+}
+
+export function cancelMediaUpload(uploadId: string): boolean {
+  const active = activeMediaUploads.get(uploadId);
+  if (!active) return false;
+  active.controller.abort();
+  return true;
+}
+
+
 function identityKey(projectId: string, contentHash: string): string {
   return projectId + ':' + contentHash;
 }
@@ -74,6 +103,7 @@ export async function ingestMediaFile({
   idPrefix = 'media',
   allowDuplicate = false,
   rememberAsset,
+  signal,
 }: {
   file: File;
   projectId: string;
@@ -82,8 +112,16 @@ export async function ingestMediaFile({
   idPrefix?: string;
   allowDuplicate?: boolean;
   rememberAsset?: MediaAssetWriter;
+  signal?: AbortSignal;
 }): Promise<MediaIngestResult> {
   const uploadId = uniqueUploadId(idPrefix, file);
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
+
+  activeMediaUploads.set(uploadId, { controller });
 
   upsert({
     id: uploadId,
@@ -105,7 +143,9 @@ export async function ingestMediaFile({
       progress: 0,
     });
 
+    if (controller.signal.aborted) throw new MediaUploadCancelledError(uploadId);
     contentHash = await hashMediaFile(file);
+    if (controller.signal.aborted) throw new MediaUploadCancelledError(uploadId);
     if (contentHash && !allowDuplicate) {
       const existing = sessionMediaIdentity.get(identityKey(projectId, contentHash));
       if (existing) {
@@ -139,7 +179,7 @@ export async function ingestMediaFile({
       contentHash: contentHash ?? undefined,
     });
 
-    const url = await backend.uploadAsset(projectId, file);
+    const url = await backend.uploadAsset(projectId, file, { signal: controller.signal });
     if (contentHash) {
       sessionMediaIdentity.set(identityKey(projectId, contentHash), {
         url,
@@ -178,6 +218,21 @@ export async function ingestMediaFile({
       uploadId,
     };
   } catch (error) {
+    if (controller.signal.aborted || isMediaUploadCancelled(error)) {
+      upsert({
+        id: uploadId,
+        projectId,
+        name: file.name,
+        kind,
+        status: 'cancelled',
+        progress: 0,
+        contentHash: contentHash ?? undefined,
+      });
+      throw error instanceof MediaUploadCancelledError
+        ? error
+        : new MediaUploadCancelledError(uploadId);
+    }
+
     const message = error instanceof Error ? error.message : 'Upload failed';
     upsert({
       id: uploadId,
@@ -190,9 +245,15 @@ export async function ingestMediaFile({
       contentHash: contentHash ?? undefined,
     });
     throw error;
+  } finally {
+    signal?.removeEventListener('abort', abortFromCaller);
+    const active = activeMediaUploads.get(uploadId);
+    if (active?.controller === controller) activeMediaUploads.delete(uploadId);
   }
 }
 
 export function clearSessionMediaIdentityForTests(): void {
   sessionMediaIdentity.clear();
+  for (const active of activeMediaUploads.values()) active.controller.abort();
+  activeMediaUploads.clear();
 }

@@ -9,7 +9,7 @@
 //
 // Credentials ride along on the session cookie either way.
 
-import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont } from './types';
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont, UploadAssetOptions } from './types';
 import { isKnownProjectFormat } from './types';
 import { trace } from '@/shared/debug-trace';
 
@@ -271,7 +271,7 @@ export class RevymeBackend implements ProjectBackend {
     return res.blob();
   }
 
-  async uploadAsset(id: string, file: File): Promise<string> {
+  async uploadAsset(id: string, file: File, options?: UploadAssetOptions): Promise<string> {
     const form = new FormData();
     form.append('file', file);
     const type = file.type.startsWith('video/') ? 'video' : 'image';
@@ -279,7 +279,7 @@ export class RevymeBackend implements ProjectBackend {
     form.append('source', 'uploaded');
     form.append('websiteId', id);
 
-    const res = await fetch(url('/api/upload'), { method: 'POST', body: form, credentials: 'include' });
+    const res = await fetch(url('/api/upload'), { method: 'POST', body: form, credentials: 'include', signal: options?.signal });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       trace.error('backend:upload-asset', { id, status: res.status, body: text });

@@ -103,6 +103,10 @@ export interface RevymeUser {
 
 type WebsiteRole = 'owner' | 'editor' | 'viewer';
 
+export interface UploadAssetOptions {
+  signal?: AbortSignal;
+}
+
 export interface ProjectBackend {
   /** Get the currently authenticated user. Returns null if not authenticated. */
   getUser(): Promise<RevymeUser | null>;
@@ -124,7 +128,7 @@ export interface ProjectBackend {
   getWebsiteName(id: string): Promise<string | null>;
 
   /** Upload an asset file. Returns the source/runtime URL to insert. */
-  uploadAsset(id: string, file: File): Promise<string>;
+  uploadAsset(id: string, file: File, options?: UploadAssetOptions): Promise<string>;
 
   /**
    * Durable project Media inventory when the backend owns one.
