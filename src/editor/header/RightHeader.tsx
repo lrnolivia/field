@@ -317,6 +317,17 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           <InspectorCollaborators disabled={isViewer} />
           <div className="flex-1" />
 
+          {!previewMode && (
+            <div data-inspector-header-pane-actions className="mr-2 flex items-center gap-1">
+              <WorkspaceAutoHideButton side="right" />
+              <WorkspaceCollapseButton
+                side="right"
+                collapsed={false}
+                onClick={() => setRightPaneOpen(false)}
+              />
+            </div>
+          )}
+
           <button
             type="button"
             aria-label={previewMode ? 'Exit preview' : 'Preview'}

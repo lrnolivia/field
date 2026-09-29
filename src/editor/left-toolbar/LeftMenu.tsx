@@ -289,7 +289,7 @@ export default function LeftMenu() {
           <div className="mt-2">
             <WorkspaceCollapseButton side="left" collapsed={panelCollapsed} onClick={togglePanelCollapsed} />
           </div>
-          <div className="mt-4 flex flex-col items-center gap-2">
+          <div className="mt-6 flex flex-col items-center gap-2">
             <EditorAppearanceControl />
             <button
               type="button"
@@ -302,7 +302,7 @@ export default function LeftMenu() {
                 setSettingsSection('website');
                 setSettingsOpen(true);
               }}
-              className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SettingsGearIcon />
             </button>
