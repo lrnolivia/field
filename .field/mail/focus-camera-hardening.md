@@ -29,3 +29,11 @@ Preview:
 `https://field-focus-camera-hardening.canvas-preview.loew.fi/builder/noauth`
 
 The PR remains draft and unmerged pending final user acceptance.
+
+## 2026-09-29 — merged
+
+User approved the final visual QA and requested merge.
+
+PR #66 merged into main as 6dd598b19edbd87bc2031a6824539c6f6919655c.
+
+The three hardening batch commits were preserved in history. Assignment is complete.

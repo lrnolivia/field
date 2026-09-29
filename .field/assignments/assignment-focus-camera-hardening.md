@@ -1,7 +1,7 @@
 ---
 field_assignment: 1
 id: focus-camera-hardening
-status: active
+status: complete
 branch: field/focus-camera-hardening
 pr: 66
 base: 837a1dccc3d50e80f881fdda51ed5d496300ad5d
@@ -170,3 +170,15 @@ Exact-head Cloudflare evidence:
 - branch Preview: `https://field-focus-camera-hardening.canvas-preview.loew.fi/builder/noauth`
 
 Focused Vitest coverage was added/updated but was NOT RUN in this Contract Worker environment. Final user visual QA is required before merge.
+
+## Completion — 2026-09-29
+
+User visually accepted the hardening pass and explicitly approved merge.
+
+- PR #66: merged
+- approved head: 820f88a5b3737b20e88f913d4c43d5db146888b8
+- merge commit / resulting main: 6dd598b19edbd87bc2031a6824539c6f6919655c
+- merge method: merge commit, preserving the three hardening batch commits
+- Cloudflare exact-head build before merge: PASS
+- user visual QA: PASS
+- assignment status: complete
