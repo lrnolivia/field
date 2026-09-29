@@ -83,3 +83,9 @@ Final behavior under QA:
 - Batch 1 and Batch 2 behavior should remain unchanged
 
 PR #60 remains draft/unmerged pending final user acceptance.
+
+## 2026-09-29 — final QA accepted
+
+User final visual QA: PASS — "it's great! lets go and merge everything."
+
+Merge authorization is explicit for PR #60 at accepted head `01531291174a1ea1a77bba5b740a30e8e66a7d24`. Proceed with final merge/closeout after exact-state sanity.

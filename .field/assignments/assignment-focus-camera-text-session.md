@@ -289,3 +289,10 @@ Exact-head Cloudflare evidence:
 - branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
 
 Focused Vitest coverage was updated for caret follow, zoom-floor behavior, direct handoff, and deferred restore but was NOT RUN in this Contract Worker environment. Final user visual QA remains required before closeout or merge.
+
+## Final visual QA — PASS
+
+User accepted Batch 3 and the complete focus-camera/text-session system on 2026-09-29: "it's great! lets go and merge everything."
+
+Final accepted implementation head before merge: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
+The user explicitly authorized merging PR #60 and closing the assignment.

@@ -8,7 +8,7 @@ current_main_at_recording: 30f32648fe7c7f7607ffa5683422f51817b38e06
 environment: branch Preview /builder/noauth
 build: PASS — Cloudflare Workers Build 164e4f20-d527-4152-98f2-ebd2cdef6d66 ran npm run build:all
 tests: NOT RUN — focused Vitest coverage was added/updated but no repository test executor/check runner is exposed in this Contract Worker environment
-runtime_qa: BATCH 1 PASS / BATCH 2 PASS / BATCH 3 PENDING USER VISUAL QA
+runtime_qa: BATCH 1 PASS / BATCH 2 PASS / BATCH 3 PASS
 tested_at: 2026-09-29T03:25:37Z
 evidence:
   - https://github.com/lrnolivia/field/pull/60
@@ -84,7 +84,7 @@ Stop gate: CLEARED — user accepted Batch 2 visual feel on 2026-09-29.
 
 ## Batch 3 — caret + session polish
 
-Status: BUILD PASS / FINAL USER VISUAL QA PENDING
+Status: PASS — BUILD + USER VISUAL QA
 
 Exact-head evidence:
 - head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`
@@ -113,3 +113,12 @@ Required final visual checks:
 
 Final gate:
 - PR #60 remains draft and must not merge to main until the user accepts this final visual QA and separately authorizes merge.
+
+## Final user acceptance
+
+PASS on 2026-09-29.
+
+User: "it's great! lets go and merge everything."
+
+Accepted head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
+Merge authorized: YES.
