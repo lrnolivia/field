@@ -6,6 +6,7 @@ const FIELD_API_ROOT = "/api/field/projects";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
 const FIELD_FONTS_API_PATH = "/api/field/fonts";
+const FIELD_BUILD_API_PATH = "/api/build";
 const GOOGLE_FONTS_UPSTREAM = "https://www.googleapis.com/webfonts/v1/webfonts";
 const GOOGLE_FONTS_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
@@ -79,6 +80,51 @@ function jsonResponse(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: apiHeaders({ "Content-Type": "application/json; charset=utf-8", ...headers }),
+  });
+}
+
+function fieldBuildEnvironment(hostname) {
+  if (hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX)) return "Preview";
+  if (hostname === "field.loew.fi") return "Production";
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "Local";
+  return "Unknown";
+}
+
+async function handleFieldBuildRequest(request, env) {
+  const incoming = new URL(request.url);
+  if (incoming.pathname !== FIELD_BUILD_API_PATH) return null;
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET" });
+  }
+
+  let asset = {};
+  try {
+    const target = new URL("/build.json", incoming.origin);
+    const response = await env.ASSETS.fetch(new Request(target.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    }));
+    if (response.ok) {
+      const parsed = await response.json();
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) asset = parsed;
+    }
+  } catch {
+    // Runtime version metadata is still useful if the static build asset is unavailable.
+  }
+
+  const versionMetadata = env.FIELD_VERSION ?? null;
+  const deploymentId = typeof versionMetadata?.id === "string" ? versionMetadata.id : null;
+  const versionTimestamp = isoTimestamp(versionMetadata?.timestamp ?? null);
+  const builtAt = isoTimestamp(asset.builtAt ?? null);
+
+  return jsonResponse({
+    version: typeof asset.version === "string" ? asset.version : "unknown",
+    commitSha: typeof asset.commitSha === "string" ? asset.commitSha : "unknown",
+    shortSha: typeof asset.shortSha === "string" ? asset.shortSha : "unknown",
+    builtAt,
+    environment: fieldBuildEnvironment(incoming.hostname),
+    deployedAt: versionTimestamp ?? builtAt,
+    deploymentId,
   });
 }
 
@@ -1419,6 +1465,7 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
 }
 
 export {
+  handleFieldBuildRequest,
   handleGoogleFontsRequest,
   handleFieldProfileRequest,
   handleFieldDashboardRequest,
@@ -1442,6 +1489,9 @@ export default {
 
     // field APIs are handled before static assets so API failures can never
     // fall through to index.html.
+    const buildResponse = await handleFieldBuildRequest(request, env);
+    if (buildResponse) return buildResponse;
+
     const fontsResponse = await handleGoogleFontsRequest(
       request,
       env,

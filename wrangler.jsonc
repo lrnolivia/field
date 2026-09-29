@@ -9,6 +9,9 @@
     "run_worker_first": true,
     "html_handling": "none"
   },
+  "version_metadata": {
+    "binding": "FIELD_VERSION"
+  },
   "r2_buckets": [
     {
       "binding": "FIELD_PROJECTS",
