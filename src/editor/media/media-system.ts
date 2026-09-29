@@ -41,6 +41,8 @@ export interface MediaSession {
 
 export interface MediaAsset {
   id: string;
+  /** Project that owns this Media identity. Session catalogs never cross this boundary. */
+  projectId: string;
   url: string;
   kind: Exclude<MediaKind, 'all'>;
   name: string;
@@ -59,6 +61,8 @@ export type MediaUploadStatus = 'queued' | 'uploading' | 'processing' | 'complet
 
 export interface MediaUploadItem {
   id: string;
+  /** Project that owns this upload even if it finishes after the editor switches projects. */
+  projectId: string;
   name: string;
   kind: Exclude<MediaKind, 'all' | 'embed'>;
   status: MediaUploadStatus;

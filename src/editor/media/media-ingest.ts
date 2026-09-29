@@ -1,4 +1,5 @@
 import { backend } from '@/backend';
+import { getProjectId } from '@/backend/project-id';
 import type { MediaAsset, MediaKind, MediaUploadItem } from './media-system';
 
 const MAX_SESSION_HASH_BYTES = 64 * 1024 * 1024;
@@ -37,6 +38,7 @@ export function mediaAssetFromExternalUrl(
   url: string,
   kind: Exclude<MediaKind, 'all'>,
   source: MediaAsset['source'] = 'external',
+  projectId: string = getProjectId(),
 ): MediaAsset {
   let name = kind === 'video' ? 'Video' : kind === 'audio' ? 'Audio' : 'Image';
   try {
@@ -48,6 +50,7 @@ export function mediaAssetFromExternalUrl(
 
   return {
     id: 'external:' + kind + ':' + url,
+    projectId,
     url,
     kind,
     name,
@@ -84,6 +87,7 @@ export async function ingestMediaFile({
 
   upsert({
     id: uploadId,
+    projectId,
     name: file.name,
     kind,
     status: 'queued',
@@ -94,6 +98,7 @@ export async function ingestMediaFile({
   try {
     upsert({
       id: uploadId,
+      projectId,
       name: file.name,
       kind,
       status: 'processing',
@@ -106,6 +111,7 @@ export async function ingestMediaFile({
       if (existing) {
         upsert({
           id: uploadId,
+          projectId,
           name: file.name,
           kind,
           status: 'complete',
@@ -125,6 +131,7 @@ export async function ingestMediaFile({
 
     upsert({
       id: uploadId,
+      projectId,
       name: file.name,
       kind,
       status: 'uploading',
@@ -142,6 +149,7 @@ export async function ingestMediaFile({
 
     rememberAsset?.({
       id: allowDuplicate ? url : contentHash ?? url,
+      projectId,
       url,
       kind,
       name: file.name,
@@ -154,6 +162,7 @@ export async function ingestMediaFile({
 
     upsert({
       id: uploadId,
+      projectId,
       name: file.name,
       kind,
       status: 'complete',
@@ -172,6 +181,7 @@ export async function ingestMediaFile({
     const message = error instanceof Error ? error.message : 'Upload failed';
     upsert({
       id: uploadId,
+      projectId,
       name: file.name,
       kind,
       status: 'error',
