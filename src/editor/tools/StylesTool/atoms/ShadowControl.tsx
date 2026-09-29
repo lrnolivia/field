@@ -32,7 +32,7 @@ import { parsePx, formatPx } from '../style-helpers';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { trace } from '@/shared/debug-trace';
 import { resolvePresetColor } from '@/shared/css-utils';
-import { OptionsPanel, OptionSection, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 // ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
 
@@ -108,8 +108,9 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   // geometry, softness, and paint. Existing source serialization is unchanged.
   return (
     <ShowControlLabels>
-      <OptionsPanel>
-        <OptionSection title="Shadow">
+      <EffectOptionsPanel>
+        <EffectIllustration kind="shadow" />
+        <EffectOptionSection title="Style" glyph={<InspectorSectionGlyph kind="style" />}>
           <ChoiceRow
             label="Type"
             value={activeEntry.type}
@@ -128,9 +129,9 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
               options={[{ value: 'outside', label: 'Drop' }, { value: 'inside', label: 'Inner' }]}
             />
           )}
-        </OptionSection>
+        </EffectOptionSection>
 
-        <OptionSection title="Geometry" divided>
+        <EffectOptionSection title="Geometry" glyph={<InspectorSectionGlyph kind="geometry" />}>
           <SpatialRow label="Offset">
             <ToolInput
               value={formatPx(activeEntry.x)}
@@ -175,17 +176,17 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
               onCommit={(v) => updateEntry(activeIdx, { spread: v })}
             />
           )}
-        </OptionSection>
+        </EffectOptionSection>
 
-        <OptionSection title="Paint" divided>
+        <EffectOptionSection title="Paint" glyph={<InspectorSectionGlyph kind="paint" />}>
           <PaintOptionRow
             label="Color"
             value={activeEntry.color}
             onChange={(v) => updateEntry(activeIdx, { color: v })}
             onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })}
           />
-        </OptionSection>
-      </OptionsPanel>
+        </EffectOptionSection>
+      </EffectOptionsPanel>
     </ShowControlLabels>
   );
 }
@@ -203,7 +204,7 @@ function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
     activeEntry && (
       <ShadowEditorPanel initialIdx={activeIdx} initialBoxShadow={boxShadow} initialFilter={filter} onChangeLive={onChangeMultipleLive} onCommit={onChangeMultiple} />
     )
-  ), { kind: 'options' });
+  ), { kind: 'options', width: 300 });
   const styles = allProps;
   const allTokens = useAtomValue(presetTokensAtom);
 

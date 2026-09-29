@@ -135,8 +135,8 @@ textarea {
 
   --dropdown-bg: #fafafa;
 
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 24%, var(--bg-panel));
-  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, var(--bg-panel));
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 18%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -199,8 +199,8 @@ textarea {
   --accent-muted: rgba(255, 255, 255, 0.075);
   --accent-surface: rgba(255, 255, 255, 0.065);
 
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 32%, var(--bg-panel));
-  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, var(--bg-panel));
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 22%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, transparent);
 
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.40);
@@ -345,19 +345,34 @@ select {
   letter-spacing: 0.02em;
 }
 
+/* Inspector spacing contract: peer editing cells use the SAME 8px rhythm
+ * horizontally that sections use vertically. Keep compact micro-gaps inside
+ * segmented controls / icon lanes; this token is for sibling editor cells. */
+[data-properties-panel] {
+  --inspector-grid-gap: 8px;
+}
+
+[data-properties-panel] [data-inspector-section-content],
+[data-properties-panel] [data-tool-row-value],
+[data-properties-panel] [data-layout-padding-axes],
+[data-properties-panel] [data-layout-padding-sides],
+[data-properties-panel] [data-spacing-axis-pair] {
+  gap: var(--inspector-grid-gap);
+}
+
 /* Inspector property rows share columns. The last track reserves a stable
  * action lane; the two value tracks divide the remaining resizable width. */
 .field-inspector-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--control-gap, 8px);
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
   align-items: center;
   min-width: 0;
 }
 .field-inspector-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) 52px;
-  gap: var(--control-gap, 8px);
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
   align-items: center;
   min-width: 0;
 }

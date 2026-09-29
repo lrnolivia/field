@@ -87,8 +87,12 @@ export function toolbarItemToClipboardNodes(item: ToolbarItem): ClipboardNode[] 
   return nodes;
 }
 
-/** Click a catalogue tile to place it at the visible canvas center. */
-export function insertToolbarItemAtVisibleCenter(itemId: string, sectionBlueprintId?: string, attrs?: Record<string, string>): string[] {
+function insertToolbarItem(
+  itemId: string,
+  sectionBlueprintId: string | undefined,
+  attrs: Record<string, string> | undefined,
+  insertion: { ignoreSelection?: boolean; selectionOverride?: readonly string[] },
+): string[] {
   if (sectionBlueprintId) {
     const created = insertSectionBlueprint(sectionBlueprintId);
     playInsertionPop(created);
@@ -107,8 +111,33 @@ export function insertToolbarItemAtVisibleCenter(itemId: string, sectionBlueprin
   if (item.cdnUrl) ensureCdnImport(item.elementType, item.cdnUrl);
   const nodes = toolbarItemToClipboardNodes(item);
   if (attrs && nodes[0]) nodes[0].attrs = { ...nodes[0].attrs, ...attrs };
-  const created = insertNodes(nodes, { ignoreSelection: true });
+  const created = insertNodes(nodes, insertion);
   playInsertionPop(created);
-  trace.action('insert-panel:click-insert', { itemId, created });
+  trace.action('insert-panel:click-insert', {
+    itemId,
+    created,
+    selectionOverride: insertion.selectionOverride,
+  });
   return created;
+}
+
+/** Click a catalogue tile to place it at the visible canvas center. */
+export function insertToolbarItemAtVisibleCenter(
+  itemId: string,
+  sectionBlueprintId?: string,
+  attrs?: Record<string, string>,
+): string[] {
+  return insertToolbarItem(itemId, sectionBlueprintId, attrs, { ignoreSelection: true });
+}
+
+/**
+ * Place a catalogue item using the paste engine as though nodeId were still
+ * selected. This is deterministic across async work such as Media uploads.
+ */
+export function insertToolbarItemAtSelection(
+  itemId: string,
+  nodeId: string,
+  attrs?: Record<string, string>,
+): string[] {
+  return insertToolbarItem(itemId, undefined, attrs, { selectionOverride: [nodeId] });
 }

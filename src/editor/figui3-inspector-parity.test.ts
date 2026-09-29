@@ -28,6 +28,9 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(fill).toContain('serializePaintOpacity');
     expect(stroke).toContain('<PaintRow');
     expect(stroke).toContain('data-inspector-stroke-geometry');
+    expect(stroke).toContain('grid-cols-[72px_minmax(0,1fr)_28px] gap-2');
+    expect(stroke).toContain('chevronLabel="px"');
+    expect(stroke).toContain('ariaLabel="Stroke style"');
   });
 
   it('uses the canonical effect row for regular, filter, backdrop, and text effects', () => {
@@ -38,6 +41,11 @@ describe('FigUI3 Inspector parity contract', () => {
     for (const source of [shadow, filter, backdrop, textShadow]) expect(source).toContain('<EffectRow');
     expect(shadow).toContain('data-effect-editor');
     expect(textShadow).toContain('data-text-effect-editor');
+    expect(filter).toContain('<OptionSection title="Layer blur">');
+    expect(filter).toContain('<OptionSection title="Adjustments" divided>');
+    expect(filter).toContain('<OptionSection title="Color" divided>');
+    expect(filter).toContain('ScalarRow label="Radius"');
+    expect(filter).not.toContain('<OptionSection title="Filter">');
   });
 
   it('uses native SVG paint-opacity attributes and exposes Effects', () => {
@@ -55,6 +63,29 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(layout).toContain('data-auto-layout-padding');
     expect(layout).toContain('setPaddingAxis');
     expect(layout).not.toContain('<PaddingControl />');
+  });
+
+  it('uses one inspector-wide 8px rhythm for peer cells and row spacing', () => {
+    const theme = read('src/styles/loew-theme.css');
+    const size = read('src/editor/tools/SizeTool.tsx');
+    const padding = read('src/editor/tools/LayoutPaddingControl.tsx');
+
+    expect(theme).toContain('--inspector-grid-gap: 8px');
+    expect(theme).toContain('[data-properties-panel] [data-inspector-section-content]');
+    expect(theme).toContain('[data-properties-panel] [data-tool-row-value]');
+    expect(theme).toContain('[data-properties-panel] [data-layout-padding-axes]');
+    expect(theme).toContain('[data-properties-panel] [data-layout-padding-sides]');
+    expect(theme).toContain('[data-properties-panel] [data-spacing-axis-pair]');
+    expect(theme).toContain('gap: var(--inspector-grid-gap, var(--control-gap, 8px))');
+
+    expect(size).toContain('data-layout-size-pair className="field-inspector-field-grid"');
+    expect(size).not.toContain('data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}');
+    expect(padding).toContain('data-layout-padding-toolbar');
+    expect(padding).toContain('data-layout-padding-editor');
+    expect(padding).toContain('className="flex flex-col gap-2 w-full"');
+    expect(padding).toContain('data-layout-padding-axes');
+    expect(padding).toContain('data-layout-padding-sides');
+    expect(theme).not.toContain('[data-properties-panel] [data-layout-padding] > div:last-child');
   });
 
   it('keeps Typography Basics and Details aligned to the FigUI3 information hierarchy', () => {

@@ -11,6 +11,7 @@ import {
   type FieldProjectNavigationOptions,
 } from '@/backend/field-navigation';
 import { setFieldProjectIdOverride } from '@/backend/project-id';
+import { setMediaProjectIdAtom } from '@/editor/media/media-state';
 import { fieldBuilderProjectId, fieldPathIsDashboard, fieldProjectUrl } from './field-shell-route';
 import { trace } from '@/shared/debug-trace';
 import { requestEditorChromeExit } from '@/editor/editor-entrance';
@@ -87,7 +88,10 @@ export default function FieldShell() {
   const didSeedProjectIdRef = useRef(false);
   if (!didSeedProjectIdRef.current) {
     didSeedProjectIdRef.current = true;
-    if (initialProjectIdRef.current) setFieldProjectIdOverride(initialProjectIdRef.current);
+    if (initialProjectIdRef.current) {
+      setFieldProjectIdOverride(initialProjectIdRef.current);
+      getDefaultStore().set(setMediaProjectIdAtom, initialProjectIdRef.current);
+    }
   }
 
   const [builderId, setBuilderId] = useState<string | null>(initialProjectIdRef.current);
@@ -282,12 +286,14 @@ export default function FieldShell() {
       }
 
       setFieldProjectIdOverride(projectId);
+      getDefaultStore().set(setMediaProjectIdAtom, projectId);
       builderReadyIdRef.current = null;
       builderIdRef.current = projectId;
       setBuilderId(projectId);
       trace.action('field-shell:project-mounted', { projectId });
     } else {
       setFieldProjectIdOverride(projectId);
+      getDefaultStore().set(setMediaProjectIdAtom, projectId);
     }
 
     const nextUrl = fieldProjectUrl(projectId);

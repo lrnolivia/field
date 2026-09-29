@@ -12,6 +12,7 @@ import Modal from '@/design-system/Modal';
 import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
 import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
 import { getProjectId } from '@/backend/project-id';
+import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
 // Pixabay video search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/pixabay`) so Revyme's key stays server-side and out of the
@@ -175,21 +176,16 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
       <div className="space-y-3 p-4">
         {/* Header: tabs + search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            {((HAS_PIXABAY ? ['pixabay', 'upload', 'create'] : ['upload', 'create']) as Tab[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-2 cut-corners text-xs font-medium transition-colors ${
-                  tab === t
-                    ? 'bg-[var(--choice-bg)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                }`}
-              >
-                {t === 'pixabay' ? 'Pixabay' : t === 'upload' ? 'Upload' : 'Create'}
-              </button>
-            ))}
-          </div>
+          <ChromeTabBar
+            value={tab}
+            onChange={setTab}
+            ariaLabel="Video source"
+            items={[
+              ...((HAS_PIXABAY ? [{ value: 'pixabay', label: 'Pixabay', glyph: 'search' }] : []) as ChromeTabItem<Tab>[]),
+              { value: 'upload', label: 'Upload', glyph: 'upload' },
+              { value: 'create', label: 'Create', glyph: 'create' },
+            ]}
+          />
 
           {/* Search input — only on Pixabay tab */}
           {tab === 'pixabay' && (
@@ -265,11 +261,14 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
         {tab === 'upload' && (
           <div className="flex flex-col gap-4">
             {/* Upload drop zone */}
-            <label className={`flex-shrink-0 h-36 cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
+            <label data-media-upload-surface="video" className={`relative flex-shrink-0 h-36 overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'cursor-progress opacity-60' : 'cursor-pointer hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)]'}`}>
+              <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : 'Choose a video to add to this project'}</span>
+              </span>
+              <span className="text-[11px] font-medium text-[var(--text-primary)]">{uploading ? 'Uploading…' : 'Choose a video'}</span>
+              <span className="text-[9px] text-[var(--text-tertiary)]">Add a local video to this project’s Media library</span>
               <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
                 const input = e.currentTarget;
                 const file = input.files?.[0];
@@ -304,7 +303,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
                 onChange={(e) => setUrlInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && urlInput.trim()) handleSelect(urlInput.trim()); }}
                 placeholder="Or paste a video URL..."
-                className="flex-1 h-[var(--control-height)] px-3 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] text-[var(--text-primary)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors"
+                className="flex-1 h-[var(--control-height)] rounded-[7px] px-3 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] text-[var(--text-primary)] focus:outline-none transition-colors"
               />
               {urlInput.trim() && (
                 <button

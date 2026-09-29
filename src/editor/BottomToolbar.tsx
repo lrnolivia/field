@@ -6,6 +6,7 @@
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
@@ -102,8 +103,23 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
 
 function DropdownContainer({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <div data-toolbar-dropdown className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 max-h-[70vh] overflow-y-auto rounded-[10px] bg-[var(--bg-surface)] border border-[var(--border-light)] shadow-[var(--shadow-lg)] p-1 z-[100] ${wide ? 'w-[330px]' : 'min-w-[200px]'}`}>
-      {children}
+    <div data-toolbar-dropdown-shell className={`absolute bottom-full left-1/2 z-[100] mb-2 -translate-x-1/2 ${wide ? 'w-[330px]' : 'min-w-[200px]'}`}>
+      <motion.div
+        data-toolbar-dropdown
+        initial={{ opacity: 0, scale: 0.94, y: 9 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 470, damping: 29, mass: 0.68 }}
+        className="max-h-[70vh] overflow-y-auto rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] p-1 shadow-[0_14px_38px_rgba(0,0,0,0.16),0_2px_7px_rgba(0,0,0,0.07)]"
+        style={{ transformOrigin: 'calc(50% - 10px) calc(100% + 7px)' }}
+      >
+        {children}
+      </motion.div>
+      <span
+        data-toolbar-origin-pointer
+        aria-hidden
+        className="absolute -bottom-[5px] left-[calc(50%-10px)] h-[9px] w-[9px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-surface)]"
+        style={{ left: 'calc(50% - 14px)' }}
+      />
     </div>
   );
 }
@@ -112,9 +128,9 @@ type MenuView = 'list' | 'icons';
 function MenuViewToggle({ view, onChange }: { view: MenuView; onChange: (view: MenuView) => void }) {
   return <div className="flex items-center justify-end gap-0.5 border-b border-[var(--border-light)] px-1 py-1" aria-label="Menu view">
     <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => onChange('list')}
-      className={`flex h-6 w-6 items-center justify-center rounded-[4px] text-xs ${view === 'list' ? 'bg-[var(--bg-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>☰</button>
+      className={`flex h-6 w-6 items-center justify-center rounded-[5px] text-xs ${view === 'list' ? 'bg-[var(--accent-surface)] text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>☰</button>
     <button type="button" aria-label="Icon view" aria-pressed={view === 'icons'} onClick={() => onChange('icons')}
-      className={`flex h-6 w-6 items-center justify-center rounded-[4px] text-xs ${view === 'icons' ? 'bg-[var(--bg-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>▦</button>
+      className={`flex h-6 w-6 items-center justify-center rounded-[5px] text-xs ${view === 'icons' ? 'bg-[var(--accent-surface)] text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/20' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}>▦</button>
   </div>;
 }
 

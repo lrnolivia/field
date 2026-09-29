@@ -1,15 +1,16 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { ToolInput, ToolSegmentedControl, ToolSelect } from '../../controls';
 import { useControl } from '../../controls/ControlProvider';
 import { AlignControl, DecorationControl } from './atoms';
 import ToolPopup from '../../ui/ToolPopup';
+import { InspectorSectionGlyph, OptionSection } from '../../ui/OptionsPanel';
 
 type Tab = 'basics' | 'details';
 
 function FieldRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[104px_minmax(0,1fr)] gap-2 items-center min-h-[var(--control-height)]">
+    <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 items-center min-h-[var(--control-height)]">
       <span className="text-xs text-[var(--text-secondary)]">{label}</span>
       <div className="min-w-0">{children}</div>
     </div>
@@ -66,6 +67,74 @@ function plainPreviewText(raw: unknown, fallback: string): string {
   return (plain || fallback || 'Ag').slice(0, 140);
 }
 
+function TypographyPreview({
+  text,
+  style,
+  sourceFontSize,
+}: {
+  text: string;
+  style: CSSProperties;
+  sourceFontSize: number;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [fitFontSize, setFitFontSize] = useState(() => Math.min(32, Math.max(14, sourceFontSize)));
+  const previewHeight = text.length > 72 ? 82 : text.length > 36 ? 72 : 64;
+
+  const fit = useCallback(() => {
+    const box = boxRef.current;
+    const sample = textRef.current;
+    if (!box || !sample) return;
+
+    const min = 12;
+    const max = Math.min(34, Math.max(16, sourceFontSize));
+    let low = min;
+    let high = max;
+    let best = min;
+
+    for (let i = 0; i < 8; i++) {
+      const mid = (low + high) / 2;
+      sample.style.fontSize = `${mid}px`;
+      const fits = sample.scrollWidth <= box.clientWidth - 2 && sample.scrollHeight <= box.clientHeight - 2;
+      if (fits) {
+        best = mid;
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    setFitFontSize(Math.round(best * 10) / 10);
+  }, [sourceFontSize, text]);
+
+  useLayoutEffect(() => {
+    fit();
+    const box = boxRef.current;
+    if (!box || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [fit]);
+
+  return (
+    <div
+      ref={boxRef}
+      data-typography-preview
+      data-typography-preview-fit
+      className="flex w-full items-center justify-center overflow-hidden rounded-[7px] bg-[var(--bg-hover)]/55 px-3 py-2 text-center text-[var(--text-primary)]"
+      style={{ height: previewHeight }}
+    >
+      <span
+        ref={textRef}
+        className="block max-w-full break-words"
+        style={{ ...style, fontSize: `${fitFontSize}px` }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
 export default function TypographyAdvancedPopover() {
   const { node, styles, updateStyle, updateMultipleStyles } = useControl();
   const [open, setOpen] = useState(false);
@@ -107,7 +176,6 @@ export default function TypographyAdvancedPopover() {
 
   const previewStyle = {
     fontFamily: styles.fontFamily || undefined,
-    fontSize: styles.fontSize || '28px',
     fontWeight: styles.fontWeight || undefined,
     lineHeight: styles.lineHeight || 1.15,
     letterSpacing: styles.letterSpacing || undefined,
@@ -141,6 +209,7 @@ export default function TypographyAdvancedPopover() {
         ariaLabel="Typography options"
         anchorRef={anchorRef}
         width={320}
+        kind="options"
         outsidePointerMode="close"
         hideHeader
         contentClassName="w-full flex-shrink-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
@@ -149,21 +218,23 @@ export default function TypographyAdvancedPopover() {
           data-typography-advanced-popover
           className="w-full"
         >
-          <div className="h-10 px-2 flex items-center gap-1 border-b border-[var(--border-light)]">
-            <button
-              type="button"
-              onClick={() => setTab('basics')}
-              className={`h-7 px-2.5 rounded-[var(--control-radius)] text-xs ${tab === 'basics' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}
-            >
-              Basics
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('details')}
-              className={`h-7 px-2.5 rounded-[var(--control-radius)] text-xs ${tab === 'details' ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}
-            >
-              Details
-            </button>
+          <div className="h-11 px-2.5 flex items-center gap-2 border-b border-[var(--border-light)] bg-[var(--bg-surface)]">
+            <div className="flex items-center gap-0.5 rounded-[7px] bg-[var(--bg-hover)]/65 p-0.5">
+              <button
+                type="button"
+                onClick={() => setTab('basics')}
+                className={`h-7 px-2.5 rounded-[6px] text-xs ${tab === 'basics' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              >
+                Basics
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('details')}
+                className={`h-7 px-2.5 rounded-[6px] text-xs ${tab === 'details' ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              >
+                Details
+              </button>
+            </div>
             <button
               type="button"
               onClick={closeWithFocus}
@@ -175,179 +246,190 @@ export default function TypographyAdvancedPopover() {
           </div>
 
           {tab === 'basics' ? (
-            <div className="p-3 flex flex-col gap-3">
-              <div data-typography-preview className="min-h-[124px] px-4 py-3 rounded-[var(--control-radius)] bg-[var(--bg-hover)] flex items-center justify-center overflow-hidden text-center text-[var(--text-primary)]">
-                <span className="max-w-full break-words" style={previewStyle}>{previewText}</span>
-              </div>
+            <div className="p-3 flex flex-col gap-2.5">
+              <OptionSection
+                title="Preview"
+                glyph={<InspectorSectionGlyph kind="typography" />}
+                action={<span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">{Math.round(Math.max(1, Number.parseFloat(styles.fontSize || '28') || 28))} px</span>}
+              >
+                <TypographyPreview text={previewText} style={previewStyle} sourceFontSize={Math.max(1, Number.parseFloat(styles.fontSize || '28') || 28)} />
+              </OptionSection>
 
-              <FieldRow label="Alignment"><AlignControl compact /></FieldRow>
+              <OptionSection title="Formatting" glyph={<InspectorSectionGlyph kind="formatting" />}>
+                <FieldRow label="Alignment"><AlignControl compact /></FieldRow>
 
-              <FieldRow label="Decoration">
-                <ToolSegmentedControl
-                  value={styles.textDecorationLine || 'none'}
-                  onChange={(value) => updateStyle('textDecorationLine', value === 'none' ? '' : value)}
-                  options={[
-                    { value: 'none', label: '—' },
-                    { value: 'underline', label: 'U̲' },
-                    { value: 'line-through', label: 'S̶' },
-                  ]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Decoration">
+                  <ToolSegmentedControl
+                    value={styles.textDecorationLine || 'none'}
+                    onChange={(value) => updateStyle('textDecorationLine', value === 'none' ? '' : value)}
+                    options={[
+                      { value: 'none', label: '—' },
+                      { value: 'underline', label: 'U̲' },
+                      { value: 'line-through', label: 'S̶' },
+                    ]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Case">
-                <ToolSegmentedControl
-                  value={styles.textTransform || 'none'}
-                  onChange={(value) => updateStyle('textTransform', value === 'none' ? '' : value)}
-                  options={[
-                    { value: 'none', label: '—' },
-                    { value: 'uppercase', label: 'TT' },
-                    { value: 'lowercase', label: 'tt' },
-                    { value: 'capitalize', label: 'Tt' },
-                  ]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Case">
+                  <ToolSegmentedControl
+                    value={styles.textTransform || 'none'}
+                    onChange={(value) => updateStyle('textTransform', value === 'none' ? '' : value)}
+                    options={[
+                      { value: 'none', label: '—' },
+                      { value: 'uppercase', label: 'TT' },
+                      { value: 'lowercase', label: 'tt' },
+                      { value: 'capitalize', label: 'Tt' },
+                    ]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Vertical trim">
-                <ToolSegmentedControl
-                  value={trimOn ? 'trim' : 'none'}
-                  onChange={(value) => updateMultipleStyles(value === 'trim'
-                    ? { textBoxTrim: 'trim-both', textBoxEdge: 'cap alphabetic' }
-                    : { textBoxTrim: '', textBoxEdge: '' })}
-                  options={[{ value: 'none', label: '—' }, { value: 'trim', label: 'Ag' }]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Vertical trim">
+                  <ToolSegmentedControl
+                    value={trimOn ? 'trim' : 'none'}
+                    onChange={(value) => updateMultipleStyles(value === 'trim'
+                      ? { textBoxTrim: 'trim-both', textBoxEdge: 'cap alphabetic' }
+                      : { textBoxTrim: '', textBoxEdge: '' })}
+                    options={[{ value: 'none', label: '—' }, { value: 'trim', label: 'Ag' }]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="List style">
-                <ToolSegmentedControl
-                  value={styles.listStyleType || 'none'}
-                  onChange={(value) => updateStyle('listStyleType', value === 'none' ? '' : value)}
-                  options={[
-                    { value: 'none', label: '—' },
-                    { value: 'disc', label: '•' },
-                    { value: 'decimal', label: '1.' },
-                  ]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="List style">
+                  <ToolSegmentedControl
+                    value={styles.listStyleType || 'none'}
+                    onChange={(value) => updateStyle('listStyleType', value === 'none' ? '' : value)}
+                    options={[
+                      { value: 'none', label: '—' },
+                      { value: 'disc', label: '•' },
+                      { value: 'decimal', label: '1.' },
+                    ]}
+                    size="sm"
+                  />
+                </FieldRow>
+              </OptionSection>
 
-              <FieldRow label="Paragraph spacing">
-                <ToolInput
-                  value={paragraphSpacing}
-                  onChange={(value) => updateStyle('marginBottom', clampParagraphSpacing(value))}
-                  min={0}
-                  ariaLabel="Paragraph spacing"
-                />
-              </FieldRow>
+              <OptionSection title="Flow" glyph={<InspectorSectionGlyph kind="flow" />}>
+                <FieldRow label="Paragraph spacing">
+                  <ToolInput
+                    value={paragraphSpacing}
+                    onChange={(value) => updateStyle('marginBottom', clampParagraphSpacing(value))}
+                    min={0}
+                    ariaLabel="Paragraph spacing"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Truncate text">
-                <ToolSegmentedControl
-                  value={truncated ? 'yes' : 'no'}
-                  onChange={(value) => updateMultipleStyles(value === 'yes'
-                    ? { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-                    : { overflow: '', textOverflow: '', whiteSpace: 'normal' })}
-                  options={[{ value: 'no', label: '—' }, { value: 'yes', label: 'A…' }]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Truncate text">
+                  <ToolSegmentedControl
+                    value={truncated ? 'yes' : 'no'}
+                    onChange={(value) => updateMultipleStyles(value === 'yes'
+                      ? { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                      : { overflow: '', textOverflow: '', whiteSpace: 'normal' })}
+                    options={[{ value: 'no', label: '—' }, { value: 'yes', label: 'A…' }]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Wrap style">
-                <ToolSelect
-                  value={styles.whiteSpace || 'normal'}
-                  onChange={(value) => updateStyle('whiteSpace', value === 'normal' ? '' : value)}
-                  options={WRAP_OPTIONS}
-                />
-              </FieldRow>
+                <FieldRow label="Wrap style">
+                  <ToolSelect
+                    value={styles.whiteSpace || 'normal'}
+                    onChange={(value) => updateStyle('whiteSpace', value === 'normal' ? '' : value)}
+                    options={WRAP_OPTIONS}
+                  />
+                </FieldRow>
+              </OptionSection>
             </div>
           ) : (
             <div className="p-3 flex flex-col gap-2.5">
-              <FieldRow label="Numbers">
-                <ToolSelect value={numberStyle} onChange={updateNumberStyle} options={NUMBER_STYLE_OPTIONS} />
-              </FieldRow>
+              <OptionSection title="OpenType" glyph={<InspectorSectionGlyph kind="opentype" />}>
+                <FieldRow label="Numbers">
+                  <ToolSelect value={numberStyle} onChange={updateNumberStyle} options={NUMBER_STYLE_OPTIONS} />
+                </FieldRow>
 
-              <FieldRow label="Position">
-                <ToolSegmentedControl
-                  value={styles.fontVariantPosition || 'normal'}
-                  onChange={(value) => updateStyle('fontVariantPosition', value === 'normal' ? '' : value)}
-                  options={[
-                    { value: 'normal', label: '—' },
-                    { value: 'sub', label: 'X₂' },
-                    { value: 'super', label: 'X²' },
-                  ]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Position">
+                  <ToolSegmentedControl
+                    value={styles.fontVariantPosition || 'normal'}
+                    onChange={(value) => updateStyle('fontVariantPosition', value === 'normal' ? '' : value)}
+                    options={[
+                      { value: 'normal', label: '—' },
+                      { value: 'sub', label: 'X₂' },
+                      { value: 'super', label: 'X²' },
+                    ]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Letterforms">
-                <ToolSelect
-                  value={styles.fontVariantCaps || 'normal'}
-                  onChange={(value) => updateStyle('fontVariantCaps', value === 'normal' ? '' : value)}
-                  options={CAPS_OPTIONS}
-                />
-              </FieldRow>
+                <FieldRow label="Letterforms">
+                  <ToolSelect
+                    value={styles.fontVariantCaps || 'normal'}
+                    onChange={(value) => updateStyle('fontVariantCaps', value === 'normal' ? '' : value)}
+                    options={CAPS_OPTIONS}
+                  />
+                </FieldRow>
 
-              <FieldRow label="Ligatures">
-                <ToolSelect
-                  value={styles.fontVariantLigatures || 'normal'}
-                  onChange={(value) => updateStyle('fontVariantLigatures', value === 'normal' ? '' : value)}
-                  options={LIGATURE_OPTIONS}
-                />
-              </FieldRow>
+                <FieldRow label="Ligatures">
+                  <ToolSelect
+                    value={styles.fontVariantLigatures || 'normal'}
+                    onChange={(value) => updateStyle('fontVariantLigatures', value === 'normal' ? '' : value)}
+                    options={LIGATURE_OPTIONS}
+                  />
+                </FieldRow>
 
-              <FieldRow label="Ordinals">
-                <ToolSegmentedControl
-                  value={ordinalOn ? 'on' : 'off'}
-                  onChange={(value) => updateOrdinals(value === 'on')}
-                  options={[{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Ordinals">
+                  <ToolSegmentedControl
+                    value={ordinalOn ? 'on' : 'off'}
+                    onChange={(value) => updateOrdinals(value === 'on')}
+                    options={[{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }]}
+                    size="sm"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Kerning">
-                <ToolSegmentedControl
-                  value={styles.fontKerning || 'auto'}
-                  onChange={(value) => updateStyle('fontKerning', value === 'auto' ? '' : value)}
-                  options={[
-                    { value: 'auto', label: 'Auto' },
-                    { value: 'normal', label: 'On' },
-                    { value: 'none', label: 'Off' },
-                  ]}
-                  size="sm"
-                />
-              </FieldRow>
+                <FieldRow label="Kerning">
+                  <ToolSegmentedControl
+                    value={styles.fontKerning || 'auto'}
+                    onChange={(value) => updateStyle('fontKerning', value === 'auto' ? '' : value)}
+                    options={[
+                      { value: 'auto', label: 'Auto' },
+                      { value: 'normal', label: 'On' },
+                      { value: 'none', label: 'Off' },
+                    ]}
+                    size="sm"
+                  />
+                </FieldRow>
+              </OptionSection>
 
-              <FieldRow label="Stylistic sets">
-                <ToolInput
-                  value={styles.fontFeatureSettings || ''}
-                  onChange={(value) => updateStyle('fontFeatureSettings', value)}
-                  text
-                  placeholder='"ss01" 1'
-                  ariaLabel="Font feature settings"
-                />
-              </FieldRow>
+              <OptionSection title="Features" glyph={<InspectorSectionGlyph kind="style" />}>
+                <FieldRow label="Stylistic sets">
+                  <ToolInput
+                    value={styles.fontFeatureSettings || ''}
+                    onChange={(value) => updateStyle('fontFeatureSettings', value)}
+                    text
+                    placeholder='"ss01" 1'
+                    ariaLabel="Font feature settings"
+                  />
+                </FieldRow>
 
-              <FieldRow label="Variation axes">
-                <ToolInput
-                  value={styles.fontVariationSettings || ''}
-                  onChange={(value) => updateStyle('fontVariationSettings', value)}
-                  text
-                  placeholder='"wght" 500'
-                  ariaLabel="Font variation settings"
-                />
-              </FieldRow>
+                <FieldRow label="Variation axes">
+                  <ToolInput
+                    value={styles.fontVariationSettings || ''}
+                    onChange={(value) => updateStyle('fontVariationSettings', value)}
+                    text
+                    placeholder='"wght" 500'
+                    ariaLabel="Font variation settings"
+                  />
+                </FieldRow>
+              </OptionSection>
 
-              <div className="pt-1 text-xs font-semibold text-[var(--text-primary)]">Horizontal spacing</div>
-              <FieldRow label="Letter spacing">
-                <ToolInput
-                  value={styles.letterSpacing || '0'}
-                  onChange={(value) => updateStyle('letterSpacing', value)}
-                  ariaLabel="Letter spacing"
-                />
-              </FieldRow>
+              <OptionSection title="Spacing & writing" glyph={<InspectorSectionGlyph kind="spacing" />}>
+                <FieldRow label="Letter spacing">
+                  <ToolInput
+                    value={styles.letterSpacing || '0'}
+                    onChange={(value) => updateStyle('letterSpacing', value)}
+                    ariaLabel="Letter spacing"
+                  />
+                </FieldRow>
 
-              <div className="border-t border-[var(--border-light)] pt-2 mt-0.5 flex flex-col gap-2.5">
                 <FieldRow label="Writing mode">
                   <ToolSelect
                     value={styles.writingMode || 'horizontal-tb'}
@@ -356,7 +438,7 @@ export default function TypographyAdvancedPopover() {
                   />
                 </FieldRow>
                 <DecorationControl />
-              </div>
+              </OptionSection>
             </div>
           )}
         </div>

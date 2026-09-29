@@ -68,10 +68,10 @@ import {
   rightPaneOpenAtom,
   rightInspectorTemporaryRevealAtom,
   rightInspectorExplicitCollapseAtom,
-  MIN_LEFT_CONTENT_WIDTH,
-  MAX_LEFT_CONTENT_WIDTH,
-  MIN_RIGHT_PANE_WIDTH,
-  MAX_RIGHT_PANE_WIDTH,
+  workspacePanelWidthsLockedAtom,
+  WORKSPACE_PANEL_WIDTH_PRESETS,
+  getWorkspacePanelWidthPresetId,
+  type WorkspacePanelWidthPresetId,
 } from '@/code/stores/workspace-panels-store';
 import {
   workspaceModeAtom,
@@ -357,6 +357,7 @@ export default function SettingsOverlay() {
   const setRightInspectorExplicitCollapse = useSetAtom(rightInspectorExplicitCollapseAtom);
   const [leftContentWidth, setLeftContentWidth] = useAtom(leftContentWidthAtom);
   const [rightPaneWidth, setRightPaneWidth] = useAtom(rightPaneWidthAtom);
+  const [panelWidthsLocked, setPanelWidthsLocked] = useAtom(workspacePanelWidthsLockedAtom);
 
   // ─── Mobile nav dropdown (sidebar replacement on small screens) ─────
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -923,6 +924,20 @@ export default function SettingsOverlay() {
     trace.action('general-settings:inspector-auto-hide', { enabled });
   };
 
+  const activePanelWidthPreset = getWorkspacePanelWidthPresetId(leftContentWidth, rightPaneWidth);
+
+  const applyPanelWidthPreset = (presetId: WorkspacePanelWidthPresetId) => {
+    const preset = WORKSPACE_PANEL_WIDTH_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+    setLeftContentWidth(preset.left);
+    setRightPaneWidth(preset.right);
+    trace.action('general-settings:panel-width-preset', {
+      preset: presetId,
+      left: preset.left,
+      right: preset.right,
+    });
+  };
+
   // ─── renderContent ─────────────────────────────────────────────────
 
   const renderContent = () => {
@@ -1208,37 +1223,66 @@ export default function SettingsOverlay() {
             </SettingsRow>
 
             <SettingsRow label="Panel widths" align="top">
-              <div className="grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
-                    <span>Pages & layers</span>
-                    <span className="tabular-nums text-[var(--text-tertiary)]">{leftContentWidth}px</span>
+              <div className="max-w-2xl space-y-3">
+                <div data-panel-width-presets className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {WORKSPACE_PANEL_WIDTH_PRESETS.map((preset) => {
+                    const active = activePanelWidthPreset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => applyPanelWidthPreset(preset.id)}
+                        className={`group rounded-[7px] border p-2.5 text-left transition-colors ${
+                          active
+                            ? 'border-[var(--accent)] bg-[var(--accent-surface)]'
+                            : 'border-[var(--border-light)] bg-[var(--bg-surface)]/55 hover:bg-[var(--bg-hover)]/45'
+                        }`}
+                      >
+                        <div className="flex h-9 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-1">
+                          <span
+                            className="rounded-[2px] bg-[var(--bg-active)]"
+                            style={{ width: `${Math.max(16, Math.round((preset.left / 380) * 32))}%` }}
+                          />
+                          <span className="mx-1 flex-1 rounded-[2px] bg-[var(--canvas-bg,var(--bg-surface))]" />
+                          <span
+                            className="rounded-[2px] bg-[var(--bg-active)]"
+                            style={{ width: `${Math.max(18, Math.round((preset.right / 420) * 34))}%` }}
+                          />
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between gap-2">
+                          <span className="text-[11px] font-medium text-[var(--text-primary)]">{preset.label}</span>
+                          <span className="text-[8px] tabular-nums text-[var(--text-disabled)]">{preset.left} / {preset.right}</span>
+                        </div>
+                        <div className="mt-0.5 text-[9px] leading-3.5 text-[var(--text-tertiary)]">{preset.description}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)]/45 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-medium text-[var(--text-primary)]">
+                        {activePanelWidthPreset
+                          ? WORKSPACE_PANEL_WIDTH_PRESETS.find((item) => item.id === activePanelWidthPreset)?.label
+                          : 'Custom'}
+                      </span>
+                      <span className="text-[9px] tabular-nums text-[var(--text-tertiary)]">
+                        {leftContentWidth}px · {rightPaneWidth}px
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[9px] leading-3.5 text-[var(--text-tertiary)]">
+                      {panelWidthsLocked
+                        ? 'Mouse resizing is locked. Presets remain available here.'
+                        : 'Drag panel edges to fine-tune; non-preset sizes show as Custom.'}
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min={MIN_LEFT_CONTENT_WIDTH}
-                    max={MAX_LEFT_CONTENT_WIDTH}
-                    step={4}
-                    value={leftContentWidth}
-                    onChange={(event) => setLeftContentWidth(Number(event.target.value))}
-                    className="w-full accent-[var(--accent)]"
-                  />
-                </label>
-                <label className="block">
-                  <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
-                    <span>Inspector</span>
-                    <span className="tabular-nums text-[var(--text-tertiary)]">{rightPaneWidth}px</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-[10px] text-[var(--text-secondary)]">Lock widths</span>
+                    <Toggle value={panelWidthsLocked} onChange={setPanelWidthsLocked} />
                   </div>
-                  <input
-                    type="range"
-                    min={MIN_RIGHT_PANE_WIDTH}
-                    max={MAX_RIGHT_PANE_WIDTH}
-                    step={4}
-                    value={rightPaneWidth}
-                    onChange={(event) => setRightPaneWidth(Number(event.target.value))}
-                    className="w-full accent-[var(--accent)]"
-                  />
-                </label>
+                </div>
               </div>
             </SettingsRow>
           </SettingsGroup>

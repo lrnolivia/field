@@ -1,7 +1,7 @@
 // local-backend.ts — Standalone (no backend) implementation using localStorage.
 // Used when VITE_REVYME_CLOUD is not set.
 
-import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont } from './types';
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont, UploadAssetOptions } from './types';
 import { isKnownProjectFormat } from './types';
 import { trace } from '@/shared/debug-trace';
 
@@ -52,7 +52,7 @@ export class LocalBackend implements ProjectBackend {
     return null;
   }
 
-  async uploadAsset(_id: string, file: File): Promise<string> {
+  async uploadAsset(_id: string, file: File, options?: UploadAssetOptions): Promise<string> {
     // Standalone (no-cloud) mode: read the file as a base64 data URL
     // so the bytes get embedded directly in whatever code path stores
     // it. `URL.createObjectURL` was simpler but produced a `blob:`
@@ -65,8 +65,33 @@ export class LocalBackend implements ProjectBackend {
     // uses the real CDN endpoint and is unaffected by this change.
     const url = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+      const signal = options?.signal;
+
+      const cleanup = () => signal?.removeEventListener('abort', onAbort);
+      const onAbort = () => {
+        if (reader.readyState === FileReader.LOADING) reader.abort();
+        cleanup();
+        reject(new DOMException('Upload cancelled', 'AbortError'));
+      };
+
+      if (signal?.aborted) {
+        reject(new DOMException('Upload cancelled', 'AbortError'));
+        return;
+      }
+
+      signal?.addEventListener('abort', onAbort, { once: true });
+      reader.onload = () => {
+        cleanup();
+        resolve(reader.result as string);
+      };
+      reader.onerror = () => {
+        cleanup();
+        reject(reader.error ?? new Error('Failed to read file'));
+      };
+      reader.onabort = () => {
+        cleanup();
+        reject(new DOMException('Upload cancelled', 'AbortError'));
+      };
       reader.readAsDataURL(file);
     });
     trace.action('backend:upload-asset', { source: 'dataURL', name: file.name, bytes: file.size });

@@ -14,6 +14,7 @@ import { getProjectId } from '@/backend/project-id';
 import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
 import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
 import { ingestMediaFile, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
+import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
 // Unsplash search. In CLOUD mode it goes through the backend proxy
 // (`/api/media/unsplash`) so Revyme's key stays server-side and out of the
@@ -314,22 +315,17 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
       <div className="space-y-3 p-4">
         {/* Header: tabs + search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            {/* Tabs */}
-            {([...((HAS_UNSPLASH ? ['unsplash', 'upload', 'create'] : ['upload', 'create']) as Tab[]), ...(isAdmin ? ['3d' as Tab] : [])]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-2 cut-corners text-xs font-medium transition-colors ${
-                  tab === t
-                    ? 'bg-[var(--choice-bg)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                }`}
-              >
-                {t === 'unsplash' ? 'Unsplash' : t === 'upload' ? 'Upload' : t === '3d' ? '3D Assets' : 'Create'}
-              </button>
-            ))}
-          </div>
+          <ChromeTabBar
+            value={tab}
+            onChange={setTab}
+            ariaLabel="Image source"
+            items={[
+              ...((HAS_UNSPLASH ? [{ value: 'unsplash', label: 'Unsplash', glyph: 'search' }] : []) as ChromeTabItem<Tab>[]),
+              { value: 'upload', label: 'Upload', glyph: 'upload' },
+              { value: 'create', label: 'Create', glyph: 'create' },
+              ...(isAdmin ? [{ value: '3d' as Tab, label: '3D Assets', glyph: 'cube' as const }] : []),
+            ]}
+          />
 
           {/* Search input — only on Unsplash tab */}
           {tab === 'unsplash' && (
@@ -406,11 +402,14 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
                   gallery alongside every other upload. */}
-              <label className={`${uploads.length === 0 ? 'col-span-3 h-36' : 'aspect-square'} cut-corners cut-border bg-[var(--bg-surface)] border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] flex flex-col items-center justify-center gap-2 transition-colors ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)] cursor-pointer'}`}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
+              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-36' : 'aspect-square'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                <span className="text-xs text-[var(--text-secondary)]">{uploading ? 'Uploading…' : uploads.length === 0 ? 'Choose images to add to this project' : 'Upload'}</span>
+              </span>
+                <span className="text-[11px] font-medium text-[var(--text-primary)]">{uploading ? 'Uploading…' : uploads.length === 0 ? 'Choose images' : 'Upload'}</span>
+                {uploads.length === 0 && <span className="text-[9px] text-[var(--text-tertiary)]">Add files to this project’s Media library</span>}
                 <input
                   type="file"
                   accept="image/*"

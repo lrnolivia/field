@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import MediaGlyph from './MediaGlyph';
 
 function ExpandGlyph() {
@@ -44,13 +45,13 @@ export default function MediaToolbarPopover({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [anchor, setAnchor] = useState({ left: 24, bottom: 76, arrow: 112 });
+  const [anchor, setAnchor] = useState({ left: 24, bottom: 76, arrow: 112, width: 224 });
 
   useEffect(() => {
     const position = () => {
       const rect = document.querySelector('[data-toolbar-tool="media"]')?.getBoundingClientRect();
       if (!rect) return;
-      const requestedWidth = expanded ? 760 : compact ? 224 : 480;
+      const requestedWidth = expanded ? 840 : compact ? 224 : 480;
       const width = Math.min(requestedWidth, window.innerWidth - 24);
       const left = expanded
         ? Math.max(12, (window.innerWidth - width) / 2)
@@ -59,6 +60,7 @@ export default function MediaToolbarPopover({
         left,
         bottom: expanded ? 56 : window.innerHeight - rect.top + 12,
         arrow: rect.left + rect.width / 2 - left,
+        width,
       });
     };
 
@@ -85,41 +87,45 @@ export default function MediaToolbarPopover({
     };
   }, [compact, expanded, onClose]);
 
-  const requestedWidth = expanded ? 760 : compact ? 224 : 480;
+  const requestedWidth = expanded ? 840 : compact ? 224 : 480;
 
   return createPortal(
-    <div
+    <motion.div
       ref={ref}
       data-modal-root
       data-media-toolbar-popover
       data-media-popover-density={expanded ? 'expanded' : compact ? 'launcher' : 'browser'}
       role="dialog"
       aria-label={title}
-      className="fixed z-[15000] flex flex-col rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[var(--shadow-lg)] transition-[left,bottom,width,max-height] duration-200 ease-out"
+      initial={{ opacity: 0, scale: 0.94, y: 12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 430, damping: 30, mass: 0.72 }}
+      className="fixed z-[15000] flex flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.025] transition-[left,bottom,width,max-height] duration-200 ease-out"
       style={{
         left: anchor.left,
         bottom: anchor.bottom,
         width: `min(${requestedWidth}px, calc(100vw - 24px))`,
         maxHeight: expanded ? 'calc(100vh - 112px)' : 'min(560px, calc(100vh - 88px))',
         height: expanded ? 'min(720px, calc(100vh - 112px))' : undefined,
+        transformOrigin: `${Math.max(18, Math.min(anchor.arrow, anchor.width - 18))}px calc(100% + 7px)`,
       }}
     >
-      <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] px-2">
+      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
             aria-label="Back to Media"
-            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <BackGlyph />
           </button>
         ) : (
-          <span className="flex h-6 w-6 items-center justify-center text-[var(--text-secondary)]" aria-hidden>
+          <span className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]" aria-hidden>
             <MediaGlyph size={14} />
           </span>
         )}
-        <strong className="min-w-0 flex-1 truncate text-[11px] font-semibold">{title}</strong>
+        <strong className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[-0.005em]">{title}</strong>
         <button
           type="button"
           onClick={onExpand}
@@ -130,15 +136,13 @@ export default function MediaToolbarPopover({
           {expanded ? <CollapseGlyph /> : <ExpandGlyph />}
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
-      {!expanded && (
-        <span
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-panel)]">{children}</div>
+      <span
           aria-hidden
-          className="absolute -bottom-[6px] h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)]"
-          style={{ left: Math.max(14, Math.min(anchor.arrow - 5, requestedWidth - 24)) }}
+          className="absolute -bottom-[6px] h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
+          style={{ left: Math.max(14, Math.min(anchor.arrow - 5, anchor.width - 24)) }}
         />
-      )}
-    </div>,
+    </motion.div>,
     document.body,
   );
 }
