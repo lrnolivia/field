@@ -26,11 +26,11 @@ const W = ({ bg, iconColor, ...props }: P, children: (c: string) => React.ReactN
 
 // ─── Color & Fill ──────────────────────────────────────────────────────────
 
-const ColorIcon: React.FC<P> = (p) => W(p, c =>
+export const ColorIcon: React.FC<P> = (p) => W(p, c =>
   <circle cx={8} cy={8} r={4} fill={c} />
 );
 
-const GradientIcon: React.FC<P> = (p) => W(p, c => <>
+export const GradientIcon: React.FC<P> = (p) => W(p, c => <>
   <circle cx={8} cy={8} r={4} fill={c} opacity={0.4} />
   <path d="M8 4a4 4 0 0 0 0 8V4Z" fill={c} />
 </>);

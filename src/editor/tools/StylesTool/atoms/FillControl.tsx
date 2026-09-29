@@ -16,7 +16,7 @@ import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
 import { toHexDisplay } from '../../../ui/color-utils';
 import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
 import type { AtomProps } from '../../../controls/unified/types';
-import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow } from '../../../controls';
+import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, InspectorIconButtonGroup } from '../../../controls';
 import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
 import { useToolPopup } from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
@@ -59,6 +59,7 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
+import { ColorIcon, GradientIcon, ImageIcon, VideoIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ const BLEND_MODE_OPTIONS = [
 
 // ─── Image Fill Tab (shared between Single and Multiple) ────────────────────
 
-function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void }) {
+function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; libraryOnly?: boolean }) {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const { pushPanel, popPanel } = useToolPopup();
@@ -157,6 +158,8 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
 
   return (
     <div className="flex flex-col gap-2">
+      {!libraryOnly && (
+        <>
       {/* Image preview + Choose button */}
       {hasImage ? (
         <div className="flex flex-col gap-2">
@@ -212,9 +215,13 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
         </>
       )}
 
+        </>
+      )}
+
       {/* Image preset grid + Create new entry */}
-      <AssetPresetGrid
-        presets={imagePresets}
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={imagePresets}
         type="image"
         activePresetName={activePresetName}
         onApplyPreset={(varVal) => {
@@ -235,8 +242,9 @@ function ImageFillTab({ styles, onUpdate }: { styles: Record<string, string>; on
           trace.action('fill:image-preset-applied', { var: varVal });
         }}
         onCreatePreset={handleCreatePreset}
-        onEditPreset={handleEditPreset}
-      />
+          onEditPreset={handleEditPreset}
+        />
+      )}
 
       {/* Image Search Modal */}
       <ImageSearchModal
@@ -323,7 +331,7 @@ const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'scale-down', label: 'Scale Down' },
 ];
 
-function VideoFillTab({ node }: { node: CanvasNode | null }) {
+function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const posterInputRef = useRef<HTMLInputElement>(null);
   const { pushPanel, popPanel } = useToolPopup();
@@ -397,6 +405,8 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {!libraryOnly && (
+        <>
       {hasVideo ? (
         <div className="flex flex-col gap-2">
           <div
@@ -518,9 +528,13 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
         </div>
       )}
 
+        </>
+      )}
+
       {/* Video preset grid */}
-      <AssetPresetGrid
-        presets={videoPresets}
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={videoPresets}
         type="video"
         activePresetName={activePresetName}
         onApplyPreset={(varVal) => {
@@ -533,8 +547,9 @@ function VideoFillTab({ node }: { node: CanvasNode | null }) {
           if (token) applyVideoSrc(token.value);
         }}
         onCreatePreset={handleCreatePreset}
-        onEditPreset={handleEditPreset}
-      />
+          onEditPreset={handleEditPreset}
+        />
+      )}
 
       <VideoSearchModal
         isOpen={videoModalOpen}
@@ -553,6 +568,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   const nodeId = ctx?.nodeId ?? null;
   const node = ctx?.node ?? null;
   const [tab, setTab] = useState<FillTab>(() => (solidOnly ? 'color' : detectFillTab(styles, node)));
+  const [surface, setSurface] = useState<'custom' | 'libraries'>('custom');
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter(t => t.category === 'color');
@@ -570,38 +586,44 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId, solidOnly]);
 
+  const changeFillType = (newTab: FillTab) => {
+    trace.action('fill:tab-change', { from: tab, to: newTab });
+    if (newTab !== tab) {
+      if (tab === 'color') onUpdate('backgroundColor', '');
+      if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
+      if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
+      if (tab === 'video' && nodeId) {
+        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
+      }
+    }
+    setTab(newTab);
+  };
+
+  const paintTypeButtons = [
+    { id: 'color', title: 'Solid', icon: <ColorIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'color', onClick: () => changeFillType('color') },
+    { id: 'gradient', title: 'Gradient', icon: <GradientIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'gradient', onClick: () => changeFillType('gradient') },
+    { id: 'image', title: 'Image', icon: <ImageIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'image', onClick: () => changeFillType('image') },
+    { id: 'video', title: 'Video', icon: <VideoIcon width={14} height={14} bg="transparent" iconColor="currentColor" />, active: tab === 'video', onClick: () => changeFillType('video') },
+  ];
+
   return (
     <>
-      {/* Tabs at top of popup — hidden for form controls (solid color only). */}
-      {!solidOnly && <ToolSegmentedControl
-        value={tab}
-        onChange={(v) => {
-          const newTab = v as FillTab;
-          trace.action('fill:tab-change', { from: tab, to: newTab });
+      {!solidOnly && (
+        <div className="flex flex-col gap-2">
+          <ToolSegmentedControl
+            value={surface}
+            onChange={(v) => setSurface(v as 'custom' | 'libraries')}
+            options={[
+              { value: 'custom', label: 'Custom' },
+              { value: 'libraries', label: 'Libraries' },
+            ]}
+            size="sm"
+          />
+          <InspectorIconButtonGroup ariaLabel="Fill type" buttons={paintTypeButtons} />
+        </div>
+      )}
 
-          // Clear conflicting fill properties when switching tabs
-          if (newTab !== tab) {
-            if (tab === 'color') onUpdate('backgroundColor', '');
-            if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
-            if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
-            // Leaving the Video tab — remove the bg-video child via the
-            // dedicated mutation, since it lives on the node, not in styles.
-            if (tab === 'video' && nodeId) {
-              forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
-            }
-          }
-          setTab(newTab);
-        }}
-        options={[
-          { value: 'color', label: 'Color' },
-          { value: 'gradient', label: 'Gradient' },
-          { value: 'image', label: 'Image' },
-          { value: 'video', label: 'Video' },
-        ]}
-        size="sm"
-      />}
-
-      {/* Tab content */}
+      {/* Paint content */}
       {tab === 'color' && (() => {
         // solidOnly: a color COMMIT also clears any lingering image/gradient
         // channels — there are no tabs to clear them from, and a stale
@@ -622,6 +644,8 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         return (
           <ColorPicker
             value={resolvedBg}
+            libraryOnly={!solidOnly && surface === 'libraries'}
+            showPresets={!solidOnly && surface === 'libraries'}
             // Smooth drag: onChange LIVE-PATCHES the canvas DOM every frame (no
             // per-frame code write); onChangeEnd commits once on release (and
             // immediately for one-shot edits: hex input, eyedropper). Falls back
@@ -665,28 +689,29 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       })()}
 
       {tab === 'gradient' && (
-        <GradientEditor
-          value={styles.backgroundImage || styles.background || ''}
-          onChange={(css) => {
-            // Clear conflicting props FIRST — `background: ''` wipes every
-            // background-* longhand from the inline DOM (CSSOM shorthand
-            // semantics), so it must precede the backgroundImage write.
-            if (styles.background) onUpdate('background', '');
-            if (styles.backgroundColor) onUpdate('backgroundColor', '');
-            onUpdate('backgroundImage', css);
-          }}
-          // Smooth drag: patch the canvas DOM directly every frame (no code
-          // re-parse); GradientEditor fires onChange once on release to commit.
-          onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
-        />
+        surface === 'libraries' && !solidOnly ? (
+          <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
+            No saved gradient fills yet.
+          </div>
+        ) : (
+          <GradientEditor
+            value={styles.backgroundImage || styles.background || ''}
+            onChange={(css) => {
+              if (styles.background) onUpdate('background', '');
+              if (styles.backgroundColor) onUpdate('backgroundColor', '');
+              onUpdate('backgroundImage', css);
+            }}
+            onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
+          />
+        )
       )}
 
       {tab === 'image' && (
-        <ImageFillTab styles={styles} onUpdate={onUpdate} />
+        <ImageFillTab styles={styles} onUpdate={onUpdate} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
 
       {tab === 'video' && (
-        <VideoFillTab node={node} />
+        <VideoFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />
       )}
     </>
   );
