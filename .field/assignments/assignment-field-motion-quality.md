@@ -17,7 +17,6 @@ owned:
   - src/editor/EditorEntranceCoordinator.tsx
   - src/editor/editor-entrance.test.ts
   - src/editor/header/LeftHeader.tsx
-  - src/editor/left-toolbar/LeftMenu.tsx
   - src/editor/PropertiesPanel.tsx
   - src/editor/header/RightHeader.tsx
   - src/editor/WorkspacePaneResizeHandles.tsx

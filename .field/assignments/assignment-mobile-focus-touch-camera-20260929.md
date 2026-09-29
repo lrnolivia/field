@@ -25,6 +25,8 @@ owned:
   - src/editor/ToolbarPanelHost.tsx
   - src/editor/mobile-workspace-presentation.ts
   - src/editor/mobile-workspace-presentation.test.ts
+  - src/editor/left-toolbar/LeftMenu.tsx
+  - src/editor/left-toolbar/LeftPanel.tsx
 approved_shared: []
 protected:
   - src/canvas/drag/**
@@ -141,3 +143,11 @@ Next:
 - landscape phone -> edge-anchored floating overlays
 - regular/wide workspace -> preserve existing presentation
 - reuse existing panel content; no mobile fork
+
+## ownership extension — mobile Focus profile
+
+The sole-worker directive also transfers src/editor/left-toolbar/LeftMenu.tsx
+and assigns src/editor/left-toolbar/LeftPanel.tsx so phone geometry can present
+Focus behavior without rewriting the user's persisted desktop workspace mode.
+The implementation must derive an effective mobile presentation only; desktop
+workspace preferences remain untouched.
