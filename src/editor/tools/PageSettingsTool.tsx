@@ -5,7 +5,7 @@
 // state (route path + server-wrapper metadata) and composes existing native
 // page tools (canvas appearance + Template assignment).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import {
@@ -121,7 +121,7 @@ function PageSettingField({
 }: {
   label: string;
   hint?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div data-page-settings-field className="flex flex-col gap-1.5">
@@ -463,4 +463,4 @@ export default function PageSettingsTool() {
       </ToolSection>
     </div>
   );
-}}
+}
