@@ -551,7 +551,7 @@ export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'a
     : null;
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-surface)] select-none" data-library-panel>
+    <div className="flex flex-col h-full select-none" data-library-panel data-library-mode={mode}>
       {/* Top-of-panel search — same chrome the Pages and Layers panels
           use (SearchBar + divider) so the four left panels read with a
           consistent header pattern. Placeholder adapts to the active
@@ -568,14 +568,14 @@ export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'a
           too much whitespace below the bar.
           Filter wiring is local to each section below; this top input
           just owns the query string and passes it through. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div data-library-search className="px-2 pt-2 pb-1.5 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder={mode === 'presets' ? 'Search presets…' : 'Search library…'}
         />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-2 mt-1 mb-1" />
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" ref={editAnchorRef}>
         {mode !== 'presets' && <>{/* Components Section — unified list with + dropdown */}
         {(!focusSection || focusSection === 'components') && <div data-library-section="components"><ComponentsSection

@@ -475,3 +475,95 @@
   border-color: var(--field-chrome-border-strong);
   transform: none !important;
 }
+
+
+/* ── Library + Presets visible parity ───────────────────────────────────── */
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-panel] {
+  background: transparent !important;
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-search] {
+  margin: 0 2px;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-search] [data-field-searchbar] {
+  border-color: var(--field-chrome-border);
+}
+
+[data-left-panel-surface="library"] [data-library-section] {
+  margin: 5px 2px 0;
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+[data-left-panel-surface="library"] .field-library-section-header {
+  height: 30px;
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+[data-left-panel-surface="library"] [data-library-section] > :not(.field-library-section-header) {
+  background: transparent;
+}
+
+[data-left-panel-surface="library"] [data-library-project-header] {
+  margin: 3px 3px 1px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1.2%);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-field-empty-state] {
+  margin: 3px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-panel), var(--text-primary) 1%);
+}
+
+/* Presets are design-system data, not a settings form. Each category is one
+ * compact inspector-like disclosure zone; rows remain flat inside it. */
+[data-left-panel-surface="presets"] [data-preset-category],
+[data-left-panel-surface="library"] [data-preset-category] {
+  margin: 5px 2px 0;
+  overflow: hidden;
+  border: 1px solid var(--field-chrome-border);
+  border-radius: 6px;
+  background: var(--field-chrome-section-bg);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-header] {
+  background: var(--field-chrome-raised-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-body] {
+  background: transparent;
+}
+
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-preset-category-body] [data-field-chrome-row] {
+  min-height: 24px;
+}
