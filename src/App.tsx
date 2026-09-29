@@ -62,7 +62,7 @@ import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
-import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_FLOAT_SHADOW, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
@@ -348,8 +348,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               width: workspaceLayout.right.width,
               height: rightDetached ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT) : workspaceBodyHeightCss(workspaceLayout.right),
               transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
-              borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
-              borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              boxSizing: 'border-box',
+              backgroundColor: rightDetached ? 'var(--bg-panel)' : undefined,
+              border: rightDetached ? '1px solid var(--border-light)' : undefined,
+              borderRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              boxShadow: rightDetached ? WORKSPACE_FLOAT_SHADOW : undefined,
               opacity: floatingInspectorVisible ? 1 : 0,
               translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
               transition: 'translate 260ms ease, opacity 260ms ease',
