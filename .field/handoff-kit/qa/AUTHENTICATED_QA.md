@@ -1,6 +1,6 @@
 # Authenticated / human QA
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
 Apply current Runner Bible section 11 first. Authenticated/project-native verification is the field-specific harness for criteria that require protected state, credentials, persistence, account metadata, or an environment generic Inspector/browser paths cannot prove.
 
