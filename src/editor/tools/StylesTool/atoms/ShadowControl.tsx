@@ -24,7 +24,7 @@ import { ShadowIcon } from '@/design-system/PropertyIcons';
 import ToolPopup from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import {
-  parseShadowEntries, formatShadowEntries, mergeFilterWithDropShadows,
+  parseShadowEntries, formatShadowEntries, buildShadowStylePatch,
   shadowSummary, createDefaultShadow,
   type ShadowEntry,
 } from '../../../ui/shadow-utils';
@@ -161,11 +161,10 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   const commitEntries = (newEntries: ShadowEntry[]) => {
     const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
     setEntries(withIds);
-    const { boxShadow: newBoxShadow, dropShadowFilter } = formatShadowEntries(withIds);
-    trace.action('shadow-panel:commit', { count: withIds.length });
-    selfWriteCountRef.current = 2;
-    const merged = mergeFilterWithDropShadows(filter, dropShadowFilter);
-    onCommit({ boxShadow: newBoxShadow, filter: merged });
+    const patch = buildShadowStylePatch(withIds, filter);
+    trace.action('shadow-panel:commit', { count: withIds.length, keys: Object.keys(patch) });
+    selfWriteCountRef.current = Object.keys(patch).length;
+    onCommit(patch);
   };
 
   const updateEntry = (idx: number, patch: Partial<ShadowEntry>) => {
@@ -179,9 +178,7 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   const liveEntries = (newEntries: ShadowEntry[]) => {
     const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
     setEntries(withIds);
-    const { boxShadow: newBoxShadow, dropShadowFilter } = formatShadowEntries(withIds);
-    const merged = mergeFilterWithDropShadows(filter, dropShadowFilter);
-    onChangeLive({ boxShadow: newBoxShadow, filter: merged });
+    onChangeLive(buildShadowStylePatch(withIds, filter));
   };
   const updateEntryLive = (idx: number, patch: Partial<ShadowEntry>) => {
     liveEntries(entries.map((e, i) => i === idx ? { ...e, ...patch } : e));
@@ -333,12 +330,10 @@ function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
     // Re-assign deterministic IDs
     const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
     setEntries(withIds);
-    const { boxShadow: newBoxShadow, dropShadowFilter } = formatShadowEntries(withIds);
-    trace.action('shadow:commit', { count: withIds.length, boxShadow: newBoxShadow.slice(0, 60), dropFilter: dropShadowFilter.slice(0, 60) });
-    // We write 2 props (boxShadow + filter) — each may trigger a separate effect fire
-    selfWriteCountRef.current = 2;
-    const merged = mergeFilterWithDropShadows(filter, dropShadowFilter);
-    onChangeMultiple({ boxShadow: newBoxShadow, filter: merged });
+    const patch = buildShadowStylePatch(withIds, filter);
+    trace.action('shadow:commit', { count: withIds.length, keys: Object.keys(patch), boxShadow: (patch.boxShadow ?? '').slice(0, 60) });
+    selfWriteCountRef.current = Object.keys(patch).length;
+    onChangeMultiple(patch);
   };
 
   // Update a single entry

@@ -76,7 +76,7 @@ export default function ChromeTabBar<T extends string>({
             aria-current={semantic === 'steps' && active ? 'step' : undefined}
             disabled={item.disabled}
             onClick={() => onChange(item.value)}
-            className={`relative flex min-w-0 items-center justify-center gap-1.5 rounded-[6px] border border-transparent font-medium transition-[background-color,color,border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-35 ${stretch ? 'flex-1' : ''} ${compact ? 'h-7 px-2 text-[10px]' : 'h-8 px-3 text-[11px]'} ${active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]/70 hover:text-[var(--text-primary)]'}`}
+            className={`relative flex min-w-0 items-center justify-center gap-1.5 rounded-[6px] border border-transparent font-medium transition-[background-color,color,border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-35 ${stretch ? 'flex-1' : ''} ${compact ? 'h-7 px-2.5 text-[10px]' : 'h-8 px-3.5 text-[11px]'} ${active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]/70 hover:text-[var(--text-primary)]'}`}
             style={active ? {
               background: 'var(--accent-surface)',
               borderColor: 'color-mix(in srgb, var(--accent) 28%, var(--border-light))',
@@ -93,7 +93,7 @@ export default function ChromeTabBar<T extends string>({
               </span>
             )}
             <span className="truncate">{item.label}</span>
-            {active && <span aria-hidden className="absolute inset-x-2.5 bottom-[2px] h-[2px] rounded-full bg-[var(--accent)] opacity-70" />}
+            {active && <span aria-hidden data-active-tab-marker className="absolute left-[3px] top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-[1px] bg-[var(--accent)]" />}
           </button>
         );
       })}
