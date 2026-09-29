@@ -74,4 +74,34 @@ describe('contextual Media in image Fill', () => {
     expect(videoFill).not.toContain('border-2 border-dashed');
   });
 
+
+  it('routes reusable image values through contextual Media without a standalone modal', () => {
+    const image = read('src/editor/tools/StylesTool/atoms/ImageControl.tsx');
+    const start = image.indexOf('function ImagePopupBody');
+    const end = image.indexOf('function ImageAtom', start);
+    const body = image.slice(start, end);
+
+    expect(body).toContain("popupCtx.pushPanel('Media'");
+    expect(body).toContain('data-contextual-media-picker="image-value"');
+    expect(body).toContain('data-contextual-media-picker="image-value-inline"');
+    expect(body).toContain('<ImageSearchModal');
+    expect(body).toContain('embedded');
+    expect(body).toContain('compact');
+    expect(body).not.toContain('imageModalOpen');
+    expect(body).not.toContain('setImageModalOpen');
+  });
+
+  it('keeps image-value selection compact in popup and inline-variable contexts', () => {
+    const image = read('src/editor/tools/StylesTool/atoms/ImageControl.tsx');
+    const start = image.indexOf('function ImagePopupBody');
+    const end = image.indexOf('function ImageAtom', start);
+    const body = image.slice(start, end);
+
+    expect(body).toContain('Choose media');
+    expect(body).toContain('h-9 flex items-center gap-2');
+    expect(body).not.toContain('w-full h-20');
+    expect(body).not.toContain('border-2 border-dashed');
+  });
+
+
 });
