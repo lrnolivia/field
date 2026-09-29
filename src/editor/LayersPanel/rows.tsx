@@ -764,8 +764,11 @@ export const LayerRow = React.memo(function LayerRow({
         aria-hidden
         className={`pointer-events-none absolute top-0 bottom-0 z-0 ${bgShape} ${!isSelected ? 'group-hover:bg-[var(--bg-hover)]' : ''}`}
         style={{
-          left: 0,
-          width: 'calc(var(--layers-vw, 100%) - 8px)',
+          // Sit one pixel inside the scroll mask so the rounded cap is never
+          // shaved flat by the mask edge. The extra pixel is mirrored on the
+          // right by the width calculation, keeping the visible inset balanced.
+          left: 1,
+          width: 'calc(var(--layers-vw, 100%) - 10px)',
           transform: 'translateX(var(--layers-sx, 0px))',
           ...bgStyle,
         }}

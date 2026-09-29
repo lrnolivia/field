@@ -135,8 +135,8 @@ textarea {
 
   --dropdown-bg: #fafafa;
 
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 24%, var(--bg-panel));
-  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, var(--bg-panel));
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 18%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -199,8 +199,8 @@ textarea {
   --accent-muted: rgba(255, 255, 255, 0.075);
   --accent-surface: rgba(255, 255, 255, 0.065);
 
-  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 32%, var(--bg-panel));
-  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, var(--bg-panel));
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 22%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, transparent);
 
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.40);
