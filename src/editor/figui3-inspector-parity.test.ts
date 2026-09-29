@@ -57,13 +57,23 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(layout).not.toContain('<PaddingControl />');
   });
 
-  it('keeps Layout size and padding gutters on the same 8px rhythm', () => {
+  it('uses one inspector-wide 8px rhythm for peer cells and row spacing', () => {
+    const theme = read('src/styles/loew-theme.css');
     const size = read('src/editor/tools/SizeTool.tsx');
     const padding = read('src/editor/tools/LayoutPaddingControl.tsx');
-    expect(size).toContain('data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}');
-    expect(padding).toContain('data-layout-padding-axes className="grid grid-cols-2 gap-2"');
-    expect(padding).toContain('data-layout-padding-sides className="grid grid-cols-4 gap-2"');
-    expect(padding).toContain('className="flex min-w-0 items-start gap-2"');
+
+    expect(theme).toContain('--inspector-grid-gap: 8px');
+    expect(theme).toContain('[data-properties-panel] [data-inspector-section-content]');
+    expect(theme).toContain('[data-properties-panel] [data-tool-row-value]');
+    expect(theme).toContain('[data-properties-panel] [data-layout-padding-axes]');
+    expect(theme).toContain('[data-properties-panel] [data-layout-padding-sides]');
+    expect(theme).toContain('[data-properties-panel] [data-spacing-axis-pair]');
+    expect(theme).toContain('gap: var(--inspector-grid-gap, var(--control-gap, 8px))');
+
+    expect(size).toContain('data-layout-size-pair className="field-inspector-field-grid"');
+    expect(size).not.toContain('data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}');
+    expect(padding).toContain('data-layout-padding-axes');
+    expect(padding).toContain('data-layout-padding-sides');
   });
 
   it('keeps Typography Basics and Details aligned to the FigUI3 information hierarchy', () => {

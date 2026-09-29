@@ -345,19 +345,35 @@ select {
   letter-spacing: 0.02em;
 }
 
+/* Inspector spacing contract: peer editing cells use the SAME 8px rhythm
+ * horizontally that sections use vertically. Keep compact micro-gaps inside
+ * segmented controls / icon lanes; this token is for sibling editor cells. */
+[data-properties-panel] {
+  --inspector-grid-gap: 8px;
+}
+
+[data-properties-panel] [data-inspector-section-content],
+[data-properties-panel] [data-tool-row-value],
+[data-properties-panel] [data-layout-padding] > div:last-child,
+[data-properties-panel] [data-layout-padding-axes],
+[data-properties-panel] [data-layout-padding-sides],
+[data-properties-panel] [data-spacing-axis-pair] {
+  gap: var(--inspector-grid-gap);
+}
+
 /* Inspector property rows share columns. The last track reserves a stable
  * action lane; the two value tracks divide the remaining resizable width. */
 .field-inspector-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--control-gap, 8px);
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
   align-items: center;
   min-width: 0;
 }
 .field-inspector-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) 52px;
-  gap: var(--control-gap, 8px);
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
   align-items: center;
   min-width: 0;
 }
