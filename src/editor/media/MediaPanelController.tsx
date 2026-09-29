@@ -23,7 +23,7 @@ import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutatio
 import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { viewportPrefixesForNode } from '@/canvas/node-ops';
-import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
+import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { getProjectId } from '@/backend/project-id';
 import { ingestMediaFile } from './media-ingest';
 import { resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
@@ -99,6 +99,15 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         bridge.setAttribute(placement.nodeId, vpPrefix, 'src', url);
       }
       flushNow();
+    } else if (placement.type === 'inside') {
+      const created = getNodeFromCache(placement.nodeId)
+        ? insertToolbarItemAtSelection(kind, placement.nodeId, { src: url })
+        : [];
+      // If the remembered container disappeared during async work, degrade to
+      // ordinary insertion rather than losing the Media action.
+      if (created.length === 0) {
+        insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
+      }
     } else {
       insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
     }

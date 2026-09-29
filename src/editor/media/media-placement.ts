@@ -2,6 +2,7 @@ export type ToolbarMediaElementKind = 'image' | 'video' | 'audio';
 
 export type ToolbarMediaPlacement =
   | { type: 'insert' }
+  | { type: 'inside'; nodeId: string }
   | { type: 'replace'; nodeId: string };
 
 const MEDIA_NODE_TYPES: Record<ToolbarMediaElementKind, ReadonlySet<string>> = {
@@ -9,6 +10,18 @@ const MEDIA_NODE_TYPES: Record<ToolbarMediaElementKind, ReadonlySet<string>> = {
   video: new Set(['video', 'motion.video']),
   audio: new Set(['audio', 'motion.audio']),
 };
+
+const MEDIA_CONTAINER_TYPES = new Set([
+  'div', 'section', 'main', 'article', 'aside', 'header', 'footer', 'nav',
+  'figure', 'figcaption', 'form', 'ul', 'ol', 'li',
+  'motion.div', 'motion.section', 'motion.main', 'motion.article',
+  'motion.aside', 'motion.header', 'motion.footer', 'motion.nav',
+  'motion.figure', 'motion.form', 'motion.ul', 'motion.ol', 'motion.li',
+]);
+
+export function mediaNodeAcceptsChild(nodeType: string | undefined): boolean {
+  return Boolean(nodeType && MEDIA_CONTAINER_TYPES.has(nodeType));
+}
 
 export function mediaNodeAcceptsKind(
   nodeType: string | undefined,
@@ -30,7 +43,8 @@ export function resolveToolbarMediaPlacement(
   if (selectedIds.length !== 1) return { type: 'insert' };
 
   const nodeId = selectedIds[0];
-  return mediaNodeAcceptsKind(getNodeType(nodeId), kind)
-    ? { type: 'replace', nodeId }
-    : { type: 'insert' };
+  const nodeType = getNodeType(nodeId);
+  if (mediaNodeAcceptsKind(nodeType, kind)) return { type: 'replace', nodeId };
+  if (mediaNodeAcceptsChild(nodeType)) return { type: 'inside', nodeId };
+  return { type: 'insert' };
 }

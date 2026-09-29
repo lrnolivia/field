@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  mediaNodeAcceptsChild,
   mediaNodeAcceptsKind,
   resolveToolbarMediaPlacement,
 } from './media-placement';
@@ -16,11 +17,21 @@ describe('toolbar Media contextual placement', () => {
     expect(mediaNodeAcceptsKind('div', 'image')).toBe(false);
   });
 
+  it('recognizes structural frames/containers that can receive Media children', () => {
+    expect(mediaNodeAcceptsChild('div')).toBe(true);
+    expect(mediaNodeAcceptsChild('section')).toBe(true);
+    expect(mediaNodeAcceptsChild('motion.div')).toBe(true);
+    expect(mediaNodeAcceptsChild('img')).toBe(false);
+    expect(mediaNodeAcceptsChild('video')).toBe(false);
+    expect(mediaNodeAcceptsChild('p')).toBe(false);
+  });
+
   it('replaces only a single selected node of the matching media kind', () => {
     const types = new Map([
       ['image-1', 'img'],
       ['video-1', 'video'],
       ['frame-1', 'div'],
+      ['text-1', 'p'],
     ]);
     const getType = (id: string) => types.get(id);
 
@@ -31,6 +42,8 @@ describe('toolbar Media contextual placement', () => {
     expect(resolveToolbarMediaPlacement(['video-1'], 'image', getType))
       .toEqual({ type: 'insert' });
     expect(resolveToolbarMediaPlacement(['frame-1'], 'image', getType))
+      .toEqual({ type: 'inside', nodeId: 'frame-1' });
+    expect(resolveToolbarMediaPlacement(['text-1'], 'image', getType))
       .toEqual({ type: 'insert' });
     expect(resolveToolbarMediaPlacement([], 'image', getType))
       .toEqual({ type: 'insert' });
@@ -52,6 +65,22 @@ describe('toolbar Media contextual placement', () => {
     expect(placeIndex).toBeGreaterThan(ingestIndex);
     expect(controller).toContain("type: 'updateHtmlAttrs'");
     expect(controller).toContain("bridge.setAttribute(placement.nodeId, vpPrefix, 'src', url)");
+    expect(controller).toContain("insertToolbarItemAtSelection(kind, placement.nodeId, { src: url })");
     expect(controller).toContain("insertToolbarItemAtVisibleCenter(kind, undefined, { src: url })");
+  });
+
+  it('preserves the captured container target through the shared insertion engine', () => {
+    const bridge = require('node:fs').readFileSync(
+      'src/canvas/insertion-bridge.ts',
+      'utf8',
+    );
+    const insert = require('node:fs').readFileSync(
+      'src/canvas/insert-toolbar-item.ts',
+      'utf8',
+    );
+    expect(bridge).toContain('selectionOverride?: readonly string[]');
+    expect(bridge).toContain('opts.selectionOverride ?? store.get(selectedIdsAtom)');
+    expect(insert).toContain('export function insertToolbarItemAtSelection');
+    expect(insert).toContain("{ selectionOverride: [nodeId] }");
   });
 });
