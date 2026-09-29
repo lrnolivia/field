@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
+  cancelMediaUploadAtom,
   clearFinishedMediaUploadsAtom,
   mediaUploadQueueAtom,
   removeMediaUploadAtom,
+  retryMediaUploadAtom,
 } from './media-state';
 import type { MediaUploadItem } from './media-system';
 
@@ -33,7 +35,9 @@ function kindGlyph(item: MediaUploadItem): string {
 
 export default function MediaUploadTray() {
   const queue = useAtomValue(mediaUploadQueueAtom);
+  const cancel = useSetAtom(cancelMediaUploadAtom);
   const remove = useSetAtom(removeMediaUploadAtom);
+  const retry = useSetAtom(retryMediaUploadAtom);
   const clearFinished = useSetAtom(clearFinishedMediaUploadsAtom);
   const [expanded, setExpanded] = useState(true);
   const previousActive = useRef(0);
@@ -130,7 +134,9 @@ export default function MediaUploadTray() {
 
       <div className="max-h-[264px] overflow-y-auto">
         {queue.map((item) => {
-          const removable = !ACTIVE_STATUSES.has(item.status);
+          const active = ACTIVE_STATUSES.has(item.status);
+          const removable = !active;
+          const retryable = item.retryable === true && (item.status === 'error' || item.status === 'cancelled');
           return (
             <div
               key={item.id}
@@ -155,6 +161,26 @@ export default function MediaUploadTray() {
                   {statusLabel(item)}
                 </span>
               </span>
+              {active && (
+                <button
+                  type="button"
+                  onClick={() => cancel(item.id)}
+                  aria-label={'Cancel upload ' + item.name}
+                  className="h-6 shrink-0 rounded-[3px] px-1.5 text-[9px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                >
+                  Cancel
+                </button>
+              )}
+              {retryable && (
+                <button
+                  type="button"
+                  onClick={() => { void retry(item.id); }}
+                  aria-label={'Retry upload ' + item.name}
+                  className="h-6 shrink-0 rounded-[3px] px-1.5 text-[9px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                >
+                  Retry
+                </button>
+              )}
               {removable && (
                 <button
                   type="button"
