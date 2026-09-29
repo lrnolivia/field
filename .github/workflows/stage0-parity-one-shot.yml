@@ -36,17 +36,17 @@ jobs:
 
       - name: Run Canvas Preview parity
         shell: bash
-        env:
-          CI: "1"
         run: |
           set -euo pipefail
+          VITE_REVYME_CLOUD=false npx vite --port 4333 --strictPort --host localhost > /tmp/field-editor-vite.log 2>&1 &
+          EDITOR_PID=$!
           npx vite --config vite.sandbox.config.ts --host localhost > /tmp/field-sandbox-vite.log 2>&1 &
           SANDBOX_PID=$!
           npx vite --config vite.preview.config.ts --host localhost > /tmp/field-preview-vite.log 2>&1 &
           PREVIEW_PID=$!
-          trap 'kill "$SANDBOX_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          trap 'kill "$EDITOR_PID" "$SANDBOX_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
 
-          for port in 5174 5175; do
+          for port in 4333 5174 5175; do
             ready=0
             for _ in $(seq 1 60); do
               if curl -fsS "http://localhost:${port}/" >/dev/null; then
@@ -57,10 +57,9 @@ jobs:
             done
             if [ "$ready" != "1" ]; then
               echo "::error::Vite server on port ${port} did not become ready"
-              echo "--- sandbox log ---"
-              cat /tmp/field-sandbox-vite.log || true
-              echo "--- preview log ---"
-              cat /tmp/field-preview-vite.log || true
+              echo "--- editor log ---"; cat /tmp/field-editor-vite.log || true
+              echo "--- sandbox log ---"; cat /tmp/field-sandbox-vite.log || true
+              echo "--- preview log ---"; cat /tmp/field-preview-vite.log || true
               exit 1
             fi
           done
@@ -69,20 +68,10 @@ jobs:
           import { chromium } from '@playwright/test';
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage();
-          const messages = [];
-          page.on('console', msg => messages.push('[console:' + msg.type() + '] ' + msg.text()));
-          page.on('pageerror', err => messages.push('[pageerror] ' + err.message));
           const response = await page.goto('http://localhost:5174/', { waitUntil: 'domcontentloaded' });
-          try {
-            await page.locator('[data-content-root]').waitFor({ state: 'attached', timeout: 10000 });
-            console.log('SANDBOX_BOOT_OK status=' + (response?.status() ?? 'none'));
-          } catch (error) {
-            console.error('SANDBOX_BOOT_FAILED status=' + (response?.status() ?? 'none'));
-            console.error(messages.join('\n'));
-            throw error;
-          } finally {
-            await browser.close();
-          }
+          await page.locator('[data-content-root]').waitFor({ state: 'attached', timeout: 10000 });
+          console.log('SANDBOX_BOOT_OK status=' + (response?.status() ?? 'none'));
+          await browser.close();
           NODE
 
-          npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --grep "Canvas computed styles match Preview" --reporter=list
+          env -u CI npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --grep "Canvas computed styles match Preview" --reporter=list
