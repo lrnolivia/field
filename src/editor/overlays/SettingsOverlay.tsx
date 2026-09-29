@@ -118,7 +118,7 @@ export function buildMenuCategories(
   // Website is always first in General
   const result: Array<{ title: string; items: MenuItem[] }> = [
     { title: 'General', items: [
-      { id: 'website', label: 'Website', icon: SettingsWebsiteIcon },
+      { id: 'website', label: 'General', icon: SettingsWebsiteIcon },
       { id: 'localization', label: 'Localization', icon: GlobeInternationalIcon },
     ] },
   ];
@@ -735,6 +735,13 @@ export default function SettingsOverlay() {
     if (activeSection === 'website') {
       return (
         <div className="space-y-8">
+          <header className="pb-1">
+            <h1 className="text-lg font-semibold text-[var(--text-primary)]">General</h1>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+              Project-wide defaults, branding, and site metadata.
+            </p>
+          </header>
+
           {/* ─── Site metadata ─── */}
           <SettingsGroup
             title="Site metadata"
