@@ -14,8 +14,10 @@ import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 interface ThemeNeutralPopoverProps {
   mode: EditorThemeMode;
   level: EditorNeutralLevel;
+  contrast: number;
   anchorRef: RefObject<HTMLElement | null>;
   onSelect: (mode: EditorThemeMode, level: EditorNeutralLevel) => void;
+  onContrastChange: (contrast: number) => void;
   onClose: () => void;
   placement?: 'above' | 'below' | 'right';
 }
@@ -23,8 +25,10 @@ interface ThemeNeutralPopoverProps {
 export default function ThemeNeutralPopover({
   mode,
   level,
+  contrast,
   anchorRef,
   onSelect,
+  onContrastChange,
   onClose,
   placement = 'above',
 }: ThemeNeutralPopoverProps) {
@@ -130,6 +134,31 @@ export default function ThemeNeutralPopover({
       </div>
       <div className="pt-1 text-[9px] leading-none text-center text-[var(--text-tertiary)]">
         Middle tone is Default
+      </div>
+      <div className="field-chrome-contrast-control mt-2 border-t border-[var(--border-light)] pt-2 px-0.5">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <label
+            htmlFor="field-interface-contrast"
+            className="text-[10px] leading-none text-[var(--text-secondary)]"
+          >
+            Interface contrast
+          </label>
+          <span className="text-[9px] tabular-nums text-[var(--text-tertiary)]" aria-hidden>
+            {Math.round(contrast)}
+          </span>
+        </div>
+        <input
+          id="field-interface-contrast"
+          data-interface-contrast-control
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={contrast}
+          aria-label="Interface contrast"
+          onChange={(event) => onContrastChange(Number(event.currentTarget.value))}
+          className="field-chrome-contrast-slider w-full"
+        />
       </div>
     </div>
   );

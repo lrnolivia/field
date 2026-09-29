@@ -1,0 +1,199 @@
+/* field-chrome.css — canonical field editor chrome hierarchy.
+ *
+ * Inspector and left-panel content intentionally consume the SAME variables.
+ * Change hierarchy here, not panel-by-panel. The left icon rail is excluded.
+ *
+ * Runtime percentages are written by editor/builder-theme.ts from the
+ * Appearance > Interface contrast preference.
+ */
+
+:root {
+  --field-chrome-section-mix: 2.34%;
+  --field-chrome-raised-mix: 4.12%;
+  --field-chrome-hover-mix: 6.08%;
+  --field-chrome-active-mix: 8.92%;
+  --field-chrome-border-mix: 4.60%;
+  --field-chrome-border-strong-mix: 7.44%;
+
+  --field-chrome-panel-bg: var(--bg-panel);
+  --field-chrome-section-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-section-mix)
+  );
+  --field-chrome-raised-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-raised-mix)
+  );
+  --field-chrome-hover-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-hover-mix)
+  );
+  --field-chrome-active-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-active-mix)
+  );
+  --field-chrome-border: color-mix(
+    in srgb,
+    var(--text-primary) var(--field-chrome-border-mix),
+    transparent
+  );
+  --field-chrome-border-strong: color-mix(
+    in srgb,
+    var(--text-primary) var(--field-chrome-border-strong-mix),
+    transparent
+  );
+  --field-chrome-control-bg: var(--field-chrome-raised-bg);
+  --field-chrome-popover-bg: color-mix(
+    in srgb,
+    var(--bg-panel),
+    var(--text-primary) var(--field-chrome-raised-mix)
+  );
+
+  --field-chrome-radius-control: 5px;
+  --field-chrome-radius-panel: 8px;
+  --field-chrome-header-height: 32px;
+  --field-chrome-section-gap: 2px;
+}
+
+/* Shared variable boundary. Existing Inspector and left-panel descendants use
+ * the normal --bg/--border/control variables, so remapping them here gives us
+ * one editable system without duplicating CSS in every panel. */
+:where(
+  [data-properties-panel],
+  [data-editor-panel="left-primary"],
+  [data-field-chrome-panel],
+  [data-field-floating-surface]
+) {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --bg-hover: var(--field-chrome-hover-bg);
+  --bg-active: var(--field-chrome-active-bg);
+  --control-bg: var(--field-chrome-control-bg);
+  --border-light: var(--field-chrome-border);
+  --border-default: var(--field-chrome-border-strong);
+  --dropdown-bg: var(--field-chrome-popover-bg);
+  --button-secondary-bg: var(--field-chrome-control-bg);
+  --button-secondary-hover: var(--field-chrome-hover-bg);
+}
+
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel]) {
+  background: var(--field-chrome-panel-bg);
+  color: var(--text-primary);
+}
+
+[data-editor-panel="left-primary"] {
+  border-inline-end: 1px solid var(--field-chrome-border);
+}
+
+/* field chrome should read as precise, low-contrast structure, not nested cards. */
+[data-editor-panel="left-primary"] :where(input[type="text"], input[type="search"], input[type="url"], textarea, select) {
+  border-color: var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+  background: var(--field-chrome-control-bg);
+  color: var(--text-primary);
+}
+
+[data-editor-panel="left-primary"] :where(input, textarea, select):focus-visible {
+  outline: 1px solid var(--selection);
+  outline-offset: 0;
+}
+
+[data-editor-panel="left-primary"] :where(h1, h2, h3, [role="heading"]) {
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
+
+[data-editor-panel="left-primary"] :where(hr) {
+  border-color: var(--field-chrome-border);
+}
+
+/* Shared primitives for panel-owned sections and any new surfaces. */
+.field-chrome-header {
+  min-height: var(--field-chrome-header-height);
+  background: var(--field-chrome-section-bg);
+  border-bottom: 1px solid var(--field-chrome-border);
+}
+
+.field-chrome-section {
+  background: var(--field-chrome-section-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+}
+
+.field-chrome-raised {
+  background: var(--field-chrome-raised-bg);
+  border: 1px solid var(--field-chrome-border);
+  border-radius: var(--field-chrome-radius-control);
+}
+
+.field-chrome-empty {
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.field-chrome-illustration {
+  color: var(--text-tertiary);
+  opacity: 0.82;
+  filter: saturate(0.72);
+}
+
+/* The accepted field illustration language stays quiet: line-led, neutral,
+ * low-saturation and subordinate to content. Accent may appear only as a tiny
+ * semantic detail, never as the illustration's dominant fill. */
+.field-chrome-empty .field-chrome-illustration :where(svg, img) {
+  max-inline-size: 132px;
+  max-block-size: 112px;
+}
+
+/* Popovers/menus opened by either Inspector or left-panel surfaces share the
+ * same raised chrome rather than inventing independent background values. */
+[data-field-floating-surface] {
+  background: var(--field-chrome-popover-bg);
+  border-color: var(--field-chrome-border-strong);
+}
+
+/* Appearance > Interface contrast. Deliberately neutral and compact. */
+.field-chrome-contrast-slider {
+  appearance: none;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.field-chrome-contrast-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--field-chrome-border-strong);
+}
+
+.field-chrome-contrast-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 50%;
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--field-chrome-popover-bg);
+}
+
+.field-chrome-contrast-slider::-moz-range-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--field-chrome-border-strong);
+}
+
+.field-chrome-contrast-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--field-chrome-border-strong);
+  border-radius: 50%;
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--field-chrome-popover-bg);
+}

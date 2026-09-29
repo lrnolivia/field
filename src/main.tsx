@@ -3,6 +3,7 @@ import { Provider, getDefaultStore } from 'jotai';
 import FieldShell from './FieldShell';
 import './styles/globals.css';
 import './styles/loew-theme.css'; // Minimal UI theme — must stay AFTER globals.css (see LOEW_THEME.md)
+import './styles/field-chrome.css'; // Canonical Inspector + panel chrome hierarchy
 import './styles/dashboard.css';
 import './styles/field-shell.css';
 import './styles/field-glyph-global.css';

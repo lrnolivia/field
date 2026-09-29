@@ -97,6 +97,13 @@ export const editorNeutralLevelAtom = atomWithStorage<EditorNeutralLevel>(
   'revyme:prefs:neutralLevel', '3',
 );
 
+/** Continuous editor-chrome hierarchy contrast.
+ *  0 keeps surfaces nearly flat; 100 increases neutral surface and border
+ *  separation. This never changes the website Canvas/Preview or accent palette. */
+export const interfaceContrastAtom = atomWithStorage<number>(
+  'field:prefs:interfaceContrast', 28, undefined, { getOnInit: true },
+);
+
 /** Editor-only loew.fi case management for eligible field chrome.
  *  ON by default. Turning it off leaves authored UI casing untouched.
  *  The legacy storage key is retained so the preference survives the
