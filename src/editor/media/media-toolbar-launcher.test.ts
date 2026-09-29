@@ -10,6 +10,10 @@ describe('toolbar Media launcher contract', () => {
     expect(toolbar).toContain('dataTool="media"');
     expect(toolbar).toContain("setPanel({ kind: 'media' })");
     expect(toolbar).not.toContain('function MediaDropdown(');
+    const glyph = read('src/editor/media/MediaGlyph.tsx');
+    expect(glyph).toContain('data-media-glyph="library"');
+    expect(glyph).not.toContain('<circle');
+    expect(glyph).not.toContain('m3.5 9.25');
   });
 
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
