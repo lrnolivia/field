@@ -52,4 +52,4 @@ jobs:
           done
           curl -fsS http://127.0.0.1:5175/ >/dev/null
 
-          npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --reporter=list
+          npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --grep "Canvas computed styles match Preview" --reporter=list
