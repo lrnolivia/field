@@ -18,12 +18,81 @@ import {
   type TextShadowEntry,
 } from '../text-helpers';
 import { trace } from '@/shared/debug-trace';
-import { EffectIllustration, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+import { EffectPreviewFrame, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 interface ShadowControlProps {
   value?: string;
   onChange?: (value: string) => void;
   compactSection?: boolean;
+}
+
+function TextShadowLivePreview({
+  entry,
+  layer,
+  count,
+  onOffsetCommit,
+}: {
+  entry: TextShadowEntry;
+  layer: number;
+  count: number;
+  onOffsetCommit: (x: number, y: number) => void;
+}) {
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null);
+  const [previewOffset, setPreviewOffset] = useState<{ x: number; y: number } | null>(null);
+  const clampOffset = (value: number) => Math.max(-48, Math.min(48, Math.round(value)));
+  const shownX = previewOffset?.x ?? entry.x;
+  const shownY = previewOffset?.y ?? entry.y;
+  const nudge = (dx: number, dy: number) => onOffsetCommit(clampOffset(entry.x + dx), clampOffset(entry.y + dy));
+
+  return (
+    <EffectPreviewFrame
+      details={<>Layer {layer}/{count} · X {shownX} · Y {shownY} · Blur {entry.blur}</>}
+      hint="Drag the text or use arrow keys to change shadow offset."
+    >
+      <button
+        type="button"
+        data-text-shadow-live-preview
+        aria-label="Text shadow preview. Drag or use arrow keys to change offset."
+        className="cursor-move rounded-[6px] px-4 py-2 text-[24px] font-semibold leading-none text-[var(--text-primary)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] active:scale-[0.98]"
+        style={{ textShadow: `${shownX}px ${shownY}px ${entry.blur}px ${entry.color}` }}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 10 : 1;
+          if (event.key === 'ArrowLeft') { event.preventDefault(); nudge(-step, 0); }
+          if (event.key === 'ArrowRight') { event.preventDefault(); nudge(step, 0); }
+          if (event.key === 'ArrowUp') { event.preventDefault(); nudge(0, -step); }
+          if (event.key === 'ArrowDown') { event.preventDefault(); nudge(0, step); }
+        }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: entry.x, startY: entry.y };
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          setPreviewOffset({
+            x: clampOffset(drag.startX + event.clientX - drag.x),
+            y: clampOffset(drag.startY + event.clientY - drag.y),
+          });
+        }}
+        onPointerUp={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          const x = clampOffset(drag.startX + event.clientX - drag.x);
+          const y = clampOffset(drag.startY + event.clientY - drag.y);
+          dragRef.current = null;
+          setPreviewOffset(null);
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          onOffsetCommit(x, y);
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+          setPreviewOffset(null);
+        }}
+      >
+        Aa
+      </button>
+    </EffectPreviewFrame>
+  );
 }
 
 // ─── Per-entry editor panel (X / Y / Blur / Color for one layer) ─────────────
@@ -64,7 +133,12 @@ function TextShadowEditorPanel({ initialIdx, initialValue, onCommit }: {
   return (
     <div data-text-effect-editor>
       <EffectOptionsPanel>
-        <EffectIllustration kind="text-shadow" />
+        <TextShadowLivePreview
+          entry={activeEntry}
+          layer={activeIdx + 1}
+          count={entries.length}
+          onOffsetCommit={(x, y) => updateEntry({ x, y })}
+        />
         <EffectOptionSection title="Geometry" glyph={<InspectorSectionGlyph kind="geometry" />}>
           <SpatialRow label="Offset">
             <ToolInput value={String(activeEntry.x)} onChange={(v) => updateEntry({ x: parseFloat(v) || 0 })} step={1} chevronLabel="X" ariaLabel="Text shadow X" />

@@ -56,46 +56,33 @@ export function InspectorSectionGlyph({ kind }: { kind: InspectorSectionGlyphKin
   return <svg {...common}><path d="M8 2.25c1.65 2.1 3.5 4.15 3.5 6.45A3.5 3.5 0 1 1 4.5 8.7C4.5 6.4 6.35 4.35 8 2.25Z" /><path d="M6.5 10.1c.4.45.9.7 1.5.7" /></svg>;
 }
 
-export type EffectIllustrationKind = 'shadow' | 'layer-blur' | 'background-blur' | 'text-shadow';
-
-export function EffectIllustration({ kind }: { kind: EffectIllustrationKind }) {
+export function EffectPreviewFrame({
+  children,
+  details,
+  hint,
+}: {
+  children: ReactNode;
+  details?: ReactNode;
+  hint?: ReactNode;
+}) {
   return (
-    <div
-      data-effect-illustration={kind}
-      aria-hidden
-      className="relative h-11 overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/18"
+    <section
+      data-effect-live-preview
+      className="overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55"
     >
-      <div className="absolute inset-x-3 top-1/2 h-px bg-[var(--border-light)] opacity-40" />
-      <div className="absolute inset-y-2 left-1/2 w-px bg-[var(--border-light)] opacity-25" />
-      {kind === 'shadow' && (
-        <>
-          <div className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-[28%] -translate-y-[24%] rounded-[3px] bg-black/35 blur-[5px]" />
-          <div className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-surface)]" />
-          <div className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[var(--accent)] opacity-80" />
-        </>
-      )}
-      {kind === 'layer-blur' && (
-        <>
-          <div className="absolute left-[31%] top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-[var(--accent)] opacity-65 blur-[4px]" />
-          <div className="absolute left-[48%] top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-[3px] border border-[var(--text-secondary)] opacity-60" />
-          <div className="absolute right-[27%] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-[var(--text-secondary)] opacity-40 blur-[2px]" />
-        </>
-      )}
-      {kind === 'background-blur' && (
-        <>
-          <div className="absolute left-[30%] top-2 bottom-2 w-1.5 rounded-full bg-[var(--accent)] opacity-65 blur-[1px]" />
-          <div className="absolute left-[44%] top-2 bottom-2 w-1.5 rounded-full bg-[var(--text-secondary)] opacity-30 blur-[1px]" />
-          <div className="absolute left-[58%] top-2 bottom-2 w-1.5 rounded-full bg-[var(--accent)] opacity-30 blur-[1px]" />
-          <div className="absolute left-1/2 top-1/2 h-7 w-14 -translate-x-1/2 -translate-y-1/2 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70" />
-        </>
-      )}
-      {kind === 'text-shadow' && (
-        <>
-          <span className="absolute left-1/2 top-1/2 translate-x-[3px] translate-y-[2px] -translate-x-1/2 -translate-y-1/2 text-[17px] font-semibold leading-none text-[var(--accent)] opacity-45 blur-[1px]">Aa</span>
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[17px] font-semibold leading-none text-[var(--text-primary)]">Aa</span>
-        </>
-      )}
-    </div>
+      <div className="flex min-h-7 items-center justify-between gap-2 border-b border-[var(--border-light)] px-2.5 py-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Preview</span>
+        {details ? <span className="truncate text-[10px] tabular-nums text-[var(--text-secondary)]">{details}</span> : null}
+      </div>
+      <div className="relative flex min-h-[76px] items-center justify-center overflow-hidden bg-[var(--bg-hover)]/16 p-3">
+        {children}
+      </div>
+      {hint ? (
+        <div className="border-t border-[var(--border-light)] px-2.5 py-1.5 text-[9px] leading-3.5 text-[var(--text-disabled)]">
+          {hint}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
