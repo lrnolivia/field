@@ -251,6 +251,7 @@ export function LogoButton() {
         minWidth={200}
         hoverStyle="accent"
         searchable
+        fitContentHeight
       />
       <AboutFieldModal isOpen={aboutOpen} onClose={() => setAboutOpen(false)} />
     </>

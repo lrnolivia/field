@@ -111,6 +111,9 @@ interface DropdownMenuProps {
   /** Compact command-menu density. Opt-in so existing dropdowns retain
    *  their current touch targets; used by the project/title menu. */
   density?: 'default' | 'compact';
+  /** Let the ROOT menu grow to its content instead of using the shared 360px
+   *  scroll cap. Still clamps to the viewport. Submenus keep the shared cap. */
+  fitContentHeight?: boolean;
   /** Optional enabled item id to receive initial keyboard focus when an
    *  ordinary trigger-anchored menu opens. Falls back to the first enabled row. */
   preferredFocusItemId?: string;
@@ -194,6 +197,8 @@ interface MenuPanelProps {
   searchable?: boolean;
   /** Root menu density; cascading submenus keep default density. */
   density?: 'default' | 'compact';
+  /** Root-only natural-height mode; submenus retain the shared scroll cap. */
+  fitContentHeight?: boolean;
   /** Move keyboard focus into the menu when it mounts. */
   autoFocusFirst?: boolean;
   /** Preferred initial item; disabled/missing ids fall back to first enabled. */
@@ -212,7 +217,7 @@ const SEARCH_SUB_ID = '__search__';
 
 function MenuPanel({
   items, hoverStyle, minWidth, width, onClose, style, rootRef, searchable,
-  density = 'default', autoFocusFirst = false, preferredFocusItemId, onArrowLeft,
+  density = 'default', fitContentHeight = false, autoFocusFirst = false, preferredFocusItemId, onArrowLeft,
   zIndex = FIELD_SURFACE_Z.menu,
 }: MenuPanelProps) {
   const compact = density === 'compact';
@@ -360,7 +365,7 @@ function MenuPanel({
         rowGap: compact ? 0 : 2,
         paddingTop: compact ? 5 : 8,
         paddingBottom: compact ? 5 : 8,
-        maxHeight: 'min(360px, calc(100dvh - 16px))',
+        maxHeight: fitContentHeight ? 'calc(100dvh - 16px)' : 'min(360px, calc(100dvh - 16px))',
         overflowY: 'auto',
         overflowX: 'hidden',
         overscrollBehavior: 'contain',
@@ -566,7 +571,7 @@ function CascadingSubmenu({
 export default function DropdownMenu({
   isOpen, onClose, items, anchorRef, anchorPoint,
   position = 'bottom-right', minWidth, matchAnchorWidth,
-  hoverStyle = 'accent', searchable, density = 'default', preferredFocusItemId,
+  hoverStyle = 'accent', searchable, density = 'default', fitContentHeight = false, preferredFocusItemId,
 }: DropdownMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const surfaceScope = fieldSurfaceScopeFor(anchorRef?.current ?? null);
@@ -723,6 +728,7 @@ export default function DropdownMenu({
         rootRef={measureRef}
         searchable={searchable}
         density={density}
+        fitContentHeight={fitContentHeight}
         autoFocusFirst={!searchable && !!anchorRef}
         preferredFocusItemId={preferredFocusItemId}
         zIndex={menuZIndex}
