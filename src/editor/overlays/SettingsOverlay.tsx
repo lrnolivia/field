@@ -43,7 +43,7 @@ import {
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
 import {
-  lowercaseHeadingsAtom,
+  caseManagementAtom,
   autoPanSpeedAtom,
   autoFocusLayersAtom,
   showRulersAtom,
@@ -314,7 +314,7 @@ export default function SettingsOverlay() {
   const [isOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
   const [websiteSettings, setWebsiteSettings] = useAtom(websiteSettingsAtom);
   const [activeSection, setActiveSection] = useAtom(settingsSectionAtom);
-  const [lowercaseHeadings, setLowercaseHeadings] = useAtom(lowercaseHeadingsAtom);
+  const [caseManagement, setCaseManagement] = useAtom(caseManagementAtom);
   const [autoPanSpeed, setAutoPanSpeed] = useAtom(autoPanSpeedAtom);
   const [autoFocusLayers, setAutoFocusLayers] = useAtom(autoFocusLayersAtom);
   const [showRulers, setShowRulers] = useAtom(showRulersAtom);
@@ -1049,13 +1049,13 @@ export default function SettingsOverlay() {
               </div>
             </SettingsRow>
 
-            <SettingsRow label="Lowercase headings" align="top">
+            <SettingsRow label="Case management" align="top">
               <div className="flex items-start justify-between gap-4 py-0.5">
                 <p className="max-w-lg text-xs leading-relaxed text-[var(--text-tertiary)]">
-                  Apply loew.fi lowercase styling to eligible interface headings and feature names. Acronyms, trademarks, product names, and structural names keep their intended case.
+                  Apply loew.fi casing across eligible field chrome while preserving technical terms. Turn it off to leave authored UI case untouched.
                 </p>
                 <div className="shrink-0 pt-0.5">
-                  <Toggle value={lowercaseHeadings} onChange={setLowercaseHeadings} />
+                  <Toggle value={caseManagement} onChange={setCaseManagement} />
                 </div>
               </div>
             </SettingsRow>

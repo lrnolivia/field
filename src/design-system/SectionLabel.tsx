@@ -4,6 +4,7 @@
 // Sizes: xl (panel title), md (section header), sm (sub-section), xs (category).
 
 import type { ReactNode } from 'react';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 type SectionLabelSize = 'xl' | 'md' | 'sm' | 'xs';
 
@@ -23,9 +24,10 @@ const SIZE_CLASSES: Record<SectionLabelSize, string> = {
 };
 
 export default function SectionLabel({ children, size = 'md', right, className = '' }: SectionLabelProps) {
+  const uiCase = useUiChromeCase();
   return (
     <div className={`px-2 h-7 flex items-center justify-between ${className}`}>
-      <span className={SIZE_CLASSES[size]}>{children}</span>
+      <span className={SIZE_CLASSES[size]}>{typeof children === 'string' ? uiCase(children) : children}</span>
       {right}
     </div>
   );

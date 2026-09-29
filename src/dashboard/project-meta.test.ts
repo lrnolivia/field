@@ -26,7 +26,7 @@ describe('dashboard action errors', () => {
   it('turns a metadata 412 into a calm reload-and-retry message', () => {
     expect(formatDashboardActionError(
       new Error('Project metadata update failed: 412 {"error":"Persistence conflict"}'),
-    )).toBe('This project changed elsewhere. Reload the dashboard, then try that action again.');
+    )).toBe('This project changed elsewhere. Reload home, then try that action again.');
   });
 
   it('preserves unrelated dashboard errors', () => {
