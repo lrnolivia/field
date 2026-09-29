@@ -72,7 +72,10 @@ describe('workspace mode', () => {
     store.set(rightPaneOpenAtom, false);
     expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(true);
     expect(store.get(rightPaneOpenAtom)).toBe(false);
-    expect(store.get(floatingInspectorVisibleAtom)).toBe(false);
+    // Manual collapse leaves the compact rail visible; only auto-hide can
+    // remove it from view or allow a temporary edge reveal.
+    expect(store.get(rightInspectorAutoHideAtom)).toBe(false);
+    expect(store.get(floatingInspectorVisibleAtom)).toBe(true);
     store.set(rightPaneOpenAtom, true);
     expect(store.get(rightInspectorAutoHideAtom)).toBe(false);
     expect(store.get(rightInspectorExplicitCollapseAtom)).toBe(false);

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { floatingEntranceAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { LEFT_RAIL_WIDTH, leftContentWidthAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
@@ -26,6 +26,7 @@ export default function WorkspaceModeCoordinator() {
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const groupEditingId = useAtomValue(groupEditingIdAtom);
   const previewMode = useAtomValue(previewModeAtom);
+  const previousSelection = useRef<string | null>(null);
 
   // Only migrate the retired floating Compact preset. Restoring a docked
   // preset must leave its separately persisted pane choices untouched.
@@ -62,7 +63,7 @@ export default function WorkspaceModeCoordinator() {
   }, [mode, autoHide, leftExpanded, floatingLeftCollapsed, leftContentWidth, setLeftHidden]);
 
   useEffect(() => {
-    if (!rightAutoHide) return;
+    if (!rightAutoHide || explicitlyCollapsed) return;
     let close: number | undefined;
     const move = (event: PointerEvent) => {
       window.clearTimeout(close);
@@ -72,9 +73,14 @@ export default function WorkspaceModeCoordinator() {
     };
     window.addEventListener('pointermove', move, { passive: true });
     return () => { window.removeEventListener('pointermove', move); window.clearTimeout(close); };
-  }, [rightAutoHide, rightPaneWidth, selectedIds.length, temporaryReveal, setTemporaryReveal]);
+  }, [rightAutoHide, explicitlyCollapsed, rightPaneWidth, selectedIds.length, temporaryReveal, setTemporaryReveal]);
 
   useEffect(() => {
+    // Only a NEW selection can reveal a compact floating Inspector. Merely
+    // collapsing it or toggling auto-hide must not replay the old selection.
+    const selection = selectedIds.join('\0');
+    if (selection === previousSelection.current) return;
+    previousSelection.current = selection;
     if (selectedIds.length === 0) {
       if (mode === 'floating' && !rightAutoHide) setTemporaryReveal(false);
       return;

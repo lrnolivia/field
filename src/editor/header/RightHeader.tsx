@@ -315,6 +315,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           {rightDetached && <div data-right-pane-drag-handle onPointerDown={beginRightDrag}
             aria-label="Move properties pane" title="Drag to move" className="mr-1 flex h-7 w-4 shrink-0 cursor-move touch-none items-center justify-center text-[var(--text-tertiary)]">⋮</div>}
           <InspectorCollaborators disabled={isViewer} />
+          {!previewMode && <WorkspaceAutoHideButton side="right" className="relative ml-1" />}
           <div className="flex-1" />
 
           <button
@@ -392,8 +393,22 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
       )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
-          className="fixed inset-y-0 right-0 z-[9999] flex flex-col items-center gap-2 border-l border-[var(--border-light)] bg-[var(--bg-panel)] py-2"
-          style={{ width: 60, opacity: floatingInspectorVisible ? 1 : 0, pointerEvents: floatingInspectorVisible ? 'auto' : 'none', transition: 'opacity 260ms ease' }}
+          className="fixed z-[9999] flex flex-col items-center gap-2 py-2"
+          style={{
+            right: rightDetached ? 12 : 0,
+            top: rightDetached ? 12 : 0,
+            width: 60,
+            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - 24) : '100vh',
+            transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+            border: rightDetached ? '1px solid var(--border-light)' : undefined,
+            borderLeft: '1px solid var(--border-light)',
+            borderRadius: rightDetached ? 8 : 0,
+            boxShadow: rightDetached ? 'var(--shadow-lg)' : 'none',
+            backgroundColor: 'var(--bg-left-rail)',
+            opacity: floatingInspectorVisible ? 1 : 0,
+            pointerEvents: floatingInspectorVisible ? 'auto' : 'none',
+            transition: 'opacity 260ms ease, transform 260ms ease',
+          }}
           >
           <button type="button" aria-label="Open Design inspector" title="Design" onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">Design</span></button>
           <button type="button" aria-label="Open Prototype inspector" title="Prototype" onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-12 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">Proto</span></button>
@@ -401,7 +416,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           <button type="button" aria-label={`Zoom ${compactZoom} percent; reset to 100 percent`} title="Zoom to 100%" onClick={zoomTo100}
             className="w-12 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
           <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
-          <div className="mt-auto flex flex-col items-center gap-2 pb-2">
+          <div data-inspector-compact-actions className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-2">
             <WorkspaceAutoHideButton side="right" />
             <WorkspaceCollapseButton side="right" collapsed onClick={() => setRightPaneOpen(true)} />
           </div>

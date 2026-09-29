@@ -21,7 +21,7 @@ import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-
 import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
 import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
-import { rightInspectorAutoHideAtom, rightInspectorTemporaryRevealAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { trace } from '@/shared/debug-trace';
 
@@ -97,8 +97,6 @@ function InspectorThemeControl() {
 export default function InspectorZoomControl() {
   const selectedId = useAtomValue(selectedNodeAtom);
   const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
-  const temporaryReveal = useAtomValue(rightInspectorTemporaryRevealAtom);
-  const [, setRightAutoHide] = useAtom(rightInspectorAutoHideAtom);
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
   const ref = useRef<HTMLDivElement>(null);
@@ -137,12 +135,8 @@ export default function InspectorZoomControl() {
   return (
     <div data-inspector-view-controls className="relative ml-auto flex items-center gap-0.5">
       <InspectorThemeControl />
-      <WorkspaceCollapseButton side="right" collapsed={temporaryReveal}
-        actionLabel={temporaryReveal ? 'Keep Inspector open' : 'Collapse Inspector'}
-        onClick={() => {
-          if (temporaryReveal) setRightPaneOpen(true);
-          else { setRightPaneOpen(false); setRightAutoHide(false); }
-        }} />
+      <WorkspaceCollapseButton side="right" collapsed={false}
+        onClick={() => setRightPaneOpen(false)} />
       <div ref={ref} className="relative">
         <button
           type="button"

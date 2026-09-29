@@ -33,16 +33,19 @@ export const leftPaneOpenAtom = atom(
 export const rightPaneOpenAtom = atom(
   (get) => {
     const mode = get(workspaceModeAtom);
-    if (mode === 'docked' || mode === 'compact-docked') return get(dockedInspectorOpenAtom) || get(rightInspectorTemporaryRevealAtom);
-    if (mode === 'floating') return get(floatingInspectorExpandedAtom) || get(rightInspectorTemporaryRevealAtom);
-    if (mode === 'compact') return get(compactInspectorOpenAtom) || get(rightInspectorTemporaryRevealAtom);
+    const temporary = !get(rightInspectorExplicitCollapseAtom) && get(rightInspectorTemporaryRevealAtom);
+    if (mode === 'docked' || mode === 'compact-docked') return get(dockedInspectorOpenAtom) || temporary;
+    if (mode === 'floating') return get(floatingInspectorExpandedAtom) || temporary;
+    if (mode === 'compact') return get(compactInspectorOpenAtom) || temporary;
     return false;
   },
   (get, set, open: boolean) => {
     const mode = get(workspaceModeAtom);
     set(rightInspectorTemporaryRevealAtom, false);
     set(rightInspectorExplicitCollapseAtom, !open);
-    if (open) set(rightInspectorAutoHideAtom, false);
+    // A deliberate expand pins the pane; a deliberate collapse cannot be
+    // undone by hover or the still-selected object under the pointer.
+    set(rightInspectorAutoHideAtom, false);
     if (mode === 'docked' || mode === 'compact-docked') { set(dockedInspectorOpenAtom, open); return; }
     if (mode === 'floating') { set(floatingInspectorExpandedAtom, open); return; }
     if (mode === 'compact') { set(compactInspectorOpenAtom, open); return; }
