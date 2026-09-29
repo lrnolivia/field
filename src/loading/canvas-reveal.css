@@ -1,7 +1,6 @@
-/* Only the editable canvas enters. Inspector, layers, and toolbar keep their
- * own chrome motion; the canvas returns to untransformed geometry at rest. */
-[data-canvas-reveal-phase='pending'] [data-canvas-root],
-[data-canvas-reveal-phase='entering'] [data-canvas-root] {
+/* Animate the transparent content iframe while the canvas backing stays still. */
+[data-canvas-reveal-phase='pending'] [data-canvas-iframe],
+[data-canvas-reveal-phase='entering'] [data-canvas-iframe] {
   opacity: 0;
   filter: blur(18px);
   transform: scale(.78);
@@ -10,7 +9,7 @@
   will-change: opacity, filter, transform;
 }
 
-[data-canvas-reveal-phase='entering'] [data-canvas-root] {
+[data-canvas-reveal-phase='entering'] [data-canvas-iframe] {
   animation: field-canvas-reveal 760ms linear both;
 }
 
@@ -26,7 +25,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-canvas-reveal-phase='entering'] [data-canvas-root] {
+  [data-canvas-reveal-phase='entering'] [data-canvas-iframe] {
     animation: none;
     opacity: 1;
     filter: none;

@@ -14,6 +14,10 @@ const canvasSource = fs.readFileSync(
   path.resolve(process.cwd(), 'src/canvas/Canvas.tsx'),
   'utf8',
 );
+const canvasRevealCss = fs.readFileSync(
+  path.resolve(process.cwd(), 'src/loading/canvas-reveal.css'),
+  'utf8',
+);
 
 describe('ProjectLoader canvas readiness contract', () => {
   it('keeps stalled-canvas recovery separate from Canvas-ready', () => {
@@ -41,5 +45,11 @@ describe('ProjectLoader canvas readiness contract', () => {
     expect(appSource).toContain('data-canvas-reveal-phase={canvasRevealPhase}');
     expect(projectLoaderSource).toContain('setEditorInteractive(true)');
     expect(projectLoaderSource).not.toContain('ProjectLoadingVeil');
+  });
+
+  it('reveals canvas content without animating its background surface', () => {
+    expect(canvasRevealCss).toContain("[data-canvas-reveal-phase='entering'] [data-canvas-iframe]");
+    expect(canvasRevealCss).not.toContain("[data-canvas-reveal-phase='entering'] [data-canvas-root]");
+    expect(appSource).toContain("hasAttribute('data-canvas-iframe')");
   });
 });

@@ -29,6 +29,8 @@ vi.mock('@/canvas/node-ops', () => ({
   redirectLayoutNodeToViewport: vi.fn(() => null),
   getIsolatedChildOfGroup: vi.fn(() => null),
   getNodeHitsAtPoint: vi.fn(() => []),
+  findNodeRect: vi.fn(() => new DOMRect(10, 10, 100, 80)),
+  findNodeComputedStyle: vi.fn(() => ''),
   vpIdFromPrefix: vi.fn((prefix: string) => prefix?.replace(/-$/, '') || 'desktop'),
   getViewportPrefix: vi.fn((vpId: string) => (vpId ? vpId + '-' : '')),
   getActiveFilePath: vi.fn(() => 'app/page.tsx'),
@@ -144,6 +146,7 @@ import {
   redirectToComponentInstance,
   redirectToFitTextWrapper,
   redirectLayoutNodeToViewport,
+  getNodeHitsAtPoint,
 } from '@/canvas/node-ops';
 import { codeAtom } from '@/code/stores/store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
@@ -177,7 +180,7 @@ function makeController(storeOverride?: ReturnType<typeof createStore>) {
 
   const opts = {
     jotaiStore: store,
-    bridge: {} as any,
+    bridge: { setAttribute: vi.fn() } as any,
     containerRef: { current: document.createElement('div') },
     iframeRef: { current: document.createElement('iframe') } as any,
     contentRef: { current: document.createElement('div') } as any,
@@ -223,6 +226,53 @@ function makeController(storeOverride?: ReturnType<typeof createStore>) {
 describe('CanvasMouseController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  test('hover gloss follows the visible editable node without a selected parent or copied text', () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, store, opts } = makeController();
+      const hoverNodes = new Map([
+        ['text', { id: 'text', type: 'p', children: [], textContent: '<span>source</span>', isCanvasNode: false }],
+        ['image', { id: 'image', type: 'img', children: [], isCanvasNode: false }],
+        ['svg', { id: 'svg', type: 'svg', children: [], isCanvasNode: true }],
+        ['covered', { id: 'covered', type: 'span', children: [], isCanvasNode: false }],
+        ['chrome', { id: 'chrome', type: 'div', children: [], isCanvasNode: true }],
+      ]);
+      const read = store.get.bind(store);
+      (store as any).get = (atom: unknown) => atom === nodesAtom ? hoverNodes : read(atom as any);
+      expect(store.get(selectedIdsAtom)).toEqual([]);
+      vi.mocked(getNodeHitsAtPoint).mockReturnValue([{ id: 'text', vpPrefix: '' }]);
+      expect(store.get(nodesAtom).get('text')?.type).toBe('p');
+      (controller as any).updateTextGloss(100, 100);
+      vi.advanceTimersByTime(1100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('text', '', 'data-field-hover-gloss', 'true');
+      expect(document.querySelector('.field-text-hover-gloss')).toBeNull();
+
+      // An exposed canvas node is editable too, and wins over covered hits.
+      vi.mocked(getNodeHitsAtPoint).mockReturnValue([
+        { id: 'chrome', vpPrefix: '' }, { id: 'covered', vpPrefix: '' },
+      ]);
+      (controller as any).updateTextGloss(100, 100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('text', '', 'data-field-hover-gloss', null);
+      vi.advanceTimersByTime(1100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('chrome', '', 'data-field-hover-gloss', 'true');
+      expect(opts.bridge.setAttribute).not.toHaveBeenCalledWith('covered', '', 'data-field-hover-gloss', 'true');
+
+      vi.mocked(getNodeHitsAtPoint).mockReturnValue([{ id: 'image', vpPrefix: '' }]);
+      (controller as any).updateTextGloss(100, 100);
+      vi.advanceTimersByTime(1100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('image', '', 'data-field-hover-gloss', 'true');
+      vi.advanceTimersByTime(2100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('image', '', 'data-field-hover-gloss', null);
+      vi.mocked(getNodeHitsAtPoint).mockReturnValue([{ id: 'svg', vpPrefix: '' }]);
+      (controller as any).updateTextGloss(100, 100);
+      vi.advanceTimersByTime(1100);
+      expect(opts.bridge.setAttribute).toHaveBeenCalledWith('svg', '', 'data-field-hover-gloss', 'true');
+      controller.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // ── Test 1: Redirect chain order ────────────────────────────────────────────

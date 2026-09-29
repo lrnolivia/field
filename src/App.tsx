@@ -257,7 +257,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       data-canvas-reveal-phase={canvasRevealPhase}
       onAnimationEnd={(event) => {
         if (event.animationName === 'field-canvas-reveal'
-          && (event.target as HTMLElement).hasAttribute('data-canvas-root')) {
+          && (event.target as HTMLElement).hasAttribute('data-canvas-iframe')) {
           onCanvasRevealComplete?.();
         }
       }}

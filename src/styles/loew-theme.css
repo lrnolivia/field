@@ -337,23 +337,6 @@ select {
   letter-spacing: 0.02em;
 }
 
-/* Text edit target preview: the shimmer is visual only; canvas clicks still
- * hit the original text through this pointer-transparent layer. */
-.field-text-hover-gloss {
-  position: fixed;
-  z-index: 1000;
-  pointer-events: none;
-  overflow: hidden;
-  box-sizing: border-box;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  background: linear-gradient(115deg, color-mix(in srgb, var(--selection) 25%, transparent) 12%, color-mix(in srgb, white 72%, var(--selection)) 48%, color-mix(in srgb, var(--selection) 28%, transparent) 76%);
-  background-size: 220% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  animation: field-text-hover-gloss 1.4s ease-in-out both;
-}
-
 /* Inspector property rows share columns. The last track reserves a stable
  * action lane; the two value tracks divide the remaining resizable width. */
 .field-inspector-pair {
@@ -385,16 +368,6 @@ select {
   .field-alignment-dot,
   .field-alignment-glyph { transition: none; }
 }
-@keyframes field-text-hover-gloss {
-  0% { opacity: 0; background-position: 100% 0; }
-  18% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; background-position: -100% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .field-text-hover-gloss { animation: none; background: none; -webkit-text-fill-color: color-mix(in srgb, var(--selection) 45%, transparent); color: color-mix(in srgb, var(--selection) 45%, transparent); }
-}
-
 /* Bottom tool strip: smaller AND floating off the screen edge. */
 #bottom-toolbar-container {
   padding: 4px 5px;
