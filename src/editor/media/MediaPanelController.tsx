@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 import MediaLauncher from './MediaLauncher';
 import MediaToolbarPopover from './MediaToolbarPopover';
-import { mediaSessionAtom, upsertMediaUploadAtom } from './media-state';
+import { mediaSessionAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from './media-state';
 import {
   acceptedMimeTypes,
   createMediaSession,
@@ -43,6 +43,7 @@ function uploadElementKind(kind: ReturnType<typeof mediaKindFromMime>): 'image' 
 export default function MediaPanelController({ onClose }: { onClose: () => void }) {
   const [session, setSession] = useAtom(mediaSessionAtom);
   const upsertUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [expanded, setExpanded] = useState(false);
   const [transientError, setTransientError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState('');
@@ -88,6 +89,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         kind: mediaKind,
         upsert: upsertUpload,
         idPrefix: 'toolbar',
+        rememberAsset,
       });
       insertUrl(elementKind, result.url);
     } catch (error) {

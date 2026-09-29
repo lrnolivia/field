@@ -41,7 +41,7 @@ import { modifyProjectFile } from '@/code/project/modify-file';
 import NameInputModal from '@/editor/ui/NameInputModal';
 import { getImageDimensions, fitFrameBox } from '@/canvas/image-dims';
 import { trace } from '@/shared/debug-trace';
-import { upsertMediaUploadAtom } from '@/editor/media/media-state';
+import { upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
 import { ingestMediaFile, type MediaQueueWriter } from '@/editor/media/media-ingest';
 
 /** Classification of a file by its mime/extension. */
@@ -254,6 +254,7 @@ export default function CanvasFileDrop() {
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSelectedIds = useSetAtom(selectedIdsAtom);
   const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
   const [dropFeedback, setDropFeedback] = useState<CanvasMediaDropFeedback | null>(null);
 
@@ -343,13 +344,13 @@ export default function CanvasFileDrop() {
         if (pre.valid.length === 0) {
           // every "SVG" was junk — say so, and still honor any images
           toast.error(`No valid SVG files in the drop (${pre.skipped.length} skipped).`);
-          if (imageFiles.length > 0) await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload);
+          if (imageFiles.length > 0) await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload, rememberMediaAsset);
           return;
         }
         setPendingDrop({ validSvgs: pre.valid, skipped: pre.skipped, imageFiles, canvasX, canvasY });
         return;
       }
-      await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload);
+      await handleImageFileDrops(imageFiles, canvasX, canvasY, setSelectedIds, upsertMediaUpload, rememberMediaAsset);
       return;
     }
 
@@ -362,7 +363,7 @@ export default function CanvasFileDrop() {
     }
     trace.action('canvas-file-drop:url-drop', { url: extracted.url.slice(0, 120), canvasX, canvasY });
     await handleImageUrlDrop(extracted.url, extracted.name, canvasX, canvasY, setSelectedIds);
-  }, [setSelectedIds, upsertMediaUpload]);
+  }, [setSelectedIds, upsertMediaUpload, rememberMediaAsset]);
 
   // Window-level listeners suppress browser navigation for external Media,
   // while the canvas rect itself remains the only valid insertion target.
@@ -435,9 +436,9 @@ export default function CanvasFileDrop() {
 
     // Also drop any images that came alongside the SVGs.
     if (imageFiles.length > 0) {
-      await handleImageFileDrops(imageFiles, canvasX + 280, canvasY, setSelectedIds, upsertMediaUpload);
+      await handleImageFileDrops(imageFiles, canvasX + 280, canvasY, setSelectedIds, upsertMediaUpload, rememberMediaAsset);
     }
-  }, [pendingDrop, activeFilePath, setSelectedIds, upsertMediaUpload]);
+  }, [pendingDrop, activeFilePath, setSelectedIds, upsertMediaUpload, rememberMediaAsset]);
 
   // Cancelling the set must NOT swallow images dropped alongside the
   // SVGs — the user dropped them; insert them anyway.
@@ -445,9 +446,9 @@ export default function CanvasFileDrop() {
     const stash = pendingDrop;
     setPendingDrop(null);
     if (stash && stash.imageFiles.length > 0) {
-      void handleImageFileDrops(stash.imageFiles, stash.canvasX, stash.canvasY, setSelectedIds, upsertMediaUpload);
+      void handleImageFileDrops(stash.imageFiles, stash.canvasX, stash.canvasY, setSelectedIds, upsertMediaUpload, rememberMediaAsset);
     }
-  }, [pendingDrop, setSelectedIds, upsertMediaUpload]);
+  }, [pendingDrop, setSelectedIds, upsertMediaUpload, rememberMediaAsset]);
 
   // Honest dialog copy: what will be created, what rode along, what was skipped.
   const dropSummary = pendingDrop
@@ -507,6 +508,7 @@ async function handleImageFileDrops(
   canvasY: number,
   setSelectedIds: (ids: string[]) => void,
   upsertMediaUpload: MediaQueueWriter,
+  rememberMediaAsset: (asset: import('@/editor/media/media-system').MediaAsset) => void,
 ): Promise<void> {
   const projectId = getProjectId();
   let xOffset = 0;
@@ -525,6 +527,7 @@ async function handleImageFileDrops(
         kind: 'image',
         upsert: upsertMediaUpload,
         idPrefix: 'canvas',
+        rememberAsset: rememberMediaAsset,
       });
       const { width } = fitFrameBox(dims);
       lastId = queueImageFrame(result.url, dims, canvasX + xOffset, canvasY);

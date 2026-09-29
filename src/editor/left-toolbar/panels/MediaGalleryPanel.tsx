@@ -15,7 +15,7 @@
 // standalone object URLs have no server object to delete).
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
@@ -28,7 +28,7 @@ import { ConfirmModal } from '@/editor/overlays/settings-shared';
 import { MULTI_SELECT_OUTLINE } from './LibraryPanel/shared/section-utils';
 import { deriveUploadKey, keysInSweep, sweepAutoScrollStep, deleteConfirmMessage, type TileRect } from './media-gallery-utils';
 import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor/gallery/gallery-media-drag';
-import { upsertMediaUploadAtom } from '@/editor/media/media-state';
+import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
 import { ingestMediaFile } from '@/editor/media/media-ingest';
 
 type MediaGalleryTab = 'all' | 'images' | 'videos';
@@ -43,6 +43,9 @@ interface UploadedFile {
   url: string;
   kind: 'image' | 'video';
   key?: string;
+  name?: string;
+  mimeType?: string;
+  contentHash?: string;
   size?: number;
   lastModified?: string;
 }
@@ -279,6 +282,7 @@ interface StorageInfo {
 }
 
 function mediaDisplayName(item: UploadedFile): string {
+  if (item.name?.trim()) return item.name.trim();
   if (item.key) {
     const part = item.key.split('/').filter(Boolean).pop();
     if (part) return decodeURIComponent(part);
@@ -321,6 +325,8 @@ export default function MediaGalleryPanel({
   const [durableInventory, setDurableInventory] = useState<boolean | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: 'image' | 'video' }>>([]);
   const [inspectedIdentity, setInspectedIdentity] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
@@ -341,7 +347,9 @@ export default function MediaGalleryPanel({
     if (!query) return visibleUploads;
     return visibleUploads.filter((item) => {
       const key = item.key ?? deriveUploadKey(item) ?? '';
-      return key.toLowerCase().includes(query) || item.url.toLowerCase().includes(query);
+      return item.name?.toLowerCase().includes(query)
+        || key.toLowerCase().includes(query)
+        || item.url.toLowerCase().includes(query);
     });
   }, [visibleUploads, searchQuery]);
   const selectedImageUrls = React.useMemo(
@@ -396,6 +404,23 @@ export default function MediaGalleryPanel({
   }, [tab]);
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
+
+  useEffect(() => {
+    if (durableInventory !== false) return;
+    setUploads(
+      sessionMediaAssets
+        .filter((item) => item.kind === 'image' || item.kind === 'video')
+        .map((item) => ({
+          url: item.url,
+          kind: item.kind as 'image' | 'video',
+          name: item.name,
+          mimeType: item.mimeType,
+          contentHash: item.contentHash,
+          size: item.size,
+          lastModified: item.createdAt,
+        })),
+    );
+  }, [durableInventory, sessionMediaAssets]);
 
   // Escape clears the multi-selection (the ConfirmModal handles its own).
   useEffect(() => {
@@ -468,11 +493,12 @@ export default function MediaGalleryPanel({
           kind,
           upsert: upsertMediaUpload,
           idPrefix: 'media-browser',
+          rememberAsset: rememberMediaAsset,
         });
         setUploads((prev) => (
           prev.some((item) => item.url === result.url)
             ? prev
-            : [{ url: result.url, size: file.size, kind }, ...prev]
+            : [{ url: result.url, size: file.size, kind, name: file.name }, ...prev]
         ));
         if (!result.reusedExisting) {
           successful += 1;
@@ -501,7 +527,7 @@ export default function MediaGalleryPanel({
 
     setUploading(false);
     input.value = '';
-  }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload]);
+  }, [projectId, fetchUploads, durableInventory, tab, upsertMediaUpload, rememberMediaAsset]);
 
   const keepDuplicateUploads = useCallback(async () => {
     if (durableInventory !== true || duplicateCandidates.length === 0 || uploading) return;
@@ -521,8 +547,9 @@ export default function MediaGalleryPanel({
           upsert: upsertMediaUpload,
           idPrefix: 'media-duplicate',
           allowDuplicate: true,
+          rememberAsset: rememberMediaAsset,
         });
-        setUploads((prev) => [{ url: result.url, size: file.size, kind }, ...prev]);
+        setUploads((prev) => [{ url: result.url, size: file.size, kind, name: file.name }, ...prev]);
         created += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not keep duplicate';
@@ -538,6 +565,7 @@ export default function MediaGalleryPanel({
     uploading,
     projectId,
     upsertMediaUpload,
+    rememberMediaAsset,
     fetchUploads,
   ]);
 

@@ -1,9 +1,10 @@
 import { backend } from '@/backend';
-import type { MediaKind, MediaUploadItem } from './media-system';
+import type { MediaAsset, MediaKind, MediaUploadItem } from './media-system';
 
 const MAX_SESSION_HASH_BYTES = 64 * 1024 * 1024;
 
 export type MediaQueueWriter = (item: MediaUploadItem) => void;
+export type MediaAssetWriter = (asset: MediaAsset) => void;
 
 interface SessionMediaIdentity {
   url: string;
@@ -45,6 +46,7 @@ export async function ingestMediaFile({
   upsert,
   idPrefix = 'media',
   allowDuplicate = false,
+  rememberAsset,
 }: {
   file: File;
   projectId: string;
@@ -52,6 +54,7 @@ export async function ingestMediaFile({
   upsert: MediaQueueWriter;
   idPrefix?: string;
   allowDuplicate?: boolean;
+  rememberAsset?: MediaAssetWriter;
 }): Promise<MediaIngestResult> {
   const uploadId = uniqueUploadId(idPrefix, file);
 
@@ -112,6 +115,18 @@ export async function ingestMediaFile({
         contentHash,
       });
     }
+
+    rememberAsset?.({
+      id: allowDuplicate ? url : contentHash ?? url,
+      url,
+      kind,
+      name: file.name,
+      mimeType: file.type || undefined,
+      size: file.size,
+      source: 'upload',
+      contentHash: contentHash ?? undefined,
+      createdAt: new Date().toISOString(),
+    });
 
     upsert({
       id: uploadId,
