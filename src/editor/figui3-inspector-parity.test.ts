@@ -57,6 +57,15 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(layout).not.toContain('<PaddingControl />');
   });
 
+  it('keeps Layout size and padding gutters on the same 8px rhythm', () => {
+    const size = read('src/editor/tools/SizeTool.tsx');
+    const padding = read('src/editor/tools/LayoutPaddingControl.tsx');
+    expect(size).toContain('data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}');
+    expect(padding).toContain('data-layout-padding-axes className="grid grid-cols-2 gap-2"');
+    expect(padding).toContain('data-layout-padding-sides className="grid grid-cols-4 gap-2"');
+    expect(padding).toContain('className="flex min-w-0 items-start gap-2"');
+  });
+
   it('keeps Typography Basics and Details aligned to the FigUI3 information hierarchy', () => {
     const typography = read('src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx');
     for (const label of ['Basics', 'Details', 'Vertical trim', 'Paragraph spacing', 'Numbers', 'Position', 'Letterforms', 'Ordinals', 'Stylistic sets', 'Kerning', 'Horizontal spacing']) {

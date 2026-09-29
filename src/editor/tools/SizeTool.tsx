@@ -1745,7 +1745,10 @@ if (heightIsAuto) {
 
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      <div data-layout-size-pair className="field-inspector-field-grid">
+      {/* Keep the horizontal gutter between W/H equal to ToolSection's 8px
+          vertical rhythm. --control-gap is intentionally denser elsewhere, so
+          scope this correction to the Layout size pair for now. */}
+      <div data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}>
         {primaryWidthControl}
         {primaryHeightControl}
         <div className="flex min-w-0 items-center justify-end gap-1">

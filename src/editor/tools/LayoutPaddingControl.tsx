@@ -74,7 +74,7 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
   return (
     <div data-layout-padding data-layout-padding-view={resolvedView} className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-start w-full">
       <ControlLabel label="Padding" property="padding" plain cell />
-      <div className="flex min-w-0 items-start gap-1">
+      <div className="flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">
           {resolvedView === 'equal' ? (
             <ToolInput
@@ -85,12 +85,12 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
               ariaLabel="Equal padding"
             />
           ) : resolvedView === 'axes' ? (
-            <div data-layout-padding-axes className="grid grid-cols-2 gap-1">
+            <div data-layout-padding-axes className="grid grid-cols-2 gap-2">
               <ToolInput value={horizontalEqual ? display(sides[1]) : ''} placeholder={horizontalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} chevronLabel="H" ariaLabel="Horizontal padding" />
               <ToolInput value={verticalEqual ? display(sides[0]) : ''} placeholder={verticalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} chevronLabel="V" ariaLabel="Vertical padding" />
             </div>
           ) : (
-            <div data-layout-padding-sides className="grid grid-cols-4 gap-1">
+            <div data-layout-padding-sides className="grid grid-cols-4 gap-2">
               {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
                 <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} chevronLabel={label} ariaLabel={`Padding ${label}`} />
               ))}
