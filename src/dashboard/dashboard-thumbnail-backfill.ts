@@ -137,14 +137,27 @@ export async function backfillDashboardThumbnails(
         if (!state.stale) continue;
         const files = await loadSavedFiles(project.id, signal, fetchImpl);
         if (!files || !chooseDashboardThumbnailPage(Object.keys(files))) continue;
-        if (!renderer) {
-          renderer = new PreviewThumbnailRenderer(signal);
-          await renderer.mount();
+        let repaired = false;
+        let lastError: unknown = null;
+        for (let attempt = 0; attempt < 2 && !signal.aborted; attempt += 1) {
+          try {
+            if (!renderer) {
+              renderer = new PreviewThumbnailRenderer(signal);
+              await renderer.mount();
+            }
+            const dataUrl = await renderer.capture(files);
+            if (signal.aborted) break;
+            const url = await uploadFieldProjectThumbnail(project.id, dataUrl, fetchImpl);
+            if (!signal.aborted) onReady(project.id, url);
+            repaired = true;
+            break;
+          } catch (error) {
+            lastError = error;
+            renderer?.dispose();
+            renderer = null;
+          }
         }
-        const dataUrl = await renderer.capture(files);
-        if (signal.aborted) break;
-        const url = await uploadFieldProjectThumbnail(project.id, dataUrl, fetchImpl);
-        if (!signal.aborted) onReady(project.id, url);
+        if (!repaired && lastError) throw lastError;
       } catch (error) {
         if (signal.aborted) break;
         console.warn('[field-dashboard] thumbnail repair failed', project.id, error);

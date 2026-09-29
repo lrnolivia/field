@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react';
 import { FigmaMoreIcon } from '@/shared/loew-figma-icons';
 import type { FieldProjectMeta } from '@/backend/field-projects';
 import { DASHBOARD_LOADING_MIN_VISIBLE_MS, DASHBOARD_LOADING_REVEAL_MS } from './dashboard-loading';
@@ -32,8 +32,14 @@ function StarBadge() {
 function Placeholder() {
   return (
     <div className="field-project-placeholder" aria-hidden="true">
-      <span className="field-project-placeholder-grid" />
-      <span className="field-project-placeholder-mark">f</span>
+      <div className="field-project-placeholder-page">
+        <span className="field-project-placeholder-nav" />
+        <span className="field-project-placeholder-hero" />
+        <span className="field-project-placeholder-line field-project-placeholder-line-long" />
+        <span className="field-project-placeholder-line field-project-placeholder-line-short" />
+        <span className="field-project-placeholder-card field-project-placeholder-card-a" />
+        <span className="field-project-placeholder-card field-project-placeholder-card-b" />
+      </div>
     </div>
   );
 }
@@ -64,6 +70,8 @@ function ProjectThumbnail({ src }: { src: string }) {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shownAtRef = useRef<number | null>(null);
   const [loadingSlow, setLoadingSlow] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc === src;
 
   const clearTimers = () => {
     if (revealTimerRef.current !== null) clearTimeout(revealTimerRef.current);
@@ -105,6 +113,7 @@ function ProjectThumbnail({ src }: { src: string }) {
     }
     if (src === previousSrcRef.current) return;
     previousSrcRef.current = src;
+    setFailedSrc(null);
     clearTimers();
     if (settledSrcRef.current === src) return;
     shownAtRef.current = null;
@@ -119,21 +128,21 @@ function ProjectThumbnail({ src }: { src: string }) {
 
   useEffect(() => clearTimers, []);
 
-  const handleError = (event: SyntheticEvent<HTMLImageElement>) => {
+  const handleError = (_event: SyntheticEvent<HTMLImageElement>) => {
     settleLoading();
-    event.currentTarget.remove();
+    setFailedSrc(src);
   };
 
   return (
     <>
-      <img
+      {!failed && <img
         src={src}
         alt=""
         loading="lazy"
         decoding="async"
         onLoad={settleLoading}
         onError={handleError}
-      />
+      />}
       {loadingSlow && (
         <div className="field-project-thumbnail-loading" aria-hidden="true">
           <SkeletonSurface className="field-project-thumbnail-loading-surface" />
@@ -146,10 +155,17 @@ function ProjectThumbnail({ src }: { src: string }) {
 export default function ProjectCard(props: Props) {
   const { project } = props;
   const trashed = Boolean(project.trashedAt);
+  const openFromCardSurface = (event: MouseEvent<HTMLElement>) => {
+    if (trashed) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button, a, input, textarea, select, [role="menu"], [role="menuitem"]')) return;
+    props.onOpen();
+  };
 
   return (
     <article
       className="field-project-card"
+      onClick={openFromCardSurface}
       aria-busy={props.refreshing || undefined}
       data-refreshing={props.refreshing ? 'true' : undefined}
       data-opening={props.opening ? 'true' : undefined}

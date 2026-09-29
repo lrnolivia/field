@@ -121,12 +121,18 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       .find((element) => element.dataset.projectId === project.id);
     const rect = preview?.getBoundingClientRect();
     const image = preview?.querySelector<HTMLImageElement>('img');
+    const openingTimeout = window.setTimeout(() => {
+      setOpeningProjectId((current) => current === project.id ? null : current);
+    }, 8000);
     void openFieldProject(project.id, {
       origin: rect ? {
         x: rect.x, y: rect.y, width: rect.width, height: rect.height,
         thumbnail: image?.complete && image.naturalWidth ? image.currentSrc : null,
       } : undefined,
+    }).then(() => {
+      window.clearTimeout(openingTimeout);
     }).catch((cause) => {
+      window.clearTimeout(openingTimeout);
       setOpeningProjectId(null);
       setError(cause instanceof Error ? cause.message : String(cause));
     });
