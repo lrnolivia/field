@@ -46,6 +46,7 @@ interface UploadedFile {
   name?: string;
   mimeType?: string;
   contentHash?: string;
+  source?: 'upload' | 'external' | 'generated' | 'figma' | 'embed' | 'code' | 'unknown';
   size?: number;
   lastModified?: string;
 }
@@ -316,6 +317,8 @@ export default function MediaGalleryPanel({
   const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'upload' | 'external'>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   // The backend tells us whether it owns a durable Media inventory. field
@@ -345,14 +348,37 @@ export default function MediaGalleryPanel({
   );
   const filteredUploads = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return visibleUploads;
-    return visibleUploads.filter((item) => {
-      const key = item.key ?? deriveUploadKey(item) ?? '';
-      return item.name?.toLowerCase().includes(query)
-        || key.toLowerCase().includes(query)
-        || item.url.toLowerCase().includes(query);
+    let rows = query
+      ? visibleUploads.filter((item) => {
+          const key = item.key ?? deriveUploadKey(item) ?? '';
+          return item.name?.toLowerCase().includes(query)
+            || key.toLowerCase().includes(query)
+            || item.url.toLowerCase().includes(query);
+        })
+      : visibleUploads;
+
+    if (workspace && sourceFilter !== 'all') {
+      rows = rows.filter((item) => {
+        const source = item.source ?? (item.key ? 'upload' : 'unknown');
+        return source === sourceFilter;
+      });
+    }
+
+    if (!workspace) return rows;
+
+    const sorted = [...rows];
+    sorted.sort((a, b) => {
+      if (sortOrder === 'name') {
+        return mediaDisplayName(a).localeCompare(mediaDisplayName(b), undefined, { sensitivity: 'base' });
+      }
+
+      const aTime = a.lastModified ? Date.parse(a.lastModified) : 0;
+      const bTime = b.lastModified ? Date.parse(b.lastModified) : 0;
+      return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
     });
-  }, [visibleUploads, searchQuery]);
+    return sorted;
+  }, [visibleUploads, searchQuery, workspace, sourceFilter, sortOrder]);
+
   const selectedImageUrls = React.useMemo(
     () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image'), selectedKeys),
     [filteredUploads, selectedKeys],
@@ -850,6 +876,39 @@ export default function MediaGalleryPanel({
         </div>
       )}
 
+      {workspace && (
+        <div
+          data-media-workspace-controls
+          className="mt-2 flex items-center gap-1.5 px-3"
+        >
+          <label className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">Source</span>
+            <select
+              value={sourceFilter}
+              onChange={(event) => setSourceFilter(event.target.value as 'all' | 'upload' | 'external')}
+              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+            >
+              <option value="all">All</option>
+              <option value="upload">Uploaded</option>
+              <option value="external">External</option>
+            </select>
+          </label>
+
+          <label className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="shrink-0 text-[9px] text-[var(--text-tertiary)]">Sort</span>
+            <select
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value as 'newest' | 'oldest' | 'name')}
+              className="h-7 min-w-0 flex-1 rounded-[4px] border border-[var(--control-border)] bg-[var(--control-bg)] px-1.5 text-[10px] text-[var(--text-primary)] outline-none hover:border-[var(--control-border-hover)]"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
+        </div>
+      )}
+
       {/* Gallery grid */}
       {filteredUploads.length > 0 ? (
         <div className="flex min-h-0 flex-1">
@@ -929,7 +988,11 @@ export default function MediaGalleryPanel({
                     <div>
                       <div className="text-[var(--text-tertiary)]">Source</div>
                       <div className="mt-0.5 text-[var(--text-primary)]">
-                        {durableInventory === true ? 'Project media' : 'Session'}
+                        {inspectedAsset.source === 'external'
+                          ? 'External'
+                          : inspectedAsset.source === 'upload'
+                            ? 'Uploaded'
+                            : durableInventory === true ? 'Project media' : 'Session'}
                       </div>
                     </div>
                     {inspectedAsset.lastModified && (

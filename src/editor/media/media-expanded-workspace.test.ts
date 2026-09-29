@@ -33,4 +33,32 @@ describe('expanded Media workspace', () => {
     expect(browser).toContain("durableInventory === true && inspectedAsset.key");
     expect(browser).toContain('Delete asset');
   });
+
+  it('adds truthful Source and Sort controls only to the expanded workspace', () => {
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(browser).toContain('data-media-workspace-controls');
+    expect(browser).toContain("sourceFilter");
+    expect(browser).toContain("sortOrder");
+    expect(browser).toContain('<option value="upload">Uploaded</option>');
+    expect(browser).toContain('<option value="external">External</option>');
+    expect(browser).toContain('<option value="newest">Newest</option>');
+    expect(browser).toContain('<option value="oldest">Oldest</option>');
+    expect(browser).toContain('<option value="name">Name</option>');
+    expect(browser).toContain('workspace && (');
+  });
+
+  it('does not invent a Usage filter before relationship data exists', () => {
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(browser).not.toContain('data-media-usage-filter');
+    expect(browser).not.toContain('Used in');
+  });
+
+  it('preserves explicit external/upload source metadata in the details rail', () => {
+    const browser = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    expect(browser).toContain("inspectedAsset.source === 'external'");
+    expect(browser).toContain("inspectedAsset.source === 'upload'");
+    expect(browser).toContain("'External'");
+    expect(browser).toContain("'Uploaded'");
+  });
+
 });
