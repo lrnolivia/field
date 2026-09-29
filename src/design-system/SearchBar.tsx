@@ -30,7 +30,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
   }, [autoFocus]);
 
   return (
-    <div className={`relative ${className}`}>
+    <div data-field-chrome-search className={`relative ${className}`}>
       <svg
         className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-tertiary)] pointer-events-none"
         viewBox="0 0 24 24"

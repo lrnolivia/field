@@ -199,7 +199,7 @@ export default function SearchableDropdown<T>({
 
   return (
     <div ref={wrapRef} className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} className={triggerClassName} disabled={disabled} title={title} data-testid={triggerTestId}>
+      <button type="button" data-field-chrome-combobox-trigger onClick={() => setOpen((v) => !v)} className={triggerClassName} disabled={disabled} title={title} data-testid={triggerTestId}>
         {triggerIcon}
         <span className="flex-1 text-left truncate">{triggerLabel}</span>
         <svg
@@ -274,6 +274,7 @@ export default function SearchableDropdown<T>({
         <div
           ref={panelRef}
           data-field-no-canvas-input
+          data-field-chrome-combobox-panel
           data-field-floating-surface={style ? '' : undefined}
           data-field-surface-scope={style ? surfaceScope : undefined}
           style={style ? { ...style, zIndex: portalZIndex } : undefined}
@@ -291,7 +292,7 @@ export default function SearchableDropdown<T>({
           </div>
           {/* Inset hairlines, lighter than the panel in dark mode — the
               --border-light edge-to-edge rule read as a dark cut. */}
-          <div aria-hidden className="mx-2 h-px bg-black/[0.08] dark:bg-white/10" />
+          <div aria-hidden className="mx-2 h-px bg-[var(--border-light)]" />
           <div className={listClassName}>
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">{emptyText}</div>

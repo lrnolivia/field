@@ -49,7 +49,7 @@ export default function FloatingLeftPanelHost() {
   };
 
   return createPortal(
-    <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
+    <div data-floating-left-panel={panelId} data-field-chrome-panel data-left-panel-surface={panelId} data-workspace-mode={mode} data-visible={visible}
       aria-hidden={!visible} inert={!visible}
       className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
       style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),

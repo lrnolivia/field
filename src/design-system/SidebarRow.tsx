@@ -137,6 +137,7 @@ const SidebarRow = forwardRef<HTMLDivElement, SidebarRowProps>(
     return (
       <motion.div
         ref={ref}
+        data-field-chrome-row
         initial="rest"
         whileHover="hover"
         whileTap="tap"

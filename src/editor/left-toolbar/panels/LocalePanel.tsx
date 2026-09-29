@@ -150,8 +150,8 @@ export default function LocalePanel() {
           // Two empty-states, same shape as CmsPanel: "no languages at
           // all" (onboarding copy) vs "search hid them all" (search-only
           // copy, no CTA — the user is trying to find one, not add).
-          <div className="flex flex-col items-center justify-center py-10 gap-2">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-disabled)]">
+          <div data-field-empty-state className="field-chrome-empty flex flex-col items-center justify-center py-10 gap-2">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" data-field-illustration className="field-chrome-illustration text-[var(--text-disabled)]">
               <circle cx="12" cy="12" r="10" />
               <line x1="2" y1="12" x2="22" y2="12" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />

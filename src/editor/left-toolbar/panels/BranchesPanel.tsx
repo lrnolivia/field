@@ -102,7 +102,7 @@ export default function BranchesPanel() {
             );
           })}
           {q && shown.length === 0 && (
-            <div className="px-2 py-2 text-[11px] text-[var(--text-tertiary)]">No branch matches “{search.trim()}”.</div>
+            <div data-field-empty-state className="field-chrome-empty px-2 py-2 text-[11px] text-[var(--text-tertiary)]">No branch matches “{search.trim()}”.</div>
           )}
         </div>
       </div>

@@ -151,9 +151,16 @@
 
 /* Popovers/menus opened by either Inspector or left-panel surfaces share the
  * same raised chrome rather than inventing independent background values. */
-[data-field-floating-surface] {
+[data-field-floating-surface]:not([data-modal-root]),
+[data-field-chrome-surface] {
   background: var(--field-chrome-popover-bg);
   border-color: var(--field-chrome-border-strong);
+}
+
+[data-field-chrome-surface="modal"] {
+  --bg-surface: var(--field-chrome-popover-bg);
+  --border-light: var(--field-chrome-border);
+  --border-default: var(--field-chrome-border-strong);
 }
 
 /* Appearance > Interface contrast. Deliberately neutral and compact. */
@@ -196,4 +203,142 @@
   border-radius: 50%;
   background: var(--text-primary);
   box-shadow: 0 0 0 2px var(--field-chrome-popover-bg);
+}
+
+
+/* ── Shared sidebar primitives ──────────────────────────────────────────────
+ * These are intentionally shared by Pages/Layers, Library, Presets, CMS,
+ * Media, Locale, Branches and auxiliary chrome. Keep their visual decisions
+ * here rather than in the individual panel implementations. */
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-section-label] {
+  background: var(--field-chrome-section-bg);
+  box-shadow: inset 0 -1px 0 var(--field-chrome-border);
+}
+
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-searchbar] {
+  background: var(--field-chrome-control-bg) !important;
+  border-color: var(--field-chrome-border) !important;
+}
+
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-row] {
+  border-radius: var(--field-chrome-radius-control);
+}
+
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-field-chrome-panel])
+  [data-field-chrome-add] {
+  border-radius: var(--field-chrome-radius-control);
+}
+
+[data-field-chrome-combobox-trigger] {
+  background: var(--field-chrome-control-bg) !important;
+  border: 1px solid var(--field-chrome-border) !important;
+  border-radius: var(--field-chrome-radius-control) !important;
+}
+
+[data-field-chrome-combobox-trigger]:hover {
+  background: var(--field-chrome-hover-bg) !important;
+}
+
+[data-field-chrome-combobox-panel] {
+  --bg-hover: var(--field-chrome-hover-bg);
+  --bg-active: var(--field-chrome-active-bg);
+  --border-light: var(--field-chrome-border);
+  --dropdown-bg: var(--field-chrome-popover-bg);
+  background: var(--field-chrome-popover-bg);
+  border-color: var(--field-chrome-border);
+}
+
+/* ── Pages + Layers ─────────────────────────────────────────────────────── */
+[data-field-document-panel] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-document-pages],
+[data-document-layers] {
+  background: var(--field-chrome-panel-bg);
+}
+
+[data-field-pages-splitter] {
+  position: relative;
+  min-height: 7px;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+[data-field-pages-splitter]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 8px;
+  top: 3px;
+  height: 1px;
+  background: var(--field-chrome-border);
+  transition: background 120ms ease;
+}
+
+[data-field-pages-splitter]:hover::after,
+[data-field-pages-splitter]:focus-visible::after {
+  background: var(--field-chrome-border-strong);
+}
+
+/* ── All left destinations ─────────────────────────────────────────────────
+ * Explicit route inventory: Insert, Pages/Layers, Library, Presets, Media,
+ * Locale, CMS, Branches, plus Vibe and toolbar/detached auxiliary surfaces. */
+:where(
+  [data-left-panel-surface="insert"],
+  [data-left-panel-surface="pages-layers"],
+  [data-left-panel-surface="layers"],
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"],
+  [data-left-panel-surface="media"],
+  [data-left-panel-surface="locale"],
+  [data-left-panel-surface="cms"],
+  [data-left-panel-surface="branches"],
+  [data-left-panel-surface="vibe"],
+  [data-left-panel-surface="plugins"]
+) [data-tool-divider] {
+  background: var(--field-chrome-border) !important;
+}
+
+:where(
+  [data-left-panel-surface="insert"],
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"],
+  [data-left-panel-surface="media"],
+  [data-left-panel-surface="cms"]
+) :where(.cut-corners) {
+  --button-secondary-bg: var(--field-chrome-raised-bg);
+  --button-secondary-hover: var(--field-chrome-hover-bg);
+}
+
+/* ── Empty states / illustration language ──────────────────────────────── */
+[data-field-empty-state],
+.field-chrome-empty {
+  color: var(--text-secondary);
+}
+
+[data-field-empty-state] [data-field-illustration],
+[data-field-empty-state] .field-chrome-illustration {
+  color: var(--text-tertiary) !important;
+  opacity: 0.82;
+  filter: saturate(0.72);
+}
+
+/* ── Floating/detached/toolbar panel parity ─────────────────────────────── */
+[data-floating-left-panel],
+[data-toolbar-panel] {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --bg-hover: var(--field-chrome-hover-bg);
+  --bg-active: var(--field-chrome-active-bg);
+  --border-light: var(--field-chrome-border);
+  --border-default: var(--field-chrome-border-strong);
+  background: var(--field-chrome-panel-bg);
+  border-color: var(--field-chrome-border);
+}
+
+[data-toolbar-panel] > :first-child {
+  background: var(--field-chrome-section-bg);
 }

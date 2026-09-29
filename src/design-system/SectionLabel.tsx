@@ -26,7 +26,7 @@ const SIZE_CLASSES: Record<SectionLabelSize, string> = {
 export default function SectionLabel({ children, size = 'md', right, className = '' }: SectionLabelProps) {
   const uiCase = useUiChromeCase();
   return (
-    <div className={`px-2 h-7 flex items-center justify-between ${className}`}>
+    <div data-field-chrome-section-label className={`px-2 h-7 flex items-center justify-between ${className}`}>
       <span className={SIZE_CLASSES[size]}>{typeof children === 'string' ? uiCase(children) : children}</span>
       {right}
     </div>

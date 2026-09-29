@@ -27,6 +27,7 @@ const AddButton = forwardRef<HTMLButtonElement, AddButtonProps>(
         whileHover={interactive ? 'hover' : undefined}
         whileTap={interactive ? 'tap' : undefined}
         data-field-motion="add"
+        data-field-chrome-add
         className={`w-6 h-6 flex items-center justify-center rounded-[4px] hover:bg-[var(--bg-hover)] text-[var(--text-disabled)] hover:text-[var(--text-primary)] transition-colors cursor-pointer disabled:cursor-not-allowed ${className}`}
         {...props}
       >

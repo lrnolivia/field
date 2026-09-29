@@ -172,6 +172,8 @@ export default function ToolbarPanelHost() {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.75 }}
         data-toolbar-panel={panel.kind}
+        data-field-chrome-panel
+        data-left-panel-surface={panel.kind}
         data-peeked={peeked ? 'true' : 'false'}
         className="field-toolbar-panel-surface fixed flex flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] outline-none"
         style={{

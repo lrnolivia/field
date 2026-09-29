@@ -40,7 +40,9 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
   return (
     <div
       data-editor-panel="left-primary"
-      className="fixed z-[5000] flex flex-col overflow-hidden bg-[var(--bg-surface)]"
+      data-field-chrome-panel
+      data-left-panel-surface="vibe"
+      className="field-chrome-panel fixed z-[5000] flex flex-col overflow-hidden"
       style={{
         left: workspace.left.inset + LEFT_RAIL_WIDTH,
         top: workspaceBodyTop(workspace.left),
