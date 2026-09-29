@@ -48,6 +48,8 @@ export function rectsOverlap(a: BoxRect, b: DOMRect): boolean {
   );
 }
 
+export type MarqueeDepth = 'surface' | 'deep';
+
 export interface MarqueeSelection {
   /** Deduped node ids under the marquee — a node swept in BOTH the primary
    *  viewport and a replica appears ONCE (the selection model stores plain
@@ -75,7 +77,11 @@ export function marqueeSelectionSig(ids: string[]): string {
  * marquee targets, same as they're first-class click targets. Reads from
  * the bridge rectCache.
  */
-export function getMarqueeSelection(_contentEl: HTMLElement, selectionRect: BoxRect): MarqueeSelection {
+export function getMarqueeSelection(
+  _contentEl: HTMLElement,
+  selectionRect: BoxRect,
+  depth: MarqueeDepth = 'surface',
+): MarqueeSelection {
   const bridge = getCanvasBridge();
   if (!('rectCache' in bridge)) return { ids: [], vpId: vpIdFromPrefix(''), viewportsByNode: {} };
 
@@ -124,16 +130,19 @@ export function getMarqueeSelection(_contentEl: HTMLElement, selectionRect: BoxR
     if (count > dominantCount) { dominantPrefix = prefix; dominantCount = count; }
   }
 
-  // DESCENDANT FILTER — a child's rect always overlaps whenever its matched
-  // ancestor's does, so the raw sweep returned parent AND descendants
-  // together (a sketch wrapper + its inner <path>, a frame + its children).
-  // That poisoned every all-of-one-kind gate: marquee-selecting sketches
-  // included their path children, `type === 'svg'` failed, and Group
-  // vanished from the menu / Cmd+G bailed — while shift-click (wrappers
-  // only) worked (user report 2026-07-29). Keep only the TOPMOST matched
-  // node of each chain — the same "parent covers subtree" rule Cmd+A's
-  // selectAllPageNodeIds applies.
-  const ids = dropMatchedDescendants(matched, getNodesSnapshot());
+  // NORMAL marquee follows the surface-selection model: when both a parent
+  // and one of its children overlap, keep the TOPMOST matched node. Modifier
+  // marquee is Figma's documented nested-selection gesture, so it inverts the
+  // rule and keeps the DEEPEST matched nodes instead — a child can be selected
+  // without also selecting the parent that geometrically contains it.
+  //
+  // Keeping exactly one level of a matched ancestry chain also protects the
+  // existing "all selected nodes are peers" assumptions used by grouping,
+  // transforms, and the multi-selection overlay.
+  const nodes = getNodesSnapshot();
+  const ids = depth === 'deep'
+    ? dropMatchedAncestors(matched, nodes)
+    : dropMatchedDescendants(matched, nodes);
   for (const id of Object.keys(viewportsByNode)) {
     if (!ids.includes(id)) delete viewportsByNode[id];
   }
@@ -162,6 +171,26 @@ export function dropMatchedDescendants(
   return out;
 }
 
+/** Drop every matched id that has another matched id below it in the same
+ * ancestry chain. This is the inverse of `dropMatchedDescendants` and powers
+ * Cmd/Ctrl-marquee: nested layers win over their containing parent. Unknown
+ * ids remain selectable; ancestry walks are cycle-bounded. */
+export function dropMatchedAncestors(
+  matched: ReadonlySet<string>,
+  nodes: ReadonlyMap<string, { parentId?: string | null }>,
+): string[] {
+  const matchedAncestors = new Set<string>();
+  for (const id of matched) {
+    let parent = nodes.get(id)?.parentId ?? null;
+    let hops = 0;
+    while (parent && hops++ < 200) {
+      if (matched.has(parent)) matchedAncestors.add(parent);
+      parent = nodes.get(parent)?.parentId ?? null;
+    }
+  }
+  return [...matched].filter(id => !matchedAncestors.has(id));
+}
+
 /** Back-compat id-only view of `getMarqueeSelection`. */
 export function getIntersectingNodeIds(contentEl: HTMLElement, selectionRect: BoxRect): string[] {
   return getMarqueeSelection(contentEl, selectionRect).ids;
@@ -172,6 +201,7 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
   const [box, setBox] = useState<BoxRect | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
+  const marqueeDepthRef = useRef<MarqueeDepth>('surface');
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
   const contentElRef = useRef(contentEl);
@@ -182,6 +212,7 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
   const stopGesture = useCallback(() => {
     startRef.current = null;
     isDraggingRef.current = false;
+    marqueeDepthRef.current = 'surface';
     lastMoveRef.current = null;
     setBox(null);
     autoPanCleanupRef.current?.();
@@ -201,14 +232,15 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     setBox(rect);
     const content = contentElRef.current;
     if (!content) return;
-    const sel = getMarqueeSelection(content, rect);
+    const sel = getMarqueeSelection(content, rect, marqueeDepthRef.current);
     onSelectionChangeRef.current(sel.ids, sel.vpId, sel.viewportsByNode);
   }, []);
 
-  const beginGesture = useCallback((clientX: number, clientY: number) => {
+  const beginGesture = useCallback((clientX: number, clientY: number, depth: MarqueeDepth) => {
     _suppressNextSelectionBox = false;
     startRef.current = { x: clientX, y: clientY };
     isDraggingRef.current = false;
+    marqueeDepthRef.current = depth;
     lastMoveRef.current = null;
 
     const ctrl = getActiveAutoPan();
@@ -233,7 +265,10 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     if (!isActive || isViewerMode()) return false;
     if ((detail.button ?? 0) !== 0) return false;
     if (isSpaceBarDown()) return false;
-    if (detail.ctrlKey || detail.metaKey || detail.altKey) return false;
+    // Option/Alt is reserved for duplication/alternate gestures. Cmd/Ctrl is
+    // intentionally allowed: Figma uses it to make a marquee select nested
+    // layers instead of their containing surface.
+    if (detail.altKey) return false;
     return true;
   }, [isActive]);
 
@@ -253,7 +288,7 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
       passed: isCanvasContainer || isContentRoot || isViewportRoot,
     });
     if (!isCanvasContainer && !isContentRoot && !isViewportRoot) return;
-    beginGesture(e.clientX, e.clientY);
+    beginGesture(e.clientX, e.clientY, e.metaKey || e.ctrlKey ? 'deep' : 'surface');
   }, [beginGesture, canBegin, containerEl]);
 
   const handleSandboxMouseDown = useCallback((event: Event) => {
@@ -276,7 +311,7 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
       isViewportRoot: true,
       passed: true,
     });
-    beginGesture(detail.clientX, detail.clientY);
+    beginGesture(detail.clientX, detail.clientY, detail.metaKey || detail.ctrlKey ? 'deep' : 'surface');
   }, [beginGesture, canBegin]);
 
   const handleMoveAt = useCallback((clientX: number, clientY: number) => {
@@ -303,11 +338,12 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
         width: Math.abs(dx),
         height: Math.abs(dy),
       };
-      const sel = getMarqueeSelection(content, rect);
+      const sel = getMarqueeSelection(content, rect, marqueeDepthRef.current);
       trace.action('selection-box:intersect', {
         selectionRect: rect,
         foundIds: sel.ids,
         vpId: sel.vpId,
+        depth: marqueeDepthRef.current,
         viewportRootCount: content.querySelectorAll('[data-viewport]').length,
       });
     }

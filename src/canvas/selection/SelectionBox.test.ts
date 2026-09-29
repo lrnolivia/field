@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, test, expect, afterEach, vi } from 'vitest';
-import SelectionBox, { rectsOverlap, getIntersectingNodeIds, getMarqueeSelection, marqueeSelectionSig, type BoxRect } from './SelectionBox';
+import SelectionBox, { rectsOverlap, getIntersectingNodeIds, getMarqueeSelection, marqueeSelectionSig, dropMatchedAncestors, type BoxRect } from './SelectionBox';
 import { setActiveBridge, resetActiveBridge, type CanvasBridge } from '../canvas-bridge';
 import { vpIdFromPrefix } from '../node-ops';
 
@@ -289,6 +289,39 @@ describe('getIntersectingNodeIds', () => {
     host.remove();
   });
 
+  test('Cmd/Ctrl sandbox drag starts a marquee instead of being rejected', () => {
+    installBridge({
+      ':hero': { left: 20, top: 20, width: 40, height: 40 },
+    });
+    const host = document.createElement('div');
+    const content = document.createElement('div');
+    host.appendChild(content);
+    document.body.appendChild(host);
+    const onSelectionChange = vi.fn();
+    const view = render(React.createElement(SelectionBox, {
+      containerEl: host,
+      contentEl: content,
+      onSelectionChange,
+      isActive: true,
+    }));
+
+    act(() => {
+      document.dispatchEvent(new CustomEvent('field:sandbox-mousedown', {
+        detail: { clientX: 0, clientY: 0, button: 0, ctrlKey: true, metaKey: false, altKey: false },
+      }));
+      document.dispatchEvent(new CustomEvent('field:sandbox-mousemove', {
+        detail: { clientX: 100, clientY: 100 },
+      }));
+    });
+
+    expect(onSelectionChange).toHaveBeenCalled();
+    act(() => document.dispatchEvent(new CustomEvent('field:sandbox-mouseup', {
+      detail: { clientX: 100, clientY: 100, button: 0 },
+    })));
+    view.unmount();
+    host.remove();
+  });
+
   test('template chrome (`layout::` ids + children-slot) is never marquee-selected', () => {
     // On a templated page the merge prefixes every template node (header /
     // footer / nav and their WHOLE subtrees) with `layout::` and inserts the
@@ -346,5 +379,34 @@ describe('dropMatchedDescendants', () => {
 
   test('ids missing from the map are kept (never silently shrink the selection)', () => {
     expect(dropMatchedDescendants(new Set(['ghostish']), nodesMap({}))).toEqual(['ghostish']);
+  });
+});
+
+describe('dropMatchedAncestors — Cmd/Ctrl nested marquee', () => {
+  const nodesMap = (edges: Record<string, string | null>) =>
+    new Map(Object.entries(edges).map(([id, parentId]) => [id, { parentId }]));
+
+  test('parent + child → child only', () => {
+    const nodes = nodesMap({ frame: null, child: 'frame' });
+    expect(dropMatchedAncestors(new Set(['frame', 'child']), nodes)).toEqual(['child']);
+  });
+
+  test('deep chains collapse to the deepest matched descendant', () => {
+    const nodes = nodesMap({ frame: null, inner: 'frame', leaf: 'inner' });
+    expect(dropMatchedAncestors(new Set(['frame', 'inner', 'leaf']), nodes)).toEqual(['leaf']);
+  });
+
+  test('siblings all survive', () => {
+    const nodes = nodesMap({ a: 'frame', b: 'frame', frame: null });
+    expect(dropMatchedAncestors(new Set(['a', 'b']), nodes).sort()).toEqual(['a', 'b']);
+  });
+
+  test('a parent survives when none of its descendants are matched', () => {
+    const nodes = nodesMap({ frame: null, child: 'frame' });
+    expect(dropMatchedAncestors(new Set(['frame']), nodes)).toEqual(['frame']);
+  });
+
+  test('ids missing from the map are kept', () => {
+    expect(dropMatchedAncestors(new Set(['unknown']), nodesMap({}))).toEqual(['unknown']);
   });
 });
