@@ -28,7 +28,7 @@ describe('shared field chrome architecture', () => {
     expect(prefs).toContain('field:prefs:interfaceContrast');
     expect(theme).toContain('interfaceContrastAtom');
     expect(theme).toContain('--field-chrome-section-mix');
-    expect(theme).toContain('data.interfaceContrast');
+    expect(theme).toContain('dataset.interfaceContrast');
   });
 
   it('marks the entire left content panel as one chrome scope', () => {
@@ -41,5 +41,31 @@ describe('shared field chrome architecture', () => {
     const popover = read('src/editor/ui/ThemeNeutralPopover.tsx');
     expect(popover).toContain('data-interface-contrast-control');
     expect(popover).toContain('Interface contrast');
+  });
+
+  it('keeps every current left-panel route inside the shared chrome scope', () => {
+    const css = read('src/styles/field-chrome.css');
+    for (const surface of [
+      'insert',
+      'pages-layers',
+      'layers',
+      'library',
+      'presets',
+      'media',
+      'locale',
+      'cms',
+      'branches',
+      'vibe',
+    ]) {
+      expect(css).toContain(`data-left-panel-surface="${surface}"`);
+    }
+  });
+
+  it('marks shared panel primitives instead of styling each destination independently', () => {
+    expect(read('src/design-system/SectionLabel.tsx')).toContain('data-field-chrome-section-label');
+    expect(read('src/design-system/SearchBar.tsx')).toContain('data-field-chrome-search');
+    expect(read('src/design-system/SidebarRow.tsx')).toContain('data-field-chrome-row');
+    expect(read('src/editor/ui/SearchableDropdown.tsx')).toContain('data-field-chrome-combobox-trigger');
+    expect(read('src/design-system/Modal.tsx')).toContain('data-field-chrome-surface="modal"');
   });
 });

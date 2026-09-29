@@ -73,9 +73,19 @@
   --bg-hover: var(--field-chrome-hover-bg);
   --bg-active: var(--field-chrome-active-bg);
   --control-bg: var(--field-chrome-control-bg);
+  --control-bg-hover: var(--field-chrome-hover-bg);
+  --control-bg-active: var(--field-chrome-active-bg);
+  --control-border: var(--field-chrome-border);
+  --control-border-hover: var(--field-chrome-border-strong);
   --border-light: var(--field-chrome-border);
   --border-default: var(--field-chrome-border-strong);
   --dropdown-bg: var(--field-chrome-popover-bg);
+  --grid-line: var(--field-chrome-section-bg);
+  --bg-elevated: var(--field-chrome-raised-bg);
+  --bg-raised: var(--field-chrome-raised-bg);
+  --btn-secondary-bg: var(--field-chrome-control-bg);
+  --btn-secondary-hover: var(--field-chrome-hover-bg);
+  --btn-secondary-bg-hover: var(--field-chrome-hover-bg);
   --button-secondary-bg: var(--field-chrome-control-bg);
   --button-secondary-hover: var(--field-chrome-hover-bg);
 }
@@ -341,4 +351,66 @@
 
 [data-toolbar-panel] > :first-child {
   background: var(--field-chrome-section-bg);
+}
+
+
+/* SearchableDropdown callers historically injected their own black/white tint
+ * classes. The marker wins those local tints so PageSelector, CMS collection
+ * selectors and agent-side searchable menus stay on the same chrome controls. */
+[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]) {
+  background: var(--field-chrome-control-bg) !important;
+  border: 1px solid var(--field-chrome-border) !important;
+  border-radius: var(--field-chrome-radius-control) !important;
+}
+
+[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]):hover {
+  background: var(--field-chrome-hover-bg) !important;
+}
+
+[data-field-chrome-combobox-panel] :where(input[type="text"], input[type="search"]):focus {
+  background: var(--field-chrome-active-bg) !important;
+}
+
+/* Media is intentionally more object-heavy than the other left panels. Keep
+ * tiles as objects, but remove the old dashboard-card feeling from supporting
+ * strips and metadata panes. */
+[data-left-panel-surface="media"] :where([data-media-grid]) {
+  --control-border: var(--field-chrome-border);
+  --control-border-hover: var(--field-chrome-border-strong);
+}
+
+[data-left-panel-surface="media"] :where([data-media-grid] > *) {
+  border-color: var(--field-chrome-border);
+}
+
+/* CMS forms and collection rows inherit the same quiet raised/control tiers;
+ * semantic destructive/accent colors remain untouched. */
+[data-left-panel-surface="cms"] {
+  --bg-elevated: var(--field-chrome-raised-bg);
+  --grid-line: var(--field-chrome-section-bg);
+}
+
+/* Library + Presets use the same hierarchy. Their content models differ, the
+ * chrome does not. */
+:where(
+  [data-left-panel-surface="library"],
+  [data-left-panel-surface="presets"]
+) [data-library-panel] {
+  background: var(--field-chrome-panel-bg) !important;
+}
+
+/* Toolbar-hosted Library/Insert/Media surfaces use the exact same tokens as
+ * their docked forms. */
+[data-toolbar-panel] [data-library-panel],
+[data-toolbar-panel] [data-media-grid],
+[data-toolbar-panel] [data-field-document-panel] {
+  --bg-surface: var(--field-chrome-raised-bg);
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --border-light: var(--field-chrome-border);
+}
+
+/* Modal headers are chrome sections, not independent cards. */
+[data-field-chrome-surface="modal"] > :first-child {
+  background: var(--field-chrome-section-bg);
+  border-color: var(--field-chrome-border);
 }
