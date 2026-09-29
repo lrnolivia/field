@@ -42,6 +42,9 @@ interface ColorPickerProps {
   libraryOnly?: boolean;
   /** Whether to render the existing preset list. */
   showPresets?: boolean;
+  /** Colors already used by the current page/scope. `value` is what gets applied;
+   *  `swatch` may be a resolved token value used only for preview. */
+  pageColors?: Array<{ value: string; swatch?: string }>;
 }
 
 type InputMode = 'hex' | 'rgb' | 'hsl';
@@ -160,7 +163,7 @@ function usePointerDrag(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName, libraryOnly = false, showPresets = true }: ColorPickerProps) {
+export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = true, onCreatePreset, colorPresets, onApplyPreset, onEditPreset, activePresetName, libraryOnly = false, showPresets = true, pageColors = [] }: ColorPickerProps) {
   // Panel value scrub: flips interacting + panelScrub (hides the InteractionOutline).
   const setCanvasInteracting = useScrubInteracting();
   const setColorPickerOpen = useSetAtom(colorPickerOpenAtom);
@@ -589,6 +592,30 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       </div>
       {eyedropperError && <div role="status" className="mt-1.5 text-[11px] text-[var(--text-secondary)]">{eyedropperError}</div>}
         </>
+      )}
+
+      {!libraryOnly && pageColors.length > 0 && (
+        <div className="mt-3 border-t border-[var(--border-light)] pt-2">
+          <div className="px-0.5 pb-1.5 text-[10px] font-medium text-[var(--text-secondary)]">On this page</div>
+          <div className="flex flex-wrap gap-1.5 px-0.5" role="list" aria-label="Colors on this page">
+            {pageColors.slice(0, 24).map((pageColor, index) => (
+              <button
+                key={`${pageColor.value}-${index}`}
+                type="button"
+                role="listitem"
+                className="w-5 h-5 cut-corners cut-sm cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] hover:[--cut-border-color:var(--border-focus)] hover:border-[var(--border-focus)] transition-colors cursor-pointer"
+                style={{ background: pageColor.swatch || pageColor.value }}
+                title={pageColor.value}
+                aria-label={`Use ${pageColor.value}`}
+                onClick={() => {
+                  trace.action('color-picker:apply-page-color', { value: pageColor.value });
+                  onChange(pageColor.value);
+                  onChangeEnd?.(pageColor.value);
+                }}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* ── 5. Color preset list + Create button ──────────────────────────── */}
