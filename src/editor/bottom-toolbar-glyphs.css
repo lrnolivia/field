@@ -85,3 +85,31 @@ button[data-toolbar-chevron-open]:hover > [data-field-toolbar-glyph="chevron"] {
     transition: none;
   }
 }
+
+
+/* Canonical toolbar tool geometry: primary tool cells are true squares.
+   Split-button chevrons remain narrow, but every glyph-bearing tool cell
+   gets the same 28×28 hit box and 16×16 optical icon box. */
+#bottom-toolbar-container button[data-toolbar-tool] {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+#bottom-toolbar-container button[data-toolbar-tool] > [data-field-toolbar-glyph] {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+#bottom-toolbar-container button[data-toolbar-tool] > [data-field-toolbar-glyph] svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex: none;
+}

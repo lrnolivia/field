@@ -90,49 +90,53 @@ textarea {
 /* -------------------------------------------------------------------------- */
 
 :root {
-  --bg-canvas: #e9e9e9;
-  --bg-surface: #ffffff;
-  --bg-toolbar: #fafafa;
-  --bg-panel: #f7f7f7;
+  --bg-canvas: #e5e5e5;
+  --bg-surface: #f8f8f8;
+  --bg-toolbar: #f6f6f6;
+  --bg-panel: #f4f4f4;
   --bg-left-rail: color-mix(in srgb, var(--bg-panel) 94%, black);
-  --bg-hover: #eaeaea;
-  --bg-active: #e1e1e1;
-  --bg-tertiary: #f0f0f0;
+  --bg-hover: #e7e7e7;
+  --bg-active: #dddddd;
+  --bg-tertiary: #ededed;
 
-  --canvas-chrome-bg: #fafafa;
-  --canvas-chrome-border: #d6d6d6;
+  --canvas-chrome-bg: #f7f7f7;
+  --canvas-chrome-border: #d1d1d1;
+  --canvas-chrome-shadow-color: rgba(0, 0, 0, 0.08);
   --variant-card-bg: #ffffff;
-  --variant-card-bg-hover: #f3f3f3;
-  --variant-card-badge: #e6e6e6;
+  --variant-card-bg-hover: #f0f0f0;
+  --variant-card-badge: #e3e3e3;
 
   --text-primary: #1e1e1e;
-  --text-secondary: #666666;
-  --text-prose: #4a4a4a;
-  --text-disabled: #a8a8a8;
-  --text-tertiary: #8a8a8a;
-  --text-muted: #9c9c9c;
+  --text-secondary: #626262;
+  --text-prose: #484848;
+  --text-disabled: #a2a2a2;
+  --text-tertiary: #858585;
+  --text-muted: #979797;
 
   --border-light: rgba(0, 0, 0, 0.10);
   --border-default: rgba(0, 0, 0, 0.17);
   --border-focus: var(--selection);
 
-  --grid-line: #ededed;
+  --grid-line: #eaeaea;
   --control-bg: var(--grid-line);
-  --control-bg-hover: #e3e3e3;
-  --control-bg-active: #d9d9d9;
+  --control-bg-hover: #e0e0e0;
+  --control-bg-active: #d6d6d6;
   --control-border: transparent;
   --control-border-hover: transparent;
-  --choice-bg: #e9e9e9;
-  --segmented-bg: #e9e9e9;
-  --slider-bg: #d7d7d7;
+  --choice-bg: #e8e8e8;
+  --segmented-bg: #f8f8f8;
+  --slider-bg: #d3d3d3;
   --slider-thumb-border: rgba(0, 0, 0, 0.18);
 
-  --btn-secondary-bg: #f0f0f0;
-  --btn-secondary-hover: #e7e7e7;
+  --btn-secondary-bg: #ebebeb;
+  --btn-secondary-hover: #e2e2e2;
   --button-secondary-bg: rgba(0, 0, 0, 0.045);
   --button-secondary-hover: rgba(0, 0, 0, 0.075);
 
-  --dropdown-bg: #ffffff;
+  --dropdown-bg: #fafafa;
+
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 24%, var(--bg-panel));
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, var(--bg-panel));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,6 +155,7 @@ textarea {
 
   --canvas-chrome-bg: #242424;
   --canvas-chrome-border: rgba(255, 255, 255, 0.09);
+  --canvas-chrome-shadow-color: rgba(0, 0, 0, 0.17);
   --variant-card-bg: #292929;
   --variant-card-bg-hover: #313131;
   --variant-card-badge: #3a3a3a;
@@ -193,6 +198,9 @@ textarea {
   --accent-strong-fg: #ffffff;
   --accent-muted: rgba(255, 255, 255, 0.075);
   --accent-surface: rgba(255, 255, 255, 0.065);
+
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 32%, var(--bg-panel));
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, var(--bg-panel));
 
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.40);
@@ -477,91 +485,175 @@ select {
   --panel-inset: 16px;
 }
 
-/* Level 2 is the current Light/Dark palette (Default). Levels 1 and 3 only
- * move neutral chrome. Accent, selection, website colors and page overrides
- * remain independent. */
+/* Level 3 is the current Light/Dark palette (Default). Five steps create
+ * a legible neutral ramp without changing accent, website colors or page
+ * overrides. Light intentionally spans farther than Dark. */
 html[data-neutral-level="1"]:not(.dark) {
-  --bg-canvas: #f0f0f0;
+  --bg-canvas: #f4f4f4;
   --bg-surface: #ffffff;
   --bg-toolbar: #ffffff;
-  --bg-panel: #fbfbfb;
-  --bg-hover: #eeeeee;
-  --bg-active: #e6e6e6;
-  --bg-tertiary: #f5f5f5;
-  --grid-line: #f1f1f1;
-  --control-bg: #f1f1f1;
-  --control-bg-hover: #e8e8e8;
-  --control-bg-active: #dfdfdf;
-  --choice-bg: #efefef;
+  --bg-panel: #ffffff;
+  --bg-hover: #f2f2f2;
+  --bg-active: #e9e9e9;
+  --bg-tertiary: #f7f7f7;
+  --grid-line: #f3f3f3;
+  --control-bg: #f3f3f3;
+  --control-bg-hover: #eaeaea;
+  --control-bg-active: #e1e1e1;
+  --choice-bg: #f2f2f2;
   --segmented-bg: #ffffff;
-  --border-light: rgba(0, 0, 0, 0.08);
-  --border-default: rgba(0, 0, 0, 0.14);
-  --control-border: transparent;
-  --control-border-hover: transparent;
+  --canvas-chrome-bg: #ffffff;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.08);
+  --border-light: rgba(0, 0, 0, 0.07);
+  --border-default: rgba(0, 0, 0, 0.13);
   --dropdown-bg: #ffffff;
 }
 
-html[data-neutral-level="3"]:not(.dark) {
-  --bg-canvas: #dedede;
-  --bg-surface: #f5f5f5;
-  --bg-toolbar: #f2f2f2;
-  --bg-panel: #eeeeee;
-  --bg-hover: #e2e2e2;
-  --bg-active: #d8d8d8;
-  --bg-tertiary: #e8e8e8;
-  --grid-line: #e7e7e7;
-  --control-bg: #e7e7e7;
-  --control-bg-hover: #dddddd;
-  --control-bg-active: #d3d3d3;
-  --choice-bg: #e4e4e4;
-  --segmented-bg: #f5f5f5;
-  --border-light: rgba(0, 0, 0, 0.11);
-  --border-default: rgba(0, 0, 0, 0.18);
-  --control-border: transparent;
-  --control-border-hover: transparent;
-  --dropdown-bg: #f5f5f5;
+html[data-neutral-level="2"]:not(.dark) {
+  --bg-canvas: #ececec;
+  --bg-surface: #fcfcfc;
+  --bg-toolbar: #fbfbfb;
+  --bg-panel: #fafafa;
+  --bg-hover: #ececec;
+  --bg-active: #e2e2e2;
+  --bg-tertiary: #f2f2f2;
+  --grid-line: #eeeeee;
+  --control-bg: #eeeeee;
+  --control-bg-hover: #e5e5e5;
+  --control-bg-active: #dbdbdb;
+  --choice-bg: #ededed;
+  --segmented-bg: #fcfcfc;
+  --canvas-chrome-bg: #fbfbfb;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.09);
+  --border-light: rgba(0, 0, 0, 0.085);
+  --border-default: rgba(0, 0, 0, 0.15);
+  --dropdown-bg: #fcfcfc;
+}
+
+html[data-neutral-level="4"]:not(.dark) {
+  --bg-canvas: #dcdcdc;
+  --bg-surface: #efefef;
+  --bg-toolbar: #ededed;
+  --bg-panel: #e9e9e9;
+  --bg-hover: #dddddd;
+  --bg-active: #d2d2d2;
+  --bg-tertiary: #e3e3e3;
+  --grid-line: #e0e0e0;
+  --control-bg: #e0e0e0;
+  --control-bg-hover: #d6d6d6;
+  --control-bg-active: #cccccc;
+  --choice-bg: #dddddd;
+  --segmented-bg: #efefef;
+  --canvas-chrome-bg: #ededed;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.12);
+  --border-light: rgba(0, 0, 0, 0.12);
+  --border-default: rgba(0, 0, 0, 0.19);
+  --dropdown-bg: #f0f0f0;
+}
+
+html[data-neutral-level="5"]:not(.dark) {
+  --bg-canvas: #d0d0d0;
+  --bg-surface: #e5e5e5;
+  --bg-toolbar: #e2e2e2;
+  --bg-panel: #dddddd;
+  --bg-hover: #d1d1d1;
+  --bg-active: #c5c5c5;
+  --bg-tertiary: #d8d8d8;
+  --grid-line: #d5d5d5;
+  --control-bg: #d5d5d5;
+  --control-bg-hover: #cbcbcb;
+  --control-bg-active: #c1c1c1;
+  --choice-bg: #d2d2d2;
+  --segmented-bg: #e5e5e5;
+  --canvas-chrome-bg: #e2e2e2;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.14);
+  --border-light: rgba(0, 0, 0, 0.14);
+  --border-default: rgba(0, 0, 0, 0.22);
+  --dropdown-bg: #e7e7e7;
 }
 
 html.dark[data-neutral-level="1"] {
-  --bg-canvas: #242424;
-  --bg-surface: #2b2b2b;
-  --bg-toolbar: #2b2b2b;
-  --bg-panel: #2b2b2b;
-  --bg-hover: #363636;
-  --bg-active: #3e3e3e;
+  --bg-canvas: #282828;
+  --bg-surface: #303030;
+  --bg-toolbar: #303030;
+  --bg-panel: #303030;
+  --bg-hover: #3b3b3b;
+  --bg-active: #444444;
+  --bg-tertiary: #353535;
+  --grid-line: #373737;
+  --control-bg: #373737;
+  --control-bg-hover: #404040;
+  --control-bg-active: #484848;
+  --choice-bg: #2d2d2d;
+  --segmented-bg: #454545;
+  --canvas-chrome-bg: #303030;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.145);
+  --dropdown-bg: #353535;
+}
+
+html.dark[data-neutral-level="2"] {
+  --bg-canvas: #222222;
+  --bg-surface: #2a2a2a;
+  --bg-toolbar: #2a2a2a;
+  --bg-panel: #2a2a2a;
+  --bg-hover: #353535;
+  --bg-active: #3d3d3d;
   --bg-tertiary: #303030;
-  --grid-line: #323232;
-  --control-bg: #323232;
-  --control-bg-hover: #3a3a3a;
-  --control-bg-active: #424242;
-  --choice-bg: #292929;
-  --segmented-bg: #404040;
+  --grid-line: #313131;
+  --control-bg: #313131;
+  --control-bg-hover: #393939;
+  --control-bg-active: #414141;
+  --choice-bg: #272727;
+  --segmented-bg: #3f3f3f;
+  --canvas-chrome-bg: #2a2a2a;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.075);
   --border-light: rgba(255, 255, 255, 0.075);
-  --border-default: rgba(255, 255, 255, 0.14);
-  --control-border: transparent;
-  --control-border-hover: transparent;
+  --border-default: rgba(255, 255, 255, 0.138);
   --dropdown-bg: #303030;
 }
 
-html.dark[data-neutral-level="3"] {
-  --bg-canvas: #171717;
-  --bg-surface: #1d1d1d;
-  --bg-toolbar: #1d1d1d;
-  --bg-panel: #1d1d1d;
-  --bg-hover: #282828;
-  --bg-active: #303030;
-  --bg-tertiary: #222222;
-  --grid-line: #242424;
-  --control-bg: #242424;
-  --control-bg-hover: #2c2c2c;
-  --control-bg-active: #343434;
-  --choice-bg: #1b1b1b;
-  --segmented-bg: #303030;
+html.dark[data-neutral-level="4"] {
+  --bg-canvas: #181818;
+  --bg-surface: #1e1e1e;
+  --bg-toolbar: #1e1e1e;
+  --bg-panel: #1e1e1e;
+  --bg-hover: #292929;
+  --bg-active: #313131;
+  --bg-tertiary: #232323;
+  --grid-line: #252525;
+  --control-bg: #252525;
+  --control-bg-hover: #2d2d2d;
+  --control-bg-active: #353535;
+  --choice-bg: #1c1c1c;
+  --segmented-bg: #313131;
+  --canvas-chrome-bg: #1e1e1e;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.065);
   --border-light: rgba(255, 255, 255, 0.065);
   --border-default: rgba(255, 255, 255, 0.12);
-  --control-border: transparent;
-  --control-border-hover: transparent;
-  --dropdown-bg: #222222;
+  --dropdown-bg: #232323;
+}
+
+html.dark[data-neutral-level="5"] {
+  --bg-canvas: #121212;
+  --bg-surface: #181818;
+  --bg-toolbar: #181818;
+  --bg-panel: #181818;
+  --bg-hover: #232323;
+  --bg-active: #2b2b2b;
+  --bg-tertiary: #1d1d1d;
+  --grid-line: #1f1f1f;
+  --control-bg: #1f1f1f;
+  --control-bg-hover: #272727;
+  --control-bg-active: #2f2f2f;
+  --choice-bg: #161616;
+  --segmented-bg: #2b2b2b;
+  --canvas-chrome-bg: #181818;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.11);
+  --dropdown-bg: #1d1d1d;
 }
 
 /* Stronger optical content inside tighter structures: Figma density comes from

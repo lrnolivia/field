@@ -9,17 +9,17 @@ import {
 } from './editor-neutral-theme';
 
 describe('editor neutral theme preferences', () => {
-  it('keeps Light/Dark and neutral level as independent finite axes', () => {
+  it('keeps Light/Dark and five neutral levels as independent finite axes', () => {
     expect(EDITOR_THEME_MODES).toEqual(['light', 'dark']);
-    expect(EDITOR_NEUTRAL_LEVELS).toEqual(['1', '2', '3']);
+    expect(EDITOR_NEUTRAL_LEVELS).toEqual(['1', '2', '3', '4', '5']);
     expect(DEFAULT_EDITOR_THEME_MODE).toBe('dark');
-    expect(DEFAULT_EDITOR_NEUTRAL_LEVEL).toBe('2');
+    expect(DEFAULT_EDITOR_NEUTRAL_LEVEL).toBe('3');
   });
 
   it('normalizes malformed persisted values to the current defaults', () => {
     expect(normalizeEditorThemeMode('light')).toBe('light');
     expect(normalizeEditorThemeMode('nope')).toBe('dark');
-    expect(normalizeEditorNeutralLevel('3')).toBe('3');
-    expect(normalizeEditorNeutralLevel(3)).toBe('2');
+    expect(normalizeEditorNeutralLevel('5')).toBe('5');
+    expect(normalizeEditorNeutralLevel(3)).toBe('3');
   });
 });
