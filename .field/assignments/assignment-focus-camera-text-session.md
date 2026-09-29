@@ -247,3 +247,45 @@ Caret-aware focus requires sandbox-side selection geometry because the parent ca
 - `src/canvas-sandbox/bridge-host.ts`
 
 The extension is limited to caret/selection geometry transport needed by the existing text focus session.
+
+## Batch 3 implementation checkpoint — 2026-09-29
+
+Final implementation head under visual QA: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
+Primary Batch 3 implementation commit: `073bdf3edc06fcd704a7200fc70c2baed01d921e`.
+Protocol hardening commit: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
+
+Batch 3 result:
+- TipTap selection snapshots now include optional live caret geometry measured sandbox-side with `editor.view.coordsAtPos`
+- parent Canvas translates that fresh sandbox-local caret rect into parent screen space using the same live-coordinate convention as bridge live rect reads
+- whole-object adaptive follow from Batch 2 now has a session floor at the user's pre-edit camera scale; it never auto-zooms farther out than the composition view the user entered from
+- once whole-object fitting would need to cross that floor, oversized text switches to pan-only caret follow instead of shrinking forever
+- caret follow has its own dead-zone and keeps scale unchanged
+- arrow-key/cursor movement can drive caret follow even without content changes
+- normal exit still restores the pre-edit camera
+- restore is deferred by one animation frame so a direct text-to-text handoff cancels the restore and animates spatially straight to the next text target
+- manual wheel/trackpad/middle-mouse interruption remains authoritative and prevents restore/follow
+- the caret snapshot field is optional/additive for backward compatibility with older fixtures/consumers
+- no new editing chrome or unrelated UI was added
+
+Changed Batch 3 source paths:
+- `src/canvas-sandbox/text-edit-host.ts`
+- `src/canvas-sandbox/protocol.ts`
+- `src/canvas/Canvas.tsx`
+- `src/canvas/transform/CameraCommands.ts`
+- `src/canvas/transform/CameraCommands.test.ts`
+- `src/canvas/text-edit/text-focus-camera.ts`
+- `src/canvas/text-edit/text-focus-camera.test.ts`
+
+Exact-head Cloudflare evidence:
+- Workers Build: `164e4f20-d527-4152-98f2-ebd2cdef6d66`
+- commit: `01531291174a1ea1a77bba5b740a30e8e66a7d24`
+- main merged before Batch 3: `30f32648fe7c7f7607ffa5683422f51817b38e06`
+- build command: `npm run build:all`
+- editor build: PASS
+- sandbox build: PASS
+- Preview build: PASS
+- deploy command: `npx wrangler preview`
+- outcome: success
+- branch Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+
+Focused Vitest coverage was updated for caret follow, zoom-floor behavior, direct handoff, and deferred restore but was NOT RUN in this Contract Worker environment. Final user visual QA remains required before closeout or merge.

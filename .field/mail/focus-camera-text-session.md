@@ -63,3 +63,23 @@ Do not begin Batch 3 until the user's Batch 2 visual QA is accepted or specific 
 User visual QA: PASS — "this is perfect keep working". Batch 3 caret/session polish is authorized.
 
 Batch 3 may extend the existing sandbox text-edit selection event with caret geometry. Ownership was checked before adding the three sandbox protocol paths to this assignment.
+
+## 2026-09-29 — Batch 3 ready for final visual QA
+
+Final head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`.
+
+Cloudflare Workers Build `164e4f20-d527-4152-98f2-ebd2cdef6d66` passed the full `npm run build:all` pipeline, including the sandbox bundle that owns TipTap caret measurement, then deployed the branch Preview.
+
+Preview:
+`https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+
+Final behavior under QA:
+- whole-object text follow will not auto-zoom farther out than the user's pre-edit composition scale
+- beyond that point field follows the live caret/current line by panning only
+- moving the caret through oversized text can move the camera without changing zoom
+- text-to-text handoffs suppress the brief restore/refocus bounce
+- real exit restores the pre-session camera
+- manual camera changes remain authoritative
+- Batch 1 and Batch 2 behavior should remain unchanged
+
+PR #60 remains draft/unmerged pending final user acceptance.

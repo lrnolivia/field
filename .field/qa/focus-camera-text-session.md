@@ -2,19 +2,20 @@
 assignment: focus-camera-text-session
 branch: field/focus-camera-text-session
 pr: 60
-tested_head_sha: 9b49074a7565da822fdc898653128ad32ef8f010
-tested_main_sha: 417e3aa43618d552ae12ef9cd3d2fc9a01424f4d
-current_main_at_recording: 417e3aa43618d552ae12ef9cd3d2fc9a01424f4d
+tested_head_sha: 01531291174a1ea1a77bba5b740a30e8e66a7d24
+tested_main_sha: 30f32648fe7c7f7607ffa5683422f51817b38e06
+current_main_at_recording: 30f32648fe7c7f7607ffa5683422f51817b38e06
 environment: branch Preview /builder/noauth
-build: PASS — Cloudflare Workers Build c616d7a5-f47e-4509-a250-18a0906168ce ran npm run build:all
+build: PASS — Cloudflare Workers Build 164e4f20-d527-4152-98f2-ebd2cdef6d66 ran npm run build:all
 tests: NOT RUN — focused Vitest coverage was added/updated but no repository test executor/check runner is exposed in this Contract Worker environment
-runtime_qa: BATCH 1 PASS / BATCH 2 PASS / BATCH 3 IN PROGRESS
+runtime_qa: BATCH 1 PASS / BATCH 2 PASS / BATCH 3 PENDING USER VISUAL QA
 tested_at: 2026-09-29T03:25:37Z
 evidence:
   - https://github.com/lrnolivia/field/pull/60
   - https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth
   - cloudflare-build:ef426e06-80a8-437f-988a-f5f4ecfd56e4
   - cloudflare-build:c616d7a5-f47e-4509-a250-18a0906168ce
+  - cloudflare-build:164e4f20-d527-4152-98f2-ebd2cdef6d66
 ---
 
 # focus-camera-text-session QA
@@ -83,4 +84,32 @@ Stop gate: CLEARED — user accepted Batch 2 visual feel on 2026-09-29.
 
 ## Batch 3 — caret + session polish
 
-Status: IN PROGRESS
+Status: BUILD PASS / FINAL USER VISUAL QA PENDING
+
+Exact-head evidence:
+- head: `01531291174a1ea1a77bba5b740a30e8e66a7d24`
+- Batch 3 implementation: `073bdf3edc06fcd704a7200fc70c2baed01d921e`
+- main included before Batch 3: `30f32648fe7c7f7607ffa5683422f51817b38e06`
+- Cloudflare Workers Build: `164e4f20-d527-4152-98f2-ebd2cdef6d66`
+- `npm run build:all`: PASS
+- editor build: PASS
+- sandbox build: PASS
+- Preview build: PASS
+- deploy: PASS
+- Preview: `https://field-focus-camera-text-session.canvas-preview.loew.fi/builder/noauth`
+- focused Vitest coverage updated but NOT RUN in this environment
+
+Required final visual checks:
+1. Make a text layer extremely tall/large. Batch 2 whole-object follow should work normally until further pullback would go past the camera scale you had before entering text edit.
+2. Continue typing after that point. Zoom should stop decreasing; field should quietly pan to keep the caret/current line comfortably visible.
+3. In that oversized text, use arrow keys to move several lines up/down without typing. Camera may pan to follow the caret, but zoom must remain fixed.
+4. Delete a large amount of text. Automatic behavior must still never zoom back in.
+5. Switch directly from one nearby text layer to another. The camera should transition directly to the next target without a visible composition-view restore in between.
+6. Exit text editing normally after a session with no manual camera input. The original pre-edit composition view should restore.
+7. Enter text editing, manually pan/zoom, then exit. The manual view should remain authoritative; no restore snap.
+8. Confirm the accepted Batch 2 headline→paragraph grow-to-fit behavior still feels unchanged before the oversized threshold.
+9. Spot-check initial focus animation/blur, Shift+1/2/3, and Inspector Zoom for regression.
+10. Selection Colors crosshair remains locate-only and must not move the camera.
+
+Final gate:
+- PR #60 remains draft and must not merge to main until the user accepts this final visual QA and separately authorizes merge.
