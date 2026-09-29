@@ -261,8 +261,13 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     ctrlKey?: boolean;
     metaKey?: boolean;
     altKey?: boolean;
+    pointerType?: string;
   }) => {
     if (!isActive || isViewerMode()) return false;
+    // Touch uses the mobile direct-manipulation contract: empty-canvas drag
+    // pans. Marquee remains a desktop pointer gesture until a deliberate
+    // long-press mobile marquee affordance is added.
+    if (detail.pointerType === 'touch') return false;
     if ((detail.button ?? 0) !== 0) return false;
     if (isSpaceBarDown()) return false;
     // Option/Alt is reserved for duplication/alternate gestures. Cmd/Ctrl is

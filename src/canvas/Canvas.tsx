@@ -102,6 +102,7 @@ import { useActiveViewports } from './hooks/useActiveViewports';
 import { useLocaleOverrides } from './hooks/useLocaleOverrides';
 import { RendererSyncHost } from './hooks/useRendererSync';
 import { shouldRouteCanvasWheel, useCanvasTransform } from './hooks/useCanvasTransform';
+import { useCanvasTouchInteraction } from './hooks/useCanvasTouchInteraction';
 import { useSandboxBridge } from './hooks/useSandboxBridge';
 import { CanvasMouseController } from './mouse/CanvasMouseController';
 import { CanvasTextEditController } from './text-edit/CanvasTextEditController';
@@ -1213,6 +1214,16 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
   // dblclick, ghost detection, replica selection, and viewport-change events.
   // Constructed once sandboxReady fires (needs bridge + orchestrators).
   const mouseControllerRef = useRef<CanvasMouseController | null>(null);
+
+  // Mobile Focus: one finger directly manipulates the canvas/object layer.
+  // Two-finger camera ownership remains in useCanvasTransform/InputHandler.
+  useCanvasTouchInteraction({
+    containerRef,
+    mouseControllerRef,
+    dragCoordinatorRef,
+    getToolMode: () => jotaiStore.get(toolModeAtom),
+    setPanCursor,
+  });
 
   // Shared creator callbacks — defined before the controller so it can be
   // threaded in via frameCreatorCallbacksRef. Updated every render so
