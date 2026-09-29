@@ -21,6 +21,9 @@ owned:
   - src/editor/header/LeftHeader.tsx
   - src/editor/left-toolbar/LeftMenu.tsx
   - src/editor/PropertiesPanel.tsx
+  - src/App.tsx
+  - src/editor/header/RightHeader.tsx
+  - src/editor/WorkspacePaneResizeHandles.tsx
 protected:
   - src/field-shell-motion.ts
   - src/canvas/**
@@ -174,3 +177,12 @@ Active ownership preflight found no conflicting assignment for:
 - src/editor/PropertiesPanel.tsx
 
 These are now owned for the final structural motion pass: persistent workspace-title morph, left rail motion, and right Inspector movement/direct manipulation.
+
+## Ownership extension — right workspace shell
+
+Active ownership preflight found no conflicting assignment for:
+- src/App.tsx
+- src/editor/header/RightHeader.tsx
+- src/editor/WorkspacePaneResizeHandles.tsx
+
+These are owned to remove raw-pointer Jotai churn from Inspector drag/height/width resizing and to align live right-side chrome with the shared structural motion policy.
