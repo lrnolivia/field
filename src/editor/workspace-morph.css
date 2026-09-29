@@ -5,8 +5,7 @@ html:not([data-editor-entrance-state]) :is(
   [data-workspace-left-header],
   [data-workspace-left-restore][data-visible='true'],
   [data-workspace-right-header],
-  [data-workspace-right-toggle][data-visible='true'],
-  [data-left-rail-handle]
+  [data-workspace-right-toggle][data-visible='true']
 ) {
   opacity: 0;
 }
@@ -17,8 +16,7 @@ html:is(:not([data-editor-entrance-state]), [data-editor-entrance-state='prepare
   [data-workspace-left-header],
   [data-workspace-left-restore],
   [data-workspace-right-header],
-  [data-workspace-right-toggle],
-  [data-left-rail-handle]
+  [data-workspace-right-toggle]
 ) {
   transition: none;
 }

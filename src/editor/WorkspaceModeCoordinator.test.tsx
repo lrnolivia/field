@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { createStore, Provider, useAtomValue } from 'jotai';
-import { dockedInspectorOpenAtom, dockedLeftOpenAtom } from '@/code/stores/workspace-panels-store';
-import { workspaceModeAtom } from './workspace-mode-store';
+import { dockedInspectorOpenAtom, dockedLeftOpenAtom, rightInspectorAutoHideAtom, rightInspectorTemporaryRevealAtom } from '@/code/stores/workspace-panels-store';
+import { floatingLeftHiddenAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import WorkspaceModeCoordinator from './WorkspaceModeCoordinator';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 function MountedStorageAtoms() {
   useAtomValue(workspaceModeAtom);
@@ -28,5 +28,28 @@ describe('WorkspaceModeCoordinator initialization', () => {
     expect(store.get(workspaceModeAtom)).toBe(mode);
     expect(store.get(dockedLeftOpenAtom)).toBe(true);
     expect(store.get(dockedInspectorOpenAtom)).toBe(false);
+  });
+
+  it('reveals auto-hidden sides only from their screen edges', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    render(<Provider store={store}><WorkspaceModeCoordinator /></Provider>);
+    act(() => {
+      store.set(workspaceAutoHideAtom, true);
+      store.set(floatingLeftHiddenAtom, true);
+      store.set(rightInspectorAutoHideAtom, true);
+    });
+    fireEvent.pointerMove(window, { clientX: window.innerWidth / 2 });
+    expect(store.get(floatingLeftHiddenAtom)).toBe(true);
+    expect(store.get(rightInspectorTemporaryRevealAtom)).toBe(false);
+    fireEvent.pointerMove(window, { clientX: 2 });
+    expect(store.get(floatingLeftHiddenAtom)).toBe(false);
+    fireEvent.pointerMove(window, { clientX: window.innerWidth - 2 });
+    expect(store.get(rightInspectorTemporaryRevealAtom)).toBe(true);
+    act(() => vi.advanceTimersByTime(250));
+    expect(store.get(floatingLeftHiddenAtom)).toBe(true);
+    fireEvent.pointerMove(window, { clientX: 2 });
+    act(() => vi.advanceTimersByTime(250));
+    expect(store.get(rightInspectorTemporaryRevealAtom)).toBe(false);
   });
 });

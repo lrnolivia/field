@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { floatingEntranceAtom, floatingInspectorSuppressedAtom, floatingLeftHiddenAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
-import { rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
+import { floatingEntranceAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { LEFT_RAIL_WIDTH, leftContentWidthAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { groupEditingIdAtom, shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { previewModeAtom } from '@/code/stores/editor-store';
@@ -14,11 +14,13 @@ export default function WorkspaceModeCoordinator() {
   const setMode = useSetAtom(setWorkspaceModeAtom);
   const setEntrance = useSetAtom(floatingEntranceAtom);
   const setLeftHidden = useSetAtom(floatingLeftHiddenAtom);
+  const leftExpanded = useAtomValue(leftPaneOpenAtom);
+  const floatingLeftCollapsed = useAtomValue(floatingPanelCollapsedAtom);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightAutoHide = useAtomValue(rightInspectorAutoHideAtom);
   const explicitlyCollapsed = useAtomValue(rightInspectorExplicitCollapseAtom);
   const temporaryReveal = useAtomValue(rightInspectorTemporaryRevealAtom);
   const setTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
-  const setInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
@@ -48,18 +50,19 @@ export default function WorkspaceModeCoordinator() {
       return;
     }
     let idle: number | undefined;
-    const reveal = () => {
-      setLeftHidden(false);
+    const visibleWidth = LEFT_RAIL_WIDTH + ((mode === 'floating' ? !floatingLeftCollapsed : leftExpanded) ? leftContentWidth : 0) + 24;
+    const move = (event: PointerEvent) => {
       window.clearTimeout(idle);
-      idle = window.setTimeout(() => setLeftHidden(true), 1800);
+      if (event.clientX <= 8) { setLeftHidden(false); return; }
+      if (event.clientX > visibleWidth) idle = window.setTimeout(() => setLeftHidden(true), 220);
     };
-    window.addEventListener('pointermove', reveal, { passive: true });
+    window.addEventListener('pointermove', move, { passive: true });
     idle = window.setTimeout(() => setLeftHidden(true), 1800);
-    return () => { window.removeEventListener('pointermove', reveal); window.clearTimeout(idle); };
-  }, [mode, autoHide, setLeftHidden]);
+    return () => { window.removeEventListener('pointermove', move); window.clearTimeout(idle); };
+  }, [mode, autoHide, leftExpanded, floatingLeftCollapsed, leftContentWidth, setLeftHidden]);
 
   useEffect(() => {
-    if (!rightAutoHide) { setInspectorSuppressed(false); return; }
+    if (!rightAutoHide) return;
     let close: number | undefined;
     const move = (event: PointerEvent) => {
       window.clearTimeout(close);
@@ -69,16 +72,15 @@ export default function WorkspaceModeCoordinator() {
     };
     window.addEventListener('pointermove', move, { passive: true });
     return () => { window.removeEventListener('pointermove', move); window.clearTimeout(close); };
-  }, [rightAutoHide, rightPaneWidth, selectedIds.length, temporaryReveal, setTemporaryReveal, setInspectorSuppressed]);
+  }, [rightAutoHide, rightPaneWidth, selectedIds.length, temporaryReveal, setTemporaryReveal]);
 
   useEffect(() => {
     if (selectedIds.length === 0) {
       if (mode === 'floating' && !rightAutoHide) setTemporaryReveal(false);
       return;
     }
-    setInspectorSuppressed(false);
     if (!explicitlyCollapsed && (mode === 'floating' || rightAutoHide)) setTemporaryReveal(true);
-  }, [mode, rightAutoHide, explicitlyCollapsed, selectedIds, setInspectorSuppressed, setTemporaryReveal]);
+  }, [mode, rightAutoHide, explicitlyCollapsed, selectedIds, setTemporaryReveal]);
 
   useEffect(() => {
     const isTypingOrUsingControl = (target: EventTarget | null) => {

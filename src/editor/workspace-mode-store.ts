@@ -32,12 +32,9 @@ export const floatingLeftHiddenAtom = atom(false);
 /** Hides only the left content pane; the floating icon rail stays visible. */
 export const floatingPanelCollapsedAtom = atom(true);
 export const compactPanelOpenAtom = atom(false);
-export const floatingInspectorRevealedAtom = atom(false);
-export const floatingInspectorSuppressedAtom = atom(false);
 export const floatingInspectorVisibleAtom = atom((get) => {
   if (!get(rightInspectorAutoHideAtom)) return true;
-  return !get(floatingInspectorSuppressedAtom)
-    && (get(rightPaneOpenAtom) || get(rightInspectorTemporaryRevealAtom));
+  return get(rightPaneOpenAtom) || get(rightInspectorTemporaryRevealAtom);
 });
 export const leftRailVisibleAtom = atom((get) => {
   const mode = get(workspaceModeAtom);
@@ -69,8 +66,6 @@ export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) =
   set(floatingInspectorExpandedAtom, false);
   set(compactPanelOpenAtom, false);
   set(compactInspectorOpenAtom, false);
-  set(floatingInspectorRevealedAtom, false);
-  set(floatingInspectorSuppressedAtom, false);
   set(rightPaneDragOffsetAtom, { x: 0, y: 0 });
   set(detachedLeftPanelAtom, mode === 'floating'
     ? { panelId: floatingPanel, expanded: false }

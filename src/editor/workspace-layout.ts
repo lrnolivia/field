@@ -5,6 +5,7 @@ import {
   clampLeftContentWidth,
   clampRightPaneWidth,
 } from '@/code/stores/workspace-panels-store';
+import type { WorkspaceMode } from '@/code/stores/workspace-panels-store';
 
 export type WorkspacePresentation = 'hidden' | 'docked' | 'floating';
 
@@ -85,6 +86,24 @@ export function deriveWorkspaceLayout(
       bottom: 0,
     },
   };
+}
+
+/** Automatic fit/center uses the chrome actually visible in docked layouts. */
+export function deriveWorkspaceCameraInsets(
+  mode: WorkspaceMode,
+  leftExpanded: boolean,
+  rightExpanded: boolean,
+  leftVisible: boolean,
+  rightVisible: boolean,
+  widths: WorkspacePaneWidths = {},
+): WorkspaceCameraInsets {
+  if (mode !== 'docked' && mode !== 'compact-docked')
+    return { left: 0, top: 0, right: 0, bottom: 0 };
+  return deriveWorkspaceLayout(leftExpanded && leftVisible, rightExpanded && rightVisible, {
+    ...widths,
+    leftCollapsedWidth: leftVisible && !leftExpanded ? LEFT_RAIL_WIDTH : 0,
+    rightCollapsedWidth: rightVisible && !rightExpanded ? widths.rightCollapsedWidth ?? 60 : 0,
+  }).cameraInsets;
 }
 
 export function workspaceBodyTop(sideLayout: WorkspaceSideLayout): number {

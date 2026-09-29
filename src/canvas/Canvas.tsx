@@ -6,7 +6,7 @@ import { nextFrames } from '@/shared/dom-utils';
 import { getCanvasRenderer } from './CanvasRenderer';
 import { finishPendingRestore } from '@/code/mutation/history';
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
-import { workspaceAutoHideAtom, workspaceModeAtom, floatingLeftHiddenAtom, railRevealedAtom, compactPanelOpenAtom, floatingInspectorRevealedAtom, floatingInspectorSuppressedAtom } from '@/editor/workspace-mode-store';
+import { workspaceAutoHideAtom, workspaceModeAtom, floatingLeftHiddenAtom, railRevealedAtom, compactPanelOpenAtom } from '@/editor/workspace-mode-store';
 import { compactInspectorOpenAtom } from '@/code/stores/workspace-panels-store';
 import { codeAtom, nodesAtom, selectedNodeAtom, selectedIdsAtom, hoveredIdAtom, hoveredNodeIdAtom, hoveredViewportIdAtom, canvasInteractingAtom, mapItemIndexAtom, updatingFromCanvasAtom, marqueeViewportSpreadAtom, getNodesSnapshot, getCachedNodesMap } from '../code/stores/store';
 import type { CanvasNode } from '../code/parsing/parser';
@@ -1328,8 +1328,6 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
           const mode = jotaiStore.get(workspaceModeAtom);
           if (mode === 'floating') {
             jotaiStore.set(floatingLeftHiddenAtom, true);
-            jotaiStore.set(floatingInspectorRevealedAtom, false);
-            jotaiStore.set(floatingInspectorSuppressedAtom, false);
           } else if (mode === 'compact') {
             jotaiStore.set(railRevealedAtom, false);
             jotaiStore.set(compactPanelOpenAtom, false);

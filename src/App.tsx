@@ -50,7 +50,7 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
@@ -61,7 +61,7 @@ import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
-import { deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import { deriveWorkspaceCameraInsets, deriveWorkspaceLayout, WORKSPACE_FLOAT_RADIUS, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
@@ -95,14 +95,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
-  const dockedChrome = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
   const railVisible = useAtomValue(leftRailVisibleAtom);
-  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen && railVisible, rightPaneOpen && floatingInspectorVisible, {
-    leftContentWidth, rightPaneWidth, rightDetached,
-    leftCollapsedWidth: dockedChrome && railVisible && !leftPaneOpen ? LEFT_RAIL_WIDTH : 0,
-    rightCollapsedWidth: dockedChrome && floatingInspectorVisible && !rightPaneOpen ? rightCollapsedWidth : 0,
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
+    leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
   });
-  const cameraInsets = dockedChrome ? workspaceLayout.cameraInsets : { left: 0, right: 0, top: 0, bottom: 0 };
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
   const previousMode = useRef(workspaceMode);
 
@@ -264,7 +261,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           onCanvasRevealComplete?.();
         }
       }}
-      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${leftPaneOpen ? workspaceLayout.left.width : 0}px`, '--workspace-right-width': `${rightPaneOpen ? workspaceLayout.right.width : 0}px` } as React.CSSProperties}
+      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />

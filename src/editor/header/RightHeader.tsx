@@ -28,13 +28,13 @@ import { parseWebsiteMeta } from './publish-utils';
 import { useSigmoidProgress } from '@/editor/hooks/useSigmoidProgress';
 import type { WebsiteMeta } from '@/backend/types';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
-import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightInspectorAutoHideAtom, rightInspectorTemporaryRevealAtom } from '@/code/stores/workspace-panels-store';
+import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
-import { floatingInspectorSuppressedAtom, floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import { floatingInspectorVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -52,11 +52,8 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
   const setInspectorMode = useSetAtom(inspectorModeAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
-  const setTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
-  const setFloatingInspectorSuppressed = useSetAtom(floatingInspectorSuppressedAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setCompactInspectorOpen = useSetAtom(compactInspectorOpenAtom);
-  const autoHide = useAtomValue(rightInspectorAutoHideAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [rightDragOffset, setRightDragOffset] = useAtom(rightPaneDragOffsetAtom);
   const selectedCount = useAtomValue(selectedIdsAtom).length;
@@ -392,21 +389,6 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           className="fixed z-[10002] flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           style={{ right: workspace.right.inset + 12 - rightDragOffset.x,
             top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 44 + rightDragOffset.y }}>×</button>
-      )}
-      {rightPaneOpen && rightDetached && (autoHide || workspaceMode === 'compact') && !floatingInspectorVisible && !previewMode && (
-        <button type="button" data-floating-inspector-handle
-          aria-label="Reveal Inspector"
-          title="Reveal Inspector"
-          onClick={() => {
-            if (workspaceMode === 'compact') { setCompactInspectorOpen(true); return; }
-            setFloatingInspectorSuppressed(false);
-            setTemporaryReveal(true);
-          }}
-          className="fixed z-[10002] flex h-10 w-3 items-center justify-center rounded-l-[5px] border border-r-0 border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-secondary)] shadow-[var(--shadow-md)] transition-[width,right] hover:w-5"
-          style={{
-            right: 0,
-            top: workspace.right.top + Math.min(rightFloatingHeight, window.innerHeight - 90) - 74,
-          }}>‹</button>
       )}
       {!rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
