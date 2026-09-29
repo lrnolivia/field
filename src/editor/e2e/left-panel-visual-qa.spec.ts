@@ -133,3 +133,59 @@ test('left-panel chrome route and contrast matrix', async ({ page }) => {
     await capture(page, `${route}-light-c28`);
   }
 });
+
+
+test('floating and detached left-origin surfaces preserve parity', async ({ page }) => {
+  test.setTimeout(90_000);
+  await seed(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('field:prefs:leftLastPanel', JSON.stringify('layers'));
+  });
+  await page.goto('/work/local');
+
+  const sandbox = page.frameLocator('iframe[src*="5174"]');
+  await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
+  await sandbox.locator('[data-viewport]').first().waitFor({ state: 'attached', timeout: 30_000 });
+  await expect(page.locator('[data-editor-panel="left-primary"][data-left-panel-surface="layers"]')).toBeVisible();
+
+  // Empty-canvas ArrowUp is the canonical workspace shortcut for Float. Float
+  // must enter with BOTH the detached left content and the full Inspector
+  // expanded; the compact right rail is only valid after explicit Collapse.
+  await page.keyboard.press('ArrowUp');
+  const floating = page.locator('[data-floating-left-panel="layers"]').first();
+  await expect(floating).toBeVisible();
+  await expect(floating).toHaveAttribute('data-visible', 'true');
+  await expect(page.locator('[data-workspace-right-header]').first()).toBeVisible();
+  await expect(page.locator('[data-workspace-right-body]').first()).toBeVisible();
+  await expect(page.locator('[data-workspace-right-toggle]').first()).toBeHidden();
+
+  const floatMetrics = await floating.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      overflowX: el.scrollWidth > el.clientWidth + 1,
+    };
+  });
+  expect(floatMetrics.width).toBeGreaterThanOrEqual(220);
+  expect(floatMetrics.overflowX).toBe(false);
+  console.log('FIELD_LEFT_QA_METRICS:layers-float-dark-c28:' + JSON.stringify(floatMetrics));
+  const floatImage = await floating.screenshot({ type: 'jpeg', quality: 68 });
+  console.log('FIELD_LEFT_QA_IMAGE:layers-float-dark-c28:' + floatImage.toString('base64'));
+
+  // Re-clicking the active rail icon collapses only the floating content.
+  const layersButton = page.locator('[data-tutorial="layers-button"]').first();
+  await layersButton.click();
+  await expect(floating).toHaveAttribute('data-visible', 'false');
+  await layersButton.click();
+  await expect(floating).toHaveAttribute('data-visible', 'true');
+
+  // Vibe owns a second left-origin surface when detached. Its window must use
+  // the same hierarchy without restyling generic floating surfaces.
+  await show(page, 'vibe', 'dark', 28);
+  await page.getByTitle('Detach into a floating window').click();
+  const vibeSheet = page.locator('[data-vibe-detached]').first();
+  await expect(vibeSheet).toBeVisible();
+  const vibeImage = await vibeSheet.screenshot({ type: 'jpeg', quality: 68 });
+  console.log('FIELD_LEFT_QA_IMAGE:vibe-detached-dark-c28:' + vibeImage.toString('base64'));
+});
