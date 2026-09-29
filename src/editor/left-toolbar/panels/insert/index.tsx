@@ -23,10 +23,9 @@ import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
-import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 import MediaGlyph from '@/editor/media/MediaGlyph';
 
-const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;
+const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES.filter((category) => category.id !== 'media');
 
 // ─── Chevron Right ─────────────────────────────────────────────────────────
 

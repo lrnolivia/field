@@ -15,7 +15,7 @@ describe('toolbar Media launcher contract', () => {
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
     const popover = read('src/editor/media/MediaToolbarPopover.tsx');
     expect(popover).toContain('data-toolbar-tool="media"');
-    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 480');
+    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 520');
     expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
     expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
     expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
@@ -36,11 +36,13 @@ describe('toolbar Media launcher contract', () => {
     expect(controller).not.toContain('if (expanded) {');
   });
 
-  it('keeps sidebar Media and toolbar Media as separate invocation surfaces', () => {
+  it('keeps toolbar Media canonical and removes the duplicate Insert category', () => {
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
     const controller = read('src/editor/media/MediaPanelController.tsx');
-    expect(insert).toContain("if (category.id === 'media')");
-    expect(insert).toContain('<MediaGalleryPanel />');
+    const toolbar = read('src/editor/BottomToolbar.tsx');
+    expect(insert).toContain("CATEGORIES.filter((category) => category.id !== 'media')");
+    expect(insert).not.toContain("if (category.id === 'media')");
+    expect(toolbar).toContain('<MediaButton />');
     expect(controller).not.toContain('leftPanelAtom');
     expect(controller).not.toContain("openRailPanel('media')");
   });

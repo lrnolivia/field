@@ -4,13 +4,13 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('Media browser visual contract', () => {
-  it('keeps search and Add media in one compact command row', () => {
+  it('keeps embedded Media compact while giving the vertical panel a real narrow layout', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
-    expect(media).toContain('Search + ingest are one compact command row');
     expect(media).toContain('data-media-browser-commandbar');
-    expect(media).toContain('className="min-w-0 flex-1"');
-    expect(media).toContain("'Add media'");
-    expect(media).toContain('h-7 shrink-0');
+    expect(media).toContain("data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}");
+    expect(media).toContain("layout={chrome === 'full' ? 'grid' : 'inline'}");
+    expect(media).toContain("'w-full justify-center'");
+    expect(media).toContain("'justify-start pt-12'");
   });
 
   it('uses photographic 4:3 tiles with restrained selection and hover polish', () => {

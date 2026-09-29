@@ -14,11 +14,13 @@ describe('Media visual polish architecture', () => {
     expect(controller).not.toContain("import Modal from '@/design-system/Modal'");
   });
 
-  it('keeps one canonical Media browser shared by sidebar and toolbar surfaces', () => {
+  it('keeps one canonical Media browser while toolbar Media owns discovery', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
+    const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(controller).toContain('<MediaGalleryPanel chrome="embedded" workspace={expanded} />');
-    expect(insert).toContain('<MediaGalleryPanel />');
+    expect(insert).toContain("CATEGORIES.filter((category) => category.id !== 'media')");
+    expect(toolbar).toContain('<MediaButton />');
   });
 
   it('keeps the upload tray lightweight and independent', () => {

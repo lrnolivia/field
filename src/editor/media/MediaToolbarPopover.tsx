@@ -51,7 +51,7 @@ export default function MediaToolbarPopover({
     const position = () => {
       const rect = document.querySelector('[data-toolbar-tool="media"]')?.getBoundingClientRect();
       if (!rect) return;
-      const requestedWidth = expanded ? 840 : compact ? 224 : 480;
+      const requestedWidth = expanded ? 840 : compact ? 224 : 520;
       const width = Math.min(requestedWidth, window.innerWidth - 24);
       const left = expanded
         ? Math.max(12, (window.innerWidth - width) / 2)
@@ -105,7 +105,7 @@ export default function MediaToolbarPopover({
         left: anchor.left,
         bottom: anchor.bottom,
         width: `min(${requestedWidth}px, calc(100vw - 24px))`,
-        maxHeight: expanded ? 'calc(100vh - 112px)' : 'min(560px, calc(100vh - 88px))',
+        maxHeight: expanded ? 'calc(100vh - 112px)' : 'min(660px, calc(100vh - 88px))',
         height: expanded ? 'min(720px, calc(100vh - 112px))' : undefined,
         transformOrigin: `${Math.max(18, Math.min(anchor.arrow, anchor.width - 18))}px calc(100% + 7px)`,
       }}

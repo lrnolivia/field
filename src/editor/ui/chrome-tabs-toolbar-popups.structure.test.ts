@@ -12,7 +12,9 @@ describe('shared chrome tabs and toolbar-origin popups', () => {
     const video = source('src/editor/ui/VideoSearchModal.tsx');
     const gallery = source('src/editor/gallery/GalleryCreationWizard.tsx');
     expect(tabs).toContain('data-chrome-tabbar');
-    expect(tabs).toContain("background: 'var(--accent-surface)'");
+    expect(tabs).toContain('data-active-tab-marker');
+    expect(tabs).toContain('left-[3px]');
+    expect(tabs).toContain('bg-[var(--bg-active)]');
     expect(tabs).toContain("color: active ? 'var(--accent)'");
     expect(inspector).toContain('<ChromeTabBar');
     expect(image).toContain('<ChromeTabBar');
