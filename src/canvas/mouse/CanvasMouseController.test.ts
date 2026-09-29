@@ -1,7 +1,7 @@
 // CanvasMouseController.test.ts — Characterization tests for redirect chain, dblclick paths,
 // and shape-edit click-outside behaviour.
 
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'jotai';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -353,6 +353,14 @@ describe('CanvasMouseController — contextual Space for creator tools', () => {
     vi.clearAllMocks();
     vi.mocked(isSpaceBarDown).mockReturnValue(true);
     vi.mocked(handleSpacePanDown).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    // vi.clearAllMocks() clears calls, not implementations. Restore the shared
+    // transform mocks so unrelated mouse characterizations do not inherit a
+    // permanently-held Space key.
+    vi.mocked(isSpaceBarDown).mockReturnValue(false);
+    vi.mocked(handleSpacePanDown).mockReturnValue(false);
   });
 
   test('Space + Frame tool starts creation instead of temporary pan', () => {
