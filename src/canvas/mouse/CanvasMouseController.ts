@@ -133,7 +133,7 @@ import { suppressSelectionBox } from '../selection/SelectionBox';
 import { enterComponentFile } from '../component-navigation';
 import { getPageTemplate, listTemplates } from '@/code/project/template-ops';
 import { generateNodeId } from '@/shared/id-utils';
-import { createNode, getContentRoot, findNodeRect, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
+import { createNode, getContentRoot, findNodeRect, findNodeComputedStyle, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
 import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, panToNode, transformManager, cameraStash } from '@/canvas/transform';
 import { parseCanvasConfig } from '@/code/project/canvas-config';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
@@ -250,9 +250,29 @@ export class CanvasMouseController {
       const gloss = document.createElement('div');
       gloss.className = 'field-text-hover-gloss';
       gloss.setAttribute('aria-hidden', 'true');
+      gloss.textContent = node?.textContent ?? '';
+      const vpId = vpIdFromPrefix(hit!.vpPrefix);
+      const fontSize = parseFloat(findNodeComputedStyle(hit!.id, vpId, 'font-size')) || 16;
+      const lineHeightRaw = findNodeComputedStyle(hit!.id, vpId, 'line-height');
+      const lineHeight = lineHeightRaw === 'normal' ? fontSize * 1.2 : (parseFloat(lineHeightRaw) || fontSize * 1.2);
+      const zoom = Math.max(0.05, transformManager.getTransform().scale || 1);
       Object.assign(gloss.style, {
-        left: `${rect.left - 3}px`, top: `${rect.top - 3}px`,
-        width: `${rect.width + 6}px`, height: `${rect.height + 6}px`,
+        left: `${rect.left}px`, top: `${rect.top}px`,
+        width: `${rect.width}px`, height: `${rect.height}px`,
+        fontFamily: findNodeComputedStyle(hit!.id, vpId, 'font-family') || 'inherit',
+        fontSize: `${fontSize * zoom}px`,
+        fontWeight: findNodeComputedStyle(hit!.id, vpId, 'font-weight') || '400',
+        fontStyle: findNodeComputedStyle(hit!.id, vpId, 'font-style') || 'normal',
+        lineHeight: `${lineHeight * zoom}px`,
+        letterSpacing: findNodeComputedStyle(hit!.id, vpId, 'letter-spacing') || 'normal',
+        textAlign: findNodeComputedStyle(hit!.id, vpId, 'text-align') as CSSStyleDeclaration['textAlign'],
+        textTransform: findNodeComputedStyle(hit!.id, vpId, 'text-transform'),
+        whiteSpace: findNodeComputedStyle(hit!.id, vpId, 'white-space') || 'normal',
+        wordBreak: findNodeComputedStyle(hit!.id, vpId, 'word-break') || 'normal',
+        paddingTop: findNodeComputedStyle(hit!.id, vpId, 'padding-top'),
+        paddingRight: findNodeComputedStyle(hit!.id, vpId, 'padding-right'),
+        paddingBottom: findNodeComputedStyle(hit!.id, vpId, 'padding-bottom'),
+        paddingLeft: findNodeComputedStyle(hit!.id, vpId, 'padding-left'),
       });
       document.body.appendChild(gloss);
       this.glossElement = gloss;

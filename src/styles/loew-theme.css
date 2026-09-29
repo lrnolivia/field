@@ -343,11 +343,14 @@ select {
   position: fixed;
   z-index: 1000;
   pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--selection) 58%, transparent);
-  border-radius: 4px;
-  background: linear-gradient(115deg, transparent 10%, color-mix(in srgb, var(--selection) 12%, transparent) 42%, color-mix(in srgb, white 26%, transparent) 52%, transparent 78%);
+  overflow: hidden;
+  box-sizing: border-box;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--selection) 25%, transparent) 12%, color-mix(in srgb, white 72%, var(--selection)) 48%, color-mix(in srgb, var(--selection) 28%, transparent) 76%);
   background-size: 220% 100%;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--selection) 9%, transparent), inset 0 0 12px color-mix(in srgb, var(--selection) 12%, transparent);
+  background-clip: text;
+  -webkit-background-clip: text;
   animation: field-text-hover-gloss 1.4s ease-in-out both;
 }
 
@@ -389,7 +392,7 @@ select {
   100% { opacity: 0; background-position: -100% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .field-text-hover-gloss { animation: none; background: color-mix(in srgb, var(--selection) 10%, transparent); }
+  .field-text-hover-gloss { animation: none; background: none; -webkit-text-fill-color: color-mix(in srgb, var(--selection) 45%, transparent); color: color-mix(in srgb, var(--selection) 45%, transparent); }
 }
 
 /* Bottom tool strip: smaller AND floating off the screen edge. */
