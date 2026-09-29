@@ -33,6 +33,9 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [refreshingProjectIds, setRefreshingProjectIds] = useState<Set<string>>(() => new Set());
   const [creating, setCreating] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [manualRefreshGeneration, setManualRefreshGeneration] = useState(0);
+  const [forceThumbnailRefresh, setForceThumbnailRefresh] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [openingProjectId, setOpeningProjectId] = useState<string | null>(null);
@@ -111,6 +114,37 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
         ? current.map((project) => project.id === next.id ? next : project)
         : [next, ...current];
     });
+  };
+
+  const refreshDashboard = async () => {
+    if (manualRefreshing) return;
+    setManualRefreshing(true);
+    setError(null);
+    setOpenMenuId(null);
+
+    try {
+      // listFieldProjects is cache:no-store: replace local metadata from server truth.
+      const fresh = await listFieldProjects();
+      const rebuildIds = fresh.filter((project) => !project.trashedAt).map((project) => project.id);
+
+      // Invalidate the displayed thumbnail immediately. The force backfill below
+      // reloads each saved project snapshot with cache:no-store and renders a new
+      // thumbnail even when the server's existing thumbnail is marked current.
+      setProjects(fresh.map((project) => project.trashedAt ? project : { ...project, thumbnail: null }));
+      setRefreshingProjectIds(new Set(rebuildIds));
+
+      if (fresh.length === 0) {
+        setManualRefreshing(false);
+        return;
+      }
+      setForceThumbnailRefresh(true);
+      setManualRefreshGeneration((value) => value + 1);
+    } catch (cause) {
+      setRefreshingProjectIds(new Set());
+      setForceThumbnailRefresh(false);
+      setManualRefreshing(false);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
   };
 
   const openProject = (project: FieldProjectMeta) => {
@@ -215,7 +249,9 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
           view={view}
           count={visibleProjects.length}
           creating={creating}
+          refreshing={manualRefreshing}
           onCreate={() => { void createConfiguredProject(); }}
+          onRefresh={() => { void refreshDashboard(); }}
         />
 
         <section className="field-dashboard-content" aria-live="polite">
@@ -268,9 +304,28 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       {active && !loading && projects.length > 0 && (
         <DashboardThumbnailBackfill
           projects={projects}
-          onReady={(projectId, url) => setProjects((current) => current.map((project) =>
-            project.id === projectId ? { ...project, thumbnail: url } : project
-          ))}
+          generation={manualRefreshGeneration}
+          force={forceThumbnailRefresh}
+          onReady={(projectId, url) => {
+            const separator = url.includes('?') ? '&' : '?';
+            const freshUrl = url + separator + 'field_refresh=' + manualRefreshGeneration;
+            setProjects((current) => current.map((project) =>
+              project.id === projectId ? { ...project, thumbnail: freshUrl } : project
+            ));
+            setRefreshingProjectIds((current) => {
+              if (!current.has(projectId)) return current;
+              const next = new Set(current);
+              next.delete(projectId);
+              return next;
+            });
+          }}
+          onComplete={() => {
+            if (forceThumbnailRefresh) {
+              setRefreshingProjectIds(new Set());
+              setForceThumbnailRefresh(false);
+              setManualRefreshing(false);
+            }
+          }}
         />
       )}
 

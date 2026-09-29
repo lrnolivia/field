@@ -226,6 +226,44 @@ body:has(.field-dashboard-page),
   font-size: 10px;
 }
 
+.field-dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-dashboard-refresh {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+
+.field-dashboard-refresh:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.field-dashboard-refresh:disabled {
+  cursor: default;
+  opacity: .62;
+}
+
+.field-dashboard-refresh[data-refreshing='true'] svg {
+  animation: field-dashboard-refresh-spin .72s linear infinite;
+}
+
+@keyframes field-dashboard-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
 .field-dashboard-new,
 .field-dashboard-modal-primary {
   display: inline-flex;
@@ -303,6 +341,9 @@ body:has(.field-dashboard-page),
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .field-dashboard-refresh[data-refreshing='true'] svg {
+    animation: none;
+  }
   .field-project-card[data-opening='true'] .field-project-preview { animation: none; }
 }
 
@@ -310,7 +351,8 @@ body:has(.field-dashboard-page),
 .field-project-name:not(:disabled):focus-visible,
 .field-project-more:focus-visible,
 .field-dashboard-nav-row:focus-visible,
-.field-dashboard-new:focus-visible {
+.field-dashboard-new:focus-visible,
+.field-dashboard-refresh:focus-visible {
   outline: 1px solid var(--border-focus);
   outline-offset: 1px;
 }
@@ -799,7 +841,8 @@ body:has(.field-dashboard-page),
   transform: rotate(-8deg) scale(1.12);
 }
 .field-dashboard-nav-row:active .field-dashboard-nav-icon svg,
-.field-dashboard-new:active:not(:disabled) svg {
+.field-dashboard-new:active:not(:disabled) svg,
+.field-dashboard-refresh:active:not(:disabled) svg {
   transform: scale(.82);
   transition-duration: 90ms;
 }
@@ -839,6 +882,7 @@ body:has(.field-dashboard-page),
   .field-dashboard-nav-icon svg,
   .field-dashboard-search svg,
   .field-dashboard-new svg,
+  .field-dashboard-refresh svg,
   .field-project-star-badge svg,
   .field-project-more-glyph svg {
     transition: none;
