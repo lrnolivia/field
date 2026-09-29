@@ -32,3 +32,17 @@ export const upsertMediaUploadAtom = atom(null, (get, set, item: MediaUploadItem
   next[index] = item;
   set(mediaUploadQueueAtom, next);
 });
+
+
+export const removeMediaUploadAtom = atom(null, (get, set, id: string) => {
+  set(mediaUploadQueueAtom, get(mediaUploadQueueAtom).filter((item) => item.id !== id));
+});
+
+export const clearFinishedMediaUploadsAtom = atom(null, (get, set) => {
+  set(
+    mediaUploadQueueAtom,
+    get(mediaUploadQueueAtom).filter((item) => (
+      item.status === 'queued' || item.status === 'uploading' || item.status === 'processing'
+    )),
+  );
+});
