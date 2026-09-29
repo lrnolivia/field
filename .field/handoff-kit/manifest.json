@@ -46,7 +46,7 @@
     "repository": "lrnolivia/loew-runner",
     "branch": "main",
     "manifest": "contracts/manifest.json",
-    "bible": "LOEW_CHAT_BIBLE.md",
+    "bible": "LOEW_CHAT_BIBLE_CURRENT.md",
     "qa_section": "11"
   }
 }

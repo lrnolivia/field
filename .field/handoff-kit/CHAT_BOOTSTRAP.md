@@ -1,6 +1,6 @@
 # field chat bootstrap
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
 This is the canonical operational reset point for any chat doing field work.
 
@@ -111,7 +111,7 @@ Do not cross another assignment's ownership boundary. When a blocker requires an
 
 The website is the real artifact. Source remains first-class. Preview is runtime truth. Design, source, Preview, and production should remain aligned.
 
-For QA, **Runner comes first**. Apply `loew-runner/LOEW_CHAT_BIBLE.md` section 11 before this overlay: HTTP/read-only inspection for cheap truth, deterministic Inspector/GitHub Chromium for routine visual/runtime criteria, Browser Run only for exploratory/session behavior, and project-native/authenticated harnesses where required.
+For QA, **Runner comes first**. Apply `loew-runner/LOEW_CHAT_BIBLE_CURRENT.md` section 11 before this overlay: HTTP/read-only inspection for cheap truth, deterministic Inspector/GitHub Chromium for routine visual/runtime criteria, Browser Run only for exploratory/session behavior, and project-native/authenticated harnesses where required.
 
 For field web-visible changes, bind evidence to the exact branch Preview and PR head SHA. Use `/qa/work/<projectId>` when real saved-project state matters. Use `/builder/noauth` only as a disposable smoke harness; it does not prove real-project loading or persistence. A green build alone does not satisfy runtime QA, production must not stand in for an unmerged branch, and any head-SHA change makes affected runtime evidence stale.
 

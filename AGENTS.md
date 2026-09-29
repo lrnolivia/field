@@ -13,7 +13,7 @@ Revyme-prefixed source identifiers may still be legitimate compatibility/protoco
 Before meaningful field work, on **every invocation**:
 
 1. read `lrnolivia/loew-runner@main/contracts/manifest.json`
-2. read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
+2. read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md`
 3. resolve field from the current Runner project record and confirm it still points to `lrnolivia/field`
 4. read this repository's current `AGENTS.md` and the applicable role/assignment state
 5. refresh live Git, PR, control, and runtime truth before inheriting an older conclusion
@@ -24,7 +24,7 @@ Do not rely on a copied Bible, an old handoff, chat memory, or a stale local che
 
 ## QA law
 
-Runner `LOEW_CHAT_BIBLE.md` section 11 is authoritative for QA engine routing, exact-artifact evidence, classifications, retry/watchdog limits, self-correction, fallbacks, danger-zone handoff, and promotion boundaries.
+Runner `LOEW_CHAT_BIBLE_CURRENT.md` section 11 is authoritative for QA engine routing, exact-artifact evidence, classifications, retry/watchdog limits, self-correction, fallbacks, danger-zone handoff, and promotion boundaries.
 
 For field specifically:
 

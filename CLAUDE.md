@@ -7,7 +7,7 @@ The active repository is **`lrnolivia/field`**. Historical targets such as `revy
 Before any execution work, refresh directions in this order:
 
 1. `lrnolivia/loew-runner@main/contracts/manifest.json`
-2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
+2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md`
 3. this repository's current `AGENTS.md`
 4. the applicable role contract and current assignment/control/QA state
 5. fresh Git/runtime truth
@@ -66,7 +66,7 @@ Do not cross another active assignment's ownership, weaken Git safety, change pr
 
 ## QA authority
 
-`loew-runner/LOEW_CHAT_BIBLE.md` section 11 is the law for QA engine selection, exact-SHA evidence, classification, bounded retries, fallbacks, self-correction, danger-zone handoff, and promotion.
+`loew-runner/LOEW_CHAT_BIBLE_CURRENT.md` section 11 is the law for QA engine selection, exact-SHA evidence, classification, bounded retries, fallbacks, self-correction, danger-zone handoff, and promotion.
 
 field only adds target-specific runtime semantics:
 
