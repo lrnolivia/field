@@ -43,25 +43,23 @@ export default function FloatingLeftPanelHost() {
     const coalescer = createFieldRafCoalescer((geometry: { width: number; height: number }) => {
       if (host) {
         host.style.width = geometry.width + 'px';
-        if (mode !== 'floating') host.style.height = geometry.height + 'px';
+        host.style.height = geometry.height + 'px';
       }
       if (backing) {
         backing.style.width = (railWidth + geometry.width) + 'px';
-        if (mode !== 'floating') backing.style.height = geometry.height + 'px';
+        backing.style.height = geometry.height + 'px';
       }
     });
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
       finalWidth = clampLeftContentWidth(start.width + next.clientX - start.x);
-      if (mode !== 'floating') {
-        finalHeight = Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y));
-      }
+      finalHeight = Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y));
       coalescer.schedule({ width: finalWidth, height: finalHeight });
     };
     const stop = () => {
       coalescer.flush();
       setContentWidth(finalWidth);
-      if (mode !== 'floating') setHeight(finalHeight);
+      setHeight(finalHeight);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
@@ -78,18 +76,16 @@ export default function FloatingLeftPanelHost() {
       data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
       aria-hidden={!visible} inert={!visible}
       className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)]"
-      style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: mode === 'floating' ? `calc(100vh - ${WORKSPACE_FLOAT_LEFT_TOP + WORKSPACE_FLOAT_INSET}px)` : Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+      style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
         pointerEvents: visible ? 'auto' : 'none' }}>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
       <button type="button"
-        aria-label={mode === 'floating' ? 'Resize floating left panel width' : 'Resize floating left panel'}
-        title={mode === 'floating' ? 'Resize panel width' : 'Resize panel'}
+        aria-label="Resize floating left panel"
+        title="Resize panel"
         onPointerDown={beginResize}
-        className={`absolute bottom-0 right-0 z-10 h-5 w-5 touch-none text-[var(--text-tertiary)] ${mode === 'floating' ? 'cursor-ew-resize' : 'cursor-nwse-resize'}`}>
+        className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none text-[var(--text-tertiary)]">
         <svg aria-hidden viewBox="0 0 16 16" width="16" height="16">
-          {mode === 'floating'
-            ? <path d="M6 4 3 8l3 4M10 4l3 4-3 4" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            : <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />}
+          <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />
         </svg>
       </button>
     </motion.div>, document.body,

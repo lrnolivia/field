@@ -338,12 +338,12 @@ export default function ToolbarPanelHost() {
           {panel.kind === 'library' && <LibraryPanel mode="library" focusSection={panel.section} />}
           {panel.kind === 'media-gallery' && <MediaGalleryPanel />}
           {panel.kind === 'insert' && category && <div className="flex h-full min-h-0 flex-col"><SecondaryPanelContent category={category} sectionId={panel.section} /></div>}
-        </motion.div>
+        </div>
         {peeked && <button type="button" data-toolbar-panel-peek onClick={() => { setPeeked(false); dialogRef.current?.focus(); }}
           className="field-toolbar-panel-peek absolute bottom-0 left-0 z-20 flex h-8 w-full items-center justify-center gap-2 border-t border-[var(--border-light)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <span aria-hidden>⌄</span><span>{title}</span>
         </button>}
-      </div>
+      </motion.div>
     </div>, document.body,
   );
 }
