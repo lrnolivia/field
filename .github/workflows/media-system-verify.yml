@@ -1,0 +1,44 @@
+name: Media system verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/editor/media/**'
+      - 'src/editor/gallery/**'
+      - 'src/editor/left-toolbar/panels/MediaGalleryPanel.tsx'
+      - 'src/editor/left-toolbar/panels/cms/FieldControl.tsx'
+      - 'src/editor/tools/ImageTool.tsx'
+      - 'src/editor/tools/VideoTool.tsx'
+      - 'src/editor/tools/AudioTool.tsx'
+      - 'src/editor/tools/GalleryTool.tsx'
+      - 'src/editor/ToolbarPanelHost.tsx'
+      - 'src/editor/BottomToolbar.tsx'
+      - 'src/editor/toolbar-panel-store.ts'
+      - 'src/canvas/CanvasFileDrop.tsx'
+      - 'src/canvas/insertion-bridge.ts'
+      - 'src/canvas/insert-toolbar-item.ts'
+      - '.github/workflows/media-system-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Media tests + editor build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Media and Gallery tests
+        run: npm run test:run -- src/editor/media src/editor/gallery
+      - name: Production editor build
+        run: npm run build
