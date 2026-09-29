@@ -18,6 +18,8 @@ owned:
   - src/canvas/selection/SelectionBox.tsx
   - src/canvas/mouse/CanvasMouseController.ts
   - src/canvas/Canvas.tsx
+  - src/editor/BottomToolbar.tsx
+  - src/editor/mobile-toolbar.test.ts
 approved_shared: []
 protected:
   - src/canvas/drag/**
@@ -81,3 +83,19 @@ CanvasMouseController receives only a small cancellation-reset seam so two-finge
 7. desktop mouse/trackpad/marquee behavior is unchanged
 8. exact-head build passes
 9. runtime mobile Preview QA is required before claiming completion
+
+
+## batch 3 — narrow portrait toolbar
+
+PR107 is merged into main and the toolbar is no longer actively owned by that work.
+
+For narrow workspace geometry (<=600 CSS px), collapse the full bottom toolbar into one floating active-tool control. Tapping it reveals the existing toolbar command surface in a compact floating palette. Landscape/wider Focus keeps the accepted traditional toolbar unchanged.
+
+Requirements:
+- geometry-based, not device-name detection
+- keep the same tool atoms/handlers; presentation only
+- safe-area-aware bottom offset
+- active tool glyph remains visible while collapsed
+- close the compact palette after selecting a direct tool
+- no changes to toolbar command semantics or recent media/popout behavior
+- desktop/wide toolbar stays pixel-equivalent
