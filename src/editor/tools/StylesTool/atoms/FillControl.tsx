@@ -60,7 +60,8 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, type PatternFillConfig, type PatternKind } from '@/editor/ui/pattern-fill-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
 import { ColorIcon, GradientIcon, ImageIcon, VideoIcon, GridIcon } from '@/design-system/PropertyIcons';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
@@ -330,15 +331,32 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
   const nodeId = node?.id ?? null;
   const raw = node?.attrs?.['data-field-pattern'] || '';
   const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
+  const [monsterDefinition, setMonsterDefinition] = useState<PatternMonsterDefinition | null>(null);
 
   useEffect(() => {
     setConfig(parsePatternFillConfig(raw));
   }, [nodeId, raw]);
 
-  const applyPattern = useCallback((next: PatternFillConfig) => {
+  const monsterId = config.source === 'pattern-monster' ? config.patternId : null;
+  useEffect(() => {
+    if (!monsterId) {
+      setMonsterDefinition(null);
+      return;
+    }
+    let cancelled = false;
+    import('@/editor/ui/patterns/pattern-monster-catalog').then(module => {
+      if (!cancelled) setMonsterDefinition(module.findPatternMonsterDefinition(monsterId) || null);
+    });
+    return () => { cancelled = true; };
+  }, [monsterId]);
+
+  const applyPattern = useCallback((next: PatternFillConfig, definition?: PatternMonsterDefinition | null) => {
+    const resolvedDefinition = next.source === 'pattern-monster' ? (definition || monsterDefinition) : undefined;
+    if (next.source === 'pattern-monster' && !resolvedDefinition) return;
+
     setConfig(next);
     if (!nodeId) return;
-    const compiled = buildPatternFillStyles(next);
+    const compiled = buildPatternFillStyles(next, resolvedDefinition);
     forSelectionTargets(nodeId, (tid) => {
       queueMutation({
         type: 'updateStyles',
@@ -361,22 +379,184 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
         attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
       });
     });
-    trace.action('fill:pattern-applied', { nodeId, kind: next.kind });
-  }, [nodeId]);
-
-  const patch = <K extends keyof PatternFillConfig>(key: K, value: PatternFillConfig[K]) => {
-    applyPattern({ ...config, [key]: value });
-  };
+    trace.action('fill:pattern-applied', {
+      nodeId,
+      source: next.source,
+      pattern: next.source === 'field' ? next.kind : next.patternId,
+    });
+  }, [nodeId, monsterDefinition]);
 
   if (libraryOnly) {
     return (
-      <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
-        Open-source pattern library is coming in the next batch.
+      <PatternLibraryPanel
+        activePatternId={config.source === 'pattern-monster' ? config.patternId : undefined}
+        onSelect={(definition, next) => {
+          setMonsterDefinition(definition);
+          applyPattern(next, definition);
+        }}
+      />
+    );
+  }
+
+  if (config.source === 'pattern-monster') {
+    if (!monsterDefinition) {
+      return <div className="py-8 text-center text-[11px] text-[var(--text-disabled)]">Loading pattern controls…</div>;
+    }
+
+    const preview = buildPatternFillStyles(config, monsterDefinition);
+    const maxColors = patternMonsterMaxColors(monsterDefinition);
+    const updateMonster = (next: Partial<PatternMonsterFillConfig>) => {
+      applyPattern({ ...config, ...next }, monsterDefinition);
+    };
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div
+          className="w-full h-24 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)]"
+          style={preview as React.CSSProperties}
+          aria-label={`${monsterDefinition.title} preview`}
+        />
+
+        <div className="flex items-center justify-between px-0.5 text-[10px] text-[var(--text-disabled)]">
+          <span className="truncate pr-2">{monsterDefinition.title}</span>
+          <span className="shrink-0">Pattern Monster · MIT</span>
+        </div>
+
+        {maxColors > 2 && (
+          <ToolRow label="Colors" hideCreateVariable>
+            <ToolInput
+              value={String(config.colorCount)}
+              onChange={(value) => updateMonster({ colorCount: Math.max(2, Math.min(maxColors, Math.round(Number(value) || 2))) })}
+              min={2}
+              max={maxColors}
+              step={1}
+              ariaLabel="Pattern color count"
+            />
+          </ToolRow>
+        )}
+
+        {config.colors.slice(0, config.colorCount).map((color, index) => (
+          <ToolRow key={index} label={index === 0 ? 'Background' : `Color ${index}`} hideCreateVariable>
+            <ColorInput
+              allowPresets={false}
+              value={color}
+              onChange={(value) => {
+                const colors = [...config.colors];
+                colors[index] = value;
+                updateMonster({ colors });
+              }}
+              showAlpha
+            />
+          </ToolRow>
+        ))}
+
+        <ToolRow label="Scale" hideCreateVariable>
+          <ToolInput
+            value={String(config.scale)}
+            onChange={(value) => updateMonster({ scale: Math.max(1, Math.min(monsterDefinition.maxScale, Number(value) || 1)) })}
+            min={1}
+            max={monsterDefinition.maxScale}
+            step={0.25}
+            ariaLabel="Pattern scale"
+          />
+        </ToolRow>
+
+        {monsterDefinition.mode !== 'fill' && (
+          <ToolRow label="Stroke" hideCreateVariable>
+            <ToolInput
+              value={String(config.stroke)}
+              onChange={(value) => updateMonster({ stroke: Math.max(0.5, Math.min(monsterDefinition.maxStroke, Number(value) || 0.5)) })}
+              min={0.5}
+              max={monsterDefinition.maxStroke}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern stroke width"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.mode === 'stroke-join' && (
+          <ToolRow label="Join" hideCreateVariable>
+            <ToolSegmentedControl
+              value={String(config.join)}
+              onChange={(value) => updateMonster({ join: value === '2' ? 2 : 1 })}
+              options={[{ value: '1', label: 'Square' }, { value: '2', label: 'Round' }]}
+              size="sm"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[0] > 0 && (
+          <ToolRow label="Spacing X" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[0])}
+              onChange={(value) => updateMonster({ spacing: [Math.max(0, Math.min(monsterDefinition.maxSpacing[0], Number(value) || 0)), config.spacing[1]] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[0]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern horizontal spacing"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[1] > 0 && (
+          <ToolRow label="Spacing Y" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[1])}
+              onChange={(value) => updateMonster({ spacing: [config.spacing[0], Math.max(0, Math.min(monsterDefinition.maxSpacing[1], Number(value) || 0))] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[1]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern vertical spacing"
+            />
+          </ToolRow>
+        )}
+
+        <ToolRow label="Angle" hideCreateVariable>
+          <ToolInput
+            value={String(config.angle)}
+            onChange={(value) => updateMonster({ angle: Math.max(0, Math.min(180, Number(value) || 0)) })}
+            min={0}
+            max={180}
+            step={5}
+            chevronLabel="°"
+            ariaLabel="Pattern angle"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset X" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveLeft)}
+            onChange={(value) => updateMonster({ moveLeft: Math.max(monsterDefinition.width * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.width * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern horizontal offset"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset Y" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveTop)}
+            onChange={(value) => updateMonster({ moveTop: Math.max(monsterDefinition.height * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.height * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern vertical offset"
+          />
+        </ToolRow>
       </div>
     );
   }
 
   const preview = buildPatternFillStyles(config);
+  const updateField = (next: Partial<FieldPatternFillConfig>) => {
+    applyPattern({ ...config, ...next });
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -389,20 +569,21 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Pattern" hideCreateVariable>
         <ToolSelect
           value={config.kind}
-          onChange={(value) => patch('kind', value as PatternKind)}
+          onChange={(value) => updateField({ kind: value as PatternKind })}
           options={PATTERN_KIND_OPTIONS}
           ariaLabel="Pattern kind"
         />
       </ToolRow>
 
-      <ToolRow label="Color">
-        <ColorInput value={config.color} onChange={(value) => patch('color', value)} showAlpha />
+      <ToolRow label="Color" hideCreateVariable>
+        <ColorInput allowPresets={false} value={config.color} onChange={(value) => updateField({ color: value })} showAlpha />
       </ToolRow>
 
-      <ToolRow label="Background">
+      <ToolRow label="Background" hideCreateVariable>
         <ColorInput
+          allowPresets={false}
           value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background}
-          onChange={(value) => patch('background', value)}
+          onChange={(value) => updateField({ background: value })}
           showAlpha
         />
       </ToolRow>
@@ -410,7 +591,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Opacity" hideCreateVariable>
         <ToolInput
           value={String(Math.round(config.opacity * 100))}
-          onChange={(value) => patch('opacity', Math.max(0, Math.min(100, Number(value) || 0)) / 100)}
+          onChange={(value) => updateField({ opacity: Math.max(0, Math.min(100, Number(value) || 0)) / 100 })}
           min={0}
           max={100}
           step={1}
@@ -422,7 +603,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Tile size" hideCreateVariable>
         <ToolInput
           value={String(config.tileSize)}
-          onChange={(value) => patch('tileSize', Math.max(4, Math.min(120, Number(value) || 4)))}
+          onChange={(value) => updateField({ tileSize: Math.max(4, Math.min(120, Number(value) || 4)) })}
           min={4}
           max={120}
           step={1}
@@ -434,7 +615,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <ToolRow label="Thickness" hideCreateVariable>
         <ToolInput
           value={String(config.thickness)}
-          onChange={(value) => patch('thickness', Math.max(0.5, Math.min(12, Number(value) || 0.5)))}
+          onChange={(value) => updateField({ thickness: Math.max(0.5, Math.min(12, Number(value) || 0.5)) })}
           min={0.5}
           max={12}
           step={0.5}
@@ -445,6 +626,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     </div>
   );
 }
+
 
 const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'cover', label: 'Cover' },

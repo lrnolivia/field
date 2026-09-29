@@ -45,6 +45,8 @@ interface ColorInputProps {
    *  still the picker's starting color when opened (same contract as `mixed`).
    *  Opt-in: without it a consumer that wants a default color keeps one. */
   empty?: boolean;
+  /** Disable preset/token application for consumers whose output cannot safely resolve CSS variables (for example encoded SVG pattern tiles). */
+  allowPresets?: boolean;
 }
 
 // Alpha/transparent checkerboard — used for the "Mixed" swatch so it reads
@@ -57,13 +59,13 @@ const CHECKER_STYLE: CSSProperties = {
 };
 
 
-export default function ColorInput({ value, onChange, onChangeLive, showAlpha, embedded = false, swatchOnly, onRemove, mixed, empty }: ColorInputProps) {
+export default function ColorInput({ value, onChange, onChangeLive, showAlpha, embedded = false, swatchOnly, onRemove, mixed, empty, allowPresets = true }: ColorInputProps) {
   const reducedMotion = useFieldReducedMotion();
   const popupCtx = useToolPopupOptional();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const allTokens = useAtomValue(presetTokensAtom);
-  const colorPresets = allTokens.filter(t => t.category === 'color');
+  const colorPresets = allowPresets ? allTokens.filter(t => t.category === 'color') : [];
   const livePreset = useAtomValue(livePresetTokenAtom);
 
   // Live swatch preview during a picker drag. The per-frame change is a DOM-only
@@ -187,11 +189,11 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           onChange={liveOnChangeRef.current}
           onChangeEnd={liveOnChangeEndRef.current}
           showAlpha={liveShowAlphaRef.current}
-          onCreatePreset={liveCreatePresetRef.current}
-          colorPresets={liveColorPresetsRef.current}
-          onApplyPreset={liveOnApplyPresetRef.current}
-          onEditPreset={liveEditPresetRef.current}
-          activePresetName={liveActivePresetRef.current}
+          onCreatePreset={allowPresets ? liveCreatePresetRef.current : undefined}
+          colorPresets={allowPresets ? liveColorPresetsRef.current : []}
+          onApplyPreset={allowPresets ? liveOnApplyPresetRef.current : undefined}
+          onEditPreset={allowPresets ? liveEditPresetRef.current : undefined}
+          activePresetName={allowPresets ? liveActivePresetRef.current : undefined}
         />
       ));
     } else {
@@ -271,7 +273,8 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
             onCommit={pickerOnChangeEnd}
             showAlpha={showAlpha}
             colorPresets={colorPresets}
-            activePresetName={presetName || undefined}
+            activePresetName={allowPresets ? (presetName || undefined) : undefined}
+            allowPresets={allowPresets}
           />
         </ToolPopup>
       )}
@@ -289,7 +292,7 @@ function expandHex(value: string): string {
 // ─── Standalone ColorPicker wrapper with preset support ─────────────────────
 // Lives INSIDE the ToolPopup so it can use useToolPopup() for push/pop panels.
 
-function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha, colorPresets, activePresetName }: {
+function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha, colorPresets, activePresetName, allowPresets = true }: {
   value: string;
   onChange: (c: string) => void;
   /** Commit callback — see ColorInput's pickerOnChangeEnd. When set,
@@ -298,6 +301,7 @@ function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha
   showAlpha?: boolean;
   colorPresets: Array<{ name: string; value: string; label?: string }>;
   activePresetName?: string;
+  allowPresets?: boolean;
 }) {
   const { pushPanel, popPanel } = useToolPopup();
 
@@ -340,11 +344,11 @@ function StandaloneColorPickerWithPresets({ value, onChange, onCommit, showAlpha
       onChange={onChange}
       onChangeEnd={onCommit}
       showAlpha={showAlpha}
-      colorPresets={colorPresets}
-      onApplyPreset={handleApplyPreset}
-      activePresetName={activePresetName}
-      onCreatePreset={handleCreate}
-      onEditPreset={handleEdit}
+      colorPresets={allowPresets ? colorPresets : []}
+      onApplyPreset={allowPresets ? handleApplyPreset : undefined}
+      activePresetName={allowPresets ? activePresetName : undefined}
+      onCreatePreset={allowPresets ? handleCreate : undefined}
+      onEditPreset={allowPresets ? handleEdit : undefined}
     />
   );
 }
