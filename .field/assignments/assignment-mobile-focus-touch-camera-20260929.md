@@ -13,12 +13,14 @@ owned:
   - src/canvas/transform/InputHandler.touch.test.ts
   - src/canvas/hooks/useCanvasTransform.ts
   - src/canvas/hooks/useCanvasTransform.touch.test.ts
+  - src/canvas/hooks/useCanvasTouchInteraction.ts
+  - src/canvas/hooks/useCanvasTouchInteraction.test.ts
+  - src/canvas/selection/SelectionBox.tsx
+  - src/canvas/Canvas.tsx
 approved_shared: []
 protected:
   - src/canvas/drag/**
   - src/canvas/mouse/**
-  - src/canvas/selection/**
-  - src/canvas/Canvas.tsx
   - src/editor/**
   - src/code/**
   - src/canvas-sandbox/**
@@ -32,46 +34,48 @@ qa:
   authenticated: false
 ---
 
-# mobile Focus touch camera — hourly batch 1
+# mobile Focus touch editor
 
-## goal
+## batch 1 — two-finger camera
 
-Add a deterministic first-class mobile camera gesture seam to the existing Focus canvas without changing desktop mouse/trackpad behavior or redesigning the mobile shell.
+Implemented on PR #123:
+- two fingers own camera pan + pinch
+- midpoint movement pans
+- finger-distance ratio zooms around the live midpoint
+- one finger remains unclaimed by the camera
+- touch end/cancel resets ownership
+- exact-head build passed at 2fe58a9748cc769034e09ac93604d4a2581433d8
+- physical touch runtime QA remains pending
 
-## verified current state
+## batch 2 — direct touch arbitration
 
-- Focus is already usable in phone portrait/landscape and is the mobile workspace direction.
-- Existing InputHandler had an empty touch-state scaffold.
-- useCanvasTransform attached wheel and middle-mouse camera listeners, but no native mobile touch camera listener.
-- user-observed current behavior: single-finger drag becomes marquee; resize/select already work; two-finger camera pan was absent.
-- active legacy ownership check found no active Owned reservation on these four paths.
-- active toolbar/media work remains isolated; this batch does not touch BottomToolbar or editor media/chrome surfaces.
+User-authorized continuation on the same PR.
 
-## implemented
+### goal
 
-- two-finger camera ownership begins only when a second finger is present
-- midpoint movement pans the camera
-- finger-distance ratio applies multiplicative pinch zoom around the live midpoint
-- one-finger gestures remain unclaimed by the camera
-- 3→2 touch transitions rebase to prevent jumps
-- touchend/touchcancel reset camera ownership
-- native listeners are non-passive only for the owned two-finger camera gesture
-- focused touch geometry and attachment tests were added
+Make the existing Focus workspace behave naturally without a mouse:
+- tap selects
+- one-finger drag on a selected/hit object moves it through existing DragCoordinator behavior
+- one-finger drag on empty canvas pans
+- empty-canvas tap still deselects
+- touch pointer input does not start the desktop marquee
+- second finger cancels/reverts one-finger interaction and yields to the two-finger camera gesture
+- existing touch resize/transform handles remain independently touchable
 
-Implementation head: 2fe58a9748cc769034e09ac93604d4a2581433d8
+### coordination
 
-## acceptance status
+field-motion-quality protects src/canvas/** but does not own these exact paths. This narrowly scoped touch continuation is explicitly user-authorized and must not change chrome-motion behavior.
 
-1. Two-finger pan implementation: CODED / RUNTIME QA PENDING
-2. Pinch around midpoint: CODED / RUNTIME QA PENDING
-3. Combined pan+pinch: CODED / RUNTIME QA PENDING
-4. End/cancel reset: CODED / focused test added
-5. One finger not stolen: CODED / focused test added
-6. Existing desktop input paths: unchanged in implementation; exact-head build PASS
-7. New touch tests: ADDED, not executed in Contract Worker environment
-8. exact-head Cloudflare build: PASS
-9. physical mobile Preview verification: PENDING
+Native Scale remains isolated. Do not edit src/canvas/drag/**, src/canvas/scale/**, or ScaleHandles; consume only existing public APIs.
 
-## non-goals
+### acceptance
 
-No object move semantics, long-press marquee, text-keyboard entry, toolbar collapse, sheets, Inspector, source model, backend, deployment, or dependency changes.
+1. one tap selects a node
+2. one-finger object drag moves it
+3. one-finger empty drag pans instead of marquee-selecting
+4. one-finger empty tap deselects
+5. existing resize handles still receive touch
+6. adding a second finger cancels any pending/active one-finger drag before two-finger camera motion begins
+7. desktop mouse/trackpad/marquee behavior is unchanged
+8. exact-head build passes
+9. runtime mobile Preview QA is required before claiming completion
