@@ -1,54 +1,57 @@
-# field handoff contract overlay
+# field handoff contract redirect
 
-This file is intentionally thin. Universal execution process does not live here anymore.
+> Universal execution authority lives in `lrnolivia/loew-runner@main`.
 
-## authority
-
-Before field execution work, read in this order:
+Before using this handoff kit, read in order:
 
 1. `lrnolivia/loew-runner@main/contracts/manifest.json`
 2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
 3. `lrnolivia/loew-runner@main/projects/field.json`
 4. `lrnolivia/field@main/AGENTS.md`
-5. the applicable role contract and current field assignment/mail/QA state
-6. fresh Git, PR, Preview, and runtime evidence
+5. the current role contract and live assignment/control/QA state
 
-Runner owns universal execution and QA law. This file may add field-specific paths and constraints only. If this overlay conflicts with the current Runner Bible, Runner wins unless the user explicitly says otherwise.
+This file is intentionally thin. It must not duplicate or fork Runner law.
 
-The canonical repository is **`lrnolivia/field`**. Historical repository targets such as `revyme-loewfi`, `revyme-loew`, `revyme-löew`, and old local Revyme checkout paths are non-authoritative history. Revyme-prefixed identifiers inside field may remain when they are real compatibility, protocol, dependency, storage, or attribution contracts.
+## canonical field identity
 
-## field execution overlay
+- repository: `lrnolivia/field`
+- product: field
+- `field/control` remains the legacy Contract Worker coordination branch while active records still use it
+- activated Contract Worker implementation branches remain `field/<assignment-id>`
+- never merge `field/control` into `main`
+- historical `revyme-loewfi`, `revyme-loew`, `revyme-löew`, and old local Revyme checkout paths are not current execution targets
 
-Contract Worker / Night Shift coordination may still use:
+Revyme-prefixed identifiers inside field may remain only when they are real compatibility, protocol, dependency, storage, or attribution contracts.
 
-- control branch: `field/control`
-- assignment records: `.field/assignments/assignment-<id>.md`
-- mail records: `.field/mail/<id>.md`
-- QA records: `.field/qa/<id>.md`
-- implementation branches: `field/<id>`
-- one Draft PR per implementation assignment unless the current assignment explicitly defines another standing/planning shape
+## QA
 
-For the Contract Worker / Night Shift lane, **Composio is the exclusive GitHub transport**. The built-in ChatGPT GitHub connector is prohibited for that lane. The separate Codex/local lane follows its current PJM / Master / Worker contract and may use an authorized local clone where permitted.
+Runner Bible section 11 is law.
 
-Do not merge `field/control` into `main`. Preserve current ownership boundaries and do not force-push.
+field adds only these target-specific facts:
 
-## field QA overlay
+- test the exact branch/PR head and exact branch Preview
+- `/qa/work/<projectId>` is the read-only real-project QA surface
+- `/builder/noauth` is smoke-only
+- deterministic Inspector/GitHub Chromium is the routine visual/runtime engine when it can prove the criterion
+- Browser Run is for exploratory/session behavior deterministic recipes cannot prove
+- authenticated/project-native harnesses are required for protected state, persistence, account metadata, or auth behavior
+- a build is not runtime QA
+- head changes stale affected runtime evidence
 
-`LOEW_CHAT_BIBLE.md` section 11 is law for engine routing, exact-artifact evidence, classifications, retry/watchdog limits, self-correction, fallbacks, danger-zone handoff, and promotion.
+Use Runner classifications and watchdog rules, including `DANGER ZONE — HUMAN QA REQUIRED` where section 11 requires it.
 
-field adds only these runtime facts:
+## ownership and transport
 
-- exact branch/PR head SHA -> exact branch Preview
-- `/qa/work/<projectId>` -> read-only real saved-project QA
-- `/builder/noauth` -> smoke/isolation only, never proof of real-project loading or persistence
-- deterministic Inspector/GitHub Chromium -> routine visual/runtime QA when capable
-- Browser Run -> exploratory/session behavior deterministic recipes cannot prove
-- authenticated/project-native harness -> protected state, credentials, persistence, account metadata, or environment-specific behavior
+Do not cross another active assignment's ownership. Repair bounded artificial blockers when current authority permits it.
 
-A successful build is not runtime QA. Production cannot prove an unmerged branch. A head change makes affected runtime evidence stale.
+For the Contract Worker / Night Shift lane, Composio remains the exclusive GitHub transport. Codex/local work follows its current Runner/PJM/Master contract.
 
-field may specialize Runner `FAIL — PRODUCT` as `FAIL — FIELD`; all other classification meanings remain Runner-owned.
+## assignment records
 
-## historical detail
+Where the legacy field control plane is still active, canonical records are:
 
-Older field-local universal process rules are retained in Git history only. Do not copy them forward into new assignments. Rehydrate from Runner on every invocation.
+- `.field/assignments/assignment-<assignment-id>.md`
+- `.field/mail/<assignment-id>.md`
+- `.field/qa/<assignment-id>.md`
+
+New assignments must re-read Runner first. A copied handoff, prior chat, or historical tracker entry never overrides current Runner + live Git truth.
