@@ -273,12 +273,9 @@ function ColorFieldControl({ value, onChange, name }: { value: string; onChange:
 
 // ─── Image Field ────────────────────────────────────────────────────────────
 
-/** Image field control — opens the same media picker the Image tool uses
- *  (Unsplash search + URL paste + Upload), instead of forcing the user to
- *  paste a URL by hand. CMS image-type fields store the bare URL (no
- *  `url(...)` wrapping — that's a CSS-only convention used by ImagePickerInput
- *  for `backgroundImage` slots), so the modal's `onSelect(url)` payload
- *  drops straight into `onChange`. */
+/** Image field control — compact Content-mode Media row. CMS image fields
+ *  store the bare URL (no CSS url(...) wrapper) and expand an inline contextual
+ *  Media picker so routine content editing never leaves the field stack. */
 function ImageFieldControl({ value, onChange, name }: { value: string; onChange: (v: string) => void; name: string }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const hasImage = !!value;
@@ -292,49 +289,62 @@ function ImageFieldControl({ value, onChange, name }: { value: string; onChange:
   const handleSelect = useCallback((picked: string) => {
     onChange(picked);
     setPickerOpen(false);
-    trace.action('cms-field:image:select', { field: name, url: picked.slice(0, 80) });
+    trace.action('cms-field:image:select', { field: name, url: picked.slice(0, 80), source: 'media-context' });
   }, [onChange, name]);
 
-  // Single visual: the preview tile IS the picker trigger. Empty state
-  // renders a "Choose image…" placeholder with the same dimensions so the
-  // form layout doesn't jump when the user picks/clears. URL string is
-  // intentionally NOT shown — the user requested just the image preview;
-  // hovering the tile surfaces the URL via the native title tooltip + a
-  // floating × button to clear.
   return (
-    <div className="relative inline-block group">
-      <button
-        type="button"
-        onClick={() => setPickerOpen(true)}
-        title={hasImage ? value : 'Choose image…'}
-        className="w-16 h-16 cut-corners cut-border hover:[--cut-border-color:var(--border-focus)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--border-focus)] overflow-hidden bg-[var(--grid-line)] transition-colors cursor-pointer flex items-center justify-center"
-      >
-        {hasImage ? (
-          <img
-            src={value}
-            alt={name}
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        ) : (
-          <span className="text-[10px] text-[var(--text-disabled)] px-1 text-center leading-tight">Choose image…</span>
-        )}
-      </button>
-      {hasImage && (
+    <div className="w-full min-w-0">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={handleClear}
-          title="Clear image"
-          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--bg-canvas)] border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          onClick={() => setPickerOpen((open) => !open)}
+          aria-expanded={pickerOpen}
+          title={hasImage ? value : 'Choose media'}
+          className={`${hasImage ? 'h-9 px-1.5' : 'h-8 px-2'} min-w-0 flex-1 flex items-center gap-2 rounded-[4px] border border-[var(--control-border)] bg-[var(--grid-line)] text-left text-[11px] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--bg-hover)]`}
         >
-          ×
+          {hasImage ? (
+            <img
+              src={value}
+              alt=""
+              aria-hidden
+              className="h-6 w-6 shrink-0 rounded-[3px] border border-[var(--border-light)] object-cover"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+            />
+          ) : (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[var(--text-secondary)]" aria-hidden>◇</span>
+          )}
+          <span className={`min-w-0 flex-1 truncate ${hasImage ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+            {hasImage ? 'Image' : 'Choose media'}
+          </span>
+          <span className="shrink-0 text-[10px] text-[var(--text-disabled)]">{hasImage ? 'Change' : 'Image'}</span>
         </button>
+        {hasImage && (
+          <button
+            type="button"
+            onClick={handleClear}
+            aria-label={`Remove ${name}`}
+            title="Remove image"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[var(--control-border)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            &minus;
+          </button>
+        )}
+      </div>
+
+      {pickerOpen && (
+        <div
+          data-contextual-media-picker="cms-image-field"
+          className="mt-1 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+        >
+          <ImageSearchModal
+            isOpen
+            embedded
+            compact
+            onClose={() => setPickerOpen(false)}
+            onSelect={handleSelect}
+          />
+        </div>
       )}
-      <ImageSearchModal
-        isOpen={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={handleSelect}
-      />
     </div>
   );
 }
