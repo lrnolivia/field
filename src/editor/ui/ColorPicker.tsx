@@ -1,6 +1,6 @@
 // ColorPicker.tsx — Full color picker with saturation square, hue/alpha sliders,
-// hex/rgb/hsl input modes, eyedropper, and clipboard copy.
-// Uses pointer events for drag (per lesson 01). No third-party dependencies.
+// hex/rgb/hsl/oklch input modes, eyedropper, and clipboard copy.
+// Uses Culori (MIT) for CSS Color 4 conversion instead of maintaining bespoke OKLCH math.
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSetAtom } from 'jotai';
@@ -8,8 +8,8 @@ import { useScrubInteracting } from '@/editor/hooks/useScrubInteracting';
 import { colorPickerOpenAtom } from '@/code/stores/editor-store';
 import { trace } from '@/shared/debug-trace';
 import {
-  type RGB, type HSV, type HSL,
-  hexToRgb, rgbToHex, rgbToHsv, hsvToRgb, rgbToHsl, hslToRgb,
+  type RGB, type HSV, type HSL, type OKLCH,
+  hexToRgb, rgbToHex, rgbToHsv, hsvToRgb, rgbToHsl, hslToRgb, rgbToOklch, oklchToRgb, formatOklch,
   parseColor, formatColor,
 } from './color-utils';
 import { clamp } from '@/canvas/canvas-math';
@@ -47,7 +47,7 @@ interface ColorPickerProps {
   pageColors?: Array<{ value: string; swatch?: string }>;
 }
 
-type InputMode = 'hex' | 'rgb' | 'hsl';
+type InputMode = 'hex' | 'rgb' | 'hsl' | 'oklch';
 
 // ─── Icons (inline SVG) ─────────────────────────────────────────────────────
 
@@ -188,6 +188,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
   const [hexInput, setHexInput] = useState('');
   const [rgbInputs, setRgbInputs] = useState({ r: '', g: '', b: '' });
   const [hslInputs, setHslInputs] = useState({ h: '', s: '', l: '' });
+  const [oklchInputs, setOklchInputs] = useState({ l: '', c: '', h: '' });
   const [alphaInput, setAlphaInput] = useState('');
   // Copy feedback — the copy icon morphs to a checkmark for 1s after a copy.
   const [copied, setCopied] = useState(false);
@@ -222,6 +223,12 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       h: String(Math.round(hsl.h)),
       s: String(Math.round(hsl.s)),
       l: String(Math.round(hsl.l)),
+    });
+    const oklch = rgbToOklch(rgb);
+    setOklchInputs({
+      l: String(Math.round(oklch.l * 10) / 10),
+      c: String(Math.round(oklch.c * 10000) / 10000),
+      h: String(Math.round(oklch.h * 10) / 10),
     });
     setAlphaInput(String(Math.round(alpha * 100)));
   }, [hsv, alpha]);
@@ -335,6 +342,25 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
     emitColor(newHsv, alpha);
   }, [hslInputs, alpha, emitColor]);
 
+  const commitOklch = useCallback(() => {
+    const l = parseFloat(oklchInputs.l);
+    const c = parseFloat(oklchInputs.c);
+    const h = parseFloat(oklchInputs.h);
+    if ([l, c, h].some(isNaN)) return;
+    const oklch: OKLCH = {
+      l: clamp(l, 0, 100),
+      c: clamp(c, 0, 0.4),
+      h: ((h % 360) + 360) % 360,
+    };
+    const rgb = oklchToRgb(oklch);
+    setHsv(rgbToHsv(rgb));
+    const css = formatOklch(oklch, alpha);
+    lastColorRef.current = css;
+    trace.action('color-picker:oklch-change', { color: css });
+    onChange(css);
+    onChangeEnd?.(css);
+  }, [oklchInputs, alpha, onChange, onChangeEnd]);
+
   const commitAlpha = useCallback(() => {
     const v = parseInt(alphaInput);
     if (isNaN(v)) return;
@@ -354,7 +380,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
 
   const cycleMode = useCallback(() => {
     setInputMode(prev => {
-      const next = prev === 'hex' ? 'rgb' : prev === 'rgb' ? 'hsl' : 'hex';
+      const next: InputMode = prev === 'hex' ? 'rgb' : prev === 'rgb' ? 'hsl' : prev === 'hsl' ? 'oklch' : 'hex';
       trace.action('color-picker:mode-change', { from: prev, to: next });
       return next;
     });
@@ -363,8 +389,7 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
   // ─── Copy to clipboard ──────────────────────────────────────────────────
 
   const handleCopy = useCallback(() => {
-    // Copy the value in the CURRENTLY SELECTED mode's format — on HSL you
-    // get `hsl(...)`, on RGB `rgb(...)`, on HEX `#RRGGBB(AA)`.
+    // Copy the value in the CURRENTLY SELECTED mode's format.
     const rgb = hsvToRgb(hsv);
     const a = Math.round(alpha * 100) / 100;
     let text: string;
@@ -378,6 +403,8 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
       text = alpha >= 1
         ? `hsl(${h}, ${s}%, ${l}%)`
         : `hsla(${h}, ${s}%, ${l}%, ${a})`;
+    } else if (inputMode === 'oklch') {
+      text = formatOklch(rgbToOklch(rgb), alpha);
     } else {
       // hex — 8-digit when there's transparency, 6-digit otherwise.
       const base = rgbToHex(rgb).toUpperCase();
@@ -549,6 +576,17 @@ export default function ColorPicker({ value, onChange, onChangeEnd, showAlpha = 
               setHslInputs(p => ({ ...p, [key]: v }));
             }}
             onCommit={commitHsl}
+          />
+        )}
+
+        {inputMode === 'oklch' && (
+          <ChannelPill
+            values={[oklchInputs.l, oklchInputs.c, oklchInputs.h]}
+            onChange={(i, v) => {
+              const key = (['l', 'c', 'h'] as const)[i];
+              setOklchInputs(p => ({ ...p, [key]: v }));
+            }}
+            onCommit={commitOklch}
           />
         )}
 

@@ -8,6 +8,9 @@ import {
   hsvToRgb,
   rgbToHsl,
   hslToRgb,
+  rgbToOklch,
+  oklchToRgb,
+  formatOklch,
   parseColor,
   formatColor,
   rgbaToHex,
@@ -265,6 +268,24 @@ describe('rgb ↔ hsl round-trip', () => {
       expect(result.b).toBeCloseTo(rgb.b, 0);
     });
   }
+});
+
+describe('OKLCH via Culori', () => {
+  it('round-trips an sRGB color through OKLCH', () => {
+    const source = { r: 100, g: 200, b: 50 };
+    const oklch = rgbToOklch(source);
+    const result = oklchToRgb(oklch);
+    expect(result.r).toBeCloseTo(source.r, 0);
+    expect(result.g).toBeCloseTo(source.g, 0);
+    expect(result.b).toBeCloseTo(source.b, 0);
+  });
+
+  it('parses CSS oklch and formats authored OKLCH with alpha', () => {
+    const parsed = parseColor('oklch(62.8% 0.2577 29.23 / 0.5)');
+    expect(parsed.alpha).toBeCloseTo(0.5, 2);
+    expect(parsed.rgb.r).toBeGreaterThan(200);
+    expect(formatOklch({ l: 62.8, c: 0.2577, h: 29.23 }, 0.5)).toBe('oklch(62.8% 0.2577 29.23 / 0.5)');
+  });
 });
 
 // ─── parseColor ─────────────────────────────────────────────────────────────

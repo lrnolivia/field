@@ -1,10 +1,16 @@
 // color-utils.ts — Pure color conversion utilities for ColorPicker.
-// Handles hex, rgb, rgba, hsl, hsla, and named colors.
-// No external dependencies.
+// Handles hex, rgb, rgba, hsl, hsla, OKLCH, and named colors.
+// OKLCH conversion/parsing delegates to Culori (MIT) rather than duplicating CSS Color 4 math.
+
+import { converter, parse as parseCulori } from 'culori';
 
 export interface RGB { r: number; g: number; b: number; }
 export interface HSV { h: number; s: number; v: number; }
 export interface HSL { h: number; s: number; l: number; }
+export interface OKLCH { l: number; c: number; h: number; }
+
+const toOklch = converter('oklch');
+const toCuloriRgb = converter('rgb');
 
 // ─── Hex ↔ RGB ───────────────────────────────────────────────────────────────
 
@@ -150,6 +156,41 @@ export function hslToRgb(hsl: HSL): RGB {
   };
 }
 
+// ─── RGB ↔ OKLCH (Culori / CSS Color 4) ─────────────────────────────────────
+
+export function rgbToOklch(rgb: RGB): OKLCH {
+  const converted = toOklch({
+    mode: 'rgb',
+    r: Math.max(0, Math.min(255, rgb.r)) / 255,
+    g: Math.max(0, Math.min(255, rgb.g)) / 255,
+    b: Math.max(0, Math.min(255, rgb.b)) / 255,
+  });
+  return {
+    l: (converted?.l ?? 0) * 100,
+    c: converted?.c ?? 0,
+    h: converted?.h ?? 0,
+  };
+}
+
+export function oklchToRgb(oklch: OKLCH): RGB {
+  const converted = toCuloriRgb({
+    mode: 'oklch',
+    l: Math.max(0, Math.min(100, oklch.l)) / 100,
+    c: Math.max(0, oklch.c),
+    h: ((oklch.h % 360) + 360) % 360,
+  });
+  const channel = (value: number | undefined) => Math.round(Math.max(0, Math.min(1, value ?? 0)) * 255);
+  return { r: channel(converted?.r), g: channel(converted?.g), b: channel(converted?.b) };
+}
+
+export function formatOklch(oklch: OKLCH, alpha = 1): string {
+  const l = Math.round(Math.max(0, Math.min(100, oklch.l)) * 100) / 100;
+  const c = Math.round(Math.max(0, oklch.c) * 10000) / 10000;
+  const h = Math.round((((oklch.h % 360) + 360) % 360) * 100) / 100;
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 1000) / 1000;
+  return a >= 1 ? `oklch(${l}% ${c} ${h})` : `oklch(${l}% ${c} ${h} / ${a})`;
+}
+
 // ─── Parse / Format ──────────────────────────────────────────────────────────
 
 /**
@@ -208,7 +249,22 @@ export function parseColor(color: string): { rgb: RGB; alpha: number } {
     };
   }
 
-  // Fallback: black
+  // CSS Color 4 / named-color fallback. Culori owns the parsing and color-space
+  // conversion here; field only adapts its normalized 0..1 RGB shape.
+  const parsed = parseCulori(c);
+  const normalized = parsed ? toCuloriRgb(parsed) : undefined;
+  if (normalized) {
+    return {
+      rgb: {
+        r: Math.round(Math.max(0, Math.min(1, normalized.r ?? 0)) * 255),
+        g: Math.round(Math.max(0, Math.min(1, normalized.g ?? 0)) * 255),
+        b: Math.round(Math.max(0, Math.min(1, normalized.b ?? 0)) * 255),
+      },
+      alpha: Math.max(0, Math.min(1, parsed?.alpha ?? 1)),
+    };
+  }
+
+  // Invalid color fallback remains black for backwards compatibility.
   return { rgb: { r: 0, g: 0, b: 0 }, alpha: 1 };
 }
 
