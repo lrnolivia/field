@@ -31,7 +31,7 @@ import {
   composeProjectiveWithScreenOffset,
 } from './creator-utils';
 import { generateNodeId } from '@/shared/id-utils';
-import { SELECTION_COLOR } from '@/shared/constants';
+import { FIT_SIZE, SELECTION_COLOR } from '@/shared/constants';
 import { styleHelperOps } from '@/canvas/selection/style-helper-store';
 import { trace } from '@/shared/debug-trace';
 import type { CanvasNode } from '@/code/parsing/parser';
@@ -357,8 +357,12 @@ export function startFrameCreation(
       const nodeId = generateNodeId();
       const styles: Record<string, string> = {
         position: 'absolute',
-        width: `${Math.round(width)}px`,
-        height: `${Math.round(height)}px`,
+        width: FIT_SIZE,
+        height: FIT_SIZE,
+        minWidth: `${Math.round(width)}px`,
+        minHeight: `${Math.round(height)}px`,
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: nextFrameColor(),
         borderRadius: '0px',
         overflow: 'hidden',
