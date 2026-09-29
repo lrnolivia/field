@@ -1,6 +1,9 @@
-// E2E seed pages. These are minimal but realistic JSX trees we can drag
-// against. Each seed sets only `app/page.tsx` — every other file is
-// supplied by `createDefaultProject` at boot, so the seeds stay short.
+// E2E seed pages. These are minimal but realistic project snapshots.
+//
+// IMPORTANT: a saved local project is loaded EXACTLY as stored. ProjectLoader
+// does not merge createDefaultProject() into snapshots that already contain
+// files. Keep each seed self-contained for every file its assertion depends
+// on (for example globals.css when testing design tokens).
 //
 // localStorage key is `revyme-project-local` (see local-backend.ts).
 // Format must match `ProjectData`: `{ format: 'revyme-v1', files: { ... } }`.
@@ -4995,7 +4998,8 @@ export default function Page({ params }: { params: { slug: string } }) {
   },
 };
 
-export const LAYER_PREVIEW_PARITY = project(`
+export const LAYER_PREVIEW_PARITY = (() => {
+  const seed = project(`
 /** @canvas { "viewports": [{ "id": "desktop", "width": 1440 }] } */
 'use client';
 export default function Page() {
@@ -5027,8 +5031,15 @@ export default function Page() {
       </div>
     </div>
   );
-}
+} 
 `);
+  seed.files['app/globals.css'] = `:root {
+  --color-surface: #ffffff;
+  --color-text: #111111;
+}
+`;
+  return seed;
+})();
 
 export const SEEDS = {
   LAYER_PREVIEW_PARITY,
