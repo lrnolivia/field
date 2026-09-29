@@ -8,6 +8,7 @@ import {
   type GalleryViewId,
 } from '@/code/gallery/gallery-views';
 import type { GalleryFrameSizing } from '@/code/gallery/gallery-frame-sizing';
+import ChromeTabBar from '@/editor/ui/ChromeTabBar';
 import {
   appendGalleryWizardMedia,
   moveGalleryWizardMedia,
@@ -47,7 +48,9 @@ function Preview({
       minHeight: 132,
       overflow: 'hidden',
       border: '1px solid var(--border-light)',
+      borderRadius: 9,
       background: 'var(--bg-base)',
+      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.015)',
     };
     if (view === 'grid') return { ...base, display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 4, padding: 4 };
     if (view === 'natural') return { ...base, display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gridTemplateRows: 'repeat(2,60px)', gap: 3, padding: 4 };
@@ -107,25 +110,18 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1" role="navigation" aria-label="Gallery creation steps">
-          {STEPS.map((entry, index) => (
-            <button
-              key={entry.id}
-              type="button"
-              disabled={busy || (index > 0 && mediaUrls.length === 0)}
-              aria-current={entry.id === step ? 'step' : undefined}
-              onClick={() => setStep(entry.id)}
-              className={
-                'h-7 border px-2 text-[10px] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40 ' +
-                (entry.id === step
-                  ? 'border-[var(--border-focus)] bg-[var(--choice-bg)] text-[var(--text-primary)]'
-                  : 'border-[var(--control-border)] text-[var(--text-secondary)]')
-              }
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
+        <ChromeTabBar
+          value={step}
+          onChange={setStep}
+          ariaLabel="Gallery creation steps"
+          semantic="steps"
+          stretch
+          items={[
+            { value: 'media', label: 'Media', glyph: 'media' },
+            { value: 'layout', label: 'Layout', glyph: 'layout', disabled: busy || mediaUrls.length === 0 },
+            { value: 'behavior', label: 'Behavior', glyph: 'behavior', disabled: busy || mediaUrls.length === 0 },
+          ]}
+        />
 
         {step === 'media' && (
           <div className="space-y-2">
@@ -133,19 +129,23 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               type="button"
               disabled={busy}
               onClick={() => setPickerOpen(true)}
-              className="h-7 w-full border border-[var(--control-border)] text-[10px] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40"
+              className="h-8 w-full rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[10px] font-medium text-[var(--text-primary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40"
             >
               Choose media
             </button>
             {mediaUrls.length === 0 ? (
-              <div className="border border-dashed border-[var(--control-border)] p-5 text-center text-[10px] text-[var(--text-disabled)]">
-                Select at least one image to continue.
+              <div data-gallery-empty-state className="flex min-h-[118px] flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-5 text-center">
+                <span className="flex h-9 w-11 items-center justify-center rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/40 text-[var(--accent)]">
+                  <svg aria-hidden width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="m4 11 2.7-2.7L9 10.5l1.5-1.5 2.1 2.1"/></svg>
+                </span>
+                <span className="mt-2 text-[10px] font-medium text-[var(--text-primary)]">Choose media to begin</span>
+                <span className="mt-1 text-[9px] text-[var(--text-tertiary)]">Select one or more images, then shape the layout and behavior.</span>
               </div>
             ) : (
               <div className="space-y-1" role="list" aria-label="Selected Gallery media">
                 {mediaUrls.map((url, index) => (
-                  <div key={url} role="listitem" className="flex h-9 items-center gap-2 border border-[var(--control-border)] px-2">
-                    <img src={url} alt="" draggable={false} className="h-6 w-6 object-cover" />
+                  <div key={url} role="listitem" className="flex h-11 items-center gap-2 rounded-[7px] border border-[var(--control-border)] bg-[var(--bg-surface)]/55 px-2">
+                    <img src={url} alt="" draggable={false} className="h-8 w-10 rounded-[4px] object-cover" />
                     <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">{url.split('/').pop() || 'Image'}</span>
                     <button
                       type="button"

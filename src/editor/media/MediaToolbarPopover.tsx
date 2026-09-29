@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import MediaGlyph from './MediaGlyph';
 
 function ExpandGlyph() {
@@ -88,13 +89,16 @@ export default function MediaToolbarPopover({
   const requestedWidth = expanded ? 840 : compact ? 224 : 480;
 
   return createPortal(
-    <div
+    <motion.div
       ref={ref}
       data-modal-root
       data-media-toolbar-popover
       data-media-popover-density={expanded ? 'expanded' : compact ? 'launcher' : 'browser'}
       role="dialog"
       aria-label={title}
+      initial={{ opacity: 0, scale: 0.94, y: 12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 430, damping: 30, mass: 0.72 }}
       className="fixed z-[15000] flex flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.025] transition-[left,bottom,width,max-height] duration-200 ease-out"
       style={{
         left: anchor.left,
@@ -102,6 +106,7 @@ export default function MediaToolbarPopover({
         width: `min(${requestedWidth}px, calc(100vw - 24px))`,
         maxHeight: expanded ? 'calc(100vh - 112px)' : 'min(560px, calc(100vh - 88px))',
         height: expanded ? 'min(720px, calc(100vh - 112px))' : undefined,
+        transformOrigin: `${Math.max(18, Math.min(anchor.arrow, requestedWidth - 18))}px calc(100% + 7px)`,
       }}
     >
       <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
@@ -131,14 +136,12 @@ export default function MediaToolbarPopover({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-panel)]">{children}</div>
-      {!expanded && (
-        <span
+      <span
           aria-hidden
           className="absolute -bottom-[6px] h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
           style={{ left: Math.max(14, Math.min(anchor.arrow - 5, requestedWidth - 24)) }}
         />
-      )}
-    </div>,
+    </motion.div>,
     document.body,
   );
 }

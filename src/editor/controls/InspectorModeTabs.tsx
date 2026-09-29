@@ -4,6 +4,7 @@ import { inspectorModeAtom } from '@/code/stores/editor-store';
 import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
+import ChromeTabBar from '@/editor/ui/ChromeTabBar';
 
 export default function InspectorModeTabs() {
   const [mode, setMode] = useAtom(inspectorModeAtom);
@@ -17,28 +18,16 @@ export default function InspectorModeTabs() {
       role="tablist"
       aria-label={uiCase('Inspector mode') ?? undefined}
     >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={mode === 'design'}
-        onClick={() => setMode('design')}
-        className={mode === 'design'
-          ? 'h-7 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
-          : 'h-7 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
-      >
-        {uiCase('Design')}
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={mode === 'prototype'}
-        onClick={() => setMode('prototype')}
-        className={mode === 'prototype'
-          ? 'h-7 px-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-active)] rounded-[5px]'
-          : 'h-7 px-2 text-xs font-medium text-[var(--text-secondary)] rounded-[5px] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}
-      >
-        {uiCase('Prototype')}
-      </button>
+      <ChromeTabBar
+        value={mode}
+        onChange={setMode}
+        ariaLabel={uiCase('Inspector mode') ?? 'Inspector mode'}
+        compact
+        items={[
+          { value: 'design', label: uiCase('Design'), glyph: 'design' },
+          { value: 'prototype', label: uiCase('Prototype'), glyph: 'prototype' },
+        ]}
+      />
       <div data-inspector-pane-actions className="ml-auto flex items-center gap-1">
         <motion.div layoutId="right-inspector-autohide" transition={{ duration: 0.2, ease: 'easeInOut' }}>
           <WorkspaceAutoHideButton side="right" />
