@@ -519,24 +519,38 @@ async function handleImageFileDrops(
     const dims = await getImageDimensions(objectUrl);
     URL.revokeObjectURL(objectUrl);
 
+    const { width } = fitFrameBox(dims);
+    const targetX = canvasX + xOffset;
+    xOffset += width + 20;
+
     try {
       trace.action('canvas-file-drop:image-upload-start', { name: file.name, size: file.size });
-      const result = await ingestMediaFile({
+      await ingestMediaFile({
         file,
         projectId,
         kind: 'image',
         upsert: upsertMediaUpload,
         idPrefix: 'canvas',
         rememberAsset: rememberMediaAsset,
+        onSuccess: (result, context) => {
+          const placedId = queueImageFrame(result.url, dims, targetX, canvasY);
+          trace.action('canvas-file-drop:image-dropped', {
+            id: placedId,
+            url: result.url,
+            reusedExisting: result.reusedExisting,
+            retry: context.isRetry,
+          });
+
+          if (context.isRetry) {
+            // The original batch already returned. Commit this replayed spatial
+            // action immediately and select the recovered frame.
+            flushNow();
+            setSelectedIds([placedId]);
+          } else {
+            lastId = placedId;
+          }
+        },
       });
-      const { width } = fitFrameBox(dims);
-      lastId = queueImageFrame(result.url, dims, canvasX + xOffset, canvasY);
-      trace.action('canvas-file-drop:image-dropped', {
-        id: lastId,
-        url: result.url,
-        reusedExisting: result.reusedExisting,
-      });
-      xOffset += width + 20;
     } catch (err) {
       if (isMediaUploadCancelled(err)) {
         trace.action('canvas-file-drop:image-upload-cancelled', { name: file.name });

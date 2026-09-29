@@ -283,6 +283,7 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
                     upsert: upsertMediaUpload,
                     idPrefix: 'video-picker',
                     rememberAsset: rememberMediaAsset,
+                    retryable: false,
                   });
                   handleSelect(result.url, false);
                 } catch (error) {

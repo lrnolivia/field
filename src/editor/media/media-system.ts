@@ -71,6 +71,8 @@ export interface MediaUploadItem {
   error?: string;
   contentHash?: string;
   reusedExisting?: boolean;
+  /** True only when field retained enough in-session operation context to replay safely. */
+  retryable?: boolean;
 }
 
 export const DEFAULT_MEDIA_ROUTE: MediaRoute = {

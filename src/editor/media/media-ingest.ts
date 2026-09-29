@@ -20,6 +20,23 @@ interface ActiveMediaUpload {
 
 const activeMediaUploads = new Map<string, ActiveMediaUpload>();
 
+export interface MediaIngestSuccessContext {
+  isRetry: boolean;
+}
+
+export type MediaIngestSuccessHandler = (
+  result: MediaIngestResult,
+  context: MediaIngestSuccessContext,
+) => void | Promise<void>;
+
+interface RetryMediaUploadOperation {
+  projectId: string;
+  run: () => Promise<MediaIngestResult>;
+}
+
+const retryMediaUploads = new Map<string, RetryMediaUploadOperation>();
+
+
 export class MediaUploadCancelledError extends Error {
   readonly uploadId: string;
 
@@ -40,6 +57,16 @@ export function cancelMediaUpload(uploadId: string): boolean {
   if (!active) return false;
   active.controller.abort();
   return true;
+}
+
+export async function retryMediaUpload(uploadId: string): Promise<MediaIngestResult | null> {
+  if (activeMediaUploads.has(uploadId)) return null;
+  const operation = retryMediaUploads.get(uploadId);
+  return operation ? operation.run() : null;
+}
+
+export function discardMediaUploadRetry(uploadId: string): void {
+  retryMediaUploads.delete(uploadId);
 }
 
 
@@ -104,6 +131,9 @@ export async function ingestMediaFile({
   allowDuplicate = false,
   rememberAsset,
   signal,
+  uploadId: providedUploadId,
+  retryable = true,
+  onSuccess,
 }: {
   file: File;
   projectId: string;
@@ -113,8 +143,35 @@ export async function ingestMediaFile({
   allowDuplicate?: boolean;
   rememberAsset?: MediaAssetWriter;
   signal?: AbortSignal;
+  /** Internal/public replay hook: retry keeps the same queue identity. */
+  uploadId?: string;
+  /** Disable when replaying the original higher-level context would be unsafe. */
+  retryable?: boolean;
+  /** Runs before completion is committed, so continuation failures are retryable too. */
+  onSuccess?: MediaIngestSuccessHandler;
 }): Promise<MediaIngestResult> {
-  const uploadId = uniqueUploadId(idPrefix, file);
+  const uploadId = providedUploadId ?? uniqueUploadId(idPrefix, file);
+  const isRetry = providedUploadId !== undefined;
+
+  if (retryable) {
+    retryMediaUploads.set(uploadId, {
+      projectId,
+      run: () => ingestMediaFile({
+        file,
+        projectId,
+        kind,
+        upsert,
+        idPrefix,
+        allowDuplicate,
+        rememberAsset,
+        uploadId,
+        retryable,
+        onSuccess,
+      }),
+    });
+  } else {
+    retryMediaUploads.delete(uploadId);
+  }
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort();
 
@@ -149,6 +206,14 @@ export async function ingestMediaFile({
     if (contentHash && !allowDuplicate) {
       const existing = sessionMediaIdentity.get(identityKey(projectId, contentHash));
       if (existing) {
+        const result: MediaIngestResult = {
+          url: existing.url,
+          contentHash,
+          reusedExisting: true,
+          uploadId,
+        };
+        await onSuccess?.(result, { isRetry });
+        retryMediaUploads.delete(uploadId);
         upsert({
           id: uploadId,
           projectId,
@@ -159,13 +224,9 @@ export async function ingestMediaFile({
           assetId: existing.url,
           contentHash,
           reusedExisting: true,
+          retryable: false,
         });
-        return {
-          url: existing.url,
-          contentHash,
-          reusedExisting: true,
-          uploadId,
-        };
+        return result;
       }
     }
 
@@ -200,6 +261,15 @@ export async function ingestMediaFile({
       createdAt: new Date().toISOString(),
     });
 
+    const result: MediaIngestResult = {
+      url,
+      contentHash,
+      reusedExisting: false,
+      uploadId,
+    };
+    await onSuccess?.(result, { isRetry });
+    retryMediaUploads.delete(uploadId);
+
     upsert({
       id: uploadId,
       projectId,
@@ -209,14 +279,10 @@ export async function ingestMediaFile({
       progress: 1,
       assetId: url,
       contentHash: contentHash ?? undefined,
+      retryable: false,
     });
 
-    return {
-      url,
-      contentHash,
-      reusedExisting: false,
-      uploadId,
-    };
+    return result;
   } catch (error) {
     if (controller.signal.aborted || isMediaUploadCancelled(error)) {
       upsert({
@@ -227,6 +293,7 @@ export async function ingestMediaFile({
         status: 'cancelled',
         progress: 0,
         contentHash: contentHash ?? undefined,
+        retryable: retryable && retryMediaUploads.has(uploadId),
       });
       throw error instanceof MediaUploadCancelledError
         ? error
@@ -243,6 +310,7 @@ export async function ingestMediaFile({
       progress: 0,
       error: message,
       contentHash: contentHash ?? undefined,
+      retryable: retryable && retryMediaUploads.has(uploadId),
     });
     throw error;
   } finally {
@@ -256,4 +324,5 @@ export function clearSessionMediaIdentityForTests(): void {
   sessionMediaIdentity.clear();
   for (const active of activeMediaUploads.values()) active.controller.abort();
   activeMediaUploads.clear();
+  retryMediaUploads.clear();
 }

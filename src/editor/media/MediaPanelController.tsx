@@ -129,17 +129,17 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
     const placement = resolvePlacement(elementKind);
     try {
-      const result = await ingestMediaFile({
+      await ingestMediaFile({
         file,
         projectId: getProjectId(),
         kind: mediaKind,
         upsert: upsertUpload,
         idPrefix: 'toolbar',
         rememberAsset,
+        // Placement is captured before the async upload begins. Retry replays
+        // this exact operation instead of consulting whatever is selected later.
+        onSuccess: (result) => placeUrl(elementKind, result.url, placement),
       });
-      // Placement is captured before the async upload begins so a later
-      // selection change cannot unexpectedly replace a different node.
-      placeUrl(elementKind, result.url, placement);
     } catch (error) {
       if (isMediaUploadCancelled(error)) return;
       const message = error instanceof Error ? error.message : 'Upload failed.';
