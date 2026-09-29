@@ -23,6 +23,7 @@ import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import { OptionsPanel, OptionSection, ChoiceRow } from '../../../ui/OptionsPanel';
 import ColorPicker from '../../../ui/ColorPicker';
 import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
+import { CreatePresetPopupBody } from '../../../ui/CreatePresetPopup';
 import GradientEditor from '../../../ui/GradientEditor';
 import ImageSearchModal from '../../../ui/ImageSearchModal';
 import CropModal from '../../../ui/CropModal';
@@ -906,6 +907,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const colorPresets = allTokens.filter(t => t.category === 'color');
+  const gradientPresets = allTokens.filter(t => t.category === 'gradient');
 
   const handleCreatePreset = useCallback((color: string) => {
     pushPanel('New Color Preset', (
@@ -1077,23 +1079,51 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         );
       })()}
 
-      {tab === 'gradient' && (
-        surface === 'libraries' && !solidOnly ? (
-          <div className="py-6 text-center text-[11px] text-[var(--text-disabled)]">
-            No saved gradient fills yet.
-          </div>
-        ) : (
+      {tab === 'gradient' && (() => {
+        const rawGradient = styles.backgroundImage || styles.background || '';
+        const activeGradientPreset = rawGradient.startsWith('var(--') ? parseVarRef(rawGradient) || '' : '';
+        const resolvedGradient = activeGradientPreset
+          ? resolveCssTokens(rawGradient, gradientPresets)
+          : rawGradient;
+        const applyGradient = (css: string) => {
+          if (styles.background) onUpdate('background', '');
+          if (styles.backgroundColor) onUpdate('backgroundColor', '');
+          if (styles.backgroundSize) onUpdate('backgroundSize', '');
+          if (styles.backgroundPosition) onUpdate('backgroundPosition', '');
+          if (styles.backgroundRepeat) onUpdate('backgroundRepeat', '');
+          if (styles.backgroundAttachment) onUpdate('backgroundAttachment', '');
+          onUpdate('backgroundImage', css);
+        };
+
+        if (surface === 'libraries' && !solidOnly) {
+          return (
+            <AssetPresetGrid
+              presets={gradientPresets}
+              type="gradient"
+              activePresetName={activeGradientPreset || undefined}
+              onApplyPreset={applyGradient}
+              onCreatePreset={() => {
+                pushPanel('New Gradient Preset', (
+                  <CreatePresetPopupBody
+                    category="gradient"
+                    initialValue={resolvedGradient || createDefaultGradient()}
+                    onClose={() => popPanel()}
+                    onApply={applyGradient}
+                  />
+                ));
+              }}
+            />
+          );
+        }
+
+        return (
           <GradientEditor
-            value={styles.backgroundImage || styles.background || ''}
-            onChange={(css) => {
-              if (styles.background) onUpdate('background', '');
-              if (styles.backgroundColor) onUpdate('backgroundColor', '');
-              onUpdate('backgroundImage', css);
-            }}
+            value={resolvedGradient}
+            onChange={applyGradient}
             onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
           />
-        )
-      )}
+        );
+      })()}
 
       {tab === 'pattern' && (
         <PatternFillTab node={node} libraryOnly={!solidOnly && surface === 'libraries'} />

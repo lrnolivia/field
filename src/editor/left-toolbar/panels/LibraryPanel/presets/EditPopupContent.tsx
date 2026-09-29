@@ -12,6 +12,7 @@ import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { PresetSunIcon, PresetMoonIcon } from '@/shared/icons';
 import type { PresetToken } from '@/shared/types';
 import ColorPicker from '@/editor/ui/ColorPicker';
+import GradientEditor from '@/editor/ui/GradientEditor';
 import ImageSearchModal from '@/editor/ui/ImageSearchModal';
 import VideoSearchModal from '@/editor/ui/VideoSearchModal';
 import ToolInput from '@/editor/controls/ToolInput';
@@ -273,6 +274,8 @@ export function EditPopupContent({ token, onUpdate, onDelete, onClose }: EditPop
       {/* Value editor — category-specific control only */}
       {token.category === 'color' ? (
         <ColorPicker key={theme} value={activeValue} onChange={handleColorLive} onChangeEnd={handleColorCommit} />
+      ) : token.category === 'gradient' ? (
+        <GradientEditor value={value} onChange={handleValueChange} />
       ) : token.category === 'image' ? (
         <AssetValueEditor value={value} type="image" onChange={handleValueChange} />
       ) : token.category === 'video' ? (

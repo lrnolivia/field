@@ -13,6 +13,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import ToolPopup from './ToolPopup';
 import ColorPicker from './ColorPicker';
+import GradientEditor from './GradientEditor';
 import ToolInput from '../controls/ToolInput';
 import ToolSelect from '../controls/ToolSelect';
 import ColorInput from '../controls/ColorInput';
@@ -34,6 +35,7 @@ import { trace } from '@/shared/debug-trace';
 /** Per-category default starting value when the source property is empty. */
 const CATEGORY_DEFAULTS: Record<PresetToken['category'], string> = {
   color: '#000000',
+  gradient: 'linear-gradient(180deg, #000000 0%, #ffffff 100%)',
   typography: '16px',
   spacing: '16px',
   margin: '16px',
@@ -46,13 +48,14 @@ const CATEGORY_DEFAULTS: Record<PresetToken['category'], string> = {
 };
 
 const CATEGORY_PREFIXES: Record<PresetToken['category'], string> = {
-  color: 'color', typography: 'typo', spacing: 'space', margin: 'margin',
+  color: 'color', gradient: 'gradient', typography: 'typo', spacing: 'space', margin: 'margin',
   radius: 'radius', shadow: 'shadow', border: 'border', image: 'image',
   video: 'video', other: 'preset',
 };
 
 const CATEGORY_TITLES: Record<PresetToken['category'], string> = {
   color: 'Create color preset',
+  gradient: 'Create gradient preset',
   typography: 'Create typography preset',
   spacing: 'Create padding preset',
   margin: 'Create margin preset',
@@ -97,6 +100,9 @@ function PresetValueEditor({ category, value, onChange }: {
 }) {
   if (category === 'color') {
     return <ColorPicker value={value || '#000000'} onChange={onChange} showAlpha />;
+  }
+  if (category === 'gradient') {
+    return <GradientEditor value={value || CATEGORY_DEFAULTS.gradient} onChange={onChange} />;
   }
   if (category === 'shadow') {
     return (
@@ -235,7 +241,7 @@ export default function CreatePresetPopup({ isOpen, onClose, category, anchorRef
   );
 }
 
-function CreatePresetPopupBody({ category, initialValue, onClose, onApply }: {
+export function CreatePresetPopupBody({ category, initialValue, onClose, onApply }: {
   category: PresetToken['category'];
   initialValue: string;
   onClose: () => void;

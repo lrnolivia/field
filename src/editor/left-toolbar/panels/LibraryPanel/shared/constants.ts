@@ -7,6 +7,7 @@ import type { CategoryConfig, DisplayCategory, AnyCategory } from './types';
 export const DATA_CATEGORIES: CategoryConfig[] = [
   { key: 'typography', label: 'Typography', prefix: 'typo', defaultValue: '16px' },
   { key: 'color', label: 'Color', prefix: 'color', defaultValue: '#000000' },
+  { key: 'gradient', label: 'Gradient', prefix: 'gradient', defaultValue: 'linear-gradient(180deg, #000000 0%, #ffffff 100%)' },
   { key: 'image', label: 'Image', prefix: 'image', defaultValue: '' },
   { key: 'video', label: 'Video', prefix: 'video', defaultValue: '' },
   { key: 'radius', label: 'Radius', prefix: 'radius', defaultValue: '8px' },
@@ -21,6 +22,7 @@ export const DISPLAY_ONLY_CATEGORIES: DisplayCategory[] = [];
 export const ALL_CATEGORIES: AnyCategory[] = [
   DATA_CATEGORIES.find(c => c.key === 'typography')!,
   DATA_CATEGORIES.find(c => c.key === 'color')!,
+  DATA_CATEGORIES.find(c => c.key === 'gradient')!,
   DATA_CATEGORIES.find(c => c.key === 'image')!,
   DATA_CATEGORIES.find(c => c.key === 'video')!,
   DATA_CATEGORIES.find(c => c.key === 'radius')!,

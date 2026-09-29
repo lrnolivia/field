@@ -21,6 +21,14 @@ export function ValuePreview({ token }: { token: PresetToken }) {
       />
     );
   }
+  if (token.category === 'gradient') {
+    return (
+      <div
+        className="w-3.5 h-3.5 cut-corners cut-sm cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] flex-shrink-0"
+        style={{ background: token.value }}
+      />
+    );
+  }
   if (token.category === 'image') {
     const url = extractAssetUrl(token.value);
     return url ? (

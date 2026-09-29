@@ -11,8 +11,8 @@ import { ColorSwatch } from '@/editor/controls/ColorSwatch';
 interface Props {
   /** Preset tokens to render. Caller filters by category before passing. */
   presets: PresetToken[];
-  /** Tile media type — picks the renderer (image bg vs <video>). */
-  type: 'image' | 'video';
+  /** Preset type — picks the row thumbnail renderer. */
+  type: 'image' | 'video' | 'gradient';
   /** Click handler — applies a preset reference (`var(--name)`). Required. */
   onApplyPreset: (varValue: string) => void;
   /** Optional: open the create-new-preset panel. Hidden when omitted. */
@@ -91,7 +91,9 @@ export default function AssetPresetGrid({
                 )}
                 {/* Thumbnail swatch — same w-5 h-5 footprint as the color
                     swatch, image bg or muted-loop <video> for the media. */}
-                {type === 'image' ? (
+                {type === 'gradient' ? (
+                  <ColorSwatch style={{ background: preset.value }} />
+                ) : type === 'image' ? (
                   <ColorSwatch
                     className="bg-[var(--grid-line)]"
                     style={url ? { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
@@ -121,9 +123,9 @@ function extractUrl(value: string): string | null {
 }
 
 /** Token → human-readable display name. Mirrors color preset formatting. */
-function formatName(preset: PresetToken, type: 'image' | 'video'): string {
+function formatName(preset: PresetToken, type: 'image' | 'video' | 'gradient'): string {
   if (preset.label) return preset.label;
-  const prefix = type === 'image' ? 'image-' : 'video-';
+  const prefix = type === 'image' ? 'image-' : type === 'video' ? 'video-' : 'gradient-';
   return preset.name
     .replace(new RegExp('^' + prefix), '')
     .split('-')

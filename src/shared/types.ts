@@ -338,7 +338,7 @@ export interface PresetToken {
   /** Current value (e.g. '#6366f1', '48px') */
   value: string;
   /** Display category */
-  category: 'color' | 'typography' | 'spacing' | 'margin' | 'radius' | 'shadow' | 'border' | 'image' | 'video' | 'other';
+  category: 'color' | 'gradient' | 'typography' | 'spacing' | 'margin' | 'radius' | 'shadow' | 'border' | 'image' | 'video' | 'other';
   /** Optional display label */
   label?: string;
 }
