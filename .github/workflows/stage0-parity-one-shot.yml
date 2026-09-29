@@ -35,6 +35,21 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Canvas Preview parity
+        shell: bash
         env:
           CI: "1"
-        run: npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --reporter=list
+        run: |
+          set -euo pipefail
+          npx vite --config vite.preview.config.ts --host 127.0.0.1 > /tmp/field-preview-vite.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5175/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5175/ >/dev/null
+
+          npx playwright test src/canvas/drag/e2e/layer-stack-preview-parity.spec.ts --project=chromium --reporter=list
