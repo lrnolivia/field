@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { createFieldRafCoalescer } from './motion';
 import { useAtom } from 'jotai';
 import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
 import LibraryPanel from '@/editor/left-toolbar/panels/LibraryPanel';
@@ -216,13 +217,27 @@ export default function ToolbarPanelHost() {
     event.preventDefault();
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
+    const element = dialogRef.current;
+    let finalPosition = { x: rect.left, y: rect.top };
+    if (element) element.style.transition = 'none';
+    setPosition(finalPosition);
+    const coalescer = createFieldRafCoalescer((next: { x: number; y: number }) => {
+      if (!element) return;
+      element.style.left = next.x + 'px';
+      element.style.top = next.y + 'px';
+      element.style.transform = 'none';
+    });
     const onMove = (move: PointerEvent) => {
-      setPosition({
+      finalPosition = {
         x: Math.max(8, Math.min(window.innerWidth - rect.width - 8, move.clientX - offsetX)),
         y: Math.max(8, Math.min(window.innerHeight - rect.height - 8, move.clientY - offsetY)),
-      });
+      };
+      coalescer.schedule(finalPosition);
     };
     const stop = () => {
+      coalescer.flush();
+      setPosition(finalPosition);
+      if (element) element.style.transition = '';
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
@@ -237,18 +252,30 @@ export default function ToolbarPanelHost() {
     event.stopPropagation();
     const rect = dialogRef.current?.getBoundingClientRect();
     if (!rect) return;
+    const element = dialogRef.current;
+    if (element) element.style.transition = 'none';
     setPosition({ x: rect.left, y: rect.top });
     const startX = event.clientX;
     const startY = event.clientY;
     const startWidth = rect.width;
     const startHeight = rect.height;
+    let finalSize = { width: startWidth, height: startHeight };
+    const coalescer = createFieldRafCoalescer((next: { width: number; height: number }) => {
+      if (!element) return;
+      element.style.width = next.width + 'px';
+      element.style.height = next.height + 'px';
+    });
     const move = (next: PointerEvent) => {
-      setSize({
+      finalSize = {
         width: Math.max(340, Math.min(window.innerWidth - rect.left - 8, startWidth + next.clientX - startX)),
         height: Math.max(300, Math.min(window.innerHeight - rect.top - 8, startHeight + next.clientY - startY)),
-      });
+      };
+      coalescer.schedule(finalSize);
     };
     const stop = () => {
+      coalescer.flush();
+      setSize(finalSize);
+      if (element) element.style.transition = '';
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);

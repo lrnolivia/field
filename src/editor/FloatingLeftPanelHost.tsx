@@ -7,7 +7,7 @@ import { leftContentWidthAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom, c
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
 import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from './workspace-layout';
-import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from './motion';
+import { createFieldRafCoalescer, fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from './motion';
 
 /** Content half of the floating left island. The icon rail sits flush to its
  * left; both live below the stationary project pill. */
@@ -36,14 +36,32 @@ export default function FloatingLeftPanelHost() {
     event.preventDefault();
     event.stopPropagation();
     const start = { x: event.clientX, y: event.clientY, width: contentWidth, height };
+    const host = event.currentTarget.closest('[data-floating-left-panel]') as HTMLElement | null;
+    const backing = document.querySelector<HTMLElement>('[data-workspace-island="left"]');
+    let finalWidth = start.width;
+    let finalHeight = start.height;
+    const coalescer = createFieldRafCoalescer((geometry: { width: number; height: number }) => {
+      if (host) {
+        host.style.width = geometry.width + 'px';
+        if (mode !== 'floating') host.style.height = geometry.height + 'px';
+      }
+      if (backing) {
+        backing.style.width = (railWidth + geometry.width) + 'px';
+        if (mode !== 'floating') backing.style.height = geometry.height + 'px';
+      }
+    });
     document.documentElement.dataset.workspaceResizing = 'true';
     const move = (next: PointerEvent) => {
-      setContentWidth(clampLeftContentWidth(start.width + next.clientX - start.x));
+      finalWidth = clampLeftContentWidth(start.width + next.clientX - start.x);
       if (mode !== 'floating') {
-        setHeight(Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y)));
+        finalHeight = Math.max(280, Math.min(window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET, start.height + next.clientY - start.y));
       }
+      coalescer.schedule({ width: finalWidth, height: finalHeight });
     };
     const stop = () => {
+      coalescer.flush();
+      setContentWidth(finalWidth);
+      if (mode !== 'floating') setHeight(finalHeight);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
