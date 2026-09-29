@@ -32,6 +32,7 @@ import { parsePx, formatPx } from '../style-helpers';
 import { presetTokensAtom } from '@/code/stores/preset-store';
 import { trace } from '@/shared/debug-trace';
 import { resolvePresetColor } from '@/shared/css-utils';
+import { OptionsPanel, OptionSection, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
 
 // ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
 
@@ -103,26 +104,91 @@ function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChan
   const activeEntry = entries[activeIdx];
   if (!activeEntry) return null;
 
-  // Force the per-field labels visible: when this popup opens from the Variable modal's Default row the
-  // atom carries `hideLabel`, but inside the expanded editor X / Y / Blur / Spread / Color MUST be labelled.
+  // Shared field options grammar: semantic choices first, then spatial
+  // geometry, softness, and paint. Existing source serialization is unchanged.
   return (
     <ShowControlLabels>
-    <div data-effect-editor className="flex flex-col gap-2.5">
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Type" property="boxShadow" plain cell /><ToolSegmentedControl value={activeEntry.type} onChange={(v) => { const patch: Partial<ShadowEntry> = { type: v as 'box' | 'drop' }; if (v === 'drop') { patch.spread = 0; patch.inset = false; } updateEntry(activeIdx, patch); }} options={[{ value: 'box', label: 'Shadow' }, { value: 'drop', label: 'Filter' }]} size="sm" /></div>
-      {activeEntry.type === 'box' && <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Position" property="boxShadow" plain cell /><ToolSegmentedControl value={activeEntry.inset ? 'inside' : 'outside'} onChange={(v) => updateEntry(activeIdx, { inset: v === 'inside' })} options={[{ value: 'outside', label: 'Drop shadow' }, { value: 'inside', label: 'Inner shadow' }]} size="sm" /></div>}
-      <div className="grid grid-cols-2 gap-1">
-        <ToolInput value={formatPx(activeEntry.x)} onChange={(v) => updateEntry(activeIdx, { x: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { x: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { x: parsePx(v) })} step={1} chevronLabel="X" ariaLabel="Shadow X" />
-        <ToolInput value={formatPx(activeEntry.y)} onChange={(v) => updateEntry(activeIdx, { y: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { y: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { y: parsePx(v) })} step={1} chevronLabel="Y" ariaLabel="Shadow Y" />
-      </div>
-      <div className="grid grid-cols-2 gap-1">
-        <ToolInput value={formatPx(activeEntry.blur)} onChange={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { blur: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { blur: parsePx(v) })} step={1} min={0} chevronLabel="Blur" ariaLabel="Shadow blur" />
-        {activeEntry.type === 'box' ? <ToolInput value={formatPx(activeEntry.spread)} onChange={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} onChangeLive={(v) => updateEntryLive(activeIdx, { spread: parsePx(v) })} onCommit={(v) => updateEntry(activeIdx, { spread: parsePx(v) })} step={1} chevronLabel="Spread" ariaLabel="Shadow spread" /> : <div aria-hidden />}
-      </div>
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"><ControlLabel label="Color" property="boxShadow" plain cell /><ColorInput value={activeEntry.color} onChange={(v) => updateEntry(activeIdx, { color: v })} onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })} showAlpha /></div>
-    </div>
+      <OptionsPanel>
+        <OptionSection title="Shadow">
+          <ChoiceRow
+            label="Type"
+            value={activeEntry.type}
+            onChange={(v) => {
+              const patch: Partial<ShadowEntry> = { type: v as 'box' | 'drop' };
+              if (v === 'drop') { patch.spread = 0; patch.inset = false; }
+              updateEntry(activeIdx, patch);
+            }}
+            options={[{ value: 'box', label: 'Shadow' }, { value: 'drop', label: 'Filter' }]}
+          />
+          {activeEntry.type === 'box' && (
+            <ChoiceRow
+              label="Position"
+              value={activeEntry.inset ? 'inside' : 'outside'}
+              onChange={(v) => updateEntry(activeIdx, { inset: v === 'inside' })}
+              options={[{ value: 'outside', label: 'Drop' }, { value: 'inside', label: 'Inner' }]}
+            />
+          )}
+        </OptionSection>
+
+        <OptionSection title="Geometry" divided>
+          <SpatialRow label="Offset">
+            <ToolInput
+              value={formatPx(activeEntry.x)}
+              onChange={(v) => updateEntry(activeIdx, { x: parsePx(v) })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { x: parsePx(v) })}
+              onCommit={(v) => updateEntry(activeIdx, { x: parsePx(v) })}
+              step={1}
+              chevronLabel="X"
+              ariaLabel="Shadow X"
+            />
+            <ToolInput
+              value={formatPx(activeEntry.y)}
+              onChange={(v) => updateEntry(activeIdx, { y: parsePx(v) })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { y: parsePx(v) })}
+              onCommit={(v) => updateEntry(activeIdx, { y: parsePx(v) })}
+              step={1}
+              chevronLabel="Y"
+              ariaLabel="Shadow Y"
+            />
+          </SpatialRow>
+          <ScalarRow
+            label="Blur"
+            value={activeEntry.blur}
+            min={0}
+            max={100}
+            step={1}
+            unit="px"
+            onChange={(v) => updateEntry(activeIdx, { blur: v })}
+            onChangeLive={(v) => updateEntryLive(activeIdx, { blur: v })}
+            onCommit={(v) => updateEntry(activeIdx, { blur: v })}
+          />
+          {activeEntry.type === 'box' && (
+            <ScalarRow
+              label="Spread"
+              value={activeEntry.spread}
+              min={-100}
+              max={100}
+              step={1}
+              unit="px"
+              onChange={(v) => updateEntry(activeIdx, { spread: v })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { spread: v })}
+              onCommit={(v) => updateEntry(activeIdx, { spread: v })}
+            />
+          )}
+        </OptionSection>
+
+        <OptionSection title="Paint" divided>
+          <PaintOptionRow
+            label="Color"
+            value={activeEntry.color}
+            onChange={(v) => updateEntry(activeIdx, { color: v })}
+            onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })}
+          />
+        </OptionSection>
+      </OptionsPanel>
     </ShowControlLabels>
   );
-}
+
 
 // ─── Inner atom ───────────────────────────────────────────────────────────────
 
@@ -137,7 +203,7 @@ function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
     activeEntry && (
       <ShadowEditorPanel initialIdx={activeIdx} initialBoxShadow={boxShadow} initialFilter={filter} onChangeLive={onChangeMultipleLive} onCommit={onChangeMultiple} />
     )
-  ));
+  ), { kind: 'options' });
   const styles = allProps;
   const allTokens = useAtomValue(presetTokensAtom);
 
@@ -384,7 +450,7 @@ function ShadowPresetPillRow({ tokenName, tokenLabel, currentValue, previewColor
           onClose={() => setEditOpen(false)}
           title={`Edit "${tokenLabel}"`}
           anchorRef={anchorRef}
-          width={260}
+          kind="options"
         >
           <ShadowControl
             mode="preset"

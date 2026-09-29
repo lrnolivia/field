@@ -20,6 +20,7 @@ import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, Contro
 import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
 import { useToolPopup } from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import { OptionsPanel, OptionSection, ChoiceRow } from '../../../ui/OptionsPanel';
 import ColorPicker from '../../../ui/ColorPicker';
 import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
 import GradientEditor from '../../../ui/GradientEditor';
@@ -1192,25 +1193,28 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
   }, [mode, styles, onChangeMultiple]);
 
   return (
-    // Force the image sub-field labels (Size / Position / Repeat / Attachment / Blend) visible inside the
-    // popup even when the atom carries `hideLabel` from the Variable modal's Default row.
+    // Rich color/gradient/image/video editors remain their own content, but the
+    // outer composition now follows the same Options Panel hierarchy.
     <ShowControlLabels>
-      {/* Mode toggle — hidden for form controls (solid color only). */}
-      {!solidOnly && <ToolSegmentedControl
-        value={mode}
-        onChange={handleModeChange}
-        options={[
-          { value: 'single', label: 'Single' },
-          { value: 'multiple', label: 'Multiple' },
-        ]}
-        size="sm"
-      />}
-
-      {solidOnly || mode === 'single' ? (
-        <SingleModeFillContent styles={styles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onLivePreview={onLivePreview} solidOnly={solidOnly} />
-      ) : (
-        <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
-      )}
+      <OptionsPanel>
+        {!solidOnly && (
+          <OptionSection title="Fill mode">
+            <ChoiceRow
+              label="Mode"
+              value={mode}
+              onChange={handleModeChange}
+              options={[{ value: 'single', label: 'Single' }, { value: 'multiple', label: 'Multiple' }]}
+            />
+          </OptionSection>
+        )}
+        <OptionSection title={solidOnly || mode === 'single' ? 'Appearance' : 'Layers'} divided={!solidOnly}>
+          {solidOnly || mode === 'single' ? (
+            <SingleModeFillContent styles={styles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onLivePreview={onLivePreview} solidOnly={solidOnly} />
+          ) : (
+            <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
+          )}
+        </OptionSection>
+      </OptionsPanel>
     </ShowControlLabels>
   );
 }
@@ -1236,7 +1240,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   const allTokens = useAtomValue(presetTokensAtom);
   const { openPanel, panelPopup } = useEditorPanel('Fill', () => (
     <FillPopupContent styles={popupStyles} onUpdate={onUpdate} onUpdateLive={onUpdateLive} onChangeMultiple={onChangeMultiple} onLivePreview={(color) => setLivePreviewColor(color ? serializePaintOpacity(color, fillPaint.opacity) : color)} />
-  ), { width: 280 });
+  ), { width: 288, kind: 'options' });
   // File-aware accent: purple ("--accent-secondary") on component master files,
   // standard accent (blue) on regular pages — same convention applied across
   // the menu items + bound pill.
