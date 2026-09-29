@@ -331,10 +331,10 @@ export default function LeftMenu() {
                   activity ring; the motion still reports a running turn. */}
               <div className={`vibe-ring relative w-8 h-8 rounded-[6px] ${agentRunning ? 'vibe-working' : ''}`} data-testid="vibe-button" data-working={agentRunning || undefined}>
                 <button
-                  aria-label="ai assistant"
+                  aria-label="AI assistant"
                   disabled={isViewerRole}
                   onClick={isViewerRole ? undefined : (e) => { openRailPanel('vibe'); handleClick('vibe'); e.currentTarget.blur(); }}
-                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'ai assistant', e.currentTarget)}
+                  onMouseEnter={isViewerRole ? undefined : (e) => handleEnter('vibe', 'AI assistant', e.currentTarget)}
                   onMouseLeave={isViewerRole ? undefined : handleLeave}
                   className={`vibe-face absolute inset-0 rounded-[6px] flex items-center justify-center transition-colors text-[10px] font-bold tracking-wide ${
                     isViewerRole
@@ -406,7 +406,7 @@ export default function LeftMenu() {
         </MenuButton>
 
         {/* CMS */}
-        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="cms" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
+        <MenuButton panelId="cms" isActive={activePanel === 'cms'} onToggle={openRailPanel} title="CMS" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="cms-button">
           <CmsIcon className="w-[18px] h-[18px]" />
         </MenuButton>
 

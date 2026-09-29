@@ -38,6 +38,8 @@ Examples:
 
 Do not invent a feature brand when the ordinary word is already good.
 
+Preserve deliberate technical casing inside the lowercase voice. Initialisms and functional terms such as `AI`, `SEO`, `CMS`, `API`, and `A/B` stay uppercase; lowercase the surrounding editorial words instead.
+
 ### 1.2 interaction and QoL features
 
 A user action or interaction-quality feature may earn a verb or a more editorial lowercase name when:

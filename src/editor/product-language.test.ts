@@ -14,6 +14,8 @@ describe('field product language', () => {
     expect(rail).toContain('title="media"');
     expect(rail).toContain('title="pages & layers"');
     expect(rail).not.toContain('title="Media Gallery"');
+    expect(rail).toContain('aria-label="AI assistant"');
+    expect(rail).toContain('title="CMS"');
     expect(modes).toContain("label: 'full'");
     expect(modes).toContain("label: 'focus'");
     expect(modes).toContain("label: 'float'");
@@ -32,5 +34,7 @@ describe('field product language', () => {
     expect(media).toContain('>media</SectionLabel>');
     expect(about).toContain('label="version"');
     expect(about).toContain('title="About field"');
+    const menu = read('src/editor/header/menu-builders.tsx');
+    expect(menu).toContain("label: 'SEO'");
   });
 });

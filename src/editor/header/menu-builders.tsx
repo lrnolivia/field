@@ -285,7 +285,7 @@ function menuZoomFit(): void {
 // surfaces, each likely to grow.
 const siteSettingsSubmenu: DropdownMenuEntry[] = [
   { id: 'site-domain', label: 'domain', onClick: stub('site-domain') },
-  { id: 'site-seo', label: 'seo', onClick: stub('site-seo') },
+  { id: 'site-seo', label: 'SEO', onClick: stub('site-seo') },
   { id: 'site-analytics', label: 'analytics', onClick: stub('site-analytics') },
 ];
 

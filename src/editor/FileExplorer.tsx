@@ -1242,7 +1242,7 @@ export default function Page() {
                 // skips disabled items) so the cascade just stops.
                 items.push({
                   id: 'new-cms-page',
-                  label: 'new cms page',
+                  label: 'new CMS page',
                   icon: <PageDocumentIcon size={14} />,
                   // Parent items don't fire onClick — they open their
                   // submenu on hover. The placeholder noop satisfies the
