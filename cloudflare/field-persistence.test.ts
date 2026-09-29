@@ -41,6 +41,61 @@ test('persistence API fails closed when Access validation cannot be established'
   assert.equal(assetCalls, 0);
 });
 
+
+test('QA work route embeds one real production snapshot without opening authenticated project APIs', async () => {
+  const qaBucket = new MockR2();
+  qaBucket.objects.set('projects/real-project/current.json', {
+    body: JSON.stringify(data),
+    etag: '"qa-project"',
+  });
+  qaBucket.objects.set('projects/real-project/meta.json', {
+    body: JSON.stringify({ name: 'Real project' }),
+    etag: '"qa-meta"',
+  });
+
+  const assets = {
+    calls: [] as string[],
+    async fetch(request: Request) {
+      this.calls.push(new URL(request.url).pathname);
+      return new Response('<!doctype html><html><head></head><body><div id="root"></div></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      });
+    },
+  };
+
+  const response = await worker.fetch(
+    req('/qa/work/real-project', {
+      headers: { Accept: 'text/html' },
+    }),
+    {
+      FIELD_PROJECTS: new MockR2(),
+      FIELD_QA_PROJECTS: qaBucket,
+      ASSETS: assets,
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
+  assert.equal(assets.calls.at(-1), '/index.html');
+
+  const html = await response.text();
+  assert.match(html, /__FIELD_QA_PROJECT__/);
+  assert.match(html, /real-project/);
+  assert.match(html, /Real project/);
+  assert.match(html, /app\/page\.client\.tsx/);
+
+  const blockedWrite = await worker.fetch(
+    req('/qa/work/real-project', { method: 'POST' }),
+    {
+      FIELD_QA_PROJECTS: qaBucket,
+      ASSETS: assets,
+    },
+  );
+  assert.equal(blockedWrite.status, 405);
+});
+
 test('native Worker Access context authenticates field APIs', async () => {
   const verified = await verifyWorkerAccess(
     req('/api/field/profile'),

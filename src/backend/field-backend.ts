@@ -42,6 +42,46 @@ export interface RemoteProjectSnapshot {
   revision: string;
 }
 
+
+interface FieldQaBootstrap {
+  id: string;
+  data: ProjectData;
+  meta?: {
+    name?: string | null;
+  } | null;
+}
+
+function getFieldQaBootstrap(id?: string): FieldQaBootstrap | null {
+  if (typeof window === 'undefined') return null;
+  const candidate = (window as Window & {
+    __FIELD_QA_PROJECT__?: unknown;
+  }).__FIELD_QA_PROJECT__;
+
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const row = candidate as {
+    id?: unknown;
+    data?: unknown;
+    meta?: unknown;
+  };
+  if (typeof row.id !== 'string' || !row.id) return null;
+  if (id !== undefined && row.id !== id) return null;
+  if (!hasProjectFiles(row.data)) return null;
+
+  const meta = row.meta && typeof row.meta === 'object' && !Array.isArray(row.meta)
+    ? row.meta as { name?: string | null }
+    : null;
+
+  return {
+    id: row.id,
+    data: row.data,
+    meta,
+  };
+}
+
+function qaReadOnlyError(): Error {
+  return new Error('QA project snapshots are read-only.');
+}
+
 function defaultLegacyNameReader(id: string): string | null {
   if (typeof window === 'undefined' || !window.localStorage) return null;
   try {
@@ -121,6 +161,10 @@ export class FieldBackend implements ProjectBackend {
   }
 
   async getUser(): Promise<RevymeUser | null> {
+    // QA snapshots are intentionally anonymous and read-only. The server
+    // injected the project before React booted, so no Access identity is needed.
+    if (getFieldQaBootstrap()) return null;
+
     // Hosted field uses Cloudflare Access as its identity boundary. Ask
     // Cloudflare for the authenticated identity instead of exposing the
     // standalone LocalBackend's synthetic "Local User" in production chrome.
@@ -238,6 +282,11 @@ export class FieldBackend implements ProjectBackend {
    * Realtime reconciliation uses this to compare first, then either adopt the
    * clean remote state or preserve dirty local work and enter conflict. */
   async peekRemoteProject(id: string): Promise<RemoteProjectSnapshot | null> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      return { data: qa.data, revision: '"field-qa-readonly"' };
+    }
+
     const response = await this.fetchImpl(projectPath(id), {
       method: 'GET',
       credentials: 'include',
@@ -269,6 +318,18 @@ export class FieldBackend implements ProjectBackend {
   }
 
   private async fetchRemoteProject(id: string): Promise<{ found: boolean; data: ProjectData | null }> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      this.projectRevisions.set(id, null);
+      this.staleProjectRevisions.delete(id);
+      trace.action('backend:load-project', {
+        id,
+        source: 'field-qa-bootstrap',
+        fileCount: Object.keys(qa.data.files).length,
+      });
+      return { found: true, data: qa.data };
+    }
+
     let response: Response;
     try {
       response = await this.fetchImpl(projectPath(id), {
@@ -359,6 +420,8 @@ export class FieldBackend implements ProjectBackend {
   }
 
   async saveProject(id: string, data: ProjectData): Promise<void> {
+    if (getFieldQaBootstrap(id)) throw qaReadOnlyError();
+
     if (this.staleProjectRevisions.has(id)) {
       trace.error('field-backend:save-blocked-stale-realtime-revision', { id });
       throw new PersistenceConflictError();
@@ -404,6 +467,15 @@ export class FieldBackend implements ProjectBackend {
   }
 
   private async fetchRemoteName(id: string): Promise<{ found: boolean; name: string | null }> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      this.metaRevisions.set(id, null);
+      return {
+        found: true,
+        name: typeof qa.meta?.name === 'string' ? qa.meta.name : null,
+      };
+    }
+
     let response: Response;
     try {
       response = await this.fetchImpl(projectPath(id, '/meta'), {
@@ -469,6 +541,8 @@ export class FieldBackend implements ProjectBackend {
   }
 
   async renameWebsite(id: string, name: string): Promise<void> {
+    if (getFieldQaBootstrap(id)) throw qaReadOnlyError();
+
     const expected = this.metaRevisions.get(id);
     const headers = new Headers({
       'Content-Type': 'application/json',
@@ -509,8 +583,8 @@ export class FieldBackend implements ProjectBackend {
     return this.localFallback.fetchMediaBytes(url);
   }
 
-  async getWebsiteRole(_id: string): Promise<'owner' | 'editor' | 'viewer'> {
-    return 'owner';
+  async getWebsiteRole(id: string): Promise<'owner' | 'editor' | 'viewer'> {
+    return getFieldQaBootstrap(id) ? 'viewer' : 'owner';
   }
 
   async getWebsiteClosedSource(_id: string): Promise<boolean> {

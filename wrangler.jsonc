@@ -16,6 +16,10 @@
     {
       "binding": "FIELD_PROJECTS",
       "bucket_name": "field-projects"
+    },
+    {
+      "binding": "FIELD_QA_PROJECTS",
+      "bucket_name": "field-projects"
     }
   ],
   "durable_objects": {
@@ -48,6 +52,10 @@
       {
         "binding": "FIELD_PROJECTS",
         "bucket_name": "field-projects-preview"
+      },
+      {
+        "binding": "FIELD_QA_PROJECTS",
+        "bucket_name": "field-projects"
       }
     ],
     "durable_objects": {

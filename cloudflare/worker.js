@@ -3,6 +3,7 @@ const PREVIEW_HOST = "preview.field.loew.fi";
 const CANVAS_PREVIEW_HOST_SUFFIX = ".canvas-preview.loew.fi";
 const FIELD_PREVIEW_HOST_SUFFIX = ".field-preview.loew.fi";
 const FIELD_API_ROOT = "/api/field/projects";
+const FIELD_QA_WORK_PREFIX = "/qa/work/";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
 const FIELD_PROFILE_ROOT = "/api/field/profile";
 const FIELD_FONTS_API_PATH = "/api/field/fonts";
@@ -125,6 +126,112 @@ async function handleFieldBuildRequest(request, env) {
     environment: fieldBuildEnvironment(incoming.hostname),
     deployedAt: versionTimestamp ?? builtAt,
     deploymentId,
+  });
+}
+
+
+function parseFieldQaWorkRoute(pathname) {
+  if (!pathname.startsWith(FIELD_QA_WORK_PREFIX)) return null;
+  const raw = pathname.slice(FIELD_QA_WORK_PREFIX.length);
+  if (!raw || raw.includes("/")) return { invalid: true };
+
+  let id;
+  try {
+    id = decodeURIComponent(raw);
+  } catch {
+    return { invalid: true };
+  }
+
+  if (!PROJECT_ID_RE.test(id) || id === "." || id === ".." || id.includes("..")) {
+    return { invalid: true };
+  }
+
+  return { id };
+}
+
+function serializeFieldQaBootstrap(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+async function handleFieldQaPageRequest(request, env) {
+  const incoming = new URL(request.url);
+  const route = parseFieldQaWorkRoute(incoming.pathname);
+  if (!route) return null;
+  if (route.invalid) return jsonResponse({ error: "Invalid QA project route" }, 400);
+
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET" });
+  }
+
+  if (!env.FIELD_QA_PROJECTS) {
+    return jsonResponse({ error: "QA project source is not configured" }, 503);
+  }
+  if (!env.ASSETS) {
+    return jsonResponse({ error: "Static assets are not configured" }, 503);
+  }
+
+  const baseKey = `projects/${route.id}`;
+  const [current, metaObject] = await Promise.all([
+    env.FIELD_QA_PROJECTS.get(`${baseKey}/current.json`),
+    env.FIELD_QA_PROJECTS.get(`${baseKey}/meta.json`),
+  ]);
+
+  if (!current) return jsonResponse({ error: "Not found" }, 404);
+
+  let data;
+  try {
+    data = JSON.parse(await readR2Text(current));
+  } catch {
+    return jsonResponse({ error: "QA project snapshot is invalid" }, 502);
+  }
+
+  if (!isProjectData(data)) {
+    return jsonResponse({ error: "QA project snapshot is invalid" }, 502);
+  }
+
+  const rawMeta = metaObject
+    ? parseStoredProjectMeta(await readR2Text(metaObject))
+    : {};
+
+  const payload = {
+    id: route.id,
+    data,
+    meta: {
+      name: typeof rawMeta.name === "string" ? rawMeta.name : null,
+    },
+  };
+
+  const target = new URL(request.url);
+  target.pathname = "/index.html";
+  target.search = "";
+  target.hash = "";
+
+  const shell = await env.ASSETS.fetch(new Request(target.toString(), {
+    method: "GET",
+    headers: { Accept: "text/html" },
+  }));
+
+  if (!shell.ok) return shell;
+
+  const bootstrap =
+    `<script>window.__FIELD_QA_PROJECT__=${serializeFieldQaBootstrap(payload)};</script>`;
+  const html = await shell.text();
+  const body = html.includes("</head>")
+    ? html.replace("</head>", `${bootstrap}</head>`)
+    : `${bootstrap}${html}`;
+
+  const headers = new Headers(shell.headers);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Cache-Control", "no-store");
+  headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  headers.set("Referrer-Policy", "no-referrer");
+
+  return new Response(body, {
+    status: 200,
+    headers,
   });
 }
 
@@ -1466,6 +1573,7 @@ async function handleFieldPersistenceRequest(request, env, accessVerifier = veri
 
 export {
   handleFieldBuildRequest,
+  handleFieldQaPageRequest,
   handleGoogleFontsRequest,
   handleFieldProfileRequest,
   handleFieldDashboardRequest,
@@ -1491,6 +1599,11 @@ export default {
     // fall through to index.html.
     const buildResponse = await handleFieldBuildRequest(request, env);
     if (buildResponse) return buildResponse;
+
+    // Public-by-link, read-only QA surface. The HTML embeds exactly one
+    // production project snapshot; all normal field APIs remain Access-gated.
+    const qaPageResponse = await handleFieldQaPageRequest(request, env);
+    if (qaPageResponse) return qaPageResponse;
 
     const fontsResponse = await handleGoogleFontsRequest(
       request,

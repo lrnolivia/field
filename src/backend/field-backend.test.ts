@@ -16,7 +16,10 @@ function response(body: unknown, status: number, etag?: string): Response {
   return new Response(body === null ? null : JSON.stringify(body), { status, headers });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('backend selection', () => {
   it('keeps explicitly-enabled Revyme Cloud authoritative', () => {
@@ -33,6 +36,33 @@ describe('backend selection', () => {
 
   it('supports an explicit local production-preview fallback', () => {
     expect(resolveBackendKind({ cloudEnabled: false, isDev: false, forceLocal: true })).toBe('local');
+  });
+});
+
+
+describe('FieldBackend read-only QA bootstrap', () => {
+  it('loads the injected real project snapshot without Access or project API calls', async () => {
+    vi.stubGlobal('window', {
+      __FIELD_QA_PROJECT__: {
+        id: 'qa-project',
+        data: project,
+        meta: { name: 'QA project' },
+      },
+    });
+
+    const fetchImpl = vi.fn();
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      legacyLoader: async () => null,
+    });
+
+    await expect(backend.getUser()).resolves.toBeNull();
+    await expect(backend.loadProject('qa-project')).resolves.toEqual(project);
+    await expect(backend.getWebsiteName('qa-project')).resolves.toBe('QA project');
+    await expect(backend.getWebsiteRole('qa-project')).resolves.toBe('viewer');
+    await expect(backend.saveProject('qa-project', project)).rejects.toThrow('read-only');
+    await expect(backend.renameWebsite('qa-project', 'nope')).rejects.toThrow('read-only');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 
