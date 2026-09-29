@@ -3,7 +3,7 @@
 // Project title is primary; current page is quiet secondary context.
 // The title chevron opens only real field commands.
 
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { projectNameAtom, setProjectName } from '@/code/stores/project-store';
 import { activeFilePathAtom, getFileDisplayName } from '@/code/project/active-file-store';
@@ -19,7 +19,7 @@ import { getProjectId } from '@/backend/project-id';
 import { showFieldDashboard } from '@/backend/field-navigation';
 import { getHeaderPageLabel } from './project-chip-label';
 
-export default function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } = {}) {
+function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } = {}) {
   const name = useAtomValue(projectNameAtom);
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const setSettingsOpen = useSetAtom(settingsOverlayOpenAtom);
@@ -153,3 +153,6 @@ export default function ProjectChip({ compactIdentity = false }: { compactIdenti
     </>
   );
 }
+
+
+export default memo(ProjectChip);

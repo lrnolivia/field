@@ -16,11 +16,10 @@ import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
 import WorkspaceModeButton from '@/editor/WorkspaceModeButton';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { workspaceTitlePresentation } from '@/editor/workspace-title-presentation';
-import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
 import {
   autoPanSpeedAtom,
   autoFocusLayersAtom,
@@ -264,40 +263,40 @@ export default function LeftHeader() {
   const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
   const leftPaneOpen = useAtomValue(leftPaneOpenAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
-  const dockedShell = workspaceMode === 'docked' || workspaceMode === 'compact-docked';
   const railVisible = useAtomValue(leftRailVisibleAtom);
-  const headerVisible = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'embedded';
-  const collapsedTitle = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible) === 'compact-pill';
-  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const titlePresentation = workspaceTitlePresentation(workspaceMode, leftPaneOpen, railVisible);
+  const embeddedTitle = titlePresentation === 'embedded';
+  const compactTitle = titlePresentation === 'compact-pill';
+  const fullTitle = titlePresentation === 'full-pill';
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
-  const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth });
-  trace.fn('LeftHeader:render', { previewMode, presentation: workspace.left.presentation });
+  trace.fn('LeftHeader:render', { previewMode, presentation: titlePresentation });
 
   return (
     <>
       <div
       data-workspace-left-header
-      data-visible={headerVisible ? 'true' : 'false'}
-      aria-hidden={headerVisible ? undefined : true}
-      inert={!headerVisible}
-      className="h-[52px] border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex"
-      // Sits on the left ChromeIsland (12px margins) — the island backdrop
-      // carries surface/glass/outer border; this keeps only the bottom
-      // divider between header row and rail/panel.
+      data-visible="true"
+      data-title-presentation={titlePresentation}
+      className="h-[52px] border border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex transition-[left,top,width,height,border-radius,box-shadow] duration-300 ease-out"
+      // One persistent title surface owns project/page identity in every
+      // workspace preset. Layout changes only morph this shell's geometry;
+      // they never swap to a second ProjectChip/WorkspaceModeButton tree.
       style={{
-        width: dockedShell ? leftContentWidth : workspace.left.width,
-        left: headerVisible ? LEFT_RAIL_WIDTH : collapsedTitle ? LEFT_RAIL_WIDTH + 12 : 12,
-        top: headerVisible ? 0 : 12,
-        height: headerVisible ? 52 : 44,
-        borderRadius: headerVisible ? 0 : 8,
-        boxShadow: headerVisible ? 'none' : 'var(--shadow-lg)',
+        width: fullTitle ? LEFT_RAIL_WIDTH + leftContentWidth : leftContentWidth,
+        left: embeddedTitle ? LEFT_RAIL_WIDTH : compactTitle ? LEFT_RAIL_WIDTH + 12 : 12,
+        top: embeddedTitle ? 0 : 12,
+        height: embeddedTitle ? 52 : 44,
+        borderRadius: embeddedTitle ? 0 : 8,
+        boxShadow: embeddedTitle ? 'none' : 'var(--shadow-lg)',
+        borderTopWidth: embeddedTitle ? 0 : 1,
+        borderLeftWidth: embeddedTitle ? 0 : 1,
       }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
           at x=51 (1 px left of the LeftMenu's internal rule at x=52).
           Logo button is 32×32 (matches the VIBE / + buttons in
           LeftMenu) and centered inside. */}
-      {!dockedShell && <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
+      {fullTitle && <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
         <LogoButton />
       </div>}
 
@@ -306,7 +305,7 @@ export default function LeftHeader() {
           room so it doesn't touch the header's `border-b` or top edge.
           Wrapper carries the padding; the inner div is the actual rule
           (full-height inside the wrapper). */}
-      {!dockedShell && <div
+      {fullTitle && <div
         aria-hidden
         style={{
           width: 1,
