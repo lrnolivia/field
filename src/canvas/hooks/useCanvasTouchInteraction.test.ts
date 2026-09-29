@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   SINGLE_TOUCH_PAN_THRESHOLD_PX,
+  TOUCH_MARQUEE_HOLD_MS,
   shouldStartSingleTouchPan,
   singleTouchPanDelta,
 } from './useCanvasTouchInteraction';
@@ -19,6 +20,11 @@ describe('mobile single-touch interaction helpers', () => {
   it('returns screen-space pan deltas', () => {
     expect(singleTouchPanDelta({ x: 10, y: 20 }, { x: 17, y: 14 }))
       .toEqual({ dx: 7, dy: -6 });
+  });
+
+  it('keeps deliberate touch marquee behind a real long press', () => {
+    expect(TOUCH_MARQUEE_HOLD_MS).toBeGreaterThanOrEqual(350);
+    expect(TOUCH_MARQUEE_HOLD_MS).toBeLessThanOrEqual(600);
   });
 });
 
@@ -42,6 +48,18 @@ describe('mobile touch wiring contract', () => {
     expect(mouse).toContain('cancelTouchInteraction(): void');
     expect(mouse).toContain('this.pendingMultiSelectChild = null');
     expect(mouse).toContain('this.pendingShiftRemove = null');
+  });
+
+  it('routes deliberate long-press marquee through canonical SelectionBox', () => {
+    const source = fs.readFileSync(
+      path.resolve(root, 'src/canvas/hooks/useCanvasTouchInteraction.ts'),
+      'utf8',
+    );
+    expect(source).toContain("TOUCH_MARQUEE_START_EVENT = 'field:touch-marquee-start'");
+    expect(source).toContain("TOUCH_MARQUEE_MOVE_EVENT = 'field:touch-marquee-move'");
+    expect(selection).toContain("document.addEventListener('field:touch-marquee-start'");
+    expect(selection).toContain("document.addEventListener('field:touch-marquee-move'");
+    expect(selection).toContain("document.addEventListener('field:touch-marquee-end'");
   });
 });
 

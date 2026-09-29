@@ -18,6 +18,12 @@ import type { DragCoordinator } from '../drag/DragCoordinator';
 import { trace } from '@/shared/debug-trace';
 
 export const SINGLE_TOUCH_PAN_THRESHOLD_PX = 4;
+export const TOUCH_MARQUEE_HOLD_MS = 420;
+
+const TOUCH_MARQUEE_START_EVENT = 'field:touch-marquee-start';
+const TOUCH_MARQUEE_MOVE_EVENT = 'field:touch-marquee-move';
+const TOUCH_MARQUEE_END_EVENT = 'field:touch-marquee-end';
+const TOUCH_MARQUEE_CANCEL_EVENT = 'field:touch-marquee-cancel';
 
 const MOBILE_KEYBOARD_PRIMER_LIFETIME_MS = 700;
 
@@ -90,6 +96,22 @@ function isCanvasTouchSurface(target: EventTarget | null, container: HTMLElement
   return target === container || target.hasAttribute('data-canvas-input-surface');
 }
 
+type TouchMarqueeEventName =
+  | typeof TOUCH_MARQUEE_START_EVENT
+  | typeof TOUCH_MARQUEE_MOVE_EVENT
+  | typeof TOUCH_MARQUEE_END_EVENT
+  | typeof TOUCH_MARQUEE_CANCEL_EVENT;
+
+function dispatchTouchMarquee(
+  doc: Document,
+  type: TouchMarqueeEventName,
+  clientX: number,
+  clientY: number,
+): void {
+  const EventCtor = doc.defaultView?.CustomEvent ?? CustomEvent;
+  doc.dispatchEvent(new EventCtor(type, { detail: { clientX, clientY } }));
+}
+
 function mouseLike(
   clientX: number,
   clientY: number,
@@ -117,7 +139,7 @@ function mouseLike(
 }
 
 interface GestureState {
-  kind: 'pan' | 'object';
+  kind: 'pan' | 'object' | 'marquee';
   startX: number;
   startY: number;
   lastX: number;
@@ -149,8 +171,24 @@ export function useCanvasTouchInteraction({
 
     let gesture: GestureState | null = null;
     let releaseKeyboardPrimer: (() => void) | null = null;
+    let touchMarqueeHoldTimer: number | null = null;
+
+    const clearTouchMarqueeHold = () => {
+      if (touchMarqueeHoldTimer === null) return;
+      window.clearTimeout(touchMarqueeHoldTimer);
+      touchMarqueeHoldTimer = null;
+    };
 
     const cancelOneFinger = (keepCameraCursor = false) => {
+      clearTouchMarqueeHold();
+      if (gesture?.kind === 'marquee') {
+        dispatchTouchMarquee(
+          container.ownerDocument,
+          TOUCH_MARQUEE_CANCEL_EVENT,
+          gesture.lastX,
+          gesture.lastY,
+        );
+      }
       const controller = mouseControllerRef.current;
       controller?.cancelTouchInteraction();
 
@@ -207,6 +245,29 @@ export function useCanvasTouchInteraction({
         target,
       };
 
+      if (gesture.kind === 'pan') {
+        touchMarqueeHoldTimer = window.setTimeout(() => {
+          touchMarqueeHoldTimer = null;
+          if (!gesture || gesture.kind !== 'pan' || gesture.panStarted) return;
+
+          // Empty-space long press deliberately switches from the primary
+          // one-finger camera gesture into the canonical marquee engine.
+          mouseControllerRef.current?.cancelEmptyCanvasClick();
+          gesture.kind = 'marquee';
+          dispatchTouchMarquee(
+            container.ownerDocument,
+            TOUCH_MARQUEE_START_EVENT,
+            gesture.startX,
+            gesture.startY,
+          );
+          trace.action('input:touch-marquee-hold', {
+            x: gesture.startX,
+            y: gesture.startY,
+            holdMs: TOUCH_MARQUEE_HOLD_MS,
+          });
+        }, TOUCH_MARQUEE_HOLD_MS);
+      }
+
       trace.action('input:single-touch-start', {
         kind: gesture.kind,
         hitCount: hits.length,
@@ -236,10 +297,23 @@ export function useCanvasTouchInteraction({
         return;
       }
 
+      if (gesture.kind === 'marquee') {
+        gesture.lastX = touch.clientX;
+        gesture.lastY = touch.clientY;
+        dispatchTouchMarquee(
+          container.ownerDocument,
+          TOUCH_MARQUEE_MOVE_EVENT,
+          touch.clientX,
+          touch.clientY,
+        );
+        return;
+      }
+
       const totalX = touch.clientX - gesture.startX;
       const totalY = touch.clientY - gesture.startY;
       if (!gesture.panStarted) {
         if (!shouldStartSingleTouchPan(totalX, totalY)) return;
+        clearTouchMarqueeHold();
         gesture.panStarted = true;
         mouseControllerRef.current?.cancelEmptyCanvasClick();
         setPanCursor(true);
@@ -260,6 +334,7 @@ export function useCanvasTouchInteraction({
       if (event.touches.length > 0) return;
 
       event.preventDefault();
+      clearTouchMarqueeHold();
       const finished = gesture;
       gesture = null;
 
@@ -277,6 +352,14 @@ export function useCanvasTouchInteraction({
         // pending window listeners exist; touch then commits explicitly.
         controller?.handleMouseUp(up);
         coordinator?.handleMouseUp();
+      } else if (finished.kind === 'marquee') {
+        controller?.handleMouseUp(up);
+        dispatchTouchMarquee(
+          container.ownerDocument,
+          TOUCH_MARQUEE_END_EVENT,
+          x,
+          y,
+        );
       } else {
         controller?.handleMouseUp(up);
         if (finished.panStarted) setPanCursor(false);
@@ -305,6 +388,7 @@ export function useCanvasTouchInteraction({
       container.removeEventListener('touchmove', onTouchMove, opts);
       container.removeEventListener('touchend', onTouchEnd, opts);
       container.removeEventListener('touchcancel', onTouchCancel, opts);
+      clearTouchMarqueeHold();
       if (gesture) cancelOneFinger(false);
       releaseKeyboardPrimer?.();
       releaseKeyboardPrimer = null;
