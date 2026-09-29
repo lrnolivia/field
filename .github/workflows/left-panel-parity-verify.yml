@@ -1,0 +1,31 @@
+name: Left panel parity verify
+
+on:
+  push:
+    branches:
+      - field/left-panel-inspector-parity-20260929
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build all
+        run: npm run build:all
+      - name: Test
+        run: npm run test:run
+      - name: Lint
+        run: npm run lint
