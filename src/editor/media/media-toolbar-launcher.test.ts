@@ -50,4 +50,25 @@ describe('toolbar Media launcher contract', () => {
     expect(system).toContain("return { view: 'create', kind: 'image', provider: 'gallery' }");
     expect(system).toContain("action === 'gallery' ? 'gallery'");
   });
+
+  it('routes typed launcher actions through the canonical Media browser before secondary sources', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain('data-media-type-browser={session.route.kind}');
+    expect(controller).toContain('initialTab={browserTab}');
+    expect(controller).toContain('onPick={pickFromProjectMedia}');
+    expect(controller).toContain("{ value: 'media', label: 'Media', glyph: 'media' }");
+    expect(controller).toContain("{ value: 'sources', label: 'Find & create', glyph: 'search' }");
+    expect(controller).toContain("{ value: 'url', label: 'URL', glyph: 'behavior' }");
+    expect(controller).toContain("typeSource !== 'media' ? () => setTypeSource('media') : goHome");
+  });
+
+  it('keeps existing polished search/create pickers subordinate to the same toolbar shell', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain("typeSource === 'sources'");
+    expect(controller).toContain("typeSource === 'url'");
+    expect(controller).toContain("onClose={() => setTypeSource('media')}");
+    expect(controller).not.toContain("content = imagePicker;");
+    expect(controller).not.toContain("content = videoPicker;");
+  });
+
 });

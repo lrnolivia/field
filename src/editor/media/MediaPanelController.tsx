@@ -30,6 +30,7 @@ import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
 import { resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
+import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
 function routeTitle(route: MediaRoute, intent: MediaIntent): string {
   if (intent === 'gallery') return 'Gallery';
@@ -51,6 +52,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   const upsertUpload = useSetAtom(upsertMediaUploadAtom);
   const rememberAsset = useSetAtom(upsertSessionMediaAssetAtom);
   const [expanded, setExpanded] = useState(false);
+  const [typeSource, setTypeSource] = useState<'media' | 'sources' | 'url'>('media');
   const [transientError, setTransientError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState('');
   const [audioBusy, setAudioBusy] = useState(false);
@@ -60,6 +62,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
   const navigate = (route: MediaRoute, intent: MediaIntent) => {
     setTransientError(null);
+    setTypeSource('media');
     setSession((current) => ({
       ...current,
       surface: 'toolbar',
@@ -72,6 +75,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
   const goHome = () => {
     setTransientError(null);
+    setTypeSource('media');
     setSession(createMediaSession({ surface: 'toolbar' }));
   };
 
@@ -242,7 +246,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       isOpen
       embedded
       compact={!expanded}
-      onClose={onClose}
+      onClose={() => setTypeSource('media')}
       onSelect={(url) => insertUrl('image', url)}
     />
   );
@@ -251,7 +255,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
       isOpen
       embedded
       compact={!expanded}
-      onClose={onClose}
+      onClose={() => setTypeSource('media')}
       onSelect={(url) => insertUrl('video', url)}
     />
   );
@@ -341,6 +345,66 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 
   const isLauncher = session.route.view === 'launcher';
   const isGallery = session.intent === 'gallery' || session.route.provider === 'gallery';
+  const isTypedBrowser = session.route.view === 'browser' && session.route.kind !== 'all';
+
+  const browserTab =
+    session.route.kind === 'image' || session.route.kind === 'vector'
+      ? 'images'
+      : session.route.kind === 'video'
+        ? 'videos'
+        : session.route.kind === 'audio'
+          ? 'audio'
+          : 'all';
+
+  const pickFromProjectMedia = (asset: { url: string; kind: 'image' | 'video' | 'audio' | 'vector' }) => {
+    if (asset.kind === 'image' || asset.kind === 'vector') insertUrl('image', asset.url);
+    else if (asset.kind === 'video') insertUrl('video', asset.url);
+    else if (asset.kind === 'audio') insertUrl('audio', asset.url);
+  };
+
+  const sourceTabs: readonly ChromeTabItem<'media' | 'sources' | 'url'>[] =
+    session.route.kind === 'audio'
+      ? [
+          { value: 'media', label: 'Media', glyph: 'media' },
+          { value: 'url', label: 'URL', glyph: 'behavior' },
+        ]
+      : [
+          { value: 'media', label: 'Media', glyph: 'media' },
+          { value: 'sources', label: 'Find & create', glyph: 'search' },
+        ];
+
+  let typedContent = (
+    <MediaGalleryPanel
+      chrome="embedded"
+      workspace={expanded}
+      initialTab={browserTab}
+      onPick={pickFromProjectMedia}
+    />
+  );
+
+  if ((session.route.kind === 'image' || session.route.kind === 'vector') && typeSource === 'sources') {
+    typedContent = imagePicker;
+  } else if (session.route.kind === 'video' && typeSource === 'sources') {
+    typedContent = videoPicker;
+  } else if (session.route.kind === 'audio' && typeSource === 'url') {
+    typedContent = audioContent;
+  }
+
+  const typedBrowserContent = isTypedBrowser ? (
+    <div className="flex h-full min-h-0 flex-col" data-media-type-browser={session.route.kind}>
+      <div className="shrink-0 px-2 pt-2">
+        <ChromeTabBar
+          value={typeSource}
+          items={sourceTabs}
+          onChange={setTypeSource}
+          ariaLabel={mediaKindLabel(session.route.kind) + ' sources'}
+          stretch
+          compact
+        />
+      </div>
+      <div className="min-h-0 flex-1">{typedContent}</div>
+    </div>
+  ) : null;
 
   let content;
   if (isLauncher) {
@@ -355,14 +419,10 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     content = galleryContent;
   } else if (session.route.view === 'embed') {
     content = embedContent;
-  } else if (session.route.kind === 'image' || session.route.kind === 'vector') {
-    content = imagePicker;
-  } else if (session.route.kind === 'video') {
-    content = videoPicker;
-  } else if (session.route.kind === 'audio') {
-    content = audioContent;
+  } else if (isTypedBrowser) {
+    content = typedBrowserContent;
   } else {
-    content = <MediaGalleryPanel chrome="embedded" workspace={expanded} />;
+    content = <MediaGalleryPanel chrome="embedded" workspace={expanded} onPick={pickFromProjectMedia} />;
   }
 
   const title = routeTitle(session.route, session.intent);
@@ -388,7 +448,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         expanded={expanded}
         onClose={onClose}
         onExpand={() => setExpanded((value) => !value)}
-        onBack={isLauncher ? undefined : goHome}
+        onBack={isLauncher ? undefined : typeSource !== 'media' ? () => setTypeSource('media') : goHome}
       >
         {transientError && (
           <div role="alert" className="mx-2 mt-2 rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)] px-2 py-1.5 text-[10px] leading-snug text-[var(--text-secondary)]">
