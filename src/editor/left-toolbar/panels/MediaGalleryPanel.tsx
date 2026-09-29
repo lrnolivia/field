@@ -31,17 +31,20 @@ import { buildGalleryMediaToolbarItem, selectedGalleryMediaUrls } from '@/editor
 import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
 import { ingestMediaFile } from '@/editor/media/media-ingest';
 
-type MediaGalleryTab = 'all' | 'images' | 'videos';
+type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio';
 
 const TAB_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'images', label: 'Images' },
   { value: 'videos', label: 'Videos' },
+  { value: 'audio', label: 'Audio' },
 ];
+
+type BrowserMediaKind = 'image' | 'video' | 'audio' | 'vector';
 
 interface UploadedFile {
   url: string;
-  kind: 'image' | 'video';
+  kind: BrowserMediaKind;
   key?: string;
   name?: string;
   mimeType?: string;
@@ -71,50 +74,48 @@ function rememberMediaImageRatio(url: string, image: HTMLImageElement): void {
  *  video to drop. Drop targeting (drop-line indicator, parent-
  *  highlight, layout-vs-canvas insertion) is handled by
  *  `ToolbarDragStrategy` downstream — same path Insert panel cards use. */
-function useMediaDrag(url: string, kind: 'image' | 'video') {
+function useMediaDrag(url: string, kind: BrowserMediaKind) {
   return useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
     const startX = e.clientX;
     const startY = e.clientY;
     const startEvent = e.nativeEvent;
-    // Snapshot the tile's actual rendered size — the panel's grid-cols-2
-    // + aspect-square layout means tiles are typically ~112×112, but
-    // resizing the panel changes that. Reading from the live DOM lets
-    // the drag ghost match exactly what the user sees in the gallery
-    // instead of using a hard-coded fallback.
     const tile = e.currentTarget as HTMLElement;
     const rect = tile.getBoundingClientRect();
-    const ghostW = Math.round(rect.width)  || 200;
+    const ghostW = Math.round(rect.width) || 200;
     const ghostH = Math.round(rect.height) || 150;
-    const item: ToolbarItem = kind === 'image' ? {
-      id: `media-image:${url}`,
-      // Drop as a normal <div> with the image as a CSS BACKGROUND, not a bare
-      // <img>. It then behaves like any frame: it fills/crops via
-      // `background-size: cover`, can hold children + overlays, and is styled
-      // like a div (the reference's "image fill" model). The dropped element uses the
-      // canonical 200×150 insert size; the ghost matches the gallery tile.
+
+    const item: ToolbarItem = kind === 'image' || kind === 'vector' ? {
+      id: 'media-' + kind + ':' + url,
+      name: kind === 'vector' ? 'Vector' : 'Image',
       elementType: 'div',
-      name: 'Image',
       defaultStyles: {
         width: '200px',
         height: '150px',
-        backgroundImage: `url("${url}")`,
-        backgroundSize: 'cover',
+        backgroundImage: 'url("' + url + '")',
+        backgroundSize: kind === 'vector' ? 'contain' : 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        // No placeholder fill: a grey bg is invisible behind an opaque photo
-        // (cover fills the box) but shows through every transparent pixel of a
-        // PNG/WebP cutout (logos, icons, 3D assets) — making them look "not
-        // transparent". Dropping with no fill respects the image's alpha.
       },
       ghostSize: { width: ghostW, height: ghostH },
       galleryMedia: [{ url, sourceRatio: mediaImageRatioCache.get(url) ?? null }],
+    } : kind === 'audio' ? {
+      id: 'media-audio:' + url,
+      name: 'Audio',
+      elementType: 'audio',
+      defaultStyles: {
+        display: 'block',
+        width: '320px',
+        height: '48px',
+        maxWidth: 'none',
+      },
+      defaultAttrs: { src: url, controls: '' },
+      ghostSize: { width: ghostW, height: ghostH },
     } : {
-      id: `media-video:${url}`,
+      id: 'media-video:' + url,
+      name: 'Video',
       elementType: 'video',
-      // Same split as image: dropped element keeps the canonical
-      // 320×240 insert size; ghost matches the gallery tile.
       defaultStyles: {
         display: 'block',
         width: '320px',
@@ -125,6 +126,7 @@ function useMediaDrag(url: string, kind: 'image' | 'video') {
       defaultAttrs: { src: url, controls: '' },
       ghostSize: { width: ghostW, height: ghostH },
     };
+
     let dragStarted = false;
     const cleanup = () => {
       window.removeEventListener('pointermove', onMove);
@@ -141,7 +143,7 @@ function useMediaDrag(url: string, kind: 'image' | 'video') {
       trace.action('media-panel:drag-start', { kind, url });
       startToolbarDrag(item, startEvent);
     };
-    const onUp = () => { cleanup(); };
+    const onUp = () => cleanup();
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
@@ -196,7 +198,7 @@ function useGallerySelectionDrag(urls: readonly string[]) {
  *  lines 406-415 for the rationale). */
 const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelected, canDelete, onShiftPointerDown, onPlainPointerDown, onRequestDelete }: {
   url: string;
-  kind: 'image' | 'video';
+  kind: BrowserMediaKind;
   /** R2 object key — the deletable identity. Null → standalone blob URL. */
   mediaKey: string | null;
   isSelected: boolean;
@@ -237,17 +239,24 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
       style={isSelected ? MULTI_SELECT_OUTLINE : undefined}
       title="Drag to canvas"
     >
-      {kind === 'image' ? (
+      {kind === 'image' || kind === 'vector' ? (
         <img
           src={url}
           alt=""
-          className="w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]"
+          className={kind === 'vector'
+            ? 'w-full h-full object-contain p-3 pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]'
+            : 'w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]'}
           loading="lazy"
           draggable={false}
           onLoad={(event) => rememberMediaImageRatio(url, event.currentTarget)}
         />
-      ) : (
+      ) : kind === 'video' ? (
         <video src={url} className="w-full h-full object-cover pointer-events-none transition-transform duration-200 group-hover:scale-[1.015]" muted />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[var(--text-secondary)]">
+          <span aria-hidden className="text-[20px] leading-none">♫</span>
+          <span className="text-[9px] font-medium">Audio</span>
+        </div>
       )}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/28 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       {kind === 'video' && (
@@ -307,7 +316,7 @@ function mediaDisplayName(item: UploadedFile): string {
   } catch {
     // data:/blob: and malformed URLs fall back to the type label below.
   }
-  return item.kind === 'image' ? 'Image' : 'Video';
+  return item.kind === 'image' ? 'Image' : item.kind === 'vector' ? 'Vector' : item.kind === 'audio' ? 'Audio' : 'Video';
 }
 
 function formatMediaBytes(size?: number): string {
@@ -321,10 +330,12 @@ export default function MediaGalleryPanel({
   chrome = 'full',
   initialTab = 'all',
   workspace = false,
+  onPick,
 }: {
   chrome?: 'full' | 'embedded';
   initialTab?: MediaGalleryTab;
   workspace?: boolean;
+  onPick?: (asset: { url: string; kind: BrowserMediaKind }) => void;
 } = {}) {
   const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
@@ -343,7 +354,7 @@ export default function MediaGalleryPanel({
   const [dropActive, setDropActive] = useState(false);
   const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
   const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
-  const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: 'image' | 'video' }>>([]);
+  const [duplicateCandidates, setDuplicateCandidates] = useState<Array<{ file: File; kind: BrowserMediaKind }>>([]);
   const [inspectedIdentity, setInspectedIdentity] = useState<string | null>(null);
   // Multi-select (shift+click / shift+sweep) — keyed by R2 object key.
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -353,11 +364,36 @@ export default function MediaGalleryPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const projectId = getProjectId();
-  const noun: 'image' | 'video' | 'asset' = tab === 'images' ? 'image' : tab === 'videos' ? 'video' : 'asset';
-  const visibleUploads = React.useMemo(
-    () => tab === 'all' ? uploads : uploads.filter((item) => item.kind === (tab === 'images' ? 'image' : 'video')),
-    [uploads, tab],
-  );
+  const noun: 'image' | 'video' | 'audio' | 'asset' = tab === 'images' ? 'image' : tab === 'videos' ? 'video' : tab === 'audio' ? 'audio' : 'asset';
+
+  const availableUploads = React.useMemo(() => {
+    const sessionRows: UploadedFile[] = sessionMediaAssets
+      .filter((item) => item.kind === 'image' || item.kind === 'video' || item.kind === 'audio' || item.kind === 'vector')
+      .map((item) => ({
+        url: item.url,
+        kind: item.kind as BrowserMediaKind,
+        name: item.name,
+        mimeType: item.mimeType,
+        contentHash: item.contentHash,
+        source: item.source,
+        size: item.size,
+        lastModified: item.createdAt,
+      }));
+
+    const seen = new Set<string>();
+    return [...sessionRows, ...uploads].filter((item) => {
+      if (seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
+  }, [uploads, sessionMediaAssets]);
+
+  const visibleUploads = React.useMemo(() => {
+    if (tab === 'all') return availableUploads;
+    if (tab === 'images') return availableUploads.filter((item) => item.kind === 'image' || item.kind === 'vector');
+    if (tab === 'videos') return availableUploads.filter((item) => item.kind === 'video');
+    return availableUploads.filter((item) => item.kind === 'audio');
+  }, [availableUploads, tab]);
   const filteredUploads = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     let rows = query
@@ -392,18 +428,18 @@ export default function MediaGalleryPanel({
   }, [visibleUploads, searchQuery, workspace, sourceFilter, sortOrder]);
 
   const selectedImageUrls = React.useMemo(
-    () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image'), selectedKeys),
+    () => selectedGalleryMediaUrls(filteredUploads.filter((item) => item.kind === 'image' || item.kind === 'vector'), selectedKeys),
     [filteredUploads, selectedKeys],
   );
   const inspectedAsset = React.useMemo(
-    () => uploads.find((item) => (item.key ?? item.url) === inspectedIdentity) ?? null,
-    [uploads, inspectedIdentity],
+    () => availableUploads.find((item) => (item.key ?? item.url) === inspectedIdentity) ?? null,
+    [availableUploads, inspectedIdentity],
   );
   const beginGallerySelectionDrag = useGallerySelectionDrag(selectedImageUrls);
 
   trace.fn('MediaGalleryPanel:render', {
     tab,
-    count: uploads.length,
+    count: availableUploads.length,
     visibleCount: filteredUploads.length,
     selected: selectedKeys.size,
     searchActive: searchQuery.trim().length > 0,
@@ -443,23 +479,6 @@ export default function MediaGalleryPanel({
   }, [tab]);
 
   useEffect(() => { setTab(initialTab); }, [initialTab]);
-
-  useEffect(() => {
-    if (durableInventory !== false) return;
-    setUploads(
-      sessionMediaAssets
-        .filter((item) => item.kind === 'image' || item.kind === 'video')
-        .map((item) => ({
-          url: item.url,
-          kind: item.kind as 'image' | 'video',
-          name: item.name,
-          mimeType: item.mimeType,
-          contentHash: item.contentHash,
-          size: item.size,
-          lastModified: item.createdAt,
-        })),
-    );
-  }, [durableInventory, sessionMediaAssets]);
 
   // Escape clears the multi-selection (the ConfirmModal handles its own).
   useEffect(() => {
@@ -503,11 +522,15 @@ export default function MediaGalleryPanel({
     let successful = 0;
 
     for (const [index, file] of files.entries()) {
-      const kind: 'image' | 'video' | null = file.type.startsWith('image/')
-        ? 'image'
-        : file.type.startsWith('video/')
-          ? 'video'
-          : null;
+      const kind: BrowserMediaKind | null = file.type === 'image/svg+xml'
+        ? 'vector'
+        : file.type.startsWith('image/')
+          ? 'image'
+          : file.type.startsWith('video/')
+            ? 'video'
+            : file.type.startsWith('audio/')
+              ? 'audio'
+              : null;
 
       if (!kind) {
         skipped.push(file.name + ' · unsupported type');
@@ -519,6 +542,14 @@ export default function MediaGalleryPanel({
       }
       if (tab === 'videos' && kind !== 'video') {
         skipped.push(file.name + ' · not a video');
+        continue;
+      }
+      if (tab === 'audio' && kind !== 'audio') {
+        skipped.push(file.name + ' · not audio');
+        continue;
+      }
+      if (durableInventory === true && kind === 'audio') {
+        skipped.push(file.name + ' · audio storage is not supported by this backend yet');
         continue;
       }
 
@@ -824,14 +855,14 @@ export default function MediaGalleryPanel({
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : 'Search videos…'}
+            placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : tab === 'videos' ? 'Search videos…' : 'Search audio…'}
             className="min-w-0 flex-1"
           />
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            accept={tab === 'all' ? 'image/*,video/*' : tab === 'images' ? 'image/*' : 'video/*'}
+            accept={tab === 'all' ? 'image/*,video/*,audio/*' : tab === 'images' ? 'image/*' : tab === 'videos' ? 'video/*' : 'audio/*'}
             onChange={handleUpload}
             className="hidden"
           />
@@ -951,20 +982,35 @@ export default function MediaGalleryPanel({
           )}
           <div data-media-grid className={workspace ? "grid grid-cols-3 gap-2.5" : "grid grid-cols-2 gap-2.5"}>
             {filteredUploads.map((item, i) => (
-              <MediaTile
+              <div
                 key={item.url + i}
-                url={item.url}
-                kind={item.kind}
-                mediaKey={deriveUploadKey(item)}
-                isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
-                canDelete={durableInventory === true}
-                onShiftPointerDown={beginShiftGesture}
-                onPlainPointerDown={() => {
-                  if (selectedKeys.size) setSelectedKeys(new Set());
-                  if (workspace) setInspectedIdentity(item.key ?? item.url);
-                }}
-                onRequestDelete={requestDelete}
-              />
+                role={onPick ? 'button' : undefined}
+                tabIndex={onPick ? 0 : undefined}
+                aria-label={onPick ? 'Use ' + mediaDisplayName(item) : undefined}
+                className={onPick ? 'rounded-[7px] outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]' : undefined}
+                onPointerDownCapture={onPick ? (event) => event.stopPropagation() : undefined}
+                onClick={onPick ? () => onPick({ url: item.url, kind: item.kind }) : undefined}
+                onKeyDown={onPick ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onPick({ url: item.url, kind: item.kind });
+                  }
+                } : undefined}
+              >
+                <MediaTile
+                  url={item.url}
+                  kind={item.kind}
+                  mediaKey={deriveUploadKey(item)}
+                  isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
+                  canDelete={durableInventory === true && !!item.key}
+                  onShiftPointerDown={beginShiftGesture}
+                  onPlainPointerDown={() => {
+                    if (selectedKeys.size) setSelectedKeys(new Set());
+                    if (workspace) setInspectedIdentity(item.key ?? item.url);
+                  }}
+                  onRequestDelete={requestDelete}
+                />
+              </div>
             ))}
           </div>
           </div>
@@ -985,10 +1031,12 @@ export default function MediaGalleryPanel({
                         backgroundSize: '14px 14px',
                         backgroundPosition: '0 0,0 7px,7px -7px,-7px 0px',
                       }} />
-                      {inspectedAsset.kind === 'image' ? (
+                      {inspectedAsset.kind === 'image' || inspectedAsset.kind === 'vector' ? (
                         <img src={inspectedAsset.url} alt="" className="relative z-[1] max-h-full max-w-full object-contain p-2" />
-                      ) : (
+                      ) : inspectedAsset.kind === 'video' ? (
                         <video src={inspectedAsset.url} className="relative z-[1] max-h-full max-w-full object-contain" muted />
+                      ) : (
+                        <div className="relative z-[1] flex h-full w-full items-center justify-center text-[26px] text-[var(--text-tertiary)]" aria-hidden>♫</div>
                       )}
                     </div>
                   </div>
@@ -1046,7 +1094,7 @@ export default function MediaGalleryPanel({
             </aside>
           )}
         </div>
-      ) : !loadingList && uploads.length > 0 && searchQuery.trim().length > 0 ? (
+      ) : !loadingList && availableUploads.length > 0 && searchQuery.trim().length > 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
           <span className="text-xs font-medium text-[var(--text-secondary)]">No matching {noun}s</span>
           <span className="text-[10px] text-[var(--text-disabled)]">Try a different search.</span>
