@@ -29,17 +29,18 @@ Before planning or implementing:
 1. Use Composio exclusively for GitHub access.
 2. Start with `COMPOSIO_SEARCH_TOOLS`.
 3. Verify the GitHub connection is ACTIVE for `lrnolivia/field`.
-4. Read current `main` and the current handoff kit from `main`.
-5. Read `field/control`.
-6. Read your canonical assignment:
+4. Resolve current `main:.field/handoff-kit/**`. This is the only process-authoritative kit; branch-local/control copies are mirrors only.
+5. Read `field/control:.field/shared-repairs.json` and evaluate every applicable `status: resolved`, `mandatory_baseline: true` repair before implementation or QA.
+6. Read `field/control`.
+7. Read your canonical assignment:
    `.field/assignments/assignment-<assignment-id>.md`
-7. Read your mailbox:
+8. Read your mailbox:
    `.field/mail/<assignment-id>.md`
-8. Read your QA record:
+9. Read your QA record:
    `.field/qa/<assignment-id>.md`
-9. Read any dependency mailboxes named by the assignment.
-10. During migration, read active legacy `tracker.md` `Owned:` reservations.
-11. Inspect your implementation branch / Draft PR if the assignment has one.
+10. Read any dependency mailboxes named by the assignment.
+11. During migration, read active legacy `tracker.md` `Owned:` reservations.
+12. Inspect your implementation branch / Draft PR if the assignment has one.
 
 The built-in ChatGPT GitHub connector is prohibited for this lane, including read-only inspection.
 
@@ -80,6 +81,24 @@ Keep valid product decisions and verified assignment-specific findings. Discard 
 4. historical assumptions
 
 Do not confuse product intent with implementation state.
+
+## Mandatory shared-repair baseline
+
+The machine-readable shared-repair ledger is:
+
+```text
+field/control:.field/shared-repairs.json
+```
+
+For every repair applicable to `lrnolivia/field` with `status: resolved` and `mandatory_baseline: true`, the listed `canonical_repair_sha` must be an ancestor of the current implementation head before browser/runtime QA.
+
+If it is not, classify the head:
+
+```text
+STALE_BASELINE — RECONCILE REQUIRED
+```
+
+Reconcile by converging on current canonical `main`. Do not independently recreate the shared fix and do not use cherry-pick as the normal propagation path. After the head changes, prior exact-SHA runtime evidence is stale and must be rerun.
 
 ## Contract Worker live coordination truth
 

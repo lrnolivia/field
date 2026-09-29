@@ -1,6 +1,6 @@
 {
   "name": "field-handoff-kit",
-  "version": "2026-09-26.4",
+  "version": "2026-09-27.1",
   "repository": "lrnolivia/field",
   "default_branch": "main",
   "control_branch": "field/control",
@@ -35,5 +35,17 @@
     "protocol": ".field/handoff-kit/qa/BROWSER_PREVIEW_QA_PROTOCOL.md",
     "default_entrypoint": "/builder/noauth",
     "exact_sha_required": true
+  },
+  "canonical_source": {
+    "repository": "lrnolivia/field",
+    "branch": "main",
+    "path": ".field/handoff-kit",
+    "branch_local_mirrors_authoritative": false
+  },
+  "shared_repairs": {
+    "control_branch": "field/control",
+    "ledger": ".field/shared-repairs.json",
+    "required_status": "resolved",
+    "mandatory_flag": "mandatory_baseline"
   }
 }

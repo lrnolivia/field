@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "repository": "lrnolivia/field",
+  "branch": "main",
+  "path": ".field/handoff-kit",
+  "policy": "resolve-from-main",
+  "branch_local_mirrors_authoritative": false,
+  "shared_repairs": {
+    "branch": "field/control",
+    "path": ".field/shared-repairs.json"
+  }
+}
