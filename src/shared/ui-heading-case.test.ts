@@ -1,34 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_UI_HEADING_CASE,
-  getUiHeadingRole,
-  normalizeUiHeadingCase,
-} from './ui-heading-case';
+import { formatUiHeading } from './ui-heading-case';
 
-describe('UI heading case policy', () => {
-  it('defaults to Brand mode', () => {
-    expect(DEFAULT_UI_HEADING_CASE).toBe('brand');
-    expect(normalizeUiHeadingCase(undefined)).toBe('brand');
+describe('UI heading grammar', () => {
+  it('reconstructs normal sentence case when lowercase headings are off', () => {
+    expect(formatUiHeading('components', false)).toBe('Components');
+    expect(formatUiHeading('Page Settings', false)).toBe('Page settings');
+    expect(formatUiHeading('custom code', false)).toBe('Custom code');
   });
 
-  it('treats human/editorial headings as brand-lowercase eligible', () => {
-    expect(getUiHeadingRole('General')).toBe('brand');
-    expect(getUiHeadingRole('Appearance')).toBe('brand');
-    expect(getUiHeadingRole('Site metadata')).toBe('brand');
-    expect(getUiHeadingRole('Open Graph')).toBe('brand');
+  it('applies lowercase presentation when enabled', () => {
+    expect(formatUiHeading('Components', true)).toBe('components');
+    expect(formatUiHeading('Page settings', true)).toBe('page settings');
+    expect(formatUiHeading('Custom Code', true)).toBe('custom code');
   });
 
-  it('preserves functional or technical casing in Brand mode', () => {
-    expect(getUiHeadingRole('SEO')).toBe('standard');
-    expect(getUiHeadingRole('AI')).toBe('standard');
-    expect(getUiHeadingRole('A/B Tests')).toBe('standard');
-    expect(getUiHeadingRole('X / Twitter')).toBe('standard');
-    expect(getUiHeadingRole('field.ENGINE')).toBe('standard');
-  });
-
-  it('accepts only supported preference values', () => {
-    expect(normalizeUiHeadingCase('original')).toBe('original');
-    expect(normalizeUiHeadingCase('lowercase')).toBe('lowercase');
-    expect(normalizeUiHeadingCase('uppercase')).toBe('brand');
+  it('preserves intentional casing in both modes', () => {
+    expect(formatUiHeading('seo settings', false)).toBe('SEO settings');
+    expect(formatUiHeading('seo settings', true)).toBe('SEO settings');
+    expect(formatUiHeading('github integration', false)).toBe('GitHub integration');
+    expect(formatUiHeading('github integration', true)).toBe('GitHub integration');
+    expect(formatUiHeading('youtube embeds', false)).toBe('YouTube embeds');
+    expect(formatUiHeading('youtube embeds', true)).toBe('YouTube embeds');
+    expect(formatUiHeading('open graph', false)).toBe('Open Graph');
+    expect(formatUiHeading('open graph', true)).toBe('Open Graph');
+    expect(formatUiHeading('field.engine', false)).toBe('field.ENGINE');
+    expect(formatUiHeading('field.engine', true)).toBe('field.ENGINE');
+    expect(formatUiHeading('a/b tests', false)).toBe('A/B tests');
+    expect(formatUiHeading('a/b tests', true)).toBe('A/B tests');
+    expect(formatUiHeading('ui settings', false)).toBe('UI settings');
+    expect(formatUiHeading('ui settings', true)).toBe('UI settings');
   });
 });
