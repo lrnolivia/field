@@ -50,7 +50,7 @@ test.describe('Figma hierarchy parity — Groups vs Frames', () => {
     const bBefore = await editor.nodeBox('g-b');
     const currentA = await editor.nodeBox('g-a');
     const target = { x: currentA.x + currentA.width / 2 + 80, y: currentA.y + currentA.height / 2 + 20 };
-    await editor.dragNodeFromTo('g-a', target, { steps: 12 });
+    await editor.dragNodeAsserted('g-a', target, { steps: 12 });
     await page.waitForTimeout(350);
 
     const aAfter = await editor.nodeBox('g-a');
@@ -80,7 +80,7 @@ test.describe('Figma hierarchy parity — Groups vs Frames', () => {
     await editor.waitForStableGeometry('f-a');
     const frameBefore = await editor.nodeBox('fixed-frame');
     const currentChild = await editor.nodeBox('f-a');
-    await editor.dragNodeFromTo('f-a', { x: currentChild.x + currentChild.width / 2 + 80, y: currentChild.y + currentChild.height / 2 + 60 }, { steps: 12 });
+    await editor.dragNodeAsserted('f-a', { x: currentChild.x + currentChild.width / 2 + 80, y: currentChild.y + currentChild.height / 2 + 60 }, { steps: 12 });
     await page.waitForTimeout(300);
 
     expect(await parentId(editor, 'f-a')).toBe('fixed-frame');

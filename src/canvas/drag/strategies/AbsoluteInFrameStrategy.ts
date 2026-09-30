@@ -45,6 +45,7 @@ import { parentHighlightOps } from '@/canvas/selection/parent-highlight-store';
 import { dropLineOps } from '@/canvas/selection/drop-line-store';
 import { detectParentLayoutById, getFlexDirectionById, resolveParentDisplay } from '../types';
 import { trace } from '@/shared/debug-trace';
+import { foldEffectiveTransform } from '@/shared/motion-transform';
 import { calculateLayoutInsertIndexById } from '../reparent-utils';
 import { computeEntryParentLocalPosition, computeExitCanvasPosition } from '../transform-reparent';
 import { queueMutation, flushNow, flushNowDeferredDuringDrag, getCurrentCode } from '@/code/mutation/mutation-queue';
