@@ -4,16 +4,18 @@ This is the canonical operational reset point for any chat doing field work.
 
 ## New chat
 
+The handoff-kit copy on `field/control` is a compatibility mirror only. It is not process authority.
+
 Before planning or implementation:
 
-1. Read this file.
-2. Read `.field/handoff-kit/manifest.json`.
-3. Read `.field/handoff-kit/CONTRACT.md`.
-4. Read the live `tracker.md`.
-5. Read the assignment file.
+1. Resolve current `main:.field/handoff-kit/CHAT_BOOTSTRAP.md`.
+2. Resolve current `main:.field/handoff-kit/manifest.json` and `CONTRACT.md`.
+3. Read `field/control:.field/shared-repairs.json`.
+4. Read active assignment/mail/QA records on `field/control`.
+5. During migration, read the live legacy `tracker.md` where an assignment still depends on it.
 6. Read any product/architecture sources named by the assignment.
 
-Do not ask the user to upload the handoff kit. The repository copy is canonical.
+If this branch-local kit differs from `main`, report `STALE_HANDOFF_KIT` and continue with the `main` copy. Do not ask the user to upload the handoff kit.
 
 ## Existing chat / process reset
 

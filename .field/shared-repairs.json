@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "repository": "lrnolivia/field",
+  "canonical_branch": "main",
+  "updated_at": "2026-09-27T06:35:00Z",
+  "repairs": [
+    {
+      "id": "field-preview-canvas-host-routing",
+      "status": "resolved",
+      "classification": "shared_preview_infrastructure",
+      "scope": {
+        "repository": "lrnolivia/field",
+        "base_branch": "main",
+        "applies_to_open_prs": true
+      },
+      "repair_pr": 19,
+      "canonical_repair_sha": "f394090180284f3a70bdf8dd6b280f692d96d0dc",
+      "mandatory_baseline": true,
+      "regression_guard": [
+        "branch Canvas Preview host routes to Canvas sandbox",
+        "Canvas first paint succeeds before feature QA",
+        "Canvas CORP/COOP/COEP/OAC headers match production semantics"
+      ],
+      "evidence": {
+        "assignment": ".field/assignments/assignment-field-preview-canvas-host-routing.md",
+        "qa": ".field/qa/field-preview-canvas-host-routing.md"
+      },
+      "propagation": {
+        "historical_mode": "manual-main-reconciliation",
+        "automation_status": "pending-runner-reconciler"
+      },
+      "resolved_at": "2026-09-27T05:53:17Z"
+    }
+  ]
+}

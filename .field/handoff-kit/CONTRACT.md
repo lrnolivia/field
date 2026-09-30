@@ -1,5 +1,11 @@
 # field handoff kit contract
 
+> Compatibility mirror notice: process authority is current `main:.field/handoff-kit/**`. The `field/control` copy exists for historical/coordination compatibility and must not override current `main`.
+
+## Shared repair baseline
+
+Shared infrastructure repairs that must propagate across active field work are recorded at `.field/shared-repairs.json` on `field/control`. For any applicable resolved record with `mandatory_baseline: true`, its `canonical_repair_sha` must be an ancestor of the implementation head before runtime QA. Otherwise classify `STALE_BASELINE — RECONCILE REQUIRED` and converge through current `main` before QA.
+
 This contract governs field assignment packaging, installer behavior, validation, deployment verification, live QA, resume behavior, and closeout.
 
 ## Assignment versus infrastructure

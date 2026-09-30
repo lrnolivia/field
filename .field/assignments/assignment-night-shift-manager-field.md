@@ -7,7 +7,7 @@ status: standing-manager
 branch: null
 pr: null
 base: d9f178361333a2a3bb17be90c0277e4b98708ae4
-kit: 2026-09-26.3
+kit: resolve-main
 type: manager-handoff
 execution_class: night-shift-manager
 owned: []
@@ -42,7 +42,7 @@ You do not normally implement field product source yourself.
 
 ## Canonical process
 
-Current handoff kit on main: 2026-09-26.3.
+Current handoff kit: resolve from `main:.field/handoff-kit/**` at execution time; do not hard-code a version.
 
 Always rehydrate from the current repo-hosted CHAT_BOOTSTRAP.md, CONTRACT.md, ASSIGNMENT_AUTHORING.md, and COMPOSIO_WRITE_BROKER.md before relying on this standing record.
 
@@ -104,7 +104,7 @@ Do not claim unrun QA. Do not merge through unresolved genuine gates.
 
 Contract Worker coordination v2 is fully landed.
 
-Handoff kit 2026-09-26.3 is on main.
+The authoritative handoff kit is the current `main:.field/handoff-kit/**`; branch-local/control copies are compatibility mirrors.
 
 Root CLAUDE.md and CONTRIBUTING.md are field-native.
 

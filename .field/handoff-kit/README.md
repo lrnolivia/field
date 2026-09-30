@@ -1,6 +1,18 @@
 # field handoff kit
 
-Canonical repository-owned process infrastructure for field assignments.
+Compatibility mirror of field process infrastructure for coordination records.
+
+**Process authority is always `main:.field/handoff-kit/**`.** The copy on `field/control` may lag and must never override current `main`. Do not interpret this branch's `VERSION` as the canonical kit version.
+
+## Shared repair continuity
+
+Machine-readable shared infrastructure repairs live at:
+
+```text
+field/control:.field/shared-repairs.json
+```
+
+Workers, Runner, and Preview QA should use that ledger to determine whether a branch is missing a mandatory canonical repair baseline.
 
 ## Entry point for chats
 
