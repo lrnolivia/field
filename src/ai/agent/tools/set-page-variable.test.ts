@@ -30,7 +30,7 @@ vi.mock('@/code/mutation/mutation-queue', () => ({
 vi.mock('@/code/project/project-fs', () => ({
   // P8: workspace.ts resolves the run's branch on every routed read/write —
   // unbranched tests stay on 'main'; readBranchFile only serves branched runs.
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: vi.fn(() => null),
     writeFile: vi.fn(),
     getActiveBranchId: () => 'main',

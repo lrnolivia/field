@@ -14,7 +14,6 @@ import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
 import {
   activeFilePathAtom,
   switchActiveFile,
-  getFileDisplayName,
   getFriendlyFileName,
   componentBreadcrumbAtom,
 } from '@/code/project/active-file-store';

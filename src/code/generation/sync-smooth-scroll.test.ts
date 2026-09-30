@@ -150,7 +150,7 @@ describe('syncLinkHandlerInCode', () => {
 // anchor element exists on this page. From another route (/blog → /#features)
 // the old unconditional preventDefault + `getElementById(...)?.` swallowed
 // the click and the nav link appeared dead (the SiteHeader report).
-import { describe as _d2, test as _t2, expect as _e2 } from 'vitest';
+import { describe as _d2, test as _t2 } from 'vitest';
 import { setSmoothScrollInCode as _sss, syncLinkHandlerInCode as _slh } from './generator-styles';
 
 _d2('managed link handler cross-page fallthrough', () => {

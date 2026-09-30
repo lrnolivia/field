@@ -10,7 +10,7 @@ import { leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom, floatingLeftHeightAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
-import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop, WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
+import { deriveWorkspaceLayout, WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';

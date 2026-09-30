@@ -21,7 +21,7 @@ const fsStore = vi.hoisted(() => new Map<string, string>());
 
 vi.mock('./project-fs', () => ({
   DEFAULT_PROVIDERS: '',
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: vi.fn((p: string) => fsStore.get(p) ?? null),
     writeFile: vi.fn((p: string, c: string) => { fsStore.set(p, c); }),
     deleteFile: vi.fn((p: string) => { fsStore.delete(p); }),

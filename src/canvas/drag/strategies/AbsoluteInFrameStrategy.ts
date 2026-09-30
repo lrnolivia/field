@@ -45,7 +45,7 @@ import { parentHighlightOps } from '@/canvas/selection/parent-highlight-store';
 import { dropLineOps } from '@/canvas/selection/drop-line-store';
 import { detectParentLayoutById, getFlexDirectionById, resolveParentDisplay } from '../types';
 import { trace } from '@/shared/debug-trace';
-import { motionPropsToCSSTransform, MOTION_TRANSFORM_PROPS, foldEffectiveTransform } from '@/shared/motion-transform';
+import { foldEffectiveTransform } from '@/shared/motion-transform';
 import { calculateLayoutInsertIndexById } from '../reparent-utils';
 import { computeEntryParentLocalPosition, computeExitCanvasPosition } from '../transform-reparent';
 import { queueMutation, flushNow, flushNowDeferredDuringDrag, getCurrentCode } from '@/code/mutation/mutation-queue';
@@ -527,7 +527,10 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       // authored left/top/right/bottom pins), same as a `data-pinned` frame,
       // which is likewise excluded here yet shows lines. See PinConstraintLines.
       const isSvg = nodeData?.type === 'svg';
-      if (nodeData?.attrs?.['data-pinned'] !== 'true' && !isSvg && !this.isIconSetMaster) {
+      // Native Groups derive their size from the child union. Auto-pinning
+      // to percentages makes child coordinates depend on that derived size
+      // and prevents the exact pixel-backed refit. Keep authored pins intact.
+      if (nodeData?.attrs?.['data-pinned'] !== 'true' && !isSvg && !parentNode?.isGroup && !this.isIconSetMaster) {
         this.dynamicPinNodes.add(node.id);
       }
       // A ROTATED nested group carries its rotation in the `transform="rotate(θ
@@ -1756,7 +1759,11 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
               // mutation so source matches (empty value removes the attr).
               // (Icon-set masters stay OUT of dynamic pinning — see field doc.)
               for (const node of draggedNodes) {
-                if (!this.isIconSetMaster) this.dynamicPinNodes.add(node.id);
+                if (!this.isIconSetMaster && !context.nodes.get(this.parentId!)?.isGroup) {
+                  this.dynamicPinNodes.add(node.id);
+                } else {
+                  this.dynamicPinNodes.delete(node.id);
+                }
                 queueMutation({
                   type: 'updateHtmlAttrs',
                   nodeId: node.id,
@@ -3136,7 +3143,11 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           // pins automatically. Same rationale as the grandparent-
           // reparent unlock above.
           for (const node of context.draggedNodes) {
-            this.dynamicPinNodes.add(node.id);
+            if (!this.isIconSetMaster && !context.nodes.get(this.parentId!)?.isGroup) {
+              this.dynamicPinNodes.add(node.id);
+            } else {
+              this.dynamicPinNodes.delete(node.id);
+            }
             queueMutation({
               type: 'updateHtmlAttrs',
               nodeId: node.id,

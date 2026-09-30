@@ -61,7 +61,7 @@ function composeCanvasLoop(code: string, nodeId: string, loop: { props: Record<s
   let result = code;
   if (!isMotion) {
     const selfClosing = /\/>$/.test(got.tag.trim());
-    let newTag = got.tag.replace(/^<[A-Za-z][\w.]*/, `<motion.${baseTag}`);
+    const newTag = got.tag.replace(/^<[A-Za-z][\w.]*/, `<motion.${baseTag}`);
     result = result.slice(0, got.tagStart) + newTag + result.slice(got.gt);
     if (!selfClosing) {
       // The matching close tag follows the opening — same depth-matching the

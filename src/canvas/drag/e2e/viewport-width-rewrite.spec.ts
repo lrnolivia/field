@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 
 /** Rule text inside the band whose head contains `headPart`. */
 function bandContent(code: string, headPart: string): string {
-  for (const m of code.matchAll(/(@media[^{]*)\{([\s\S]*?)\n    \}/g)) {
+  for (const m of code.matchAll(/(@media[^{]*)\{([\s\S]*?)\n {4}\}/g)) {
     if (m[1].includes(headPart)) return m[2];
   }
   return '';

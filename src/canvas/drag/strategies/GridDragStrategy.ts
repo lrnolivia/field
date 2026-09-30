@@ -36,7 +36,7 @@ import { repositionSignalOps } from '../reposition-signal';
 import { computeReorderAssignments } from '../reparent-utils';
 import {
   findNodeRect, findNodeComputedStyles, findChildRects, patchNodeStyles,
-  getViewportPrefix, vpIdFromPrefix, getNodeHitsAtPoint, forceCanvasRender, parseRectCacheKey, forceCanvasRenderDeferredDuringDrag, isPrimaryViewport, getActiveFilePath } from '@/canvas/node-ops';
+  getViewportPrefix, vpIdFromPrefix, getNodeHitsAtPoint, parseRectCacheKey, forceCanvasRenderDeferredDuringDrag, isPrimaryViewport, getActiveFilePath } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getIframeOffset } from '../helpers/coords';
 import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
@@ -51,7 +51,7 @@ import { getViewportWidths } from '@/code/stores/viewport-store';
 import { parseVariantConfig } from '@/code/variants/variant-config';
 import { projectFS } from '@/code/project/project-fs';
 import { isComponentFilePath } from '@/code/project/active-file-store';
-import { queueMutation, flushNow, flushNowDeferredDuringDrag } from '@/code/mutation/mutation-queue';
+import { queueMutation, flushNowDeferredDuringDrag } from '@/code/mutation/mutation-queue';
 import { moveNodeInCache, updateNodeInCache, getNodeFromCache } from '@/code/stores/store';
 import { nodeAcceptsChildren } from '@/shared/constants';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';

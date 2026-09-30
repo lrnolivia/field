@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { measureGallerySourceRatio } from './gallery-source-ratio';
 
 describe('measureGallerySourceRatio', () => {

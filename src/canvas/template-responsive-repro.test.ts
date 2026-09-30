@@ -30,7 +30,7 @@ export default function LayoutClient({ children }) {
 `;
 
 vi.mock('@/code/project/project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: (p: string) => {
       if (p === 'app/(Site)/LayoutClient.tsx') return LAYOUT_CODE;
       return '';

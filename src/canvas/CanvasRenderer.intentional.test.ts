@@ -5,7 +5,7 @@
 //     against it), and
 //  2. an INTENTIONAL render (undo/redo restore) is immune to both the
 //     canvasUpdating skip and the duplicate-forward dedup.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/shared/debug-trace', () => ({ trace: { action: vi.fn(), fn: vi.fn(), error: vi.fn() } }));
 vi.mock('@/canvas/transform', () => ({ transformManager: { getTransform: () => ({ x: 0, y: 0, scale: 1 }) } }));
 

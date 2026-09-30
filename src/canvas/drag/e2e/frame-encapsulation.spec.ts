@@ -25,6 +25,9 @@ test('draw a frame over an auto-text + a px box → BOTH become children', async
   expect(await parentOf(editor, 'cap')).toBe('hero');
   expect(await parentOf(editor, 'box')).toBe('hero');
 
+  await page.keyboard.press('f');
+  await editor.waitForStableGeometry('cap');
+
   // Draw a frame that fully covers BOTH (they're stacked in the top-left of hero).
   const capBox = await editor.nodeBox('cap');
   const boxBox = await editor.nodeBox('box');
@@ -33,7 +36,6 @@ test('draw a frame over an auto-text + a px box → BOTH become children', async
   const maxX = Math.max(capBox.x + capBox.width, boxBox.x + boxBox.width) + 20;
   const maxY = Math.max(capBox.y + capBox.height, boxBox.y + boxBox.height) + 20;
 
-  await page.keyboard.press('f');
   await editor.dragFromTo({ x: minX, y: minY }, { x: maxX, y: maxY });
   await page.waitForTimeout(700);
 
@@ -57,6 +59,8 @@ test('draw a frame over a CANVAS auto-text + a canvas px box → BOTH become chi
   await page.keyboard.press('Shift+Digit1'); // zoom-to-fit (canvas nodes sit off-viewport)
   await page.waitForTimeout(600);
 
+  await page.keyboard.press('f');
+  await editor.waitForStableGeometry('cap');
   const capBox = await editor.sandbox().locator('[data-id="cap"]').first().boundingBox();
   const boxBox = await editor.sandbox().locator('[data-id="box"]').first().boundingBox();
   if (!capBox || !boxBox) throw new Error('canvas nodes not visible');
@@ -66,7 +70,6 @@ test('draw a frame over a CANVAS auto-text + a canvas px box → BOTH become chi
   const maxX = Math.max(capBox.x + capBox.width, boxBox.x + boxBox.width) + 25;
   const maxY = Math.max(capBox.y + capBox.height, boxBox.y + boxBox.height) + 25;
 
-  await page.keyboard.press('f');
   await editor.dragFromTo({ x: minX, y: minY }, { x: maxX, y: maxY });
   await page.waitForTimeout(700);
 

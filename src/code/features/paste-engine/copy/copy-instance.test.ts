@@ -14,7 +14,7 @@ vi.mock('@/canvas/node-ops', () => ({
   // means "primary tile", i.e. the pass-through these fixtures expect.
   getInteractingViewport: () => ({ vpId: 'desktop', vpWidth: 1440 }),
 }));
-vi.mock('@/code/project/project-fs', () => ({ projectFS: { readFile: () => '' } }));
+vi.mock('@/code/project/project-fs', () => ({ projectFS: { subscribeWrites: () => () => {}, readFile: () => '' } }));
 vi.mock('./effects-extractor', () => ({ extractEffectsForNodes: () => null }));
 
 import { copyNodes, getClipboardData } from './index';

@@ -37,7 +37,7 @@ vi.mock('@/code/project/modify-file', () => ({
 }));
 
 vi.mock('@/code/project/project-fs', () => ({
-  projectFS: { readFile: vi.fn(() => null), writeFile: vi.fn() },
+  projectFS: { subscribeWrites: () => () => {}, readFile: vi.fn(() => null), writeFile: vi.fn() },
 }));
 
 vi.mock('@/code/project/locale-ops', () => ({

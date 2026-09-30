@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock the I/O singletons; every code transform underneath (strip, pipeline, page-variables,
 // template-route map) is REAL, so the cascade's decisions and rewrites are the production ones.
 vi.mock('@/shared/debug-trace', () => ({ trace: { action: vi.fn(), fn: vi.fn(), dom: vi.fn(), error: vi.fn() } }));
-vi.mock('../project/project-fs', () => ({ projectFS: { readFile: vi.fn(), writeFile: vi.fn(), listFiles: vi.fn(() => []) } }));
+vi.mock('../project/project-fs', () => ({ projectFS: { subscribeWrites: () => () => {}, readFile: vi.fn(), writeFile: vi.fn(), listFiles: vi.fn(() => []) } }));
 vi.mock('../mutation/mutation-queue', () => ({ queueMutation: vi.fn(), flushNow: vi.fn() }));
 vi.mock('../project/modify-file', () => ({ modifyProjectFile: vi.fn() }));
 

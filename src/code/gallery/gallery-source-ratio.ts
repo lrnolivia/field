@@ -15,7 +15,6 @@ export function measureGallerySourceRatio(
   return new Promise((resolve) => {
     const image = new Image();
     let settled = false;
-    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
 
     const finish = (ratio: number | null) => {
       if (settled) return;
@@ -32,7 +31,7 @@ export function measureGallerySourceRatio(
         : null,
     );
 
-    timeout = globalThis.setTimeout(() => {
+    const timeout = globalThis.setTimeout(() => {
       image.src = '';
       finish(null);
     }, timeoutMs);

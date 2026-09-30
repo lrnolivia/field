@@ -1,12 +1,13 @@
+import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const shell = readFileSync(new URL('./PaintPickerShell.tsx', import.meta.url), 'utf8');
-const picker = readFileSync(new URL('./ColorPicker.tsx', import.meta.url), 'utf8');
-const colorInput = readFileSync(new URL('../controls/ColorInput.tsx', import.meta.url), 'utf8');
-const fill = readFileSync(new URL('../tools/StylesTool/atoms/FillControl.tsx', import.meta.url), 'utf8');
-const textColor = readFileSync(new URL('../tools/TextStyleTool/atoms/TextColorControl.tsx', import.meta.url), 'utf8');
-const gradientControl = readFileSync(new URL('../tools/StylesTool/atoms/GradientControl.tsx', import.meta.url), 'utf8');
+const shell = readFileSync(resolve(process.cwd(), 'src/editor/ui/PaintPickerShell.tsx'), 'utf8');
+const picker = readFileSync(resolve(process.cwd(), 'src/editor/ui/ColorPicker.tsx'), 'utf8');
+const colorInput = readFileSync(resolve(process.cwd(), 'src/editor/controls/ColorInput.tsx'), 'utf8');
+const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
+const textColor = readFileSync(resolve(process.cwd(), 'src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx'), 'utf8');
+const gradientControl = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/GradientControl.tsx'), 'utf8');
 
 const order = ['solid', 'gradient', 'pattern', 'image', 'video', 'shader'];
 

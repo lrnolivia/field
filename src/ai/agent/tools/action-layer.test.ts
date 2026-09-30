@@ -20,7 +20,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { atom } from 'jotai';
 import { z } from 'zod';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
-import { getNodesSnapshot, selectedIdsAtom } from '@/code/stores/store';
+import { getNodesSnapshot } from '@/code/stores/store';
 import { projectFS, resetProjectFS } from '@/code/project/project-fs';
 import type { CanvasNode } from '@/code/parsing/parser';
 import type { AgentTool, ToolContext } from '@/ai/agent';

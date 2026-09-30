@@ -23,7 +23,9 @@ describe('gallery crop math', () => {
     // 500×1000 into 400×300 covers at 0.8 => 400×800 => 500px vertical overflow.
     expect(coverOverflow(400, 300, 500, 1000)).toEqual({ x: 0, y: 500 });
     // Zoom expands the same fitted bitmap around its focal origin.
-    expect(coverOverflow(400, 300, 1000, 500, 1.5)).toEqual({ x: 500, y: 150 });
+    const zoomed = coverOverflow(400, 300, 1000, 500, 1.5);
+    expect(zoomed.x).toBeCloseTo(500, 10);
+    expect(zoomed.y).toBeCloseTo(150, 10);
   });
 
   it('maps visual drag to normalized focal coordinates using overflow range', () => {

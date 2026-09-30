@@ -41,7 +41,7 @@ export function collectPreviewProjectPayload(locale: string): PreviewProjectPayl
 
   const files: Record<string, string> = {};
   for (const path of projectFS.listFiles()) {
-    let content = projectFS.readFile(path);
+    const content = projectFS.readFile(path);
     if (content === null) continue;
     files[path] = content;
   }

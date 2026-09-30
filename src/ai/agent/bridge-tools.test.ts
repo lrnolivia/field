@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { agentToolManifest, agentToolCall, agentRunStart, agentRunEnd, agentRunAbort, LAZY_RUN_IDLE_MS } from './bridge-tools';
-import { projectFS, resetProjectFS, MAIN_BRANCH_ID } from '@/code/project/project-fs';
+import { resetProjectFS, MAIN_BRANCH_ID } from '@/code/project/project-fs';
 import { isBranchLocked } from '@/code/stores/agent-run-lock-store';
 import { getDefaultStore } from 'jotai';
 import { activeFilePathAtom } from '@/code/project/active-file-store';

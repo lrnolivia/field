@@ -16,7 +16,6 @@ import {
   FIELD_SHELL_SELECTOR,
   readFieldDashboardLayerState,
   type EditorChromeExitRequestDetail,
-  type EditorEntranceRole,
   type EditorEntranceTarget,
   type FieldDashboardLayerState,
 } from './editor-entrance';

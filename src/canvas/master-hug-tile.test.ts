@@ -20,7 +20,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/code/project/project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: () => '', listFiles: () => [], exists: () => false,
     writeFile: () => {}, deleteFile: () => {},
   },

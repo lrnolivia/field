@@ -1074,7 +1074,7 @@ export function makeComponent(
       // the bare identifier; CMS stores plain URLs): image={\`url(\${item.x})\`}.
       // A hoisted stagger index passes the live map index → per-row stagger survives.
       instanceFieldAttrs = hoisted.fields.map((f) => hoisted.wholeValueImageFields.includes(f)
-        ? ' ' + f + '={\`url(\${' + cmsItemVar + '.' + f + '})\`}'
+        ? ' ' + f + '={`url(${' + cmsItemVar + '.' + f + '})`}'
         : ` ${f}={${cmsItemVar}.${f}}`).join('')
         + (hoisted.indexField ? ` ${hoisted.indexField}={${hoisted.indexField}}` : '')
         + navLinkAttr;

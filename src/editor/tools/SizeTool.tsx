@@ -16,7 +16,7 @@ import { injectFlexLayoutOnFrame, shouldInjectLayoutOnAuto, freezeParentRelative
 import { viewportsConfigAtom, viewportWidthsAtom, syncViewportWidths, activeComponentVariantAtom } from '@/code/stores/viewport-store';
 import { applyViewportWidthChange } from '@/code/generation/viewport-width-rewrite';
 import { activeFilePathAtom, isVectorSetComponentFile } from '@/code/project/active-file-store';
-import { modifyProjectFile } from '@/code/project/modify-file';
+import '@/code/project/modify-file';
 import { setForceRender, queueMutation } from '@/code/mutation/mutation-queue';
 import { FIT_SIZE, isFitSize, isFrameTag } from '@/shared/constants';
 import { ToolSection, ToolInput, ToolSelect } from '../controls';

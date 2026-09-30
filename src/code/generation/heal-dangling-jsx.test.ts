@@ -31,7 +31,7 @@ describe('healDanglingModuleJsxInCode', () => {
   });
 
   it('folds a UNIQUE dangling node into canvasNodes instead of dropping it', () => {
-    const unique = PAGE.replace(/p-msiy3nzq-1" data-name="Text" style=\{\{ order: '0' \}\}>\n  <span>/, 'p-orphan-9" data-name="Text" style={{ order: \'0\' }}>\n  <span>');
+    const unique = PAGE.replace(/p-msiy3nzq-1" data-name="Text" style=\{\{ order: '0' \}\}>\n {2}<span>/, 'p-orphan-9" data-name="Text" style={{ order: \'0\' }}>\n  <span>');
     const out = healDanglingModuleJsxInCode(unique);
     expect(out).toContain('data-id="p-orphan-9"');
     expect(out).toContain('data-canvas-node="true"');

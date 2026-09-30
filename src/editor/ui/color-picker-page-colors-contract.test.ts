@@ -1,8 +1,9 @@
+import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const picker = readFileSync(new URL('./ColorPicker.tsx', import.meta.url), 'utf8');
-const fill = readFileSync(new URL('../tools/StylesTool/atoms/FillControl.tsx', import.meta.url), 'utf8');
+const picker = readFileSync(resolve(process.cwd(), 'src/editor/ui/ColorPicker.tsx'), 'utf8');
+const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
 
 describe('Fill color picker page colors', () => {
   it('reuses the existing Selection colors aggregator for page-scoped colors', () => {

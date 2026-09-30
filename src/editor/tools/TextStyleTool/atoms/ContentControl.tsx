@@ -27,7 +27,6 @@ import { commitTranslationText } from '@/code/project/translation-ops';
 import { resolveTranslatedContent } from './content-translation';
 import { isPrimaryViewport } from '@/canvas/node-ops';
 import { queueMutation } from '@/code/mutation/mutation-queue';
-import { getContentRoot } from '@/canvas/node-ops';
 import { trace } from '@/shared/debug-trace';
 
 export function ContentControl() {

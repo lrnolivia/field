@@ -10,7 +10,7 @@ import { projectVersionAtom } from '@/code/project/project-fs';
 import AddLocaleModal from './locale/AddLocaleModal';
 import type { LocaleConfig } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
-import { leftPanelAtom, translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
+import { translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
 import SectionLabel from '@/design-system/SectionLabel';
 import AddButton from '@/design-system/AddButton';
 import SidebarRow from '@/design-system/SidebarRow';

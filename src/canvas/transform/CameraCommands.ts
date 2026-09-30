@@ -363,10 +363,10 @@ export function followScreenRect(screenRect: DOMRect, minScale: number = MIN_SCA
   const settleTop = area.centerY - settleH / 2;
   const settleBottom = area.centerY + settleH / 2;
 
-  let projectedLeft = c.left * targetScale + x;
-  let projectedRight = (c.left + c.width) * targetScale + x;
-  let projectedTop = c.top * targetScale + y;
-  let projectedBottom = (c.top + c.height) * targetScale + y;
+  const projectedLeft = c.left * targetScale + x;
+  const projectedRight = (c.left + c.width) * targetScale + x;
+  const projectedTop = c.top * targetScale + y;
+  const projectedBottom = (c.top + c.height) * targetScale + y;
   const projectedW = projectedRight - projectedLeft;
   const projectedH = projectedBottom - projectedTop;
 

@@ -701,7 +701,7 @@ export function migrateLegacyLocaleTextOverrides(config: { defaultLocale: string
           const msgPath = `messages/${l.code}.json`;
           for (const [vpWidth, text] of Object.entries(override.textOverrides)) {
             const key = `${nodeId}__${vpWidth}`;
-            let cur = projectFS.readFile(msgPath) ?? '{}';
+            const cur = projectFS.readFile(msgPath) ?? '{}';
             if (getMessageValue(cur, namespace, key) === null) {
               projectFS.writeFile(msgPath, setMessageValue(cur, namespace, key, text));
               migrated++;

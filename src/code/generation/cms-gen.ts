@@ -302,7 +302,7 @@ function bindBackgroundImageFieldInCode(
   itemVar: string,
 ): string {
   const urlValue = `\`url(\${${itemVar}.${fieldId}})\``;
-  let result = setStyleEntryInCode(code, nodeId, 'backgroundImage', urlValue);
+  const result = setStyleEntryInCode(code, nodeId, 'backgroundImage', urlValue);
   return seedBoundImageSizing(result, nodeId);
 }
 

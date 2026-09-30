@@ -1,15 +1,19 @@
+import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const fill = readFileSync(new URL('../tools/StylesTool/atoms/FillControl.tsx', import.meta.url), 'utf8');
-const shaderTab = readFileSync(new URL('./ShaderFillTab.tsx', import.meta.url), 'utf8');
-const layers = readFileSync(new URL('../LayersPanel.tsx', import.meta.url), 'utf8');
-const elementData = readFileSync(new URL('../../shared/insert-items/element-data.ts', import.meta.url), 'utf8');
+const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
+const shell = readFileSync(resolve(process.cwd(), 'src/editor/ui/PaintPickerShell.tsx'), 'utf8');
+const shaderTab = readFileSync(resolve(process.cwd(), 'src/editor/ui/ShaderFillTab.tsx'), 'utf8');
+const layers = readFileSync(resolve(process.cwd(), 'src/editor/LayersPanel.tsx'), 'utf8');
+const elementData = readFileSync(resolve(process.cwd(), 'src/shared/insert-items/element-data.ts'), 'utf8');
 
 describe('Shader Fill reuse contract', () => {
   it('exposes Shader as a Fill type without creating a new shader renderer', () => {
     expect(fill).toContain("'shader'");
-    expect(fill).toContain("title: 'Shader'");
+    expect(shell).toContain("shader: 'Shader'");
+    expect(fill).toContain('<PaintPickerShell');
+    expect(fill).toContain('<ShaderFillTab');
     expect(shaderTab).toContain('installBuiltInCodeComponent');
     expect(shaderTab).toContain('getToolbarItemConfig');
     expect(shaderTab).toContain('CodeComponentControlField');
@@ -19,7 +23,8 @@ describe('Shader Fill reuse contract', () => {
 
   it('reuses the existing shader library as the single catalog source', () => {
     expect(elementData).toContain('export const SHADER_LIBRARY_ITEMS');
-    expect(shaderTab).toContain('SHADER_LIBRARY_ITEMS.map');
+    expect(shaderTab).toContain('SHADER_LIBRARY_ITEMS.filter');
+    expect(shaderTab).toContain('filteredItems.map');
     expect(shaderTab).toContain('SHADER_THUMBS[item.id]');
   });
 

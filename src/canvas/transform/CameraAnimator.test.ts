@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { setTransform, getTransform, smoothZoomGet, traceFn } = vi.hoisted(() => ({
   setTransform: vi.fn(),
@@ -21,7 +21,10 @@ vi.mock('@/code/stores/user-preferences-store', () => ({ useSmoothZoomAtom: {} }
 import { animateCanvasTo, prefersReducedCameraMotion } from './CameraAnimator';
 
 describe('CameraAnimator reduced motion', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
     setTransform.mockClear();
     getTransform.mockClear();
     smoothZoomGet.mockClear();

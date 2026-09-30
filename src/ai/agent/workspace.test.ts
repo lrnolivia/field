@@ -1,6 +1,6 @@
 // workspace.test.ts — P8 (vi): branch-aware helpers, legacy-default proofs.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { getDefaultStore } from 'jotai';
 import { projectFS, resetProjectFS } from '@/code/project/project-fs';
 import { activeFilePathAtom } from '@/code/project/active-file-store';

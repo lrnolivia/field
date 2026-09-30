@@ -1612,7 +1612,7 @@ describe('band losing implicit coverage', () => {
     syncViewportWidths({ desktop: 1440, tablet: 768, phone: 430, mobile: 375 });
     const out = updateContainerQueryStyle(OPEN_SMALLEST, 'nav', 375, { paddingTop: '0px' });
 
-    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n    \}/)![1];
+    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n {4}\}/)![1];
     // Everything the 430 band was already rendering at this width:
     expect(band375, 'hero width must be carried down').toContain('width: 340px');
     expect(band375, 'flex-direction must be carried down').toContain('flex-direction: column');
@@ -1631,7 +1631,7 @@ describe('band losing implicit coverage', () => {
     syncViewportWidths({ desktop: 1440, tablet: 768, phone: 430, mobile: 375 });
     // 375 sets its own hero width — the carried 340px must not clobber it.
     const out = updateContainerQueryStyle(OPEN_SMALLEST, 'hero', 375, { width: '300px' });
-    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n    \}/)![1];
+    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n {4}\}/)![1];
     expect(band375).toContain('width: 300px');
     expect(band375).not.toContain('width: 340px');
     expect(band375, 'other props still carry down').toContain('flex-direction: column');
@@ -1644,7 +1644,7 @@ describe('band losing implicit coverage', () => {
       '@media (max-width: 430px) and (min-width: 375.02px) {');
     syncViewportWidths({ desktop: 1440, tablet: 768, phone: 430, mobile: 375 });
     const out = updateContainerQueryStyle(already, 'nav', 375, { paddingTop: '0px' });
-    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n    \}/)![1];
+    const band375 = out.match(/@media \(max-width: 375px\)[^{]*\{([\s\S]*?)\n {4}\}/)![1];
     expect(band375).toContain('padding-top: 0px');
     expect(band375).not.toContain('flex-direction: column');
   });

@@ -15,7 +15,7 @@
 // still enforces closed-source on the actual unlink); the next
 // `ensure` call for that URL retries.
 
-import { atom, getDefaultStore, useAtomValue, useSetAtom } from 'jotai';
+import { atom, getDefaultStore, useAtomValue } from 'jotai';
 import { useCallback, useEffect } from 'react';
 import { stableNodesAtom } from '@/code/stores/store';
 import { trace } from '@/shared/debug-trace';

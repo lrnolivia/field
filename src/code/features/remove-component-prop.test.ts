@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // getComponentExportName, stripPropFromAllInstancesInCode) so the orchestration's decisions are real.
 vi.mock('@/shared/debug-trace', () => ({ trace: { action: vi.fn(), fn: vi.fn(), dom: vi.fn(), error: vi.fn() } }));
 vi.mock('@/canvas/node-ops', () => ({ getActiveFilePath: vi.fn() }));
-vi.mock('../project/project-fs', () => ({ projectFS: { readFile: vi.fn(), writeFile: vi.fn(), listFiles: vi.fn(() => []) } }));
+vi.mock('../project/project-fs', () => ({ projectFS: { subscribeWrites: () => () => {}, readFile: vi.fn(), writeFile: vi.fn(), listFiles: vi.fn(() => []) } }));
 vi.mock('../mutation/mutation-queue', () => ({ queueMutation: vi.fn(), flushNow: vi.fn() }));
 vi.mock('../project/modify-file', () => ({ modifyProjectFile: vi.fn() }));
 

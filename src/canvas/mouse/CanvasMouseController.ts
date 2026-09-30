@@ -134,7 +134,7 @@ import { suppressSelectionBox } from '../selection/SelectionBox';
 import { enterComponentFile } from '../component-navigation';
 import { getPageTemplate, listTemplates } from '@/code/project/template-ops';
 import { generateNodeId } from '@/shared/id-utils';
-import { createNode, getContentRoot, findNodeRect, findNodeComputedStyle, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
+import { createNode, getContentRoot, findNodeRect, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
 import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, panToNode, transformManager, cameraStash } from '@/canvas/transform';
 import { parseCanvasConfig } from '@/code/project/canvas-config';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';

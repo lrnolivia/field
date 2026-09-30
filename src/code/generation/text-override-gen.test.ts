@@ -353,7 +353,7 @@ export default function Page() {
   });
 
   test('full cycle: wrap marked → reset override → desktop children restored with the mark', () => {
-    let code = setTextOverrideInCode(MARKED_PAGE, 't1', TABLET, PRIMARY, 'Hi tablet', ALL_VPS);
+    const code = setTextOverrideInCode(MARKED_PAGE, 't1', TABLET, PRIMARY, 'Hi tablet', ALL_VPS);
     const out = removeTextOverrideInCode(code, 't1', TABLET, PRIMARY, ALL_VPS);
     expect(out).not.toMatch(/style="/);
     expect(out).toMatch(/fontSize:\s*['"]47px['"]/);
@@ -377,7 +377,7 @@ import React from 'react';
 export default function Page() {
   return <p data-id="t1"><span style={{ fontSize: '20px' }}>Line one<br />Line two</span></p>;
 }`;
-    let code = setTextOverrideInCode(page, 't1', TABLET, PRIMARY, 'Hi', ALL_VPS);
+    const code = setTextOverrideInCode(page, 't1', TABLET, PRIMARY, 'Hi', ALL_VPS);
     expect(code).toContain('Line one<br>Line two');
     const out = removeTextOverrideInCode(code, 't1', TABLET, PRIMARY, ALL_VPS);
     expect(out).toContain('Line one');

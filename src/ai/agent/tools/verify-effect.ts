@@ -1331,8 +1331,8 @@ export function verifyEffectConceptAST(
   scope = '',
 ): EffectVerdict {
   let spec = deriveSpec(request, hints);
-  let ast = parseASTOnce(code);
-  let nodes = ast ? collectASTNodes(ast, code) : [];
+  const ast = parseASTOnce(code);
+  const nodes = ast ? collectASTNodes(ast, code) : [];
   if (!spec) {
     const discovered = discoverConceptViaAST(request, hints, nodes);
     if (discovered) {

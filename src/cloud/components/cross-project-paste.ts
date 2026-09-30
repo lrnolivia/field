@@ -141,7 +141,7 @@ export async function linkClipboardComponents(
   for (const master of data.components) {
     try {
       let specifier: string | null = null;
-      let desiredName = master.tagName;
+      const desiredName = master.tagName;
 
       if (CLOUD_ENABLED) {
         const share = await shareComponentFiles(master.tagName, master.files, master.kind);

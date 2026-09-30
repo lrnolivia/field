@@ -37,10 +37,10 @@ import {
   readToolFile,
   getToolNodes,
 } from '@/ai/agent/workspace';
-import { activeFilePathAtom, isLayoutFile } from '@/code/project/active-file-store';
-import { bumpProjectVersion } from '@/code/project/modify-file';
+import { isLayoutFile } from '@/code/project/active-file-store';
+import '@/code/project/modify-file';
 import { interactingViewportIdAtom, viewportWidthsAtom, viewportsConfigAtom } from '@/code/stores/viewport-store';
-import { getNodesSnapshot } from '@/code/stores/store';
+import '@/code/stores/store';
 import { diffTurnChanges } from '../checkpoint';
 import { buildViewportTile, runDesignAudit } from './design-audit';
 import { collectEpochSnapshot, formatEpochEnvelope } from './observation-epoch';

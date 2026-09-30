@@ -378,8 +378,8 @@ function serializeCmds(cmds: Cmd[], dx: number, dy: number): string {
 const KAPPA = 0.5522847498;
 
 function roundedRectToCmds(x: number, y: number, w: number, h: number, rxIn: number, ryIn: number): Cmd[] {
-  let rx = Math.min(Math.abs(rxIn), w / 2);
-  let ry = Math.min(Math.abs(ryIn), h / 2);
+  const rx = Math.min(Math.abs(rxIn), w / 2);
+  const ry = Math.min(Math.abs(ryIn), h / 2);
   if (rx === 0 || ry === 0) {
     return [['M', x, y], ['L', x + w, y], ['L', x + w, y + h], ['L', x, y + h], ['Z']];
   }

@@ -3,7 +3,7 @@
 // "drag from canvas into viewport breaks every overlay until I pan" find:
 // framer-motion layout glides settle AFTER the render-time measure).
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { startSettleObserver, scheduleRemeasureAllRects } from './rect-emit';
+import { startSettleObserver } from './rect-emit';
 import { setContentRoot } from './sandbox-state';
 import { setSandboxDndInteracting } from '../sandbox-dnd-host';
 import { trace } from '@/shared/debug-trace';

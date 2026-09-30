@@ -39,7 +39,7 @@ import { z } from 'zod';
 import { getDefaultStore } from 'jotai';
 import type { AgentTool, AgentToolResult, ToolContext } from '@/ai/agent';
 import type { CanvasNode } from '@/code/parsing/parser';
-import { getNodesSnapshot, selectedIdsAtom } from '@/code/stores/store';
+import { selectedIdsAtom } from '@/code/stores/store';
 import {
   interactingViewportIdAtom,
   interactingViewportWidthAtom,
@@ -47,11 +47,9 @@ import {
   viewportsConfigAtom,
 } from '@/code/stores/viewport-store';
 import {
-  activeFilePathAtom,
   getFileDisplayName,
-  listPageFiles,
 } from '@/code/project/active-file-store';
-import { getPresetTokens } from '@/code/project/preset-ops';
+import '@/code/project/preset-ops';
 import type { PresetToken } from '@/shared/types';
 import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
 import { buildComponentRegistry, type ComponentInfo, type ComponentProp } from '@/code/components/component-registry';
@@ -68,7 +66,7 @@ import {
   runDesignAudit,
   type AuditNode,
 } from './design-audit';
-import { waitForRender, settleObservation } from './wait-for-render';
+import { settleObservation } from './wait-for-render';
 import {
   collectEpochSnapshot,
   formatEpochEnvelope,

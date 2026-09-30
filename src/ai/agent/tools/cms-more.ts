@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { getDefaultStore } from 'jotai';
 import type { AgentTool, AgentToolResult, ToolContext } from '@/ai/agent';
 import { queueToolMutation, flushTool, getToolNodes, getToolCode, isBranchedRun, resolveToolFile } from '@/ai/agent/workspace';
-import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
+import { projectVersionAtom } from '@/code/project/project-fs';
 import { modifyProjectFile } from '@/code/project/modify-file';
 import { listCollections, getCollectionSchema, getCollectionData, reorderCollectionItems, reorderCollectionFields, duplicateCollection } from '@/code/project/cms-ops';
 import { createCmsIndexPageFile, createCmsDetailPageFile } from '@/code/project/cms-page-ops';

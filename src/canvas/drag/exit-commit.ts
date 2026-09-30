@@ -34,7 +34,7 @@
 
 import { queueMutation, flushNowDeferredDuringDrag, type Mutation } from '@/code/mutation/mutation-queue';
 import { moveNodeInCache, updateNodeInCache, getNodeFromCache } from '@/code/stores/store';
-import { patchNodeStyles, forceCanvasRender, forceCanvasRenderDeferredDuringDrag } from '@/canvas/node-ops';
+import { patchNodeStyles, forceCanvasRenderDeferredDuringDrag } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { repositionSignalOps } from '@/canvas/drag/reposition-signal';
 import { trace } from '@/shared/debug-trace';

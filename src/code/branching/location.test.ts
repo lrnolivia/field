@@ -4,13 +4,13 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getDefaultStore } from 'jotai';
-import { resolveLocationOnBranch, captureEditorLocation, type EditorLocation, type BranchReader } from './location';
+import { resolveLocationOnBranch, type EditorLocation, type BranchReader } from './location';
 import { switchBranchFile, clearRememberedBranchFiles } from './switch-workspace';
 import { projectFS, resetProjectFS, MAIN_BRANCH_ID } from '@/code/project/project-fs';
 import { activeFilePathAtom, componentBreadcrumbAtom } from '@/code/project/active-file-store';
 import { overlayEditingIdAtom } from '@/code/stores/overlay-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
-import { cmsEditorOpenAtom, cmsEditorCollectionAtom, cmsEditorExpandedItemAtom, cmsOverlayOpenAtom, activeOverlayCollectionAtom } from '@/code/stores/cms-editor-store';
+import { cmsEditorOpenAtom, cmsEditorCollectionAtom, cmsEditorExpandedItemAtom, cmsOverlayOpenAtom } from '@/code/stores/cms-editor-store';
 import { initMutationQueue, setActiveFilePath, syncQueueCode } from '@/code/mutation/mutation-queue';
 
 const HOME = 'app/page.client.tsx';

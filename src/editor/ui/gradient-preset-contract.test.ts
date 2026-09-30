@@ -1,10 +1,11 @@
+import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePresetTokens, serializePresetTokens } from '@/code/generation/preset-gen';
 import type { PresetToken } from '@/shared/types';
 
-const fill = readFileSync(new URL('../tools/StylesTool/atoms/FillControl.tsx', import.meta.url), 'utf8');
-const grid = readFileSync(new URL('./AssetPresetGrid.tsx', import.meta.url), 'utf8');
+const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
+const grid = readFileSync(resolve(process.cwd(), 'src/editor/ui/AssetPresetGrid.tsx'), 'utf8');
 
 const gradient: PresetToken = {
   name: 'gradient-aurora',

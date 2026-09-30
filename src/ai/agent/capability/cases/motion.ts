@@ -128,7 +128,7 @@ export const MOTION_CASES: CapabilityCase[] = [
     expect: (w) => {
       const code = w.read(HOME) ?? '';
       must(/useTransform/.test(code) && /useScroll/.test(code), 'no scroll-driven transform in the page');
-      must(/opacity:\s*heroTitle\w*/.test(w.tag('hero-title')), `the title\'s opacity is not a scroll motion value: ${w.tag('hero-title').slice(0, 200)}`);
+      must(/opacity:\s*heroTitle\w*/.test(w.tag('hero-title')), `the title's opacity is not a scroll motion value: ${w.tag('hero-title').slice(0, 200)}`);
     },
   },
   {

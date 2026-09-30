@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinFieldEditWrite, axisMode, centersOn, type PinSide } from './pin-field-resize';
+import { pinFieldEditWrite, axisMode, type PinSide } from './pin-field-resize';
 
 // Frame B from the user's report: 183×195 at (519,105) in an 807×474 parent,
 // positioned by left + top, with an explicit size.

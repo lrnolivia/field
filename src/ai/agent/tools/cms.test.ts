@@ -15,7 +15,7 @@ vi.mock('@/code/project/project-fs', async () => {
   return {
     projectVersionAtom: atom(0),
     stableProjectVersionAtom: atom(0),
-    projectFS: {
+    projectFS: { subscribeWrites: () => () => {},
       readFile: vi.fn((p: string) => fsStore.get(p) ?? null),
       writeFile: vi.fn((p: string, c: string) => { fsStore.set(p, c); }),
       deleteFile: vi.fn((p: string) => { fsStore.delete(p); }),

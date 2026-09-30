@@ -21,7 +21,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/code/project/project-fs', async (orig) => {
   const actual = await orig<typeof import('@/code/project/project-fs')>();
-  return { ...actual, projectFS: { readFile: () => '', listFiles: () => [], exists: () => false, writeFile: () => {}, deleteFile: () => {} } };
+  return { ...actual, projectFS: { subscribeWrites: () => () => {}, readFile: () => '', listFiles: () => [], exists: () => false, writeFile: () => {}, deleteFile: () => {} } };
 });
 
 import { parseProjectFile, clearComponentParseCache } from '@/code/parsing/project-parser';

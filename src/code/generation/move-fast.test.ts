@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moveNodeIntoParentFast, extractPlainElementSpan, directChildStarts } from './move-fast';
+import { moveNodeIntoParentFast, directChildStarts } from './move-fast';
 import { moveNodeInCode } from './generator-crud';
 import { parseJSXToNodes } from '../parsing/parser';
 
