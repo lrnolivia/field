@@ -29,9 +29,36 @@ describe('toolbar Media launcher contract', () => {
     expect(launcher).toContain('data-media-launcher-featured');
     expect(launcher).toContain('Browse media');
     expect(launcher).toContain('grid grid-cols-2 gap-1.5');
-    expect(launcher).toContain('data-media-launcher-card');
-    expect(launcher).toContain('flex h-10 min-w-0 items-center gap-1.5');
+    expect(launcher).toContain('<MediaActionCard');
+    const card = read('src/editor/media/MediaActionCard.tsx');
+    expect(card).toContain('data-media-launcher-card');
+    expect(card).toContain('flex h-9 min-w-0 items-center gap-1.5');
+    expect(launcher).not.toContain('description:');
+    expect(launcher).not.toContain('card.description');
+    expect(card).toContain('h-6 w-6');
     expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
+  });
+
+  it('locks the user-verified compact PaintPicker geometry without touching nested launcher behavior', () => {
+    const shell = read('src/editor/ui/PaintPickerShell.tsx');
+    const colorInput = read('src/editor/controls/ColorInput.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(shell).toContain('data-paint-picker-density="compact"');
+    expect(colorInput).toContain('width={304}');
+    expect(read('src/editor/ui/ColorPicker.tsx')).toContain('w-full h-[176px]');
+    expect(css).not.toContain('!important');
+    expect(colorInput).toContain('nested={!!popupCtx}');
+    expect(colorInput).not.toContain("popupCtx.pushPanel('Color'");
+  });
+
+  it('locks the avatar-to-Publish row to the Inspector shell surface', () => {
+    const rightHeader = read('src/editor/header/RightHeader.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(rightHeader).toContain('data-workspace-right-header');
+    expect(rightHeader).toContain('<InspectorCollaborators');
+    expect(rightHeader).toContain('data-tutorial="header-publish-button"');
+    expect(rightHeader).toContain('border-b border-[var(--border-light)] bg-[var(--bg-panel)]');
+    expect(css).not.toContain('[data-workspace-right-header]');
   });
 
   it('expands the same Media shell without swapping to a second modal', () => {

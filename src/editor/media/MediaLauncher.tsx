@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import MediaActionCard from './MediaActionCard';
 import {
   intentForLauncherAction,
   routeForLauncherAction,
@@ -16,17 +17,8 @@ export interface MediaLauncherProps {
 type LauncherActionCard = {
   action: MediaLauncherAction;
   label: string;
-  description: string;
   glyph: ReactNode;
 };
-
-function IconFrame({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      {children}
-    </span>
-  );
-}
 
 const UploadGlyph = () => (
   <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
@@ -75,10 +67,10 @@ const EmbedGlyph = () => (
 );
 
 const creationCards: LauncherActionCard[] = [
-  { action: 'image', label: 'Image', description: 'Stock, upload, or URL', glyph: <ImageGlyph /> },
-  { action: 'gallery', label: 'Gallery', description: 'Compose image sets', glyph: <GalleryGlyph /> },
-  { action: 'video', label: 'Video', description: 'Search or upload', glyph: <VideoGlyph /> },
-  { action: 'audio', label: 'Audio', description: 'File or URL', glyph: <AudioGlyph /> },
+  { action: 'image', label: 'Image', glyph: <ImageGlyph /> },
+  { action: 'gallery', label: 'Gallery', glyph: <GalleryGlyph /> },
+  { action: 'video', label: 'Video', glyph: <VideoGlyph /> },
+  { action: 'audio', label: 'Audio', glyph: <AudioGlyph /> },
 ];
 
 export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLauncherProps) {
@@ -100,7 +92,7 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
       >
         <div className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 rounded-full bg-[var(--accent)] opacity-[0.07] blur-xl" />
         <div className="flex items-center gap-2.5">
-          <IconFrame><BrowseGlyph /></IconFrame>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)]"><BrowseGlyph /></span>
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-semibold text-[var(--text-primary)]">Browse media</div>
             <div className="mt-0.5 text-[9px] leading-3.5 text-[var(--text-tertiary)]">Your project assets in one place</div>
@@ -127,19 +119,13 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
 
       <div className="grid grid-cols-2 gap-1.5">
         {creationCards.map((card) => (
-          <button
+          <MediaActionCard
             key={card.action}
-            type="button"
-            data-media-launcher-card
+            context="media"
+            label={card.label}
+            glyph={card.glyph}
             onClick={() => activate(card.action)}
-            className="group flex h-10 min-w-0 items-center gap-1.5 rounded-[7px] border border-transparent px-1.5 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
-          >
-            <IconFrame>{card.glyph}</IconFrame>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[10px] font-medium text-[var(--text-primary)]">{card.label}</span>
-              <span className="mt-0.5 block truncate text-[8px] leading-3 text-[var(--text-tertiary)]">{card.description}</span>
-            </span>
-          </button>
+          />
         ))}
       </div>
 
