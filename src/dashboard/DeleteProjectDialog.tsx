@@ -15,14 +15,42 @@ export default function DeleteProjectDialog({
   onConfirm,
 }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!project || deleting) return;
-    const frame = requestAnimationFrame(() => cancelRef.current?.focus());
+    if (!project?.id) return;
+    const previousFocus = document.activeElement;
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!project) return;
+    const frame = requestAnimationFrame(() => {
+      if (deleting) dialogRef.current?.focus();
+      else cancelRef.current?.focus();
+    });
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      onClose();
+      if (event.key === 'Tab') {
+        const first = cancelRef.current;
+        const last = confirmRef.current;
+        if (deleting) {
+          event.preventDefault();
+          dialogRef.current?.focus();
+        } else if (event.shiftKey && document.activeElement !== last) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement !== first) {
+          event.preventDefault();
+          first?.focus();
+        }
+      } else if (event.key === 'Escape' && !deleting) {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -43,11 +71,14 @@ export default function DeleteProjectDialog({
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="field-dashboard-modal field-dashboard-delete-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="field-delete-project-title"
         aria-describedby="field-delete-project-detail"
+        aria-busy={deleting || undefined}
       >
         <div className="field-dashboard-modal-copy">
           <h2 id="field-delete-project-title">Delete project permanently?</h2>
@@ -60,6 +91,7 @@ export default function DeleteProjectDialog({
             Cancel
           </button>
           <button
+            ref={confirmRef}
             type="button"
             className="field-dashboard-modal-danger"
             onClick={onConfirm}

@@ -78,4 +78,30 @@ describe('DeleteProjectDialog', () => {
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps keyboard focus in the confirmation and restores it on close', async () => {
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    const props = { project, deleting: false, onClose: vi.fn(), onConfirm: vi.fn() };
+    const { rerender } = render(<DeleteProjectDialog {...props} />);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    const confirm = screen.getByRole('button', { name: 'Delete permanently' });
+    await waitFor(() => expect(document.activeElement).toBe(cancel));
+    fireEvent.keyDown(cancel, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(confirm);
+    fireEvent.keyDown(confirm, { key: 'Tab' });
+    expect(document.activeElement).toBe(cancel);
+    rerender(<DeleteProjectDialog {...props} project={null} />);
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('keeps focus in the busy dialog when both actions are disabled', async () => {
+    render(<DeleteProjectDialog project={project} deleting onClose={vi.fn()} onConfirm={vi.fn()} />);
+    const dialog = screen.getByRole('dialog');
+    await waitFor(() => expect(document.activeElement).toBe(dialog));
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+    expect(document.activeElement).toBe(dialog);
+  });
 });
