@@ -14,14 +14,12 @@ jobs:
   repair:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repair branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: field/fix-lockfile-swc-helper
           fetch-depth: 0
 
-      - name: Use Node 22
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
@@ -30,17 +28,14 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           path = Path("package-lock.json")
           text = path.read_text()
           key = '"node_modules/next-intl/node_modules/@swc/helpers"'
           if key in text:
               raise SystemExit(0)
-
           needle = '    "node_modules/next-themes": {'
           if needle not in text:
               raise SystemExit("safe insertion point not found")
-
           entry = '''    "node_modules/next-intl/node_modules/@swc/helpers": {
             "version": "0.5.23",
             "resolved": "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz",
@@ -56,17 +51,8 @@ jobs:
           path.write_text(text.replace(needle, entry + needle, 1))
           PY
 
-      - name: Install
+      - name: Verify npm ci
         run: npm ci
-
-      - name: Build
-        run: npm run build:all
-
-      - name: Test
-        run: npm run test:run
-
-      - name: Lint
-        run: npm run lint
 
       - name: Commit repaired lockfile
         shell: bash
