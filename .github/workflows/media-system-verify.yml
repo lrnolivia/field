@@ -131,6 +131,8 @@ jobs:
           console.log(`baseline failures: ${baseline.length}`);
           console.log(`exact main: ${process.env.BASE_SHA}`);
           console.log(`identical fingerprint: ${identical}`);
+          console.log(branchOnly.length ? `Branch-only failures (${branchOnly.length}):\n${branchOnly.map(x => `- ${x}`).join('\\n')}` : 'Branch-only failures: none');
+          console.log(baselineOnly.length ? `Baseline-only failures (${baselineOnly.length}):\n${baselineOnly.map(x => `- ${x}`).join('\\n')}` : 'Baseline-only failures: none');
 
           const summary = [
             '## Registry baseline comparison',
