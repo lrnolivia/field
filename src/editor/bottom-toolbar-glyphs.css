@@ -18,73 +18,14 @@
   .field-toolbar-panel-peek { animation: none; }
 }
 
-/* Toolbar popout cards and Media creation cards share the same compact
-   landscape geometry. This deliberately overrides the older 96px tile rule. */
-#bottom-toolbar-container [data-toolbar-menu-tile],
-[data-media-launcher-card] {
-  height: 36px;
-  min-height: 36px;
-  gap: 6px;
-  padding-inline: 6px;
-  border-radius: 7px;
-}
-
-#bottom-toolbar-container [data-toolbar-menu-tile-icon],
-[data-media-launcher-card] > span:first-child {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  border-radius: 7px;
-}
-
-#bottom-toolbar-container [data-toolbar-menu-tile-icon] svg,
-[data-media-launcher-card] > span:first-child svg {
+/* Both launchers render MediaActionCard; keep glyph sizing identical. */
+[data-media-action-card-icon] svg {
   width: 16px;
   height: 16px;
 }
-
-#bottom-toolbar-container [data-toolbar-menu-tile-icon] > :not(svg) {
+[data-media-action-card-icon] > :not(svg) {
   max-width: 20px;
   max-height: 20px;
-}
-
-/* Media descriptions were useful during exploration but made the cards taller
-   than their toolbar twins. Names are now the only copy on both surfaces. */
-[data-media-launcher-card] > span:nth-child(2) > span:nth-child(2) {
-  display: none;
-}
-
-[data-media-launcher-card] > span:nth-child(2) {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-}
-
-/* User-verified PaintPicker QA hotfix: compact shell means compact body too.
-   Keep nested launchers intact; only geometry is tightened here. */
-[data-tool-popup]:has([data-paint-picker-density="compact"]) {
-  width: 304px !important;
-  border-radius: 10px !important;
-}
-
-[data-paint-picker-density="compact"] .aspect-square {
-  aspect-ratio: auto !important;
-  height: 176px !important;
-}
-
-[data-paint-picker-density="compact"] .h-9 {
-  height: 28px !important;
-}
-
-[data-paint-picker-density="compact"] .w-9 {
-  width: 28px !important;
-}
-
-/* The avatar → Publish row is part of the Inspector shell, not transparent
-   page chrome. The Inspector background must visibly continue through it. */
-[data-workspace-right-header] {
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-light);
 }
 
 #bottom-toolbar-container [data-field-toolbar-glyph="menu"] svg {

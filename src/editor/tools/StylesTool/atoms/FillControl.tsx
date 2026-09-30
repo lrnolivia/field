@@ -2117,11 +2117,11 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
         title="Fill"
         ariaLabel="Paint picker"
         anchorRef={btnRef}
-        width={360}
+        width={304}
         side="left"
         hideHeader
         showNestedHeaderWhenHidden
-        radius={14}
+        radius={10}
         outsidePointerMode="close"
         contentClassName="w-full flex-shrink-0 p-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
         resetKey={node?.id ?? 'fill'}

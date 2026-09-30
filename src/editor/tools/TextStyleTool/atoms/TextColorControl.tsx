@@ -679,10 +679,10 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
         title="Color"
         ariaLabel="Paint picker"
         anchorRef={rowRef}
-        width={360}
+        width={304}
         hideHeader
         showNestedHeaderWhenHidden
-        radius={14}
+        radius={10}
         nested={!!popupCtx}
         outsidePointerMode="close"
       >

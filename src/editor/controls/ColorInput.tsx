@@ -244,10 +244,10 @@ export default function ColorInput({ value, onChange, onChangeLive, showAlpha, e
           title="Color"
           ariaLabel="Paint picker"
           anchorRef={btnRef}
-          width={360}
+          width={304}
           hideHeader
           showNestedHeaderWhenHidden
-          radius={14}
+          radius={10}
           nested={!!popupCtx}
           outsidePointerMode="close"
         >

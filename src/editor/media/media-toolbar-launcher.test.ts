@@ -29,15 +29,13 @@ describe('toolbar Media launcher contract', () => {
     expect(launcher).toContain('data-media-launcher-featured');
     expect(launcher).toContain('Browse media');
     expect(launcher).toContain('grid grid-cols-2 gap-1.5');
-    expect(launcher).toContain('data-media-launcher-card');
-    expect(launcher).toContain('flex h-9 min-w-0 items-center gap-1.5');
+    expect(launcher).toContain('<MediaActionCard');
+    const card = read('src/editor/media/MediaActionCard.tsx');
+    expect(card).toContain('data-media-launcher-card');
+    expect(card).toContain('flex h-9 min-w-0 items-center gap-1.5');
     expect(launcher).not.toContain('description:');
     expect(launcher).not.toContain('card.description');
-    const sharedGeometry = read('src/editor/bottom-toolbar-glyphs.css');
-    expect(sharedGeometry).toContain('#bottom-toolbar-container [data-toolbar-menu-tile],');
-    expect(sharedGeometry).toContain('[data-media-launcher-card]');
-    expect(sharedGeometry).toContain('height: 36px');
-    expect(sharedGeometry).toContain('width: 24px');
+    expect(card).toContain('h-6 w-6');
     expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
   });
 
@@ -46,9 +44,9 @@ describe('toolbar Media launcher contract', () => {
     const colorInput = read('src/editor/controls/ColorInput.tsx');
     const css = read('src/editor/bottom-toolbar-glyphs.css');
     expect(shell).toContain('data-paint-picker-density="compact"');
-    expect(css).toContain(':has([data-paint-picker-density="compact"])');
-    expect(css).toContain('width: 304px !important');
-    expect(css).toContain('height: 176px !important');
+    expect(colorInput).toContain('width={304}');
+    expect(read('src/editor/ui/ColorPicker.tsx')).toContain('w-full h-[176px]');
+    expect(css).not.toContain('!important');
     expect(colorInput).toContain('nested={!!popupCtx}');
     expect(colorInput).not.toContain("popupCtx.pushPanel('Color'");
   });
@@ -59,9 +57,8 @@ describe('toolbar Media launcher contract', () => {
     expect(rightHeader).toContain('data-workspace-right-header');
     expect(rightHeader).toContain('<InspectorCollaborators');
     expect(rightHeader).toContain('data-tutorial="header-publish-button"');
-    expect(css).toContain('[data-workspace-right-header]');
-    expect(css).toContain('background: var(--bg-panel)');
-    expect(css).toContain('border-bottom: 1px solid var(--border-light)');
+    expect(rightHeader).toContain('border-b border-[var(--border-light)] bg-[var(--bg-panel)]');
+    expect(css).not.toContain('[data-workspace-right-header]');
   });
 
   it('expands the same Media shell without swapping to a second modal', () => {

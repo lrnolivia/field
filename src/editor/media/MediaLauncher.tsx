@@ -92,7 +92,7 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
       >
         <div className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 rounded-full bg-[var(--accent)] opacity-[0.07] blur-xl" />
         <div className="flex items-center gap-2.5">
-          <IconFrame><BrowseGlyph /></IconFrame>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)]"><BrowseGlyph /></span>
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-semibold text-[var(--text-primary)]">Browse media</div>
             <div className="mt-0.5 text-[9px] leading-3.5 text-[var(--text-tertiary)]">Your project assets in one place</div>

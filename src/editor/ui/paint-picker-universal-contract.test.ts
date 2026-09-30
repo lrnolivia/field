@@ -40,9 +40,9 @@ describe('universal PaintPicker', () => {
     expect(shell).toContain('data-paint-picker-density="compact"');
     expect(shell).toContain('h-9 px-2');
     expect(shell).toContain('h-10 px-2');
-    expect(hotfixCss).toContain(':has([data-paint-picker-density="compact"])');
-    expect(hotfixCss).toContain('width: 304px !important');
-    expect(hotfixCss).toContain('height: 176px !important');
+    expect(colorInput).toContain('width={304}');
+    expect(picker).toContain('w-full h-[176px]');
+    expect(hotfixCss).not.toContain('!important');
     expect(colorInput).toContain('nested={!!popupCtx}');
     expect(colorInput).toContain('<StandaloneColorPickerWithPresets');
     expect(colorInput).not.toContain("!popupCtx &&");

@@ -330,7 +330,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           data-visible={floatingInspectorVisible ? 'true' : 'false'}
           aria-hidden={!floatingInspectorVisible}
           inert={!floatingInspectorVisible}
-          className="fixed z-[9999] flex h-[52px] items-center px-2"
+          className="fixed z-[9999] flex h-[52px] items-center border-b border-[var(--border-light)] bg-[var(--bg-panel)] px-2"
           style={{
             width: workspace.right.width,
             top: workspace.right.top,
