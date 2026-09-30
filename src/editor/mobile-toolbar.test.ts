@@ -24,7 +24,7 @@ describe('mobile Focus toolbar presentation', () => {
   });
 
   it('leaves the wide toolbar path intact', () => {
-    expect(source).toContain("bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 18");
+    expect(source).toContain("bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18");
     expect(source).toContain('id="bottom-toolbar-container"');
   });
 });

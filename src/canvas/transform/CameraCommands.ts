@@ -65,14 +65,18 @@ const getAvailableArea = getAvailableCanvasArea;
 /** Camera-safe rectangle for a focused item, including floating chrome. */
 export function getPaddedCanvasFocusArea() {
   const available = getAvailableCanvasArea();
-  const floatingLeft = document.querySelector<HTMLElement>('[data-floating-left-panel]')?.getBoundingClientRect();
+  const leftPanel = document.querySelector<HTMLElement>('[data-floating-left-panel][data-visible="true"]');
+  const floatingLeft = leftPanel?.dataset.mobilePanelPresentation === 'portrait-sheet'
+    ? undefined : leftPanel?.getBoundingClientRect();
   const rightIsland = document.querySelector<HTMLElement>('[data-workspace-island="right"]')?.getBoundingClientRect();
   const leftEdge = Math.max(available.centerX - available.width / 2, floatingLeft?.right ?? 0);
   const rightEdge = Math.min(available.centerX + available.width / 2, rightIsland?.left ?? window.innerWidth);
   const left = Math.min(leftEdge + 24, window.innerWidth - 184);
   const right = Math.max(left + 160, rightEdge - 24);
-  const top = 72;
-  const bottom = Math.max(top + 160, window.innerHeight - 96);
+  const viewport = window.visualViewport;
+  const top = Math.max(72, (viewport?.offsetTop ?? 0) + 24);
+  const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const bottom = Math.max(top + 80, visibleBottom - 96);
   return { width: right - left, height: bottom - top, centerX: (left + right) / 2, centerY: (top + bottom) / 2 };
 }
 

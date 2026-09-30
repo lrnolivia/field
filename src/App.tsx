@@ -44,7 +44,7 @@ import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-meta
 import { useSetAtom } from 'jotai';
 import { initCloudPlugin } from './cloud/cloud-plugin';
 import { CLOUD_ENABLED } from './shared/cloud-flag';
-import { previewModeAtom } from './code/stores/editor-store';
+import { previewModeAtom, isTextEditingAtom } from './code/stores/editor-store';
 import { CollaborationProvider } from './canvas/collab/CollaborationProvider';
 import CollaborationLayer from './canvas/collab/CollaborationLayer';
 import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from './code/stores/viewer-mode-store';
@@ -58,6 +58,7 @@ import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
+import MobileFocusCoordinator from '@/editor/MobileFocusCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
@@ -90,11 +91,12 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const mobileWorkspacePresentation = useMobileWorkspacePresentation();
   const mobilePortraitSheet = mobileWorkspacePresentation === 'portrait-sheet';
   const mobileLandscapeOverlay = mobileWorkspacePresentation === 'landscape-overlay';
+  const isTextEditing = useAtomValue(isTextEditingAtom);
   const mobilePanelPresentation = mobileWorkspacePresentation !== 'regular';
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
@@ -107,7 +109,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const floatingInspectorHeight = rightDetached
     ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight)
     : rightFloatingHeight;
-  const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
+  const cameraInsets = mobilePanelPresentation ? { left: 0, top: 0, right: 0, bottom: 0 } : deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
     leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
   });
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
@@ -277,10 +279,18 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           onCanvasRevealComplete?.();
         }
       }}
-      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
+      style={{ display: 'flex', height: '100dvh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
+      <MobileFocusCoordinator />
+      {mobilePanelPresentation && isTextEditing && <button type="button" data-mobile-text-done
+        onPointerDown={(event) => event.preventDefault()}
+        onClick={() => { void commitActiveTextEdit(); }}
+        className="fixed right-3 z-[16000] flex h-11 items-center rounded-md border border-[var(--border-light)] bg-[var(--bg-panel)] px-4 text-xs"
+        style={{ bottom: 'calc(12px + var(--field-visible-bottom, 0px) + env(safe-area-inset-bottom, 0px))' }}>
+        Done
+      </button>}
       <WorkspaceModeCoordinator />
       <ChromeIslands />
       <WorkspacePaneResizeHandles hidden={previewMode} />
@@ -347,19 +357,19 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             data-mobile-panel-presentation={mobilePanelPresentation ? mobileWorkspacePresentation : undefined}
             aria-hidden={!floatingInspectorVisible}
             inert={!floatingInspectorVisible}
-            className="fixed z-[5000] overflow-hidden"
+            className="fixed z-[5000] flex flex-col overflow-hidden"
             style={{
               right: mobilePanelPresentation ? 8 : workspaceLayout.right.inset,
               left: mobilePortraitSheet ? 8 : undefined,
               top: mobilePortraitSheet ? 'auto' : mobileLandscapeOverlay ? 60 : workspaceBodyTop(workspaceLayout.right),
               bottom: mobilePortraitSheet
-                ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
+                ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))'
                 : mobileLandscapeOverlay ? 8 : undefined,
               width: mobilePortraitSheet
                 ? 'auto'
                 : mobileLandscapeOverlay ? Math.min(workspaceLayout.right.width, 320) : workspaceLayout.right.width,
               height: mobilePortraitSheet
-                ? 'min(58dvh, 500px)'
+                ? 'min(500px, calc(var(--field-visible-height, 100dvh) - 140px))'
                 : mobileLandscapeOverlay
                   ? 'calc(100dvh - 68px)'
                   : rightDetached
@@ -384,6 +394,11 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
               transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
+            {mobilePanelPresentation && <button type="button" aria-label="Close Properties"
+              onClick={() => setRightPaneOpen(false)}
+              className="flex h-11 w-full shrink-0 items-center justify-between border-b border-[var(--border-light)] px-3 text-xs">
+              <span>Properties</span><span aria-hidden>×</span>
+            </button>}
             <RightSidebar />
             {rightDetached && !mobilePanelPresentation && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
               onPointerDown={(event) => {

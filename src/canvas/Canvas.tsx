@@ -1022,6 +1022,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       scheduleGeometryReconcile();
     });
     window.addEventListener('resize', onWindowResize);
+    window.visualViewport?.addEventListener('resize', onWindowResize);
+    window.visualViewport?.addEventListener('scroll', onWindowResize);
     document.addEventListener('transitionend', onWorkspaceTransitionEnd, true);
     structureObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -1041,6 +1043,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       resizeObserver.disconnect();
       structureObserver.disconnect();
       window.removeEventListener('resize', onWindowResize);
+      window.visualViewport?.removeEventListener('resize', onWindowResize);
+      window.visualViewport?.removeEventListener('scroll', onWindowResize);
       document.removeEventListener('transitionend', onWorkspaceTransitionEnd, true);
       focusCamera.dispose();
       if (textFocusCameraRef.current === focusCamera) textFocusCameraRef.current = null;

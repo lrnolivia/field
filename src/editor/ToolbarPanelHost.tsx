@@ -193,7 +193,7 @@ export default function ToolbarPanelHost() {
             ? 'calc(100vw - 16px)'
             : landscapeOverlay ? 'min(360px, 42vw)' : `min(${size.width}px, calc(100vw - 32px))`,
           height: portraitSheet
-            ? 'min(62dvh, 520px)'
+            ? 'min(520px, calc(var(--field-visible-height, 100dvh) - 140px))'
             : landscapeOverlay ? 'calc(100dvh - 80px)' : `min(${size.height}px, calc(100vh - 32px))`,
           left: portraitSheet
             ? 8
@@ -203,7 +203,7 @@ export default function ToolbarPanelHost() {
             ? 'auto'
             : landscapeOverlay ? 68 : peeked ? 32 - size.height : position?.y ?? '50%',
           bottom: portraitSheet
-            ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
+            ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))'
             : undefined,
           transform: mobilePanel ? 'none' : position ? 'none' : 'translate(-50%, -50%)',
           transformOrigin: mobilePanel

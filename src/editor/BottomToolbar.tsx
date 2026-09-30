@@ -716,7 +716,7 @@ export default function BottomToolbar() {
         data-mobile-toolbar-launcher
         className="fixed left-1/2 z-[9998] -translate-x-1/2 select-none"
         style={{
-          bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))',
           willChange: 'transform',
           isolation: 'isolate',
         }}
@@ -747,7 +747,7 @@ export default function BottomToolbar() {
       className="fixed left-1/2 -translate-x-1/2 z-[9998] flex justify-center select-none"
       // CommandPalette measures the live bar rect, so anchored UI tracks it.
       style={{
-        bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 18,
+        bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18,
         width: isNarrowToolbar ? 'calc(100vw - 24px)' : undefined,
         willChange: 'transform',
         isolation: 'isolate',

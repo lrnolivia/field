@@ -1,0 +1,36 @@
+name: Mobile Focus verify
+on:
+  pull_request:
+    paths:
+      - 'src/editor/mobile*'
+      - 'src/editor/MobileFocusCoordinator*'
+      - 'src/editor/e2e/mobile-focus.spec.ts'
+      - 'src/canvas/hooks/useCanvasTouchInteraction*'
+      - 'src/canvas/selection/useTouchHandleTargets.ts'
+      - '.github/workflows/mobile-focus-verify.yml'
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Touch and mobile contracts
+        run: npm run test:run -- --maxWorkers=2 src/editor/mobile-focus-state.test.ts src/editor/mobile-workspace-presentation.test.ts src/editor/mobile-toolbar.test.ts src/canvas/hooks/useCanvasTouchInteraction.test.ts src/canvas/transform/InputHandler.touch.test.ts src/canvas/hooks/useCanvasTransform.touch.test.ts
+      - name: Build editor, Canvas and Preview
+        run: npm run build:all
+      - run: npx playwright install --with-deps chromium
+      - name: Native touch runtime regressions
+        run: npx playwright test src/editor/e2e/mobile-focus.spec.ts --project=chromium --reporter=line --retries=0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-focus-runtime
+          path: test-results/
+          if-no-files-found: ignore

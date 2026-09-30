@@ -17,7 +17,7 @@ export default function FloatingLeftPanelHost() {
   const landscapeOverlay = presentation === 'landscape-overlay';
   const mobilePanel = presentation !== 'regular';
   const hidden = useAtomValue(floatingLeftHiddenAtom);
-  const collapsed = useAtomValue(floatingPanelCollapsedAtom);
+  const [collapsed, setCollapsed] = useAtom(floatingPanelCollapsedAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const compactOpen = useAtomValue(compactPanelOpenAtom);
   const panelId = useAtomValue(leftPanelAtom);
@@ -28,8 +28,9 @@ export default function FloatingLeftPanelHost() {
   const visible = (mode === 'floating' && (!autoHide || !hidden) && !collapsed) || (mode === 'compact' && compactOpen);
 
   useEffect(() => {
+    if (mobilePanel) return;
     setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET)));
-  }, [mode]);
+  }, [mode, mobilePanel, setHeight]);
 
   if (!Panel || (mode !== 'floating' && mode !== 'compact')) return null;
 
@@ -66,10 +67,10 @@ export default function FloatingLeftPanelHost() {
         left: portraitSheet ? 8 : WORKSPACE_FLOAT_INSET + railWidth,
         right: portraitSheet ? 8 : undefined,
         top: portraitSheet ? 'auto' : WORKSPACE_FLOAT_LEFT_TOP,
-        bottom: portraitSheet ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : undefined,
+        bottom: portraitSheet ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : undefined,
         width: portraitSheet ? 'auto' : landscapeOverlay ? Math.min(contentWidth, 320) : contentWidth,
         height: portraitSheet
-          ? 'min(58dvh, 500px)'
+          ? 'min(500px, calc(var(--field-visible-height, 100dvh) - 140px))'
           : landscapeOverlay
             ? 'calc(100dvh - 80px)'
             : Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
@@ -86,10 +87,11 @@ export default function FloatingLeftPanelHost() {
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      {portraitSheet && (
-        <div aria-hidden className="flex h-5 shrink-0 items-center justify-center">
-          <span className="h-1 w-9 rounded-full bg-[var(--text-disabled)] opacity-70" />
-        </div>
+      {mobilePanel && (
+        <button type="button" aria-label="Close panel" onClick={() => setCollapsed(true)}
+          className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--border-light)] px-3 text-xs">
+          <span className="capitalize">{panelId}</span><span aria-hidden>×</span>
+        </button>
       )}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
       {!mobilePanel && (

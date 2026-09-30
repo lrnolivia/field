@@ -5,6 +5,7 @@
 import { RESIZE_HANDLE_SIZE, SELECTION_COLOR } from '@/shared/constants';
 import type { ScreenCorners, Direction } from '@/canvas/resize/geometry-utils';
 import { midpoint } from '@/canvas/resize/geometry-utils';
+import { useTouchHandleTargets } from './useTouchHandleTargets';
 import { getResizeCursor } from '@/canvas/resize/cursor-utils';
 
 interface Props {
@@ -22,8 +23,9 @@ export default function ResizeHandles({
   disableHorizontal = false,
   disableVertical = false,
 }: Props) {
+  const touch = useTouchHandleTargets();
   const visualSize = Math.max(6, RESIZE_HANDLE_SIZE - 1);
-  const hitSize = Math.max(14, RESIZE_HANDLE_SIZE + 6);
+  const hitSize = touch ? 36 : Math.max(14, RESIZE_HANDLE_SIZE + 6);
 
   const visibleHandles: { pos: { x: number; y: number }; dir: Direction }[] = [];
   if (!disableHorizontal && !disableVertical) {
@@ -72,6 +74,7 @@ export default function ResizeHandles({
             alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'all',
+            touchAction: 'none',
             cursor: getResizeCursor(h.dir, rotation),
             zIndex: 3,
           }}
@@ -97,7 +100,7 @@ export default function ResizeHandles({
         const length = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         const mid = midpoint(edge.from, edge.to);
-        const hitHeight = 10;
+        const hitHeight = touch ? 20 : 10;
         return (
           <div
             key={`edge-${edge.dir}`}
@@ -112,6 +115,7 @@ export default function ResizeHandles({
               transform: `rotate(${angle}deg)`,
               transformOrigin: 'center center',
               pointerEvents: 'all',
+            touchAction: 'none',
               cursor: getResizeCursor(edge.dir, rotation),
               zIndex: 2,
             }}
