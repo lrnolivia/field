@@ -26,6 +26,7 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
   const [doneProject, setDoneProject] = useState<FieldProjectMeta | null>(null);
   const doneTimerRef = useRef<number | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const responsiveOptions = useMemo(
     () => availableResponsiveCanvasPresets(draft.canvasPresetId),
@@ -40,9 +41,20 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
     setSaving(false);
     setError(null);
     setDoneProject(null);
-    const frame = requestAnimationFrame(() => nameRef.current?.select());
-    return () => cancelAnimationFrame(frame);
   }, [open]);
+
+  useEffect(() => {
+    if (!open || saving || doneProject) return;
+    const frame = requestAnimationFrame(() => {
+      if (step === 1) {
+        nameRef.current?.focus();
+        nameRef.current?.select();
+        return;
+      }
+      titleRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [doneProject, open, saving, step]);
 
   useEffect(() => () => {
     if (doneTimerRef.current !== null) window.clearTimeout(doneTimerRef.current);
@@ -139,7 +151,7 @@ export default function NewProjectWizard({ open, onClose, onCreate, onDone }: Pr
         <header className="field-new-project-head">
           <div>
             <span className="field-new-project-eyebrow">New project</span>
-            <h2 id="field-new-project-title">{step === 1 ? 'Start with the essentials' : 'Responsive canvases'}</h2>
+            <h2 ref={titleRef} tabIndex={-1} id="field-new-project-title">{step === 1 ? 'Start with the essentials' : 'Responsive canvases'}</h2>
           </div>
           <span className="field-new-project-step">{step} / 2</span>
         </header>
