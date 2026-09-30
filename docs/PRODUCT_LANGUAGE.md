@@ -163,6 +163,27 @@ These are the preferred human-facing strings for the product as it exists now.
 
 Do not replace established interaction terms such as `collapse` or `auto-hide` merely to make them sound more branded.
 
+### mobile workspace language
+
+Mobile is a presentation and interaction state of the same field editor, not a separate product mode or document model.
+
+On phone-sized touch layouts:
+
+- `float` is the default mobile workspace: Canvas remains primary, the canonical tool control stays available, and secondary surfaces appear temporarily.
+- `focus` is the reduced-chrome mobile workspace for direct Canvas manipulation.
+- `full` is not exposed as a mobile layout option.
+- `collapse`, `expand`, and `auto-hide` remain valid workspace terms, but their controls should not occupy persistent phone chrome. If they are exposed on mobile, place them under `settings` or a workspace/view settings surface.
+
+Mobile tool and surface vocabulary:
+
+| concept | canonical string | notes |
+| --- | --- | --- |
+| primary floating mobile tool control | `tool button` | stable anchor; it does not morph into a docked toolbar |
+| expanded chooser opened from the tool button | `tool palette` | temporary floating choice surface |
+| temporary mobile panel surface | `sheet` | Layers, Insert, Media, Inspector, and similar mobile surfaces share one top-level stacking model |
+
+Do not use `FAB` as the user-facing field string. It may remain implementation/design shorthand. Prefer `tool button`, `tool palette`, and `sheet` in product copy and handoffs.
+
 ---
 
 ## 3. current named interaction features
@@ -356,7 +377,8 @@ The next text-string pass should specifically audit for inherited or inconsisten
 - Media Library → `media`
 - Properties / Properties panel → `inspector` where it refers to field's right-side property surface
 - About Field / About → `about field`
-- Full / Focus / Float → `full` / `focus` / `float`
+- Full / Focus / Float → `full` / `focus` / `float` on desktop; phone layouts expose only `focus` / `float`
+- FAB / mobile toolbar wording → `tool button` / `tool palette`; mobile temporary panels → `sheet`
 - Locate → `locate`
 - Design / Content / Code / Preview → `design` / `content` / `code` / `preview`
 - Pages / Layers → `pages` / `layers`
