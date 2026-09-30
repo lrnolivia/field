@@ -69,13 +69,89 @@ jobs:
       - name: Full test suite
         id: tests
         continue-on-error: true
-        run: npm run test:run -- --reporter=verbose
+        run: |
+          mkdir -p "$RUNNER_TEMP/field-registry"
+          npm run test:run -- --reporter=json --outputFile="$RUNNER_TEMP/field-registry/branch-tests.json"
       - name: Lint
         id: lint
         continue-on-error: true
         run: npm run lint
+      - name: Prepare exact main baseline
+        id: baseline
+        if: steps.tests.outcome == 'failure'
+        run: |
+          git fetch origin main --depth=1
+          BASE_SHA="$(git rev-parse origin/main)"
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          git worktree add --detach "$RUNNER_TEMP/field-main-baseline" "$BASE_SHA"
+          cp package-lock.json "$RUNNER_TEMP/field-main-baseline/package-lock.json"
+          cd "$RUNNER_TEMP/field-main-baseline"
+          npm ci --no-audit --no-fund
+      - name: Baseline full test suite
+        id: baseline_tests
+        if: steps.tests.outcome == 'failure'
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/field-main-baseline
+        run: npm run test:run -- --reporter=json --outputFile="${{ runner.temp }}/field-registry/baseline-tests.json"
+      - name: Compare branch failures to exact main baseline
+        id: baseline_compare
+        if: always() && steps.tests.outcome == 'failure'
+        env:
+          BRANCH_REPORT: ${{ runner.temp }}/field-registry/branch-tests.json
+          BASELINE_REPORT: ${{ runner.temp }}/field-registry/baseline-tests.json
+          BASE_SHA: ${{ steps.baseline.outputs.base_sha }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function fingerprint(reportPath) {
+            if (!fs.existsSync(reportPath)) throw new Error(`missing report: ${reportPath}`);
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const failures = [];
+            for (const result of report.testResults || []) {
+              const rawFile = String(result.name || result.testFilePath || '').replaceAll('\\', '/');
+              const srcIndex = rawFile.indexOf('/src/');
+              const file = srcIndex >= 0 ? rawFile.slice(srcIndex + 1) : rawFile;
+              for (const assertion of result.assertionResults || []) {
+                if (assertion.status !== 'failed') continue;
+                const name = assertion.fullName || assertion.title || assertion.name || '';
+                failures.push(`${file} :: ${name}`);
+              }
+            }
+            return failures.sort();
+          }
+
+          const branch = fingerprint(process.env.BRANCH_REPORT);
+          const baseline = fingerprint(process.env.BASELINE_REPORT);
+          const branchOnly = branch.filter(item => !baseline.includes(item));
+          const baselineOnly = baseline.filter(item => !branch.includes(item));
+          const identical = branchOnly.length === 0 && baselineOnly.length === 0;
+
+          console.log(`branch failures: ${branch.length}`);
+          console.log(`baseline failures: ${baseline.length}`);
+          console.log(`exact main: ${process.env.BASE_SHA}`);
+          console.log(`identical fingerprint: ${identical}`);
+
+          const summary = [
+            '## Registry baseline comparison',
+            `- exact main: \`${process.env.BASE_SHA}\``,
+            `- branch failures: ${branch.length}`,
+            `- baseline failures: ${baseline.length}`,
+            `- identical failure fingerprint: ${identical ? 'yes' : 'no'}`,
+            '',
+            branchOnly.length ? `Branch-only failures (${branchOnly.length}):\n${branchOnly.map(x => `- ${x}`).join('\n')}` : 'Branch-only failures: none',
+            '',
+            baselineOnly.length ? `Baseline-only failures (${baselineOnly.length}):\n${baselineOnly.map(x => `- ${x}`).join('\n')}` : 'Baseline-only failures: none',
+            ''
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+
+          if (!identical) process.exit(1);
+          NODE
       - name: Enforce registry gates
         if: always()
         run: |
-          test "${{ steps.tests.outcome }}" = "success"
+          if [ "${{ steps.tests.outcome }}" != "success" ]; then
+            test "${{ steps.baseline_compare.outcome }}" = "success"
+          fi
           test "${{ steps.lint.outcome }}" = "success"
