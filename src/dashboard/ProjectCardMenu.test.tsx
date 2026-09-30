@@ -42,6 +42,13 @@ function renderOpenMenu() {
 }
 
 describe('ProjectCardMenu dismissal', () => {
+  it('focuses the first action on open and restores the trigger before launching a dialog', () => {
+    const { trigger, onOpenChange } = renderOpenMenu();
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Open' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(document.activeElement).toBe(trigger);
+  });
   it('navigates the menu with arrow keys and Home/End', () => {
     const { menu } = renderOpenMenu();
     const first = screen.getByRole('menuitem', { name: 'Open' });

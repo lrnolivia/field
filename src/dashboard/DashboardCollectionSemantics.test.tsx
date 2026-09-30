@@ -1,9 +1,20 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FieldProjectMeta } from '@/backend/field-projects';
 import DashboardHeader from './DashboardHeader';
 import DashboardLoadingGrid from './DashboardLoadingGrid';
 import ProjectGrid from './ProjectGrid';
+import Dashboard from '@/Dashboard';
+
+const api = vi.hoisted(() => ({ list: vi.fn(), rename: vi.fn(), remove: vi.fn() }));
+vi.mock('@/backend', () => ({ backend: { getUser: vi.fn().mockResolvedValue(null) } }));
+vi.mock('@/backend/field-projects', () => ({
+  listFieldProjects: api.list, renameFieldProject: api.rename, permanentlyDeleteFieldProject: api.remove,
+  createFieldProject: vi.fn(), duplicateFieldProject: vi.fn(), restoreFieldProject: vi.fn(),
+  setFieldProjectStarred: vi.fn(), trashFieldProject: vi.fn(),
+}));
+vi.mock('@/backend/field-navigation', () => ({ openFieldProject: vi.fn() }));
+vi.mock('./DashboardThumbnailBackfill', () => ({ default: () => null }));
 
 const project = {
   id: 'project-1',
@@ -25,6 +36,37 @@ const actions = {
 };
 
 describe('Dashboard collection semantics', () => {
+  it('keeps a failed rename open with the entered name until retry succeeds', async () => {
+    api.list.mockResolvedValue([project]);
+    api.rename.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValueOnce({ ...project, name: 'New portfolio' });
+    render(<Dashboard />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Project actions for Portfolio' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    const input = screen.getByRole('textbox', { name: 'Project name' });
+    fireEvent.change(input, { target: { value: 'New portfolio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Connection lost');
+    expect((input as HTMLInputElement).value).toBe('New portfolio');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('button', { name: 'Open New portfolio' })).toBeTruthy();
+  });
+
+  it('keeps failed deletion retryable and removes the card only after success', async () => {
+    api.list.mockResolvedValue([{ ...project, trashedAt: '2026-09-30T00:00:00Z' }]);
+    api.remove.mockRejectedValueOnce(new Error('Delete unavailable')).mockResolvedValueOnce(undefined);
+    render(<Dashboard />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trash' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Project actions for Portfolio' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete permanently…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Delete unavailable');
+    expect(screen.getByRole('button', { name: 'Project actions for Portfolio' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Project actions for Portfolio' })).toBeNull();
+  });
+
   it('exposes the project grid as a list with project cards as list items', () => {
     render(
       <ProjectGrid

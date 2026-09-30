@@ -29,6 +29,10 @@ export default function ProjectCardMenu({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (open) menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
 
     const closeFromPointer = (event: PointerEvent) => {
@@ -74,6 +78,8 @@ export default function ProjectCardMenu({
   const trashed = Boolean(project.trashedAt);
 
   const run = (fn: () => void) => {
+    const trigger = menuRef.current?.closest('.field-project-card')?.querySelector<HTMLElement>('.field-project-more');
+    trigger?.focus();
     onOpenChange(false);
     fn();
   };
