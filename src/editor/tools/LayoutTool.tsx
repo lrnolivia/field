@@ -5,13 +5,13 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { CSS_LAYOUT_DEFAULTS } from '@/shared/constants';
-import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, ToolSlider, StyleField, ControlLabel, ControlActionRow, ColorSwatch, InspectorIconButtonGroup } from '../controls';
-import ColorInput from '../controls/ColorInput';
+import { ToolSection, ToolSegmentedControl, ToolDivider, ToolPlusMinus, ToolInput, ToolSelect, StyleField, ControlLabel, InspectorIconButtonGroup } from '../controls';
+import '../controls/ColorInput';
 import { LegacyVariableBoundPill } from '../controls/VariableBoundPill';
 import ToolPopup from '../ui/ToolPopup';
 import { useControl } from '../controls/ControlProvider';
 import { getAlignOptions, getJustifyOptions } from '../controls/css-property-options';
-import { LocalePillOrLegacy } from '../controls/LocaleBoundPill';
+import '../controls/LocaleBoundPill';
 import { updateNodeStyles, getContentRoot, findNodeSize, findNodeRect } from '@/canvas/node-ops';
 import { injectFlexLayoutOnFrame, resolveLayoutInjectionTargets, rebaseChildrenForDirectionFlip } from './layout-injection';
 import { flushNow } from '@/code/mutation/mutation-queue';
@@ -22,12 +22,12 @@ import { interactingViewportIdAtom, getViewportWidths } from '@/code/stores/view
 import { activeFilePathAtom, isComponentFilePath } from '@/code/project/active-file-store';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { isPrimaryViewport } from '@/canvas/node-ops';
-import { presetTokensAtom } from '@/code/stores/preset-store';
+import '@/code/stores/preset-store';
 import { isFitSize } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
 import GalleryTool from './GalleryTool';
 import { GALLERY_VIEW_STYLE_PROPERTY, isGalleryViewId } from '@/code/gallery/gallery-views';
-import { parseVarRef } from '@/shared/css-utils';
+import '@/shared/css-utils';
 import { parseAutoTrack, formatAutoTrack,
   type TrackList, type Track, type TrackUnit,
   TRACK_UNIT_OPTIONS,

@@ -1,6 +1,6 @@
 // oracle/telemetry.test.ts — P6 (vi): published shadow/bounce counters.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getOracleTelemetry,
   recordOracleBounce,

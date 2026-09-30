@@ -11,7 +11,7 @@ vi.mock('@/shared/debug-trace', () => ({
 }));
 
 vi.mock('../project/project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: vi.fn(),
     writeFile: vi.fn(),
     deleteFile: vi.fn(),

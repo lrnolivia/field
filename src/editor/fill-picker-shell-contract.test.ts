@@ -1,13 +1,14 @@
+import { resolve } from 'node:path';
 // FILL_PICKER_SHELL_CONTRACT_20260929
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const fillSource = readFileSync(
-  new URL('./tools/StylesTool/atoms/FillControl.tsx', import.meta.url),
+  resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'),
   'utf8',
 );
-const shellSource = readFileSync(new URL('./ui/PaintPickerShell.tsx', import.meta.url), 'utf8');
-const colorSource = readFileSync(new URL('./ui/ColorPicker.tsx', import.meta.url), 'utf8');
+const shellSource = readFileSync(resolve(process.cwd(), 'src/editor/ui/PaintPickerShell.tsx'), 'utf8');
+const colorSource = readFileSync(resolve(process.cwd(), 'src/editor/ui/ColorPicker.tsx'), 'utf8');
 
 describe('fill picker shell contract', () => {
   it('opens Fill as an anchored floating ToolPopup instead of Inspector navigation', () => {

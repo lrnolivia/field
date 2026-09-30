@@ -19,7 +19,7 @@ import { i18nConfigAtom, activeLocaleAtom } from '@/code/stores/locale-store';
 import { translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
 import { commitTranslationText, readTranslationText, listTranslatableTexts } from '@/code/project/translation-ops';
 import { getCollectionItemTranslation, setCollectionItemTranslation } from '@/code/project/cms-ops';
-import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
+import { projectVersionAtom } from '@/code/project/project-fs';
 import { getFileDisplayName, getPageSlug } from '@/code/project/active-file-store';
 import { collectionSchemasAtom, collectionDataAtom } from '@/code/stores/cms-store';
 import { estimateTranslate, runAiTranslate, type TranslateItem } from '@/ai/translate-client';

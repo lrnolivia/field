@@ -325,7 +325,7 @@ const INLINE_MARK_TAGS = new Set(['span', 'strong', 'em', 'b', 'i', 'u', 's', 's
  *  (live find 2026-09-05); the runtime now splits around them.
  */
 export function normalizeInlineRichInner(inner: string): string | null {
-  let cand = inner.trim()
+  const cand = inner.trim()
     .replace(/<\/p>\s*<p[^>]*>/gi, '<br />')
     .replace(/^<p[^>]*>/i, '')
     .replace(/<\/p>$/i, '')

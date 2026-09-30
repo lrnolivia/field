@@ -719,7 +719,7 @@ describe('verifyEffect — node_ids IDS mode (P2.3a additif)', () => {
   });
 
   it('ids: through verifyEffectTool + ProjectFS → IDS path is used and respects scope', async () => {
-    let pre = projectFS.getSnapshot();
+    const pre = projectFS.getSnapshot();
     try {
       projectFS.loadSnapshot(new Map([['app/page.client.tsx', IDS_PAGE_REAL]]));
       const result = await verifyEffectTool.execute(

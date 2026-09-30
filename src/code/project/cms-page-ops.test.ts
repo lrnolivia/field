@@ -16,7 +16,7 @@ vi.mock('@/shared/debug-trace', () => ({
 const fsStore = vi.hoisted(() => new Map<string, string>());
 
 vi.mock('./project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     writeFile: vi.fn((path: string, content: string) => { fsStore.set(path, content); }),
     readFile: vi.fn((path: string) => fsStore.get(path) ?? null),
     exists: vi.fn((path: string) => fsStore.has(path)),

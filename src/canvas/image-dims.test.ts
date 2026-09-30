@@ -93,10 +93,12 @@ describe('getImageDimensions', () => {
 
   test('a late load after an error cannot re-settle the promise', async () => {
     const restore = stubImage((img) => {
+      // A queued event retains its callback even after cleanup clears onload.
+      const lateLoad = img.onload as () => void;
       (img.onerror as () => void)();
       img.naturalWidth = 100;
       img.naturalHeight = 100;
-      (img.onload as () => void)();
+      lateLoad();
     });
     try {
       await expect(getImageDimensions('https://x.test/flaky.png')).resolves.toBeNull();

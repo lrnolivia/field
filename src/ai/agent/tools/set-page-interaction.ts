@@ -36,7 +36,6 @@ import { modifyProjectFile } from '@/code/project/modify-file';
 import { isLayoutFile, isComponentFilePath } from '@/code/project/file-path-kind';
 import { getPageVariables } from '@/code/features/page-variables';
 import {
-  INTERACTION_TRIGGERS,
   attrForTrigger,
   setterName,
   type InteractionTrigger,

@@ -9,7 +9,7 @@
 // uses a ColorSwatch thumbnail + label, identical to Fill's image swatch.
 
 import { useState, useCallback, useEffect } from 'react';
-import { useAtomValue } from 'jotai';
+import 'jotai';
 import { ToolSection, ToolInput, ToolSelect, ControlLabel, ControlActionRow, ColorSwatch } from '../controls';
 import { useControl } from '../controls/ControlProvider';
 import { CmsBoundPill } from '../controls/CmsBoundPill';

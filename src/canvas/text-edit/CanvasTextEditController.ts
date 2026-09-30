@@ -15,7 +15,6 @@ import {
   selectedIdsAtom,
   hoveredIdAtom,
   hoveredNodeIdAtom,
-  mapItemIndexAtom,
 } from '@/code/stores/store';
 import {
   activeFilePathAtom,

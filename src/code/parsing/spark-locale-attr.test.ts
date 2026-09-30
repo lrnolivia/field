@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, afterEach } from 'vitest';
 import { parseJSXToNodes, setParseActiveLocale } from './parser';
 
 const CODE = `'use client';

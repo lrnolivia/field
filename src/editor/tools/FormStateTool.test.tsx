@@ -26,7 +26,7 @@ vi.mock('@/shared/debug-trace', () => ({
   trace: { action: vi.fn(), fn: vi.fn(), dom: vi.fn(), error: vi.fn() },
 }));
 vi.mock('@/code/project/project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: () => `const variantConfig = [
   { name: 'default', label: 'Default', isPrimary: true },
   { name: 'loading', label: 'Loading' },
@@ -75,10 +75,10 @@ beforeEach(() => { queued.length = 0; });
 describe('Form State section', () => {
   it('renders a row per mapped state', () => {
     renderTool();
-    // Each name appears twice: the row LABEL and an <option> in the dropdown.
+    // Each mapped state has a label and a field-owned dropdown trigger.
     expect(screen.getAllByText('Loading').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Success').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('combobox').length).toBe(2);
+    expect(screen.getAllByRole('button', { name: /^(Loading|Success)$/ })).toHaveLength(2);
   });
 
   it('has NO stray × remove button', () => {
@@ -97,11 +97,14 @@ describe('Form State section', () => {
 
   it('still lets you UNMAP — via the dropdown, not a ×', () => {
     renderTool();
-    const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBe(2);
-    // "Not mapped" is offered on every row.
-    expect(screen.getAllByText('Not mapped').length).toBe(2);
-    fireEvent.change(selects[0], { target: { value: '' } });
+    const triggers = screen.getAllByRole('button', { name: /^(Loading|Success)$/ });
+    expect(triggers).toHaveLength(2);
+    // Both field-owned menus retain the unmapping action.
+    fireEvent.click(triggers[1]);
+    expect(screen.getByRole('option', { name: 'Not mapped' })).toBeTruthy();
+    fireEvent.keyDown(triggers[1], { key: 'Escape' });
+    fireEvent.click(triggers[0]);
+    fireEvent.click(screen.getByRole('option', { name: 'Not mapped' }));
     expect(queued.length).toBe(1);
     const m = queued[0] as { type: string; mapping: Record<string, string> };
     expect(m.type).toBe('setFormStateMapping');
@@ -111,7 +114,8 @@ describe('Form State section', () => {
 
   it('changing the variant rewrites only that state', () => {
     renderTool();
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'success' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Loading' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Success' }));
     const m = queued[0] as { mapping: Record<string, string> };
     expect(m.mapping).toEqual({ loading: 'success', success: 'success' });
   });

@@ -4,14 +4,14 @@
 // CMS-nav links, and the enclosing-map lookups shared with the detach path.
 
 import { trace } from '@/shared/debug-trace';
-import { findJSXDataIdIndex, findJSXDataIdIndexFrom } from './generator-utils';
+import { findJSXDataIdIndex } from './generator-utils';
 import { escapeRegExp } from '@/shared/regex-utils';
 import { findTagClose, findMatchingCloseTagIndex } from './generator-utils';
 import { findMatchingParen } from '../parsing/parse-utils';
 import { COLLECTION_MAP_CALL_RE, extractCollectionSlugSpan, itemVarFromCallbackParam } from './cms-gen';
-import { parseJSXToNodes } from '../parsing/parser';
 
 /**
+import '../parsing/parser';
  * Wrap a single element in a `.map()` bound to a CMS collection (in
  * `cms/{slug}.json`). The selected element becomes the template root —
  * exactly the same shape the parser already detects for inline `.map()`,

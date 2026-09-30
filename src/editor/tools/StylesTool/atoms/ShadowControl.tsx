@@ -11,8 +11,8 @@ import { useControlContext, ShowControlLabels, InspectorProvenanceBoundary } fro
 import { UsedByRow } from '../../../controls/unified/UsedByRow';
 import type { AtomProps } from '../../../controls/unified/types';
 import ToolInput from '../../../controls/ToolInput';
-import ToolSegmentedControl from '../../../controls/ToolSegmentedControl';
-import ColorInput from '../../../controls/ColorInput';
+import '../../../controls/ColorInput';
+import '../../../controls/ToolSegmentedControl';
 import { EntryList } from '../../../controls/EntryList';
 import { EffectRow } from '../../../controls/EffectRow';
 import { ControlActionRow } from '../../../controls/ControlActionRow';
@@ -24,8 +24,7 @@ import { ShadowIcon } from '@/design-system/PropertyIcons';
 import ToolPopup from '../../../ui/ToolPopup';
 import { useEditorPanel } from '../../../hooks/useEditorPanel';
 import {
-  parseShadowEntries, formatShadowEntries, buildShadowStylePatch,
-  shadowSummary, createDefaultShadow,
+  parseShadowEntries, formatShadowEntries, buildShadowStylePatch, createDefaultShadow,
   type ShadowEntry,
 } from '../../../ui/shadow-utils';
 import { parsePx, formatPx } from '../style-helpers';

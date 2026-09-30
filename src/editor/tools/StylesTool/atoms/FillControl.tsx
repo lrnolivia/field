@@ -907,7 +907,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
           type="video"
           activePresetName={activePresetName}
           onApplyPreset={(varVal) => {
-            const match = varVal.match(/^var\(\s*--([^\)\s,]+)\s*\)$/);
+            const match = varVal.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
             const tokenName = match?.[1];
             const token = tokenName ? videoPresets.find(p => p.name === tokenName) : undefined;
             if (token) applyVideoSrc(token.value);

@@ -222,7 +222,7 @@ export const COMPONENT_CASES: CapabilityCase[] = [
     expect: (w) => {
       const t = w.replies[0].text;
       must(/default-hover/.test(t) && /primary/.test(t), 'variants are not listed');
-      must(/default → default-hover  on mouseEnter/.test(t), 'connections are not listed');
+      must(/default → default-hover {2}on mouseEnter/.test(t), 'connections are not listed');
     },
   },
   {

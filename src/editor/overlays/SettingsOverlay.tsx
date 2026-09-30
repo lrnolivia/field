@@ -32,11 +32,6 @@ import { trace } from '@/shared/debug-trace';
 import {
   SettingsGroup,
   SettingsRow,
-  ROW_INPUT_CLS,
-  SaveButton,
-  RowButton,
-  RowSelect,
-  LANGUAGE_OPTIONS,
   ConfirmModal,
   Toggle,
 } from './settings-shared';

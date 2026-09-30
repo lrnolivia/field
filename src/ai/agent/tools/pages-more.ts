@@ -123,7 +123,7 @@ export const duplicatePageTool: AgentTool = {
     const group = getRouteGroup(path);
     const baseDir = group ? `app/(${group})` : 'app';
     const srcSlug = getPageSlug(path).replace(/^\//, '');
-    let slug = args.new_name ? String(args.new_name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') : (srcSlug ? `${srcSlug}-copy` : 'page-copy');
+    const slug = args.new_name ? String(args.new_name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') : (srcSlug ? `${srcSlug}-copy` : 'page-copy');
     let newPath = `${baseDir}/${slug}/page.client.tsx`;
     for (let n = 1; projectFS.exists(newPath); n++) { newPath = `${baseDir}/${slug}-${n}/page.client.tsx`; }
     projectFS.writeFile(newPath, code);

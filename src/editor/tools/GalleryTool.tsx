@@ -72,7 +72,7 @@ import { queueMutation, queueMutations, flushNow, type Mutation } from '@/code/m
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getViewportPrefix } from '@/canvas/node-ops';
 import { trace } from '@/shared/debug-trace';
-import { containerOverridesAtom, getOverridesAtWidth, type ContainerOverrideMap } from '@/code/stores/container-query-store';
+import { containerOverridesAtom, getOverridesAtWidth } from '@/code/stores/container-query-store';
 
 function styleMutation(nodeId: string, styles: Record<string, string>, isReplica: boolean, vpWidth: number): Mutation {
   return isReplica && vpWidth > 0

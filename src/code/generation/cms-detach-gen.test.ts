@@ -250,7 +250,7 @@ export default function Page() {
 }
 `;
     const out = rehydrateCmsBindings(reattached, 'inst-9');
-    expect(out).toContain('coverImage={\`url(\${row.coverImage})\`}');
+    expect(out).toContain('coverImage={`url(${row.coverImage})`}');
     expect(out).toContain('title2={row.title2}');
     expect(out).not.toContain('data-cms-orphan');
   });

@@ -15,7 +15,7 @@ const ROWS = JSON.stringify([
   { _id: 'r3', _slug: 'gamma', title: 'Gamma', desc: 'Third row' },
 ]);
 vi.mock('@/code/project/project-fs', () => ({
-  projectFS: {
+  projectFS: { subscribeWrites: () => () => {},
     readFile: (path: string) => (path === 'cms/rows.json' ? ROWS : ''),
     listFiles: () => ['cms/rows.json'], exists: (path: string) => path === 'cms/rows.json',
     writeFile: () => {}, deleteFile: () => {},

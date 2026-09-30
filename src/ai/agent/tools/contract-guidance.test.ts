@@ -9,10 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   setStylesTool,
-  setTextTool,
   setRichTextTool,
   setAttrTool,
-  changeTagTool,
 } from './semantic-property';
 import {
   addNodeTool,
@@ -20,7 +18,6 @@ import {
   moveNodeTool,
   reorderNodeTool,
   duplicateNodeTool,
-  addComponentInstanceTool,
   setComponentPropTool,
 } from './semantic-structure';
 import { getLayoutTool, getVisualsTool, auditDesignTool, getCompositionTool } from './read';

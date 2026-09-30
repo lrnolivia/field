@@ -29,7 +29,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { nodesAtom, selectedIdsAtom, canvasInteractingAtom, isComponentFileAtom } from '@/code/stores/store';
+import { selectedIdsAtom, canvasInteractingAtom, isComponentFileAtom } from '@/code/stores/store';
 import { useLiveNode, useLiveNodesMap } from '@/code/stores/node-family';
 import { contextMenuAtom } from '@/code/stores/context-menu-store';
 import { shapeEditingIdAtom, shapeEditCommitPendingAtom } from '@/code/stores/shape-edit-store';

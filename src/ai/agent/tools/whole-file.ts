@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { getDefaultStore } from 'jotai';
 import type { AgentTool, AgentToolResult } from '@/ai/agent';
-import { projectFS } from '@/code/project/project-fs';
+import '@/code/project/project-fs';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import {
   gateTurnFiles,

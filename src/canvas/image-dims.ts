@@ -29,7 +29,6 @@ export function getImageDimensions(url: string): Promise<{ w: number; h: number 
   return new Promise((resolve) => {
     const img = new Image();
     let settled = false;
-    let timer: ReturnType<typeof setTimeout>;
     const finish = (v: { w: number; h: number } | null) => {
       if (settled) return;
       settled = true;
@@ -38,7 +37,7 @@ export function getImageDimensions(url: string): Promise<{ w: number; h: number 
       img.onerror = null;
       resolve(v);
     };
-    timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       finish(null);
       // Abandon a still-pending network/decode after the timeout. Handlers are
       // already cleared by finish(), so cancelling cannot settle twice.

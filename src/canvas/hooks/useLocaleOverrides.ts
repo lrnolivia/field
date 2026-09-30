@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, type RefObject } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { codeAtom, nodesAtom, triggerAsyncParse } from '@/code/stores/store';
+import { codeAtom, nodesAtom } from '@/code/stores/store';
 import {
   activeLocaleAtom,
   isDefaultLocaleAtom,

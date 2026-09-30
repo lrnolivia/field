@@ -1,14 +1,17 @@
+import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const fill = readFileSync(new URL('../tools/StylesTool/atoms/FillControl.tsx', import.meta.url), 'utf8');
-const parser = readFileSync(new URL('../../code/parsing/parser.ts', import.meta.url), 'utf8');
-const library = readFileSync(new URL('./PatternLibraryPanel.tsx', import.meta.url), 'utf8');
+const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
+const shell = readFileSync(resolve(process.cwd(), 'src/editor/ui/PaintPickerShell.tsx'), 'utf8');
+const parser = readFileSync(resolve(process.cwd(), 'src/code/parsing/parser.ts'), 'utf8');
+const library = readFileSync(resolve(process.cwd(), 'src/editor/ui/PatternLibraryPanel.tsx'), 'utf8');
 
 describe('Pattern Fill source contract', () => {
   it('exposes Pattern as a real Fill type using existing field controls', () => {
-    expect(fill).toContain("type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video'");
-    expect(fill).toContain("title: 'Pattern'");
+    expect(fill).toContain("type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video' | 'shader'");
+    expect(shell).toContain("pattern: 'Pattern'");
+    expect(fill).toContain('<PaintPickerShell');
     expect(fill).toContain('<PatternFillTab');
     expect(fill).toContain('<ToolSelect');
     expect(fill).toContain('<ColorInput');
@@ -34,7 +37,8 @@ describe('Pattern Fill source contract', () => {
     expect(fill).toContain('data-contextual-media-picker="fill-pattern"');
     expect(fill).toContain('<ImageSearchModal');
     expect(fill).toContain('defaultAssetPatternFill(url)');
-    expect(fill).toContain('Choose Media tile…');
+    expect(fill).toContain('aria-label="Select pattern source"');
+    expect(fill).toContain('onClick={openPatternMedia}');
   });
 
 });

@@ -24,7 +24,6 @@
 // Hence: the master root's display → else `block` (a code component's root is
 // a plain element we can't see; `block` is the canvas container's natural
 // display and the only safe guess).
-import type { CanvasNode } from '@/code/parsing/parser';
 import type { ProjectFS } from '@/code/project/project-fs';
 import { projectFS } from '@/code/project/project-fs';
 import { buildComponentRegistry } from '@/code/components/component-registry';

@@ -962,12 +962,12 @@ export class LayoutLiftedStrategy implements DragStrategy {
       // dead-zoned the whole downward direction (trace-diagnosed 2026-07-23).
       const posSize = (v: number | undefined): number | undefined =>
         typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined;
-      let phWidthPx = posSize(measured?.width)
+      const phWidthPx = posSize(measured?.width)
         ?? posSize(phComputedW)
         ?? posSize(nodeRect.width / transform.scale)
         ?? posSize(this.liftedPositions.get(node.id)?.width)
         ?? 0;
-      let phHeightPx = posSize(measured?.height)
+      const phHeightPx = posSize(measured?.height)
         ?? posSize(phComputedH)
         ?? posSize(nodeRect.height / transform.scale)
         ?? posSize(this.liftedPositions.get(node.id)?.height)
@@ -3463,7 +3463,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
         const first = this.liftedPositions.values().next().value as { width: number; height: number } | undefined;
         if (first) this.draggedFlowSize = isColumnFlow ? first.height : first.width;
       }
-      let sibLocals = siblings.map(s => space.sibAabb(s.id, s.rect));
+      const sibLocals = siblings.map(s => space.sibAabb(s.id, s.rect));
       // WRAP (not grid — grids use explicit placement): apply the same
       // VIRTUAL displacement as the 1D path. Rects are frozen mid-drag but
       // the placeholder physically reflowed the flow axis — without this a

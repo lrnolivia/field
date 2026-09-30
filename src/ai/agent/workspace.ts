@@ -12,7 +12,7 @@
 import { getDefaultStore } from 'jotai';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { parseJSXToNodes } from '@/code/parsing/parser';
-import { projectFS, MAIN_BRANCH_ID } from '@/code/project/project-fs';
+import { projectFS } from '@/code/project/project-fs';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { getNodesSnapshot } from '@/code/stores/store';
 import { getQueueActiveFilePath, getCurrentCode, queueMutation, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
