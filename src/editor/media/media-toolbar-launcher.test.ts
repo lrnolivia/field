@@ -30,7 +30,14 @@ describe('toolbar Media launcher contract', () => {
     expect(launcher).toContain('Browse media');
     expect(launcher).toContain('grid grid-cols-2 gap-1.5');
     expect(launcher).toContain('data-media-launcher-card');
-    expect(launcher).toContain('flex h-10 min-w-0 items-center gap-1.5');
+    expect(launcher).toContain('flex h-9 min-w-0 items-center gap-1.5');
+    expect(launcher).not.toContain('description:');
+    expect(launcher).not.toContain('card.description');
+    const sharedGeometry = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(sharedGeometry).toContain('#bottom-toolbar-container [data-toolbar-menu-tile],');
+    expect(sharedGeometry).toContain('[data-media-launcher-card]');
+    expect(sharedGeometry).toContain('height: 36px');
+    expect(sharedGeometry).toContain('width: 24px');
     expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
   });
 

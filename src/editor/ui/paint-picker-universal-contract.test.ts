@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const shell = readFileSync(resolve(process.cwd(), 'src/editor/ui/PaintPickerShell.tsx'), 'utf8');
 const picker = readFileSync(resolve(process.cwd(), 'src/editor/ui/ColorPicker.tsx'), 'utf8');
 const colorInput = readFileSync(resolve(process.cwd(), 'src/editor/controls/ColorInput.tsx'), 'utf8');
+const hotfixCss = readFileSync(resolve(process.cwd(), 'src/editor/bottom-toolbar-glyphs.css'), 'utf8');
 const fill = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/FillControl.tsx'), 'utf8');
 const textColor = readFileSync(resolve(process.cwd(), 'src/editor/tools/TextStyleTool/atoms/TextColorControl.tsx'), 'utf8');
 const gradientControl = readFileSync(resolve(process.cwd(), 'src/editor/tools/StylesTool/atoms/GradientControl.tsx'), 'utf8');
@@ -35,8 +36,13 @@ describe('universal PaintPicker', () => {
     expect(picker).toContain('if (props.embeddedBody)');
   });
 
-  it('makes ColorInput a launcher for the same 480px picker even inside another popup', () => {
-    expect(colorInput).toContain('width={360}');
+  it('keeps the universal picker genuinely compact without regressing nested color launchers', () => {
+    expect(shell).toContain('data-paint-picker-density="compact"');
+    expect(shell).toContain('h-9 px-2');
+    expect(shell).toContain('h-10 px-2');
+    expect(hotfixCss).toContain(':has([data-paint-picker-density="compact"])');
+    expect(hotfixCss).toContain('width: 304px !important');
+    expect(hotfixCss).toContain('height: 176px !important');
     expect(colorInput).toContain('nested={!!popupCtx}');
     expect(colorInput).toContain('<StandaloneColorPickerWithPresets');
     expect(colorInput).not.toContain("!popupCtx &&");
