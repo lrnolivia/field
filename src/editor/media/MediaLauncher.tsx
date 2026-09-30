@@ -16,7 +16,6 @@ export interface MediaLauncherProps {
 type LauncherActionCard = {
   action: MediaLauncherAction;
   label: string;
-  description: string;
   glyph: ReactNode;
 };
 
@@ -75,10 +74,10 @@ const EmbedGlyph = () => (
 );
 
 const creationCards: LauncherActionCard[] = [
-  { action: 'image', label: 'Image', description: 'Stock, upload, or URL', glyph: <ImageGlyph /> },
-  { action: 'gallery', label: 'Gallery', description: 'Compose image sets', glyph: <GalleryGlyph /> },
-  { action: 'video', label: 'Video', description: 'Search or upload', glyph: <VideoGlyph /> },
-  { action: 'audio', label: 'Audio', description: 'File or URL', glyph: <AudioGlyph /> },
+  { action: 'image', label: 'Image', glyph: <ImageGlyph /> },
+  { action: 'gallery', label: 'Gallery', glyph: <GalleryGlyph /> },
+  { action: 'video', label: 'Video', glyph: <VideoGlyph /> },
+  { action: 'audio', label: 'Audio', glyph: <AudioGlyph /> },
 ];
 
 export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLauncherProps) {
@@ -132,13 +131,10 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
             type="button"
             data-media-launcher-card
             onClick={() => activate(card.action)}
-            className="group flex h-10 min-w-0 items-center gap-1.5 rounded-[7px] border border-transparent px-1.5 text-left transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45"
+            className="group flex h-9 min-w-0 items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent px-1.5 text-left text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45 hover:text-[var(--text-primary)]"
           >
             <IconFrame>{card.glyph}</IconFrame>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[10px] font-medium text-[var(--text-primary)]">{card.label}</span>
-              <span className="mt-0.5 block truncate text-[8px] leading-3 text-[var(--text-tertiary)]">{card.description}</span>
-            </span>
+            <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{card.label}</span>
           </button>
         ))}
       </div>
