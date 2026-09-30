@@ -28,7 +28,8 @@ assert "LOEW_CHAT_BIBLE.md" in agents
 assert "projects/field.json" in agents
 assert "Non-product documentation lives" in agents
 assert "docs/field/" in agents
-assert "LOEW_CHAT_BIBLE_CURRENT.md" not in agents
+retired_bible = "LOEW_CHAT_BIBLE_" + "CURRENT.md"
+assert retired_bible not in agents
 
 subprocess.run(
     ["python3", str(ROOT / "tests/contract_worker_v2_test.py")],
