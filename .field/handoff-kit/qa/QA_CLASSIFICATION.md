@@ -1,6 +1,6 @@
 # field QA classification overlay
 
-> Read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` section 11 first. Runner owns the universal classification meanings, retry/watchdog rules, fallbacks, and danger-zone boundary.
+> Read current `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` section 11 first. Runner owns the universal classification meanings, retry/watchdog rules, fallbacks, and danger-zone boundary.
 
 field uses the Runner vocabulary without weakening it:
 

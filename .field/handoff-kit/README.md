@@ -1,6 +1,6 @@
 # field handoff kit
 
-> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
+> Universal process authority: read `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md` and `contracts/manifest.json` first. This file is a field-specific overlay and must not fork the universal operating contract.
 
 Canonical repository-owned process infrastructure for field execution work.
 
@@ -90,7 +90,7 @@ The legacy `templates/assignment.md` file remains only as a deprecation pointer.
 
 ## QA
 
-This kit does **not** own universal QA policy. Re-read current `loew-runner/LOEW_CHAT_BIBLE_CURRENT.md` section 11 before runtime QA.
+This kit does **not** own universal QA policy. Re-read current `loew-runner/LOEW_CHAT_BIBLE.md` section 11 before runtime QA.
 
 Runner owns engine routing, exact-artifact evidence, classifications, retry/watchdog limits, fallbacks, self-correction, danger-zone handoff, and promotion boundaries. field's QA files only add field-specific targets and criteria.
 

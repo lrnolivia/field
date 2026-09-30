@@ -5,7 +5,7 @@
 Before using this handoff kit, read in order:
 
 1. `lrnolivia/loew-runner@main/contracts/manifest.json`
-2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE_CURRENT.md`
+2. `lrnolivia/loew-runner@main/LOEW_CHAT_BIBLE.md`
 3. `lrnolivia/loew-runner@main/projects/field.json`
 4. `lrnolivia/field@main/AGENTS.md`
 5. the current role contract and live assignment/control/QA state
