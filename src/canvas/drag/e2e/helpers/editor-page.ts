@@ -427,6 +427,23 @@ export class EditorPage {
     return box;
   }
 
+  /** Wait for rendered camera/pane geometry before recording a mutation baseline. */
+  async waitForStableGeometry(dataId: string): Promise<void> {
+    const deadline = Date.now() + 10_000;
+    let previous = await this.nodeBox(dataId);
+    let stableSince = Date.now();
+    while (Date.now() < deadline) {
+      await this._page.waitForTimeout(100);
+      const current = await this.nodeBox(dataId);
+      if (['x', 'y', 'width', 'height'].some((key) =>
+        Math.abs(current[key as keyof typeof current] - previous[key as keyof typeof previous]) > 0.1,
+      )) stableSince = Date.now();
+      if (Date.now() - stableSince >= 600) return;
+      previous = current;
+    }
+    throw new Error(`Rendered geometry for ${dataId} did not settle`);
+  }
+
   /** Zoom-to-fit and settle. Off-camera tiles are CULLED — a replica that
    *  was never on screen reports no box at all — so fit before measuring
    *  anything in a multi-viewport seed. */

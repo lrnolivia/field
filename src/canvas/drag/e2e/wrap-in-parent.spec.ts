@@ -20,9 +20,9 @@ test.describe('wrap in parent keeps the child visually put', () => {
     await page.keyboard.press('Shift+Digit1'); // zoom-to-fit
     await page.waitForTimeout(400);
 
+    await editor.select(['star'], 'desktop');
+    await editor.waitForStableGeometry('star');
     const before = await starRect(editor);
-    await page.evaluate(() => (window as any).__e2e.select(['star'], 'desktop'));
-    await page.waitForTimeout(150);
     await page.keyboard.press('Shift+KeyA'); // Create Layout
     await page.waitForTimeout(600);
 
@@ -48,9 +48,9 @@ test.describe('wrap in parent keeps the child visually put', () => {
     await page.keyboard.press('Shift+Digit1');
     await page.waitForTimeout(400);
 
+    await editor.select(['star'], 'desktop');
+    await editor.waitForStableGeometry('star');
     const before = await starRect(editor);
-    await page.evaluate(() => (window as any).__e2e.select(['star'], 'desktop'));
-    await page.waitForTimeout(150);
     await page.keyboard.press('Shift+Alt+KeyA'); // Create Frame
     await page.waitForTimeout(600);
 
