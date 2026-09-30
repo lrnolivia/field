@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import MediaActionCard from './MediaActionCard';
 import {
   intentForLauncherAction,
   routeForLauncherAction,
@@ -18,14 +19,6 @@ type LauncherActionCard = {
   label: string;
   glyph: ReactNode;
 };
-
-function IconFrame({ children }: { children: ReactNode }) {
-  return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      {children}
-    </span>
-  );
-}
 
 const UploadGlyph = () => (
   <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
@@ -126,16 +119,13 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
 
       <div className="grid grid-cols-2 gap-1.5">
         {creationCards.map((card) => (
-          <button
+          <MediaActionCard
             key={card.action}
-            type="button"
-            data-media-launcher-card
+            context="media"
+            label={card.label}
+            glyph={card.glyph}
             onClick={() => activate(card.action)}
-            className="group flex h-9 min-w-0 items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent px-1.5 text-left text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45 hover:text-[var(--text-primary)]"
-          >
-            <IconFrame>{card.glyph}</IconFrame>
-            <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{card.label}</span>
-          </button>
+          />
         ))}
       </div>
 
