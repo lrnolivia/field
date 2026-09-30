@@ -19,9 +19,15 @@ on:
       - 'src/canvas/insertion-bridge.ts'
       - 'src/canvas/insert-toolbar-item.ts'
       - '.github/workflows/media-system-verify.yml'
+      - 'package.json'
+      - 'package-lock.json'
 
 permissions:
   contents: read
+
+concurrency:
+  group: media-system-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -37,7 +43,7 @@ jobs:
           node-version: '22'
           cache: npm
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Media and Gallery tests
         run: npm run test:run -- src/editor/media src/editor/gallery
       - name: Production editor build
