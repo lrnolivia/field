@@ -560,6 +560,29 @@ describe('AbsoluteInFrameStrategy', () => {
       expect(updates[0].styles).toHaveProperty('top');
     });
 
+    test.each([true, false])('preserves pixel positions inside a native Group (%s), while Frames retain auto pins', (isGroup) => {
+      const child = {
+        ...makeNode('node-1', 'parent-1'),
+        type: 'div',
+        attrs: {},
+        styles: { position: 'absolute', left: '50px', top: '60px', width: '80px', height: '40px' },
+      };
+      const ctx = makeContext({
+        nodes: new Map([
+          ['node-1', child],
+          ['parent-1', { ...makeNode('parent-1', 'root'), isGroup }],
+        ]),
+      });
+      mockFindNodeRect.mockImplementation((id) => id === 'parent-1'
+        ? new DOMRect(0, 0, 300, 300)
+        : new DOMRect(50, 60, 80, 40));
+      strategy.onStart(ctx);
+      strategy.onMove(ctx, { x: 600, y: 360 });
+      const update = strategy.onEnd(ctx).find((entry) => entry.nodeId === 'node-1');
+      expect(update?.styles?.left).toBe(isGroup ? '150px' : '50.0000%');
+      expect(update?.styles?.top).toBe(isGroup ? '120px' : '40.0000%');
+    });
+
     test('clears visual stores on end', () => {
       const ctx = makeContext({
         draggedNodes: [makeDraggedNode({ startParentId: 'parent-1' })],
