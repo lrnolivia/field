@@ -24,11 +24,11 @@ assert qa["exact_sha_required"] is True
 
 root = Path(__file__).resolve().parents[3]
 agents = (root / "AGENTS.md").read_text()
-assert "canonical target" in agents
-assert "lrnolivia/field" in agents
-assert "revyme-loewfi" in agents
-assert "Historical handoffs" in agents
-assert "section 11 is authoritative" in agents
+assert "LOEW_CHAT_BIBLE.md" in agents
+assert "projects/field.json" in agents
+assert "Non-product documentation lives" in agents
+assert "docs/field/" in agents
+assert "LOEW_CHAT_BIBLE_CURRENT.md" not in agents
 
 subprocess.run(
     ["python3", str(ROOT / "tests/contract_worker_v2_test.py")],
