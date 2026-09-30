@@ -79,7 +79,22 @@ export default function ProjectCardMenu({
   };
 
   return (
-    <div ref={menuRef} className="field-project-menu" role="menu">
+    <div
+      ref={menuRef}
+      className="field-project-menu"
+      role="menu"
+      onKeyDown={(event) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+        const current = items.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : event.key === 'ArrowDown' ? (current + 1) % items.length
+            : (current <= 0 ? items.length : current) - 1;
+        items[next]?.focus();
+      }}
+    >
       {!trashed ? (
         <>
           <button role="menuitem" type="button" onClick={() => run(onOpenProject)}>Open</button>

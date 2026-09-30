@@ -14,6 +14,30 @@ const project: FieldProjectMeta = {
 };
 
 describe('RenameProjectDialog', () => {
+  it('keeps keyboard focus in the dialog, including when Save is disabled', () => {
+    render(<RenameProjectDialog project={project} saving={false} onClose={vi.fn()} onSave={vi.fn()} />);
+    const input = screen.getByRole('textbox', { name: 'Project name' });
+    input.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(input);
+    fireEvent.change(input, { target: { value: ' ' } });
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+  });
+
+  it('shows a failed save in place and allows the entered name to be retried', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(<RenameProjectDialog project={project} saving={false} onClose={vi.fn()} onSave={onSave} />);
+    const input = screen.getByRole('textbox', { name: 'Project name' });
+    fireEvent.change(input, { target: { value: 'New name' } });
+    rerender(<RenameProjectDialog project={project} saving={false} error="Connection lost. Try again." onClose={vi.fn()} onSave={onSave} />);
+    expect(screen.getByRole('alert').textContent).toBe('Connection lost. Try again.');
+    fireEvent.submit(input.closest('form')!);
+    expect(onSave).toHaveBeenCalledWith('New name');
+  });
+
   it('focuses and selects the current project name when opened', async () => {
     render(
       <RenameProjectDialog

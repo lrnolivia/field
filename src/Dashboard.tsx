@@ -183,8 +183,10 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
     setOpenMenuId(null);
     try {
       replaceProject(await action());
+      return true;
     } catch (cause) {
       setError(formatDashboardActionError(cause));
+      return false;
     } finally {
       setBusyId(null);
     }
@@ -224,11 +226,11 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
     try {
       await permanentlyDeleteFieldProject(project.id);
       setProjects((current) => current.filter((row) => row.id !== project.id));
+      setDeleteTarget(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusyId(null);
-      setDeleteTarget(null);
     }
   };
 
@@ -256,7 +258,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
         />
 
         <section className="field-dashboard-content" aria-live="polite">
-          {error && (
+          {error && !renameTarget && !deleteTarget && (
             <div className="field-dashboard-error" role="alert">
               <span>{error}</span>
               <button type="button" onClick={() => window.location.reload()}>Reload</button>
@@ -274,6 +276,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
               onOpenMenuId={setOpenMenuId}
               onOpen={openProject}
               onRename={(project) => {
+                setError(null);
                 setOpenMenuId(null);
                 setRenameTarget(project);
               }}
@@ -282,6 +285,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
               onTrash={(project) => void runProjectAction(project, () => trashFieldProject(project.id))}
               onRestore={(project) => void runProjectAction(project, () => restoreFieldProject(project.id))}
               onPermanentDelete={(project) => {
+                setError(null);
                 setOpenMenuId(null);
                 setDeleteTarget(project);
               }}
@@ -295,12 +299,13 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       <RenameProjectDialog
         project={renameTarget}
         saving={Boolean(renameTarget && busyId === renameTarget.id)}
+        error={error}
         onClose={() => setRenameTarget(null)}
         onSave={(name) => {
           if (!renameTarget) return;
           const target = renameTarget;
-          void runProjectAction(target, () => renameFieldProject(target.id, name)).then(() => {
-            setRenameTarget(null);
+          void runProjectAction(target, () => renameFieldProject(target.id, name)).then((saved) => {
+            if (saved) setRenameTarget(null);
           });
         }}
       />
@@ -336,6 +341,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       <DeleteProjectDialog
         project={deleteTarget}
         deleting={Boolean(deleteTarget && busyId === deleteTarget.id)}
+        error={error}
         onClose={() => {
           if (!deleteTarget || busyId !== deleteTarget.id) setDeleteTarget(null);
         }}

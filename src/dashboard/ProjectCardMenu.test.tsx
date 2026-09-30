@@ -42,6 +42,21 @@ function renderOpenMenu() {
 }
 
 describe('ProjectCardMenu dismissal', () => {
+  it('navigates the menu with arrow keys and Home/End', () => {
+    const { menu } = renderOpenMenu();
+    const first = screen.getByRole('menuitem', { name: 'Open' });
+    const last = screen.getByRole('menuitem', { name: 'Move to Trash' });
+    first.focus();
+    fireEvent.keyDown(menu, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(menu, { key: 'End' });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(menu, { key: 'Home' });
+    expect(document.activeElement).toBe(first);
+  });
+
   it('dismisses when the user presses outside the project menu', () => {
     const { onOpenChange } = renderOpenMenu();
 

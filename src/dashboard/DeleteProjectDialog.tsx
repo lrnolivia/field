@@ -4,6 +4,7 @@ import type { FieldProjectMeta } from '@/backend/field-projects';
 type Props = {
   project: FieldProjectMeta | null;
   deleting: boolean;
+  error?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 };
@@ -11,6 +12,7 @@ type Props = {
 export default function DeleteProjectDialog({
   project,
   deleting,
+  error,
   onClose,
   onConfirm,
 }: Props) {
@@ -86,6 +88,7 @@ export default function DeleteProjectDialog({
             “{name}” will be permanently deleted. This can’t be undone.
           </p>
         </div>
+        {error && <p role="alert">{error}</p>}
         <div className="field-dashboard-modal-actions">
           <button ref={cancelRef} type="button" onClick={onClose} disabled={deleting}>
             Cancel
