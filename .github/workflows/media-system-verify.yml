@@ -48,3 +48,34 @@ jobs:
         run: npm run test:run -- src/editor/media src/editor/gallery
       - name: Production editor build
         run: npm run build
+
+  registry:
+    name: Registry gates
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Clean install
+        run: npm ci --no-audit --no-fund
+      - name: Build all surfaces
+        run: npm run build:all
+      - name: Full test suite
+        id: tests
+        continue-on-error: true
+        run: npm run test:run -- --reporter=verbose
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+      - name: Enforce registry gates
+        if: always()
+        run: |
+          test "${{ steps.tests.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
