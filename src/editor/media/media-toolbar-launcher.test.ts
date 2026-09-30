@@ -41,6 +41,29 @@ describe('toolbar Media launcher contract', () => {
     expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
   });
 
+  it('locks the user-verified compact PaintPicker geometry without touching nested launcher behavior', () => {
+    const shell = read('src/editor/ui/PaintPickerShell.tsx');
+    const colorInput = read('src/editor/controls/ColorInput.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(shell).toContain('data-paint-picker-density="compact"');
+    expect(css).toContain(':has([data-paint-picker-density="compact"])');
+    expect(css).toContain('width: 304px !important');
+    expect(css).toContain('height: 176px !important');
+    expect(colorInput).toContain('nested={!!popupCtx}');
+    expect(colorInput).not.toContain("popupCtx.pushPanel('Color'");
+  });
+
+  it('locks the avatar-to-Publish row to the Inspector shell surface', () => {
+    const rightHeader = read('src/editor/header/RightHeader.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(rightHeader).toContain('data-workspace-right-header');
+    expect(rightHeader).toContain('<InspectorCollaborators');
+    expect(rightHeader).toContain('data-tutorial="header-publish-button"');
+    expect(css).toContain('[data-workspace-right-header]');
+    expect(css).toContain('background: var(--bg-panel)');
+    expect(css).toContain('border-bottom: 1px solid var(--border-light)');
+  });
+
   it('expands the same Media shell without swapping to a second modal', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');
     expect(controller).toContain('expanded={expanded}');
