@@ -165,6 +165,7 @@ export default function ProjectCard(props: Props) {
   return (
     <article
       className="field-project-card"
+      role="listitem"
       onClick={openFromCardSurface}
       aria-busy={props.refreshing || undefined}
       data-refreshing={props.refreshing ? 'true' : undefined}

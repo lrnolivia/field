@@ -22,7 +22,7 @@ export default function DashboardHeader({ view, count, creating, refreshing, onC
     <header className="field-dashboard-header">
       <div className="field-dashboard-heading-wrap">
         <h1>{titles[view]}</h1>
-        <span>{count}</span>
+        <span aria-label={`${count} ${count === 1 ? 'project' : 'projects'}`}>{count}</span>
       </div>
       <div className="field-dashboard-header-actions">
         <button

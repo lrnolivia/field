@@ -21,6 +21,7 @@ import DashboardThumbnailBackfill from '@/dashboard/DashboardThumbnailBackfill';
 import EmptyState from '@/dashboard/EmptyState';
 import ProjectGrid from '@/dashboard/ProjectGrid';
 import RenameProjectDialog from '@/dashboard/RenameProjectDialog';
+import DeleteProjectDialog from '@/dashboard/DeleteProjectDialog';
 import { createNewProjectData, DEFAULT_NEW_PROJECT_SETTINGS } from '@/dashboard/new-project-model';
 import { formatDashboardActionError, getDashboardEmptyState, selectFieldProjects, type DashboardView } from '@/dashboard/project-meta';
 import { createDashboardLoadingController } from '@/dashboard/dashboard-loading';
@@ -40,11 +41,19 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [openingProjectId, setOpeningProjectId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<FieldProjectMeta | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FieldProjectMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<RevymeUser | null>(null);
 
   useEffect(() => {
-    if (!active) setOpeningProjectId(null);
+    if (!active) {
+      setOpeningProjectId(null);
+      // FieldShell keeps Dashboard mounted behind the editor. Dismiss its
+      // transient UI so hidden dialogs cannot retain window keyboard traps.
+      setOpenMenuId(null);
+      setRenameTarget(null);
+      setDeleteTarget(null);
+    }
   }, [active]);
 
   const visibleProjects = useMemo(
@@ -181,8 +190,10 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
     setOpenMenuId(null);
     try {
       replaceProject(await action());
+      return true;
     } catch (cause) {
       setError(formatDashboardActionError(cause));
+      return false;
     } finally {
       setBusyId(null);
     }
@@ -217,13 +228,12 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   };
 
   const permanentDelete = async (project: FieldProjectMeta) => {
-    setOpenMenuId(null);
-    if (!window.confirm(`Permanently delete “${project.name || 'Untitled'}”? This cannot be undone.`)) return;
     setBusyId(project.id);
     setError(null);
     try {
       await permanentlyDeleteFieldProject(project.id);
       setProjects((current) => current.filter((row) => row.id !== project.id));
+      setDeleteTarget(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -255,7 +265,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
         />
 
         <section className="field-dashboard-content" aria-live="polite">
-          {error && (
+          {error && !renameTarget && !deleteTarget && (
             <div className="field-dashboard-error" role="alert">
               <span>{error}</span>
               <button type="button" onClick={() => window.location.reload()}>Reload</button>
@@ -273,6 +283,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
               onOpenMenuId={setOpenMenuId}
               onOpen={openProject}
               onRename={(project) => {
+                setError(null);
                 setOpenMenuId(null);
                 setRenameTarget(project);
               }}
@@ -280,7 +291,11 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
               onToggleStar={(project) => void runProjectAction(project, () => setFieldProjectStarred(project.id, !project.starred))}
               onTrash={(project) => void runProjectAction(project, () => trashFieldProject(project.id))}
               onRestore={(project) => void runProjectAction(project, () => restoreFieldProject(project.id))}
-              onPermanentDelete={(project) => void permanentDelete(project)}
+              onPermanentDelete={(project) => {
+                setError(null);
+                setOpenMenuId(null);
+                setDeleteTarget(project);
+              }}
             />
           ) : (
             <EmptyState title={emptyState.title} detail={emptyState.detail} />
@@ -289,14 +304,15 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       </main>
 
       <RenameProjectDialog
-        project={renameTarget}
+        project={active ? renameTarget : null}
         saving={Boolean(renameTarget && busyId === renameTarget.id)}
+        error={error}
         onClose={() => setRenameTarget(null)}
         onSave={(name) => {
           if (!renameTarget) return;
           const target = renameTarget;
-          void runProjectAction(target, () => renameFieldProject(target.id, name)).then(() => {
-            setRenameTarget(null);
+          void runProjectAction(target, () => renameFieldProject(target.id, name)).then((saved) => {
+            if (saved) setRenameTarget(null);
           });
         }}
       />
@@ -328,6 +344,19 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
           }}
         />
       )}
+
+      <DeleteProjectDialog
+        project={active ? deleteTarget : null}
+        deleting={Boolean(deleteTarget && busyId === deleteTarget.id)}
+        error={error}
+        onClose={() => {
+          if (!deleteTarget || busyId !== deleteTarget.id) setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          if (deleteTarget) void permanentDelete(deleteTarget);
+        }}
+      />
+
 
     </div>
   );
