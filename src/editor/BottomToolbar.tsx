@@ -5,6 +5,7 @@
 // FIGUI3_TOOLBAR_FIGMA_PASS_20260927
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
+import MediaActionCard from './media/MediaActionCard';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useClickOutside } from './hooks/useClickOutside';
@@ -126,18 +127,9 @@ function DropdownContainer({ children, wide = false }: { children: React.ReactNo
 
 
 function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
-  const uiCase = useUiChromeCase();
-  return <button type="button" data-toolbar-menu-tile data-toolbar-card-style="media" onClick={onClick}
-    className="group flex h-9 min-w-0 items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent px-1.5 text-left text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45 hover:text-[var(--text-primary)]">
-    <span
-      data-toolbar-menu-tile-icon
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-    >
-      {icon}
-    </span>
-    <span className="min-w-0 flex-1 truncate font-medium">{uiCase(label)}</span>
-  </button>;
+  return <MediaActionCard context="toolbar" label={label} glyph={icon} onClick={onClick} />;
 }
+
 
 function LayoutMiniIcon({ id }: { id: string }) {
   const cols = id === 'column' || id === 'layout-2col' || id === 'layout-3col' || id === 'layout-sidebar';

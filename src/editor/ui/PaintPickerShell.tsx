@@ -37,7 +37,7 @@ const LABELS: Record<PaintType, string> = {
 };
 
 function PaintIcon({ type }: { type: PaintType }) {
-  const common = { width: 18, height: 18, bg: 'transparent', iconColor: 'currentColor' };
+  const common = { width: 16, height: 16, bg: 'transparent', iconColor: 'currentColor' };
   if (type === 'solid') return <ColorIcon {...common} />;
   if (type === 'gradient') return <GradientIcon {...common} />;
   if (type === 'pattern') return <GridIcon {...common} />;
@@ -64,8 +64,8 @@ export default function PaintPickerShell({
   }, [activeType, supportedTypes, onTypeChange]);
 
   return (
-    <div data-paint-picker-shell className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)]">
-      <div className="h-[48px] px-3 flex items-center justify-between border-b border-[var(--border-light)] select-none">
+    <div data-paint-picker-shell data-paint-picker-density="compact" className="w-full bg-[var(--bg-surface)] text-[var(--text-primary)]">
+      <div className="h-9 px-2 flex items-center justify-between border-b border-[var(--border-light)] select-none">
         <div className="flex items-center gap-1">
           {(['custom', 'libraries'] as const).map(item => (
             <button
@@ -73,7 +73,7 @@ export default function PaintPickerShell({
               type="button"
               onClick={() => onSurfaceChange(item)}
               aria-pressed={surface === item}
-              className={`h-8 px-2.5 rounded-[8px] text-[12px] font-medium transition-colors ${
+              className={`h-7 px-2 rounded-[6px] text-[11px] font-medium transition-colors ${
                 surface === item
                   ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -87,26 +87,26 @@ export default function PaintPickerShell({
           <button
             type="button"
             onClick={onPlus ?? (() => onSurfaceChange('libraries'))}
-            className="w-8 h-8 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
             title="Open libraries"
             aria-label="Open libraries"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
           </button>
           <button
             type="button"
             onClick={onClose}
             disabled={!onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-35 disabled:hover:bg-transparent"
+            className="w-7 h-7 flex items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-35 disabled:hover:bg-transparent"
             title="Close paint picker"
             aria-label="Close paint picker"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
       </div>
 
-      <div className="h-[52px] px-3 flex items-center gap-1.5 border-b border-[var(--border-light)]" role="toolbar" aria-label="Paint type">
+      <div className="h-10 px-2 flex items-center gap-1 border-b border-[var(--border-light)]" role="toolbar" aria-label="Paint type">
         {PAINT_TYPE_ORDER.map(type => {
           const supported = supportedTypes.has(type);
           const active = supported && activeType === type;
@@ -120,7 +120,7 @@ export default function PaintPickerShell({
               aria-label={LABELS[type]}
               title={supported ? LABELS[type] : disabledTitle}
               onClick={() => supported && onTypeChange(type)}
-              className={`w-9 h-9 rounded-[7px] flex items-center justify-center border transition-colors ${
+              className={`w-7 h-7 rounded-[6px] flex items-center justify-center border transition-colors ${
                 active
                   ? 'bg-[var(--bg-selected)] border-[var(--control-border-hover)] text-[var(--text-primary)]'
                   : supported
@@ -136,7 +136,7 @@ export default function PaintPickerShell({
         })}
       </div>
 
-      <div className="p-4">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }

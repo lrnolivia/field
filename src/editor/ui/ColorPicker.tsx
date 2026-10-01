@@ -432,8 +432,8 @@ function ColorPickerBody({ value, onChange, onChangeEnd, showAlpha = true, onCre
   // Input styles
   // NO cut on this row (user call 2026-08-20): the hex/alpha inputs and
   // their sibling buttons stay rounded so the row reads as one quiet strip.
-  const inputCls = canonical ? 'h-9 px-2.5 text-[12px] bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] px-1.5 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]';
-  const iconBtnCls = canonical ? 'h-9 w-9 flex items-center justify-center bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] w-7 flex items-center justify-center bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)]';
+  const inputCls = canonical ? 'h-7 px-2 text-[11px] bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] px-1.5 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md text-center outline-none focus:border-[var(--border-focus)] text-[var(--text-primary)]';
+  const iconBtnCls = canonical ? 'h-7 w-7 flex items-center justify-center bg-[var(--control-bg)] border border-[var(--control-border)] rounded-[8px] cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]' : 'h-[var(--control-height-sm)] w-7 flex items-center justify-center bg-[var(--grid-line)] border border-[var(--control-border)] rounded-md cursor-pointer hover:border-[var(--control-border-hover)] text-[var(--text-secondary)]';
 
   return (
     <div className="space-y-0">
@@ -449,7 +449,7 @@ function ColorPickerBody({ value, onChange, onChangeEnd, showAlpha = true, onCre
       <div
         ref={satValDrag.ref}
         onPointerDown={satValDrag.onPointerDown}
-        className={canonical ? "w-full aspect-square rounded-[8px] relative cursor-crosshair touch-none overflow-hidden" : "w-full h-[150px] rounded-md relative cursor-crosshair touch-none"}
+        className={canonical ? "w-full h-[176px] rounded-[8px] relative cursor-crosshair touch-none overflow-hidden" : "w-full h-[150px] rounded-md relative cursor-crosshair touch-none"}
         style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
       >
         {/* White gradient (left → right) */}

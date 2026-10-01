@@ -18,21 +18,14 @@
   .field-toolbar-panel-peek { animation: none; }
 }
 
-/* The toolbar-wide button and SVG rules are sized for tool buttons. Menus
-   need their own card geometry and must contain the larger Insert previews. */
-#bottom-toolbar-container [data-toolbar-menu-tile] {
-  height: 96px;
-  min-height: 96px;
+/* Both launchers render MediaActionCard; keep glyph sizing identical. */
+[data-media-action-card-icon] svg {
+  width: 16px;
+  height: 16px;
 }
-
-#bottom-toolbar-container [data-toolbar-menu-tile-icon] svg {
-  width: 32px;
-  height: 32px;
-}
-
-#bottom-toolbar-container [data-toolbar-menu-tile-icon] > :not(svg) {
-  max-width: 64px;
-  max-height: 48px;
+[data-media-action-card-icon] > :not(svg) {
+  max-width: 20px;
+  max-height: 20px;
 }
 
 #bottom-toolbar-container [data-field-toolbar-glyph="menu"] svg {
