@@ -8,6 +8,8 @@ import { SecondaryPanelContent } from '@/editor/left-toolbar/panels/insert';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
 import ModalCloseButton from '@/design-system/ModalCloseButton';
 import MediaPanelController from '@/editor/media/MediaPanelController';
+import { LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 
 const LIBRARY_TITLES = {
   components: 'Components', vectors: 'Vectors', templates: 'Templates',
@@ -26,6 +28,10 @@ function toolbarPanelOriginTool(panel: ToolbarPanel): string {
 
 export default function ToolbarPanelHost() {
   const [panel, setPanel] = useAtom(toolbarPanelAtom);
+  const mobilePresentation = useMobileWorkspacePresentation();
+  const portraitSheet = mobilePresentation === 'portrait-sheet';
+  const landscapeOverlay = mobilePresentation === 'landscape-overlay';
+  const mobilePanel = mobilePresentation !== 'regular';
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 480, height: 560 });
   const [peeked, setPeeked] = useState(false);
@@ -37,6 +43,12 @@ export default function ToolbarPanelHost() {
     const nextSize = { width: 480, height: 560 };
     setSize(nextSize);
     setPeeked(false);
+
+    if (mobilePanel) {
+      setPosition(null);
+      setAnchoredToToolbar(false);
+      return;
+    }
 
     const tool = document.querySelector(`[data-toolbar-tool="${toolbarPanelOriginTool(panel)}"]`) as HTMLElement | null;
     const width = Math.min(nextSize.width, window.innerWidth - 24);
@@ -54,7 +66,7 @@ export default function ToolbarPanelHost() {
     setPosition({ x, y });
     setOriginArrow(rect.left + rect.width / 2 - x);
     setAnchoredToToolbar(true);
-  }, [panel]);
+  }, [panel, mobilePanel]);
   useEffect(() => {
     if (!panel || (panel.kind !== 'insert' && panel.kind !== 'library')) return;
     const closeAfterInsert = () => setPanel(null);
@@ -67,7 +79,7 @@ export default function ToolbarPanelHost() {
     dialogRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.stopPropagation(); setPanel(null); }
-      if (peeked) return;
+      if (mobilePanel || peeked) return;
       if (event.key !== 'Tab') return;
       const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
@@ -83,7 +95,7 @@ export default function ToolbarPanelHost() {
     };
     window.addEventListener('keydown', onKey, true);
     return () => { window.removeEventListener('keydown', onKey, true); previous?.focus(); };
-  }, [panel, setPanel, peeked]);
+  }, [panel, setPanel, peeked, mobilePanel]);
 
   if (!panel) return null;
   if (panel.kind === 'media') return <MediaPanelController onClose={() => setPanel(null)} />;
@@ -95,7 +107,7 @@ export default function ToolbarPanelHost() {
       : category?.label ?? 'Insert';
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+    if (mobilePanel || event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
     const rect = dialogRef.current?.getBoundingClientRect();
     if (!rect) return;
     setAnchoredToToolbar(false);
@@ -119,6 +131,7 @@ export default function ToolbarPanelHost() {
   };
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (mobilePanel) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = dialogRef.current?.getBoundingClientRect();
@@ -157,14 +170,17 @@ export default function ToolbarPanelHost() {
 
   return createPortal(
     <div className="field-toolbar-panel-backdrop fixed inset-0 z-[15000] bg-transparent"
-      data-modal-root={peeked ? undefined : ''} data-toolbar-panel-backdrop
-      style={{ pointerEvents: peeked ? 'none' : 'auto' }}
-      onPointerDown={(event) => { if (event.target === event.currentTarget && !peeked) peekAtTop(); }}>
+      data-modal-root={mobilePanel || peeked ? undefined : ''} data-toolbar-panel-backdrop
+      data-mobile-panel-presentation={mobilePanel ? mobilePresentation : undefined}
+      style={{ pointerEvents: mobilePanel || peeked ? 'none' : 'auto' }}
+      onPointerDown={(event) => {
+        if (!mobilePanel && event.target === event.currentTarget && !peeked) peekAtTop();
+      }}>
       <motion.div
         ref={dialogRef}
         tabIndex={-1}
         role="dialog"
-        aria-modal={!peeked}
+        aria-modal={!mobilePanel && !peeked}
         aria-label={title}
         initial={{ opacity: 0, scale: 0.95, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -173,28 +189,48 @@ export default function ToolbarPanelHost() {
         data-peeked={peeked ? 'true' : 'false'}
         className="field-toolbar-panel-surface fixed flex flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] outline-none"
         style={{
-          width: `min(${size.width}px, calc(100vw - 32px))`,
-          height: `min(${size.height}px, calc(100vh - 32px))`,
-          left: position?.x ?? '50%', top: peeked ? 32 - size.height : position?.y ?? '50%',
-          transform: position ? 'none' : 'translate(-50%, -50%)',
-          transformOrigin: anchoredToToolbar ? `${Math.max(18, Math.min(originArrow, size.width - 18))}px calc(100% + 7px)` : 'center',
+          width: portraitSheet
+            ? 'calc(100vw - 16px)'
+            : landscapeOverlay ? 'min(360px, 42vw)' : `min(${size.width}px, calc(100vw - 32px))`,
+          height: portraitSheet
+            ? 'min(520px, calc(var(--field-visible-height, 100dvh) - 140px))'
+            : landscapeOverlay ? 'calc(100dvh - 80px)' : `min(${size.height}px, calc(100vh - 32px))`,
+          left: portraitSheet
+            ? 8
+            : landscapeOverlay ? 12 + LEFT_RAIL_WIDTH : position?.x ?? '50%',
+          right: portraitSheet ? 8 : undefined,
+          top: portraitSheet
+            ? 'auto'
+            : landscapeOverlay ? 68 : peeked ? 32 - size.height : position?.y ?? '50%',
+          bottom: portraitSheet
+            ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))'
+            : undefined,
+          transform: mobilePanel ? 'none' : position ? 'none' : 'translate(-50%, -50%)',
+          transformOrigin: mobilePanel
+            ? 'center'
+            : anchoredToToolbar
+              ? `${Math.max(18, Math.min(originArrow, size.width - 18))}px calc(100% + 7px)`
+              : 'center',
           pointerEvents: 'auto',
         }}>
-        <div className="flex h-11 shrink-0 cursor-move select-none items-center gap-2 border-b border-[var(--border-light)] px-4"
+        {portraitSheet && (
+          <div aria-hidden className="absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-[var(--text-disabled)] opacity-70" />
+        )}
+        <div className={`flex h-11 shrink-0 select-none items-center gap-2 border-b border-[var(--border-light)] px-4 ${mobilePanel ? 'cursor-default' : 'cursor-move'}`}
           onPointerDown={startDrag}>
           <span className="text-[var(--text-secondary)]" aria-hidden>▦</span>
           <h2 className="min-w-0 flex-1 truncate text-xs font-semibold">{title}</h2>
           <ModalCloseButton onClick={() => setPanel(null)} label={`Close ${title}`} />
         </div>
         <div data-toolbar-panel-resize onPointerDown={startResize} title="Resize panel"
-          className={`absolute bottom-0 right-0 z-10 flex h-4 w-4 cursor-nwse-resize items-end justify-end ${peeked ? 'hidden' : ''}`}>
+          className={`absolute bottom-0 right-0 z-10 flex h-4 w-4 cursor-nwse-resize items-end justify-end ${peeked || mobilePanel ? 'hidden' : ''}`}>
           <svg aria-hidden width="9" height="9" viewBox="0 0 9 9" className="mb-[3px] mr-[3px] text-[var(--text-disabled)]"><path d="M8 1 1 8M8 5 5 8" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" /></svg>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {panel.kind === 'library' && <LibraryPanel mode="library" focusSection={panel.section} />}
           {panel.kind === 'insert' && category && <div className="flex h-full min-h-0 flex-col"><SecondaryPanelContent category={category} sectionId={panel.section} /></div>}
         </div>
-        {anchoredToToolbar && !peeked && (
+        {!mobilePanel && anchoredToToolbar && !peeked && (
           <span
             data-toolbar-panel-origin-pointer
             aria-hidden

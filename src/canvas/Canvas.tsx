@@ -102,6 +102,7 @@ import { useActiveViewports } from './hooks/useActiveViewports';
 import { useLocaleOverrides } from './hooks/useLocaleOverrides';
 import { RendererSyncHost } from './hooks/useRendererSync';
 import { shouldRouteCanvasWheel, useCanvasTransform } from './hooks/useCanvasTransform';
+import { useCanvasTouchInteraction } from './hooks/useCanvasTouchInteraction';
 import { useSandboxBridge } from './hooks/useSandboxBridge';
 import { CanvasMouseController } from './mouse/CanvasMouseController';
 import { CanvasTextEditController } from './text-edit/CanvasTextEditController';
@@ -1021,6 +1022,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       scheduleGeometryReconcile();
     });
     window.addEventListener('resize', onWindowResize);
+    window.visualViewport?.addEventListener('resize', onWindowResize);
+    window.visualViewport?.addEventListener('scroll', onWindowResize);
     document.addEventListener('transitionend', onWorkspaceTransitionEnd, true);
     structureObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -1040,6 +1043,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
       resizeObserver.disconnect();
       structureObserver.disconnect();
       window.removeEventListener('resize', onWindowResize);
+      window.visualViewport?.removeEventListener('resize', onWindowResize);
+      window.visualViewport?.removeEventListener('scroll', onWindowResize);
       document.removeEventListener('transitionend', onWorkspaceTransitionEnd, true);
       focusCamera.dispose();
       if (textFocusCameraRef.current === focusCamera) textFocusCameraRef.current = null;
@@ -1213,6 +1218,17 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
   // dblclick, ghost detection, replica selection, and viewport-change events.
   // Constructed once sandboxReady fires (needs bridge + orchestrators).
   const mouseControllerRef = useRef<CanvasMouseController | null>(null);
+
+  // Mobile Focus: one finger directly manipulates the canvas/object layer.
+  // Two-finger camera ownership remains in useCanvasTransform/InputHandler.
+  useCanvasTouchInteraction({
+    containerRef,
+    mouseControllerRef,
+    dragCoordinatorRef,
+    getToolMode: () => jotaiStore.get(toolModeAtom),
+    isTextEditing: () => jotaiStore.get(isTextEditingAtom),
+    setPanCursor,
+  });
 
   // Shared creator callbacks — defined before the controller so it can be
   // threaded in via frameCreatorCallbacksRef. Updated every render so

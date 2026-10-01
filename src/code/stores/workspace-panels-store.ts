@@ -2,11 +2,21 @@
 // field workspace chrome: visibility derives docked / floating / hidden presentation.
 import { atomWithStorage } from 'jotai/utils';
 import { atom } from 'jotai';
+import { resolveMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 
 // The layout preset and docked pane states persist independently. Selecting a
 // preset seeds the panes; restoring it must not overwrite later pane changes.
 export type WorkspaceMode = 'docked' | 'floating' | 'compact' | 'compact-docked';
-export const workspaceModeAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
+export const workspaceModePreferenceAtom = atomWithStorage<WorkspaceMode>('field:prefs:workspaceMode', 'docked', undefined, { getOnInit: true });
+/** Phone Focus is a presentation override, never a persisted desktop preference. */
+export const mobileFocusActiveAtom = atom(typeof window !== 'undefined'
+  && resolveMobileWorkspacePresentation(window.innerWidth, window.innerHeight) !== 'regular');
+export const workspaceModeAtom = atom(
+  (get) => get(mobileFocusActiveAtom) ? 'floating' as WorkspaceMode : get(workspaceModePreferenceAtom),
+  (get, set, mode: WorkspaceMode) => {
+    if (!get(mobileFocusActiveAtom)) set(workspaceModePreferenceAtom, mode);
+  },
+);
 export const dockedLeftOpenAtom = atomWithStorage('field:prefs:dockedLeftOpen:v1', true, undefined, { getOnInit: true });
 export const dockedInspectorOpenAtom = atomWithStorage('field:prefs:dockedInspectorOpen:v1', true, undefined, { getOnInit: true });
 /** Auto-hide is independent of the left rail and of the layout preset. */

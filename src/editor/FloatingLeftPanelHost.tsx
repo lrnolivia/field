@@ -5,14 +5,19 @@ import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { leftContentWidthAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom, clampLeftContentWidth } from '@/code/stores/workspace-panels-store';
 import { PANEL_MAP } from '@/editor/left-toolbar/LeftPanel';
 import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
-import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from './workspace-layout';
+import { WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP, WORKSPACE_FLOAT_SHADOW } from './workspace-layout';
+import { useMobileWorkspacePresentation } from './mobile-workspace-presentation';
 
 /** Content half of the floating left island. The icon rail sits flush to its
  * left; both live below the stationary project pill. */
 export default function FloatingLeftPanelHost() {
   const mode = useAtomValue(workspaceModeAtom);
+  const presentation = useMobileWorkspacePresentation();
+  const portraitSheet = presentation === 'portrait-sheet';
+  const landscapeOverlay = presentation === 'landscape-overlay';
+  const mobilePanel = presentation !== 'regular';
   const hidden = useAtomValue(floatingLeftHiddenAtom);
-  const collapsed = useAtomValue(floatingPanelCollapsedAtom);
+  const [collapsed, setCollapsed] = useAtom(floatingPanelCollapsedAtom);
   const autoHide = useAtomValue(workspaceAutoHideAtom);
   const compactOpen = useAtomValue(compactPanelOpenAtom);
   const panelId = useAtomValue(leftPanelAtom);
@@ -23,8 +28,9 @@ export default function FloatingLeftPanelHost() {
   const visible = (mode === 'floating' && (!autoHide || !hidden) && !collapsed) || (mode === 'compact' && compactOpen);
 
   useEffect(() => {
+    if (mobilePanel) return;
     setHeight((current) => Math.min(current, Math.max(280, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET)));
-  }, [mode]);
+  }, [mode, mobilePanel, setHeight]);
 
   if (!Panel || (mode !== 'floating' && mode !== 'compact')) return null;
 
@@ -49,21 +55,56 @@ export default function FloatingLeftPanelHost() {
   };
 
   return createPortal(
-    <div data-floating-left-panel={panelId} data-workspace-mode={mode} data-visible={visible}
-      aria-hidden={!visible} inert={!visible}
+    <div
+      data-floating-left-panel={panelId}
+      data-workspace-mode={mode}
+      data-visible={visible}
+      data-mobile-panel-presentation={mobilePanel ? presentation : undefined}
+      aria-hidden={!visible}
+      inert={!visible}
       className="fixed z-[5001] flex flex-col overflow-hidden text-[var(--text-primary)] transition-[transform,opacity] duration-[260ms] ease-out"
-      style={{ left: WORKSPACE_FLOAT_INSET + railWidth, top: WORKSPACE_FLOAT_LEFT_TOP, width: contentWidth, height: Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
-        opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-18px)', pointerEvents: visible ? 'auto' : 'none' }}>
+      style={{
+        left: portraitSheet ? 8 : WORKSPACE_FLOAT_INSET + railWidth,
+        right: portraitSheet ? 8 : undefined,
+        top: portraitSheet ? 'auto' : WORKSPACE_FLOAT_LEFT_TOP,
+        bottom: portraitSheet ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : undefined,
+        width: portraitSheet ? 'auto' : landscapeOverlay ? Math.min(contentWidth, 320) : contentWidth,
+        height: portraitSheet
+          ? 'min(500px, calc(var(--field-visible-height, 100dvh) - 140px))'
+          : landscapeOverlay
+            ? 'calc(100dvh - 80px)'
+            : Math.min(height, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+        maxHeight: portraitSheet ? 'calc(100dvh - 120px)' : undefined,
+        boxSizing: 'border-box',
+        background: mobilePanel ? 'var(--bg-panel)' : undefined,
+        border: mobilePanel ? '1px solid var(--border-light)' : undefined,
+        borderRadius: portraitSheet ? 12 : mobilePanel ? 8 : undefined,
+        boxShadow: mobilePanel ? WORKSPACE_FLOAT_SHADOW : undefined,
+        opacity: visible ? 1 : 0,
+        transform: visible
+          ? 'translate(0, 0)'
+          : portraitSheet ? 'translateY(calc(100% + 24px))' : 'translateX(-18px)',
+        pointerEvents: visible ? 'auto' : 'none',
+      }}
+    >
+      {mobilePanel && (
+        <button type="button" aria-label="Close panel" onClick={() => setCollapsed(true)}
+          className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--border-light)] px-3 text-xs">
+          <span className="capitalize">{panelId}</span><span aria-hidden>×</span>
+        </button>
+      )}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
-      <button type="button"
-        aria-label="Resize floating left panel"
-        title="Resize panel"
-        onPointerDown={beginResize}
-        className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none text-[var(--text-tertiary)]">
-        <svg aria-hidden viewBox="0 0 16 16" width="16" height="16">
-          <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />
-        </svg>
-      </button>
+      {!mobilePanel && (
+        <button type="button"
+          aria-label="Resize floating left panel"
+          title="Resize panel"
+          onPointerDown={beginResize}
+          className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none text-[var(--text-tertiary)]">
+          <svg aria-hidden viewBox="0 0 16 16" width="16" height="16">
+            <path d="M14 5 5 14M14 10l-4 4" stroke="currentColor" fill="none" />
+          </svg>
+        </button>
+      )}
     </div>, document.body,
   );
 }
