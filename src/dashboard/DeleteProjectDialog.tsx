@@ -29,11 +29,16 @@ export default function DeleteProjectDialog({
   }, [project?.id]);
 
   useEffect(() => {
-    if (!project) return;
+    if (!project?.id) return;
     const frame = requestAnimationFrame(() => {
       if (deleting) dialogRef.current?.focus();
       else cancelRef.current?.focus();
     });
+    return () => cancelAnimationFrame(frame);
+  }, [deleting, project?.id]);
+
+  useEffect(() => {
+    if (!project) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Tab') {
         const first = cancelRef.current;
@@ -56,7 +61,6 @@ export default function DeleteProjectDialog({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
-      cancelAnimationFrame(frame);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [deleting, onClose, project]);

@@ -106,6 +106,27 @@ describe('Dashboard collection semantics', () => {
     expect(screen.getByRole('button', { name: 'Project actions for Portfolio' })).toBeTruthy();
   });
 
+  it.each(['rename', 'delete'] as const)('releases the %s dialog keyboard trap when navigation hides Dashboard', async (kind) => {
+    api.list.mockResolvedValue([{ ...project, trashedAt: kind === 'delete' ? '2026-09-30T00:00:00Z' : null }]);
+    const { rerender } = render(<Dashboard active />);
+    if (kind === 'delete') fireEvent.click(screen.getByRole('button', { name: 'Trash' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Project actions for Portfolio' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: kind === 'delete' ? 'Delete permanently…' : 'Rename', exact: true }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    // FieldShell retains this component while Back/Forward reveals the editor.
+    rerender(<Dashboard active={false} />);
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    window.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(api.rename).not.toHaveBeenCalled();
+    expect(api.remove).not.toHaveBeenCalled();
+
+    rerender(<Dashboard active />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('keeps a failed rename open with the entered name until retry succeeds', async () => {
     api.list.mockResolvedValue([project]);
     api.rename.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValueOnce({ ...project, name: 'New portfolio' });

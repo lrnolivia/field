@@ -46,7 +46,14 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [user, setUser] = useState<RevymeUser | null>(null);
 
   useEffect(() => {
-    if (!active) setOpeningProjectId(null);
+    if (!active) {
+      setOpeningProjectId(null);
+      // FieldShell keeps Dashboard mounted behind the editor. Dismiss its
+      // transient UI so hidden dialogs cannot retain window keyboard traps.
+      setOpenMenuId(null);
+      setRenameTarget(null);
+      setDeleteTarget(null);
+    }
   }, [active]);
 
   const visibleProjects = useMemo(
@@ -297,7 +304,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       </main>
 
       <RenameProjectDialog
-        project={renameTarget}
+        project={active ? renameTarget : null}
         saving={Boolean(renameTarget && busyId === renameTarget.id)}
         error={error}
         onClose={() => setRenameTarget(null)}
@@ -339,7 +346,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       )}
 
       <DeleteProjectDialog
-        project={deleteTarget}
+        project={active ? deleteTarget : null}
         deleting={Boolean(deleteTarget && busyId === deleteTarget.id)}
         error={error}
         onClose={() => {

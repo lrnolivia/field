@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FieldProjectMeta } from '@/backend/field-projects';
 import DeleteProjectDialog from './DeleteProjectDialog';
@@ -27,6 +27,17 @@ describe('DeleteProjectDialog', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
     });
+  });
+
+  it('preserves the chosen action across parent rerenders with fresh callbacks and metadata', async () => {
+    const { rerender } = render(<DeleteProjectDialog project={project} deleting={false} onClose={() => {}} onConfirm={() => {}} />);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    const confirm = screen.getByRole('button', { name: 'Delete permanently' });
+    await waitFor(() => expect(document.activeElement).toBe(cancel));
+    confirm.focus();
+    rerender(<DeleteProjectDialog project={{ ...project, thumbnail: '/updated-fixture.png' }} deleting={false} onClose={() => {}} onConfirm={() => {}} />);
+    await act(async () => { await new Promise<void>((resolve) => requestAnimationFrame(() => resolve())); });
+    expect(document.activeElement).toBe(confirm);
   });
 
   it('dismisses on Escape and backdrop press when idle', () => {
