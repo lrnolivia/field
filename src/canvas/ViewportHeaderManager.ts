@@ -445,7 +445,10 @@ function createHeader(
     // full viewport (navbar/footer included); on a plain page it's the page
     // root. Either way the selection outline wraps the whole frame.
     const vpNodeId = vpEl?.getAttribute('data-id') || getViewportFrameNodeId(vp.id);
-    callbacks.onSelect(vpNodeId);
+    // A touch tap commits selection on release. Selecting at first contact
+    // can open Inspector over the second finger before its pointerdown,
+    // stealing an otherwise valid two-finger camera gesture.
+    if (e.pointerType !== 'touch') callbacks.onSelect(vpNodeId);
     callbacks.onInteractingViewport(vp.id);
 
     trace.action('viewport-header:mousedown', { vpId: vp.id });
@@ -616,6 +619,7 @@ function createHeader(
     const onUp = (event: PointerEvent) => {
       if (event.pointerId !== e.pointerId) return;
       cleanup();
+      if (e.pointerType === 'touch') callbacks.onSelect(vpNodeId);
       headerDragging = false;
       callbacks.onDragStateChange?.(false);
       if (started) {
