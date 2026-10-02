@@ -1,6 +1,7 @@
 import { RESIZE_HANDLE_SIZE, SELECTION_COLOR } from '@/shared/constants';
 import type { ScreenCorners } from '@/canvas/resize/geometry-utils';
 import type { ScaleCornerDirection } from '@/canvas/scale/scale-math';
+import { useTouchHandleTargets } from './useTouchHandleTargets';
 import { getResizeCursor } from '@/canvas/resize/cursor-utils';
 
 interface Props {
@@ -12,8 +13,9 @@ interface Props {
 
 /** Scale deliberately exposes corners only: the operation is uniform/proportional. */
 export default function ScaleHandles({ corners, rotation, onScaleStart, color = SELECTION_COLOR }: Props) {
+  const touch = useTouchHandleTargets();
   const visualSize = Math.max(7, RESIZE_HANDLE_SIZE);
-  const hitSize = Math.max(16, RESIZE_HANDLE_SIZE + 8);
+  const hitSize = touch ? 36 : Math.max(16, RESIZE_HANDLE_SIZE + 8);
   const handles: Array<{ pos: { x: number; y: number }; dir: ScaleCornerDirection }> = [
     { pos: corners.TL, dir: 'topLeft' },
     { pos: corners.TR, dir: 'topRight' },
@@ -29,7 +31,7 @@ export default function ScaleHandles({ corners, rotation, onScaleStart, color = 
       style={{
         position: 'fixed', left: h.pos.x - hitSize / 2, top: h.pos.y - hitSize / 2,
         width: hitSize, height: hitSize, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'all', cursor: getResizeCursor(h.dir, rotation), zIndex: 3,
+        pointerEvents: 'all', touchAction: 'none', cursor: getResizeCursor(h.dir, rotation), zIndex: 3,
       }}
     >
       <span aria-hidden style={{
