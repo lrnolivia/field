@@ -20,6 +20,11 @@ import { getNodesSnapshot } from '@/code/stores/store';
 let _suppressNextSelectionBox = false;
 export function suppressSelectionBox(): void { _suppressNextSelectionBox = true; }
 
+interface TouchMarqueeDetail {
+  clientX: number;
+  clientY: number;
+}
+
 interface SelectionBoxProps {
   containerEl: HTMLElement | null;  // The canvas container (screen-space)
   contentEl: HTMLElement | null;    // The content div with nodes
@@ -261,8 +266,13 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     ctrlKey?: boolean;
     metaKey?: boolean;
     altKey?: boolean;
+    pointerType?: string;
   }) => {
     if (!isActive || isViewerMode()) return false;
+    // Raw touch pointer events never start marquee directly. Mobile routes a
+    // deliberate empty-space long press through the explicit touch-marquee
+    // events below, preserving ordinary one-finger empty drag as camera pan.
+    if (detail.pointerType === 'touch') return false;
     if ((detail.button ?? 0) !== 0) return false;
     if (isSpaceBarDown()) return false;
     // Option/Alt is reserved for duplication/alternate gestures. Cmd/Ctrl is
@@ -362,6 +372,26 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     stopGesture();
   }, [stopGesture]);
 
+  const handleTouchMarqueeStart = useCallback((event: Event) => {
+    if (!isActive || isViewerMode()) return;
+    const detail = (event as CustomEvent<TouchMarqueeDetail>).detail;
+    if (!detail) return;
+    beginGesture(detail.clientX, detail.clientY, 'surface');
+    trace.action('selection-box:touch-hold-start', {
+      x: detail.clientX,
+      y: detail.clientY,
+    });
+  }, [beginGesture, isActive]);
+
+  const handleTouchMarqueeMove = useCallback((event: Event) => {
+    const detail = (event as CustomEvent<TouchMarqueeDetail>).detail;
+    if (detail) handleMoveAt(detail.clientX, detail.clientY);
+  }, [handleMoveAt]);
+
+  const handleTouchMarqueeEnd = useCallback(() => {
+    handlePointerUp();
+  }, [handlePointerUp]);
+
   useEffect(() => {
     if (!containerEl || !isActive) return;
     containerEl.addEventListener('pointerdown', handlePointerDown);
@@ -373,6 +403,10 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     document.addEventListener('field:sandbox-mousemove', handleSandboxMouseMove);
     document.addEventListener('field:sandbox-mouseup', handlePointerUp);
     document.addEventListener('field:sandbox-mousecancel', handlePointerUp);
+    document.addEventListener('field:touch-marquee-start', handleTouchMarqueeStart);
+    document.addEventListener('field:touch-marquee-move', handleTouchMarqueeMove);
+    document.addEventListener('field:touch-marquee-end', handleTouchMarqueeEnd);
+    document.addEventListener('field:touch-marquee-cancel', handleTouchMarqueeEnd);
 
     return () => {
       containerEl.removeEventListener('pointerdown', handlePointerDown);
@@ -384,10 +418,25 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
       document.removeEventListener('field:sandbox-mousemove', handleSandboxMouseMove);
       document.removeEventListener('field:sandbox-mouseup', handlePointerUp);
       document.removeEventListener('field:sandbox-mousecancel', handlePointerUp);
+      document.removeEventListener('field:touch-marquee-start', handleTouchMarqueeStart);
+      document.removeEventListener('field:touch-marquee-move', handleTouchMarqueeMove);
+      document.removeEventListener('field:touch-marquee-end', handleTouchMarqueeEnd);
+      document.removeEventListener('field:touch-marquee-cancel', handleTouchMarqueeEnd);
       autoPanCleanupRef.current?.();
       autoPanCleanupRef.current = null;
     };
-  }, [containerEl, isActive, handlePointerDown, handlePointerMove, handlePointerUp, handleSandboxMouseDown, handleSandboxMouseMove]);
+  }, [
+    containerEl,
+    isActive,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleSandboxMouseDown,
+    handleSandboxMouseMove,
+    handleTouchMarqueeStart,
+    handleTouchMarqueeMove,
+    handleTouchMarqueeEnd,
+  ]);
 
   if (!box) return null;
   return (
