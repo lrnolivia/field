@@ -487,7 +487,8 @@ function createHeader(
       });
     }
 
-    const onMove = (me: MouseEvent) => {
+    const onMove = (me: PointerEvent) => {
+      if (me.pointerId !== e.pointerId) return;
       const dx = me.clientX - startX;
       const dy = me.clientY - startY;
 
@@ -569,7 +570,52 @@ function createHeader(
       }
     };
 
-    const onUp = () => {
+    const cleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('pointerdown', onSecondPointer, true);
+      window.removeEventListener('touchstart', onTouchTakeover, true);
+    };
+
+    const onCancel = (event?: PointerEvent) => {
+      if (event && event.pointerId !== e.pointerId) return;
+      cleanup();
+      headerDragging = false;
+      callbacks.onDragStateChange?.(false);
+      if (started) {
+        if (vpEl) {
+          vpEl.style.transform = '';
+          vpEl.style.willChange = '';
+          vpEl.style.left = `${startLeft}px`;
+          vpEl.style.top = `${startTop}px`;
+        } else {
+          getCanvasBridge().patchStyles(getViewportFrameNodeId(vp.id), getViewportPrefix(vp.id), {
+            transform: '', left: `${startLeft}px`, top: `${startTop}px`,
+          }, false);
+        }
+        header.style.transform = '';
+      }
+      header.style.cursor = 'grab';
+      callbacks.onSnapGuidesChange([]);
+      callbacks.onSpacingGuidesChange([]);
+      trace.action('viewport-header:drag-cancelled', { vpId: vp.id });
+    };
+
+    const onSecondPointer = (next: PointerEvent) => {
+      if (e.pointerType !== 'touch' || next.pointerType !== 'touch' || next.pointerId === e.pointerId) return;
+      // The second finger belongs to the camera, including when it lands on
+      // this header. Do not let its pointerdown begin another viewport drag.
+      next.stopPropagation();
+      onCancel();
+    };
+    const onTouchTakeover = (next: TouchEvent) => {
+      if (e.pointerType === 'touch' && next.touches.length >= 2) onCancel();
+    };
+
+    const onUp = (event: PointerEvent) => {
+      if (event.pointerId !== e.pointerId) return;
+      cleanup();
       headerDragging = false;
       callbacks.onDragStateChange?.(false);
       if (started) {
@@ -608,14 +654,16 @@ function createHeader(
       if (lastSpacingCount > 0) callbacks.onSpacingGuidesChange([]);
       lastGuideCount = 0;
       lastSpacingCount = 0;
-      window.removeEventListener('pointermove', onMove);
     };
 
     // Use pointermove instead of mousemove — more reliable for drag interactions.
     // In some browsers, mousedown + drag on certain elements can initiate native drag
     // which captures mouse events. Pointer events are not affected by this.
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, { once: true });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('pointerdown', onSecondPointer, true);
+    window.addEventListener('touchstart', onTouchTakeover, { passive: true, capture: true });
     trace.action('viewport-header:listeners-added', { vpId: vp.id });
 
     } catch (err) {
