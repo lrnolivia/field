@@ -6,6 +6,7 @@
 // This only handles events that need to be attached to the canvas DOM element.
 
 import { transformManager } from './TransformManager';
+import { moveCanvasTo } from './CameraAnimator';
 import {
   ZOOM_WHEEL_SENSITIVITY, ZOOM_PINCH_SENSITIVITY, PINCH_MAX_DELTA, ZOOM_MAX_DELTA,
   PAN_TRACKPAD_MAX_GAIN, PAN_TRACKPAD_GAIN_CUTOFF, PAN_LINE_STEP_PX,
@@ -275,11 +276,129 @@ export function isSpacePanning(): boolean {
 
 // ─── Touch Events (trackpad / mobile) ───────────────────────────────────────
 
-interface TouchState {
-  active: boolean;
-  lastDistance: number;
-  lastMidpoint: { x: number; y: number };
+export interface TouchPoint {
+  clientX: number;
+  clientY: number;
 }
 
-const touchState: TouchState = { active: false, lastDistance: 0, lastMidpoint: { x: 0, y: 0 } };
+export interface TouchCameraSnapshot {
+  distance: number;
+  midpoint: { x: number; y: number };
+}
 
+export interface TouchCameraFrame extends TouchCameraSnapshot {
+  panX: number;
+  panY: number;
+  zoomFactor: number;
+}
+
+/** The mobile camera only claims a gesture once two fingers are present.
+ * A single finger remains available to selection / object manipulation. */
+export function shouldOwnTouchCamera(touchCount: number): boolean {
+  return touchCount >= 2;
+}
+
+/** Pure geometry for a two-finger camera frame. Exported so the touch contract
+ * is testable without synthesising browser-specific TouchEvent objects. */
+export function touchCameraFrame(
+  touches: readonly TouchPoint[],
+  previous: TouchCameraSnapshot | null = null,
+): TouchCameraFrame | null {
+  if (!shouldOwnTouchCamera(touches.length)) return null;
+
+  const a = touches[0];
+  const b = touches[1];
+  const dx = b.clientX - a.clientX;
+  const dy = b.clientY - a.clientY;
+  const distance = Math.hypot(dx, dy);
+  const midpoint = {
+    x: (a.clientX + b.clientX) / 2,
+    y: (a.clientY + b.clientY) / 2,
+  };
+
+  if (!previous || previous.distance <= 0 || distance <= 0) {
+    return { distance, midpoint, panX: 0, panY: 0, zoomFactor: 1 };
+  }
+
+  return {
+    distance,
+    midpoint,
+    panX: midpoint.x - previous.midpoint.x,
+    panY: midpoint.y - previous.midpoint.y,
+    zoomFactor: distance / previous.distance,
+  };
+}
+
+/** Track touch pointers on the stable Canvas container. Header selection may
+ * rebuild the original target; pointer capture keeps the gesture connected. */
+export function attachTouchCamera(
+  container: HTMLElement,
+  onCameraStateChange: (active: boolean) => void,
+): () => void {
+  const pointers = new Map<number, TouchPoint>();
+  let state: TouchCameraSnapshot | null = null;
+
+  const reset = () => {
+    if (!state) return;
+    state = null;
+    onCameraStateChange(false);
+  };
+  const rebase = () => {
+    const frame = touchCameraFrame([...pointers.values()]);
+    state = frame ? { distance: frame.distance, midpoint: frame.midpoint } : null;
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== 'touch' || !(event.target instanceof Node) || !container.contains(event.target)) return;
+    pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    try { container.setPointerCapture(event.pointerId); } catch { /* Synthetic events have no active pointer. */ }
+    if (!shouldOwnTouchCamera(pointers.size)) return;
+    event.preventDefault();
+    const current = transformManager.getTransform();
+    moveCanvasTo(current.x, current.y, current.scale);
+    rebase();
+    onCameraStateChange(true);
+    trace.action('input:touch-camera-start', { touches: pointers.size });
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    if (!shouldOwnTouchCamera(pointers.size)) return;
+    event.preventDefault();
+    const frame = touchCameraFrame([...pointers.values()], state);
+    if (!frame) return;
+    if (frame.panX !== 0 || frame.panY !== 0) transformManager.pan(frame.panX, frame.panY);
+    if (Number.isFinite(frame.zoomFactor) && frame.zoomFactor > 0 && frame.zoomFactor !== 1) {
+      const rect = container.getBoundingClientRect();
+      transformManager.zoomByFactor(frame.midpoint.x - rect.left, frame.midpoint.y - rect.top, frame.zoomFactor);
+    }
+    state = { distance: frame.distance, midpoint: frame.midpoint };
+  };
+  const onPointerEnd = (event: PointerEvent) => {
+    if (!pointers.delete(event.pointerId)) return;
+    try { container.releasePointerCapture(event.pointerId); } catch { /* Capture may already be released. */ }
+    if (shouldOwnTouchCamera(pointers.size)) rebase();
+    else reset();
+  };
+  const onBlur = () => {
+    for (const id of pointers.keys()) {
+      try { container.releasePointerCapture(id); } catch { /* Already released. */ }
+    }
+    pointers.clear();
+    reset();
+  };
+  // Capture before header/object pointer handlers. Camera ownership is based
+  // on identifiers, so 3→2 fingers rebases rather than jumping between slots.
+  window.addEventListener('pointerdown', onPointerDown, true);
+  window.addEventListener('pointermove', onPointerMove, true);
+  window.addEventListener('pointerup', onPointerEnd, true);
+  window.addEventListener('pointercancel', onPointerEnd, true);
+  window.addEventListener('blur', onBlur);
+  return () => {
+    window.removeEventListener('pointerdown', onPointerDown, true);
+    window.removeEventListener('pointermove', onPointerMove, true);
+    window.removeEventListener('pointerup', onPointerEnd, true);
+    window.removeEventListener('pointercancel', onPointerEnd, true);
+    window.removeEventListener('blur', onBlur);
+    onBlur();
+  };
+}
