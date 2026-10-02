@@ -9,7 +9,7 @@ import { selectedIdsAtom } from '@/code/stores/store';
 import { useNode } from '@/code/stores/node-family';
 import { activeFilePathAtom, getFriendlyFileName } from '@/code/project/active-file-store';
 import { toolModeAtom } from '@/code/stores/tool-store';
-import { rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
+import { mobileFocusActiveAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { settingsOverlayOpenAtom } from '@/code/stores/website-settings-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
@@ -69,6 +69,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   const mode = useAtomValue(toolModeAtom);
   const viewer = useIsViewer();
   const reduced = useFieldReducedMotion();
+  const mobileFocusActive = useAtomValue(mobileFocusActiveAtom);
   const [rightOpen, setRightOpen] = useAtom(rightPaneOpenAtom);
   const [leftCollapsed, collapseLeft] = useAtom(floatingPanelCollapsedAtom);
   const [leftPanel, setLeftPanel] = useAtom(leftPanelAtom);
@@ -125,8 +126,12 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
     return () => { window.removeEventListener(PORTRAIT_EDIT_EVENT, edit); window.removeEventListener('field:portrait-close', close); };
   }, [open, close]);
   // Existing headers, shortcuts and resource launches converge on this host.
-  useEffect(() => { if (rightOpen) { open('inspect'); setRightOpen(false); } }, [rightOpen, open, setRightOpen]);
-  useEffect(() => { if (!leftCollapsed) { open(leftPanel === 'layers' || leftPanel === 'pages-layers' ? 'layers' : leftPanel === 'vibe' ? 'browse' : leftPanel); collapseLeft(true); } }, [leftCollapsed, leftPanel, open, collapseLeft]);
+  // On rotation this host can mount one render before the focus coordinator's
+  // layout effect switches the derived pane atoms from desktop to mobile. That
+  // desktop snapshot is not a new open command and must not replace the saved
+  // portrait task or write a collapse into the user's desktop preference.
+  useEffect(() => { if (mobileFocusActive && rightOpen) { open('inspect'); setRightOpen(false); } }, [mobileFocusActive, rightOpen, open, setRightOpen]);
+  useEffect(() => { if (mobileFocusActive && !leftCollapsed) { open(leftPanel === 'layers' || leftPanel === 'pages-layers' ? 'layers' : leftPanel === 'vibe' ? 'browse' : leftPanel); collapseLeft(true); } }, [mobileFocusActive, leftCollapsed, leftPanel, open, collapseLeft]);
   useEffect(() => { if (toolbarPanel) open(toolbarPanel.kind === 'insert' ? 'insert' : toolbarPanel.kind); }, [toolbarPanel, open]);
   const selectionKey = selected.join('|');
   const previousSelection = useRef(selectionKey);

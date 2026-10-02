@@ -14,7 +14,10 @@ async function settleSurface(page: Page) {
 }
 
 test('portrait owns purpose-built tools, browse and focused editing without changing desktop preferences', async ({ page }, testInfo) => {
-  await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
+  await page.addInitScript(() => {
+    localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked'));
+    localStorage.setItem('field:prefs:dockedInspectorOpen:v1', 'true');
+  });
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
   await expect(page.locator('[data-portrait-workspace]')).toBeAttached();
@@ -50,6 +53,7 @@ test('portrait owns purpose-built tools, browse and focused editing without chan
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:workspaceMode')!))).toBe('docked');
   await page.setViewportSize({ width:390, height:844 });
   await expect(page.locator('[data-portrait-surface="tools"]')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:dockedInspectorOpen:v1')!))).toBe(true);
 });
 
 test('a short object tap opens focused properties; real drag and second finger do not', async ({ page }, testInfo) => {
@@ -174,12 +178,12 @@ test('portrait Media selection is reversible until explicit placement', async ({
   await page.getByRole('button', { name:'Media Choose images, video and audio', exact:false }).tap();
   const media = page.locator('[data-portrait-media]');
   await expect(media).toBeVisible();
-  await media.getByRole('button', { name:'Paste from clipboard', exact:true }).tap();
+  await media.getByRole('button', { name:/Paste from clipboard$/ }).tap();
   await expect(media.locator('[data-portrait-media-placement]')).toBeVisible();
   expect(await editor.getPageCode()).toBe(before);
   await media.getByRole('button', { name:'Choose another', exact:true }).tap();
   expect(await editor.getPageCode()).toBe(before);
-  await media.getByRole('button', { name:'Paste from clipboard', exact:true }).tap();
+  await media.getByRole('button', { name:/Paste from clipboard$/ }).tap();
   await page.screenshot({ path:testInfo.outputPath('portrait-media-confirm-390.png') });
   await media.getByRole('button', { name:'Place image', exact:true }).tap();
   await expect(media).toHaveCount(0);
