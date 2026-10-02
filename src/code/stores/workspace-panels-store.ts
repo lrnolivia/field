@@ -55,7 +55,7 @@ export const rightPaneOpenAtom = atom(
     set(rightInspectorExplicitCollapseAtom, !open);
     // A deliberate expand pins the pane; a deliberate collapse cannot be
     // undone by hover or the still-selected object under the pointer.
-    set(rightInspectorAutoHideAtom, false);
+    if (!get(mobileFocusActiveAtom)) set(rightInspectorAutoHideAtom, false);
     if (mode === 'docked' || mode === 'compact-docked') { set(dockedInspectorOpenAtom, open); return; }
     if (mode === 'floating') { set(floatingInspectorExpandedAtom, open); return; }
     if (mode === 'compact') { set(compactInspectorOpenAtom, open); return; }
