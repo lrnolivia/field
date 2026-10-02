@@ -31,7 +31,9 @@ describe('Media operation retry plumbing', () => {
   it('replays toolbar placement captured before the original upload', () => {
     const controller = read('src/editor/media/MediaPanelController.tsx');
     expect(controller).toContain('const placement = resolvePlacement(elementKind)');
-    expect(controller).toContain('onSuccess: (result) => placeUrl(elementKind, result.url, placement)');
+    expect(controller).toContain('else placeUrl(elementKind, result.url, placement)');
+    expect(controller).toContain('setPendingPlacement({ kind: elementKind, url: result.url, placement })');
+    expect(controller).toContain('if (portrait && !alive.current) return;');
   });
 
   it('replays canvas-drop geometry captured before the original upload', () => {
@@ -48,3 +50,4 @@ describe('Media operation retry plumbing', () => {
     expect(video).toContain('retryable: false');
   });
 });
+
