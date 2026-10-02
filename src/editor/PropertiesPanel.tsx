@@ -2,6 +2,9 @@
 // All tools sit inside <ControlProvider> which handles style read/write routing.
 
 import React from 'react';
+import type { InspectorTask } from './portrait/interaction';
+import GalleryTool from './tools/GalleryTool';
+import { isGalleryNode } from '@/code/gallery/gallery-model';
 import { useAtomValue } from 'jotai';
 import { selectedNodeAtom, selectedIdsAtom } from '../code/stores/store';
 import { useNodesComputed } from '../code/stores/node-family';
@@ -61,7 +64,7 @@ import { toolModeAtom } from '@/code/stores/tool-store';
 // whole panel (~110ms with every tool atom, traced mid-drag on big pages).
 // The panel has NO props — parent re-renders never need to propagate; its
 // own atoms still re-render it when actual values change.
-export default React.memo(function PropertiesPanel() {
+export default React.memo(function PropertiesPanel({ mobileTask }: { mobileTask?: InspectorTask } = {}) {
   const selectedId = useAtomValue(selectedNodeAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
@@ -104,7 +107,7 @@ export default React.memo(function PropertiesPanel() {
 
   return (
     <ControlProvider>
-      <PropertiesPanelInner isMultiSelect={isMultiSelect} />
+      <PropertiesPanelInner isMultiSelect={isMultiSelect} mobileTask={mobileTask} />
       {/* Single, stable mount for the variable manage modal — see VariableModalHost for why it lives
           here rather than inside each ControlLabel. */}
       <VariableModalHost />
@@ -132,7 +135,7 @@ function findCollectionContext(node: CanvasNode, nodes: Map<string, CanvasNode>)
 // See canvas/ui/SlugPageBreadcrumb.tsx.
 
 // Inner component — has access to useControl()
-function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boolean }) {
+function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSelect?: boolean; mobileTask?: InspectorTask }) {
   const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
   const activeEditor = useAtomValue(activeEditorAtom);
   const inspectorMode = useAtomValue(inspectorModeAtom);
@@ -443,6 +446,95 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
                   : isFrame
                     ? 'Frame'
                     : rawType.replace(/^motion\./, '');
+
+  // Portrait uses one task at a time. The shared ControlProvider keeps every
+  // edit on the existing source/undo/replica path; desktop composition stays intact.
+  if (mobileTask) {
+    const gallery = !isMultiSelect && isGalleryNode(node);
+    const geometry = <>{!isOverlayNode && positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
+      {isOverlayNode && <OverlayTool />}
+      {parentLayout === 'grid' && <GridChildControls />}
+      {canShowContainerLayout && !gallery && <LayoutTool styles={s} nodeId={node.id}
+        onUpdate={updateStyle} onUpdateMultiple={updateMultipleStyles} templateRoot={isTemplateRootEdit} />}
+      {(isFrame || isViewportFrame) && !isNativeGroup && <LayoutPaddingControl styles={s} onUpdateMultiple={updateMultipleStyles} />}
+    </>;
+    const content = <>
+      {hasCollectionList && <CollectionListTool />}
+      {isFormElement && <FormTool />}{isInputElement && <InputTool />}
+      {isComponentInstance && isInsideForm && <FormStateTool />}
+      <ComponentPropsTool /><IconSetTool />
+      {isImageElement && <ImageTool />}{isVideoElement && <VideoTool />}{isAudioElement && <AudioTool />}
+      {isText && <TextStyleTool />}
+    </>;
+    let task: React.ReactNode;
+    switch (mobileTask) {
+      case 'geometry': task = gallery ? <GalleryTool focus="layout" /> : geometry; break;
+      case 'content': task = gallery ? <GalleryTool focus="content" /> : content; break;
+      case 'appearance': task = gallery ? <GalleryTool focus="image" /> : <><SelectionTool />
+        {!isTemplatedViewport && (isSvg ? isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool /> : <StylesTool scope="appearance" />)}
+      </>; break;
+      case 'advanced': task = <>
+        {!isTemplatedViewport && <StylesTool scope="advanced" advancedExtras={!isViewportFrame ? <>
+          {!isInputElement && <CursorTool />}
+          {!isComponentFilePath(filePath) && !isContainerSetInstance && !isInputElement && <ScrollSectionTool />}
+          {!isContainerSetInstance && !isComponentInstance && <AccessibilityTool />}
+          {!isContainerSetInstance && <CodeOverridesTool />}
+        </> : undefined} />}
+      </>; break;
+      case 'export': task = <ExportTool />; break;
+      case 'prototype': task = <>            {isVectorVariantCard ? null : isSvg ? (
+              isSketch ? (
+                <AnimationTool styles={s} onUpdate={updateStyle} />
+              ) : null
+            ) : isFixedOverlay ? (
+              <OverlayTool />
+            ) : (
+              <>
+                {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
+                  && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
+                  <>
+                    <InteractionsTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
+                  <>
+                    <LinkTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {isOverlayNode ? (
+                  <>
+                    <OverlayTool />
+                    {!isFixedOverlay && <ToolDivider />}
+                  </>
+                ) : (!isCodeComponentInstance && !isViewportFrame && !isInputElement ? (
+                  <>
+                    <OverlayTool />
+                    <ToolDivider />
+                  </>
+                ) : null)}
+
+                {!isFixedOverlay && (
+                  <AnimationTool
+                    styles={s}
+                    onUpdate={updateStyle}
+                    glideOnly={isViewportFrame}
+                  />
+                )}
+              </>
+            )}</>; break;
+      default: task = gallery ? <GalleryTool focus="content" /> : isText ? <TextStyleTool />
+        : isImageElement ? <ImageTool /> : isVideoElement ? <VideoTool /> : isAudioElement ? <AudioTool />
+        : isInputElement ? <InputTool /> : isComponentInstance || isCodeComponentInstance ? <ComponentPropsTool />
+        : isSvg ? isSketch ? <SketchTool /> : <SvgShapeTool /> : geometry;
+    }
+    return <div data-portrait-inspector-task={mobileTask} data-properties-panel>
+      <PanelErrorBoundary name="portrait-properties" resetKey={node.id}>{task}</PanelErrorBoundary>
+    </div>;
+  }
 
   return (
     <div
@@ -887,3 +979,4 @@ function PropertiesPanelInner({ isMultiSelect = false }: { isMultiSelect?: boole
     </div>
   );
 }
+

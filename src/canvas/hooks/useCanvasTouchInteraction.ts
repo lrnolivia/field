@@ -17,6 +17,7 @@ import { getNodeHitsAtPoint } from '../node-ops';
 import type { CanvasMouseController } from '../mouse/CanvasMouseController';
 import type { DragCoordinator } from '../drag/DragCoordinator';
 import { trace } from '@/shared/debug-trace';
+import { PORTRAIT_EDIT_EVENT, movedPastTapSlop, shouldOpenTapEditor } from '@/editor/portrait/interaction';
 
 export const SINGLE_TOUCH_PAN_THRESHOLD_PX = 4;
 export const TOUCH_MARQUEE_HOLD_MS = 420;
@@ -165,6 +166,7 @@ interface GestureState {
   lastX: number;
   lastY: number;
   panStarted: boolean;
+  objectMoved: boolean;
   target: HTMLElement;
 }
 
@@ -262,10 +264,11 @@ export function useCanvasTouchInteraction({
         lastX: touch.clientX,
         lastY: touch.clientY,
         panStarted: false,
+        objectMoved: false,
         target,
       };
 
-      if (gesture.kind === 'object') {
+      if (gesture.kind === 'object' && window.innerWidth > 600) {
         longPressTimer = window.setTimeout(() => {
           longPressTimer = null;
           if (!gesture || gesture.kind !== 'object') return;
@@ -336,7 +339,7 @@ export function useCanvasTouchInteraction({
       if (gesture.kind === 'object') {
         const totalX = touch.clientX - gesture.startX;
         const totalY = touch.clientY - gesture.startY;
-        if (shouldStartSingleTouchPan(totalX, totalY)) clearLongPressTimer();
+        if (movedPastTapSlop(totalX, totalY)) { gesture.objectMoved = true; clearLongPressTimer(); }
         dragCoordinatorRef.current?.handleMouseMove(
           mouseLike(touch.clientX, touch.clientY, gesture.target, 'mousemove'),
         );
@@ -400,12 +403,17 @@ export function useCanvasTouchInteraction({
       const coordinator = dragCoordinatorRef.current;
 
       if (finished.kind === 'object') {
+        const editOnRelease = window.innerWidth <= 600 && shouldOpenTapEditor({
+          kind: finished.kind, moved: finished.objectMoved || movedPastTapSlop(x - finished.startX, y - finished.startY),
+          dragging: !!coordinator?.isDragging, textEditing: isTextEditing(),
+        });
         // MouseController must observe pending/active drag state BEFORE the
         // coordinator resets so deferred click-vs-drag selection semantics
         // remain correct. Its normal mouse path skips coordinator mouseup while
         // pending window listeners exist; touch then commits explicitly.
         controller?.handleMouseUp(up);
         coordinator?.handleMouseUp();
+        if (editOnRelease) window.dispatchEvent(new Event(PORTRAIT_EDIT_EVENT));
       } else if (finished.kind === 'context-menu') {
         // The long-press path already cancelled pending mouse/drag state before
         // opening the canonical menu. Finger-up must not click or drag again.
@@ -454,3 +462,4 @@ export function useCanvasTouchInteraction({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, mouseControllerRef, dragCoordinatorRef, setPanCursor]);
 }
+

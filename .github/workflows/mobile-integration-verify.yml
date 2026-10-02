@@ -44,7 +44,7 @@ jobs:
           npm run build:all > reports/build.log 2>&1
           echo $? > reports/build.exit
           if [ "$LANE" = candidate ]; then
-            npx vitest run src/canvas/hooks/useCanvasTouchInteraction.test.ts src/canvas/hooks/useCanvasTransform.touch.test.ts src/canvas/transform/InputHandler.touch.test.ts src/editor/mobile-focus-state.test.ts src/editor/mobile-toolbar.test.ts src/editor/mobile-workspace-presentation.test.ts --reporter=json --outputFile=reports/focused.json > reports/focused.log 2>&1
+            npx vitest run src/canvas/hooks/useCanvasTouchInteraction.test.ts src/canvas/hooks/useCanvasTransform.touch.test.ts src/canvas/transform/InputHandler.touch.test.ts src/editor/mobile-focus-state.test.ts src/editor/mobile-toolbar.test.ts src/editor/mobile-workspace-presentation.test.ts src/editor/portrait/interaction.test.ts --reporter=json --outputFile=reports/focused.json > reports/focused.log 2>&1
             echo $? > reports/focused.exit
           fi
       - name: Install browser
@@ -54,7 +54,7 @@ jobs:
         if: matrix.lane == 'candidate'
         run: |
           set +e
-          npx playwright test src/editor/e2e/mobile-focus.spec.ts --reporter=json > reports/browser.json 2> reports/browser.log
+          npx playwright test src/editor/e2e/mobile-focus.spec.ts src/editor/e2e/portrait-workspace.spec.ts --reporter=json > reports/browser.json 2> reports/browser.log
           echo $? > reports/browser.exit
       - uses: actions/upload-artifact@v4
         if: always()
@@ -90,3 +90,4 @@ jobs:
         with:
           name: mobile-comparison
           path: verification/comparison.json
+

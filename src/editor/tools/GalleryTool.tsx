@@ -96,7 +96,7 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
  * using the same outer/inner pattern as VideoTool avoids a conditional-hook
  * failure if the selected node disappears for one render during source reparse.
  */
-export default function GalleryTool() {
+export default function GalleryTool({ focus }: { focus?: 'content' | 'layout' | 'image' } = {}) {
   const { node } = useControl();
   if (!node || !isGalleryNode(node)) return null;
   return <GalleryToolInner />;
@@ -721,7 +721,7 @@ function GalleryToolInner() {
         </Modal>
       ) : (
         <>
-      <GalleryContentSection
+      {(!focus || focus === 'content') && <GalleryContentSection
         items={items}
         selectedItemId={selectedItemId}
         onSelectItem={(itemId) => selectItem(itemId)}
@@ -731,7 +731,7 @@ function GalleryToolInner() {
         onMoveItem={moveItem}
         onRemoveItem={removeItem}
         onReorder={reorderItem}
-      />
+      />}
 
       {pickerOpen && (
         <div
@@ -755,7 +755,7 @@ function GalleryToolInner() {
 
       <ToolDivider />
 
-      <GalleryViewSection
+      {(!focus || focus === 'layout') && <GalleryViewSection
         currentView={currentView}
         styles={styles}
         stripHeight={stripHeight}
@@ -767,9 +767,9 @@ function GalleryToolInner() {
         onAllItemStyleChange={updateAllItemStyles}
         onShuffleNatural={shuffleNatural}
         canShuffleNatural={items.length > 1}
-      />
+      />}
 
-      {selectedItem && (
+      {selectedItem && (!focus || focus === 'image') && (
         <>
           <ToolDivider />
           <GalleryImageSection
@@ -805,3 +805,4 @@ function GalleryToolInner() {
     </>
   );
 }
+

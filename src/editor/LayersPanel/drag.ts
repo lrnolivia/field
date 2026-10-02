@@ -393,6 +393,78 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
 
       if (!indicator || !draggedId) return;
 
+      commitLayerDrop({ nodes, isCompMode, vpWidths, vpConfigs, activeFilePath }, draggedId, indicator);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+/** Does any child of this parent carry an explicit CSS `order`?
+ *
+ *  When one does, paint order is decided by `order` and a plain JSX reorder
+ *  changes nothing visible — so the drop has to renumber. Checked independently
+ *  of the drop viewport's computed display, because a parent can be laid out on
+ *  a band this viewport does not show (hidden at base, flex in an @media rule).
+ *  Reads the node tree, not the DOM: on the viewport where the parent is hidden
+ *  there is nothing laid out to measure. */
+export function siblingsCarryExplicitOrder(nodes: Map<string, CanvasNode>, parentId: string | null): boolean {
+  if (!parentId) return false;
+  const parent = nodes.get(parentId);
+  if (!parent) return false;
+  for (const childId of parent.children) {
+    const v = nodes.get(childId)?.styles?.order;
+    if (v != null && String(v).trim() !== '') return true;
+  }
+  return false;
+}
+
+/** The layout a parent is AUTHORED with, when the live one can't be measured.
+ *
+ *  `detectParentLayoutById` reads the computed display, so a frame hidden on the
+ *  drop viewport reports `none`/`absolute` and a drop into it took the
+ *  no-layout branch: the child was stamped `position: absolute` with pins, and
+ *  stayed absolute after the frame was unhidden (user report 2026-09-21).
+ *
+ *  Hiding only swaps `display`; the layout properties stay on the node, which is
+ *  what lets unhide restore the frame intact. So they are a reliable record of
+ *  what the frame IS. Only the layout-defining properties count —
+ *  `flexDirection` / `gridTemplate*` / `gridAutoFlow` — never `gap` or
+ *  `alignItems` alone, which a block frame can legitimately carry. */
+export function authoredLayoutOfParent(parent: CanvasNode | null | undefined): 'flex' | 'grid' | null {
+  const st = parent?.styles;
+  if (!st) return null;
+  const display = (st.display || '').trim();
+  if (display === 'flex' || display === 'inline-flex') return 'flex';
+  if (display === 'grid' || display === 'inline-grid') return 'grid';
+  // Only fall back to the authored props when the frame isn't laid out at all
+  // — a real `display: block` frame must stay a no-layout destination.
+  if (display !== 'none' && display !== '') return null;
+  const has = (k: string) => !!st[k] && st[k].trim() !== '';
+  if (has('gridTemplateColumns') || has('gridTemplateRows') || has('gridAutoFlow')) return 'grid';
+  if (has('flexDirection')) return 'flex';
+  return null;
+}
+
+
+/** Same commit pipeline for touch/keyboard Move before/after controls.
+ * Keeps responsive CSS order, JSX order, groups and undo in one transaction. */
+export function commitLayerDrop(
+  ctx: Pick<LayerDragContext, 'nodes' | 'isCompMode' | 'vpWidths' | 'vpConfigs' | 'activeFilePath'>,
+  draggedId: string, indicator: DropIndicator,
+): void {
+  const { nodes, isCompMode, vpWidths, vpConfigs, activeFilePath } = ctx;
+  const source = nodes.get(draggedId);
+  const target = nodes.get(indicator.nodeId);
+  if (!source || !target || source.fromLayout || target.fromLayout || draggedId === indicator.nodeId
+    || draggedId === 'root' || draggedId.startsWith('layout::') || indicator.nodeId === 'children-slot') return;
+  const seen = new Set<string>();
+  let parent: CanvasNode | undefined = target;
+  while (parent) {
+    if (parent.id === draggedId || seen.has(parent.id)) return;
+    seen.add(parent.id);
+    parent = parent.parentId ? nodes.get(parent.parentId) : undefined;
+  }
       const draggedNode = nodes.get(draggedId);
       const targetNode = nodes.get(indicator.nodeId);
       if (!draggedNode || !targetNode) return;
@@ -854,54 +926,4 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
       forceRenderAfterExternalEdit('layers-panel:drop', {
         draggedId, finalParentId, dropVpId, position: indicator.position,
       });
-    };
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-}
-
-/** Does any child of this parent carry an explicit CSS `order`?
- *
- *  When one does, paint order is decided by `order` and a plain JSX reorder
- *  changes nothing visible — so the drop has to renumber. Checked independently
- *  of the drop viewport's computed display, because a parent can be laid out on
- *  a band this viewport does not show (hidden at base, flex in an @media rule).
- *  Reads the node tree, not the DOM: on the viewport where the parent is hidden
- *  there is nothing laid out to measure. */
-export function siblingsCarryExplicitOrder(nodes: Map<string, CanvasNode>, parentId: string | null): boolean {
-  if (!parentId) return false;
-  const parent = nodes.get(parentId);
-  if (!parent) return false;
-  for (const childId of parent.children) {
-    const v = nodes.get(childId)?.styles?.order;
-    if (v != null && String(v).trim() !== '') return true;
-  }
-  return false;
-}
-
-/** The layout a parent is AUTHORED with, when the live one can't be measured.
- *
- *  `detectParentLayoutById` reads the computed display, so a frame hidden on the
- *  drop viewport reports `none`/`absolute` and a drop into it took the
- *  no-layout branch: the child was stamped `position: absolute` with pins, and
- *  stayed absolute after the frame was unhidden (user report 2026-09-21).
- *
- *  Hiding only swaps `display`; the layout properties stay on the node, which is
- *  what lets unhide restore the frame intact. So they are a reliable record of
- *  what the frame IS. Only the layout-defining properties count —
- *  `flexDirection` / `gridTemplate*` / `gridAutoFlow` — never `gap` or
- *  `alignItems` alone, which a block frame can legitimately carry. */
-export function authoredLayoutOfParent(parent: CanvasNode | null | undefined): 'flex' | 'grid' | null {
-  const st = parent?.styles;
-  if (!st) return null;
-  const display = (st.display || '').trim();
-  if (display === 'flex' || display === 'inline-flex') return 'flex';
-  if (display === 'grid' || display === 'inline-grid') return 'grid';
-  // Only fall back to the authored props when the frame isn't laid out at all
-  // — a real `display: block` frame must stay a no-layout destination.
-  if (display !== 'none' && display !== '') return null;
-  const has = (k: string) => !!st[k] && st[k].trim() !== '';
-  if (has('gridTemplateColumns') || has('gridTemplateRows') || has('gridAutoFlow')) return 'grid';
-  if (has('flexDirection')) return 'flex';
-  return null;
 }

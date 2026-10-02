@@ -99,6 +99,7 @@ export default function ToolbarPanelHost() {
 
   if (!panel) return null;
   if (panel.kind === 'media') return <MediaPanelController onClose={() => setPanel(null)} />;
+  if (portraitSheet) return null; // Dedicated portrait workspace owns these tasks.
   const category = panel.kind === 'insert'
     ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)
     : null;
@@ -246,3 +247,4 @@ export default function ToolbarPanelHost() {
     </div>, document.body,
   );
 }
+

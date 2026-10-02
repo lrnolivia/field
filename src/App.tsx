@@ -3,6 +3,9 @@ import { useAtom, useAtomValue } from 'jotai';
 import { Toaster } from 'sonner';
 import Canvas from './canvas/Canvas';
 import PropertiesPanel from './editor/PropertiesPanel';
+import PortraitWorkspace from './editor/portrait/PortraitWorkspace';
+import { DesktopQuickTools } from './editor/portrait/QuickTools';
+import './editor/portrait/portrait-workspace.css';
 import CommentsListPanel from './editor/CommentsListPanel';
 import { commentModeActiveAtom } from './code/stores/comment-store';
 import DebugToolbar from './editor/ui/DebugToolbar';
@@ -292,8 +295,8 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
         Done
       </button>}
       <WorkspaceModeCoordinator />
-      <ChromeIslands />
-      <WorkspacePaneResizeHandles hidden={previewMode} />
+      {!mobilePortraitSheet && <ChromeIslands />}
+      <WorkspacePaneResizeHandles hidden={previewMode || mobilePortraitSheet} />
       <PageAppearanceBridge />
       {/* Live-collab broadcast loops + remote cursor overlay. Renders
           inside the provider so its hooks have context; the overlay
@@ -311,6 +314,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       <EditorEntranceCoordinator />
       <PersistenceConflictBanner />
 
+      {!mobilePortraitSheet && <>
       {/* Headers — fixed at top corners, canvas visible between them */}
       <LeftHeader />
       <WorkspaceRestoreBar />
@@ -323,15 +327,28 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
         setPreviewMode(!previewMode);
       }} />
 
+      </>}
+      {mobilePortraitSheet && previewMode && <button type="button" data-field-no-canvas-input className="fixed top-3 right-3 z-[16000] rounded-xl bg-[var(--bg-panel)] px-4 py-3 text-sm text-[var(--text-primary)]" onClick={() => setPreviewMode(false)}>Exit preview</button>}
+      {mobilePortraitSheet && !previewMode && <PortraitWorkspace projectControls={<>
+      <LeftHeader />
+      <RightHeader embedded previewMode={previewMode} onTogglePreview={async () => {
+        // Entering the live preview while a text-edit session is active: commit it
+        // FIRST. Text-edit style changes only land in the code when the session
+        // EXITS, so without this the preview would read stale code and miss the
+        // just-made edits (color/font/…). No-op when nothing is being edited.
+        if (!previewMode) await commitActiveTextEdit();
+        setPreviewMode(!previewMode);
+      }} />
+
+      </>} />}
+
       {/* Left toolbar: fixed icon menu + collapsible panel. NOT inert
           for viewers — they need to switch panels (Pages, Layers,
           Library, …) and navigate between the website's pages to view
           them. Write actions inside the panels (add page, insert,
           CMS edit, …) bottom out at the mutation-queue gate, and the
           prominent ones are individually disabled in viewer mode. */}
-      <LeftMenu />
-      <LeftPanel />
-      {!previewMode && <FloatingLeftPanelHost />}
+      {!mobilePortraitSheet && <><LeftMenu /><LeftPanel />{!previewMode && <FloatingLeftPanelHost />}</>}
 
       {/* Main — offset ONLY by the 52px icon rail: the canvas runs FULL-BLEED
           under both side panels (the right sidebar pulls itself over it with
@@ -350,7 +367,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
-        {!previewMode && rightPaneOpen && (
+        {!previewMode && !mobilePortraitSheet && rightPaneOpen && (
           <div
             data-workspace-right-body
             data-visible={floatingInspectorVisible ? 'true' : 'false'}
@@ -426,7 +443,8 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             locks the branch the editor is read-only (viewer reason `agent`),
             and the chat is exactly where the run is watched and stopped. */}
         {!previewMode && !componentEditorOpen && !pluginEditorOpen && !isViewerRole && <PageChat />}
-        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !cmsOverlayShowing && !translationsOverlayOpen && <BottomToolbar />}
+        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !cmsOverlayShowing && !translationsOverlayOpen && !mobilePortraitSheet && <BottomToolbar />}
+        {!previewMode && !mobilePortraitSheet && <DesktopQuickTools />}
         {/* Sketch brush controls live in the right PropertiesPanel
             (SketchTool) so they sit in the same place as every other
             element's properties — not in a floating toolbar. */}
@@ -737,3 +755,4 @@ function OfflineToast() {
     </div>
   );
 }
+

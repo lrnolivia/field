@@ -45,10 +45,11 @@ import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface Props {
   previewMode: boolean;
+  embedded?: boolean;
   onTogglePreview: () => void;
 }
 
-export default function RightHeader({ previewMode, onTogglePreview }: Props) {
+export default function RightHeader({ previewMode, onTogglePreview, embedded = false }: Props) {
   const uiCase = useUiChromeCase();
   const isViewer = useIsViewer();
   const isClosedSource = useIsClosedSource();
@@ -324,18 +325,20 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
 
   return (
     <>
-      {rightPaneOpen && (
+      {(rightPaneOpen || embedded) && (
         <div
           data-workspace-right-header
           data-visible={floatingInspectorVisible ? 'true' : 'false'}
-          aria-hidden={!floatingInspectorVisible}
-          inert={!floatingInspectorVisible}
+          aria-hidden={!embedded && !floatingInspectorVisible}
+          inert={!embedded && !floatingInspectorVisible}
           className="fixed z-[9999] flex h-[52px] items-center border-b border-[var(--border-light)] bg-[var(--bg-panel)] px-2"
           style={{
             width: workspace.right.width,
             top: workspace.right.top,
             right: workspace.right.inset,
             isolation: 'isolate',
+            borderTopLeftRadius: workspace.right.presentation === 'floating' ? 8 : 0,
+            borderTopRightRadius: workspace.right.presentation === 'floating' ? 8 : 0,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             opacity: floatingInspectorVisible ? 1 : 0,
             translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
@@ -429,7 +432,7 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
           style={{ right: workspace.right.inset + WORKSPACE_FLOAT_INSET - rightDragOffset.x,
             top: workspace.right.top + floatingInspectorHeight - 44 + rightDragOffset.y }}>×</button>
       )}
-      {!rightPaneOpen && !previewMode && (
+      {!embedded && !rightPaneOpen && !previewMode && (
         <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
           className="fixed z-[9999] flex flex-col items-center overflow-hidden px-[9px] pb-3 pt-[10px]"
           style={{
@@ -535,3 +538,4 @@ export default function RightHeader({ previewMode, onTogglePreview }: Props) {
     </>
   );
 }
+

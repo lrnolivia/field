@@ -1,0 +1,65 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
+
+test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+test('portrait owns purpose-built tools, browse and focused editing without changing desktop preferences', async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await expect(page.locator('[data-portrait-workspace]')).toBeVisible();
+  await expect(page.locator('[data-workspace-right-body]')).toHaveCount(0);
+  await expect(page.locator('[data-left-menu-rail]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
+  const tools = page.locator('[data-portrait-surface="tools"]');
+  await expect(tools).toBeVisible();
+  await expect(tools.locator('.field-quick-tile')).toHaveCount(4);
+  await tools.getByRole('button', { name: 'Hand', exact: true }).tap();
+  await expect(tools).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
+  await tools.getByRole('button', { name: 'Move', exact: true }).tap();
+  await page.getByRole('button', { name: 'Open browse', exact: true }).tap();
+  await page.getByRole('button', { name: 'Pages Choose a page or manage routes', exact: false }).tap();
+  await expect(page.locator('[data-portrait-pages]')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('portrait-pages-390.png') });
+  await page.getByRole('button', { name: 'Close Pages', exact: true }).tap();
+  // Browser Back dismisses the workspace rather than navigating away from the project.
+  await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
+  await page.goBack();
+  await expect(page.locator('[data-portrait-surface]')).toHaveCount(0);
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
+  const metrics = await tools.evaluate(el => ({ width: el.getBoundingClientRect().width, overflow: el.scrollWidth > el.clientWidth }));
+  expect(metrics.width).toBeLessThanOrEqual(320); expect(metrics.overflow).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath('portrait-tools-320.png') });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('[data-portrait-workspace]')).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:workspaceMode')!))).toBe('docked');
+});
+
+test('a short object tap opens focused properties; real drag and second finger do not', async ({ page }, testInfo) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await editor.waitForStableGeometry('hero');
+  const beforeCode = await editor.getPageCode();
+  const box = await editor.node('hero').boundingBox();
+  expect(box).not.toBeNull();
+  const point = { x: Math.max(70, Math.min(310, box!.x + box!.width / 2)), y: Math.max(100, Math.min(400, box!.y + box!.height / 2)) };
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(page.locator('[data-portrait-surface="inspect"]')).toBeVisible();
+  expect(await editor.getPageCode()).toBe(beforeCode);
+  await page.getByRole('button', { name: 'All properties', exact: true }).tap();
+  await expect(page.getByRole('navigation', { name: 'All property categories' })).toBeVisible();
+  await page.getByRole('button', { name: 'Advanced', exact: true }).tap();
+  await expect(page.locator('[data-portrait-inspector-task="advanced"]')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('portrait-inspector-390.png') });
+  await page.getByRole('button', { name: 'Close Properties', exact: true }).tap();
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: point.x + 28, y: point.y + 18, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.locator('[data-portrait-surface="inspect"]')).toHaveCount(0);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }, { x: point.x + 30, y: point.y, id: 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.locator('[data-portrait-surface="inspect"]')).toHaveCount(0);
+});
