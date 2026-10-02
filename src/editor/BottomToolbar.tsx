@@ -560,6 +560,21 @@ function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boo
 
 // ─── Main BottomToolbar ─────────────────────────────────────────────────────
 
+const NARROW_TOOLBAR_QUERY = '(max-width: 600px)';
+function ActiveMobileToolGlyph({ mode, comment }: { mode: ToolMode; comment: boolean }) {
+  if (comment) return <CommentBubbleIcon className="w-5 h-5" />;
+  if (mode === 'hand') return <HandToolbarIcon className="w-5 h-5" />;
+  if (mode === 'scale') return <ScaleToolbarIcon className="w-5 h-5" />;
+  if (mode === 'frame') return <FrameToolbarIcon className="w-5 h-5" />;
+  if (mode === 'text') return <TextToolbarIcon className="w-5 h-5" />;
+  if (mode === 'shape-ellipse') return <ShapeCircleIcon className="w-5 h-5" />;
+  if (mode === 'shape-triangle') return <ShapeTriangleIcon className="w-5 h-5" />;
+  if (mode === 'shape-path') return <ShapePathIcon className="w-5 h-5" />;
+  if (mode === 'sketch') return <SketchPencilIcon className="w-5 h-5" />;
+  if (mode === 'shape-rect' || mode === 'shape-line') return <ShapeSquareIcon className="w-5 h-5" />;
+  return <CursorIcon className="w-5 h-5" />;
+}
+
 export default function BottomToolbar() {
   const [toolMode, setToolMode] = useAtom(toolModeAtom);
   const [openMenu, setOpenMenu] = useState<'cursor' | 'frame' | 'shape' | 'media' | 'library' | 'pen' | 'text' | null>(null);
@@ -567,6 +582,32 @@ export default function BottomToolbar() {
     open: openMenu === menu,
     setOpen: (open: boolean) => setOpenMenu(open ? menu : null),
   });
+  const [isNarrowToolbar, setIsNarrowToolbar] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(NARROW_TOOLBAR_QUERY).matches);
+  const [compactToolbarOpen, setCompactToolbarOpen] = useState(false);
+  const mobileToolbarRef = useRef<HTMLDivElement>(null);
+  const activeToolbarPanel = useAtomValue(toolbarPanelAtom);
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_TOOLBAR_QUERY);
+    const sync = () => { setIsNarrowToolbar(query.matches); setCompactToolbarOpen(false); };
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  useEffect(() => { setCompactToolbarOpen(false); }, [activeToolbarPanel]);
+  useEffect(() => {
+    if (!isNarrowToolbar || !compactToolbarOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !mobileToolbarRef.current?.contains(event.target)) {
+        setCompactToolbarOpen(false); setOpenMenu(null);
+      }
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setCompactToolbarOpen(false); setOpenMenu(null); }
+    };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', escape); };
+  }, [isNarrowToolbar, compactToolbarOpen]);
   // DIAGNOSTIC (temporary): when does the toolbar re-render, and what toolMode
   // does it see? Pairs with border-radius-handle:state to test whether the
   // tool-reset lands in a later (deferred) commit than the selection.
@@ -604,6 +645,7 @@ export default function BottomToolbar() {
     trace.action('toolbar:tool-click', { mode });
     setOpenMenu(null);
     setToolMode(mode);
+    setCompactToolbarOpen(false);
     // Picking a creator tool exits comment mode (mutually exclusive,
     // mirrors the builder's behavior).
     if (commentModeActive) setCommentModeActive(false);
@@ -616,6 +658,7 @@ export default function BottomToolbar() {
     trace.action('toolbar:select-tool', { mode });
     setOpenMenu(null);
     setToolMode(mode);
+    setCompactToolbarOpen(false);
     if (commentModeActive) setCommentModeActive(false);
   }, [setToolMode, commentModeActive, setCommentModeActive]);
 
@@ -653,18 +696,35 @@ export default function BottomToolbar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleCommentClick]);
 
+  if (isNarrowToolbar && !compactToolbarOpen) return (
+    <div ref={mobileToolbarRef} id="bottom-toolbar-container"
+      className="fixed left-1/2 -translate-x-1/2 z-[9998]"
+      style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' }}>
+      <button type="button" data-mobile-toolbar-launcher="" aria-label="Open tools" aria-expanded={false}
+        onClick={() => setCompactToolbarOpen(true)}
+        className="flex items-center justify-center gap-2 rounded-xl px-4 py-3"
+        style={{ minWidth: 64, minHeight: 44, background: 'var(--bg-toolbar)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
+        <ActiveMobileToolGlyph mode={toolMode} comment={commentModeActive} />
+        <ChevronDownSvg />
+      </button>
+    </div>
+  );
+
   return (
     <div
+      ref={mobileToolbarRef}
+      data-mobile-toolbar-expanded={isNarrowToolbar ? '' : undefined}
       className="fixed left-1/2 -translate-x-1/2 z-[9998] flex justify-center select-none"
       // CommandPalette measures the live bar rect, so anchored UI tracks it.
-      style={{ bottom: 18, willChange: 'transform', isolation: 'isolate' }}
+      style={{ bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18, maxWidth: 'calc(100vw - 24px)', willChange: 'transform', isolation: 'isolate' }}
     >
       <div
         id="bottom-toolbar-container"
         className="relative flex items-center px-2 py-2 gap-0.5"
+        data-mobile-tools-open={isNarrowToolbar ? "" : undefined}
         // isolation: the cut backdrop below sits at z -1; isolating keeps it
         // inside this container instead of sliding under the page.
-        style={{ isolation: 'isolate' }}
+        style={{ isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
       >
         {/* True floating island: keep the shell on a separate backing layer so
             dropdowns can escape above the toolbar without being clipped. */}
@@ -681,8 +741,10 @@ export default function BottomToolbar() {
             boxShadow: 'var(--shadow-md)',
           } as React.CSSProperties}
         />
+        {isNarrowToolbar && <button type="button" aria-label="Close tools" onClick={() => { setCompactToolbarOpen(false); setOpenMenu(null); }}
+          className="w-full rounded-md text-xs" style={{ minHeight: 44 }}>Close tools</button>}
         {/* Figma-like authoring cluster: grouped tool families, no duplicate layout/media surfaces. */}
-        <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
+        <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5" style={{ flexWrap: isNarrowToolbar ? "wrap" : undefined, justifyContent: "center" }}>
           <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} {...menuProps('cursor')} />
 
           {!isViewer && <>
@@ -708,6 +770,7 @@ export default function BottomToolbar() {
                     trace.action('toolbar:shape', { shape, mode });
                     setOpenMenu(null);
                     setToolMode(mode);
+    setCompactToolbarOpen(false);
                   }
                 }}
               />
@@ -730,6 +793,7 @@ export default function BottomToolbar() {
                 trace.action('toolbar:pen-tool', { mode });
                 setOpenMenu(null);
                 setToolMode(mode);
+    setCompactToolbarOpen(false);
               }} />
             </CreatorGate>
             {!isContainerSetMaster && (
