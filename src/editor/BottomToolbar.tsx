@@ -127,8 +127,8 @@ function DropdownContainer({ children, wide = false }: { children: React.ReactNo
 }
 
 
-function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
-  return <MediaActionCard context="toolbar" label={label} glyph={icon} onClick={onClick} />;
+function MenuTile({ label, icon, onClick, shortcut }: { label: string; icon: React.ReactNode; onClick: () => void; shortcut?: string }) {
+  return <MediaActionCard context="toolbar" label={label} glyph={icon} onClick={onClick} shortcut={shortcut} />;
 }
 
 
@@ -295,10 +295,10 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
         dataTool="select"
       />
       {open && (
-        <DropdownContainer>
+        <DropdownContainer wide>
           <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-            <MenuTile label="Move" icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
-            <MenuTile label="Hand tool" icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+            <MenuTile label="Move" shortcut="V" icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
+            <MenuTile label="Hand tool" shortcut="H" icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
           </div>
           {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
         </DropdownContainer>
@@ -488,10 +488,10 @@ function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode
         dataTool="pen"
       />
       {open && (
-        <DropdownContainer>
+        <DropdownContainer wide>
           <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-            <MenuTile label="Pen" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
-            <MenuTile label="Pencil" icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
+            <MenuTile label="Pen" shortcut="P" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
+            <MenuTile label="Pencil" shortcut="Shift+P" icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
           </div>
         </DropdownContainer>
       )}

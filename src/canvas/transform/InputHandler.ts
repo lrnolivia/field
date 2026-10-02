@@ -1,3 +1,4 @@
+import { QUICK_TOOLS_EVENT, movedPastTapSlop } from '@/editor/portrait/interaction';
 // transform/InputHandler.ts — Canvas input event handling.
 // Routes wheel, pointer, and touch events to TransformManager.
 // Key behavior: regular scroll = pan, ctrl/cmd+scroll = zoom.
@@ -146,10 +147,12 @@ let panState: { startX: number; startY: number; source: 'middle' | 'hand' } | nu
  * Call once from a useEffect. Returns cleanup function.
  */
 export function attachMiddleMousePan(container: HTMLElement, onPanStateChange: (panning: boolean) => void): () => void {
+  let middleGesture: { pointerId: number; x: number; y: number; moved: boolean } | null = null;
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 1) return;
     e.preventDefault();
     container.setPointerCapture(e.pointerId);
+    middleGesture = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     panState = { startX: e.clientX, startY: e.clientY, source: 'middle' };
     onPanStateChange(true);
     trace.action('input:middle-mouse-down', { pointerId: e.pointerId });
@@ -157,6 +160,8 @@ export function attachMiddleMousePan(container: HTMLElement, onPanStateChange: (
 
   const onPointerMove = (e: PointerEvent) => {
     if (!panState || panState.source !== 'middle') return;
+    if (middleGesture && e.pointerId !== middleGesture.pointerId) return;
+    if (middleGesture && movedPastTapSlop(e.clientX - middleGesture.x, e.clientY - middleGesture.y)) middleGesture.moved = true;
     const dx = e.clientX - panState.startX;
     const dy = e.clientY - panState.startY;
     panState.startX = e.clientX;
@@ -166,13 +171,23 @@ export function attachMiddleMousePan(container: HTMLElement, onPanStateChange: (
 
   const onPointerUp = (e: PointerEvent) => {
     if (!panState || panState.source !== 'middle') return;
-    if (e.button !== 1) return;
+    if (e.button !== 1 || (middleGesture && e.pointerId !== middleGesture.pointerId)) return;
+    const tap = middleGesture && !middleGesture.moved && !movedPastTapSlop(e.clientX - middleGesture.x, e.clientY - middleGesture.y);
+    middleGesture = null;
     try { container.releasePointerCapture(e.pointerId); } catch { /* noop */ }
     panState = null;
     onPanStateChange(false);
     trace.action('input:pan-up', { source: 'middle' });
+    if (tap) window.dispatchEvent(new CustomEvent(QUICK_TOOLS_EVENT, { detail: { x: e.clientX, y: e.clientY } }));
   };
 
+  const cancelMiddle = () => {
+    middleGesture = null;
+    if (panState?.source === 'middle') { panState = null; onPanStateChange(false); }
+  };
+  container.addEventListener('pointercancel', cancelMiddle, true);
+  container.addEventListener('lostpointercapture', cancelMiddle, true);
+  window.addEventListener('blur', cancelMiddle);
   // Capture phase so we beat the browser's auto-scroll
   container.addEventListener('pointerdown', onPointerDown, true);
   container.addEventListener('pointermove', onPointerMove, true);
@@ -186,6 +201,10 @@ export function attachMiddleMousePan(container: HTMLElement, onPanStateChange: (
     container.removeEventListener('pointermove', onPointerMove, true);
     container.removeEventListener('pointerup', onPointerUp, true);
     container.removeEventListener('auxclick', preventAux, true);
+    container.removeEventListener('pointercancel', cancelMiddle, true);
+    container.removeEventListener('lostpointercapture', cancelMiddle, true);
+    window.removeEventListener('blur', cancelMiddle);
+    cancelMiddle();
   };
 }
 
@@ -402,3 +421,4 @@ export function attachTouchCamera(
     onBlur();
   };
 }
+

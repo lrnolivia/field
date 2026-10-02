@@ -110,6 +110,8 @@ const MenuButton = React.memo(function MenuButton({
   return (
     <motion.button
       disabled={disabled}
+      aria-label={title}
+      aria-pressed={isActive}
       data-tutorial={dataTutorial}
       initial="rest"
       whileHover={!disabled ? 'hover' : undefined}

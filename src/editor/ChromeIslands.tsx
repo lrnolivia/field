@@ -7,6 +7,7 @@ import { useMobileWorkspacePresentation } from './mobile-workspace-presentation'
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
+  resolveRightFloatingHeight,
   WORKSPACE_FLOAT_INSET,
   WORKSPACE_FLOAT_LEFT_TOP,
   WORKSPACE_FLOAT_RADIUS,
@@ -51,6 +52,7 @@ export default function ChromeIslands() {
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const resolvedRightHeight = resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight);
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
 
   return (
@@ -88,7 +90,7 @@ export default function ChromeIslands() {
             right: layout.right.inset,
             top: layout.right.top,
             width: layout.right.width,
-            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            height: rightDetached ? Math.min(resolvedRightHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),
@@ -102,3 +104,4 @@ export default function ChromeIslands() {
     </>
   );
 }
+

@@ -18,6 +18,7 @@ import {
   resolveGalleryItemSelection,
 } from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
+import { getNodesSnapshot } from '@/code/stores/store';
 import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
@@ -168,10 +169,13 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
   // The outer gate guarantees these for the lifetime of this inner component.
   const gallery = node!;
   const galleryId = nodeId!;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, [galleryId]);
   const currentView = getGalleryView(gallery);
   const naturalSeed = normalizeGalleryNaturalSeed(gallery.styles?.[GALLERY_NATURAL_SEED_STYLE_PROPERTY]);
   const frameSizing = normalizeGalleryFrameSizing(gallery.styles?.[GALLERY_FRAME_SIZING_STYLE_PROPERTY]);
   const galleryStateSignature = [
+    galleryId,
     currentView,
     frameSizing,
     naturalSeed,
@@ -206,6 +210,7 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
         ? await Promise.all(config.mediaUrls.map((url) => measureGallerySourceRatio(url)))
         : config.mediaUrls.map(() => null);
 
+      if (!mounted.current) return;
       if (!hasGalleryCreationSession(galleryId) || galleryStateRef.current !== stateAtStart) {
         setCreationWizardError('Gallery changed while media was loading. Review setup and try again.');
         return;
@@ -347,7 +352,7 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
         if (next !== 'source' || stored !== null) return normalizeGallerySourceRatio(stored);
         return normalizeGallerySourceRatio(await measureGallerySourceRatio(item.src));
       }));
-      if (galleryStateRef.current !== stateAtStart) return;
+      if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
       const rootPatch = { [GALLERY_FRAME_SIZING_STYLE_PROPERTY]: next };
       bridge.patchStyles(galleryId, prefix, rootPatch);
@@ -394,10 +399,13 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
     const measuredRatios = frameSizing === 'source'
       ? await Promise.all(unique.map((url) => measureGallerySourceRatio(url)))
       : unique.map(() => null);
-    if (galleryStateRef.current !== stateAtStart) return;
+    if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
+    const nodes = getNodesSnapshot();
+    const liveGallery = nodes.get(galleryId);
+    if (!liveGallery || !isGalleryNode(liveGallery)) return;
     const plan = buildGalleryMediaAddPlan({
-      gallery,
+      gallery: liveGallery,
       nodes,
       media: unique.map((url, index) => ({ url, sourceRatio: measuredRatios[index] })),
     });
@@ -410,7 +418,7 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
       frameSizing: plan.frameSizing,
       view: plan.view,
     });
-  }, [frameSizing, gallery, galleryId, nodes, selectItem, selectedItemId]);
+  }, [frameSizing, galleryId, selectItem, selectedItemId]);
 
   const replaceMedia = useCallback(async (itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
@@ -419,7 +427,7 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
     const stateAtStart = galleryStateRef.current;
     const shouldRefreshRatio = galleryReplacementNeedsSourceRatio(frameSizing, target.sourceRatio);
     const measuredRatio = shouldRefreshRatio ? await measureGallerySourceRatio(url) : null;
-    if (galleryStateRef.current !== stateAtStart) return;
+    if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
     const targetIndex = items.findIndex((item) => item.itemId === itemId);
     if (targetIndex < 0) return;

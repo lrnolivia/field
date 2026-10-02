@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/editor/motion';
 import { transformManager } from '@/canvas/transform';
 import { moveCanvasTo } from '@/canvas/transform/CameraAnimator';
+import { getProjectId } from '@/backend/project-id';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { useNode } from '@/code/stores/node-family';
 import { activeFilePathAtom, getFriendlyFileName } from '@/code/project/active-file-store';
@@ -50,16 +51,21 @@ const TASKS: Array<{ id: InspectorTask; title: string }> = [
   { id: 'prototype', title: 'Behavior' }, { id: 'advanced', title: 'Advanced' }, { id: 'export', title: 'Export' },
 ];
 
+type PortraitSession = { key: string; destination: PortraitDestination | null; task: InspectorTask; allTasks: boolean; lastBrowse: PortraitDestination; expanded: boolean; selection: string };
+let lastPortraitSession: PortraitSession | null = null;
+
 export default function PortraitWorkspace({ projectControls }: { projectControls?: ReactNode }) {
-  const [destination, setDestination] = useState<PortraitDestination | null>(null);
-  const [task, setTask] = useState<InspectorTask>('context');
-  const [allTasks, setAllTasks] = useState(false);
-  const [lastBrowse, setLastBrowse] = useState<PortraitDestination>('browse');
-  const [expanded, setExpanded] = useState(false);
-  const large = expanded || !!destination && ['project', 'comments', 'media', 'library', 'presets', 'cms', 'locale', 'branches', 'insert', 'pages'].includes(destination);
-  const selected = useAtomValue(selectedIdsAtom);
-  const node = useNode(selected[0]);
   const file = useAtomValue(activeFilePathAtom);
+  const selected = useAtomValue(selectedIdsAtom);
+  const sessionKey = `${getProjectId()}|${file}`;
+  const saved = lastPortraitSession?.key === sessionKey ? lastPortraitSession : null;
+  const [destination, setDestination] = useState<PortraitDestination | null>(() => history.state?.fieldPortraitTask ? saved?.destination ?? null : null);
+  const [task, setTask] = useState<InspectorTask>(() => saved?.selection === selected.join('|') ? saved.task : 'context');
+  const [allTasks, setAllTasks] = useState(saved?.allTasks ?? false);
+  const [lastBrowse, setLastBrowse] = useState<PortraitDestination>(saved?.lastBrowse ?? 'browse');
+  const [expanded, setExpanded] = useState(saved?.expanded ?? false);
+  const large = expanded || !!destination && ['project', 'comments', 'media', 'library', 'presets', 'cms', 'locale', 'branches', 'insert', 'pages'].includes(destination);
+  const node = useNode(selected[0]);
   const mode = useAtomValue(toolModeAtom);
   const viewer = useIsViewer();
   const reduced = useFieldReducedMotion();
@@ -76,7 +82,10 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   const returnFocus = useRef<HTMLElement | null>(null);
   const focusPending = useRef(false);
   const returnToBrowse = useRef(false);
-  const historyOwned = useRef(false);
+  const historyOwned = useRef(Boolean(history.state?.fieldPortraitTask));
+  const sessionRef = useRef<PortraitSession | null>(null);
+  sessionRef.current = { key: sessionKey, destination, task, allTasks, lastBrowse, expanded, selection: selected.join('|') };
+  useEffect(() => () => { lastPortraitSession = sessionRef.current; }, []);
   const destRef = useRef(destination); destRef.current = destination;
   const open = useCallback((next: PortraitDestination) => {
     if (!destRef.current) {
@@ -103,7 +112,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   useEffect(() => {
     const pop = () => { historyOwned.current = false; close(); };
     window.addEventListener('popstate', pop);
-    return () => { window.removeEventListener('popstate', pop); if (historyOwned.current && history.state?.fieldPortraitTask) { const state = { ...history.state }; delete state.fieldPortraitTask; history.replaceState(state, '', location.href); } };
+    return () => { window.removeEventListener('popstate', pop); if (window.innerWidth <= 600 && historyOwned.current && history.state?.fieldPortraitTask) { const state = { ...history.state }; delete state.fieldPortraitTask; history.replaceState(state, '', location.href); } };
   }, [close]);
   useEffect(() => {
     const edit = (event: Event) => {
@@ -120,7 +129,8 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   useEffect(() => { if (!leftCollapsed) { open(leftPanel === 'layers' || leftPanel === 'pages-layers' ? 'layers' : leftPanel === 'vibe' ? 'browse' : leftPanel); collapseLeft(true); } }, [leftCollapsed, leftPanel, open, collapseLeft]);
   useEffect(() => { if (toolbarPanel) open(toolbarPanel.kind === 'insert' ? 'insert' : toolbarPanel.kind); }, [toolbarPanel, open]);
   const selectionKey = selected.join('|');
-  useEffect(() => { setTask('context'); setAllTasks(false); }, [selectionKey]);
+  const previousSelection = useRef(selectionKey);
+  useEffect(() => { if (previousSelection.current !== selectionKey) { previousSelection.current = selectionKey; setTask('context'); setAllTasks(false); } }, [selectionKey]);
   useEffect(() => {
     if (!destination) return;
     const key = (e: KeyboardEvent) => {
@@ -187,7 +197,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
     <AnimatePresence>{destination && !mediaOwnsSurface && <>
       {destination === 'tools' && <div className="field-portrait-tool-dismiss" onClick={close} />}
       {large && <motion.div className="field-portrait-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />}
-      <motion.section layout ref={surface} tabIndex={-1} role="dialog" aria-modal={large || undefined} aria-label={title}
+      <motion.section ref={surface} tabIndex={-1} role="dialog" aria-modal={large || undefined} aria-label={title}
         data-portrait-surface={destination} data-expanded={large} className="field-portrait-surface"
         initial={reduced ? false : { opacity: 0, y: 24, scale: .97, filter: 'blur(1.5px)' }} animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }} exit={reduced ? { opacity: 0 } : { opacity: 0, y: 14, scale: .98 }}
         transition={{ ...fieldSpatialTransition(reduced, fieldMotion.disclosure), layout: fieldSpatialTransition(reduced, { type: 'spring', stiffness: 520, damping: 42.3, mass: .86 }) }}>

@@ -10,7 +10,7 @@ import { FigmaCursorIcon, FigmaFrameIcon, FigmaTextIcon, FigmaHandIcon, FigmaSqu
 import { zoomToFit } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
-import { movedPastTapSlop } from './interaction';
+import { QUICK_TOOLS_EVENT } from './interaction';
 import { useMobileWorkspacePresentation } from '../mobile-workspace-presentation';
 
 const ScaleIcon: typeof FigmaCursorIcon = ({ size = 20, ...props }) => <svg {...props} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3.25 6.1V3.25H6.1M9.9 12.75h2.85V9.9M3.55 3.55l3.1 3.1M12.45 12.45l-3.1-3.1" /></svg>;
@@ -58,23 +58,13 @@ export function DesktopQuickTools() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (presentation !== 'regular') { setPoint(null); return; }
-    let down: { x: number; y: number; moved: boolean } | null = null;
-    const canvas = (target: EventTarget | null) => target instanceof Element && !!target.closest('[data-canvas-root]')
-      && !target.closest('input,textarea,select,a,[contenteditable="true"],[data-field-no-canvas-input]');
-    const start = (e: MouseEvent) => { if (e.button === 1 && canvas(e.target)) { e.preventDefault(); down = { x: e.clientX, y: e.clientY, moved: false }; } };
-    const move = (e: MouseEvent) => { if (down && movedPastTapSlop(e.clientX - down.x, e.clientY - down.y)) down.moved = true; };
-    const end = (e: MouseEvent) => {
-      if (e.button !== 1 || !down) return;
-      const tap = !down.moved && !movedPastTapSlop(e.clientX - down.x, e.clientY - down.y);
-      down = null;
-      if (tap && canvas(e.target)) setPoint({ x: Math.max(12, Math.min(innerWidth - 292, e.clientX)), y: Math.max(12, Math.min(innerHeight - 470, e.clientY)) });
+    const open = (event: Event) => {
+      const detail = (event as CustomEvent<{ x: number; y: number }>).detail;
+      if (!detail || !Number.isFinite(detail.x) || !Number.isFinite(detail.y)) return;
+      setPoint({ x: Math.max(12, Math.min(innerWidth - 292, detail.x)), y: Math.max(12, Math.min(innerHeight - 470, detail.y)) });
     };
-    const aux = (e: MouseEvent) => { if (e.button === 1 && canvas(e.target)) e.preventDefault(); };
-    const cancel = () => { down = null; };
-    document.addEventListener('mousedown', start, true); document.addEventListener('mousemove', move, true);
-    document.addEventListener('mouseup', end, true); document.addEventListener('auxclick', aux, true);
-    window.addEventListener('blur', cancel);
-    return () => { document.removeEventListener('mousedown', start, true); document.removeEventListener('mousemove', move, true); document.removeEventListener('mouseup', end, true); document.removeEventListener('auxclick', aux, true); window.removeEventListener('blur', cancel); };
+    window.addEventListener(QUICK_TOOLS_EVENT, open);
+    return () => window.removeEventListener(QUICK_TOOLS_EVENT, open);
   }, [presentation]);
   useEffect(() => {
     if (!point) return;

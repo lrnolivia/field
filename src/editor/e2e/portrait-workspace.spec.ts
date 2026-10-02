@@ -1,7 +1,18 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+async function settleSurface(page: Page) {
+  const surface = page.locator('[data-portrait-surface], [data-desktop-quick-tools]').first();
+  if (!await surface.count()) return;
+  await expect.poll(() => surface.evaluate(el => {
+    const style = getComputedStyle(el);
+    const matrix = style.transform === 'none' ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(style.transform);
+    const blur = parseFloat(style.filter.match(/blur\(([^p]+)px\)/)?.[1] || '0');
+    return Number(style.opacity) >= .999 && Math.abs(matrix.a - 1) < .001 && Math.abs(matrix.d - 1) < .001 && Math.abs(matrix.f) < .05 && blur < .05;
+  })).toBe(true);
+}
+
 test('portrait owns purpose-built tools, browse and focused editing without changing desktop preferences', async ({ page }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
   const editor = new EditorPage(page);
@@ -21,6 +32,7 @@ test('portrait owns purpose-built tools, browse and focused editing without chan
   await page.getByRole('button', { name: 'Open browse', exact: true }).tap();
   await page.getByRole('button', { name: 'Pages Choose a page or manage routes', exact: false }).tap();
   await expect(page.locator('[data-portrait-pages]')).toBeVisible();
+  await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('portrait-pages-390.png') });
   await page.getByRole('button', { name: 'Close Pages', exact: true }).tap();
   // Browser Back dismisses the workspace rather than navigating away from the project.
@@ -31,10 +43,13 @@ test('portrait owns purpose-built tools, browse and focused editing without chan
   await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
   const metrics = await tools.evaluate(el => ({ width: el.getBoundingClientRect().width, overflow: el.scrollWidth > el.clientWidth }));
   expect(metrics.width).toBeLessThanOrEqual(320); expect(metrics.overflow).toBe(false);
+  await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('portrait-tools-320.png') });
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator('[data-portrait-workspace]')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:workspaceMode')!))).toBe('docked');
+  await page.setViewportSize({ width:390, height:844 });
+  await expect(page.locator('[data-portrait-surface="tools"]')).toBeVisible();
 });
 
 test('a short object tap opens focused properties; real drag and second finger do not', async ({ page }, testInfo) => {
@@ -52,7 +67,11 @@ test('a short object tap opens focused properties; real drag and second finger d
   await expect(page.getByRole('navigation', { name: 'All property categories' })).toBeVisible();
   await page.getByRole('button', { name: 'Advanced', exact: true }).tap();
   await expect(page.locator('[data-portrait-inspector-task="advanced"]')).toBeVisible();
+  await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('portrait-inspector-390.png') });
+  await page.setViewportSize({ width:844, height:390 });
+  await page.setViewportSize({ width:390, height:844 });
+  await expect(page.locator('[data-portrait-inspector-task="advanced"]')).toBeVisible();
   await page.getByRole('button', { name: 'Close Properties', exact: true }).tap();
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }] });
@@ -90,6 +109,7 @@ export default function Page() { return <div data-id="root" data-name="Page" sty
   await inspector.getByRole('listitem', { name: 'Gallery image 2: Second', exact: true }).tap();
   await inspector.getByRole('button', { name: 'Move selected image up', exact: true }).tap();
   await expect.poll(async () => { const code = await editor.getPageCode(); return code.indexOf('data-id="gallery-item-2"') < code.indexOf('data-id="gallery-item-1"'); }).toBe(true);
+  await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('portrait-gallery-order-390.png') });
   await inspector.getByRole('button', { name: 'Layout', exact: true }).tap();
   await expect(inspector.locator('[data-gallery-item-list]')).toHaveCount(0);
@@ -112,6 +132,7 @@ test('desktop middle tap opens quick tools while middle drag preserves panning',
   const x = box!.x + box!.width / 2, y = box!.y + box!.height / 2;
   await page.mouse.click(x, y, { button:'middle' });
   await expect(page.locator('[data-desktop-quick-tools]')).toBeVisible();
+  await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('desktop-quick-tools.png') });
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-desktop-quick-tools]')).toHaveCount(0);
@@ -120,4 +141,47 @@ test('desktop middle tap opens quick tools while middle drag preserves panning',
   await page.mouse.move(x + 45, y + 25, { steps:4 }); await page.mouse.up({ button:'middle' });
   await expect(page.locator('[data-desktop-quick-tools]')).toHaveCount(0);
   expect(await editor.getPageCode()).toBe(code);
+});
+
+test('floating Inspector has one full-height structural island around header and body', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width:1440, height:900 });
+  await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('floating')));
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await page.getByRole('button', { name: /open design inspector/i }).click();
+  const island = page.locator('[data-workspace-island="right"]');
+  const header = page.locator('[data-workspace-right-header]');
+  const body = page.locator('[data-workspace-right-body]');
+  await expect(body).toBeVisible();
+  const a = await island.boundingBox(), b = await header.boundingBox(), c = await body.boundingBox();
+  expect(a).not.toBeNull(); expect(b).not.toBeNull(); expect(c).not.toBeNull();
+  expect(a!.height).toBeGreaterThan(300);
+  expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
+  expect(c!.y + c!.height).toBeLessThanOrEqual(a!.y + a!.height + 2);
+  expect(await body.evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
+  await settleSurface(page);
+  await page.screenshot({ path:testInfo.outputPath('desktop-unified-inspector.png') });
+});
+
+test('portrait Media selection is reversible until explicit placement', async ({ page }, testInfo) => {
+  // Stub only the external clipboard boundary. All app actions use visible UI.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{ readText: async () => 'https://field-test.example/image.svg' } }));
+  await page.route('https://field-test.example/image.svg', route => route.fulfill({ contentType:'image/svg+xml', body:'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" fill="#ff6f78"/></svg>' }));
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  const before = await editor.getPageCode();
+  await page.getByRole('button', { name:'Open browse', exact:true }).tap();
+  await page.getByRole('button', { name:'Media Choose images, video and audio', exact:false }).tap();
+  const media = page.locator('[data-portrait-media]');
+  await expect(media).toBeVisible();
+  await media.getByRole('button', { name:'Paste from clipboard', exact:true }).tap();
+  await expect(media.locator('[data-portrait-media-placement]')).toBeVisible();
+  expect(await editor.getPageCode()).toBe(before);
+  await media.getByRole('button', { name:'Choose another', exact:true }).tap();
+  expect(await editor.getPageCode()).toBe(before);
+  await media.getByRole('button', { name:'Paste from clipboard', exact:true }).tap();
+  await page.screenshot({ path:testInfo.outputPath('portrait-media-confirm-390.png') });
+  await media.getByRole('button', { name:'Place image', exact:true }).tap();
+  await expect(media).toHaveCount(0);
+  await expect.poll(() => editor.getPageCode()).toContain('https://field-test.example/image.svg');
 });

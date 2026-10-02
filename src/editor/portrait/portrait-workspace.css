@@ -86,3 +86,4 @@
 .field-library-placement { position:sticky; bottom:0; margin-top:12px; padding:14px; background:var(--bg-panel); box-shadow:0 -8px 24px #0002; border-radius:14px; font-size:13px; }
 
 .field-portrait-project-controls button { min-height:44px; }
+[data-portrait-media] [data-media-action-card] { font-size:13px!important; min-height:56px!important; height:auto!important; }

@@ -493,7 +493,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
           <p>{pendingPlacement.placement.type === 'replace' ? 'Replace the selected media' : pendingPlacement.placement.type === 'inside' ? 'Place inside the selected container' : 'Place on the visible canvas'}</p>
           <div className="field-portrait-split-row"><button type="button" onClick={() => setPendingPlacement(null)}>Choose another</button>
             <button type="button" disabled={viewer} onClick={() => { const p = pendingPlacement; setPendingPlacement(null); placeUrl(p.kind, p.url, p.placement); }}>Place {pendingPlacement.kind}</button></div>
-        </div> : expanded && isLauncher ? <MediaGalleryPanel chrome="embedded" workspace={expanded} /> : content}
+        </div> : expanded && isLauncher && !portrait ? <MediaGalleryPanel chrome="embedded" workspace={expanded} /> : content}
       </AdaptiveMediaSurface>
     </>
   );
