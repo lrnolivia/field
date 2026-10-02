@@ -59,4 +59,11 @@ test('two fingers pan the camera and leave project source intact', async ({ page
   await expect.poll(async () => (await editor.node('hero').boundingBox())!.x - before!.x).toBeCloseTo(20, 0);
   await expect.poll(async () => (await editor.node('hero').boundingBox())!.y - before!.y).toBeCloseTo(30, 0);
   expect(await editor.getPageCode()).toBe(code);
+  // Cancelling a two-finger header gesture must not remove ordinary tap selection.
+  const header = page.locator('[data-viewport-header]').first();
+  const bounds = await header.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.touchscreen.tap(Math.min(300, Math.max(80, bounds!.x + bounds!.width / 2)),
+    Math.max(100, bounds!.y + bounds!.height / 2));
+  await expect(page.getByRole('button', { name: 'Close Properties', exact: true })).toBeVisible();
 });
