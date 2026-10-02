@@ -84,6 +84,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   const uiCase = useUiChromeCase();
   return (
     <button
+      disabled={disabled}
       onClick={disabled ? undefined : onClick}
       aria-current={active ? 'true' : undefined}
       className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 ${
@@ -126,8 +127,8 @@ function DropdownContainer({ children, wide = false }: { children: React.ReactNo
 }
 
 
-function MenuTile({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
-  return <MediaActionCard context="toolbar" label={label} glyph={icon} onClick={onClick} />;
+function MenuTile({ label, icon, onClick, shortcut }: { label: string; icon: React.ReactNode; onClick: () => void; shortcut?: string }) {
+  return <MediaActionCard context="toolbar" label={label} glyph={icon} onClick={onClick} shortcut={shortcut} />;
 }
 
 
@@ -294,9 +295,11 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
         dataTool="select"
       />
       {open && (
-        <DropdownContainer>
-          <MenuItem label="Move" shortcut="V" active={toolMode === 'select'} icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
-          <MenuItem label="Hand tool" shortcut="H" active={toolMode === 'hand'} icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+        <DropdownContainer wide>
+          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+            <MenuTile label="Move" shortcut="V" icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
+            <MenuTile label="Hand tool" shortcut="H" icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+          </div>
           {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
         </DropdownContainer>
       )}
@@ -337,15 +340,15 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
         onClick={onSelect} onChevronClick={() => setOpen(!open)} title="Frame (F)" dataTool="frame" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Basic</div>
-        {basicItems.map((item) => <MenuItem key={item.id} label={item.name}
-          shortcut={item.id === 'frame' ? 'F' : undefined} active={item.id === 'frame' && toolMode === 'frame'}
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+        {basicItems.slice(0, 2).map((item) => <MenuTile key={item.id} label={item.name}
           icon={item.id === 'frame' ? <FrameToolbarIcon className="w-4 h-4" /> : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" /> : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
           onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { openImageMedia(); } else insert(item.id); }} />)}
+        </div>
+        {basicItems.slice(2).map(item => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Layouts</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
-          {layoutItems.map((item) => <MenuTile key={item.id} label={item.name} icon={<LayoutMiniIcon id={item.id} />} onClick={() => insert(item.id)} />)}
-        </div>
+        {layoutItems.map((item) => <MenuItem key={item.id} label={item.name} icon={<LayoutMiniIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <MenuItem label="Section library…" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={openSectionLibrary} />
       </DropdownContainer>}
@@ -391,10 +394,10 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
       <SplitButton active={activeShape} open={open} iconKey={currentChoice} icon={choiceIcons[currentChoice]} onClick={() => choose(currentChoice)} onChevronClick={() => setOpen(!open)} title="Shape tools" dataTool="shape" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Shapes</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
           {shapeChoices.map((choice) => <MenuTile key={choice.id} label={choice.label} icon={choiceIcons[choice.id]} onClick={() => choose(choice.id)} />)}
-          {extraShapes.map((item) => <MenuTile key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         </div>
+        {extraShapes.map((item) => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         {buttonItem && <><DropdownDivider /><MenuItem label="Button" icon={<OutlineShapeIcon id="button" />} onClick={() => insert('button')} /></>}
       </DropdownContainer>}
     </div>
@@ -417,9 +420,10 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
       {items.length > 0 && <>
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Typography</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
-          {items.map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : <TextToolbarIcon className="w-4 h-4" />} onClick={() => insert(item.id)} />; })}
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+          {items.slice(0, 4).map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : <TextToolbarIcon className="w-4 h-4" />} onClick={() => insert(item.id)} />; })}
         </div>
+        {items.slice(4).map(item => <MenuItem key={item.id} label={item.name} onClick={() => insert(item.id)} />)}
       </>}
       <DropdownDivider />
       <MenuItem label="Text Effects…" onClick={() => {
@@ -447,9 +451,8 @@ function MediaButton() {
   };
 
   return (
-    <ToolButton active={active} onClick={toggle} title="Media" dataTool="media">
-      <MediaGlyph className="h-4 w-4" size={16} />
-    </ToolButton>
+    <SplitButton active={active} open={active} onClick={toggle} onChevronClick={toggle}
+      icon={<MediaGlyph className="h-4 w-4" size={16} />} title="Media" dataTool="media" />
   );
 }
 
@@ -485,9 +488,11 @@ function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode
         dataTool="pen"
       />
       {open && (
-        <DropdownContainer>
-          <MenuItem label="Pen" shortcut="P" active={toolMode === 'shape-path'} icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
-          <MenuItem label="Pencil" shortcut="Shift+P" active={toolMode === 'sketch'} icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
+        <DropdownContainer wide>
+          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+            <MenuTile label="Pen" shortcut="P" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
+            <MenuTile label="Pencil" shortcut="Shift+P" icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
+          </div>
         </DropdownContainer>
       )}
     </div>
@@ -545,12 +550,13 @@ function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boo
       <SplitButton active={false} open={open} icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => setOpen(!open)} onChevronClick={() => setOpen(!open)} title="Library" dataTool="library" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Library</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
           <MenuTile label="Components" icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('components')} />
           <MenuTile label="Vectors" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('vectors')} />
-          <MenuTile label="Templates" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('templates')} />
+
         </div>
         <DropdownDivider />
+        <MenuItem label="Templates" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('templates')} />
         <MenuItem label="Code Overrides" onClick={() => openLibrary('code-overrides')} />
         <MenuItem label="Plugins" onClick={() => openLibrary('plugins')} />
       </DropdownContainer>}
@@ -560,6 +566,21 @@ function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boo
 
 // ─── Main BottomToolbar ─────────────────────────────────────────────────────
 
+const NARROW_TOOLBAR_QUERY = '(max-width: 600px)';
+function ActiveMobileToolGlyph({ mode, comment }: { mode: ToolMode; comment: boolean }) {
+  if (comment) return <CommentBubbleIcon className="w-5 h-5" />;
+  if (mode === 'hand') return <HandToolbarIcon className="w-5 h-5" />;
+  if (mode === 'scale') return <ScaleToolbarIcon className="w-5 h-5" />;
+  if (mode === 'frame') return <FrameToolbarIcon className="w-5 h-5" />;
+  if (mode === 'text') return <TextToolbarIcon className="w-5 h-5" />;
+  if (mode === 'shape-ellipse') return <ShapeCircleIcon className="w-5 h-5" />;
+  if (mode === 'shape-triangle') return <ShapeTriangleIcon className="w-5 h-5" />;
+  if (mode === 'shape-path') return <ShapePathIcon className="w-5 h-5" />;
+  if (mode === 'sketch') return <SketchPencilIcon className="w-5 h-5" />;
+  if (mode === 'shape-rect' || mode === 'shape-line') return <ShapeSquareIcon className="w-5 h-5" />;
+  return <CursorIcon className="w-5 h-5" />;
+}
+
 export default function BottomToolbar() {
   const [toolMode, setToolMode] = useAtom(toolModeAtom);
   const [openMenu, setOpenMenu] = useState<'cursor' | 'frame' | 'shape' | 'media' | 'library' | 'pen' | 'text' | null>(null);
@@ -567,6 +588,32 @@ export default function BottomToolbar() {
     open: openMenu === menu,
     setOpen: (open: boolean) => setOpenMenu(open ? menu : null),
   });
+  const [isNarrowToolbar, setIsNarrowToolbar] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(NARROW_TOOLBAR_QUERY).matches);
+  const [compactToolbarOpen, setCompactToolbarOpen] = useState(false);
+  const mobileToolbarRef = useRef<HTMLDivElement>(null);
+  const activeToolbarPanel = useAtomValue(toolbarPanelAtom);
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_TOOLBAR_QUERY);
+    const sync = () => { setIsNarrowToolbar(query.matches); setCompactToolbarOpen(false); };
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  useEffect(() => { setCompactToolbarOpen(false); }, [activeToolbarPanel]);
+  useEffect(() => {
+    if (!isNarrowToolbar || !compactToolbarOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !mobileToolbarRef.current?.contains(event.target)) {
+        setCompactToolbarOpen(false); setOpenMenu(null);
+      }
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setCompactToolbarOpen(false); setOpenMenu(null); }
+    };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', escape); };
+  }, [isNarrowToolbar, compactToolbarOpen]);
   // DIAGNOSTIC (temporary): when does the toolbar re-render, and what toolMode
   // does it see? Pairs with border-radius-handle:state to test whether the
   // tool-reset lands in a later (deferred) commit than the selection.
@@ -604,6 +651,7 @@ export default function BottomToolbar() {
     trace.action('toolbar:tool-click', { mode });
     setOpenMenu(null);
     setToolMode(mode);
+    setCompactToolbarOpen(false);
     // Picking a creator tool exits comment mode (mutually exclusive,
     // mirrors the builder's behavior).
     if (commentModeActive) setCommentModeActive(false);
@@ -616,6 +664,7 @@ export default function BottomToolbar() {
     trace.action('toolbar:select-tool', { mode });
     setOpenMenu(null);
     setToolMode(mode);
+    setCompactToolbarOpen(false);
     if (commentModeActive) setCommentModeActive(false);
   }, [setToolMode, commentModeActive, setCommentModeActive]);
 
@@ -653,18 +702,35 @@ export default function BottomToolbar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleCommentClick]);
 
+  if (isNarrowToolbar && !compactToolbarOpen) return (
+    <div ref={mobileToolbarRef} id="bottom-toolbar-container"
+      className="fixed left-1/2 -translate-x-1/2 z-[9998]"
+      style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' }}>
+      <button type="button" data-mobile-toolbar-launcher="" aria-label="Open tools" aria-expanded={false}
+        onClick={() => setCompactToolbarOpen(true)}
+        className="flex items-center justify-center gap-2 rounded-xl px-4 py-3"
+        style={{ minWidth: 64, minHeight: 44, background: 'var(--bg-toolbar)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
+        <ActiveMobileToolGlyph mode={toolMode} comment={commentModeActive} />
+        <ChevronDownSvg />
+      </button>
+    </div>
+  );
+
   return (
     <div
+      ref={mobileToolbarRef}
+      data-mobile-toolbar-expanded={isNarrowToolbar ? '' : undefined}
       className="fixed left-1/2 -translate-x-1/2 z-[9998] flex justify-center select-none"
       // CommandPalette measures the live bar rect, so anchored UI tracks it.
-      style={{ bottom: 18, willChange: 'transform', isolation: 'isolate' }}
+      style={{ bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18, maxWidth: 'calc(100vw - 24px)', willChange: 'transform', isolation: 'isolate' }}
     >
       <div
         id="bottom-toolbar-container"
         className="relative flex items-center px-2 py-2 gap-0.5"
+        data-mobile-tools-open={isNarrowToolbar ? "" : undefined}
         // isolation: the cut backdrop below sits at z -1; isolating keeps it
         // inside this container instead of sliding under the page.
-        style={{ isolation: 'isolate' }}
+        style={{ isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
       >
         {/* True floating island: keep the shell on a separate backing layer so
             dropdowns can escape above the toolbar without being clipped. */}
@@ -681,8 +747,10 @@ export default function BottomToolbar() {
             boxShadow: 'var(--shadow-md)',
           } as React.CSSProperties}
         />
+        {isNarrowToolbar && <button type="button" aria-label="Close tools" onClick={() => { setCompactToolbarOpen(false); setOpenMenu(null); }}
+          className="w-full rounded-md text-xs" style={{ minHeight: 44 }}>Close tools</button>}
         {/* Figma-like authoring cluster: grouped tool families, no duplicate layout/media surfaces. */}
-        <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5">
+        <div data-toolbar-cluster="authoring" className="flex items-center gap-0.5" style={{ flexWrap: isNarrowToolbar ? "wrap" : undefined, justifyContent: "center" }}>
           <CursorDropdown toolMode={toolMode} commentModeActive={commentModeActive} onSelect={handleSelectTool} allowScale={!isViewer} {...menuProps('cursor')} />
 
           {!isViewer && <>
@@ -708,6 +776,7 @@ export default function BottomToolbar() {
                     trace.action('toolbar:shape', { shape, mode });
                     setOpenMenu(null);
                     setToolMode(mode);
+    setCompactToolbarOpen(false);
                   }
                 }}
               />
@@ -730,6 +799,7 @@ export default function BottomToolbar() {
                 trace.action('toolbar:pen-tool', { mode });
                 setOpenMenu(null);
                 setToolMode(mode);
+    setCompactToolbarOpen(false);
               }} />
             </CreatorGate>
             {!isContainerSetMaster && (
@@ -798,3 +868,4 @@ export default function BottomToolbar() {
     </div>
   );
 }
+

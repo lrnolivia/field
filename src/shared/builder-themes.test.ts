@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
   BUILDER_THEMES,
+  builderThemeBrandId,
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
   getBuilderThemeById,
@@ -35,6 +36,9 @@ describe('builder themes', () => {
       'teal',
       'sienna',
       'gold',
+      'green',
+      'pink',
+      'neutrachrome',
     ]);
 
     expect(BUILDER_THEMES[0].id)
@@ -61,9 +65,11 @@ describe('builder themes', () => {
       teal: '#e0ffef',
       sienna: '#f9dcbd',
       gold: '#fffbe1',
+      green: '#111111',
+      pink: '#111111',
     };
 
-    for (const t of BUILDER_THEMES) {
+    for (const t of BUILDER_THEMES.filter(t => t.id !== 'neutrachrome')) {
       for (const mode of ['light', 'dark'] as const) {
         expect(t[mode].accentFg, `${t.id} (${mode})`)
           .toBe(expected[t.id as keyof typeof expected]);
@@ -116,8 +122,8 @@ describe('builder themes', () => {
     }
   });
 
-  test('every field accent keeps one hue across modes', () => {
-    for (const t of BUILDER_THEMES) {
+  test('chromatic identity accents keep their hue across modes', () => {
+    for (const t of BUILDER_THEMES.filter(t => t.id !== 'neutrachrome')) {
       expect(t.light.accent, t.id)
         .toBe(t.dark.accent);
 
@@ -166,4 +172,15 @@ describe('builder themes', () => {
     expect(getBuilderThemeById('rose'))
       .toBeUndefined();
   });
+});
+
+
+
+test('verified Terra accents and adaptive Neutrachrome use existing identity artwork', () => {
+  expect(getBuilderThemeById('green')!.light.accent).toBe('#3bcb8d');
+  expect(getBuilderThemeById('pink')!.light.accent).toBe('#ff6f78');
+  const neutral = getBuilderThemeById('neutrachrome')!;
+  expect(neutral.light.accent).toBe('#69635b');
+  expect(neutral.dark.accent).toBe('#c7beb0');
+  for (const theme of BUILDER_THEMES) expect(['monochrome', 'teal', 'sienna', 'gold']).toContain(builderThemeBrandId(theme));
 });

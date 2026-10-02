@@ -3,9 +3,11 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
+import { useMobileWorkspacePresentation } from './mobile-workspace-presentation';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
+  resolveRightFloatingHeight,
   WORKSPACE_FLOAT_INSET,
   WORKSPACE_FLOAT_LEFT_TOP,
   WORKSPACE_FLOAT_RADIUS,
@@ -33,6 +35,7 @@ function floatingStyle(side: WorkspaceSideLayout) {
 }
 
 export default function ChromeIslands() {
+  const mobile = useMobileWorkspacePresentation() !== 'regular';
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const mode = useAtomValue(workspaceModeAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
@@ -49,6 +52,7 @@ export default function ChromeIslands() {
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const resolvedRightHeight = resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight);
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
 
   return (
@@ -63,7 +67,7 @@ export default function ChromeIslands() {
           top: dockedLeft ? 0 : WORKSPACE_FLOAT_LEFT_TOP,
           width: dockedLeft
             ? 52 + (leftOpen ? leftContentWidth : 0)
-            : leftCollapsedWidth + ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen) ? leftContentWidth : 0),
+            : leftCollapsedWidth + (!mobile && ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)) ? leftContentWidth : 0),
           height: dockedLeft ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
           ...(dockedLeft ? { borderRadius: 0, boxShadow: 'none' } : {
@@ -77,7 +81,7 @@ export default function ChromeIslands() {
         }}
       />
 
-      {rightOpen && (
+      {rightOpen && !mobile && (
         <div
           aria-hidden
           data-workspace-island="right"
@@ -86,7 +90,7 @@ export default function ChromeIslands() {
             right: layout.right.inset,
             top: layout.right.top,
             width: layout.right.width,
-            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            height: rightDetached ? Math.min(resolvedRightHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),
@@ -100,3 +104,4 @@ export default function ChromeIslands() {
     </>
   );
 }
+

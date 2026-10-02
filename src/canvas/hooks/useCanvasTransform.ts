@@ -7,7 +7,7 @@
 //
 // Also owns:
 //   - transformManager subscribe → viewport header position updates + bridge forwarding
-//   - wheel + middle-mouse-pan native event listeners
+//   - wheel + middle-mouse-pan + two-finger touch-camera native listeners
 //   - iframe wheel forwarding (postMessage → synthesized WheelEvent)
 //   - startViewportHeaderTracking continuous position polling
 //   - observeDOM debug trace observer
@@ -21,6 +21,7 @@ import {
   handleWheel,
   attachMiddleMousePan,
 } from '../transform';
+import { attachTouchCamera } from '../transform/InputHandler';
 import {
   updateViewportHeaderPositions,
   startViewportHeaderTracking,
@@ -238,6 +239,9 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     // Middle-mouse pan via native pointer events + pointer capture.
     // This prevents browser auto-scroll AND gives reliable button-matched up/down.
     const detachMiddlePan = attachMiddleMousePan(container, setPanCursor);
+    // Mobile: one finger remains available to selection/object interaction.
+    // Two fingers deterministically own camera pan + pinch.
+    const detachTouchCamera = attachTouchCamera(container, setPanCursor);
 
     // Wheel events INSIDE the iframe don't bubble to parent — sandbox forwards
     // them via postMessage. Synthesize a WheelEvent here so handleWheel works
@@ -264,6 +268,7 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       trace.action('canvas-transform:wheel-detach', {});
       window.removeEventListener('wheel', onWindowWheel, { capture: true } as any);
       detachMiddlePan();
+      detachTouchCamera();
       window.removeEventListener('message', onIframeWheel);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

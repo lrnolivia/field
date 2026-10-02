@@ -3,12 +3,13 @@ import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface MediaActionCardProps {
   label: string;
+  shortcut?: string;
   glyph: ReactNode;
   onClick: () => void;
   context: 'media' | 'toolbar';
 }
 
-export default function MediaActionCard({ label, glyph, onClick, context }: MediaActionCardProps) {
+export default function MediaActionCard({ label, glyph, onClick, context, shortcut }: MediaActionCardProps) {
   const uiCase = useUiChromeCase();
 
   return (
@@ -19,6 +20,7 @@ export default function MediaActionCard({ label, glyph, onClick, context }: Medi
       data-toolbar-menu-tile={context === 'toolbar' ? 'true' : undefined}
       data-toolbar-card-style={context === 'toolbar' ? 'media' : undefined}
       onClick={onClick}
+      aria-keyshortcuts={shortcut}
       style={{ height: 36, minHeight: 36, borderRadius: 7, fontSize: 10 }}
       className="group flex h-9 min-w-0 items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent px-1.5 text-left text-[10px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)]/45 hover:text-[var(--text-primary)]"
     >
@@ -30,6 +32,8 @@ export default function MediaActionCard({ label, glyph, onClick, context }: Medi
         {glyph}
       </span>
       <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{uiCase(label)}</span>
+      {shortcut && <span className="shrink-0 text-[9px] text-[var(--text-secondary)]">{shortcut}</span>}
     </button>
   );
 }
+

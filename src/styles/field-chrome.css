@@ -1,0 +1,33 @@
+/* Shared Field surface tiers, reconciled from the preserved PR124 token plan.
+ * Scope is editor chrome only; the website canvas lives in its own document. */
+:root {
+  --field-chrome-section-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 4%);
+  --field-chrome-control-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 9%);
+  --field-chrome-hover-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 13%);
+}
+:where([data-properties-panel],[data-editor-panel="left-primary"],[data-floating-left-panel],[data-toolbar-panel],[data-field-chrome-panel],[data-modal-root],[role="dialog"]) {
+  --bg-surface: var(--field-chrome-section-bg);
+  --control-bg: var(--field-chrome-control-bg);
+  --control-bg-hover: var(--field-chrome-hover-bg);
+  --btn-secondary-bg: var(--field-chrome-control-bg);
+  --btn-secondary-hover: var(--field-chrome-hover-bg);
+  --button-secondary-bg: var(--field-chrome-control-bg);
+  --button-secondary-hover: var(--field-chrome-hover-bg);
+}
+[data-inspector-section-card] { background:var(--field-chrome-section-bg); }
+[data-toolbar-dropdown] { --btn-secondary-bg:var(--field-chrome-control-bg); }
+[data-toolbar-menu-tile] { background:var(--field-chrome-section-bg); min-height:44px!important; height:auto!important; padding:8px 10px; gap:10px; font-size:11px!important; }
+[data-toolbar-menu-tile-icon] { color:var(--accent-text); background:var(--accent-surface); }
+[data-toolbar-menu-tile]:hover { background:var(--field-chrome-hover-bg); }
+/* The inspector island owns the elevation once, from header to last control. */
+[data-workspace-right-header] { overflow:visible; }
+/* A distinct portrait FAB must not inherit the desktop strip's 28px overrides. */
+#bottom-toolbar-container.field-portrait-dock { padding:0; }
+#bottom-toolbar-container.field-portrait-dock .field-tools-fab { min-height:58px; height:auto; border-radius:20px; font-size:14px; }
+#bottom-toolbar-container.field-portrait-dock .field-browse-button { min-height:48px; height:auto; border-radius:16px; font-size:13px; }
+#bottom-toolbar-container.field-portrait-dock svg { width:22px; height:22px; }
+@media (pointer:coarse) {
+  [data-gallery-selected-item-actions] button { min-width:44px; min-height:44px; }
+  [aria-label="Gallery media"] [role="listitem"] { min-height:52px; }
+  [aria-label="Gallery media"] [role="listitem"] button { opacity:1; min-width:44px; min-height:44px; }
+}

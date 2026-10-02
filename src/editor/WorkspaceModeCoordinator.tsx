@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useMobileWorkspacePresentation } from './mobile-workspace-presentation';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { floatingEntranceAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, setWorkspaceModeAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 import { LEFT_RAIL_WIDTH, leftContentWidthAtom, leftPaneOpenAtom, rightInspectorAutoHideAtom, rightInspectorExplicitCollapseAtom, rightInspectorTemporaryRevealAtom, rightPaneWidthAtom } from '@/code/stores/workspace-panels-store';
@@ -8,6 +9,7 @@ import { previewModeAtom } from '@/code/stores/editor-store';
 
 /** Floating interaction semantics are canonical; docked modes only change wrapper geometry. */
 export default function WorkspaceModeCoordinator() {
+  const portrait = useMobileWorkspacePresentation() === 'portrait-sheet';
   const mode = useAtomValue(workspaceModeAtom);
   const [autoHide, setAutoHide] = useAtom(workspaceAutoHideAtom);
   const entrance = useAtomValue(floatingEntranceAtom);
@@ -81,12 +83,14 @@ export default function WorkspaceModeCoordinator() {
     const selection = selectedIds.join('\0');
     if (selection === previousSelection.current) return;
     previousSelection.current = selection;
+    // Portrait opens editing on non-drag release, never on pointer-down selection.
+    if (portrait) return;
     if (selectedIds.length === 0) {
       if (mode === 'floating' && !rightAutoHide) setTemporaryReveal(false);
       return;
     }
     if (!explicitlyCollapsed && (mode === 'floating' || rightAutoHide)) setTemporaryReveal(true);
-  }, [mode, rightAutoHide, explicitlyCollapsed, selectedIds, setTemporaryReveal]);
+  }, [portrait, mode, rightAutoHide, explicitlyCollapsed, selectedIds, setTemporaryReveal]);
 
   useEffect(() => {
     const isTypingOrUsingControl = (target: EventTarget | null) => {
@@ -113,3 +117,4 @@ export default function WorkspaceModeCoordinator() {
 
   return null;
 }
+

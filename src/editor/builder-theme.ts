@@ -10,6 +10,7 @@ import { getDefaultStore } from 'jotai';
 import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
+  builderThemeBrandId,
   DARK_ACCENT_TEXT_MIX,
   getBuilderThemeById,
   normalizeBuilderThemeId,
@@ -91,7 +92,7 @@ function currentTheme(): BuilderTheme {
 }
 
 function brandBase(theme: BuilderTheme): string {
-  return `/field-brand/${theme.id}`;
+  return `/field-brand/${builderThemeBrandId(theme)}`;
 }
 
 function paintBrand(theme: BuilderTheme): void {
@@ -189,7 +190,8 @@ function paintAccent(theme: BuilderTheme): void {
       `color-mix(in srgb, var(--accent) ${DARK_ACCENT_TEXT_MIX * 100}%, #fff)`,
     );
   } else {
-    root.style.removeProperty('--accent-text');
+    // Darken readable accent text independently of the canonical fill hue.
+    root.style.setProperty('--accent-text', 'color-mix(in srgb, var(--accent) 55%, #000)');
   }
 }
 
@@ -292,3 +294,4 @@ export function subscribeBuilderTheme(): void {
     attributeFilter: ['class'],
   });
 }
+

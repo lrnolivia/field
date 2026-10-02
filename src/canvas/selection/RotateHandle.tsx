@@ -4,6 +4,7 @@
 
 import type { ScreenCorners } from '@/canvas/resize/geometry-utils';
 import type { Point } from '@/shared/types';
+import { useTouchHandleTargets } from './useTouchHandleTargets';
 import { getRotateCursor } from '@/canvas/resize/cursor-utils';
 
 interface Props {
@@ -45,6 +46,8 @@ function getOutwardOffset(corner: Point, adj1: Point, adj2: Point): { dx: number
 }
 
 export default function RotateHandle({ corners, rotation, onRotateStart }: Props) {
+  const touch = useTouchHandleTargets();
+  const hitSize = touch ? 36 : HIT_SIZE;
   const { TL, TR, BR, BL } = corners;
 
   // Calculate outward offset for each corner
@@ -57,15 +60,17 @@ export default function RotateHandle({ corners, rotation, onRotateStart }: Props
 
   return (
     <>
-      {zones.map((zone) => {
+      {zones.filter((zone) => !touch || zone.corner === 'TR').map((zone) => {
         // Position the hit zone outside the corner along the outward direction
-        const dist = OFFSET + HIT_SIZE / 2;
+        const dist = touch ? 54 : OFFSET + HIT_SIZE / 2;
         const cx = zone.point.x + zone.dx * dist;
         const cy = zone.point.y + zone.dy * dist;
 
         return (
           <div
             key={zone.corner}
+            data-rotate-handle={zone.corner}
+            data-touch-rotate={touch || undefined}
             onPointerDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -73,16 +78,20 @@ export default function RotateHandle({ corners, rotation, onRotateStart }: Props
             }}
             style={{
               position: 'fixed',
-              left: cx - HIT_SIZE / 2,
-              top: cy - HIT_SIZE / 2,
-              width: HIT_SIZE,
-              height: HIT_SIZE,
+              left: cx - hitSize / 2,
+              top: cy - hitSize / 2,
+              width: hitSize,
+              height: hitSize,
               pointerEvents: 'all',
+              touchAction: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: getRotateCursor(zone.corner, rotation),
               zIndex: 2,
               // backgroundColor: 'rgba(255,0,0,0.15)', // uncomment to debug hit areas
             }}
-          />
+          >
+            {touch && <span aria-hidden style={{ width: 14, height: 14, borderRadius: 999, border: '1px solid var(--accent, #3b82f6)', background: '#fff', pointerEvents: 'none' }} />}
+          </div>
         );
       })}
     </>

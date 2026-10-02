@@ -3,6 +3,10 @@ import { useAtom, useAtomValue } from 'jotai';
 import { Toaster } from 'sonner';
 import Canvas from './canvas/Canvas';
 import PropertiesPanel from './editor/PropertiesPanel';
+import PortraitWorkspace from './editor/portrait/PortraitWorkspace';
+import { DesktopQuickTools } from './editor/portrait/QuickTools';
+import './editor/portrait/portrait-workspace.css';
+import './styles/field-chrome.css';
 import CommentsListPanel from './editor/CommentsListPanel';
 import { commentModeActiveAtom } from './code/stores/comment-store';
 import DebugToolbar from './editor/ui/DebugToolbar';
@@ -44,7 +48,7 @@ import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-meta
 import { useSetAtom } from 'jotai';
 import { initCloudPlugin } from './cloud/cloud-plugin';
 import { CLOUD_ENABLED } from './shared/cloud-flag';
-import { previewModeAtom } from './code/stores/editor-store';
+import { previewModeAtom, isTextEditingAtom } from './code/stores/editor-store';
 import { CollaborationProvider } from './canvas/collab/CollaborationProvider';
 import CollaborationLayer from './canvas/collab/CollaborationLayer';
 import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from './code/stores/viewer-mode-store';
@@ -58,6 +62,7 @@ import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
 import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
+import MobileFocusCoordinator from '@/editor/MobileFocusCoordinator';
 import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
@@ -65,6 +70,7 @@ import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
 import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_FLOAT_SHADOW, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
+import { useMobileWorkspacePresentation } from './editor/mobile-workspace-presentation';
 // Sketch draw animations intentionally do NOT auto-play on the canvas —
 // it's an editing surface, and auto-playback on every preview exit /
 // page open is distracting noise. The animation runs in PREVIEW (and at
@@ -86,10 +92,15 @@ interface AppProps {
 
 export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
   const editorRootRef = useRef<HTMLDivElement>(null);
+  const mobileWorkspacePresentation = useMobileWorkspacePresentation();
+  const mobilePortraitSheet = mobileWorkspacePresentation === 'portrait-sheet';
+  const mobileLandscapeOverlay = mobileWorkspacePresentation === 'landscape-overlay';
+  const isTextEditing = useAtomValue(isTextEditingAtom);
+  const mobilePanelPresentation = mobileWorkspacePresentation !== 'regular';
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const [rightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
@@ -102,7 +113,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const floatingInspectorHeight = rightDetached
     ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight)
     : rightFloatingHeight;
-  const cameraInsets = deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
+  const cameraInsets = mobilePanelPresentation ? { left: 0, top: 0, right: 0, bottom: 0 } : deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
     leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
   });
   const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
@@ -272,13 +283,21 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           onCanvasRevealComplete?.();
         }
       }}
-      style={{ display: 'flex', height: '100vh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
+      style={{ display: 'flex', height: '100dvh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
     >
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
+      <MobileFocusCoordinator />
+      {mobilePanelPresentation && isTextEditing && <button type="button" data-mobile-text-done
+        onPointerDown={(event) => event.preventDefault()}
+        onClick={() => { void commitActiveTextEdit(); }}
+        className="fixed right-3 z-[16000] flex h-11 items-center rounded-md border border-[var(--border-light)] bg-[var(--bg-panel)] px-4 text-xs"
+        style={{ bottom: 'calc(12px + var(--field-visible-bottom, 0px) + env(safe-area-inset-bottom, 0px))' }}>
+        Done
+      </button>}
       <WorkspaceModeCoordinator />
-      <ChromeIslands />
-      <WorkspacePaneResizeHandles hidden={previewMode} />
+      {!mobilePortraitSheet && <ChromeIslands />}
+      <WorkspacePaneResizeHandles hidden={previewMode || mobilePortraitSheet} />
       <PageAppearanceBridge />
       {/* Live-collab broadcast loops + remote cursor overlay. Renders
           inside the provider so its hooks have context; the overlay
@@ -296,6 +315,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       <EditorEntranceCoordinator />
       <PersistenceConflictBanner />
 
+      {!mobilePortraitSheet && <>
       {/* Headers — fixed at top corners, canvas visible between them */}
       <LeftHeader />
       <WorkspaceRestoreBar />
@@ -308,15 +328,28 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
         setPreviewMode(!previewMode);
       }} />
 
+      </>}
+      {mobilePortraitSheet && previewMode && <button type="button" data-field-no-canvas-input className="fixed top-3 right-3 z-[16000] rounded-xl bg-[var(--bg-panel)] px-4 py-3 text-sm text-[var(--text-primary)]" onClick={() => setPreviewMode(false)}>Exit preview</button>}
+      {mobilePortraitSheet && !previewMode && <PortraitWorkspace projectControls={<>
+      <LeftHeader />
+      <RightHeader embedded previewMode={previewMode} onTogglePreview={async () => {
+        // Entering the live preview while a text-edit session is active: commit it
+        // FIRST. Text-edit style changes only land in the code when the session
+        // EXITS, so without this the preview would read stale code and miss the
+        // just-made edits (color/font/…). No-op when nothing is being edited.
+        if (!previewMode) await commitActiveTextEdit();
+        setPreviewMode(!previewMode);
+      }} />
+
+      </>} />}
+
       {/* Left toolbar: fixed icon menu + collapsible panel. NOT inert
           for viewers — they need to switch panels (Pages, Layers,
           Library, …) and navigate between the website's pages to view
           them. Write actions inside the panels (add page, insert,
           CMS edit, …) bottom out at the mutation-queue gate, and the
           prominent ones are individually disabled in viewer mode. */}
-      <LeftMenu />
-      <LeftPanel />
-      {!previewMode && <FloatingLeftPanelHost />}
+      {!mobilePortraitSheet && <><LeftMenu /><LeftPanel />{!previewMode && <FloatingLeftPanelHost />}</>}
 
       {/* Main — offset ONLY by the 52px icon rail: the canvas runs FULL-BLEED
           under both side panels (the right sidebar pulls itself over it with
@@ -335,31 +368,57 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside
             RightSidebar (fieldset-disable on the Properties panel; the
             comments list stays interactive). */}
-        {!previewMode && rightPaneOpen && (
+        {!previewMode && !mobilePortraitSheet && rightPaneOpen && (
           <div
             data-workspace-right-body
             data-visible={floatingInspectorVisible ? 'true' : 'false'}
+            data-mobile-panel-presentation={mobilePanelPresentation ? mobileWorkspacePresentation : undefined}
             aria-hidden={!floatingInspectorVisible}
             inert={!floatingInspectorVisible}
-            className="fixed z-[5000] overflow-hidden"
+            className="fixed z-[5000] flex flex-col overflow-hidden"
             style={{
-              right: workspaceLayout.right.inset,
-              top: workspaceBodyTop(workspaceLayout.right),
-              width: workspaceLayout.right.width,
-              height: rightDetached ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT) : workspaceBodyHeightCss(workspaceLayout.right),
-              transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
+              right: mobilePanelPresentation ? 8 : workspaceLayout.right.inset,
+              left: mobilePortraitSheet ? 8 : undefined,
+              top: mobilePortraitSheet ? 'auto' : mobileLandscapeOverlay ? 60 : workspaceBodyTop(workspaceLayout.right),
+              bottom: mobilePortraitSheet
+                ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))'
+                : mobileLandscapeOverlay ? 8 : undefined,
+              width: mobilePortraitSheet
+                ? 'auto'
+                : mobileLandscapeOverlay ? Math.min(workspaceLayout.right.width, 320) : workspaceLayout.right.width,
+              height: mobilePortraitSheet
+                ? 'min(500px, calc(var(--field-visible-height, 100dvh) - 140px))'
+                : mobileLandscapeOverlay
+                  ? 'calc(100dvh - 68px)'
+                  : rightDetached
+                    ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT)
+                    : workspaceBodyHeightCss(workspaceLayout.right),
+              transform: !mobilePanelPresentation && rightDetached
+                ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)`
+                : undefined,
               boxSizing: 'border-box',
-              backgroundColor: rightDetached ? 'var(--bg-panel)' : undefined,
-              border: rightDetached ? '1px solid var(--border-light)' : undefined,
-              borderRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
-              boxShadow: rightDetached ? WORKSPACE_FLOAT_SHADOW : undefined,
+              backgroundColor: mobilePanelPresentation ? 'var(--bg-panel)' : undefined,
+              border: mobilePanelPresentation ? '1px solid var(--border-light)' : undefined,
+              borderRadius: mobilePanelPresentation || workspaceLayout.right.presentation === 'floating'
+                ? (mobilePortraitSheet ? 12 : WORKSPACE_FLOAT_RADIUS)
+                : 0,
+              boxShadow: mobilePanelPresentation ? WORKSPACE_FLOAT_SHADOW : undefined,
               opacity: floatingInspectorVisible ? 1 : 0,
-              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+              translate: !floatingInspectorVisible
+                ? mobilePortraitSheet
+                  ? '0 calc(100% + 24px)'
+                  : (mobileLandscapeOverlay || rightDetached) ? 'calc(100% + 24px) 0' : undefined
+                : undefined,
               transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
+            {mobilePanelPresentation && <button type="button" aria-label="Close Properties"
+              onClick={() => setRightPaneOpen(false)}
+              className="flex h-11 w-full shrink-0 items-center justify-between border-b border-[var(--border-light)] px-3 text-xs">
+              <span>Properties</span><span aria-hidden>×</span>
+            </button>}
             <RightSidebar />
-            {rightDetached && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
+            {rightDetached && !mobilePanelPresentation && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
               onPointerDown={(event) => {
                 event.preventDefault();
                 const startY = event.clientY;
@@ -385,7 +444,8 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             locks the branch the editor is read-only (viewer reason `agent`),
             and the chat is exactly where the run is watched and stopped. */}
         {!previewMode && !componentEditorOpen && !pluginEditorOpen && !isViewerRole && <PageChat />}
-        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !cmsOverlayShowing && !translationsOverlayOpen && <BottomToolbar />}
+        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !cmsOverlayShowing && !translationsOverlayOpen && !mobilePortraitSheet && <BottomToolbar />}
+        {!previewMode && !mobilePortraitSheet && <DesktopQuickTools />}
         {/* Sketch brush controls live in the right PropertiesPanel
             (SketchTool) so they sit in the same place as every other
             element's properties — not in a floating toolbar. */}
@@ -696,3 +756,4 @@ function OfflineToast() {
     </div>
   );
 }
+

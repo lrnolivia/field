@@ -18,6 +18,7 @@ import {
   resolveGalleryItemSelection,
 } from '../gallery/gallery-selection';
 import { useNodesComputed } from '@/code/stores/node-family';
+import { getNodesSnapshot } from '@/code/stores/store';
 import { claimGalleryCreationSession, completeGalleryCreationSession, hasGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { buildGalleryReplacementPlan, galleryReplacementNeedsSourceRatio } from '@/code/gallery/gallery-replacement-plan';
@@ -96,13 +97,13 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
  * using the same outer/inner pattern as VideoTool avoids a conditional-hook
  * failure if the selected node disappears for one render during source reparse.
  */
-export default function GalleryTool() {
+export default function GalleryTool({ focus }: { focus?: 'content' | 'layout' | 'image' } = {}) {
   const { node } = useControl();
   if (!node || !isGalleryNode(node)) return null;
-  return <GalleryToolInner />;
+  return <GalleryToolInner focus={focus} />;
 }
 
-function GalleryToolInner() {
+function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' }) {
   const {
     node,
     nodeId,
@@ -168,10 +169,13 @@ function GalleryToolInner() {
   // The outer gate guarantees these for the lifetime of this inner component.
   const gallery = node!;
   const galleryId = nodeId!;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, [galleryId]);
   const currentView = getGalleryView(gallery);
   const naturalSeed = normalizeGalleryNaturalSeed(gallery.styles?.[GALLERY_NATURAL_SEED_STYLE_PROPERTY]);
   const frameSizing = normalizeGalleryFrameSizing(gallery.styles?.[GALLERY_FRAME_SIZING_STYLE_PROPERTY]);
   const galleryStateSignature = [
+    galleryId,
     currentView,
     frameSizing,
     naturalSeed,
@@ -206,6 +210,7 @@ function GalleryToolInner() {
         ? await Promise.all(config.mediaUrls.map((url) => measureGallerySourceRatio(url)))
         : config.mediaUrls.map(() => null);
 
+      if (!mounted.current) return;
       if (!hasGalleryCreationSession(galleryId) || galleryStateRef.current !== stateAtStart) {
         setCreationWizardError('Gallery changed while media was loading. Review setup and try again.');
         return;
@@ -347,7 +352,7 @@ function GalleryToolInner() {
         if (next !== 'source' || stored !== null) return normalizeGallerySourceRatio(stored);
         return normalizeGallerySourceRatio(await measureGallerySourceRatio(item.src));
       }));
-      if (galleryStateRef.current !== stateAtStart) return;
+      if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
       const rootPatch = { [GALLERY_FRAME_SIZING_STYLE_PROPERTY]: next };
       bridge.patchStyles(galleryId, prefix, rootPatch);
@@ -394,10 +399,13 @@ function GalleryToolInner() {
     const measuredRatios = frameSizing === 'source'
       ? await Promise.all(unique.map((url) => measureGallerySourceRatio(url)))
       : unique.map(() => null);
-    if (galleryStateRef.current !== stateAtStart) return;
+    if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
+    const nodes = getNodesSnapshot();
+    const liveGallery = nodes.get(galleryId);
+    if (!liveGallery || !isGalleryNode(liveGallery)) return;
     const plan = buildGalleryMediaAddPlan({
-      gallery,
+      gallery: liveGallery,
       nodes,
       media: unique.map((url, index) => ({ url, sourceRatio: measuredRatios[index] })),
     });
@@ -410,7 +418,7 @@ function GalleryToolInner() {
       frameSizing: plan.frameSizing,
       view: plan.view,
     });
-  }, [frameSizing, gallery, galleryId, nodes, selectItem, selectedItemId]);
+  }, [frameSizing, galleryId, selectItem, selectedItemId]);
 
   const replaceMedia = useCallback(async (itemId: string, url: string) => {
     const target = items.find((item) => item.itemId === itemId);
@@ -419,7 +427,7 @@ function GalleryToolInner() {
     const stateAtStart = galleryStateRef.current;
     const shouldRefreshRatio = galleryReplacementNeedsSourceRatio(frameSizing, target.sourceRatio);
     const measuredRatio = shouldRefreshRatio ? await measureGallerySourceRatio(url) : null;
-    if (galleryStateRef.current !== stateAtStart) return;
+    if (!mounted.current || galleryStateRef.current !== stateAtStart) return;
 
     const targetIndex = items.findIndex((item) => item.itemId === itemId);
     if (targetIndex < 0) return;
@@ -721,7 +729,7 @@ function GalleryToolInner() {
         </Modal>
       ) : (
         <>
-      <GalleryContentSection
+      {(!focus || focus === 'content') && <GalleryContentSection
         items={items}
         selectedItemId={selectedItemId}
         onSelectItem={(itemId) => selectItem(itemId)}
@@ -731,7 +739,7 @@ function GalleryToolInner() {
         onMoveItem={moveItem}
         onRemoveItem={removeItem}
         onReorder={reorderItem}
-      />
+      />}
 
       {pickerOpen && (
         <div
@@ -755,7 +763,7 @@ function GalleryToolInner() {
 
       <ToolDivider />
 
-      <GalleryViewSection
+      {(!focus || focus === 'layout') && <GalleryViewSection
         currentView={currentView}
         styles={styles}
         stripHeight={stripHeight}
@@ -767,9 +775,9 @@ function GalleryToolInner() {
         onAllItemStyleChange={updateAllItemStyles}
         onShuffleNatural={shuffleNatural}
         canShuffleNatural={items.length > 1}
-      />
+      />}
 
-      {selectedItem && (
+      {selectedItem && (!focus || focus === 'image') && (
         <>
           <ToolDivider />
           <GalleryImageSection
@@ -805,3 +813,4 @@ function GalleryToolInner() {
     </>
   );
 }
+

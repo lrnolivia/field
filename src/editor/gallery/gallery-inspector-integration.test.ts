@@ -30,9 +30,12 @@ describe('Gallery inspector integration', () => {
     expect(header).toContain('data-inspector-object-kind={semanticKind}');
   });
 
-  it('does not wire Gallery directly into PropertiesPanel', () => {
+  it('keeps desktop Gallery through LayoutTool and scopes focused Gallery tasks to portrait', () => {
     const panel = source('src/editor/PropertiesPanel.tsx');
-    expect(panel).not.toContain("import GalleryTool from './tools/GalleryTool';");
+    expect(panel).toContain("if (mobileTask)");
+    expect(panel).toContain("<GalleryTool focus=\"content\" />");
+    expect(panel).toContain("<GalleryTool focus=\"layout\" />");
+    expect(panel).toContain("const gallery = !isMultiSelect && isGalleryNode(node)");
     expect(panel).not.toContain('<GalleryTool />');
     expect(panel).not.toContain('<GalleryImageCropTool />');
   });
@@ -47,6 +50,10 @@ describe('Gallery inspector integration', () => {
     expect(tool).toContain('}, [bridge, frameSizing, galleryId, items, naturalSeed, prefix, responsiveOverrides]);');
     expect(tool).not.toContain('}, [currentView, galleryId, items.length]);');
     expect(tool).toContain('getGalleryIndexGeometryPatch(');
+    expect(tool).toContain('<GalleryToolInner focus={focus} />');
+    expect(tool).toContain("(!focus || focus === 'content')");
+    expect(tool).toContain("(!focus || focus === 'layout')");
+    expect(tool).toContain("(!focus || focus === 'image')");
     expect(tool).toContain('normalizeGallerySourceRatio(item.sourceRatio)');
     expect(content).toContain('role="list" aria-label="Gallery media"');
     expect(view).not.toContain('Terra Prime strip items');
@@ -56,3 +63,4 @@ describe('Gallery inspector integration', () => {
     expect(media).toContain('Select Unsplash image');
   });
 });
+

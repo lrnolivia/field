@@ -92,6 +92,7 @@ export default function GalleryContentSection({
                 onClick={() => onSelectItem(item.itemId)}
                 tabIndex={0}
                 onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     onSelectItem(item.itemId);
@@ -174,3 +175,4 @@ export default function GalleryContentSection({
     </ToolSection>
   );
 }
+

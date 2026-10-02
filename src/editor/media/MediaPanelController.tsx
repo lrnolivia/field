@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
+import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import MediaLauncher from './MediaLauncher';
 import MediaToolbarPopover from './MediaToolbarPopover';
@@ -47,11 +49,16 @@ function uploadElementKind(kind: ReturnType<typeof mediaKindFromMime>): 'image' 
 }
 
 export default function MediaPanelController({ onClose }: { onClose: () => void }) {
+  const portrait = useMobileWorkspacePresentation() === 'portrait-sheet';
+  const viewer = useIsViewer();
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const [pendingPlacement, setPendingPlacement] = useState<{ kind: 'image' | 'video' | 'audio'; url: string; placement: ToolbarMediaPlacement } | null>(null);
   const [session, setSession] = useAtom(mediaSessionAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const upsertUpload = useSetAtom(upsertMediaUploadAtom);
   const rememberAsset = useSetAtom(upsertSessionMediaAssetAtom);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(portrait);
   const [typeSource, setTypeSource] = useState<'media' | 'sources' | 'url'>('media');
   const [transientError, setTransientError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState('');
@@ -99,6 +106,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     url: string,
     placement: ToolbarMediaPlacement = resolvePlacement(kind),
   ) => {
+    if (viewer || (portrait && !alive.current)) return;
     if (placement.type === 'replace') {
       queueMutations([
         { type: 'updateHtmlAttrs', nodeId: placement.nodeId, attrs: { src: url } },
@@ -127,7 +135,8 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   };
 
   const insertUrl = (kind: 'image' | 'video' | 'audio', url: string) => {
-    placeUrl(kind, url);
+    if (portrait) setPendingPlacement({ kind, url, placement: resolvePlacement(kind) });
+    else placeUrl(kind, url);
   };
 
   const ingestFile = async (file: File) => {
@@ -149,7 +158,11 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         rememberAsset,
         // Placement is captured before the async upload begins. Retry replays
         // this exact operation instead of consulting whatever is selected later.
-        onSuccess: (result) => placeUrl(elementKind, result.url, placement),
+        onSuccess: (result) => {
+          if (portrait && !alive.current) return;
+          if (portrait) setPendingPlacement({ kind: elementKind, url: result.url, placement });
+          else placeUrl(elementKind, result.url, placement);
+        },
       });
     } catch (error) {
       if (isMediaUploadCancelled(error)) return;
@@ -207,6 +220,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         ? await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))
         : undefined;
 
+      if (portrait && !alive.current) return;
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
       const created =
         galleryTargetId
@@ -458,7 +472,8 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
           event.currentTarget.value = '';
         }}
       />
-      <MediaToolbarPopover
+      <AdaptiveMediaSurface
+        portrait={portrait}
         title={title}
         compact={isLauncher && !expanded}
         expanded={expanded}
@@ -471,8 +486,45 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
             {transientError}
           </div>
         )}
-        {expanded && isLauncher ? <MediaGalleryPanel chrome="embedded" workspace={expanded} /> : content}
-      </MediaToolbarPopover>
+        {pendingPlacement ? <div className="field-media-placement" data-portrait-media-placement>
+          {pendingPlacement.kind === 'image' && <PlacementImage key={pendingPlacement.url} url={pendingPlacement.url} />}
+          {pendingPlacement.kind === 'video' && <video src={pendingPlacement.url} controls preload="metadata" />}
+          {pendingPlacement.kind === 'audio' && <audio src={pendingPlacement.url} controls preload="metadata" />}
+          <p>{pendingPlacement.placement.type === 'replace' ? 'Replace the selected media' : pendingPlacement.placement.type === 'inside' ? 'Place inside the selected container' : 'Place on the visible canvas'}</p>
+          <div className="field-portrait-split-row"><button type="button" onClick={() => setPendingPlacement(null)}>Choose another</button>
+            <button type="button" disabled={viewer} onClick={() => { const p = pendingPlacement; setPendingPlacement(null); placeUrl(p.kind, p.url, p.placement); }}>Place {pendingPlacement.kind}</button></div>
+        </div> : expanded && isLauncher && !portrait ? <MediaGalleryPanel chrome="embedded" workspace={expanded} /> : content}
+      </AdaptiveMediaSurface>
     </>
   );
+}
+
+
+function PlacementImage({ url }: { url: string }) {
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  return <div className="field-media-preview" data-preview-state={state}>
+    <img src={url} alt="Selected media preview" onLoad={() => setState('ready')} onError={() => setState('error')} />
+    {state !== 'ready' && <p role="status">{state === 'loading' ? 'Loading preview…' : 'Preview unavailable. You can choose another asset.'}</p>}
+  </div>;
+}
+
+function AdaptiveMediaSurface({ portrait, title, compact, expanded, onClose, onExpand, onBack, children }: {
+  portrait: boolean; title: string; compact: boolean; expanded: boolean; onClose: () => void; onExpand: () => void; onBack?: () => void; children: ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { if (portrait) ref.current?.focus({ preventScroll: true }); }, [portrait]);
+  if (!portrait) return <MediaToolbarPopover title={title} compact={compact} expanded={expanded} onClose={onClose} onExpand={onExpand} onBack={onBack}>{children}</MediaToolbarPopover>;
+  return <><div className="field-portrait-scrim" onClick={onClose} /><section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} data-field-no-canvas-input data-portrait-media
+    onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
+      if (event.key === 'Tab') {
+        const controls = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),audio[controls],video[controls],[tabindex="0"]') ?? []).filter(el => el.getClientRects().length);
+        if (!controls.length) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === controls[0] || document.activeElement === ref.current)) { event.preventDefault(); controls[controls.length - 1].focus(); }
+        else if (!event.shiftKey && document.activeElement === controls[controls.length - 1]) { event.preventDefault(); controls[0].focus(); }
+      }
+    }} className="field-portrait-surface" data-expanded="true">
+    <header>{onBack && <button type="button" onClick={onBack}>Back</button>}<div><h2>{title}</h2><span>Choose media, then place it</span></div><button type="button" onClick={onClose}>Done</button></header>
+    <div className="field-portrait-content">{children}</div>
+  </section></>;
 }

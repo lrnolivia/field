@@ -641,6 +641,18 @@ export class CanvasMouseController {
     this.emptyCanvasClick = false;
   }
 
+  /** Clear deferred mouse-selection bookkeeping when a touch gesture yields
+   * to the two-finger camera. DragCoordinator owns reverting any active drag;
+   * this method only prevents a later mouseup from completing stale click
+   * semantics after that cancellation. */
+  cancelTouchInteraction(): void {
+    this.emptyCanvasClick = false;
+    this.pendingMultiSelectChild = null;
+    this.pendingShiftRemove = null;
+    this.clearTextGloss();
+    trace.action('canvas:touch-interaction-cancelled', {});
+  }
+
   /** Shared node mousedown handler — used by ALL elements (Renderer-created and imperative-created). */
   handleNodeMouseDown(nodeId: string, e: MouseEvent, vpIdOverride?: string): void {
     this.clearTextGloss();
