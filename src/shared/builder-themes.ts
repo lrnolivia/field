@@ -17,6 +17,8 @@ export interface BuilderThemeColors {
 export interface BuilderTheme {
   id: string;
   label: string;
+  /** Existing identity artwork; accents never invent missing PNG asset paths. */
+  brandAssetId?: string;
   light: BuilderThemeColors;
   dark: BuilderThemeColors;
 }
@@ -46,6 +48,23 @@ export const BUILDER_THEMES: BuilderTheme[] = [
     light: { accent: '#edb713', accentFg: '#fffbe1', accentTextFg: '#111111' },
     dark: { accent: '#edb713', accentFg: '#fffbe1', accentTextFg: '#111111' },
   },
+  {
+    id: 'green', label: 'Green', brandAssetId: 'monochrome',
+    // Terra Core color/green VariableID:530:12, verified 2026-10-02.
+    light: { accent: '#3bcb8d', accentFg: '#111111', accentTextFg: '#111111' },
+    dark: { accent: '#3bcb8d', accentFg: '#111111', accentTextFg: '#111111' },
+  },
+  {
+    id: 'pink', label: 'Pink · Terra coral', brandAssetId: 'monochrome',
+    // Terra Core color/coral VariableID:530:13, not an invented pink token.
+    light: { accent: '#ff6f78', accentFg: '#111111', accentTextFg: '#111111' },
+    dark: { accent: '#ff6f78', accentFg: '#111111', accentTextFg: '#111111' },
+  },
+  {
+    id: 'neutrachrome', label: 'Neutrachrome', brandAssetId: 'monochrome',
+    light: { accent: '#69635b', accentFg: '#faf9f7', accentTextFg: '#faf9f7' },
+    dark: { accent: '#c7beb0', accentFg: '#181613', accentTextFg: '#181613' },
+  },
 ];
 
 export const DEFAULT_BUILDER_THEME_ID = 'monochrome';
@@ -66,4 +85,9 @@ export function normalizeBuilderThemeId(id: string): string {
 export function getBuilderThemeById(id: string): BuilderTheme | undefined {
   const normalized = normalizeBuilderThemeId(id);
   return BUILDER_THEMES.find((t) => t.id === normalized);
+}
+
+
+export function builderThemeBrandId(theme: BuilderTheme): string {
+  return theme.brandAssetId ?? theme.id;
 }

@@ -1,3 +1,4 @@
+import { PORTRAIT_EDIT_EVENT } from '@/editor/portrait/interaction';
 // ViewportHeaderManager.ts — Imperative viewport headers.
 // Pure DOM, no React. Same pattern as Renderer.ts.
 // Creates header bars above each viewport with drag, hover, click, snap.
@@ -619,7 +620,10 @@ function createHeader(
     const onUp = (event: PointerEvent) => {
       if (event.pointerId !== e.pointerId) return;
       cleanup();
-      if (e.pointerType === 'touch') callbacks.onSelect(vpNodeId);
+      if (e.pointerType === 'touch') {
+        callbacks.onSelect(vpNodeId);
+        if (!started && window.innerWidth <= 600) window.dispatchEvent(new CustomEvent(PORTRAIT_EDIT_EVENT, { detail: { clientX: event.clientX, clientY: event.clientY } }));
+      }
       headerDragging = false;
       callbacks.onDragStateChange?.(false);
       if (started) {
@@ -677,3 +681,4 @@ function createHeader(
 
   return header;
 }
+

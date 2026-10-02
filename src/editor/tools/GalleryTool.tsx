@@ -99,10 +99,10 @@ function styleMutation(nodeId: string, styles: Record<string, string>, isReplica
 export default function GalleryTool({ focus }: { focus?: 'content' | 'layout' | 'image' } = {}) {
   const { node } = useControl();
   if (!node || !isGalleryNode(node)) return null;
-  return <GalleryToolInner />;
+  return <GalleryToolInner focus={focus} />;
 }
 
-function GalleryToolInner() {
+function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' }) {
   const {
     node,
     nodeId,

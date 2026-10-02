@@ -84,6 +84,7 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   const uiCase = useUiChromeCase();
   return (
     <button
+      disabled={disabled}
       onClick={disabled ? undefined : onClick}
       aria-current={active ? 'true' : undefined}
       className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 ${
@@ -295,8 +296,10 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Move" shortcut="V" active={toolMode === 'select'} icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
-          <MenuItem label="Hand tool" shortcut="H" active={toolMode === 'hand'} icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+            <MenuTile label="Move" icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
+            <MenuTile label="Hand tool" icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
+          </div>
           {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
         </DropdownContainer>
       )}
@@ -337,15 +340,15 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
         onClick={onSelect} onChevronClick={() => setOpen(!open)} title="Frame (F)" dataTool="frame" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Basic</div>
-        {basicItems.map((item) => <MenuItem key={item.id} label={item.name}
-          shortcut={item.id === 'frame' ? 'F' : undefined} active={item.id === 'frame' && toolMode === 'frame'}
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+        {basicItems.slice(0, 2).map((item) => <MenuTile key={item.id} label={item.name}
           icon={item.id === 'frame' ? <FrameToolbarIcon className="w-4 h-4" /> : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" /> : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
           onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { openImageMedia(); } else insert(item.id); }} />)}
+        </div>
+        {basicItems.slice(2).map(item => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Layouts</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
-          {layoutItems.map((item) => <MenuTile key={item.id} label={item.name} icon={<LayoutMiniIcon id={item.id} />} onClick={() => insert(item.id)} />)}
-        </div>
+        {layoutItems.map((item) => <MenuItem key={item.id} label={item.name} icon={<LayoutMiniIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <MenuItem label="Section library…" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={openSectionLibrary} />
       </DropdownContainer>}
@@ -391,10 +394,10 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
       <SplitButton active={activeShape} open={open} iconKey={currentChoice} icon={choiceIcons[currentChoice]} onClick={() => choose(currentChoice)} onChevronClick={() => setOpen(!open)} title="Shape tools" dataTool="shape" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Shapes</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
           {shapeChoices.map((choice) => <MenuTile key={choice.id} label={choice.label} icon={choiceIcons[choice.id]} onClick={() => choose(choice.id)} />)}
-          {extraShapes.map((item) => <MenuTile key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         </div>
+        {extraShapes.map((item) => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         {buttonItem && <><DropdownDivider /><MenuItem label="Button" icon={<OutlineShapeIcon id="button" />} onClick={() => insert('button')} /></>}
       </DropdownContainer>}
     </div>
@@ -417,9 +420,10 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
       {items.length > 0 && <>
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Typography</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
-          {items.map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : <TextToolbarIcon className="w-4 h-4" />} onClick={() => insert(item.id)} />; })}
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+          {items.slice(0, 4).map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : <TextToolbarIcon className="w-4 h-4" />} onClick={() => insert(item.id)} />; })}
         </div>
+        {items.slice(4).map(item => <MenuItem key={item.id} label={item.name} onClick={() => insert(item.id)} />)}
       </>}
       <DropdownDivider />
       <MenuItem label="Text Effects…" onClick={() => {
@@ -447,9 +451,8 @@ function MediaButton() {
   };
 
   return (
-    <ToolButton active={active} onClick={toggle} title="Media" dataTool="media">
-      <MediaGlyph className="h-4 w-4" size={16} />
-    </ToolButton>
+    <SplitButton active={active} open={active} onClick={toggle} onChevronClick={toggle}
+      icon={<MediaGlyph className="h-4 w-4" size={16} />} title="Media" dataTool="media" />
   );
 }
 
@@ -486,8 +489,10 @@ function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode
       />
       {open && (
         <DropdownContainer>
-          <MenuItem label="Pen" shortcut="P" active={toolMode === 'shape-path'} icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
-          <MenuItem label="Pencil" shortcut="Shift+P" active={toolMode === 'sketch'} icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
+          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+            <MenuTile label="Pen" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
+            <MenuTile label="Pencil" icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
+          </div>
         </DropdownContainer>
       )}
     </div>
@@ -545,12 +550,13 @@ function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boo
       <SplitButton active={false} open={open} icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => setOpen(!open)} onChevronClick={() => setOpen(!open)} title="Library" dataTool="library" />
       {open && <DropdownContainer wide>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Library</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-3 gap-1.5 p-1">
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
           <MenuTile label="Components" icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('components')} />
           <MenuTile label="Vectors" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('vectors')} />
-          <MenuTile label="Templates" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('templates')} />
+
         </div>
         <DropdownDivider />
+        <MenuItem label="Templates" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('templates')} />
         <MenuItem label="Code Overrides" onClick={() => openLibrary('code-overrides')} />
         <MenuItem label="Plugins" onClick={() => openLibrary('plugins')} />
       </DropdownContainer>}
@@ -862,3 +868,4 @@ export default function BottomToolbar() {
     </div>
   );
 }
+

@@ -14,5 +14,5 @@ export function shouldOpenTapEditor(input: {
     && !input.cancelled && !input.textEditing;
 }
 
-export type PortraitDestination = 'tools' | 'project' | 'browse' | 'pages' | 'layers' | 'media' | 'library' | 'presets' | 'cms' | 'locale' | 'branches' | 'insert' | 'inspect';
+export type PortraitDestination = 'tools' | 'comments' | 'project' | 'browse' | 'pages' | 'layers' | 'media' | 'library' | 'presets' | 'cms' | 'locale' | 'branches' | 'insert' | 'inspect';
 export type InspectorTask = 'context' | 'geometry' | 'appearance' | 'content' | 'advanced' | 'prototype' | 'export';

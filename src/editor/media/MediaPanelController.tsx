@@ -106,7 +106,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     url: string,
     placement: ToolbarMediaPlacement = resolvePlacement(kind),
   ) => {
-    if (viewer || !alive.current) return;
+    if (viewer || (portrait && !alive.current)) return;
     if (placement.type === 'replace') {
       queueMutations([
         { type: 'updateHtmlAttrs', nodeId: placement.nodeId, attrs: { src: url } },
@@ -159,7 +159,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         // Placement is captured before the async upload begins. Retry replays
         // this exact operation instead of consulting whatever is selected later.
         onSuccess: (result) => {
-          if (!alive.current) return;
+          if (portrait && !alive.current) return;
           if (portrait) setPendingPlacement({ kind: elementKind, url: result.url, placement });
           else placeUrl(elementKind, result.url, placement);
         },
@@ -220,7 +220,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         ? await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))
         : undefined;
 
-      if (!alive.current) return;
+      if (portrait && !alive.current) return;
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
       const created =
         galleryTargetId
@@ -503,8 +503,13 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 function AdaptiveMediaSurface({ portrait, title, compact, expanded, onClose, onExpand, onBack, children }: {
   portrait: boolean; title: string; compact: boolean; expanded: boolean; onClose: () => void; onExpand: () => void; onBack?: () => void; children: ReactNode;
 }) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { if (portrait) ref.current?.focus({ preventScroll: true }); }, [portrait]);
   if (!portrait) return <MediaToolbarPopover title={title} compact={compact} expanded={expanded} onClose={onClose} onExpand={onExpand} onBack={onBack}>{children}</MediaToolbarPopover>;
-  return <section role="dialog" aria-label={title} data-field-no-canvas-input data-portrait-media className="field-portrait-surface" data-expanded="true">
+  return <section ref={ref} tabIndex={-1} role="dialog" aria-label={title} data-field-no-canvas-input data-portrait-media
+    onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
+    }} className="field-portrait-surface" data-expanded="true">
     <header>{onBack && <button type="button" onClick={onBack}>Back</button>}<div><h2>{title}</h2><span>Choose media, then place it</span></div><button type="button" onClick={onClose}>Done</button></header>
     <div className="field-portrait-content">{children}</div>
   </section>;

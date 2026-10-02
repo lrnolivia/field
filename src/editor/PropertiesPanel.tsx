@@ -464,7 +464,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
       {isComponentInstance && isInsideForm && <FormStateTool />}
       <ComponentPropsTool /><IconSetTool />
       {isImageElement && <ImageTool />}{isVideoElement && <VideoTool />}{isAudioElement && <AudioTool />}
-      {isText && <TextStyleTool />}
+      {isText ? <TextStyleTool /> : null}
     </>;
     let task: React.ReactNode;
     switch (mobileTask) {

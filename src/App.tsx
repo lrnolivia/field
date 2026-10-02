@@ -6,6 +6,7 @@ import PropertiesPanel from './editor/PropertiesPanel';
 import PortraitWorkspace from './editor/portrait/PortraitWorkspace';
 import { DesktopQuickTools } from './editor/portrait/QuickTools';
 import './editor/portrait/portrait-workspace.css';
+import './styles/field-chrome.css';
 import CommentsListPanel from './editor/CommentsListPanel';
 import { commentModeActiveAtom } from './code/stores/comment-store';
 import DebugToolbar from './editor/ui/DebugToolbar';
@@ -396,12 +397,12 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
                 ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)`
                 : undefined,
               boxSizing: 'border-box',
-              backgroundColor: mobilePanelPresentation || rightDetached ? 'var(--bg-panel)' : undefined,
-              border: mobilePanelPresentation || rightDetached ? '1px solid var(--border-light)' : undefined,
+              backgroundColor: mobilePanelPresentation ? 'var(--bg-panel)' : undefined,
+              border: mobilePanelPresentation ? '1px solid var(--border-light)' : undefined,
               borderRadius: mobilePanelPresentation || workspaceLayout.right.presentation === 'floating'
                 ? (mobilePortraitSheet ? 12 : WORKSPACE_FLOAT_RADIUS)
                 : 0,
-              boxShadow: mobilePanelPresentation || rightDetached ? WORKSPACE_FLOAT_SHADOW : undefined,
+              boxShadow: mobilePanelPresentation ? WORKSPACE_FLOAT_SHADOW : undefined,
               opacity: floatingInspectorVisible ? 1 : 0,
               translate: !floatingInspectorVisible
                 ? mobilePortraitSheet

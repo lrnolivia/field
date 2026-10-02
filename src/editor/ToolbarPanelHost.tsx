@@ -98,7 +98,7 @@ export default function ToolbarPanelHost() {
   }, [panel, setPanel, peeked, mobilePanel]);
 
   if (!panel) return null;
-  if (panel.kind === 'media') return <MediaPanelController onClose={() => setPanel(null)} />;
+  if (panel.kind === 'media') return <MediaPanelController onClose={() => { setPanel(null); if (portraitSheet) window.dispatchEvent(new Event('field:portrait-close')); }} />;
   if (portraitSheet) return null; // Dedicated portrait workspace owns these tasks.
   const category = panel.kind === 'insert'
     ? panel.categoryData ?? [...CATEGORIES, ...CREATIVE_CATEGORIES].find((entry) => entry.id === panel.category)

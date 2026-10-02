@@ -1,6 +1,7 @@
 // LeftMenu.tsx — 52px icon strip for the left toolbar.
 // FigUI3 command rail: compact neutral controls, functional selection accent, restrained floating tooltip.
 
+import MediaGlyph from '@/editor/media/MediaGlyph';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -370,6 +371,10 @@ export default function LeftMenu() {
         </MenuButton>
 
 
+        <MenuButton panelId="media" isActive={activePanel === 'media'} onToggle={openRailPanel} title="Media" tooltip={tooltipHandlers} dataTutorial="media-button">
+          <MediaGlyph size={18} className="w-[18px] h-[18px]" />
+        </MenuButton>
+
         {/* Presets */}
         <MenuButton panelId="presets" isActive={activePanel === 'presets'} onToggle={openRailPanel} title="Presets" tooltip={tooltipHandlers} disabled={isViewer} dataTutorial="presets-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" className="w-[18px] h-[18px]">
@@ -487,3 +492,4 @@ export default function LeftMenu() {
     </>
   );
 }
+

@@ -6,7 +6,8 @@ test('portrait owns purpose-built tools, browse and focused editing without chan
   await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
-  await expect(page.locator('[data-portrait-workspace]')).toBeVisible();
+  await expect(page.locator('[data-portrait-workspace]')).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Open tools', exact: true })).toBeVisible();
   await expect(page.locator('[data-workspace-right-body]')).toHaveCount(0);
   await expect(page.locator('[data-left-menu-rail]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
@@ -62,4 +63,61 @@ test('a short object tap opens focused properties; real drag and second finger d
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }, { x: point.x + 30, y: point.y, id: 2 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect(page.locator('[data-portrait-surface="inspect"]')).toHaveCount(0);
+});
+
+test('Gallery portrait tasks keep source-backed ordering, removal and undo', async ({ page }, testInfo) => {
+  const image = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" fill="#3bcb8d"/></svg>').toString('base64');
+  const source = `/** @canvas { "viewports": [{"id":"desktop","width":1440}] } */
+'use client';
+export default function Page() { return <div data-id="root" data-name="Page" style={{ width:'1440px', minHeight:'900px', padding:'80px' }}>
+  <div data-id="gallery" data-name="Gallery" role="region" aria-label="Test gallery" style={{ '--field-gallery-view':'grid', display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'24px', width:'800px' }}>
+    <figure data-id="gallery-item-1" data-name="Gallery Item" style={{ '--field-gallery-item':'1', margin:'0px' }}><img data-id="gallery-image-1" data-name="Gallery Image" src="${image}" alt="First" style={{ width:'100%', height:'200px', objectFit:'cover' }}/></figure>
+    <figure data-id="gallery-item-2" data-name="Gallery Item" style={{ '--field-gallery-item':'1', margin:'0px' }}><img data-id="gallery-image-2" data-name="Gallery Image" src="${image}" alt="Second" style={{ width:'100%', height:'200px', objectFit:'cover' }}/></figure>
+  </div></div>; }`;
+  await page.addInitScript(data => {
+    localStorage.setItem('revyme-project-local', JSON.stringify({ format:'revyme-v1', files:{ 'app/page.client.tsx':data, 'app/page.tsx':"import PageClient from './page.client'; export default function Page(){return <PageClient/>;}" } }));
+    localStorage.setItem('revyme-onboarding-completed', 'true');
+  }, source);
+  await page.goto('/work/local');
+  const editor = new EditorPage(page);
+  await editor.waitForStableGeometry('gallery');
+  const box = await editor.node('gallery').boundingBox();
+  expect(box).not.toBeNull();
+  await page.touchscreen.tap(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  const inspector = page.locator('[data-portrait-surface="inspect"]');
+  await expect(inspector.locator('[data-gallery-item-list]')).toBeVisible();
+  await expect(inspector.getByRole('listitem')).toHaveCount(2);
+  await inspector.getByRole('listitem', { name: 'Gallery image 2: Second', exact: true }).tap();
+  await inspector.getByRole('button', { name: 'Move selected image up', exact: true }).tap();
+  await expect.poll(async () => { const code = await editor.getPageCode(); return code.indexOf('data-id="gallery-item-2"') < code.indexOf('data-id="gallery-item-1"'); }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('portrait-gallery-order-390.png') });
+  await inspector.getByRole('button', { name: 'Layout', exact: true }).tap();
+  await expect(inspector.locator('[data-gallery-item-list]')).toHaveCount(0);
+  await expect(inspector.locator('[data-portrait-inspector-task="geometry"]')).toBeVisible();
+  await inspector.getByRole('button', { name: 'Images', exact: true }).tap();
+  await expect(inspector.getByRole('listitem')).toHaveCount(2);
+  await inspector.getByRole('button', { name: 'Remove selected image', exact: true }).tap();
+  await expect(inspector.getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).tap();
+  await expect(inspector.getByRole('listitem')).toHaveCount(2);
+});
+
+test('desktop middle tap opens quick tools while middle drag preserves panning', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await editor.waitForStableGeometry('hero');
+  const box = await editor.node('hero').boundingBox();
+  expect(box).not.toBeNull();
+  const x = box!.x + box!.width / 2, y = box!.y + box!.height / 2;
+  await page.mouse.click(x, y, { button:'middle' });
+  await expect(page.locator('[data-desktop-quick-tools]')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('desktop-quick-tools.png') });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-desktop-quick-tools]')).toHaveCount(0);
+  const code = await editor.getPageCode();
+  await page.mouse.move(x, y); await page.mouse.down({ button:'middle' });
+  await page.mouse.move(x + 45, y + 25, { steps:4 }); await page.mouse.up({ button:'middle' });
+  await expect(page.locator('[data-desktop-quick-tools]')).toHaveCount(0);
+  expect(await editor.getPageCode()).toBe(code);
 });

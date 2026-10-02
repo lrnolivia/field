@@ -413,7 +413,7 @@ export function useCanvasTouchInteraction({
         // pending window listeners exist; touch then commits explicitly.
         controller?.handleMouseUp(up);
         coordinator?.handleMouseUp();
-        if (editOnRelease) window.dispatchEvent(new Event(PORTRAIT_EDIT_EVENT));
+        if (editOnRelease) window.dispatchEvent(new CustomEvent(PORTRAIT_EDIT_EVENT, { detail: { clientX: x, clientY: y } }));
       } else if (finished.kind === 'context-menu') {
         // The long-press path already cancelled pending mouse/drag state before
         // opening the canonical menu. Finger-up must not click or drag again.

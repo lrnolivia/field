@@ -337,6 +337,7 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
             top: workspace.right.top,
             right: workspace.right.inset,
             isolation: 'isolate',
+            backgroundColor: workspace.right.presentation === 'floating' ? 'transparent' : 'var(--bg-panel)',
             borderTopLeftRadius: workspace.right.presentation === 'floating' ? 8 : 0,
             borderTopRightRadius: workspace.right.presentation === 'floating' ? 8 : 0,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
