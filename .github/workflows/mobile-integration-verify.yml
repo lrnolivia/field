@@ -1,0 +1,92 @@
+name: Mobile integration verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/compare-mobile-checks.mjs"
+      - ".github/workflows/mobile-integration-verify.yml"
+permissions:
+  contents: read
+concurrency:
+  group: field-mobile-verification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    if: github.event.pull_request.head.ref == 'field/mobile-integration-20261002'
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [baseline, candidate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.lane == 'baseline' && github.event.pull_request.base.sha || github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Collect exact-head full tests, lint and builds
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          mkdir -p reports
+          git rev-parse HEAD > reports/head.txt
+          set +e
+          npm run test:run -- --reporter=json --outputFile=reports/tests.json > reports/tests.log 2>&1
+          echo $? > reports/tests.exit
+          npx eslint src --format json --output-file reports/lint.json > reports/lint.log 2>&1
+          echo $? > reports/lint.exit
+          npm run build:all > reports/build.log 2>&1
+          echo $? > reports/build.exit
+          if [ "$LANE" = candidate ]; then
+            npx vitest run src/canvas/hooks/useCanvasTouchInteraction.test.ts src/canvas/hooks/useCanvasTransform.touch.test.ts src/canvas/transform/InputHandler.touch.test.ts src/editor/mobile-focus-state.test.ts src/editor/mobile-toolbar.test.ts src/editor/mobile-workspace-presentation.test.ts --reporter=json --outputFile=reports/focused.json > reports/focused.log 2>&1
+            echo $? > reports/focused.exit
+          fi
+      - name: Install browser
+        if: matrix.lane == 'candidate'
+        run: npx playwright install --with-deps chromium
+      - name: Run mobile browser interactions
+        if: matrix.lane == 'candidate'
+        run: |
+          set +e
+          npx playwright test src/editor/e2e/mobile-focus.spec.ts --reporter=json > reports/browser.json 2> reports/browser.log
+          echo $? > reports/browser.exit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-${{ matrix.lane }}
+          path: |
+            reports/
+            test-results/
+          retention-days: 14
+  compare:
+    needs: verify
+    if: always() && github.event.pull_request.head.ref == 'field/mobile-integration-20261002'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mobile-*
+          path: verification
+      - name: Require no added failures and passing mobile/build checks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/compare-mobile-checks.mjs verification
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-comparison
+          path: verification/comparison.json
