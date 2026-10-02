@@ -487,7 +487,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
           </div>
         )}
         {pendingPlacement ? <div className="field-media-placement" data-portrait-media-placement>
-          {pendingPlacement.kind === 'image' && <img src={pendingPlacement.url} alt="Selected media preview" />}
+          {pendingPlacement.kind === 'image' && <PlacementImage key={pendingPlacement.url} url={pendingPlacement.url} />}
           {pendingPlacement.kind === 'video' && <video src={pendingPlacement.url} controls preload="metadata" />}
           {pendingPlacement.kind === 'audio' && <audio src={pendingPlacement.url} controls preload="metadata" />}
           <p>{pendingPlacement.placement.type === 'replace' ? 'Replace the selected media' : pendingPlacement.placement.type === 'inside' ? 'Place inside the selected container' : 'Place on the visible canvas'}</p>
@@ -500,17 +500,31 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
 }
 
 
+function PlacementImage({ url }: { url: string }) {
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  return <div className="field-media-preview" data-preview-state={state}>
+    <img src={url} alt="Selected media preview" onLoad={() => setState('ready')} onError={() => setState('error')} />
+    {state !== 'ready' && <p role="status">{state === 'loading' ? 'Loading preview…' : 'Preview unavailable. You can choose another asset.'}</p>}
+  </div>;
+}
+
 function AdaptiveMediaSurface({ portrait, title, compact, expanded, onClose, onExpand, onBack, children }: {
   portrait: boolean; title: string; compact: boolean; expanded: boolean; onClose: () => void; onExpand: () => void; onBack?: () => void; children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (portrait) ref.current?.focus({ preventScroll: true }); }, [portrait]);
   if (!portrait) return <MediaToolbarPopover title={title} compact={compact} expanded={expanded} onClose={onClose} onExpand={onExpand} onBack={onBack}>{children}</MediaToolbarPopover>;
-  return <section ref={ref} tabIndex={-1} role="dialog" aria-label={title} data-field-no-canvas-input data-portrait-media
+  return <><div className="field-portrait-scrim" onClick={onClose} /><section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} data-field-no-canvas-input data-portrait-media
     onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
+      if (event.key === 'Tab') {
+        const controls = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),audio[controls],video[controls],[tabindex="0"]') ?? []).filter(el => el.getClientRects().length);
+        if (!controls.length) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === controls[0] || document.activeElement === ref.current)) { event.preventDefault(); controls[controls.length - 1].focus(); }
+        else if (!event.shiftKey && document.activeElement === controls[controls.length - 1]) { event.preventDefault(); controls[0].focus(); }
+      }
     }} className="field-portrait-surface" data-expanded="true">
     <header>{onBack && <button type="button" onClick={onBack}>Back</button>}<div><h2>{title}</h2><span>Choose media, then place it</span></div><button type="button" onClick={onClose}>Done</button></header>
     <div className="field-portrait-content">{children}</div>
-  </section>;
+  </section></>;
 }

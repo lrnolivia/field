@@ -63,8 +63,10 @@ export function DesktopQuickTools() {
       if (!detail || !Number.isFinite(detail.x) || !Number.isFinite(detail.y)) return;
       setPoint({ x: Math.max(12, Math.min(innerWidth - 292, detail.x)), y: Math.max(12, Math.min(innerHeight - 470, detail.y)) });
     };
+    const resize = () => setPoint(current => current ? { x: Math.max(12, Math.min(innerWidth - 292, current.x)), y: Math.max(12, Math.min(innerHeight - 200, current.y)) } : null);
     window.addEventListener(QUICK_TOOLS_EVENT, open);
-    return () => window.removeEventListener(QUICK_TOOLS_EVENT, open);
+    window.addEventListener('resize', resize);
+    return () => { window.removeEventListener(QUICK_TOOLS_EVENT, open); window.removeEventListener('resize', resize); };
   }, [presentation]);
   useEffect(() => {
     if (!point) return;
@@ -75,7 +77,7 @@ export function DesktopQuickTools() {
     return () => { document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', key); };
   }, [point]);
   return <AnimatePresence>{point && <motion.div ref={ref} role="dialog" aria-label="Quick tools" data-field-no-canvas-input data-desktop-quick-tools
-    className="field-desktop-quick-tools" style={{ left: point.x, top: point.y }}
+    className="field-desktop-quick-tools" style={{ left: point.x, top: point.y, maxHeight: `calc(100dvh - ${point.y + 12}px)` }}
     initial={reduced ? false : { opacity: 0, scale: .94, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }}
     transition={fieldSpatialTransition(reduced, fieldMotion.disclosure)}>
     <header><strong>Tools</strong><button type="button" aria-label="Close quick tools" onClick={() => setPoint(null)}>×</button></header>

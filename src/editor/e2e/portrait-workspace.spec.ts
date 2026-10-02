@@ -137,7 +137,12 @@ test('desktop middle tap opens quick tools while middle drag preserves panning',
   await page.mouse.click(x, y, { button:'middle' });
   await expect(page.locator('[data-desktop-quick-tools]')).toBeVisible();
   await settleSurface(page);
+  const palette = page.locator('[data-desktop-quick-tools]');
+  const paletteBox = await palette.boundingBox();
+  expect(paletteBox!.y + paletteBox!.height).toBeLessThanOrEqual(900 - 11);
   await page.screenshot({ path: testInfo.outputPath('desktop-quick-tools.png') });
+  await palette.getByRole('button', { name:'Search commands', exact:true }).scrollIntoViewIfNeeded();
+  await expect(palette.getByRole('button', { name:'Search commands', exact:true })).toBeInViewport();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-desktop-quick-tools]')).toHaveCount(0);
   const code = await editor.getPageCode();
@@ -184,6 +189,13 @@ test('portrait Media selection is reversible until explicit placement', async ({
   await media.getByRole('button', { name:'Choose another', exact:true }).tap();
   expect(await editor.getPageCode()).toBe(before);
   await media.getByRole('button', { name:/Paste from clipboard$/ }).tap();
+  await expect.poll(() => media.locator('img[alt="Selected media preview"]').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect(media.locator('[data-preview-state="ready"]')).toBeVisible();
+  await media.getByRole('button', { name:'Place image', exact:true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(media.getByRole('button', { name:'Done', exact:true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(media.getByRole('button', { name:'Place image', exact:true })).toBeFocused();
   await page.screenshot({ path:testInfo.outputPath('portrait-media-confirm-390.png') });
   await media.getByRole('button', { name:'Place image', exact:true }).tap();
   await expect(media).toHaveCount(0);

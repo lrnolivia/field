@@ -78,6 +78,10 @@
 
 .field-media-placement :is(img,video) { width:100%; max-height:40dvh; object-fit:contain; border-radius:12px; background:var(--bg-surface); }
 .field-media-placement audio { width:100%; }
+.field-media-preview { position:relative; aspect-ratio:3/2; max-height:40dvh; display:grid; place-items:center; border-radius:12px; overflow:hidden; background:var(--bg-surface); }
+.field-media-preview img { width:100%; height:100%; min-height:0; }
+.field-media-preview[data-preview-state=error] img { visibility:hidden; }
+.field-media-preview p { position:absolute; inset:auto 12px; text-align:center; margin:0; padding:10px; background:var(--bg-panel); border-radius:10px; }
 [data-portrait-media] { z-index:11000; }
 [data-portrait-media] button { min-height:44px; }
 [data-portrait-media] input:not([type=file]) { font-size:16px; min-height:44px; }
