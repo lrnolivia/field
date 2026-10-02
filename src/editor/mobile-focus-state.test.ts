@@ -28,3 +28,19 @@ describe('phone Focus preserves desktop state', () => {
     expect(store.get(workspaceModeAtom)).toBe('compact-docked');
   });
 });
+
+it('mobile Inspector opening and closing preserves desktop auto-hide', async () => {
+  const { rightInspectorAutoHideAtom } = await import('@/code/stores/workspace-panels-store');
+  const store = createStore();
+  store.set(mobileFocusActiveAtom, false);
+  store.set(workspaceModePreferenceAtom, 'docked');
+  store.set(rightInspectorAutoHideAtom, true);
+  store.set(mobileFocusActiveAtom, true);
+  store.set(rightPaneOpenAtom, true);
+  expect(store.get(rightInspectorAutoHideAtom)).toBe(true);
+  store.set(rightPaneOpenAtom, false);
+  expect(store.get(rightInspectorAutoHideAtom)).toBe(true);
+  store.set(mobileFocusActiveAtom, false);
+  expect(store.get(workspaceModeAtom)).toBe('docked');
+  expect(store.get(rightInspectorAutoHideAtom)).toBe(true);
+});
