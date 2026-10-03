@@ -12,6 +12,7 @@ import {
 } from '@/design-system/FolderTree';
 import SidebarRow from '@/design-system/SidebarRow';
 import AddButton from '@/design-system/AddButton';
+import SectionLabel from '@/design-system/SectionLabel';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import { projectVersionAtom } from '@/code/project/project-fs';
 import {
@@ -41,17 +42,7 @@ export function CategoryHeader({ label, onToggle, right }: {
   onToggle: () => void;
   right?: React.ReactNode;
 }) {
-  return (
-    <div className="group flex items-center justify-between px-3 pt-3 pb-1.5 select-none">
-      <span
-        onClick={onToggle}
-        className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
-      >
-        {label}
-      </span>
-      {right}
-    </div>
-  );
+  return <SectionLabel size="md" onClick={onToggle} right={right}>{label}</SectionLabel>;
 }
 
 interface CategorySectionProps {
@@ -345,7 +336,7 @@ export function CategorySection({
   }, [renamingFolderId, pendingNewFolderId, handleFolderDelete, handleFolderRenameCommit]);
 
   return (
-    <div className="mb-1">
+    <div data-library-section className="mb-1">
       <CategoryHeader
         label={config.label}
         onToggle={onToggleCollapse}
@@ -462,7 +453,7 @@ export function DisplayCategorySection({ label, emptyLabel, collapsed, onToggleC
   onToggleCollapse: () => void;
 }) {
   return (
-    <div className="mb-1">
+    <div data-library-section className="mb-1">
       <CategoryHeader label={label} onToggle={onToggleCollapse} />
       {!collapsed && (
         <div className="px-2">

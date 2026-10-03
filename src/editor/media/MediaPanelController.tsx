@@ -462,6 +462,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     <>
       <input
         ref={uploadInputRef}
+        data-media-upload-input
         type="file"
         accept={acceptedMimeTypes('all')}
         className="sr-only"

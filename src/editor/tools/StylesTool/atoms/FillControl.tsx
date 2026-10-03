@@ -1,7 +1,7 @@
 // FillControl.tsx — Self-contained fill ToolAtom (solid/gradient/pattern/image/video/shader).
 // Supports Single mode (current behavior) and Multiple mode (stacked background layers).
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLivePreview } from '../../../hooks/useLivePreview';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
@@ -931,7 +931,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   const [surface, setSurface] = useState<PaintPickerSurface>('custom');
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
-  const colorPresets = allTokens.filter(t => t.category === 'color');
+  const colorPresets = useMemo(() => allTokens.filter(t => t.category === 'color'), [allTokens]);
   const gradientPresets = allTokens.filter(t => t.category === 'gradient');
   // Same document-order extraction that powers Selection colors. Using page
   // roots turns that existing deterministic utility into Figma-style "On this page".
@@ -958,6 +958,9 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   // merely being edited inside its current type.
   const typeSig = solidOnly ? 'color' : fillTypeSignature(styles, node);
   useEffect(() => {
+    // An image/video/shader type has an empty state while its source is being
+    // chosen. Keep that editor open rather than detecting the empty paint as Solid.
+    if (!solidOnly && !styles.backgroundColor && !styles.backgroundImage && !styles.background && !hasSemanticSingleFill(node)) return;
     setTab(solidOnly ? 'color' : detectFillTab(styles, node));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId, solidOnly, typeSig]);
@@ -984,10 +987,22 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
       }
       if (tab === 'shader' && nodeId) {
-        const shaderLayerId = node?.children?.find((id) => getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true');
-        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } }));
-        if (shaderLayerId) queueMutation({ type: 'removeNode', nodeId: shaderLayerId });
+        forSelectionTargets(nodeId, (tid) => {
+          queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } });
+          for (const id of getNodeFromCache(tid)?.children ?? []) {
+            if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
+          }
+        });
       }
+    }
+
+    if (newTab === 'gradient' && newTab !== tab) {
+      onUpdate('background', '');
+      onUpdate('backgroundImage', formatGradient(createDefaultGradient()));
+    }
+
+    if (newTab === 'color' && newTab !== tab) {
+      onUpdate('backgroundColor', '#FFFFFF');
     }
 
     if (newTab === 'shader' && !node?.attrs?.['data-field-shader-fill']) {
@@ -1135,7 +1150,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
                 pushPanel('New Gradient Preset', (
                   <CreatePresetPopupBody
                     category="gradient"
-                    initialValue={resolvedGradient || createDefaultGradient()}
+                    initialValue={resolvedGradient || formatGradient(createDefaultGradient())}
                     onClose={() => popPanel()}
                     onApply={applyGradient}
                   />
@@ -1148,7 +1163,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         return (
           <GradientEditor
             value={resolvedGradient}
-            canonicalFill
+            canonical
             onChange={applyGradient}
             onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
           />
@@ -1996,11 +2011,11 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   // Legacy transparent literals remain empty; an authored color-mix at 0%
   // stays a real paint so the inline opacity can be brought back up.
   const hasSolidColor = !!rawBackgroundColor && (rawBackgroundColor.includes('color-mix(') || !isTransparentColor(rawBackgroundColor));
-  const hasAnyFill = livePreviewColor != null || isMulti || isPresetRef || hasGradient || hasImage || hasVideo || hasSolidColor;
+  const hasAnyFill = livePreviewColor != null || isMulti || isPresetRef || hasGradient || hasImage || hasVideo || hasSolidColor || hasSemanticSingleFill(node);
 
   // Empty Fill is represented by the section header + button, not a second
   // nested "Fill → Add" row.
-  if (compactSection && !hasAnyFill) return null;
+  if (compactSection && !hasAnyFill && !fillPopupOpen) return null;
 
   // Click-handler for the × on the Fill row — wipes EVERY background-related
   // value (color, gradient, image, multi-layer extras, AND the bg-video
@@ -2016,6 +2031,15 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
     if (node?.id && node.bgVideo) {
       forSelectionTargets(node.id, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
     }
+    if (node?.id) forSelectionTargets(node.id, (tid) => {
+      const target = getNodeFromCache(tid);
+      if (target?.attrs?.['data-field-pattern'] || target?.attrs?.['data-field-shader-fill']) {
+        queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '', 'data-field-shader-fill': '' } });
+      }
+      for (const id of target?.children ?? []) {
+        if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
+      }
+    });
     trace.action('fill:clear-all', { nodeId: node?.id, onNonDefaultVariant });
   };
 
@@ -2074,6 +2098,9 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
     // Raw bg-video URL with no matching preset.
     swatchStyle = { background: '#000' };
     labelText = 'Video';
+  } else if (node?.attrs?.['data-field-shader-fill']) {
+    labelText = 'Shader';
+    swatchStyle = { background: 'var(--accent-surface)' };
   } else if (hasSolidColor) {
     swatchStyle = { backgroundColor: rawBackgroundColor };
     labelText = toHexDisplay(bgColor).replace(/^#/, '');

@@ -61,8 +61,6 @@ export default function LeftPanel() {
         top: workspaceBodyTop(workspace.left),
         width: workspace.left.width - (leftOpen && !railVisible ? 0 : LEFT_RAIL_WIDTH),
         height: workspaceBodyHeightCss(workspace.left),
-        paddingLeft: 6,
-        paddingRight: 6,
         boxSizing: 'border-box',
         willChange: 'transform',
         isolation: 'isolate',

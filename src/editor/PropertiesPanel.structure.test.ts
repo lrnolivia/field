@@ -14,6 +14,7 @@ describe('PropertiesPanel semantic structure', () => {
       'data-inspector-group="content"',
       'data-inspector-group="appearance"',
       'data-inspector-group="advanced"',
+      'data-inspector-group="behavior"',
       'data-inspector-group="export"',
     ];
 
@@ -26,28 +27,16 @@ describe('PropertiesPanel semantic structure', () => {
     }
   });
 
-  it('separates prototype behavior from the Design property stack', () => {
-    expect(source).toContain("inspectorMode === 'design'");
-    expect(source).toContain('data-inspector-group="prototype"');
-
-    // These were the old mixed Design-stack groupings.
-    expect(source).not.toContain('data-inspector-group="effects"');
-    expect(source).not.toContain('data-inspector-group="behavior"');
-  });
-
-  it('keeps interaction tools inside the Prototype branch', () => {
-    const prototypeStart = source.indexOf(
-      'data-inspector-group="prototype"',
-    );
-
-    expect(prototypeStart).toBeGreaterThan(-1);
-
-    const prototypeSource = source.slice(prototypeStart);
-
-    expect(prototypeSource).toContain('<InteractionsTool />');
-    expect(prototypeSource).toContain('<LinkTool />');
-    expect(prototypeSource).toContain('<OverlayTool />');
-    expect(prototypeSource).toContain('<AnimationTool');
+  it('keeps working behavior controls in the unified Inspector', () => {
+    expect(source).not.toContain("inspectorMode === 'design'");
+    expect(source).not.toContain('data-inspector-group="prototype"');
+    const behaviorStart = source.indexOf('data-inspector-group="behavior"');
+    expect(behaviorStart).toBeGreaterThan(-1);
+    const behavior = source.slice(behaviorStart);
+    expect(behavior).toContain('<InteractionsTool />');
+    expect(behavior).toContain('<LinkTool />');
+    expect(behavior).toContain('<OverlayTool />');
+    expect(behavior).toContain('<AnimationTool');
   });
 
   it('does not regress to the inherited builder ordering contract', () => {

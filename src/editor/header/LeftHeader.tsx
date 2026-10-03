@@ -14,6 +14,8 @@
 import { useRef, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { FieldGlyph } from '@/editor/glyph';
+import { FigmaCodeIcon, FigmaCursorIcon, FigmaFrameIcon, FigmaHandIcon, FigmaCommentIcon, FigmaTextIcon, FigmaRowsIcon, FigmaColumnsIcon, FigmaGridIcon, FigmaSquareIcon, FigmaCircleIcon, FigmaTriangleIcon, FigmaPathIcon, FigmaPencilIcon, FigmaPlayIcon, FigmaSunIcon, FigmaSearchIcon, FigmaPlusIcon, FigmaReloadIcon, FigmaCloseIcon, FigmaLibraryIcon } from '@/shared/loew-figma-icons';
+import { PageHomeIcon, PageDocumentIcon, SettingsWebsiteIcon, SettingsPlansIcon, ChainLinkIcon, LightningBoltIcon } from '@/shared/icons';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { previewModeAtom } from '@/code/stores/editor-store';
 import { leftPaneOpenAtom, leftContentWidthAtom, LEFT_RAIL_WIDTH } from '@/code/stores/workspace-panels-store';
@@ -26,13 +28,13 @@ import {
   showRulersAtom,
   useSmoothZoomAtom,
   showPixelGridAtom,
-  builderThemeAtom,
 } from '@/code/stores/user-preferences-store';
 import { trace } from '@/shared/debug-trace';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
-import { buildTabs, buildPreferencesSubmenu, buildThemeSubmenu } from './menu-builders';
+import { buildTabs, buildPreferencesSubmenu } from './menu-builders';
 import ProjectChip from './ProjectChip';
+import AppearancePopover from '@/editor/AppearancePopover';
 import KeyboardShortcutsModal from '@/editor/ui/KeyboardShortcutsModal';
 import AboutFieldModal from '@/editor/ui/AboutFieldModal';
 import ProjectSettingsModal from '@/editor/overlays/ProjectSettingsModal';
@@ -43,6 +45,48 @@ import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { leaveBuilderTo } from '@/backend/leave-builder';
 import { showFieldDashboard } from '@/backend/field-navigation';
+
+// Use Field's existing glyph family for every built-in command. Nested menus
+// keep their actions, shortcut text and state; only their icon presentation changes.
+function commandGlyph(id: string) {
+  const Icon = id.includes('zoom') || id === 'view-fit' ? FigmaSearchIcon
+    : id.includes('duplicate') || id.includes('copy') ? PageDocumentIcon
+    : id.includes('delete') ? FigmaCloseIcon
+    : id.includes('undo') || id.includes('redo') ? FigmaReloadIcon
+    : id.includes('code') ? FigmaCodeIcon
+    : id.includes('theme') ? FigmaSunIcon
+    : id.includes('settings') || id.includes('preferences') ? SettingsWebsiteIcon
+    : id.includes('upgrade') ? SettingsPlansIcon
+    : id.includes('dashboard') ? PageHomeIcon
+    : id.includes('remix') ? ChainLinkIcon
+    : id.includes('quick') ? LightningBoltIcon
+    : id.includes('preview') ? FigmaPlayIcon
+    : id.includes('frame') ? FigmaFrameIcon
+    : id.includes('text') ? FigmaTextIcon
+    : id.includes('rows') ? FigmaRowsIcon
+    : id.includes('columns') ? FigmaColumnsIcon
+    : id.includes('grid') ? FigmaGridIcon
+    : id.includes('rect') ? FigmaSquareIcon
+    : id.includes('ellipse') ? FigmaCircleIcon
+    : id.includes('triangle') ? FigmaTriangleIcon
+    : id.includes('path') || id.includes('line') ? FigmaPathIcon
+    : id.includes('sketch') ? FigmaPencilIcon
+    : id.includes('hand') ? FigmaHandIcon
+    : id.includes('comment') ? FigmaCommentIcon
+    : id.includes('select') || id === 'logo-edit' ? FigmaCursorIcon
+    : id.includes('insert') || id.includes('new') ? FigmaPlusIcon
+    : id.includes('plugin') ? FigmaLibraryIcon
+    : PageDocumentIcon;
+  return <Icon size={14} />;
+}
+
+function withCommandGlyphs(entries: DropdownMenuEntry[]): DropdownMenuEntry[] {
+  return entries.map(entry => 'type' in entry ? entry : {
+    ...entry,
+    icon: entry.icon ?? commandGlyph(entry.id),
+    submenuItems: entry.submenuItems ? withCommandGlyphs(entry.submenuItems) : undefined,
+  });
+}
 
 // ─── Back chevron — same glyph the settings overlay uses for its
 // "Back to canvas" affordance. Inline so we don't pull a third-
@@ -102,7 +146,6 @@ export function LogoButton() {
   const [showPixelGrid, setShowPixelGrid] = useAtom(showPixelGridAtom);
   // Builder chrome accent — the top-level "Theme" entry below. In the deps so
   // the submenu's checkmark re-renders on selection.
-  const [builderTheme, setBuilderTheme] = useAtom(builderThemeAtom);
 
   const items: DropdownMenuEntry[] = useMemo(() => {
     const preferencesSubmenu = buildPreferencesSubmenu(
@@ -205,8 +248,8 @@ export function LogoButton() {
       {
         id: 'logo-theme',
         label: 'appearance',
-        submenuItems: buildThemeSubmenu(builderTheme, setBuilderTheme),
         onClick: () => {},
+        submenuContent: <AppearancePopover embedded anchorRef={ref} onClose={() => setOpen(false)} />,
       },
       { type: 'separator' as const },
       {
@@ -223,7 +266,6 @@ export function LogoButton() {
     isViewer, hasActiveSubscription, setSettingsOpen, setSettingsSection,
     autoPanSpeed, autoFocusLayers, showRulers, useSmoothZoom, showPixelGrid,
     setAutoPanSpeed, setAutoFocusLayers, setShowRulers, setUseSmoothZoom, setShowPixelGrid,
-    builderTheme, setBuilderTheme,
   ]);
 
   return (
@@ -245,7 +287,7 @@ export function LogoButton() {
       <DropdownMenu
         isOpen={open}
         onClose={() => setOpen(false)}
-        items={items}
+        items={withCommandGlyphs(items)}
         anchorRef={ref}
         position="bottom-left"
         minWidth={200}
@@ -278,7 +320,7 @@ export default function LeftHeader() {
       data-workspace-left-header
       data-visible="true"
       data-title-presentation={titlePresentation}
-      className="h-[52px] border border-[var(--border-light)] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex transition-[left,top,width,height,border-radius,box-shadow] duration-300 ease-out"
+      className="h-[52px] bg-[var(--bg-panel)] fixed top-0 left-0 z-[9999] flex transition-[left,top,width,height,border-radius,box-shadow] duration-300 ease-out"
       // One persistent title surface owns project/page identity in every
       // workspace preset. Layout changes only morph this shell's geometry;
       // they never swap to a second ProjectChip/WorkspaceModeButton tree.
@@ -289,8 +331,6 @@ export default function LeftHeader() {
         height: embeddedTitle ? 52 : 44,
         borderRadius: embeddedTitle ? 0 : 8,
         boxShadow: embeddedTitle ? 'none' : 'var(--shadow-lg)',
-        borderTopWidth: embeddedTitle ? 0 : 1,
-        borderLeftWidth: embeddedTitle ? 0 : 1,
       }}
     >
       {/* Logo column — 51 px wide so the rule at its right edge lands
@@ -316,7 +356,7 @@ export default function LeftHeader() {
           alignSelf: 'stretch',
         }}
       >
-        <div style={{ width: 1, height: '100%', backgroundColor: 'var(--border-light)' }} />
+        <div style={{ width: 1, height: '100%', backgroundColor: 'transparent' }} />
       </div>}
 
       {/* In preview mode we swap the project chip for a single "Back"

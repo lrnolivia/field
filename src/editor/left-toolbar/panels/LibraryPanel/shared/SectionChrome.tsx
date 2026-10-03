@@ -57,8 +57,8 @@ export function LibraryEmptyState({ icon, message }: {
 }) {
   return (
     <div className="flex flex-col items-center gap-1.5 px-4 py-4 text-center">
-      {icon}
-      <p className="text-[10px] text-[var(--text-disabled)] max-w-[180px] leading-relaxed">
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] bg-[var(--control-bg)] text-[var(--text-secondary)] [&_svg]:!text-[var(--text-secondary)]">{icon}</span>
+      <p className="text-[11px] text-[var(--text-secondary)] max-w-[180px] leading-relaxed">
         {message}
       </p>
     </div>

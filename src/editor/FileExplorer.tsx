@@ -1261,6 +1261,7 @@ export default function Page() {
                     return {
                       id: `cms-collection-${slug}`,
                       label: schema.name ?? slug,
+                      preserveCase: true,
                       onClick: () => {},
                       // Disable the whole collection branch when both
                       // pages already exist — there's literally nothing

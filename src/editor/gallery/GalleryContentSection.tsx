@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 import { ToolButton, ToolSection } from '@/editor/controls';
 
 export interface GalleryContentItem {
@@ -39,6 +40,7 @@ export default function GalleryContentSection({
   onRemoveItem,
   onReorder,
 }: GalleryContentSectionProps) {
+  const uiCase = useUiChromeCase();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const selectedIndex = items.findIndex((item) => item.itemId === selectedItemId);
   const selectedItem = selectedIndex >= 0 ? items[selectedIndex] : null;
@@ -63,12 +65,12 @@ export default function GalleryContentSection({
     >
       <div className="flex items-center justify-between gap-2">
         <ToolButton onClick={onAddMedia}>Add media</ToolButton>
-        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+        <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-secondary)]">{items.length} {uiCase(items.length === 1 ? 'item' : 'items')}</span>
       </div>
 
       {items.length === 0 ? (
-        <div className="min-h-16 border border-dashed border-[var(--control-border)] flex items-center justify-center text-center px-3 text-[11px] leading-snug text-[var(--text-secondary)]">
-          Add images from project media or upload new media.
+        <div className="min-h-16 rounded-[5px] border border-dashed border-[var(--control-border)] flex items-center justify-center text-center px-3 text-[11px] leading-snug text-[var(--text-secondary)]">
+          {uiCase('Add images from project media or upload new media.')}
         </div>
       ) : (
         <div className="flex flex-col gap-1" data-gallery-item-list role="list" aria-label="Gallery media">
@@ -98,13 +100,13 @@ export default function GalleryContentSection({
                     onSelectItem(item.itemId);
                   }
                 }}
-                className={`group min-h-9 flex items-center gap-2 px-1.5 border cursor-default focus:outline-none focus:border-[var(--border-focus)] ${active ? 'border-[var(--border-focus)] bg-[var(--choice-bg)]' : 'border-transparent hover:bg-[var(--bg-hover)]'}`}
+                className={`group min-h-12 flex items-center gap-2 rounded-[5px] p-1.5 border cursor-default focus:outline-none focus:border-[var(--border-focus)] ${active ? 'border-[var(--border-focus)] bg-[var(--choice-bg)]' : 'border-transparent bg-[var(--control-bg)]/40 hover:bg-[var(--bg-hover)]'}`}
               >
                 <span className="w-3 text-[9px] tabular-nums text-[var(--text-disabled)] text-right">{index + 1}</span>
-                <div className="w-7 h-7 shrink-0 overflow-hidden bg-[var(--grid-line)] border border-[var(--control-border)]">
+                <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[4px] bg-[var(--grid-line)]">
                   {item.src && <img src={item.src} alt="" className="w-full h-full object-cover" draggable={false} />}
                 </div>
-                <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">{item.alt || 'Image'}</span>
+                <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">{item.alt || uiCase('Image')}</span>
                 <span className="w-4 h-6 flex items-center justify-center text-[var(--text-disabled)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true">
                   <svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 1v10M2.5 3.5 5 1l2.5 2.5M2.5 8.5 5 11l2.5-2.5" />
@@ -134,7 +136,7 @@ export default function GalleryContentSection({
           </div>
           <div className="flex items-center gap-1">
             <span className="min-w-0 flex-1 text-[10px] tabular-nums text-[var(--text-disabled)]">
-              Item {selectedIndex + 1} of {items.length}
+              {uiCase('Item')} {selectedIndex + 1} {uiCase('of')} {items.length}
             </span>
             <button
               type="button"
@@ -142,7 +144,7 @@ export default function GalleryContentSection({
               title="Move up"
               disabled={selectedIndex === 0}
               onClick={() => onMoveItem(selectedItem.itemId, -1)}
-              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
+              className="w-6 h-6 flex items-center justify-center rounded-[4px] bg-[var(--control-bg)] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m2.5 6.5 2.5-3 2.5 3" />
@@ -154,7 +156,7 @@ export default function GalleryContentSection({
               title="Move down"
               disabled={selectedIndex === items.length - 1}
               onClick={() => onMoveItem(selectedItem.itemId, 1)}
-              className="w-6 h-6 flex items-center justify-center border border-[var(--control-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
+              className="w-6 h-6 flex items-center justify-center rounded-[4px] bg-[var(--control-bg)] border border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-30 disabled:pointer-events-none"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m2.5 3.5 2.5 3 2.5-3" />
@@ -167,7 +169,7 @@ export default function GalleryContentSection({
               onClick={() => onRemoveItem(selectedItem.itemId)}
               className="h-6 px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              Remove
+              {uiCase('Remove')}
             </button>
           </div>
         </div>

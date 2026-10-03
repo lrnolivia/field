@@ -19,7 +19,7 @@ describe('toolbar Media launcher contract', () => {
   it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
     const popover = read('src/editor/media/MediaToolbarPopover.tsx');
     expect(popover).toContain('data-toolbar-tool="media"');
-    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? 224 : 560');
+    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? TOOLBAR_MENU_WIDTH : 560');
     expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
     expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
     expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
@@ -57,7 +57,7 @@ describe('toolbar Media launcher contract', () => {
     expect(rightHeader).toContain('data-workspace-right-header');
     expect(rightHeader).toContain('<InspectorCollaborators');
     expect(rightHeader).toContain('data-tutorial="header-publish-button"');
-    expect(rightHeader).toContain('border-b border-[var(--border-light)] bg-[var(--bg-panel)]');
+    expect(rightHeader).toContain('var(--field-chrome-shell-header-bg)');
     expect(css).not.toContain('[data-workspace-right-header]');
   });
 

@@ -111,12 +111,12 @@ export default function LocalePanel() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-field-side-panel className="flex flex-col h-full min-h-0">
       {/* Top-of-panel search — matches Library / CMS chrome (SearchBar +
           thin divider) for consistent header pattern across left-toolbar
           panels. Spacing math is identical: pt-3 / pb-1.5 / mt-1.5 / mb-0
           so the divider docks directly against the SectionLabel below. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div className="px-2 pt-2 pb-1 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={(v) => {
@@ -126,7 +126,7 @@ export default function LocalePanel() {
           placeholder="Search languages…"
         />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-field-task-panel className="flex min-h-0 flex-col">
 
       <SectionLabel size="md" right={
         <AddButton onClick={() => { setShowAddModal(true); trace.action('locale-panel:open-add-modal'); }} title="Add language" />
@@ -200,6 +200,7 @@ export default function LocalePanel() {
         )}
       </div>
 
+      </div>
       {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={deleteTarget !== null}

@@ -71,14 +71,14 @@ export default function BranchesPanel() {
   const shown = q ? branches.filter((b) => b.id.toLowerCase().includes(q)) : branches;
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-field-side-panel className="flex h-full flex-col min-h-0">
       {/* The left-toolbar panel chrome the Localization / CMS panels use —
           search, divider, section label with "+", rows inset by px-2 — so a
           branch row sits exactly where a locale row sits. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div className="px-2 pt-2 pb-1 shrink-0">
         <SearchBar value={search} onChange={setSearch} placeholder="Search branches…" />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-field-task-panel className="flex min-h-0 flex-col">
 
       <SectionLabel size="md" right={<AddButton title="New branch" onClick={() => { setError(null); setCreating(true); }} />}>
         Branches
@@ -107,6 +107,7 @@ export default function BranchesPanel() {
         </div>
       </div>
 
+      </div>
       {/* The same "New Branch" dialog the agent chat's switcher opens — the
           Name Component modal shape, not a bespoke inline field. */}
       <BranchCreateModal

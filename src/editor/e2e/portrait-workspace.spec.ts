@@ -89,7 +89,7 @@ test('a short object tap opens focused properties; real drag and second finger d
 });
 
 test('Gallery portrait tasks keep source-backed ordering, removal and undo', async ({ page }, testInfo) => {
-  const image = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" fill="#3bcb8d"/></svg>').toString('base64');
+  const image = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" fill="#26798b"/><circle cx="95" cy="75" r="42" fill="#e7dbca"/><path d="M0 200L90 122L151 164L240 99L300 200" fill="#202632"/></svg>').toString('base64');
   const source = `/** @canvas { "viewports": [{"id":"desktop","width":1440}] } */
 'use client';
 export default function Page() { return <div data-id="root" data-name="Page" style={{ width:'1440px', minHeight:'900px', padding:'80px' }}>
@@ -115,6 +115,7 @@ export default function Page() { return <div data-id="root" data-name="Page" sty
   await expect.poll(async () => { const code = await editor.getPageCode(); return code.indexOf('data-id="gallery-item-2"') < code.indexOf('data-id="gallery-item-1"'); }).toBe(true);
   await settleSurface(page);
   await page.screenshot({ path: testInfo.outputPath('portrait-gallery-order-390.png') });
+  await page.screenshot({ path: '/tmp/field-portrait-gallery-review.png' });
   await inspector.getByRole('button', { name: 'Layout', exact: true }).tap();
   await expect(inspector.locator('[data-gallery-item-list]')).toHaveCount(0);
   await expect(inspector.locator('[data-portrait-inspector-task="geometry"]')).toBeVisible();
@@ -183,12 +184,12 @@ test('portrait Media selection is reversible until explicit placement', async ({
   await page.getByRole('button', { name:'Media Choose images, video and audio', exact:false }).tap();
   const media = page.locator('[data-portrait-media]');
   await expect(media).toBeVisible();
-  await media.getByRole('button', { name:/Paste from clipboard$/ }).tap();
+  await media.getByRole('button', { name:/paste from clipboard$/i }).tap();
   await expect(media.locator('[data-portrait-media-placement]')).toBeVisible();
   expect(await editor.getPageCode()).toBe(before);
   await media.getByRole('button', { name:'Choose another', exact:true }).tap();
   expect(await editor.getPageCode()).toBe(before);
-  await media.getByRole('button', { name:/Paste from clipboard$/ }).tap();
+  await media.getByRole('button', { name:/paste from clipboard$/i }).tap();
   await expect.poll(() => media.locator('img[alt="Selected media preview"]').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await expect(media.locator('[data-preview-state="ready"]')).toBeVisible();
   await media.getByRole('button', { name:'Place image', exact:true }).focus();

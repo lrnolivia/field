@@ -8,7 +8,7 @@ describe('Media browser visual contract', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
     expect(media).toContain('data-media-browser-commandbar');
     expect(media).toContain("data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}");
-    expect(media).toContain("layout={chrome === 'full' ? 'grid' : 'inline'}");
+    expect(media).toContain("layout={chrome === 'full' ? 'all-first' : 'inline'}");
     expect(media).toContain('className="min-w-0 w-full flex-1"');
     expect(media).toContain("'w-full justify-center'");
     expect(media).toContain("'justify-start pt-12'");

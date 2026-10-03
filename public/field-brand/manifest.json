@@ -1,0 +1,102 @@
+{
+  "sourceFile": "https://www.figma.com/design/AbaQ4B6N7XxYcMo4PCAUea/field---branding",
+  "exportedAt": "2026-10-03",
+  "sourceNodes": [
+    {
+      "id": "1:2",
+      "name": "logo-main-graphite",
+      "path": "source/logo-main-graphite.svg"
+    },
+    {
+      "id": "2:5",
+      "name": "favicon-main-graphite",
+      "path": "source/favicon-main-graphite.svg"
+    },
+    {
+      "id": "2:31",
+      "name": "logo-light-graphite",
+      "path": "source/logo-light-graphite.svg"
+    },
+    {
+      "id": "2:33",
+      "name": "favicon-light-graphite",
+      "path": "source/favicon-light-graphite.svg"
+    },
+    {
+      "id": "7:3",
+      "name": "logo-main-teal",
+      "path": "source/logo-main-teal.svg"
+    },
+    {
+      "id": "7:5",
+      "name": "favicon-main-teal",
+      "path": "source/favicon-main-teal.svg"
+    },
+    {
+      "id": "7:7",
+      "name": "logo-light-teal",
+      "path": "source/logo-light-teal.svg"
+    },
+    {
+      "id": "7:9",
+      "name": "favicon-light-teal",
+      "path": "source/favicon-light-teal.svg"
+    },
+    {
+      "id": "7:20",
+      "name": "logo-main-sienna",
+      "path": "source/logo-main-sienna.svg"
+    },
+    {
+      "id": "7:22",
+      "name": "favicon-main-sienna",
+      "path": "source/favicon-main-sienna.svg"
+    },
+    {
+      "id": "7:24",
+      "name": "logo-light-sienna",
+      "path": "source/logo-light-sienna.svg"
+    },
+    {
+      "id": "7:26",
+      "name": "favicon-light-sienna",
+      "path": "source/favicon-light-sienna.svg"
+    },
+    {
+      "id": "7:54",
+      "name": "logo-main-amber",
+      "path": "source/logo-main-amber.svg"
+    },
+    {
+      "id": "7:56",
+      "name": "favicon-main-amber",
+      "path": "source/favicon-main-amber.svg"
+    },
+    {
+      "id": "7:58",
+      "name": "logo-light-amber",
+      "path": "source/logo-light-amber.svg"
+    },
+    {
+      "id": "7:60",
+      "name": "favicon-light-amber",
+      "path": "source/favicon-light-amber.svg"
+    }
+  ],
+  "derivedPalettes": {
+    "neutrachrome": {
+      "light": "#69635b",
+      "dark": "#c7beb0"
+    },
+    "green": {
+      "light": "#3bcb8d",
+      "dark": "#3bcb8d"
+    },
+    "pink": {
+      "light": "#ff6f78",
+      "dark": "#ff6f78"
+    }
+  },
+  "provenance": "Original exports are preserved under source/. Display variants preserve geometry with user-directed fill revisions. Additional palettes replace fills only in monochrome SVG masters; path geometry, viewBox, placement, radii remain exact. Transparent variants remove background rect only. Existing PNGs retained for legacy and apple-touch compatibility.",
+  "customizationNote": "Green and Terra Coral colored logo variants use the canonical light gray #F6F6F6 letter and wordmark by direct user instruction; original Figma geometry is preserved. Monochrome gray is #404040 by user instruction. Chrome accent surfaces are darkened independently for light control text; canonical colored vector fills remain unchanged."
+}

@@ -1,5 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAtomValue } from 'jotai';
+import { backend } from '@/backend';
+import { getProjectId } from '@/backend/project-id';
+import type { ProjectMediaAsset } from '@/backend/types';
+import { sessionMediaAssetsAtom } from './media-state';
 import MediaActionCard from './MediaActionCard';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 import {
   intentForLauncherAction,
   routeForLauncherAction,
@@ -74,6 +80,31 @@ const creationCards: LauncherActionCard[] = [
 ];
 
 export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLauncherProps) {
+  const uiCase = useUiChromeCase();
+  const projectId = getProjectId();
+  const sessionAssets = useAtomValue(sessionMediaAssetsAtom);
+  const [inventory, setInventory] = useState<{ projectId: string; assets: ProjectMediaAsset[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void backend.listAssets(projectId).then((assets) => {
+      if (!cancelled) setInventory({ projectId, assets: assets ?? [] });
+    }).catch(() => {
+      if (!cancelled) setInventory({ projectId, assets: [] });
+    });
+    return () => { cancelled = true; };
+  }, [projectId]);
+  const latestImages = useMemo(() => {
+    const rows = [
+      ...sessionAssets.filter(asset => asset.projectId === projectId).map(asset => ({ ...asset, lastModified: asset.createdAt })),
+      ...(inventory?.projectId === projectId ? inventory.assets : []),
+    ];
+    const seen = new Set<string>();
+    return rows.filter(asset => {
+      if ((asset.kind !== 'image' && asset.kind !== 'vector') || seen.has(asset.url)) return false;
+      seen.add(asset.url);
+      return true;
+    }).sort((a, b) => (Date.parse(b.lastModified ?? '') || 0) - (Date.parse(a.lastModified ?? '') || 0)).slice(0, 3);
+  }, [projectId, sessionAssets, inventory]);
   const activate = (action: MediaLauncherAction) => {
     if (action === 'upload') {
       onUpload();
@@ -83,40 +114,35 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
   };
 
   return (
-    <div data-media-launcher className="w-[224px] p-1.5">
-      <button
-        type="button"
-        onClick={() => activate('browse')}
-        data-media-launcher-featured
-        className="group relative w-full overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 p-2 text-left transition-colors hover:bg-[var(--bg-hover)]/45"
-      >
-        <div className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 rounded-full bg-[var(--accent)] opacity-[0.07] blur-xl" />
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-surface)]/65 text-[var(--text-secondary)]"><BrowseGlyph /></span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold text-[var(--text-primary)]">Browse media</div>
-            <div className="mt-0.5 text-[9px] leading-3.5 text-[var(--text-tertiary)]">Your project assets in one place</div>
-          </div>
-          <span aria-hidden className="text-[13px] text-[var(--text-disabled)] transition-transform group-hover:translate-x-0.5">›</span>
-        </div>
-        <div className="mt-1.5 grid grid-cols-3 gap-1">
-          <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-hover)]/55" />
-          <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-active)]/55" />
-          <span className="aspect-[4/3] rounded-[4px] border border-[var(--border-light)] bg-[var(--accent)] opacity-[0.12]" />
-        </div>
-      </button>
-
+    <div data-media-launcher className="w-full p-1.5">
       <button
         type="button"
         onClick={onUpload}
         className="mt-1.5 flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
       >
         <span className="flex h-5 w-5 items-center justify-center text-[var(--text-secondary)]"><UploadGlyph /></span>
-        <span className="min-w-0 flex-1 truncate">Upload from computer</span>
+        <span className="min-w-0 flex-1 truncate">{uiCase('Upload from computer')}</span>
       </button>
 
       <div className="my-2 border-t border-[var(--border-light)]" />
 
+      <button
+        type="button"
+        onClick={() => activate('embed')}
+        className="flex h-8 w-full items-center gap-2 rounded-[5px] px-2 text-left text-[10px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+      >
+        <span className="flex h-5 w-5 items-center justify-center text-[var(--text-secondary)]"><EmbedGlyph /></span>
+        <span className="min-w-0 flex-1">{uiCase('Embed')}</span>
+        <span aria-hidden className="text-[var(--text-tertiary)]">›</span>
+      </button>
+      <button
+        type="button"
+        onClick={onPaste}
+        className="flex h-8 w-full items-center gap-2 rounded-[5px] px-2 text-left text-[10px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+      >
+        <span className="flex h-5 w-5 items-center justify-center text-[9px] text-[var(--text-secondary)]">⌘V</span>
+        <span>{uiCase('Paste from clipboard')}</span>
+      </button>
       <div className="grid grid-cols-2 gap-1.5">
         {creationCards.map((card) => (
           <MediaActionCard
@@ -128,25 +154,29 @@ export default function MediaLauncher({ onNavigate, onUpload, onPaste }: MediaLa
           />
         ))}
       </div>
-
-      <div className="my-2 border-t border-[var(--border-light)]" />
-
       <button
         type="button"
-        onClick={() => activate('embed')}
-        className="flex h-8 w-full items-center gap-2 rounded-[5px] px-2 text-left text-[10px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+        onClick={() => activate('browse')}
+        data-media-launcher-featured
+        className="group relative mt-1.5 w-full overflow-hidden rounded-[9px] border-0 bg-[var(--accent)] p-2 text-left text-[var(--accent-text-fg)] transition-[filter] hover:brightness-110"
       >
-        <span className="flex h-5 w-5 items-center justify-center text-[var(--text-secondary)]"><EmbedGlyph /></span>
-        <span className="min-w-0 flex-1">Embed</span>
-        <span aria-hidden className="text-[var(--text-tertiary)]">›</span>
-      </button>
-      <button
-        type="button"
-        onClick={onPaste}
-        className="flex h-8 w-full items-center gap-2 rounded-[5px] px-2 text-left text-[10px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-      >
-        <span className="flex h-5 w-5 items-center justify-center text-[9px] text-[var(--text-secondary)]">⌘V</span>
-        <span>Paste from clipboard</span>
+        <div className="flex items-center gap-2.5">
+          <span data-media-launcher-featured-icon className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-white/15"><BrowseGlyph /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold">{uiCase('Browse media')}</div>
+            <div className="mt-0.5 text-[9px] leading-3.5">{uiCase('Your project assets in one place')}</div>
+          </div>
+          <span aria-hidden className="text-[13px] transition-transform group-hover:translate-x-0.5">›</span>
+        </div>
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
+          {[<ImageGlyph key="image" />, <VideoGlyph key="video" />, <AudioGlyph key="audio" />].map((glyph, index) => (
+            <span key={index} data-media-launcher-preview className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[4px] border border-white/15 bg-white/15">
+              {latestImages[index]
+                ? <img src={latestImages[index].url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                : <span className="opacity-25">{glyph}</span>}
+            </span>
+          ))}
+        </div>
       </button>
     </div>
   );

@@ -26,7 +26,7 @@ import {
   loadSettingsFromLayout,
 } from '@/code/stores/website-settings-store';
 import { pageFilePathToSlug, pageSlugToFilePath } from '@/code/project/page-slug-utils';
-import { queueMutation } from '@/code/mutation/mutation-queue';
+import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { getProjectId } from '@/backend/project-id';
 import { trace } from '@/shared/debug-trace';
 import {
@@ -1376,6 +1376,7 @@ export default function SettingsOverlay() {
 
   return createPortal(
     <div
+      data-settings-overlay
       className="fixed inset-0 z-[10000] flex flex-col"
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
@@ -1433,6 +1434,13 @@ export default function SettingsOverlay() {
         >
           Settings
         </div>
+        {['website', 'appearance', 'workspace', 'canvas'].includes(activeSection) && <div className="ml-auto pl-3 pr-3">
+          <Button variant="primary" size="sm" onClick={() => {
+            flushNow();
+            trace.action('settings:save-preferences', { section: activeSection });
+            onClose();
+          }}>Save</Button>
+        </div>}
       </div>
 
       {/* ─── Body: sidebar + content ─────────────────────────────────── */}

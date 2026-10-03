@@ -204,7 +204,7 @@ export default function InspectorObjectHeader({
       data-properties-context
       data-inspector-object-header
       data-inspector-object-kind={semanticKind}
-      className="relative shrink-0 border-b border-[var(--border-light)]"
+      className="relative shrink-0"
       title={sourceTitle || semanticTitle}
     >
       <div className="min-h-10 px-[var(--panel-inset)] flex items-center gap-1">

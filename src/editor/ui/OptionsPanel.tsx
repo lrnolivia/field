@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import ToolInput from '@/editor/controls/ToolInput';
 import ToolSlider from '@/editor/controls/ToolSlider';
 import ToolSegmentedControl from '@/editor/controls/ToolSegmentedControl';
@@ -68,6 +68,8 @@ export function EffectPreviewFrame({
   return (
     <section
       data-effect-live-preview
+      data-field-panel-section
+      style={{ '--field-panel-margin': '0' } as CSSProperties}
       className="overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55"
     >
       <div className="flex min-h-7 items-center justify-between gap-2 border-b border-[var(--border-light)] px-2.5 py-1.5">
@@ -100,6 +102,8 @@ export function EffectOptionSection({
   return (
     <section
       data-effect-option-section
+      data-field-panel-section
+      style={{ '--field-panel-margin': '0' } as CSSProperties}
       className="overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/10"
     >
       <div className="flex min-h-7 items-center justify-between gap-2 border-b border-[var(--border-light)] px-3 py-1.5">
@@ -154,6 +158,8 @@ export function OptionSection({
   return (
     <section
       data-option-section
+      data-field-panel-section
+      style={{ '--field-panel-margin': '0' } as CSSProperties}
       data-option-section-divided={divided || undefined}
       className="overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/10"
     >

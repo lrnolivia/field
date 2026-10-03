@@ -9,7 +9,7 @@ import { useAtomValue } from 'jotai';
 import { selectedNodeAtom, selectedIdsAtom } from '../code/stores/store';
 import { useNodesComputed } from '../code/stores/node-family';
 import { activeFilePathAtom, isComponentFilePath, isIconSetFilePath, isPageClientFile, isPageServerFile, isDesignComponentFile, isVariantFile, isTemplateFilePath } from '../code/project/active-file-store';
-import { activeEditorAtom, inspectorModeAtom } from '../code/stores/editor-store';
+import { activeEditorAtom } from '../code/stores/editor-store';
 import { isDefaultLocaleAtom } from '../code/stores/locale-store';
 import TranslationPanel from './tools/TranslationPanel';
 import { ToolDivider, InspectorModeTabs } from './controls';
@@ -64,7 +64,7 @@ import { toolModeAtom } from '@/code/stores/tool-store';
 // whole panel (~110ms with every tool atom, traced mid-drag on big pages).
 // The panel has NO props — parent re-renders never need to propagate; its
 // own atoms still re-render it when actual values change.
-export default React.memo(function PropertiesPanel({ mobileTask }: { mobileTask?: InspectorTask } = {}) {
+export default React.memo(function PropertiesPanel({ mobileTask, categorySource = false }: { mobileTask?: InspectorTask; categorySource?: boolean } = {}) {
   const selectedId = useAtomValue(selectedNodeAtom);
   const selectedIds = useAtomValue(selectedIdsAtom);
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
@@ -107,7 +107,7 @@ export default React.memo(function PropertiesPanel({ mobileTask }: { mobileTask?
 
   return (
     <ControlProvider>
-      <PropertiesPanelInner isMultiSelect={isMultiSelect} mobileTask={mobileTask} />
+      <PropertiesPanelInner isMultiSelect={isMultiSelect} mobileTask={mobileTask} categorySource={categorySource} />
       {/* Single, stable mount for the variable manage modal — see VariableModalHost for why it lives
           here rather than inside each ControlLabel. */}
       <VariableModalHost />
@@ -135,10 +135,9 @@ function findCollectionContext(node: CanvasNode, nodes: Map<string, CanvasNode>)
 // See canvas/ui/SlugPageBreadcrumb.tsx.
 
 // Inner component — has access to useControl()
-function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSelect?: boolean; mobileTask?: InspectorTask }) {
+function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySource = false }: { isMultiSelect?: boolean; mobileTask?: InspectorTask; categorySource?: boolean }) {
   const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
   const activeEditor = useAtomValue(activeEditorAtom);
-  const inspectorMode = useAtomValue(inspectorModeAtom);
   const toolMode = useAtomValue(toolModeAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const filePath = useAtomValue(activeFilePathAtom);
@@ -553,9 +552,9 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
           (the shell div stays, so layout holds) and re-arms when the
           selection changes. */}
       <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
-      <InspectorModeTabs />
+      {!categorySource && <InspectorModeTabs />}
 
-      <InspectorObjectHeader
+      {!categorySource && <InspectorObjectHeader
         title={isMultiSelect
           ? inspectorContextTitle
           : (isComponentInstance || isContainerSetInstance)
@@ -566,7 +565,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
         componentFile={!isMultiSelect && (isComponentInstance || isContainerSetInstance) ? cf : null}
         canGoToMainComponent={!isMultiSelect && !!cf && !isCodeComponentInstance && !cf.startsWith('http')}
         sourceTitle={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
-      />
+      />}
 
       {/* (The CMS detail-page "ITEM 1 / 4" item switcher moved OUT of the
           panel to the canvas-top SlugPageBreadcrumb — standard, with a
@@ -577,7 +576,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
         {/* Figma UI3 prioritizes instance-specific controls before generic
             geometry. Keep the component engine unchanged; only move its
             inspector surface to the top of the Design stack. */}
-        {inspectorMode === 'design' && (isComponentInstance || isCodeComponentInstance) && (
+        {(isComponentInstance || isCodeComponentInstance) && (
           <div data-inspector-instance-priority>
             <ComponentPropsTool />
           </div>
@@ -590,7 +589,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
             scrolls. */}
         <div className="mb-0.5" />
 
-      {inspectorMode === 'design' && toolMode === 'scale' && (
+      {toolMode === 'scale' && (
         <>
           <ScaleTool vpId={vpId} />
           <ToolDivider />
@@ -604,7 +603,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
           (no separate `layout::root` layer). Hidden for child-element
           selection or empty selection so it doesn't compete with the
           per-element tools. See `TemplatePicker.tsx` + `template-ops.ts`. */}
-      {inspectorMode === 'design' && (node.id === 'root' || node.id === 'layout::root')
+      {(node.id === 'root' || node.id === 'layout::root')
         && (isPageClientFile(filePath) || isPageServerFile(filePath) || isVariantFile(filePath)) && (
         <>
           {/* pt-1 so the Template title sits at the same vertical offset
@@ -626,7 +625,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
           previously left the Export Frame button kissing the viewport
           bottom which felt cramped. */}
       <div className="flex-1 pt-0 pb-3 flex flex-col">
-        {inspectorMode === 'design' ? <>
+        <>
 
         {/* Shape edit mode: PathTool (Position + Curve for the selected
             anchor) appears above the rest of the SvgShapeTool, mirroring
@@ -919,14 +918,11 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
           </>
         )}
         </div>
-        {/* Export remains the terminal action regardless of selection type. */}
-        <div data-inspector-group="export" className="contents">
-          <ExportTool />
-        </div>
         </>}
         </>}
-        </> : <>
-          <div data-inspector-group="prototype" className="contents">
+        </>
+        <>
+          <div data-inspector-group="behavior" className="contents">
             {isVectorVariantCard ? null : isSvg ? (
               isSketch ? (
                 <AnimationTool styles={s} onUpdate={updateStyle} />
@@ -972,7 +968,10 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask }: { isMultiSe
               </>
             )}
           </div>
-        </>}
+          {!isShapeEditing && !isNativeGroup && !isVectorVariantCard && !isSvg && !isFixedOverlay && (
+            <div data-inspector-group="export" className="contents"><ExportTool /></div>
+          )}
+        </>
       </div>
       </div>{/* end scrollable content */}
       </PanelErrorBoundary>

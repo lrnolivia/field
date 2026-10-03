@@ -1,11 +1,14 @@
 /* Shared Field surface tiers, reconciled from the preserved PR124 token plan.
  * Scope is editor chrome only; the website canvas lives in its own document. */
 :root {
-  --field-chrome-section-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 4%);
+  --field-chrome-section-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 3%);
   --field-chrome-control-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 9%);
   --field-chrome-hover-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 13%);
+  --field-chrome-header-bg: color-mix(in srgb,var(--field-chrome-section-bg),var(--text-primary) 2%);
+  --field-chrome-pane-shadow: 0 4px 24px rgb(0 0 0 / 24%), 0 16px 48px rgb(0 0 0 / 12%);
+  --field-chrome-shell-header-bg: color-mix(in srgb,var(--bg-panel) 60%,var(--bg-left-rail));
 }
-:where([data-properties-panel],[data-editor-panel="left-primary"],[data-floating-left-panel],[data-toolbar-panel],[data-field-chrome-panel],[data-modal-root],[role="dialog"]) {
+:where([data-properties-panel],[data-editor-panel="left-primary"], [data-editor-panel="left-secondary"],[data-floating-left-panel],[data-toolbar-panel],[data-field-chrome-panel],[data-modal-root],[data-tool-popup],[role="dialog"]) {
   --bg-surface: var(--field-chrome-section-bg);
   --control-bg: var(--field-chrome-control-bg);
   --control-bg-hover: var(--field-chrome-hover-bg);
@@ -14,13 +17,20 @@
   --button-secondary-bg: var(--field-chrome-control-bg);
   --button-secondary-hover: var(--field-chrome-hover-bg);
 }
-[data-inspector-section-card] { background:var(--field-chrome-section-bg); }
+
 [data-toolbar-dropdown] { --btn-secondary-bg:var(--field-chrome-control-bg); }
-[data-toolbar-menu-tile] { background:var(--field-chrome-section-bg); min-height:44px!important; height:auto!important; padding:8px 10px; gap:10px; font-size:11px!important; }
-[data-toolbar-menu-tile-icon] { color:var(--accent-text); background:var(--accent-surface); }
-[data-toolbar-menu-tile]:hover { background:var(--field-chrome-hover-bg); }
 /* The inspector island owns the elevation once, from header to last control. */
 [data-workspace-right-header] { overflow:visible; }
+[data-workspace-right-header], [data-inspector-mode-tabs], [data-inspector-object-header] {
+  background-color: var(--field-chrome-shell-header-bg);
+}
+[data-workspace-left-header] {
+  background-color: var(--field-chrome-shell-header-bg);
+  border-bottom: 1px solid var(--border-light);
+}
+[data-inspector-mode-tabs] {
+  border-bottom: 1px solid var(--border-light);
+}
 /* A distinct portrait FAB must not inherit the desktop strip's 28px overrides. */
 #bottom-toolbar-container.field-portrait-dock { padding:0; }
 #bottom-toolbar-container.field-portrait-dock .field-tools-fab { min-height:58px; height:auto; border-radius:20px; font-size:14px; }
@@ -31,3 +41,185 @@
   [aria-label="Gallery media"] [role="listitem"] { min-height:52px; }
   [aria-label="Gallery media"] [role="listitem"] button { opacity:1; min-width:44px; min-height:44px; }
 }
+
+/* The left document sections share Inspector's inset, surface and typography.
+ * Trees, splitters, user names and navigation retain their own behavior. */
+:where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) {
+  --bg-tertiary: var(--field-chrome-section-bg);
+  --bg-elevated: var(--field-chrome-control-bg);
+  --panel-inset: 10px;
+}
+[data-field-document-panel] { padding: 6px 8px; gap: 4px; }
+[data-library-panel] { background: transparent; }
+.field-pages-section-header, .field-layers-section-header {
+  min-height: 36px; height: 36px; padding-inline: 10px;
+  border-bottom: 0;
+  background-color: var(--field-chrome-header-bg);
+}
+:where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) [data-field-section-label] {
+  min-height: 36px; padding-inline: 10px;
+}
+:where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) [data-field-section-label] > span {
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+}
+[data-field-pages-tree] { padding: 6px 8px 8px; }
+[data-document-layers] { padding-bottom: 8px; }
+[data-document-layers] [data-layers-scroll] { padding: 6px 8px 0; }
+
+:where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel], [data-toolbar-panel]) [data-field-section-label],
+[data-inspector-section-header] {
+  background-color: var(--field-chrome-header-bg);
+}
+[data-field-task-panel] > [data-tool-divider] { display: none; }
+
+/* Color and space group every left-panel section. Keep control, focus and
+ * selection outlines; remove the rules between headers, rows and footers. */
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel], [data-toolbar-panel]) :is(.border-t, .border-b, .border-l, .border-r) {
+  border-width: 0;
+}
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel], [data-toolbar-panel]) .divide-y > * {
+  border-block-width: 0;
+}
+:where([data-properties-panel], [data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel], [data-toolbar-panel]) :is([data-tool-divider], hr, div.h-px) {
+  visibility: hidden;
+}
+
+[data-library-panel] > [data-tool-divider] { display: none; }
+[data-field-task-panel] > :last-child { padding-bottom: 10px; }
+[data-editor-panel="left-secondary"] h3 { padding: 8px 10px; background: var(--field-chrome-header-bg); border-radius: 6px; }
+
+/* Shared panel edges: highlight top/left, lowlight bottom/right, soft depth.
+ * Inset strokes do not change panel width or reintroduce internal dividers. */
+:root {
+  --field-panel-highlight: rgb(128 128 128 / 30%);
+  --field-panel-lowlight: rgb(0 0 0 / 30%);
+  --field-panel-depth: 0 6px 16px rgb(0 0 0 / 14%);
+}
+:is([data-inspector-section-card], [data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  margin: var(--field-panel-margin, 2px 8px 4px);
+  border-radius: 8px;
+  background: var(--field-chrome-section-bg);
+  overflow: hidden;
+  box-shadow: var(--field-panel-depth);
+}
+:is([data-inspector-section-header], .field-pages-section-header, .field-layers-section-header, [data-field-section-label]) {
+  background-clip: padding-box;
+}
+
+[data-field-document-panel] { --field-panel-margin: 0; }
+:is([data-inspector-section-card], [data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1px solid;
+  border-color: var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Controls and popup shells share the faint directional edge primitive.
+ * Rail icons and toolbar items deliberately retain their flat treatment. */
+:root {
+  --field-control-highlight: color-mix(in srgb, white 12%, transparent);
+  --field-control-lowlight: color-mix(in srgb, black 12%, transparent);
+  --field-control-edge: inset 1px 1px 0 var(--field-control-highlight), inset -1px -1px 0 var(--field-control-lowlight);
+}
+:where([data-properties-panel], [data-tool-popup], [data-editor-panel], [data-floating-left-panel], [data-toolbar-panel], [data-modal-root], [data-field-modal-window], [data-settings-overlay]) :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"]):not(:where([data-inspector-section-header] button, [data-field-section-label] button, [data-value-wheel]:not([data-field-select-trigger]), [role="menuitem"], [data-media-action-card], [data-toolbar-tool], [data-toolbar-chevron-open], [data-toolbar-menu-option], [data-toolbar-menu-header] button)) {
+  box-shadow: var(--field-control-edge);
+}
+[data-field-text-button="true"], [data-media-launcher-featured], [data-media-launcher-featured-icon] { box-shadow: var(--field-control-edge); }
+:where([data-tool-popup]) :is(.border-t, .border-b, [data-option-section], [data-effect-option-section], [data-effect-live-preview]) { border-width: 0; }
+:where([data-tool-popup]) :is([data-option-section], [data-effect-option-section], [data-effect-live-preview]) > div:first-child { background:var(--field-chrome-header-bg); }
+:is([data-workspace-right-toggle][data-detached="true"], #bottom-toolbar-container, [data-toolbar-dropdown], [data-tool-popup], [role="menu"]) {
+  box-shadow: var(--field-control-edge), 0 6px 18px rgb(0 0 0 / 16%);
+}
+
+/* Detached chrome receives one enclosing edge above its painted content.
+ * Native rail groups stay flat; inset sections blend into floating panes. */
+:is([data-field-floating-outline], [data-workspace-right-toggle][data-detached="true"], [data-workspace-left-header]:not([data-title-presentation="embedded"]), [data-ai-chat-sheet], [data-workspace-layout-control][data-expanded="true"], #bottom-toolbar-container, [data-toolbar-dropdown], [data-media-toolbar-surface], [data-field-appearance-popover], [data-tool-popup], [data-field-modal-window], [data-toolbar-panel], [role="menu"], [role="listbox"][data-field-floating-surface])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2147483647;
+  border: 1px solid;
+  border-color: var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight);
+  border-radius: inherit;
+  pointer-events: none;
+}
+[data-media-toolbar-surface] { position:relative; }
+[data-field-modal-window] { --field-control-highlight:rgb(128 128 128 / 30%); --field-control-lowlight:rgb(0 0 0 / 30%); }
+:where([data-modal-root], [data-field-modal-window], [data-media-toolbar-popover]) :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [data-field-select-trigger]) { box-shadow:var(--field-control-edge); }
+:where([data-tool-popup], [data-field-modal-window], [data-media-toolbar-surface]) :is(.border-t, .border-b) { border-width:0; }
+[data-floating-left-panel] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) { background:transparent; border-radius:0; box-shadow:none; }
+[data-floating-left-panel] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section])::after { content:none; }
+:root:has([data-floating-left-panel][data-workspace-mode="floating"]) [data-properties-panel] [data-inspector-section-card] { background:transparent; border-radius:0; box-shadow:none; }
+:root:has([data-floating-left-panel][data-workspace-mode="floating"]) [data-properties-panel] [data-inspector-section-card]::after { content:none; }
+
+[data-media-action-card-icon] {
+  box-shadow: var(--field-control-edge);
+  border-color:transparent;
+  background:color-mix(in srgb, var(--accent) 22%, var(--bg-panel));
+  color:var(--accent-text);
+}
+[data-media-action-card]:is(:hover, :focus-visible) [data-media-action-card-icon] {
+  background:color-mix(in srgb, var(--accent) 32%, var(--bg-panel));
+}
+[data-card-tone="neutral"] [data-media-action-card-icon] {
+  background:var(--field-chrome-control-bg);
+  color:var(--text-primary);
+}
+[data-card-tone="neutral"]:is(:hover, :focus-visible) [data-media-action-card-icon] {
+  background:var(--field-chrome-hover-bg);
+}
+/* Neutral source glyphs inherit the interactive accent. Preserve the actual
+ * colors in brand artwork, effect previews and image thumbnails. */
+[data-media-action-card-icon] :is([fill="white"], [fill="#fff"], [fill="#ffffff"], [fill="var(--text-primary)"], [fill="var(--text-secondary)"]):not([data-insert-preview] *) { fill:currentColor; }
+[data-media-action-card-icon] :is([stroke="white"], [stroke="#fff"], [stroke="var(--text-primary)"], [stroke="var(--text-secondary)"]):not([data-insert-preview] *) { stroke:currentColor; }
+[data-media-action-card-icon] > [data-field-glyph] { max-width:none; max-height:none; }
+[data-insert-card] [data-media-action-card-icon] svg { width:24px; height:24px; }
+[data-media-action-card-icon] [data-insert-preview] { width:100%; height:100%; }
+[data-media-action-card-icon] [data-insert-preview] > svg { width:100%; height:100%; }
+
+/* Each preview fills the pill, while the existing creative components retain
+ * their own animation. Shader illustrations drift within a clipped viewport. */
+[data-insert-preview] { contain:layout paint; }
+[data-insert-preview^="shader"] > div, [data-insert-preview^="bg"] > div {
+  animation: field-preview-flow 5s ease-in-out infinite alternate;
+  transform-origin:center;
+  background-size:160% 160%;
+}
+@keyframes field-preview-flow {
+  from { background-position:0% 30%; transform:scale(1.08) translate(-1px, 0); }
+  to { background-position:100% 70%; transform:scale(1.18) translate(1px, -1px); }
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-insert-preview] *, [data-insert-preview] { animation:none !important; transition:none !important; }
+}
+[data-viewport-header] {
+  border-top-color:rgb(128 128 128 / 15%) !important;
+  border-left-color:var(--field-panel-highlight) !important;
+  border-right-color:var(--field-panel-lowlight) !important;
+  border-bottom-color:var(--field-panel-lowlight) !important;
+}
+[data-viewport-header]::after { content:none; }
+[data-vibe-dock] { background:var(--bg-panel); }
+[data-vibe-dock] > [data-field-section-label] { margin:6px 8px 0; border-radius:6px; flex-shrink:0; }
+[data-ai-chat-sheet] [data-field-section-label] { min-height:36px; background:var(--field-chrome-header-bg); }
+[data-field-section-glyph] { box-shadow:var(--field-control-edge); }
+[data-agent-chat] :is([data-agent-chat-switcher], [data-agent-composer]) {
+  background:var(--field-chrome-control-bg);
+  border:0;
+  border-radius:6px;
+  clip-path:none;
+  box-shadow:var(--field-control-edge);
+}
+[data-agent-chat] :is([data-agent-chat-switcher], [data-agent-composer])::after { content:none; }
+
+[data-toolbar-menu-header] { background:var(--field-chrome-header-bg); }
+[data-toolbar-menu-header-glyph] { box-shadow:var(--field-control-edge); }
+[data-toolbar-menu-header] button { box-shadow:none; }
+[data-toolbar-menu-option], [data-media-launcher] > button:not([data-media-launcher-featured]) { box-shadow:none; }

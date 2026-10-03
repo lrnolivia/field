@@ -70,7 +70,7 @@ describe('BranchesPanel', () => {
   it('"+" opens the shared New Branch dialog, and the new branch shows as the active row', () => {
     render(<BranchesPanel />);
     expect(screen.queryByText('New Branch')).toBeNull();
-    fireEvent.click(screen.getByTitle('New branch'));
+    fireEvent.click(screen.getByTitle(/new branch/i));
     expect(screen.getByText('New Branch')).toBeTruthy();
     const input = screen.getByPlaceholderText('Branch name') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'Footer rework' } });
@@ -81,7 +81,7 @@ describe('BranchesPanel', () => {
 
   it('lays the rows out like the Localization panel — search, then rows inset from the panel edge', () => {
     const { container } = render(<BranchesPanel />);
-    expect(screen.getByPlaceholderText('Search branches…')).toBeTruthy();
+    expect(screen.getByPlaceholderText(/search branches…/i)).toBeTruthy();
     const list = container.querySelector('.overflow-y-auto.px-2');
     expect(list, 'the row list carries the px-2 inset the locale/CMS lists use').toBeTruthy();
     expect(list!.textContent).toContain(MAIN_BRANCH_ID);

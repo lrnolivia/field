@@ -8,6 +8,7 @@
 import { motion } from 'framer-motion';
 import { useState, type ReactNode } from 'react';
 import { trace } from '@/shared/debug-trace';
+import SectionLabel from '@/design-system/SectionLabel';
 
 const MIN_WIDTH = 320;
 // The agent chat — chat picker, transcript, composer — in one card. The old
@@ -128,16 +129,15 @@ export default function AIChatSheet({ headerAccessory, contextLabel, onClose, ch
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', bounce: 0.15, duration: 0.25 }}
-      className="fixed z-[9990] flex flex-col overflow-hidden cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-2xl"
+      className="fixed z-[9990] flex flex-col overflow-hidden rounded-[10px] bg-[var(--bg-panel)] shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: size.width, height: size.height }}
     >
       {/* Header — drag anywhere on it to move the panel. */}
       <div
         onPointerDown={startMove}
-        className="relative shrink-0 flex items-center justify-between px-3 h-9 cursor-grab active:cursor-grabbing select-none border-b border-[var(--border-light)]"
+        className="relative shrink-0 cursor-grab active:cursor-grabbing select-none"
       >
-        <div className="flex items-center gap-1.5 leading-none min-w-0">
-          <span className="text-xs font-semibold text-[var(--text-primary)] shrink-0">Vibe</span>
+        <SectionLabel size="xl" right={<div className="flex items-center gap-1.5 min-w-0">
           {surfaceLabel && (
             <span
               className="text-[11px] text-[var(--text-secondary)] truncate max-w-[180px]"
@@ -151,7 +151,6 @@ export default function AIChatSheet({ headerAccessory, contextLabel, onClose, ch
           {headerAccessory && (
             <span className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>{headerAccessory}</span>
           )}
-        </div>
         <button
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
@@ -163,6 +162,7 @@ export default function AIChatSheet({ headerAccessory, contextLabel, onClose, ch
             <path fillRule="evenodd" clipRule="evenodd" d="M12 22c-4.714 0-7.071 0-8.536-1.465C2 19.072 2 16.714 2 12s0-7.071 1.464-8.536C4.93 2 7.286 2 12 2s7.071 0 8.535 1.464C22 4.93 22 7.286 22 12s0 7.071-1.465 8.535C19.072 22 16.714 22 12 22M8.97 8.97a.75.75 0 0 1 1.06 0L12 10.94l1.97-1.97a.75.75 0 0 1 1.06 1.06L13.06 12l1.97 1.97a.75.75 0 1 1-1.06 1.06L12 13.06l-1.97 1.97a.75.75 0 1 1-1.06-1.06L10.94 12l-1.97-1.97a.75.75 0 0 1 0-1.06" />
           </svg>
         </button>
+        </div>}>Vibe</SectionLabel>
       </div>
 
       {/* Body */}

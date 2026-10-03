@@ -28,6 +28,7 @@ describe('2026-09-30 UI hotfix source contracts', () => {
     expect(header).toContain('data-workspace-right-header');
     expect(header).toContain('<InspectorCollaborators');
     expect(header).toContain('data-tutorial="header-publish-button"');
-    expect(header).toContain('border-b border-[var(--border-light)] bg-[var(--bg-panel)]');
+    expect(header).toContain('var(--field-chrome-shell-header-bg)');
+    expect(read('src/styles/field-chrome.css')).toContain('[data-inspector-mode-tabs] {\n  border-bottom: 1px solid var(--border-light);');
   });
 });

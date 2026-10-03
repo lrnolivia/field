@@ -11,6 +11,7 @@ import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercas
 import {
   DEFAULT_BUILDER_THEME_ID,
   builderThemeBrandId,
+  builderAccentSurface,
   DARK_ACCENT_TEXT_MIX,
   getBuilderThemeById,
   normalizeBuilderThemeId,
@@ -31,7 +32,7 @@ const OWNED_VARS = [
   '--accent-text',
 ] as const;
 
-const FIELD_BRAND_VERSION = 11;
+const FIELD_BRAND_VERSION = 13;
 
 let observer: MutationObserver | null = null;
 let suspended = false;
@@ -101,16 +102,16 @@ function paintBrand(theme: BuilderTheme): void {
   const base = brandBase(theme);
 
   const icon =
-    `${base}/favicon-${mode}.png?v=${FIELD_BRAND_VERSION}`;
+    `${base}/favicon-${mode}.svg?v=${FIELD_BRAND_VERSION}`;
 
   const iconTransparent =
-    `${base}/favicon-${mode}-trans.png?v=${FIELD_BRAND_VERSION}`;
+    `${base}/favicon-${mode}-trans.svg?v=${FIELD_BRAND_VERSION}`;
 
   const wordmark =
-    `${base}/logo-${mode}.png?v=${FIELD_BRAND_VERSION}`;
+    `${base}/logo-${mode}.svg?v=${FIELD_BRAND_VERSION}`;
 
   const wordmarkTransparent =
-    `${base}/logo-${mode}-trans.png?v=${FIELD_BRAND_VERSION}`;
+    `${base}/logo-${mode}-trans.svg?v=${FIELD_BRAND_VERSION}`;
 
   root.style.setProperty(
     '--field-app-icon',
@@ -146,7 +147,7 @@ function paintBrand(theme: BuilderTheme): void {
 
   if (apple) {
     apple.href =
-      `${base}/apple-touch-icon.png?v=${FIELD_BRAND_VERSION}`;
+      `/field-brand/${['green', 'pink', 'neutrachrome'].includes(theme.id) ? 'monochrome' : theme.id}/apple-touch-icon.png?v=${FIELD_BRAND_VERSION}`;
   }
 }
 
@@ -156,7 +157,7 @@ function paintAccent(theme: BuilderTheme): void {
 
   const dark = isDarkMode();
 
-  root.style.setProperty('--accent', c.accent);
+  root.style.setProperty('--accent', builderAccentSurface(c.accent, c.accentTextFg));
 
   // Exact foreground used by field identity artwork.
   root.style.setProperty('--accent-fg', c.accentFg);
@@ -171,12 +172,12 @@ function paintAccent(theme: BuilderTheme): void {
   // dark  -> light brand fill / primary foreground
   root.style.setProperty(
     '--rail-active-bg',
-    dark ? c.accentFg : c.accent,
+    dark ? (theme.id === 'neutrachrome' ? c.accent : c.accentFg) : builderAccentSurface(c.accent, c.accentTextFg),
   );
 
   root.style.setProperty(
     '--rail-active-fg',
-    dark ? c.accent : c.accentFg,
+    dark ? 'color-mix(in srgb, var(--accent) 55%, #000)' : c.accentTextFg,
   );
 
   root.style.setProperty(
@@ -187,7 +188,7 @@ function paintAccent(theme: BuilderTheme): void {
   if (isDarkMode()) {
     root.style.setProperty(
       '--accent-text',
-      `color-mix(in srgb, var(--accent) ${DARK_ACCENT_TEXT_MIX * 100}%, #fff)`,
+      `color-mix(in srgb, ${c.accent} ${DARK_ACCENT_TEXT_MIX * 100}%, #fff)`,
     );
   } else {
     // Darken readable accent text independently of the canonical fill hue.
@@ -294,4 +295,3 @@ export function subscribeBuilderTheme(): void {
     attributeFilter: ['class'],
   });
 }
-

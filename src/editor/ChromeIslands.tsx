@@ -3,6 +3,7 @@
 // floating island above the full-bleed canvas.
 
 import { useAtomValue } from 'jotai';
+import type { ComponentProps } from 'react';
 import { useMobileWorkspacePresentation } from './mobile-workspace-presentation';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
@@ -11,7 +12,6 @@ import {
   WORKSPACE_FLOAT_INSET,
   WORKSPACE_FLOAT_LEFT_TOP,
   WORKSPACE_FLOAT_RADIUS,
-  WORKSPACE_FLOAT_SHADOW,
   type WorkspaceSideLayout,
 } from './workspace-layout';
 import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
@@ -24,14 +24,25 @@ const SURFACE = {
   pointerEvents: 'none' as const,
 };
 
+/** The fill sits behind the chrome; its edge must sit above opaque headers. */
+function ChromeIsland({ style, ...props }: ComponentProps<'div'>) {
+  const floating = style?.borderRadius !== 0;
+  return <>
+    <div {...props} style={style} />
+    {floating && <div aria-hidden data-field-floating-outline style={{
+      ...style, background: 'transparent', boxShadow: 'none', position: 'fixed',
+      zIndex: 10000, pointerEvents: 'none',
+    }} />}
+  </>;
+}
+
 function floatingStyle(side: WorkspaceSideLayout) {
   return side.presentation === 'floating'
     ? {
-        border: '1px solid var(--border-light)',
         borderRadius: WORKSPACE_FLOAT_RADIUS,
-        boxShadow: WORKSPACE_FLOAT_SHADOW,
+        boxShadow: 'var(--field-chrome-pane-shadow)',
       }
-    : { borderRadius: 0, boxShadow: 'none' };
+    : { borderRadius: 0, boxShadow: 'var(--field-chrome-pane-shadow)' };
 }
 
 export default function ChromeIslands() {
@@ -57,11 +68,11 @@ export default function ChromeIslands() {
 
   return (
     <>
-      <div
+      <ChromeIsland
         aria-hidden
         data-workspace-island="left"
         data-visible={railVisible ? 'true' : 'false'}
-        className={dockedLeft ? 'fixed z-[4998] border-r border-[var(--border-light)]' : 'fixed z-[4998]'}
+        className="fixed z-[4998]"
         style={{
           left: dockedLeft ? 0 : WORKSPACE_FLOAT_INSET,
           top: dockedLeft ? 0 : WORKSPACE_FLOAT_LEFT_TOP,
@@ -70,10 +81,9 @@ export default function ChromeIslands() {
             : leftCollapsedWidth + (!mobile && ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)) ? leftContentWidth : 0),
           height: dockedLeft ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
-          ...(dockedLeft ? { borderRadius: 0, boxShadow: 'none' } : {
-            border: '1px solid var(--border-light)',
+          ...(dockedLeft ? { borderRadius: 0, boxShadow: 'var(--field-chrome-pane-shadow)' } : {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
-            boxShadow: WORKSPACE_FLOAT_SHADOW,
+            boxShadow: 'var(--field-chrome-pane-shadow)',
           }),
           opacity: railVisible || leftOpen ? 1 : 0,
           transform: !dockedLeft && !railVisible ? 'translateX(-18px)' : undefined,
@@ -82,10 +92,10 @@ export default function ChromeIslands() {
       />
 
       {rightOpen && !mobile && (
-        <div
+        <ChromeIsland
           aria-hidden
           data-workspace-island="right"
-          className={layout.right.presentation === 'docked' ? 'fixed z-[4998] border-l border-[var(--border-light)]' : 'fixed z-[4998]'}
+          className="fixed z-[4998]"
           style={{
             right: layout.right.inset,
             top: layout.right.top,
@@ -104,4 +114,3 @@ export default function ChromeIslands() {
     </>
   );
 }
-

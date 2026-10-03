@@ -266,6 +266,7 @@ function ChatSwitcher({ activeId, title, disabled, onPick, onNew, onDelete }: {
           type="button"
           disabled={disabled}
           title={disabled ? 'Available when the agent has finished' : 'Switch chat'}
+          data-agent-chat-switcher
           onClick={() => setOpen((v) => !v)}
           className="flex h-7 min-w-0 flex-1 items-center justify-between gap-2 px-[var(--control-pad-x)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] cut-corners cut-border transition-colors focus:outline-none focus-visible:border-[var(--control-border-hover)] focus-visible:[--cut-border-color:var(--control-border-hover)] disabled:opacity-40 disabled:cursor-default"
         >
@@ -278,6 +279,7 @@ function ChatSwitcher({ activeId, title, disabled, onPick, onNew, onDelete }: {
           type="button"
           title="New chat"
           aria-label="New chat"
+          data-agent-chat-switcher
           disabled={disabled || !activeId}
           onClick={onNew}
           className="flex h-7 w-7 shrink-0 items-center justify-center cut-corners cut-border bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] text-[var(--text-secondary)] transition-colors enabled:hover:border-[var(--control-border-hover)] enabled:hover:[--cut-border-color:var(--control-border-hover)] enabled:hover:text-[var(--text-primary)] focus:outline-none disabled:opacity-40 disabled:cursor-default"
@@ -729,7 +731,7 @@ export default function AgentChat() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-agent-chat className="flex h-full flex-col">
       <ChatSwitcher
         activeId={activeChatId ?? null}
         title={chatTitle}
@@ -873,6 +875,7 @@ export default function AgentChat() {
             ringed in it the whole time you type reads as an alarm. */}
         <div
           data-testid="agent-composer"
+          data-agent-composer
           className={`flex flex-col bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] hover:[--cut-border-color:var(--control-border-hover)] focus-within:border-[var(--control-border-hover)] focus-within:[--cut-border-color:var(--control-border-hover)] cut-corners cut-border transition-colors ${configured ? '' : 'opacity-40'}`}
         >
           <div className="relative">

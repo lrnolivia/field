@@ -568,7 +568,7 @@ export default function LibraryPanel({ mode = 'all', focusSection }: { mode?: 'a
           too much whitespace below the bar.
           Filter wiring is local to each section below; this top input
           just owns the query string and passes it through. */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div className="px-2 pt-2 pb-1 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
