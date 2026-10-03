@@ -8,7 +8,7 @@
 
 import type { CanvasNode } from '@/code/parsing/parser';
 import { getCachedNodesMap, getNodesSnapshot } from '@/code/stores/store';
-import { flushNow } from '@/code/mutation/mutation-queue';
+import { flushNow, queueMutation } from '@/code/mutation/mutation-queue';
 import { planNativeGroupRefit, planNativeGroupRefitChain } from '@/code/groups/group-refit';
 import {
   findNodeComputedStyles,
@@ -37,6 +37,8 @@ import {
   classifyScaleValue,
   parseAuthoredPx,
   planScaledStyles,
+  planScaledSvgShapeAttrs,
+  scaleSvgViewBox,
   scalableBoundProperties,
   unsafeScaleChannelProperties,
 } from './scale-policy';
@@ -69,6 +71,17 @@ interface RootGeometry {
   visualCenterScreen: ScalePoint;
 }
 
+interface ScaleSvgLeafChildSnapshot {
+  childIndex: number;
+  tag: string;
+  attrs: Record<string, string>;
+}
+
+interface ScaleSvgLeafSnapshot {
+  viewBox: string;
+  children: ScaleSvgLeafChildSnapshot[];
+}
+
 interface ScaleNodeSnapshot {
   id: string;
   vpId: string;
@@ -76,6 +89,7 @@ interface ScaleNodeSnapshot {
   styles: Record<string, string>;
   isRoot: boolean;
   isGroup: boolean;
+  svgLeaf?: ScaleSvgLeafSnapshot;
   groupWidth?: number;
   groupHeight?: number;
 }
@@ -102,16 +116,39 @@ function baseNodeType(type: string | undefined): string {
   return (type ?? '').replace(/^motion\./, '').toLowerCase();
 }
 
-/** A single-shape/imported SVG is already its own proportional coordinate
- *  system. Uniformly scaling the outer viewport scales its viewBox geometry,
- *  strokes and inner vector metrics together. Rewriting the inner path again
- *  would double-scale those metrics. Treat that vector subtree as one authored
- *  leaf and scale only the wrapper box/effects. */
+/** A native/imported SVG is one proportional coordinate system for LIVE Scale.
+ *  During drag, scaling only the outer viewport gives the exact proportional
+ *  preview without rewriting inner geometry every pointermove. At COMMIT,
+ *  native shape children are baked into a proportionally enlarged viewBox too,
+ *  so source geometry/strokes/radii become truthful authored metrics while the
+ *  painted result remains identical. Opaque imported graphicMarkup stays an
+ *  authored leaf until its internal markup has a safe mutation path. */
 function isUniformSvgViewportLeaf(node: CanvasNode, nodes: ReadonlyMap<string, CanvasNode>): boolean {
   if (baseNodeType(node.type) !== 'svg') return false;
   if (node.graphicMarkup) return true;
   if (!node.children?.length) return false;
   return node.children.every((childId) => SVG_GEOMETRY_TAGS.has(baseNodeType(nodes.get(childId)?.type)));
+}
+
+
+function captureSvgLeafSnapshot(
+  node: CanvasNode,
+  nodes: ReadonlyMap<string, CanvasNode>,
+): ScaleSvgLeafSnapshot | undefined {
+  if (!isUniformSvgViewportLeaf(node, nodes) || node.graphicMarkup || !node.children?.length) return undefined;
+  const viewBox = node.attrs?.viewBox?.trim();
+  if (!viewBox) return undefined;
+  const children: ScaleSvgLeafChildSnapshot[] = [];
+  node.children.forEach((childId, childIndex) => {
+    const child = nodes.get(childId);
+    if (!child) return;
+    children.push({
+      childIndex,
+      tag: baseNodeType(child.type),
+      attrs: { ...(child.attrs ?? {}) },
+    });
+  });
+  return children.length ? { viewBox, children } : undefined;
 }
 
 function hasSvgGroupChildren(node: CanvasNode, nodes: ReadonlyMap<string, CanvasNode>): boolean {
@@ -446,6 +483,7 @@ function captureScaleSnapshot(
       styles: { ...(node.styles ?? {}) },
       isRoot,
       isGroup: !!node.isGroup,
+      svgLeaf: captureSvgLeafSnapshot(node, nodes),
       groupWidth,
       groupHeight,
     });
@@ -518,6 +556,34 @@ function buildStylesForNode(node: ScaleNodeSnapshot, snapshot: ScaleSnapshot, fa
   return { commit, live, blocked: Array.from(new Set([...plan.blocked, ...livePlan.blocked])) };
 }
 
+
+interface ScaleSvgLeafPlan {
+  wrapperAttrs: Record<string, string>;
+  children: Array<{ childIndex: number; attrs: Record<string, string> }>;
+  blocked: string[];
+}
+
+function buildSvgLeafPlan(node: ScaleNodeSnapshot, factor: number): ScaleSvgLeafPlan | null {
+  if (!node.svgLeaf) return null;
+  const viewBox = scaleSvgViewBox(node.svgLeaf.viewBox, factor);
+  if (!viewBox) {
+    return { wrapperAttrs: {}, children: [], blocked: ['svg-viewbox-not-scalable'] };
+  }
+
+  const blocked: string[] = [];
+  const children = node.svgLeaf.children.map((child) => {
+    const planned = planScaledSvgShapeAttrs(child.tag, child.attrs, factor);
+    blocked.push(...planned.blocked.map((reason) => `child-${child.childIndex}:${reason}`));
+    return { childIndex: child.childIndex, attrs: planned.attrs };
+  });
+
+  return {
+    wrapperAttrs: { viewBox },
+    children,
+    blocked,
+  };
+}
+
 function applyGroupRefits(changedNodeIds: string[], contentEl: HTMLElement): void {
   const appliedSignature = new Set<string>();
   for (const id of changedNodeIds) {
@@ -550,8 +616,15 @@ function applyScaleSnapshot(
     return { ok: false, reason };
   }
 
-  const plans = snapshot.nodes.map((node) => ({ node, ...buildStylesForNode(node, snapshot, factor) }));
-  const blocked = plans.flatMap((plan) => plan.blocked.map((reason) => `${plan.node.id}:${reason}`));
+  const plans = snapshot.nodes.map((node) => ({
+    node,
+    ...buildStylesForNode(node, snapshot, factor),
+    svgLeaf: buildSvgLeafPlan(node, factor),
+  }));
+  const blocked = plans.flatMap((plan) => [
+    ...plan.blocked.map((reason) => `${plan.node.id}:${reason}`),
+    ...(plan.svgLeaf?.blocked ?? []).map((reason) => `${plan.node.id}:${reason}`),
+  ]);
   if (blocked.length) {
     const reason = blocked.join(';');
     trace.action('scale:blocked', { reason, factor });
@@ -574,6 +647,25 @@ function applyScaleSnapshot(
   }
 
   if (commit) {
+    // A native SVG leaf previews correctly by scaling only its outer viewport.
+    // Commit the SAME projection into source-space as one batch: enlarge the
+    // viewBox and every authored inner metric together, preventing a visual
+    // jump while making inspector/source values proportional too.
+    for (const plan of plans) {
+      if (!plan.svgLeaf) continue;
+      queueMutation({ type: 'updateHtmlAttrs', nodeId: plan.node.id, attrs: plan.svgLeaf.wrapperAttrs });
+      for (const child of plan.svgLeaf.children) {
+        if (!Object.keys(child.attrs).length) continue;
+        queueMutation({
+          type: 'updateSvgAttrs',
+          nodeId: plan.node.id,
+          attrs: child.attrs,
+          childIndex: child.childIndex,
+        });
+      }
+      if (!changed.includes(plan.node.id)) changed.push(plan.node.id);
+    }
+
     applyGroupRefits(changed, contentEl);
     // All authored Scale mutations — geometry, typography, effects and any
     // Group refits — are pending in the SAME mutation batch. One flush means
