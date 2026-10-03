@@ -743,8 +743,9 @@ function GalleryToolInner({ focus }: { focus?: 'content' | 'layout' | 'image' })
 
       {pickerOpen && (
         <div
+          data-gallery-media-picker
           data-contextual-media-picker={replaceItemId ? 'gallery-replace' : 'gallery-add'}
-          className="mx-2 mb-2 overflow-hidden rounded-[4px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
+          className="mx-2 mb-2 overflow-hidden rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-panel)]"
         >
           <ImageSearchModal
             isOpen

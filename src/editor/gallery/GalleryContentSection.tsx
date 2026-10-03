@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 import { ToolButton, ToolSection } from '@/editor/controls';
+import SearchBar from '@/design-system/SearchBar';
 
 export interface GalleryContentItem {
   itemId: string;
@@ -41,11 +42,14 @@ export default function GalleryContentSection({
   onReorder,
 }: GalleryContentSectionProps) {
   const uiCase = useUiChromeCase();
+  const [query, setQuery] = useState('');
+  const visibleItems = items.map((item, index) => ({ item, index })).filter(({ item }) => (item.alt || 'Image').toLowerCase().includes(query.trim().toLowerCase()));
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const selectedIndex = items.findIndex((item) => item.itemId === selectedItemId);
   const selectedItem = selectedIndex >= 0 ? items[selectedIndex] : null;
 
   return (
+    <div data-gallery-content>
     <ToolSection
       title="Content"
       collapsible
@@ -63,8 +67,9 @@ export default function GalleryContentSection({
         </button>
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <ToolButton onClick={onAddMedia}>Add media</ToolButton>
+      <div data-gallery-commandbar className="flex flex-wrap items-center gap-1.5">
+        <SearchBar value={query} onChange={setQuery} placeholder="Search gallery images…" className="min-w-0 flex-1" />
+        <button type="button" onClick={onAddMedia} className="h-7 shrink-0 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)]">{uiCase('Add media')}</button>
         <span className="shrink-0 text-[10px] tabular-nums text-[var(--text-secondary)]">{items.length} {uiCase(items.length === 1 ? 'item' : 'items')}</span>
       </div>
 
@@ -73,8 +78,8 @@ export default function GalleryContentSection({
           {uiCase('Add images from project media or upload new media.')}
         </div>
       ) : (
-        <div className="flex flex-col gap-1" data-gallery-item-list role="list" aria-label="Gallery media">
-          {items.map((item, index) => {
+        <div className="grid grid-cols-2 gap-2.5" data-gallery-item-list role="list" aria-label="Gallery media">
+          {visibleItems.map(({ item, index }) => {
             const active = selectedItemId === item.itemId;
             return (
               <div
@@ -100,14 +105,14 @@ export default function GalleryContentSection({
                     onSelectItem(item.itemId);
                   }
                 }}
-                className={`group min-h-12 flex items-center gap-2 rounded-[5px] p-1.5 border cursor-default focus:outline-none focus:border-[var(--border-focus)] ${active ? 'border-[var(--border-focus)] bg-[var(--choice-bg)]' : 'border-transparent bg-[var(--control-bg)]/40 hover:bg-[var(--bg-hover)]'}`}
+                className={`group relative min-w-0 overflow-hidden rounded-[7px] border bg-[var(--bg-hover)]/35 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)] ${active ? 'border-[var(--accent)]' : 'border-[var(--border-light)] hover:border-[var(--control-border-hover)]'}`}
               >
-                <span className="w-3 text-[9px] tabular-nums text-[var(--text-disabled)] text-right">{index + 1}</span>
-                <div className="w-9 h-9 shrink-0 overflow-hidden rounded-[4px] bg-[var(--grid-line)]">
+                <span className="absolute left-1.5 top-1.5 z-10 rounded-[3px] bg-black/55 px-1 text-[9px] tabular-nums text-white">{index + 1}</span>
+                <div data-gallery-thumbnail className="aspect-[4/3] overflow-hidden bg-[var(--grid-line)]">
                   {item.src && <img src={item.src} alt="" className="w-full h-full object-cover" draggable={false} />}
                 </div>
-                <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-primary)]">{item.alt || uiCase('Image')}</span>
-                <span className="w-4 h-6 flex items-center justify-center text-[var(--text-disabled)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true">
+                <span className="block truncate px-2 py-1.5 text-[10px] text-[var(--text-primary)]">{item.alt || uiCase('Image')}</span>
+                <span className="absolute bottom-1 right-1 hidden h-5 w-4 items-center justify-center text-[var(--text-secondary)] group-hover:flex group-focus-within:flex" aria-hidden="true">
                   <svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 1v10M2.5 3.5 5 1l2.5 2.5M2.5 8.5 5 11l2.5-2.5" />
                   </svg>
@@ -116,7 +121,7 @@ export default function GalleryContentSection({
                   type="button"
                   aria-label={`Remove image ${index + 1}`}
                   onClick={(event) => { event.stopPropagation(); onRemoveItem(item.itemId); }}
-                  className={`w-6 h-6 flex items-center justify-center border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                  className={`absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-[4px] border border-white/15 bg-black/55 text-white hover:bg-black/75 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--selection)] ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
                     <path d="m2 2 6 6M8 2 2 8" />
@@ -127,6 +132,8 @@ export default function GalleryContentSection({
           })}
         </div>
       )}
+
+      {items.length > 0 && visibleItems.length === 0 && <p className="py-4 text-center text-[11px] text-[var(--text-secondary)]">{uiCase('No matching images. Try a different search.')}</p>}
 
       {selectedItem && (
         <div className="flex flex-col gap-1.5 pt-1" data-gallery-selected-item-actions>
@@ -175,6 +182,7 @@ export default function GalleryContentSection({
         </div>
       )}
     </ToolSection>
+    </div>
   );
 }
 

@@ -18,7 +18,7 @@ function HeaderIcon({ label }: { label: string }) {
     : /cms|collections/.test(name) ? FigmaCmsIcon
     : /branches/.test(name) ? FigmaBranchIcon
     : /localiz|locale|translation|language/.test(name) ? FigmaGlobeIcon
-    : /media|images|video/.test(name) ? FigmaImageIcon
+    : /media|images|video|gallery/.test(name) ? FigmaImageIcon
     : /typography|fonts/.test(name) ? FigmaTextIcon
     : /insert/.test(name) ? FigmaPlusIcon
     : FigmaSunIcon;

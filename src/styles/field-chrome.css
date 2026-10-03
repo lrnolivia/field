@@ -223,3 +223,18 @@
 [data-toolbar-menu-header-glyph] { box-shadow:var(--field-control-edge); }
 [data-toolbar-menu-header] button { box-shadow:none; }
 [data-toolbar-menu-option], [data-media-launcher] > button:not([data-media-launcher-featured]) { box-shadow:none; }
+
+/* Gallery authoring shares Media's rounded controls and image-card surface. */
+:is([data-gallery-content], [data-gallery-creation], [data-gallery-media-picker]) :where(button, input, select):not(:where([data-inspector-section-header] button, [data-field-section-label] button)) {
+  border-radius:6px;
+  clip-path:none;
+  box-shadow:var(--field-control-edge);
+}
+:is([data-gallery-content], [data-gallery-creation], [data-gallery-media-picker]) :where(.cut-border)::before,
+:is([data-gallery-content], [data-gallery-creation], [data-gallery-media-picker]) :where(.cut-border)::after { display:none; }
+[data-gallery-item-list] [aria-current="true"] { box-shadow:inset 0 0 0 1px var(--accent); }
+[data-gallery-creation] [role="list"] button { border-radius:4px; background:var(--control-bg); }
+@media (pointer:coarse) {
+  [data-gallery-item-list] button { min-width:44px; min-height:44px; }
+  [data-gallery-creation] button { min-height:44px; }
+}

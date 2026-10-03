@@ -72,10 +72,14 @@ export default function MediaToolbarPopover({
     const onPointer = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest('[data-toolbar-tool="media"]')) return;
+      // Gallery's image picker is portaled above this popover. Its controls
+      // belong to the pending creation flow, rather than an outside click.
+      if (target?.closest('[data-field-modal-window]')) return;
       if (!ref.current?.contains(target)) onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (document.querySelector('[data-field-modal-window]')) return;
       event.stopPropagation();
       onClose();
     };
