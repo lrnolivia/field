@@ -236,7 +236,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
       <div className="flex items-center w-full gap-2">
         {axisPair && !showIndividual && onChangeAxis ? (
           <div data-spacing-axis-pair className="grid grid-cols-2 gap-2 flex-1 min-w-0">
-            <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
+            <div data-field-control-shell className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
               <AxisMotionGlyph axis="horizontal" />
               <ToolInput
                 value={String(parseNum(values[1]))}
@@ -245,7 +245,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
                 className="border-0"
               />
             </div>
-            <div className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
+            <div data-field-control-shell className="grid grid-cols-[24px_minmax(0,1fr)] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)]">
               <AxisMotionGlyph axis="vertical" />
               <ToolInput
                 value={String(parseNum(values[0]))}

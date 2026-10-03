@@ -1,0 +1,77 @@
+import { test, expect } from '@playwright/test';
+import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
+
+for (const mode of ['dark', 'light'] as const) {
+  test(`${mode}: rounded shells, composite pills and panel insets survive navigation`, async ({ page }) => {
+    await page.addInitScript(value => localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(value)), mode);
+    const editor = new EditorPage(page);
+    await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+    const toolbar = page.locator('#bottom-toolbar-container').last();
+    const radius = await toolbar.evaluate(el => ({ shell: getComputedStyle(el).borderTopLeftRadius, stroke: getComputedStyle(el, '::after').borderTopLeftRadius }));
+    expect(parseFloat(radius.shell)).toBeGreaterThan(0);
+    expect(radius.stroke).toBe(radius.shell);
+    await editor.select(['abs-child'], 'desktop');
+    const pill = page.locator('[data-figma-dimension="width"]').first();
+    await expect(pill).toBeVisible();
+    expect(await pill.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+    expect(await pill.locator('input').evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
+    await expect(pill.locator('input')).toBeEnabled();
+    await pill.locator('input').click({ position: { x: 8, y: 12 } });
+    await expect(pill.locator('input')).toBeFocused();
+    expect(await pill.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
+    await pill.screenshot({ path: `../screenshots/field-candidate-${mode}-width-pill.png` });
+    await page.keyboard.press('Escape');
+    await editor.select(['root'], 'desktop');
+    const segmented = page.locator('[data-inspector-icon-group]').first();
+    await expect(segmented).toBeAttached();
+    expect(await segmented.evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+    expect(await segmented.locator('button').first().evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
+    await page.locator('[data-tutorial="branches-button"]').click();
+    const rows = page.locator('[data-field-task-panel] > .overflow-y-auto');
+    expect(await rows.evaluate(el => parseFloat(getComputedStyle(el).paddingTop))).toBeGreaterThanOrEqual(8);
+    await page.getByRole('button', { name: /^draw text \(t\) options$/i }).click();
+    const popup = page.locator('[data-toolbar-dropdown]');
+    const popupRadius = await popup.evaluate(el => ({ shell: getComputedStyle(el).borderTopLeftRadius, stroke: getComputedStyle(el, '::after').borderTopLeftRadius }));
+    expect(parseFloat(popupRadius.shell)).toBeGreaterThan(0);
+    expect(popupRadius.stroke).toBe(popupRadius.shell);
+    await page.keyboard.press('Escape');
+    await page.locator('[data-tutorial="media-button"]').click();
+    const media = page.locator('[data-editor-panel="left-primary"]');
+    await expect(media.getByRole('button', { name: 'Add media', exact: true })).toHaveCount(1);
+    expect(await media.locator('[data-media-filter-tabs]').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom))).toBeGreaterThanOrEqual(8);
+    await media.getByPlaceholder('Search media…').fill('preserved search');
+    await media.locator('[data-media-gallery-entry]').click();
+    const gallery = page.getByRole('dialog', { name: 'Gallery', exact: true });
+    await expect(gallery).toBeVisible();
+    await expect(gallery.locator('[data-gallery-glyph]').first()).toBeVisible();
+    await gallery.getByRole('button', { name: 'Back to Media', exact: true }).click();
+    await expect(gallery).not.toBeVisible();
+    await expect(media.getByPlaceholder('Search media…')).toHaveValue('preserved search');
+    await media.locator('[data-media-gallery-entry]').click();
+    await page.keyboard.press('Escape');
+    await expect(gallery).not.toBeVisible();
+    await expect(media.getByPlaceholder('Search media…')).toHaveValue('preserved search');
+    await media.getByPlaceholder('Search media…').fill('');
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(media.locator('[data-media-gallery-entry]')).toBeVisible();
+    const bounds = await toolbar.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(1024);
+    await page.screenshot({ path: `../screenshots/field-candidate-${mode}-landscape.png` });
+  });
+}
+
+test('one Media upload action remains usable in empty and populated inventory', async ({ page }) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await page.locator('[data-tutorial="media-button"]').click();
+  const media = page.locator('[data-editor-panel="left-primary"]');
+  const chooser = page.waitForEvent('filechooser');
+  await media.getByRole('button', { name: 'Add media', exact: true }).click();
+  await (await chooser).setFiles({ name: 'regression.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jOjQAAAAASUVORK5CYII=', 'base64') });
+  await expect(media.locator('[data-media-grid] img').first()).toBeVisible();
+  await expect(media.getByRole('button', { name: 'Add media', exact: true })).toHaveCount(1);
+  await media.locator('[data-media-gallery-entry]').click();
+  await page.getByRole('button', { name: 'Back to Media', exact: true }).click();
+  await expect(media.locator('[data-media-grid] img').first()).toBeVisible();
+});

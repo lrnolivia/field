@@ -49,7 +49,7 @@ function uploadElementKind(kind: ReturnType<typeof mediaKindFromMime>): 'image' 
   return null;
 }
 
-export default function MediaPanelController({ onClose }: { onClose: () => void }) {
+export default function MediaPanelController({ onClose, onBackToMedia }: { onClose: () => void; onBackToMedia?: () => void }) {
   const presentation = useMobileWorkspacePresentation();
   const portrait = presentation === 'portrait-sheet';
   const viewer = useIsViewer();
@@ -90,6 +90,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
   };
 
   const goHome = () => {
+    if (onBackToMedia) { onBackToMedia(); return; }
     setTransientError(null);
     setTypeSource('media');
     setSession(createMediaSession({ surface: 'toolbar' }));

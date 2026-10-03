@@ -85,7 +85,12 @@
 }
 
 [data-library-panel] > [data-tool-divider] { display: none; }
-[data-field-task-panel] > :last-child { padding-bottom: 10px; }
+/* Content insets belong to the shared card, including empty and filtered lists. */
+:root { --field-panel-content-inset: 8px; }
+[data-field-task-panel] > :not([data-field-section-label]):not([data-tool-divider]) {
+  padding-block: var(--field-panel-content-inset);
+}
+[data-media-filter-tabs] { padding-bottom: var(--field-panel-content-inset); }
 [data-editor-panel="left-secondary"] h3 { padding: 8px 10px; background: var(--field-chrome-header-bg); border-radius: 6px; }
 
 /* Shared panel edges: highlight top/left, lowlight bottom/right, soft depth.
@@ -237,4 +242,22 @@
 @media (pointer:coarse) {
   [data-gallery-item-list] button { min-width:44px; min-height:44px; }
   [data-gallery-creation] button { min-height:44px; }
+}
+
+/* Composite controls own one bevel; their editable segments stay visually continuous.
+ * Do not clip the pill: sizing menus and scrub targets must escape normally. */
+:is([data-figma-dimension], [data-appearance-radius], [data-locale-pill], [data-inspector-icon-group], [data-field-control-shell]) {
+  box-shadow: var(--field-control-edge);
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-locale-pill], [data-inspector-icon-group], [data-field-control-shell]) :is(input, button, [role="combobox"]) {
+  box-shadow: none;
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-field-control-shell]) input {
+  border: 0;
+  background: transparent;
+  clip-path: none;
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-field-control-shell]):focus-within {
+  outline: 1px solid var(--border-focus);
+  outline-offset: 1px;
 }

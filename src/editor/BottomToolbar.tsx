@@ -754,7 +754,7 @@ export default function BottomToolbar() {
         data-mobile-tools-open={isNarrowToolbar ? "" : undefined}
         // isolation: the cut backdrop below sits at z -1; isolating keeps it
         // inside this container instead of sliding under the page.
-        style={{ isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
+        style={{ borderRadius: 11, isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
       >
         {/* True floating island: keep the shell on a separate backing layer so
             dropdowns can escape above the toolbar without being clipped. */}

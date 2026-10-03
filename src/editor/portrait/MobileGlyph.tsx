@@ -1,3 +1,4 @@
+import GalleryGlyph from '../media/GalleryGlyph';
 import { FieldGlyph, type FieldGlyphBehavior } from '../glyph';
 
 export type MobileGlyphName = 'project' | 'browse' | 'pages' | 'layers' | 'media' | 'gallery' | 'library' | 'presets' | 'insert' | 'cms' | 'locale' | 'comments' | 'branches' | 'tools' | 'inspect' | 'undo' | 'redo' | 'settings' | 'expand';
@@ -22,9 +23,10 @@ const paths: Record<MobileGlyphName, string[]> = {
   settings: ['M3 5h14M3 10h14M3 15h14', 'M7 3v4M13 8v4M8 13v4'],
   expand: ['M3 7V3h4M13 3h4v4', 'M3 13v4h4M13 17h4v-4'],
 };
-const behaviors: Partial<Record<MobileGlyphName, FieldGlyphBehavior>> = { layers: 'layers', media: 'media', gallery: 'media', locale: 'globe', branches: 'branch', insert: 'plus', settings: 'gear', presets: 'presets' };
+const behaviors: Partial<Record<MobileGlyphName, FieldGlyphBehavior>> = { layers: 'layers', media: 'media', locale: 'globe', branches: 'branch', insert: 'plus', settings: 'gear', presets: 'presets' };
 /** Compact, optically balanced line assets authored for the phone workspace. */
 export default function MobileGlyph({ name, size = 22 }: { name: MobileGlyphName; size?: number }) {
+  if (name === 'gallery') return <FieldGlyph behavior="generic"><GalleryGlyph size={size} /></FieldGlyph>;
   return <FieldGlyph behavior={behaviors[name] ?? 'generic'}><svg data-field-mobile-glyph={name} width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {paths[name].map((d, index) => <path key={index} d={d} />)}
   </svg></FieldGlyph>;

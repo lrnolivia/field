@@ -1,3 +1,4 @@
+import GalleryGlyph from './GalleryGlyph';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAtomValue } from 'jotai';
 import { backend } from '@/backend';
@@ -45,12 +46,6 @@ const ImageGlyph = () => (
     <rect x="2.25" y="2.75" width="11.5" height="10.5" rx="1.5" />
     <circle cx="5.25" cy="5.75" r="1" />
     <path d="m4 11 2.75-2.75L9 10.5l1.5-1.5L13 11.5" />
-  </svg>
-);
-const GalleryGlyph = () => (
-  <svg aria-hidden viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.15">
-    <rect x="2" y="3" width="7.25" height="8" rx="1.25" />
-    <path d="M6.75 5.25h5.1A1.15 1.15 0 0 1 13 6.4v6.35" />
   </svg>
 );
 const VideoGlyph = () => (
