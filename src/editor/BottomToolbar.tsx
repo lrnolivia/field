@@ -215,6 +215,7 @@ function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronCl
           is light: accent-fg is dark-on-dark there). */}
       <button
         onClick={onChevronClick}
+        data-toolbar-chevron
         data-toolbar-chevron-open={open || undefined}
         aria-label={uiCase(`${title} options`) ?? undefined}
         aria-haspopup="menu"

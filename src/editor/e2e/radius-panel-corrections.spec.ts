@@ -10,6 +10,43 @@ for (const mode of ['dark', 'light'] as const) {
     const radius = await toolbar.evaluate(el => ({ shell: getComputedStyle(el).borderTopLeftRadius, stroke: getComputedStyle(el, '::after').borderTopLeftRadius }));
     expect(parseFloat(radius.shell)).toBeGreaterThan(0);
     expect(radius.stroke).toBe(radius.shell);
+    const selectedTool = toolbar.locator('[data-toolbar-tool="select"]');
+    const highlight = await selectedTool.evaluate(el => ({ radius: getComputedStyle(el).borderTopLeftRadius.split(' ').map(Number.parseFloat), top: el.getBoundingClientRect().top, left: el.getBoundingClientRect().left }));
+    const shellBounds = await toolbar.boundingBox();
+    expect(highlight.radius[0]).toBe(parseFloat(radius.shell) - (highlight.left - shellBounds!.x));
+    expect(highlight.radius[1]).toBe(parseFloat(radius.shell) - (highlight.top - shellBounds!.y));
+    await selectedTool.hover();
+    await toolbar.screenshot({ path: `../screenshots/field-candidate-${mode}-toolbar-highlight.png` });
+    const appearanceTrigger = page.locator('[data-editor-appearance]');
+    await expect(appearanceTrigger.locator('[data-appearance-brush]')).toBeVisible();
+    await appearanceTrigger.focus();
+    await expect(appearanceTrigger).toBeFocused();
+    await page.keyboard.press('Enter');
+    const appearance = page.getByRole('dialog', { name: /^appearance$/i });
+    await expect(appearance).toBeVisible();
+    const appearanceBounds = await appearance.boundingBox();
+    expect(appearanceBounds!.y).toBeGreaterThanOrEqual(12);
+    expect(appearanceBounds!.y + appearanceBounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height - 12);
+    await expect(appearance.getByRole('switch')).toBeFocused();
+    await expect(appearance.getByRole('switch')).toHaveAttribute('aria-checked', String(mode === 'dark'));
+    await appearance.locator('[data-appearance-swatch]').last().click();
+    const chosenAccent = await appearance.locator('[aria-pressed="true"]').getAttribute('data-appearance-swatch');
+    await expect(appearance.locator('[data-appearance-preview]')).toBeVisible();
+    await page.screenshot({ path: `../screenshots/field-candidate-${mode}-appearance.png` });
+    await page.keyboard.press('Escape');
+    await expect(appearance).not.toBeVisible();
+    await expect(appearanceTrigger).toBeFocused();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: /^appearance$/i }).hover();
+    await expect(appearance).toBeVisible();
+    await expect(appearance.locator(`[data-appearance-swatch="${chosenAccent}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(appearance.getByRole('switch')).toHaveAttribute('aria-checked', String(mode === 'dark'));
+    await appearance.getByRole('switch').click();
+    await page.keyboard.press('Escape');
+    await appearanceTrigger.click();
+    await expect(appearance.getByRole('switch')).toHaveAttribute('aria-checked', String(mode !== 'dark'));
+    await appearance.getByRole('switch').click();
+    await page.keyboard.press('Escape');
     await editor.select(['abs-child'], 'desktop');
     const pill = page.locator('[data-figma-dimension="width"]').first();
     await expect(pill).toBeVisible();
@@ -58,6 +95,13 @@ for (const mode of ['dark', 'light'] as const) {
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(1024);
     await page.screenshot({ path: `../screenshots/field-candidate-${mode}-landscape.png` });
+    for (const strength of [1, 0.5]) {
+      await page.evaluate(value => document.documentElement.style.setProperty('--field-bevel-strength', String(value)), strength);
+      await page.screenshot({ path: `../screenshots/field-bevel-${mode}-${strength === 1 ? 'before' : 'after'}.png` });
+    }
+    const alphas = await toolbar.evaluate(el => ({ stroke: getComputedStyle(el, '::after').borderTopColor, opacity: getComputedStyle(el).opacity }));
+    expect(alphas.stroke).toBe('rgba(128, 128, 128, 0.15)');
+    expect(alphas.opacity).toBe('1');
   });
 }
 
