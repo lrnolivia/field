@@ -25,17 +25,18 @@ describe('toolbar/media/effects sleep batch core', () => {
   });
   it('gives Media creation routes a larger shell without oversized upload cards', () => {
     const pop = read('src/editor/media/MediaToolbarPopover.tsx');
-    expect(pop).toContain("expanded ? 840 : compact ? 224 : 560");
+    expect(pop).toContain("expanded ? 840 : compact ? TOOLBAR_MENU_WIDTH : 560");
     expect(pop).toContain("min(660px, calc(100vh - 96px))");
     expect(read('src/editor/ui/ImageSearchModal.tsx')).toContain('col-span-3 h-28');
     expect(read('src/editor/ui/VideoSearchModal.tsx')).toContain('h-28 overflow-hidden');
   });
-  it('gives the vertical Media panel a compact 2x2 selector and stacked commands', () => {
+  it('gives the vertical Media panel a full-width All row and three complete category labels and stacked commands', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
     const segmented = read('src/editor/controls/ToolSegmentedControl.tsx');
-    expect(segmented).toContain("layout?: 'inline' | 'grid'");
-    expect(segmented).toContain("'grid grid-cols-2'");
-    expect(media).toContain("layout={chrome === 'full' ? 'grid' : 'inline'}");
+    expect(segmented).toContain("layout?: 'inline' | 'grid' | 'all-first'");
+    expect(segmented).toContain("'grid grid-cols-3'");
+    expect(segmented).toContain("gridColumn: '1 / -1'");
+    expect(media).toContain("layout={chrome === 'full' ? 'all-first' : 'inline'}");
     expect(media).toContain("data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}");
     expect(media).toContain("'justify-start pt-12'");
   });

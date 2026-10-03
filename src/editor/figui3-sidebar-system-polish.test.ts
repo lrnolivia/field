@@ -77,8 +77,8 @@ describe('FigUI3 sidebar system + document panel', () => {
     expect(css).toContain(':not(.field-layer-locate-flash)');
     expect(css).not.toContain('left: 4px !important');
     expect(layerRows).toContain('left: 1,');
-    expect(layerRows).toContain("width: 'calc(var(--layers-vw, 100%) - 10px)'");
-    expect(layers).toContain("transparent 4px, #000 4px");
+    expect(layerRows).toContain("width: 'calc(var(--layers-vw, 100%) - 18px)'");
+    expect(layers).toContain("transparent 8px, #000 8px");
     expect(theme).toContain('--field-layer-selected-bg: color-mix(in srgb, var(--accent) 18%, transparent)');
     expect(theme).toContain('--field-layer-selected-bg: color-mix(in srgb, var(--accent) 22%, transparent)');
     expect(theme).toContain('--field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, transparent)');

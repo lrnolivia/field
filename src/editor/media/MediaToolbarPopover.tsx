@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import MediaGlyph from './MediaGlyph';
+import ToolbarMenuHeader from './ToolbarMenuHeader';
+import { TOOLBAR_MENU_WIDTH, TOOLBAR_MENU_SURFACE } from './toolbar-menu-chrome';
 
 function ExpandGlyph() {
   return (
@@ -51,7 +53,7 @@ export default function MediaToolbarPopover({
     const position = () => {
       const rect = document.querySelector('[data-toolbar-tool="media"]')?.getBoundingClientRect();
       if (!rect) return;
-      const requestedWidth = expanded ? 840 : compact ? 224 : 560;
+      const requestedWidth = expanded ? 840 : compact ? TOOLBAR_MENU_WIDTH : 560;
       const width = Math.min(requestedWidth, window.innerWidth - 24);
       const left = expanded
         ? Math.max(12, (window.innerWidth - width) / 2)
@@ -70,10 +72,14 @@ export default function MediaToolbarPopover({
     const onPointer = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest('[data-toolbar-tool="media"]')) return;
+      // Gallery's image picker is portaled above this popover. Its controls
+      // belong to the pending creation flow, rather than an outside click.
+      if (target?.closest('[data-field-modal-window]')) return;
       if (!ref.current?.contains(target)) onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (document.querySelector('[data-field-modal-window]')) return;
       event.stopPropagation();
       onClose();
     };
@@ -87,7 +93,7 @@ export default function MediaToolbarPopover({
     };
   }, [compact, expanded, onClose]);
 
-  const requestedWidth = expanded ? 840 : compact ? 224 : 560;
+  const requestedWidth = expanded ? 840 : compact ? TOOLBAR_MENU_WIDTH : 560;
 
   return createPortal(
     <motion.div
@@ -112,41 +118,22 @@ export default function MediaToolbarPopover({
     >
       <div
         data-media-toolbar-surface
-        className="relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[11px] border border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[0_18px_52px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.025]"
+        className={TOOLBAR_MENU_SURFACE}
         style={{ maxHeight: 'inherit', height: expanded ? '100%' : undefined }}
       >
-        <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--border-light)] bg-[var(--bg-surface)]/35 px-2.5">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Back to Media"
-              className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              <BackGlyph />
-            </button>
-          ) : (
-            <span className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 text-[var(--text-secondary)]" aria-hidden>
-              <MediaGlyph size={14} />
-            </span>
-          )}
-          <strong className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[-0.005em]">{title}</strong>
-          <button
-            type="button"
-            onClick={onExpand}
-            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
-            title={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
-            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-          >
+        <ToolbarMenuHeader title={title} glyph={<MediaGlyph size={14} />} trailing={<>
+          {onBack && <button type="button" onClick={onBack} aria-label="Back to Media" className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><BackGlyph /></button>}
+          <button type="button" onClick={onExpand} aria-label={`${expanded ? 'Collapse' : 'Expand'} ${title}`} title={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
+            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
             {expanded ? <CollapseGlyph /> : <ExpandGlyph />}
           </button>
-        </div>
+        </>} />
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-panel)]">{children}</div>
       </div>
       <span
         data-media-origin-pointer
         aria-hidden
-        className="absolute -bottom-[5px] z-0 h-[10px] w-[10px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
+        className="absolute -bottom-[5px] z-0 h-[10px] w-[10px] rotate-45 bg-[var(--bg-panel)] shadow-[1px_1px_1px_rgba(0,0,0,0.03)]"
         style={{ left: Math.max(14, Math.min(anchor.arrow - 5, anchor.width - 24)) }}
       />
     </motion.div>,

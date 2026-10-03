@@ -32,6 +32,7 @@ import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
 import { mediaNodeAcceptsChild, resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
+import MobileGlyph from '@/editor/portrait/MobileGlyph';
 import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
 
 function routeTitle(route: MediaRoute, intent: MediaIntent): string {
@@ -49,7 +50,8 @@ function uploadElementKind(kind: ReturnType<typeof mediaKindFromMime>): 'image' 
 }
 
 export default function MediaPanelController({ onClose }: { onClose: () => void }) {
-  const portrait = useMobileWorkspacePresentation() === 'portrait-sheet';
+  const presentation = useMobileWorkspacePresentation();
+  const portrait = presentation === 'portrait-sheet';
   const viewer = useIsViewer();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -462,6 +464,7 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
     <>
       <input
         ref={uploadInputRef}
+        data-media-upload-input
         type="file"
         accept={acceptedMimeTypes('all')}
         className="sr-only"
@@ -473,7 +476,8 @@ export default function MediaPanelController({ onClose }: { onClose: () => void 
         }}
       />
       <AdaptiveMediaSurface
-        portrait={portrait}
+        portrait={presentation !== 'regular'}
+        fullScreen={!isLauncher || !!pendingPlacement}
         title={title}
         compact={isLauncher && !expanded}
         expanded={expanded}
@@ -508,13 +512,13 @@ function PlacementImage({ url }: { url: string }) {
   </div>;
 }
 
-function AdaptiveMediaSurface({ portrait, title, compact, expanded, onClose, onExpand, onBack, children }: {
-  portrait: boolean; title: string; compact: boolean; expanded: boolean; onClose: () => void; onExpand: () => void; onBack?: () => void; children: ReactNode;
+function AdaptiveMediaSurface({ portrait, fullScreen, title, compact, expanded, onClose, onExpand, onBack, children }: {
+  portrait: boolean; fullScreen: boolean; title: string; compact: boolean; expanded: boolean; onClose: () => void; onExpand: () => void; onBack?: () => void; children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (portrait) ref.current?.focus({ preventScroll: true }); }, [portrait]);
   if (!portrait) return <MediaToolbarPopover title={title} compact={compact} expanded={expanded} onClose={onClose} onExpand={onExpand} onBack={onBack}>{children}</MediaToolbarPopover>;
-  return <><div className="field-portrait-scrim" onClick={onClose} /><section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} data-field-no-canvas-input data-portrait-media
+  return <><div className="field-portrait-scrim" onClick={onClose} /><section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} data-field-no-canvas-input data-modal-root data-field-chrome-panel data-portrait-media data-mobile-full-screen={fullScreen || undefined}
     onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (event.key === 'Tab') {
@@ -523,8 +527,8 @@ function AdaptiveMediaSurface({ portrait, title, compact, expanded, onClose, onE
         if (event.shiftKey && (document.activeElement === controls[0] || document.activeElement === ref.current)) { event.preventDefault(); controls[controls.length - 1].focus(); }
         else if (!event.shiftKey && document.activeElement === controls[controls.length - 1]) { event.preventDefault(); controls[0].focus(); }
       }
-    }} className="field-portrait-surface" data-expanded="true">
-    <header>{onBack && <button type="button" onClick={onBack}>Back</button>}<div><h2>{title}</h2><span>Choose media, then place it</span></div><button type="button" onClick={onClose}>Done</button></header>
+    }} className="field-portrait-surface" data-expanded={fullScreen}>
+    <header><button type="button" onClick={onBack ?? onClose} aria-label={onBack ? 'Back to Media' : 'Back to canvas'}>Back</button><span className="field-mobile-header-glyph"><MobileGlyph name={title === 'Gallery' ? 'gallery' : 'media'} /></span><div><h2>{title}</h2><span>Choose media, then place it</span></div><button type="button" onClick={onClose}>Done</button></header>
     <div className="field-portrait-content">{children}</div>
   </section></>;
 }

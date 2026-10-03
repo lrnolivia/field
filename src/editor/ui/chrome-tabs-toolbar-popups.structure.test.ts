@@ -17,7 +17,8 @@ describe('shared chrome tabs and toolbar-origin popups', () => {
     expect(tabs).toContain('bg-[var(--bg-active)]');
     expect(tabs).not.toContain("background: 'var(--accent-surface)'");
     expect(tabs).toContain("color: active ? 'var(--accent)'");
-    expect(inspector).toContain('<ChromeTabBar');
+    expect(inspector).not.toContain('<ChromeTabBar');
+    expect(inspector).toContain("uiCase('Inspector')");
     expect(image).toContain('<ChromeTabBar');
     expect(video).toContain('<ChromeTabBar');
     expect(gallery).toContain('<ChromeTabBar');
@@ -28,7 +29,7 @@ describe('shared chrome tabs and toolbar-origin popups', () => {
     const media = source('src/editor/media/MediaToolbarPopover.tsx');
     expect(toolbar).toContain("type: 'spring'");
     expect(toolbar).toContain('data-toolbar-origin-pointer');
-    expect(toolbar).toContain("transformOrigin: 'calc(50% - 10px) calc(100% + 7px)'");
+    expect(toolbar).toContain("transformOrigin: `calc(50% - ${offset}px) calc(100% + 7px)`");
     expect(media).toContain("type: 'spring'");
     expect(media).toContain('transformOrigin');
     expect(media).toContain('data-media-origin-pointer');

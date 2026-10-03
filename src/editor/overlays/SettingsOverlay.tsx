@@ -26,7 +26,7 @@ import {
   loadSettingsFromLayout,
 } from '@/code/stores/website-settings-store';
 import { pageFilePathToSlug, pageSlugToFilePath } from '@/code/project/page-slug-utils';
-import { queueMutation } from '@/code/mutation/mutation-queue';
+import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { getProjectId } from '@/backend/project-id';
 import { trace } from '@/shared/debug-trace';
 import {
@@ -35,6 +35,7 @@ import {
   ConfirmModal,
   Toggle,
 } from './settings-shared';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
 import {
@@ -343,6 +344,7 @@ export default function SettingsOverlay() {
   const [editorThemeMode, setEditorThemeMode] = useAtom(editorThemeModeAtom);
   const [editorNeutralLevel, setEditorNeutralLevel] = useAtom(editorNeutralLevelAtom);
   const [websitePreviewTheme, setWebsitePreviewTheme] = useAtom(websitePreviewThemeAtom);
+  const mobileLayout = useMobileWorkspacePresentation() !== 'regular';
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [workspaceAutoHide, setWorkspaceAutoHide] = useAtom(workspaceAutoHideAtom);
@@ -384,7 +386,8 @@ export default function SettingsOverlay() {
   const abMenuRefs = useRef(new Map<string, HTMLButtonElement | null>());
 
   // ─── Mobile detection ──────────────────────────────────────────────
-  const [isMobile, setIsMobile] = useState(false);
+  const [compactViewport, setIsMobile] = useState(false);
+  const isMobile = mobileLayout || compactViewport;
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
     setIsMobile(mq.matches);
@@ -1184,7 +1187,7 @@ export default function SettingsOverlay() {
                   { id: 'docked', title: 'Full', description: 'Expanded panels' },
                   { id: 'compact-docked', title: 'Focus', description: 'More canvas, slim panels' },
                   { id: 'floating', title: 'Float', description: 'Detached working panels' },
-                ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).map((mode) => (
+                ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).filter(mode => !mobileLayout || mode.id !== 'docked').map((mode) => (
                   <ChoiceTile
                     key={mode.id}
                     active={workspaceMode === mode.id || (mode.id === 'compact-docked' && workspaceMode === 'compact')}
@@ -1376,6 +1379,7 @@ export default function SettingsOverlay() {
 
   return createPortal(
     <div
+      data-settings-overlay
       className="fixed inset-0 z-[10000] flex flex-col"
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
@@ -1392,7 +1396,8 @@ export default function SettingsOverlay() {
           File/Edit/Insert/View tabs would normally live.            */}
       <div
         className="relative flex items-center h-[52px] border-b border-[var(--control-border)] shrink-0"
-        style={{ backgroundColor: 'var(--bg-surface)', paddingRight: 260 }}
+        data-settings-topbar
+        style={{ backgroundColor: 'var(--bg-surface)', paddingRight: isMobile ? 0 : 260 }}
       >
         <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
           <LogoButton />
@@ -1418,7 +1423,6 @@ export default function SettingsOverlay() {
           <Button
             variant="secondary"
             size="sm"
-            tabIndex={-1}
             className="cut-corners"
             icon={<BackIcon />}
             onClick={onClose}
@@ -1433,6 +1437,13 @@ export default function SettingsOverlay() {
         >
           Settings
         </div>
+        {['website', 'appearance', 'workspace', 'canvas'].includes(activeSection) && <div className="ml-auto pl-3 pr-3">
+          <Button variant="primary" size="sm" onClick={() => {
+            flushNow();
+            trace.action('settings:save-preferences', { section: activeSection });
+            onClose();
+          }}>Save</Button>
+        </div>}
       </div>
 
       {/* ─── Body: sidebar + content ─────────────────────────────────── */}

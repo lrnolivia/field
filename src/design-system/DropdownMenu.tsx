@@ -15,12 +15,16 @@
 
 import { useRef, useEffect, useLayoutEffect, useState, useMemo, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
+import { FieldGlyph } from '@/editor/glyph';
 import { FIELD_SURFACE_Z, fieldSurfaceScopeFor, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 export interface DropdownMenuItem {
   id: string;
   label: string;
+  /** Authored names and font previews retain their exact case. */
+  preserveCase?: boolean;
   /** Optional native tooltip for disabled or explanatory commands. */
   title?: string;
   icon?: ReactNode;
@@ -38,6 +42,8 @@ export interface DropdownMenuItem {
   accent?: boolean;
   /** Cascading submenu — opens to the right on hover. Recursive. */
   submenuItems?: DropdownMenuEntry[];
+  /** Rich preference content that shares the ordinary cascading placement. */
+  submenuContent?: ReactNode;
   /** Force-render a right chevron next to the label. Auto-rendered when
    *  `submenuItems` is set; this flag is only needed for parent items
    *  whose submenu lives in a custom rendering (older state-machine path
@@ -133,8 +139,8 @@ export function collectMatchingLeaves(
   if (!q) return out;
   for (const entry of entries) {
     if (isSeparator(entry)) continue;
-    if (entry.submenuItems && entry.submenuItems.length > 0) {
-      collectMatchingLeaves(entry.submenuItems, query, out, seen);
+    if ((entry.submenuItems && entry.submenuItems.length > 0) || entry.submenuContent) {
+      collectMatchingLeaves(entry.submenuItems ?? [], query, out, seen);
       continue;
     }
     if (entry.disabled || seen.has(entry.id)) continue;
@@ -320,7 +326,7 @@ function MenuPanel({
       focusItem(navigableItems[navigableItems.length - 1]?.id);
       return;
     }
-    if (event.key === 'ArrowRight' && currentEntry && !isSeparator(currentEntry) && currentEntry.submenuItems?.length) {
+    if (event.key === 'ArrowRight' && currentEntry && !isSeparator(currentEntry) && (currentEntry.submenuItems?.length || currentEntry.submenuContent)) {
       event.preventDefault();
       event.stopPropagation();
       setOpenSubId(currentEntry.id);
@@ -341,7 +347,7 @@ function MenuPanel({
   };
 
   const itemHoverClass = hoverStyle === 'accent'
-    ? 'hover:bg-[var(--accent)] hover:text-[var(--accent-fg)]'
+    ? 'hover:bg-[var(--accent)] hover:text-[var(--accent-text-fg)]'
     : 'hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]';
 
   return (
@@ -413,13 +419,15 @@ function MenuPanel({
           return <div key={`sep-${i}`} role="separator" className={`h-px bg-white/10 mx-2 ${compact ? 'my-0.5' : 'my-1'}`} />;
         }
 
-        const hasSubmenu = (entry.submenuItems && entry.submenuItems.length > 0) || entry.hasSubmenu;
+        const hasSubmenu = (entry.submenuItems && entry.submenuItems.length > 0) || entry.submenuContent || entry.hasSubmenu;
         const isOpen = openSubId === entry.id;
+        const displayLabel = entry.preserveCase ? entry.label : uiCase(entry.label);
         const accentFilled = isOpen && !entry.danger && !entry.disabled && hoverStyle === 'accent';
 
         return (
           <div key={entry.id} className="relative">
-            <button
+            <motion.button
+              initial="rest" whileHover="hover" whileFocus="hover" whileTap="tap"
               type="button"
               role="menuitem"
               tabIndex={-1}
@@ -435,7 +443,7 @@ function MenuPanel({
               onMouseEnter={() => {
                 setKeyboardSubId(null);
                 if (entry.disabled) return;
-                if (entry.submenuItems && entry.submenuItems.length > 0) {
+                if ((entry.submenuItems && entry.submenuItems.length > 0) || entry.submenuContent) {
                   setOpenSubId(entry.id);
                 } else {
                   setOpenSubId(null);
@@ -443,7 +451,7 @@ function MenuPanel({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                if (entry.submenuItems && entry.submenuItems.length > 0) return;
+                if ((entry.submenuItems && entry.submenuItems.length > 0) || entry.submenuContent) { setOpenSubId(entry.id); return; }
                 entry.onClick();
                 if (!entry.keepOpen) onClose();
               }}
@@ -461,16 +469,16 @@ function MenuPanel({
                       : `${accentFilled ? '' : 'text-[var(--text-primary)]'} ${itemHoverClass} cursor-pointer`
                 }
                 ${isOpen && !entry.danger && !entry.disabled
-                  ? (hoverStyle === 'accent' ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'bg-[var(--bg-hover)]')
+                  ? (hoverStyle === 'accent' ? 'bg-[var(--accent)] text-[var(--accent-text-fg)]' : 'bg-[var(--bg-hover)]')
                   : ''
                 }
                 ${entry.disabled ? '' : 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection,var(--accent))]'}
               `}
             >
-              {entry.icon && <span className="shrink-0 w-4 flex items-center justify-center opacity-80 group-hover:opacity-100">{entry.icon}</span>}
-              <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? uiCase(entry.label) ?? undefined : undefined}>{uiCase(entry.label)}</span>
+              {entry.icon && <span className="shrink-0 w-4 flex items-center justify-center text-[var(--accent-text)] group-hover:text-inherit"><FieldGlyph behavior="generic">{entry.icon}</FieldGlyph></span>}
+              <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? displayLabel ?? undefined : undefined}>{displayLabel}</span>
               {entry.trailingIcon && <span className="shrink-0 min-w-4 flex items-center justify-center opacity-90 group-hover:opacity-100">{entry.trailingIcon}</span>}
-              {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-fg)]/70">{entry.shortcut}</span>}
+              {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-text-fg)]/70">{entry.shortcut}</span>}
               {hasSubmenu && (
                 <svg
                   data-field-submenu-chevron
@@ -487,12 +495,13 @@ function MenuPanel({
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               )}
-            </button>
+            </motion.button>
 
-            {entry.submenuItems && entry.submenuItems.length > 0 && isOpen && createPortal(
+            {((entry.submenuItems && entry.submenuItems.length > 0) || entry.submenuContent) && isOpen && createPortal(
               <CascadingSubmenu
                 parentEl={itemRefs.current.get(entry.id) ?? null}
-                items={entry.submenuItems}
+                items={entry.submenuItems ?? []}
+                content={entry.submenuContent}
                 hoverStyle={hoverStyle}
                 onClose={onClose}
                 onMouseLeavePanel={() => { setOpenSubId(null); setKeyboardSubId(null); }}
@@ -515,6 +524,7 @@ function MenuPanel({
 // ─── Cascading submenu wrapper — measures + recurses ───────────────────────
 
 interface CascadingSubmenuProps {
+  content?: ReactNode;
   parentEl: HTMLElement | null;
   items: DropdownMenuEntry[];
   hoverStyle: 'accent' | 'subtle';
@@ -525,15 +535,25 @@ interface CascadingSubmenuProps {
 }
 
 function CascadingSubmenu({
-  parentEl, items, hoverStyle, onClose, onMouseLeavePanel,
+  parentEl, items, content, hoverStyle, onClose, onMouseLeavePanel,
   keyboardOpen = false, onKeyboardClose,
 }: CascadingSubmenuProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentSize, setContentSize] = useState({ width: 240, height: 220 });
+  useLayoutEffect(() => {
+    if (!content || !contentRef.current) return;
+    const measure = () => { const rect = contentRef.current!.getBoundingClientRect(); setContentSize({ width: rect.width, height: rect.height }); };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(contentRef.current);
+    return () => observer.disconnect();
+  }, [content]);
   const parentRect = parentEl?.getBoundingClientRect();
   if (!parentRect) return null;
   const surfaceScope = fieldSurfaceScopeFor(parentEl);
   const zIndex = fieldSurfaceZ('submenu', parentEl);
-  const SUB_WIDTH = 200;
-  const { left, top } = chooseSubmenuPosition(parentRect, SUB_WIDTH, items.filter(i => !isSeparator(i)).length);
+  const SUB_WIDTH = content ? contentSize.width : 200;
+  const { left, top } = chooseSubmenuPosition(parentRect, SUB_WIDTH, content ? Math.ceil((contentSize.height - 16) / ESTIMATED_ITEM_HEIGHT) : items.filter(i => !isSeparator(i)).length);
 
   return (
     <div
@@ -551,10 +571,12 @@ function CascadingSubmenu({
           left: -(SUBMENU_GAP + 2),
           top: 0,
           width: SUBMENU_GAP + 4,
-          height: Math.min(items.filter(i => !isSeparator(i)).length * ESTIMATED_ITEM_HEIGHT + 16, 360),
+          height: content ? contentSize.height : Math.min(items.filter(i => !isSeparator(i)).length * ESTIMATED_ITEM_HEIGHT + 16, 360),
         }}
       />
-      <MenuPanel
+      {content ? <div ref={contentRef} onKeyDown={event => {
+        if (event.key === 'ArrowLeft' && onKeyboardClose) { event.preventDefault(); event.stopPropagation(); onKeyboardClose(); }
+      }}>{content}</div> : <MenuPanel
         items={items}
         hoverStyle={hoverStyle}
         minWidth={SUB_WIDTH}
@@ -563,7 +585,7 @@ function CascadingSubmenu({
         autoFocusFirst={keyboardOpen}
         onArrowLeft={onKeyboardClose}
         zIndex={zIndex}
-      />
+      />}
     </div>
   );
 }

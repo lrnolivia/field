@@ -853,9 +853,7 @@ export default function MediaGalleryPanel({
     setDeleting(false);
   }, [confirmKeys, deleting, projectId, fetchUploads]);
 
-  const storageLabel = durableInventory === true
-    ? storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : 'Storage'
-    : durableInventory === false ? 'Session' : 'Loading…';
+  const storageLabel = durableInventory === true && storage ? `${storage.currentUsageMB} / ${storage.storageLimitMB} MB` : null;
 
   return (
     <div
@@ -876,19 +874,22 @@ export default function MediaGalleryPanel({
           </span>
         </div>
       )}
+      <div data-field-panel-section={chrome === 'full' ? '' : undefined}>
       {chrome === 'full' && (
-        <SectionLabel size="md" right={<span className="text-[11px] text-[var(--text-disabled)]">{storageLabel}</span>}>Media</SectionLabel>
+        <SectionLabel size="md" right={storageLabel ? <span className="text-[10px] text-[var(--text-secondary)]">{storageLabel}</span> : undefined}>Media</SectionLabel>
       )}
 
       {/* Tabs */}
-      <div className={`px-3 ${chrome === 'full' ? 'mt-3' : 'mt-2.5'}`}>
+      <div className={`px-2 ${chrome === 'full' ? 'mt-1' : 'mt-2.5'}`}>
         <ToolSegmentedControl
           value={tab}
           onChange={(value) => setTab(value as MediaGalleryTab)}
           options={TAB_OPTIONS}
           size={chrome === 'full' ? 'compact' : 'md'}
-          layout={chrome === 'full' ? 'grid' : 'inline'}
+          layout={chrome === 'full' ? 'all-first' : 'inline'}
         />
+      </div>
+
       </div>
 
       {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}

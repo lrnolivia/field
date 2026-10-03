@@ -85,7 +85,46 @@ html[data-field-glyph-motion='true']
   transform: scale(1.06);
 }
 
+/* Shared stroke response for ordinary glyphs, including explicit FieldGlyph
+ * and toolbar wrappers. Rich state morphs and preview illustrations own their
+ * internal geometry and are excluded. Hit targets never move. */
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary)
+  svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+  > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]) {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-field-glyph-motion='true']
+    :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):hover
+    svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+    > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]):nth-child(odd) { transform: translateY(-.75px) scaleX(1.08); }
+  html[data-field-glyph-motion='true']
+    :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):hover
+    svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+    > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]):nth-child(even) { transform: translateY(.75px) scaleX(.92); }
+}
+
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):focus-visible
+  svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+  > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]) { transform: translateY(-.75px) scaleX(1.08); }
+
+html[data-field-glyph-motion='true']
+  :where(button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href], summary):active
+  svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+  > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]) { transform: scale(.86); transition-duration:90ms; }
+
 @media (prefers-reduced-motion: reduce) {
+  html[data-field-glyph-motion='true']
+    :where(button, [role='button'], a[href], summary)
+    svg:not(:where([data-field-glyph-morph] svg, [data-field-motion] svg, [data-field-motion-part], [data-insert-preview] svg, [data-field-text-glyph]))
+    > :is(path, line, polyline, polygon, circle, ellipse, rect):not([transform]) {
+    transition:none !important; transform:none !important;
+  }
   html[data-field-glyph-motion='true']
     :where(button, [role='button'], a[href], summary)
     svg:not(:where(

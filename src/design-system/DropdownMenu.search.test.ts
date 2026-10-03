@@ -29,6 +29,15 @@ const TREE: DropdownMenuEntry[] = [
 ];
 
 describe('collectMatchingLeaves', () => {
+  test('skips rich preference submenus while preserving searchable commands', () => {
+    const entries: DropdownMenuEntry[] = [
+      { id: 'appearance', label: 'Appearance', submenuContent: 'Preference controls', onClick: () => {} },
+      { id: 'copy', label: 'Copy', onClick: () => {} },
+    ];
+    expect(collectMatchingLeaves(entries, 'appearance')).toEqual([]);
+    expect(collectMatchingLeaves(entries, 'copy').map(item => item.id)).toEqual(['copy']);
+  });
+
   test('matches leaves across ALL submenus, case-insensitive', () => {
     const out = collectMatchingLeaves(TREE, 'copy');
     expect(out.map(i => i.id)).toEqual(['edit-copy', 'edit-copy-style']);

@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
   BUILDER_THEMES,
   builderThemeBrandId,
+  builderAccentSurface,
   DEFAULT_BUILDER_THEME_ID,
   DARK_ACCENT_TEXT_MIX,
   getBuilderThemeById,
@@ -33,12 +34,12 @@ describe('builder themes', () => {
   test('ships the canonical field accent catalog', () => {
     expect(BUILDER_THEMES.map((t) => t.id)).toEqual([
       'monochrome',
+      'neutrachrome',
       'teal',
       'sienna',
       'gold',
       'green',
       'pink',
-      'neutrachrome',
     ]);
 
     expect(BUILDER_THEMES[0].id)
@@ -47,7 +48,7 @@ describe('builder themes', () => {
 
   test('pins the canonical field accent hues', () => {
     expect(getBuilderThemeById('monochrome')!.light.accent)
-      .toBe('#686868');
+      .toBe('#404040');
 
     expect(getBuilderThemeById('teal')!.light.accent)
       .toBe('#1c8c93');
@@ -65,8 +66,8 @@ describe('builder themes', () => {
       teal: '#e0ffef',
       sienna: '#f9dcbd',
       gold: '#fffbe1',
-      green: '#111111',
-      pink: '#111111',
+      green: '#f6f6f6',
+      pink: '#f6f6f6',
     };
 
     for (const t of BUILDER_THEMES.filter(t => t.id !== 'neutrachrome')) {
@@ -83,7 +84,7 @@ describe('builder themes', () => {
         const { accent, accentTextFg } = t[mode];
 
         expect(
-          ratio(accent, accentTextFg),
+          ratio(builderAccentSurface(accent, accentTextFg), accentTextFg),
           `${t.id} (${mode})`,
         ).toBeGreaterThanOrEqual(4.5);
       }
@@ -176,11 +177,11 @@ describe('builder themes', () => {
 
 
 
-test('verified Terra accents and adaptive Neutrachrome use existing identity artwork', () => {
+test('verified Terra accents and adaptive Neutrachrome have matching vector identity artwork', () => {
   expect(getBuilderThemeById('green')!.light.accent).toBe('#3bcb8d');
   expect(getBuilderThemeById('pink')!.light.accent).toBe('#ff6f78');
   const neutral = getBuilderThemeById('neutrachrome')!;
   expect(neutral.light.accent).toBe('#69635b');
   expect(neutral.dark.accent).toBe('#c7beb0');
-  for (const theme of BUILDER_THEMES) expect(['monochrome', 'teal', 'sienna', 'gold']).toContain(builderThemeBrandId(theme));
+  for (const theme of BUILDER_THEMES) expect(BUILDER_THEMES.map(t => t.id)).toContain(builderThemeBrandId(theme));
 });

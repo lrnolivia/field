@@ -18,7 +18,7 @@ interface Props {
   onChange: (value: string) => void;
   options: Option[];
   size?: 'sm' | 'md' | 'compact';
-  layout?: 'inline' | 'grid';
+  layout?: 'inline' | 'grid' | 'all-first';
 }
 
 export default function ToolSegmentedControl({ value, onChange, options, size = 'md', layout = 'inline' }: Props) {
@@ -37,8 +37,8 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
   };
 
   const height = size === 'compact' ? 'h-7' : 'h-8';
-  const padding = 'px-2.5';
-  const text = size === 'compact' ? 'text-[10px]' : 'text-[11px]';
+  const padding = layout === 'all-first' ? 'px-1' : 'px-2.5';
+  const text = layout === 'all-first' ? 'text-[9px]' : size === 'compact' ? 'text-[10px]' : 'text-[11px]';
 
   return (
     <div
@@ -46,7 +46,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
       role="group"
       data-tool-segmented
       data-segmented-layout={layout}
-      className={`relative w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
+      className={`relative w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'all-first' ? 'grid grid-cols-3' : layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
     >
       {options.map((opt, index) => {
         const active = value === opt.value;
@@ -54,6 +54,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
           <motion.button
             key={opt.value}
             type="button"
+            style={layout === 'all-first' && index === 0 ? { gridColumn: '1 / -1' } : undefined}
             aria-pressed={active}
             initial="rest"
             whileHover="hover"
@@ -69,12 +70,12 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
               <span
                 aria-hidden
                 className="flex h-4 w-4 shrink-0 items-center justify-center"
-                style={{ color: active ? 'var(--accent)' : 'var(--text-tertiary)' }}
+                style={{ color: active ? 'var(--accent-text)' : 'var(--text-tertiary)' }}
               >
                 <FieldGlyph behavior="generic">{opt.icon}</FieldGlyph>
               </span>
             )}
-            {opt.label && <span className="truncate">{opt.label}</span>}
+            {opt.label && <span className={layout === 'all-first' ? 'whitespace-nowrap' : 'truncate'}>{opt.label}</span>}
             {active && (
               <span
                 aria-hidden

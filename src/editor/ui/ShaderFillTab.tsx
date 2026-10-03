@@ -12,7 +12,7 @@ import { setInstanceProp } from '@/editor/tools/ComponentPropsTool/instance-prop
 import { CodeComponentControlField } from '@/editor/tools/ComponentPropsTool/CodeComponentControlField';
 import { ToolRow } from '@/editor/controls';
 import { SHADER_LIBRARY_ITEMS } from '@/shared/insert-items/element-data';
-import { SHADER_THUMBS } from '@/shared/insert-items/shader-thumb-map';
+import InsertItemPreview from '@/editor/media/InsertItemPreview';
 import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { trace } from '@/shared/debug-trace';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
@@ -105,7 +105,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
     const tag = toolbarItem.elementType;
     const installed = installBuiltInCodeComponent(projectFS, tag);
     if (installed === null) return;
-    if (installed) bumpProjectVersion(version => version + 1);
+
 
     const prior = managedShaderChild(node);
     const shaderId = `${node.id}__shader_fill`;
@@ -147,6 +147,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
     });
     queueMutations(mutations);
     flushNow();
+    if (installed) bumpProjectVersion(version => version + 1);
     trace.action('fill:shader-applied', { nodeId: node.id, tag, itemId, installed: installed === true });
     onSelected?.();
   };
@@ -167,6 +168,8 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
         {sidecarPos && createPortal(
           <div
             data-field-floating-surface
+            data-modal-root
+            data-field-no-canvas-input
             data-shader-fill-gallery
             className="fixed w-[360px] max-h-[min(620px,calc(100vh-24px))] overflow-hidden rounded-[12px] border border-[var(--border-light)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] flex flex-col"
             style={sidecarPos}
@@ -207,7 +210,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
                       aria-pressed={active}
                       title={item.name}
                     >
-                      {SHADER_THUMBS[item.id] ? <img src={SHADER_THUMBS[item.id]} alt="" className="block w-full aspect-[1.25] object-cover" /> : <span className="block w-full aspect-[1.25] bg-[var(--canvas-bg)]" />}
+                      <span className="block w-full aspect-[1.25] overflow-hidden"><InsertItemPreview itemId={item.id} iconKey={item.iconKey} /></span>
                       <span className="block px-2 py-2 text-[12px] text-[var(--text-primary)] truncate">{item.name}</span>
                     </button>
                   );
@@ -243,8 +246,8 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
   return (
     <div className="flex flex-col gap-4">
       <div className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)]">
-        {activeLibraryItem && SHADER_THUMBS[activeLibraryItem.id] ? (
-          <img src={SHADER_THUMBS[activeLibraryItem.id]} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        {activeLibraryItem ? (
+          <InsertItemPreview itemId={activeLibraryItem.id} iconKey={activeLibraryItem.iconKey} />
         ) : null}
       </div>
       <div className="px-0.5 pb-1">

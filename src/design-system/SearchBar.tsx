@@ -12,7 +12,8 @@
 // variables, styles/tokens, and similar growing collections are expected
 // to converge on this primitive when their interaction model permits it.
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type KeyboardEventHandler, type FocusEventHandler } from 'react';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface Props {
   value: string;
@@ -21,9 +22,12 @@ interface Props {
   /** Focus the input on mount. */
   autoFocus?: boolean;
   className?: string;
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  onFocus?: FocusEventHandler<HTMLInputElement>;
 }
 
-export default function SearchBar({ value, onChange, placeholder = 'Search…', autoFocus, className = '' }: Props) {
+export default function SearchBar({ value, onChange, placeholder = 'Search…', autoFocus, onKeyDown, onFocus, className = '' }: Props) {
+  const uiCase = useUiChromeCase();
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -46,12 +50,14 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
       </svg>
       <input
         ref={inputRef}
+        onKeyDown={onKeyDown}
+        onFocus={onFocus}
         data-field-searchbar
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label={placeholder}
+        placeholder={uiCase(placeholder) ?? undefined}
+        aria-label={uiCase(placeholder) ?? undefined}
         className="w-full h-7 pl-7 pr-2 py-0 text-[11px] rounded-[5px] border border-transparent bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] focus:bg-[var(--control-bg-hover)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]"
       />
     </div>

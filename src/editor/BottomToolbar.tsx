@@ -6,7 +6,9 @@
 // FigUI3 true-float geometry: rounded island, quiet utility chrome, compact local menus.
 
 import MediaActionCard from './media/MediaActionCard';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ToolbarMenuHeader from './media/ToolbarMenuHeader';
+import { TOOLBAR_MENU_WIDTH, TOOLBAR_MENU_SURFACE } from './media/toolbar-menu-chrome';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useClickOutside } from './hooks/useClickOutside';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
@@ -41,10 +43,10 @@ import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
 import { trace } from '@/shared/debug-trace';
 import { useIsViewer, useIsOffline } from '@/code/stores/viewer-mode-store';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
-import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
+import { TextCardGlyph } from '@/editor/glyph/text-card-glyph';
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import type { LibrarySection } from '@/editor/library-focus-store';
-import { toolbarPanelAtom } from '@/editor/toolbar-panel-store';
+import { toolbarPanelAtom, type ToolbarPanel } from '@/editor/toolbar-panel-store';
 import MediaGlyph from '@/editor/media/MediaGlyph';
 import { mediaSessionAtom } from '@/editor/media/media-state';
 import { createMediaSession } from '@/editor/media/media-system';
@@ -74,7 +76,7 @@ function Separator() {
 }
 
 function ShortcutHint({ text }: { text: string }) {
-  return <span className="text-[11px] text-[var(--text-tertiary)] ml-auto pl-4">{text}</span>;
+  return <span className="text-[9px] text-[var(--text-tertiary)] ml-auto pl-2">{text}</span>;
 }
 
 function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
@@ -84,10 +86,11 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
   const uiCase = useUiChromeCase();
   return (
     <button
+      data-toolbar-menu-option
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
       aria-current={active ? 'true' : undefined}
-      className={`flex items-center w-full px-2.5 py-1.5 text-xs rounded-[5px] transition-colors gap-2 ${
+      className={`flex h-8 items-center w-full px-2 text-[10px] rounded-[5px] transition-colors gap-2 ${
         disabled
           ? 'text-[var(--text-disabled)] cursor-not-allowed opacity-50'
           : active
@@ -96,32 +99,47 @@ function MenuItem({ label, shortcut, icon, active, onClick, disabled }: {
       }`}
       style={{ border: 'none', fontFamily: 'Inter, system-ui, sans-serif', textAlign: 'left' }}
     >
-      <span data-field-toolbar-glyph="menu" className="w-4 h-4 flex items-center justify-center shrink-0 overflow-hidden">{icon ?? null}</span>
+      <span data-field-toolbar-glyph="menu" className="w-4 h-4 flex items-center justify-center shrink-0 overflow-hidden text-[var(--accent-text)]">{icon ?? null}</span>
       <span>{uiCase(label)}</span>
       {shortcut && <ShortcutHint text={shortcut} />}
     </button>
   );
 }
 
-function DropdownContainer({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
+function DropdownContainer({ children, title, glyph, expandTo, onClose }: { children: React.ReactNode; wide?: boolean; title: string; glyph: React.ReactNode; expandTo?: ToolbarPanel; onClose?: () => void }) {
+  const setToolbarPanel = useSetAtom(toolbarPanelAtom);
+  const shell = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+  useLayoutEffect(() => {
+    const position = () => {
+      const rect = shell.current?.getBoundingClientRect();
+      if (!rect) return;
+      const overflow = rect.left < 12 ? 12 - rect.left : rect.right > window.innerWidth - 12 ? window.innerWidth - 12 - rect.right : 0;
+      if (overflow) setOffset(value => value + overflow);
+    };
+    position();
+    window.addEventListener('resize', position);
+    return () => window.removeEventListener('resize', position);
+  }, []);
   return (
-    <div data-toolbar-dropdown-shell className={`absolute bottom-full left-1/2 z-[100] mb-2 -translate-x-1/2 ${wide ? 'w-[330px]' : 'min-w-[200px]'}`}>
-      <motion.div
-        data-toolbar-dropdown
-        initial={{ opacity: 0, scale: 0.94, y: 9 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 470, damping: 29, mass: 0.68 }}
-        className="max-h-[70vh] overflow-y-auto rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] p-1 shadow-[0_14px_38px_rgba(0,0,0,0.16),0_2px_7px_rgba(0,0,0,0.07)]"
-        style={{ transformOrigin: 'calc(50% - 10px) calc(100% + 7px)' }}
-      >
-        {children}
+    <div ref={shell} data-toolbar-dropdown-shell data-modal-root className="absolute bottom-full left-1/2 z-[100] mb-3 -translate-x-1/2"
+      style={{ width: `min(${TOOLBAR_MENU_WIDTH}px, calc(100vw - 24px))`, marginLeft: offset }}
+      onKeyDown={event => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        const buttons = [...(shell.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+        event.preventDefault(); buttons[next]?.focus();
+      }}>
+      <motion.div data-toolbar-dropdown initial={{ opacity: 0, scale: 0.94, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 430, damping: 30, mass: 0.72 }}
+        className={TOOLBAR_MENU_SURFACE}
+        style={{ maxHeight: 'min(520px, calc(100vh - 88px))', transformOrigin: `calc(50% - ${offset}px) calc(100% + 7px)` }}>
+        <ToolbarMenuHeader title={title} glyph={glyph} onExpand={expandTo ? () => { setToolbarPanel(expandTo); onClose?.(); } : undefined} />
+        <div className="min-h-0 overflow-y-auto p-1.5">{children}</div>
       </motion.div>
-      <span
-        data-toolbar-origin-pointer
-        aria-hidden
-        className="absolute -bottom-[5px] left-[calc(50%-10px)] h-[9px] w-[9px] rotate-45 border-b border-r border-[var(--border-light)] bg-[var(--bg-surface)]"
-        style={{ left: 'calc(50% - 14px)' }}
-      />
+      <span data-toolbar-origin-pointer aria-hidden className="absolute -bottom-[5px] h-[10px] w-[10px] rotate-45 bg-[var(--bg-panel)]"
+        style={{ left: `calc(50% - ${offset + 5}px)` }} />
     </div>
   );
 }
@@ -182,7 +200,7 @@ function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronCl
         aria-pressed={active || undefined}
         className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
           active
-            ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
+            ? 'bg-[var(--accent)] text-[var(--accent-text-fg)] hover:brightness-110'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
         }`}
         style={{ border: 'none', cursor: 'pointer' }}
@@ -231,7 +249,7 @@ function ToolButton({ active, onClick, title, children, dataTutorial, dataTool, 
       aria-pressed={active || undefined}
       className={`flex items-center justify-center ${compact ? 'w-[32px] h-[32px]' : 'w-[36px] h-[36px]'} rounded-[6px] transition-colors ${
         active
-          ? 'bg-[var(--accent)] text-[var(--accent-fg)] hover:brightness-110'
+          ? 'bg-[var(--accent)] text-[var(--accent-text-fg)] hover:brightness-110'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       }`}
       style={{ border: 'none', cursor: 'pointer' }}
@@ -295,13 +313,14 @@ function CursorDropdown({ toolMode, commentModeActive, onSelect, allowScale, ope
         dataTool="select"
       />
       {open && (
-        <DropdownContainer wide>
-          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+        <DropdownContainer wide title="Move" glyph={<CursorIcon size={14} />}  onClose={() => setOpen(false)}>
+
+          {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
             <MenuTile label="Move" shortcut="V" icon={<CursorIcon className="w-4 h-4" />} onClick={() => { onSelect('select'); setOpen(false); }} />
             <MenuTile label="Hand tool" shortcut="H" icon={<HandToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('hand'); setOpen(false); }} />
           </div>
-          {allowScale && <MenuItem label="Scale" shortcut="K" active={toolMode === 'scale'} icon={<ScaleToolbarIcon className="w-4 h-4" />} onClick={() => { onSelect('scale'); setOpen(false); }} />}
-        </DropdownContainer>
+      </DropdownContainer>
       )}
     </div>
   );
@@ -338,19 +357,20 @@ function FrameDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMo
     <div className="relative" ref={ref} data-tutorial="frame-tool">
       <SplitButton active={toolMode === 'frame'} open={open} icon={<FrameToolbarIcon className="w-4 h-4" />}
         onClick={onSelect} onChevronClick={() => setOpen(!open)} title="Frame (F)" dataTool="frame" />
-      {open && <DropdownContainer wide>
+      {open && <DropdownContainer wide title="Frame" glyph={<FrameToolbarIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'layouts' }} onClose={() => setOpen(false)}>
         <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Basic</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-        {basicItems.slice(0, 2).map((item) => <MenuTile key={item.id} label={item.name}
-          icon={item.id === 'frame' ? <FrameToolbarIcon className="w-4 h-4" /> : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" /> : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
-          onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { openImageMedia(); } else insert(item.id); }} />)}
-        </div>
+
         {basicItems.slice(2).map(item => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Layouts</div>
         {layoutItems.map((item) => <MenuItem key={item.id} label={item.name} icon={<LayoutMiniIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         <DropdownDivider />
         <MenuItem label="Section library…" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={openSectionLibrary} />
+      <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
+        {basicItems.slice(0, 2).map((item) => <MenuTile key={item.id} label={item.name}
+          icon={item.id === 'frame' ? <FrameToolbarIcon className="w-4 h-4" /> : item.id === 'text' ? <TextToolbarIcon className="w-4 h-4" /> : item.id === 'button' ? <OutlineShapeIcon id="button" /> : <MediaIcon className="w-4 h-4" size={16} />}
+          onClick={() => { if (item.id === 'frame') { onSelect(); setOpen(false); } else if (item.id === 'image') { openImageMedia(); } else insert(item.id); }} />)}
+        </div>
       </DropdownContainer>}
     </div>
   );
@@ -392,13 +412,14 @@ function ShapeDropdown({ toolMode, onSelect, open, setOpen }: {
   return (
     <div className="relative" ref={ref} data-tutorial="shape-tool">
       <SplitButton active={activeShape} open={open} iconKey={currentChoice} icon={choiceIcons[currentChoice]} onClick={() => choose(currentChoice)} onChevronClick={() => setOpen(!open)} title="Shape tools" dataTool="shape" />
-      {open && <DropdownContainer wide>
-        <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Shapes</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-          {shapeChoices.map((choice) => <MenuTile key={choice.id} label={choice.label} icon={choiceIcons[choice.id]} onClick={() => choose(choice.id)} />)}
-        </div>
+      {open && <DropdownContainer wide title="Shapes" glyph={<ShapeSquareIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'shapes' }} onClose={() => setOpen(false)}>
+
+
         {extraShapes.map((item) => <MenuItem key={item.id} label={item.name} icon={<OutlineShapeIcon id={item.id} />} onClick={() => insert(item.id)} />)}
         {buttonItem && <><DropdownDivider /><MenuItem label="Button" icon={<OutlineShapeIcon id="button" />} onClick={() => insert('button')} /></>}
+      <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
+          {shapeChoices.map((choice) => <MenuTile key={choice.id} label={choice.label} icon={choiceIcons[choice.id]} onClick={() => choose(choice.id)} />)}
+        </div>
       </DropdownContainer>}
     </div>
   );
@@ -415,14 +436,12 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
   const insert = (id: string) => { insertToolbarItemAtVisibleCenter(id); setOpen(false); };
   return <div className="relative" ref={ref} data-tutorial="text-tool">
     <SplitButton active={toolMode === 'text'} open={open} icon={<TextToolbarIcon className="w-4 h-4" />} onClick={selectText} onChevronClick={() => setOpen(!open)} title="Draw Text (T)" dataTool="text" />
-    {open && <DropdownContainer wide>
+    {open && <DropdownContainer wide title="Text" glyph={<TextToolbarIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'typography' }} onClose={() => setOpen(false)}>
       <MenuItem label="Text" shortcut="T" icon={<TextToolbarIcon className="w-4 h-4" />} active={toolMode === 'text'} onClick={selectText} />
       {items.length > 0 && <>
         <DropdownDivider />
         <div className="px-2.5 pb-1 pt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Typography</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-          {items.slice(0, 4).map((item) => { const Icon = ELEMENT_ICON_MAP[item.iconKey]; return <MenuTile key={item.id} label={item.name} icon={Icon ? <Icon /> : <TextToolbarIcon className="w-4 h-4" />} onClick={() => insert(item.id)} />; })}
-        </div>
+
         {items.slice(4).map(item => <MenuItem key={item.id} label={item.name} onClick={() => insert(item.id)} />)}
       </>}
       <DropdownDivider />
@@ -430,7 +449,10 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
         setOpen(false);
         setPanel({ kind: 'insert', category: 'creative-text-effects', categoryData: CREATIVE_CATEGORIES.find((category) => category.id === 'creative-text-effects') });
       }} />
-    </DropdownContainer>}
+    <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
+          {items.slice(0, 4).map((item) => <MenuTile key={item.id} label={item.name} icon={<TextCardGlyph kind={item.iconKey} />} onClick={() => insert(item.id)} />)}
+        </div>
+      </DropdownContainer>}
   </div>;
 }
 
@@ -488,12 +510,13 @@ function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode
         dataTool="pen"
       />
       {open && (
-        <DropdownContainer wide>
-          <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
+        <DropdownContainer wide title="Pen" glyph={<ShapePathIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'shapes' }} onClose={() => setOpen(false)}>
+
+        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
             <MenuTile label="Pen" shortcut="P" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => choose('shape-path')} />
             <MenuTile label="Pencil" shortcut="Shift+P" icon={<SketchPencilIcon className="w-4 h-4" size={16} />} onClick={() => choose('sketch')} />
           </div>
-        </DropdownContainer>
+      </DropdownContainer>
       )}
     </div>
   );
@@ -548,17 +571,18 @@ function LibraryDropdown({ open, setOpen }: { open: boolean; setOpen: (open: boo
   return (
     <div className="relative" ref={ref}>
       <SplitButton active={false} open={open} icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => setOpen(!open)} onChevronClick={() => setOpen(!open)} title="Library" dataTool="library" />
-      {open && <DropdownContainer wide>
-        <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Library</div>
-        <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5 p-1">
-          <MenuTile label="Components" icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('components')} />
-          <MenuTile label="Vectors" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('vectors')} />
+      {open && <DropdownContainer wide title="Library" glyph={<ResourcesIcon size={14} />} expandTo={{ kind: 'library', section: 'components' }} onClose={() => setOpen(false)}>
 
-        </div>
+
         <DropdownDivider />
         <MenuItem label="Templates" icon={<LayoutRowsIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('templates')} />
         <MenuItem label="Code Overrides" onClick={() => openLibrary('code-overrides')} />
         <MenuItem label="Plugins" onClick={() => openLibrary('plugins')} />
+      <div data-toolbar-mixed-cards className="grid grid-cols-2 gap-1.5">
+          <MenuTile label="Components" icon={<ResourcesIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('components')} />
+          <MenuTile label="Vectors" icon={<ShapePathIcon className="w-4 h-4" size={16} />} onClick={() => openLibrary('vectors')} />
+
+        </div>
       </DropdownContainer>}
     </div>
   );
@@ -868,4 +892,3 @@ export default function BottomToolbar() {
     </div>
   );
 }
-

@@ -11,10 +11,12 @@ export const workspaceModePreferenceAtom = atomWithStorage<WorkspaceMode>('field
 /** Phone Focus is a presentation override, never a persisted desktop preference. */
 export const mobileFocusActiveAtom = atom(typeof window !== 'undefined'
   && resolveMobileWorkspacePresentation(window.innerWidth, window.innerHeight) !== 'regular');
+export const mobileWorkspaceModeAtom = atom<'floating' | 'compact'>('floating');
 export const workspaceModeAtom = atom(
-  (get) => get(mobileFocusActiveAtom) ? 'floating' as WorkspaceMode : get(workspaceModePreferenceAtom),
+  (get) => get(mobileFocusActiveAtom) ? get(mobileWorkspaceModeAtom) : get(workspaceModePreferenceAtom),
   (get, set, mode: WorkspaceMode) => {
-    if (!get(mobileFocusActiveAtom)) set(workspaceModePreferenceAtom, mode);
+    if (get(mobileFocusActiveAtom)) set(mobileWorkspaceModeAtom, mode === 'compact' || mode === 'compact-docked' ? 'compact' : 'floating');
+    else set(workspaceModePreferenceAtom, mode);
   },
 );
 export const dockedLeftOpenAtom = atomWithStorage('field:prefs:dockedLeftOpen:v1', true, undefined, { getOnInit: true });

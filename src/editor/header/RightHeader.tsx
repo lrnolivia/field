@@ -32,6 +32,7 @@ import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { compactInspectorOpenAtom, leftPaneOpenAtom, rightPaneOpenAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom } from '@/code/stores/workspace-panels-store';
 import { clampRightFloatingOffset, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_INSET } from '@/editor/workspace-layout';
 import InspectorCollaborators from '@/editor/collab/InspectorCollaborators';
+import CompactInspectorSections from '@/editor/CompactInspectorSections';
 import CollapsedSelectionColors from '@/editor/CollapsedSelectionColors';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { zoomTo100 } from '@/canvas/transform/CameraCommands';
@@ -331,13 +332,13 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
           data-visible={floatingInspectorVisible ? 'true' : 'false'}
           aria-hidden={!embedded && !floatingInspectorVisible}
           inert={!embedded && !floatingInspectorVisible}
-          className="fixed z-[9999] flex h-[52px] items-center border-b border-[var(--border-light)] bg-[var(--bg-panel)] px-2"
+          className="fixed z-[9999] flex h-[52px] items-center bg-[var(--bg-panel)] px-2"
           style={{
             width: workspace.right.width,
             top: workspace.right.top,
             right: workspace.right.inset,
             isolation: 'isolate',
-            backgroundColor: workspace.right.presentation === 'floating' ? 'transparent' : 'var(--bg-panel)',
+            backgroundColor: 'var(--field-chrome-shell-header-bg)',
             borderTopLeftRadius: workspace.right.presentation === 'floating' ? 8 : 0,
             borderTopRightRadius: workspace.right.presentation === 'floating' ? 8 : 0,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
@@ -364,10 +365,11 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
             aria-label={uiCase(previewMode ? 'Exit preview' : 'Preview') ?? undefined}
             title={uiCase(previewMode ? 'Exit preview' : 'Preview') ?? undefined}
             data-tutorial="header-preview-button"
+            data-field-text-button="true"
             onClick={onTogglePreview}
             className={`ml-2 flex h-7 w-7 items-center justify-center rounded-[4px] border-none transition-colors ${
               previewMode
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
+                ? 'bg-[var(--accent)] text-[var(--accent-text-fg)]'
                 : 'bg-[var(--button-secondary-bg,rgba(255,255,255,0.06))] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
             }`}
             style={previewMode ? primaryBg : undefined}
@@ -382,7 +384,8 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
               disabled={isViewer}
               data-live-trigger
               data-tutorial="header-publish-button"
-              className="relative flex h-7 min-w-[72px] items-center justify-center overflow-hidden rounded-[4px] border-none bg-[var(--accent)] px-2.5 text-[11px] font-medium text-[var(--accent-fg)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              data-field-text-button="true"
+              className="relative flex h-7 min-w-[72px] items-center justify-center overflow-hidden rounded-[4px] border-none bg-[var(--accent)] px-2.5 text-[11px] font-medium text-[var(--accent-text-fg)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               style={primaryBg}
             >
               {publishing && !open && (
@@ -434,7 +437,7 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
             top: workspace.right.top + floatingInspectorHeight - 44 + rightDragOffset.y }}>×</button>
       )}
       {!embedded && !rightPaneOpen && !previewMode && (
-        <div data-workspace-right-toggle data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
+        <div data-workspace-right-toggle data-detached={rightDetached ? 'true' : 'false'} data-visible={floatingInspectorVisible ? 'true' : 'false'} data-workspace-mode="collapsed"
           className="fixed z-[9999] flex flex-col items-center overflow-hidden px-[9px] pb-3 pt-[10px]"
           style={{
             right: rightDetached ? 12 : 0,
@@ -442,10 +445,8 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
             width: 52,
             height: rightDetached ? floatingInspectorHeight : '100vh',
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
-            border: rightDetached ? '1px solid var(--border-light)' : undefined,
-            borderLeft: '1px solid var(--border-light)',
             borderRadius: rightDetached ? 8 : 0,
-            boxShadow: rightDetached ? 'var(--shadow-lg)' : 'none',
+            boxShadow: 'var(--field-chrome-pane-shadow)',
             backgroundColor: 'var(--bg-left-rail)',
             opacity: floatingInspectorVisible ? 1 : 0,
             pointerEvents: floatingInspectorVisible ? 'auto' : 'none',
@@ -459,12 +460,13 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
           <div
             data-inspector-compact-main-tools
             className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto scrollbar-hide pb-2"
+            style={{ maxHeight: 'calc(100% - 56px)' }}
           >
-            <button type="button" aria-label={uiCase('Open Design inspector') ?? undefined} title={uiCase('Design') ?? undefined} onClick={() => { setInspectorMode('design'); setRightPaneOpen(true); }} className="flex w-8 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">{uiCase('Design')}</span></button>
-            <button type="button" aria-label={uiCase('Open Prototype inspector') ?? undefined} title={uiCase('Prototype') ?? undefined} onClick={() => { setInspectorMode('prototype'); setRightPaneOpen(true); }} className="flex w-8 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">P</span><span className="text-[9px]">{uiCase('Proto')}</span></button>
+            <button type="button" aria-label={uiCase('Open Design inspector') ?? undefined} title={uiCase('Design') ?? undefined} onClick={() => { setInspectorMode('design'); setCompactInspectorOpen(true); setRightPaneOpen(true); }} className="flex w-8 shrink-0 flex-col items-center gap-0.5 rounded-[5px] py-1 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"><span className="text-sm font-semibold">D</span><span className="text-[9px]">{uiCase('Design')}</span></button>
             {selectedCount > 0 && <span className="shrink-0 rounded-[4px] bg-[var(--bg-hover)] px-1 text-[10px] tabular-nums text-[var(--text-secondary)]" title={uiCase(`${selectedCount} selected`) ?? undefined}>{selectedCount}</span>}
             <button type="button" aria-label={uiCase(`Zoom ${compactZoom} percent; reset to 100 percent`) ?? undefined} title={uiCase('Zoom to 100%') ?? undefined} onClick={zoomTo100}
               className="w-8 shrink-0 rounded-[4px] py-1 text-[10px] tabular-nums text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">{compactZoom}%</button>
+            <div data-inspector-compact-categories className="flex w-full flex-col items-center gap-1" />
             <div className="w-full shrink-0">
               <CollapsedSelectionColors onOpen={() => setRightPaneOpen(true)} />
             </div>
@@ -486,6 +488,11 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
           </div>
         </div>
       )}
+
+      {!embedded && !previewMode && <CompactInspectorSections
+        active={!rightPaneOpen && selectedCount > 0}
+        onOpen={() => { setInspectorMode('design'); setCompactInspectorOpen(true); setRightPaneOpen(true); }}
+      />}
 
       {/* Project/source export remains menu-driven. This host exists even when
           the right inspector is collapsed, so File → Export code… never points
@@ -539,4 +546,3 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
     </>
   );
 }
-

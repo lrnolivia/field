@@ -768,7 +768,7 @@ export const LayerRow = React.memo(function LayerRow({
           // shaved flat by the mask edge. The extra pixel is mirrored on the
           // right by the width calculation, keeping the visible inset balanced.
           left: 1,
-          width: 'calc(var(--layers-vw, 100%) - 10px)',
+          width: 'calc(var(--layers-vw, 100%) - 18px)',
           transform: 'translateX(var(--layers-sx, 0px))',
           ...bgStyle,
         }}

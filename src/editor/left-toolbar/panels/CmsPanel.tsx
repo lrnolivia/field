@@ -221,7 +221,7 @@ function CollectionListView({
           onClick={onNewCollection}
           // Accent tokens, not hardcoded blue — --accent-fg is the per-theme
           // "label on accent" pairing (near-black on the gold/Amber themes).
-          className="flex items-center gap-1.5 cut-corners bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-[var(--accent-fg,#0d1017)] transition-[filter] hover:brightness-110 cursor-pointer"
+          className="flex items-center gap-1.5 cut-corners bg-[var(--accent)] px-3 py-1.5 text-[11px] font-medium text-[var(--accent-text-fg,#0d1017)] transition-[filter] hover:brightness-110 cursor-pointer"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -778,14 +778,14 @@ export default function CmsPanel() {
   }, [refresh, handleClickCollection]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-field-side-panel className="flex flex-col h-full min-h-0">
       {/* Top-of-panel search — matches the Library panel chrome (SearchBar
           + thin divider) so the left-toolbar panels share a consistent
           header pattern. Spacing math mirrors LibraryPanel verbatim:
           12 px above (pt-3), 6 px below to the divider (pb-1.5), then
           another 6 px (mt-1.5) before the divider lands and stacks
           directly against the SectionLabel below (mb-0). */}
-      <div className="px-3 pt-3 pb-1.5 shrink-0">
+      <div className="px-2 pt-2 pb-1 shrink-0">
         <SearchBar
           value={searchQuery}
           onChange={(v) => {
@@ -795,7 +795,7 @@ export default function CmsPanel() {
           placeholder="Search collections…"
         />
       </div>
-      <div data-tool-divider className="h-px bg-[var(--border-light)] mx-3 mt-1.5 mb-0" />
+      <div data-field-task-panel className="flex min-h-0 flex-col">
 
       <SectionLabel size="md" right={<AddButton onClick={handleCreateCollectionInline} title="New collection" />}>CMS</SectionLabel>
 
@@ -806,6 +806,7 @@ export default function CmsPanel() {
         renamingSlug={renamingSlug}
         setRenamingSlug={setRenamingSlug}
       />
+      </div>
     </div>
   );
 }

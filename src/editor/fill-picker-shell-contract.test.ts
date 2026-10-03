@@ -15,7 +15,7 @@ describe('fill picker shell contract', () => {
     expect(fillSource).toContain('const [fillPopupOpen, setFillPopupOpen] = useState(false)');
     expect(fillSource).toContain('isOpen={fillPopupOpen}');
     expect(fillSource).toContain('anchorRef={btnRef}');
-    expect(fillSource).toContain('width={360}');
+    expect(fillSource).toContain('width={304}');
     expect(fillSource).toContain('hideHeader');
     expect(fillSource).not.toContain("useEditorPanel('Fill'");
     expect(fillSource).not.toContain('<OptionsPanel>');
@@ -38,7 +38,7 @@ describe('fill picker shell contract', () => {
     expect(fillSource).toContain('<AssetPresetGrid');
     expect(fillSource).toContain('<PatternLibraryPanel');
     expect(fillSource).toContain('<ShaderFillTab');
-    expect(fillSource).toContain('canonicalFill');
+    expect(fillSource).toContain('canonical\n');
     expect(colorSource).toContain('pageColors');
     expect(colorSource).toContain('embeddedBody');
   });

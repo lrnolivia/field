@@ -32,7 +32,7 @@
   position: absolute;
   inset: 2px 0 auto;
   height: 1px;
-  background: var(--border-light);
+  background: transparent;
 }
 
 [data-field-pages-splitter]::after {
@@ -109,7 +109,7 @@
 }
 
 /* Keep the viewport-pinned selection/hover surface rounded. Horizontal inset
- * is owned by the 4px Layers scroll padding + rows.tsx viewport-width math. */
+ * is owned by the 8px Layers scroll padding + rows.tsx viewport-width math. */
 [data-field-layer-row] > [aria-hidden="true"]:not(.field-layer-locate-flash) {
   clip-path: none !important;
 }

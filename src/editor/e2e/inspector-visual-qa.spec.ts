@@ -209,8 +209,7 @@ async function capture(page: Page, name: string) {
   });
 
   console.log('FIELD_QA_METRICS:' + name + ':' + JSON.stringify(metrics));
-  const image = await panel.screenshot({ type: 'jpeg', quality: 64 });
-  console.log('FIELD_QA_IMAGE:' + name + ':' + image.toString('base64'));
+  await panel.screenshot({ path: `/tmp/field-review-${name}.png` });
 }
 
 test('Inspector category cards visual sweep', async ({ page }) => {
@@ -262,20 +261,17 @@ test('Inspector category cards visual sweep', async ({ page }) => {
   await page.waitForTimeout(250);
   await capture(page, 'advanced-expanded-dark');
 
-  // Prototype is a separate Inspector stack. A normal frame exercises
-  // Interactions, Navigation, Overlay and Animation together.
+  // Working behavior controls now belong to the unified Inspector.
   await select(page, ['box']);
-  await page.getByRole('tab', { name: /prototype/i }).click();
+  await expect(page.getByRole('tab', { name: /prototype/i })).toHaveCount(0);
+  await expect(page.locator('[data-inspector-group="behavior"]')).toHaveCount(1);
   await page.waitForTimeout(250);
-  await capture(page, 'prototype-frame-dark');
+  await capture(page, 'behavior-frame-dark');
 
   // An authored overlay takes the active Overlay path rather than the add state.
   await select(page, ['overlay']);
-  await capture(page, 'prototype-overlay-dark');
+  await capture(page, 'behavior-overlay-dark');
 
-  // Return to Design before the remaining Design-state checks.
-  await page.getByRole('tab', { name: /design/i }).click();
-  await page.waitForTimeout(200);
 
   // No selection is still an Inspector surface: Route / SEO / Social /
   // Search engines should use the same compact category-card grammar.
@@ -320,27 +316,15 @@ test('floating Inspector honors toolbar alignment and hard viewport margins', as
   await expect(body).toBeVisible();
   await expect(toolbar).toBeVisible();
 
-  const floatChrome = await body.evaluate((el) => {
+  const island = page.locator('[data-workspace-island="right"]').first();
+  await expect(island).toBeVisible();
+  const floatChrome = await island.evaluate(el => {
     const style = getComputedStyle(el);
-    return {
-      background: style.backgroundColor,
-      borderTop: style.borderTopWidth,
-      borderRight: style.borderRightWidth,
-      borderBottom: style.borderBottomWidth,
-      borderLeft: style.borderLeftWidth,
-      radius: style.borderRadius,
-      shadow: style.boxShadow,
-      boxSizing: style.boxSizing,
-    };
+    return { background: style.backgroundColor, radius: style.borderRadius, shadow: style.boxShadow };
   });
   expect(floatChrome.background).not.toBe('rgba(0, 0, 0, 0)');
-  expect(floatChrome.borderTop).toBe('1px');
-  expect(floatChrome.borderRight).toBe('1px');
-  expect(floatChrome.borderBottom).toBe('1px');
-  expect(floatChrome.borderLeft).toBe('1px');
   expect(parseFloat(floatChrome.radius)).toBeGreaterThanOrEqual(7);
   expect(floatChrome.shadow).not.toBe('none');
-  expect(floatChrome.boxSizing).toBe('border-box');
 
   await page.waitForTimeout(450);
   const expanded = await page.evaluate(() => {

@@ -14,14 +14,14 @@ describe('field case management', () => {
     expect(formatUiChrome('Custom Code', true)).toBe('custom code');
   });
 
-  it('preserves technical and product casing while lowering surrounding copy', () => {
-    expect(formatUiChrome('SEO Settings', true)).toBe('SEO settings');
-    expect(formatUiChrome('GitHub Integration', true)).toBe('GitHub integration');
-    expect(formatUiChrome('YouTube Embeds', true)).toBe('YouTube embeds');
-    expect(formatUiChrome('Open Graph', true)).toBe('Open Graph');
-    expect(formatUiChrome('field.RUNTIME Diagnostics', true)).toBe('field.RUNTIME diagnostics');
-    expect(formatUiChrome('A/B Tests', true)).toBe('A/B tests');
-    expect(formatUiChrome('UI Settings', true)).toBe('UI settings');
-    expect(formatUiChrome('AI Assistant', true)).toBe('AI assistant');
+  it('lowercases built-in technical and brand labels in branded mode', () => {
+    expect(formatUiChrome('SEO Settings', true)).toBe('seo settings');
+    expect(formatUiChrome('GitHub Integration', true)).toBe('github integration');
+    expect(formatUiChrome('YouTube Embeds', true)).toBe('youtube embeds');
+    expect(formatUiChrome('Open Graph', true)).toBe('open graph');
+    expect(formatUiChrome('field.RUNTIME Diagnostics', true)).toBe('field.runtime diagnostics');
+    expect(formatUiChrome('A/B Tests', true)).toBe('a/b tests');
+    expect(formatUiChrome('UI Settings', true)).toBe('ui settings');
+    expect(formatUiChrome('AI Assistant', true)).toBe('ai assistant');
   });
 });

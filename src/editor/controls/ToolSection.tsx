@@ -28,7 +28,7 @@ interface Props {
   bare?: boolean;
 }
 
-type SectionVisualKind = 'geometry' | 'appearance' | 'content' | 'behavior' | 'system';
+export type SectionVisualKind = 'geometry' | 'appearance' | 'content' | 'behavior' | 'system';
 
 function sectionVisualKind(title: string): SectionVisualKind {
   const value = title.toLowerCase();
@@ -39,7 +39,7 @@ function sectionVisualKind(title: string): SectionVisualKind {
   return 'system';
 }
 
-function SectionGlyph({ kind }: { kind: SectionVisualKind }) {
+export function SectionGlyph({ kind }: { kind: SectionVisualKind }) {
   const common = {
     width: 13,
     height: 13,
@@ -98,7 +98,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
       data-inspector-section-empty={validChildren.length === 0 ? 'true' : undefined}
       data-inspector-section-card
       data-inspector-section-kind={sectionVisualKind(title)}
-      className="mx-2 my-0.5 overflow-hidden rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)]"
+      className="field-panel-section"
     >
       {/* Canonical inspector section header. ToolSection remains the compatibility
           surface for existing tools while exposing one Figma-shaped DOM grammar. */}
@@ -131,7 +131,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
         >
           <span
             data-inspector-section-glyph
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border border-[var(--border-light)] bg-[var(--accent-surface)] text-[var(--accent)]"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] bg-[var(--accent-surface)] text-[var(--accent-text)]"
           >
             <SectionGlyph kind={sectionVisualKind(title)} />
           </span>

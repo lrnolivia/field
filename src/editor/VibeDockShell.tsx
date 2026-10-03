@@ -6,6 +6,7 @@ import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDT
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { trace } from '@/shared/debug-trace';
 import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
+import SectionLabel from '@/design-system/SectionLabel';
 
 interface Props {
   headerAccessory?: ReactNode;
@@ -40,7 +41,8 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
   return (
     <div
       data-editor-panel="left-primary"
-      className="fixed z-[5000] flex flex-col overflow-hidden bg-[var(--bg-surface)]"
+      data-vibe-dock
+      className="fixed z-[5000] flex flex-col overflow-hidden"
       style={{
         left: workspace.left.inset + LEFT_RAIL_WIDTH,
         top: workspaceBodyTop(workspace.left),
@@ -48,16 +50,13 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
         height: workspaceBodyHeightCss(workspace.left),
       }}
     >
-      <div className="relative shrink-0 flex items-center justify-between px-3 h-9 select-none border-b border-[var(--border-light)]">
-        <div className="flex items-center gap-1.5 leading-none min-w-0">
-          <span className="text-xs font-semibold text-[var(--text-primary)] shrink-0">Vibe</span>
+      <SectionLabel size="xl" right={<div className="flex items-center gap-1.5 min-w-0">
           {surfaceLabel && (
             <span className="text-[11px] text-[var(--text-secondary)] truncate" title={surfaceLabel}>
               – {surfaceLabel}
             </span>
           )}
           {headerAccessory && <span className="shrink-0">{headerAccessory}</span>}
-        </div>
         <button
           onClick={() => { trace.action('vibe-dock:detach'); onDetach(); }}
           title="Detach into a floating window"
@@ -66,7 +65,7 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
         >
           <DetachIcon />
         </button>
-      </div>
+      </div>}>Vibe</SectionLabel>
 
       <div className="flex-1 min-h-0 flex flex-col">{children}</div>
     </div>

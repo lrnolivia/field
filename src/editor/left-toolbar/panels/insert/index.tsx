@@ -10,15 +10,21 @@ import { trace } from '@/shared/debug-trace';
 import { CATEGORIES, CREATIVE_CATEGORIES, type InsertCategory, type InsertItem } from '@/shared/insert-items/element-data';
 import { CATEGORY_ICON_MAP } from '@/shared/insert-items/category-icons';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
+import { TextCardGlyph, isTextCardGlyph } from '@/editor/glyph/text-card-glyph';
 import { CmsFieldGlyph, CmsNavGlyph, CmsCollectionGlyph } from '@/shared/insert-items/cms-field-glyphs';
 import DSidebarRow from '@/design-system/SidebarRow';
 import SectionLabel from '@/design-system/SectionLabel';
+import MediaActionCard from '@/editor/media/MediaActionCard';
+import InsertItemPreview from '@/editor/media/InsertItemPreview';
+import SearchBar from '@/design-system/SearchBar';
+import UiHeadingText from '@/design-system/UiHeadingText';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
 import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { blueprintToToolbarItem } from '@/canvas/section-insert';
 import { insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
 import { SECTION_THUMBS } from '@/shared/insert-items/section-thumb-map';
 import { SHADER_THUMBS } from '@/shared/insert-items/shader-thumb-map';
+import { isPreviewIcon } from '@/shared/insert-items/icon-style-utils';
 import { collectionSchemasAtom } from '@/code/stores/cms-store';
 import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
@@ -89,100 +95,6 @@ import 'react-social-icons/tiktok';
  *  effect — they already render at `w-full h-12` and don't want to be
  *  wrapped in the 44px brand circle the integrations use. This predicate
  *  routes them down the wide-preview branch. */
-// `isPreviewIcon` + `hexToRgba` live in icon-style-utils so the
-// ToolbarGhost (drag overlay) can use the EXACT same predicate +
-// palette helpers — keeps the ghost in sync with the card it was
-// dragged from.
-import { isPreviewIcon, hexToRgba } from '@/shared/insert-items/icon-style-utils';
-
-/**
- * GradientCard — Insert-panel card for brand/integration items.
- *
- * Matches the legacy builder's InsertCategoryOverlay design:
- *   - Card background: ~8–10% alpha gradient (only a hint of brand color
- *     bleeds through). Faint enough that the dark panel surface dominates.
- *   - Icon: solid-color circle (brand primary) with a white glyph centered.
- *     Element icons (`YouTubeIcon`, `VimeoIcon`, etc.) already ship as
- *     `fill="white"` SVGs, so they read against the brand circle.
- *   - Label: brand-primary color (`gradientColors[0]`), full opacity.
- *
- * Items with a dark-on-dark brand palette (Typeform, X) get a fallback —
- * if the primary is near-black, we use the editor's default text color so
- * the label doesn't disappear into the panel background.
- */
-function GradientCard({ item }: { item: InsertItem }) {
-  const insertHandlers = useInsertCard(item);
-  const IconComponent = ELEMENT_ICON_MAP[item.iconKey];
-  const colors = item.gradientColors || ['#444', '#333'];
-  const accent = colors[0];
-
-  // Card-bg gradient at ~10% alpha — same recipe as the legacy builder
-  // (`color + '15'` hex). Just enough to suggest the brand identity.
-  const CARD_ALPHA = 0.1;
-  const rgbaColors = colors.map((c) => hexToRgba(c, CARD_ALPHA));
-  const bgStyle = colors.length >= 2
-    ? { background: `linear-gradient(135deg, ${rgbaColors.join(', ')})` }
-    : { backgroundColor: rgbaColors[0] };
-
-  // Text + icon-circle color. Detect "near black" / "near white" accents
-  // (Typeform = #262627, X = #000000, etc.) and fall back to the editor's
-  // primary text color so the label reads against the dark panel bg.
-  // Anything bright enough to read on dark gets the brand color.
-  const isNeutralAccent = (() => {
-    const h = accent.replace('#', '');
-    if (h.length !== 6) return false;
-    const r = parseInt(h.slice(0, 2), 16);
-    const g = parseInt(h.slice(2, 4), 16);
-    const b = parseInt(h.slice(4, 6), 16);
-    const max = Math.max(r, g, b);
-    return max < 60 || max > 240; // very dark or very light
-  })();
-  const labelColor = isNeutralAccent ? 'var(--text-primary)' : accent;
-
-  return (
-    <div
-      data-toolbar-item={item.id}
-      {...insertHandlers}
-      className="flex flex-col items-center gap-2 p-4 cut-corners cursor-pointer transition-all group hover:scale-[1.03]"
-      style={bgStyle}
-    >
-      {item.socialNetwork ? (
-        // Brand-faithful icon via react-social-icons. The lib renders its
-        // own colored circle + glyph (Google Maps shows the multi-color G,
-        // TikTok shows the split-color logo, etc.), so we don't wrap it in
-        // a colored circle of our own — that'd double up backgrounds.
-        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center transition-transform group-hover:scale-105">
-          <SocialIcon
-            network={item.socialNetwork}
-            style={{ width: 44, height: 44 }}
-            // Drag handler is on the parent card; the SocialIcon's <a>
-            // wrapper would otherwise navigate on click. Stop the link.
-            as="div"
-          />
-        </div>
-      ) : isPreviewIcon(item.iconKey) ? (
-        // Noises + dividers ship as wide preview SVGs (60×48 / 120×48
-        // viewBox with `w-full h-12`). Render them full-width — squeezing
-        // into a 44px circle compresses the pattern and loses the
-        // pixel-perfect look the legacy builder had.
-        <div className="w-full h-14 flex items-center justify-center overflow-hidden cut-corners">
-          {IconComponent ? <IconComponent /> : null}
-        </div>
-      ) : (
-        <div
-          className="w-11 h-11 rounded-full flex items-center justify-center transition-transform group-hover:scale-105"
-          style={{ backgroundColor: accent }}
-        >
-          {IconComponent ? <IconComponent /> : <div className="w-6 h-6 rounded-full bg-white/20" />}
-        </div>
-      )}
-      <span className="text-[11px] font-semibold text-center" style={{ color: labelColor }}>
-        {item.name}
-      </span>
-    </div>
-  );
-}
-
 // ─── Grid Card ─────────────────────────────────────────────────────────────
 
 interface GridCardProps {
@@ -230,101 +142,20 @@ function useInsertCard(item: InsertItem) {
 }
 
 function GridCard({ item }: GridCardProps) {
-  const insertHandlers = useInsertCard(item);
-
-  // Items with gradientColors get a gradient background card
-  if (item.gradientColors && item.gradientColors.length > 0) {
-    return <GradientCard item={item} />;
-  }
-
-  // Shaders-library cards: full-bleed cover render of the actual shader
-  // (shader-thumb-map, bundled imports). Checked AFTER gradientColors so
-  // the Backgrounds panel's gradient tiles keep their look even where item
-  // ids overlap (MeshGradient / LiquidMetal appear in both panels).
-  if (SHADER_THUMBS[item.id]) {
-    return (
-      <div
-        data-toolbar-item={item.id}
-        {...insertHandlers}
-        className="flex flex-col cut-corners bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cursor-grab transition-all group overflow-hidden"
-      >
-        <div className="w-full overflow-hidden">
-          <img
-            src={SHADER_THUMBS[item.id]}
-            alt={item.name}
-            draggable={false}
-            className="w-full block transition-transform duration-300 group-hover:scale-[1.02]"
-            style={{ aspectRatio: '16 / 10', objectFit: 'cover' }}
-          />
-        </div>
-        <div className="px-3 py-2.5">
-          <span className="text-[11px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
-            {item.name}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // Sections-library cards: full-width cover image (marketplace-style
-  // mockup rendered from the blueprint source — bundled via
-  // section-thumb-map, regenerated by scripts/gen-section-thumbs.mjs when
-  // a blueprint changes) with the name below. Same pointer-drag as every
-  // other card; the img must not be natively draggable or the browser's
-  // image-drag eats the gesture.
-  if (item.sectionBlueprintId) {
-    return (
-      <div
-        data-toolbar-item={item.id}
-        {...insertHandlers}
-        className="flex flex-col cut-corners bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cursor-grab transition-all group overflow-hidden"
-      >
-        <div className="w-full overflow-hidden">
-          <img
-            src={SECTION_THUMBS[item.sectionBlueprintId]}
-            alt={item.name}
-            draggable={false}
-            className="w-full block transition-transform duration-300 group-hover:scale-[1.02]"
-            style={{ aspectRatio: '16 / 10', objectFit: 'cover' }}
-          />
-        </div>
-        <div className="px-3 py-2.5">
-          <span className="text-[11px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
-            {item.name}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  const IconComponent = ELEMENT_ICON_MAP[item.iconKey];
-
-  // CMS cards render a type-aware mini "drawing" instead of a flat icon —
-  // a paragraph for body text, a calendar for a date, a chain for a link…
-  let cmsGlyph: React.ReactNode = null;
-  if (item.cmsNav) cmsGlyph = <CmsNavGlyph dir={item.cmsNav} />;
-  else if (item.cmsFieldType) cmsGlyph = <CmsFieldGlyph type={item.cmsFieldType} />;
-  else if (item.cmsCollection) cmsGlyph = <CmsCollectionGlyph />;
-
-  return (
-    <div
-      data-toolbar-item={item.id}
-      {...insertHandlers}
-      // Theme-mirrored subtle fill so each element reads as a distinct
-      // tile in both modes — `bg-white/[0.06]` only lifted off the dark
-      // panel; on the light panel it was invisible.
-      className="flex flex-col items-center gap-1.5 p-2.5 cut-corners bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cursor-pointer transition-all group"
-    >
-      {/* Icon box fills the card width so it scales down with the grid
-          column instead of overflowing a narrow panel. */}
-      <div className="w-full h-14 flex items-center justify-center">
-        {cmsGlyph ?? (IconComponent ? <IconComponent /> : <div className="w-8 h-8 rounded bg-white/10" />)}
-      </div>
-      <span className="text-[11px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] font-medium text-center">
-        {item.name}
-      </span>
-    </div>
-  );
+  const { onPointerDown, onClick, 'aria-label': ariaLabel } = useInsertCard(item);
+  const Icon = ELEMENT_ICON_MAP[item.iconKey];
+  const thumb = item.sectionBlueprintId ? SECTION_THUMBS[item.sectionBlueprintId] : SHADER_THUMBS[item.id];
+  const animatedPreview = Icon && isPreviewIcon(item.iconKey);
+  const glyph = isTextCardGlyph(item.iconKey) ? <TextCardGlyph kind={item.iconKey} />
+    : animatedPreview ? <InsertItemPreview itemId={item.id} iconKey={item.iconKey} />
+    : thumb ? <img src={thumb} alt="" draggable={false} className="h-full w-full object-cover" />
+    : item.socialNetwork ? <SocialIcon network={item.socialNetwork} as="div" style={{ width: 30, height: 30 }} />
+    : item.cmsNav ? <CmsNavGlyph dir={item.cmsNav} />
+    : item.cmsFieldType ? <CmsFieldGlyph type={item.cmsFieldType} />
+    : item.cmsCollection ? <CmsCollectionGlyph />
+    : Icon ? <span className="flex h-7 w-7 items-center justify-center overflow-hidden [&_svg]:max-h-7 [&_svg]:max-w-7"><Icon /></span> : null;
+  return <MediaActionCard context="insert" label={item.name} glyph={glyph}
+    onClick={onClick} onPointerDown={onPointerDown} itemId={item.id} ariaLabel={ariaLabel} />;
 }
 
 // ─── Secondary Panel Content ──────────────────────────────────────────────
@@ -415,7 +246,6 @@ export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelCon
 
   const gridCols =
     category.columns === 1 ? 'grid-cols-1'
-    : category.columns === 3 ? 'grid-cols-3'
     : 'grid-cols-2';
 
   return (
@@ -427,7 +257,7 @@ export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelCon
               header is intentionally absent so the panel opens straight
               into content (matches the reference the reference/legacy builder). */}
           <h3 className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2.5 px-1">
-            {section.label}
+            <UiHeadingText>{section.label}</UiHeadingText>
           </h3>
           <div className={`grid ${gridCols} ${category.columns === 1 ? 'gap-3' : 'gap-1.5'}`}>
             {section.items.map(item => (
@@ -703,75 +533,43 @@ export default function InsertOverlay() {
             tier of input. ESC clears + closes. */}
         {/* `pt-[12px]` matches the rail's top padding so the input sits on the
             same line as the Vibe icon beside it. */}
-        <div className="px-2 pb-2 pt-[12px]">
-          <div className="relative">
-            <svg
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none"
-              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSearchQuery(v);
-                // The user typing means search becomes the focus —
-                // drop any hover-opened active category so its sidebar
-                // row stops looking selected behind the search panel.
-                // Going back to category browsing is just a hover away
-                // (see `handleCategoryHover` which also clears the
-                // search reciprocally).
-                if (v.length > 0 && activeCategory !== null) {
-                  setActiveCategory(null);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setSearchQuery('');
-                  setDebouncedQuery('');
-                  (e.currentTarget as HTMLInputElement).blur();
-                }
-              }}
-              onFocus={cancelClose}
-              placeholder="Search elements…"
-              className="w-full pl-7 pr-2 py-1.5 text-xs bg-black/[0.06] hover:bg-black/[0.09] focus:bg-black/[0.12] dark:bg-white/[0.1] dark:hover:bg-white/[0.14] dark:focus:bg-white/[0.18] cut-corners text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors"
-            />
-          </div>
+        <div className="px-2 pt-2 pb-1">
+          <SearchBar value={searchQuery} placeholder="Search elements…" onFocus={cancelClose}
+            onChange={value => { setSearchQuery(value); if (value) setActiveCategory(null); }}
+            onKeyDown={event => { if (event.key === 'Escape') { setSearchQuery(''); setDebouncedQuery(''); event.currentTarget.blur(); } }}
+          />
         </div>
-
-        <SectionLabel size="md">Insert</SectionLabel>
+        <div data-field-panel-section>
+          <SectionLabel size="md">Insert</SectionLabel>
 
         {/* Main categories */}
         <div className="px-2">
           {renderCategoryRows(renderedCategories)}
         </div>
 
-        {/* Divider */}
-        <div className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
+        </div>
+        <div data-field-panel-section>
 
         {/* CMS — its own top-level group, sibling to Insert and Creative.
             Surfaces Collections + Fields as two separate rows so each
             opens its own secondary panel. */}
-        <SectionLabel size="xs">CMS</SectionLabel>
+        <SectionLabel size="md">CMS</SectionLabel>
         <div className="px-2">
           {renderCategoryRows(cmsCategories)}
         </div>
 
-        {/* Divider */}
-        <div className="mx-3 my-1.5 border-t border-[var(--border-light)]" />
+        </div>
+        <div data-field-panel-section>
 
         {/* Creative — promoted from a single Insert row into its OWN
             top-level group. Each of the five ex-sections (Effects /
             Backgrounds / Text Effects / Containers / Cursors) is a
             sibling row that opens its own secondary panel. Categories
             defined in `CREATIVE_CATEGORIES`. */}
-        <SectionLabel size="xs">CREATIVE</SectionLabel>
+        <SectionLabel size="md">Creative</SectionLabel>
         <div className="px-2 pb-2">
           {renderCategoryRows(CREATIVE_CATEGORIES)}
+        </div>
         </div>
       </div>
 
@@ -797,7 +595,7 @@ export default function InsertOverlay() {
           // — annoying when scanning shape / layout tiles that sit low
           // in the panel. Now the secondary sidebar covers the toolbar
           // along its full height while open.
-          className={`fixed bg-[var(--bg-surface)] border border-[var(--border-light)] flex min-h-0 flex-col overflow-hidden shadow-2xl ${floatingInsertRect ? 'z-[11001] rounded-r-[9px]' : 'z-[9999]'}`}
+          className={`fixed bg-[var(--bg-panel)] flex min-h-0 flex-col overflow-hidden shadow-2xl ${floatingInsertRect ? 'z-[11001] rounded-r-[9px]' : 'z-[9999]'}`}
           initial={{ opacity: 0, x: -14, scaleX: 0.96 }}
           animate={{ opacity: 1, x: 0, scaleX: 1 }}
           transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}

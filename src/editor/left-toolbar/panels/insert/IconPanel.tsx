@@ -20,6 +20,7 @@
 // etc.) bypass the filter and render in their native colors.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import MediaActionCard from '@/editor/media/MediaActionCard';
 import { normalizeIconGeometry } from '@/shared/icon-viewbox';
 import { decomposeSvgDropToShapes } from '@/canvas/drag/svg-drop-shapes';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
@@ -569,21 +570,12 @@ export function IconPanel() {
             {availableLibraries.map((lib) => {
               const previews = packPreviews.get(lib.prefix) || [];
               return (
-                <button
-                  key={lib.prefix}
+                <MediaActionCard key={lib.prefix} context="insert" tone="neutral"
+                  label={lib.prefix === 'pixelarticons' ? 'Pixelart icons' : lib.title}
+                  ariaLabel={`${lib.title}, ${lib.total.toLocaleString()} icons`}
                   onClick={() => setSelectedPack(lib.prefix)}
-                  className="group h-[100px] bg-[var(--button-secondary-bg)] hover:bg-[var(--button-secondary-hover)] cut-corners transition-all hover:scale-[1.02] overflow-hidden flex flex-col cursor-pointer border-none"
-                >
-                  <div className="flex-1 flex items-center justify-center gap-2 p-3">
-                    {previews.map((iconName) => (
-                      <IconThumb key={iconName} icon={iconName} alt="" className="w-6 h-6" colorful={isColorfulIcon(iconName)} isDark={isDark} />
-                    ))}
-                  </div>
-                  <div className="px-2 pb-2 text-center">
-                    <div className="text-[11px] font-medium text-[var(--text-primary)] truncate">{lib.title}</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">{lib.total.toLocaleString()}</div>
-                  </div>
-                </button>
+                  glyph={previews[0] ? <IconThumb icon={previews[0]} alt="" className="w-6 h-6" colorful={isColorfulIcon(previews[0])} isDark={isDark} /> : null}
+                />
               );
             })}
           </div>

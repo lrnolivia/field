@@ -18,6 +18,8 @@ interface ModalProps {
   children: ReactNode;
   /** Modal panel width (default 384px = max-w-sm) */
   width?: number;
+  /** Immersive browsing on phones; desktop geometry stays unchanged. */
+  mobileFullScreen?: boolean;
   /** Optional element rendered in the header, to the LEFT of the × close button (e.g. a "+" add button). */
   headerAction?: ReactNode;
   /** Hide the × close button (modal still closes via Escape / backdrop click). */
@@ -29,7 +31,7 @@ interface ModalProps {
   dismissible?: boolean;
 }
 
-export default function Modal({ isOpen, onClose, title, children, width = 384, headerAction, hideClose, dismissible = true }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, width = 384, mobileFullScreen = false, headerAction, hideClose, dismissible = true }: ModalProps) {
   const reducedMotion = Boolean(useReducedMotion());
   // Close on Escape
   useEffect(() => {
@@ -92,6 +94,8 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, h
 
           {/* Panel */}
           <motion.div
+            data-field-modal-window
+            data-mobile-full-screen={mobileFullScreen || undefined}
             initial={reducedMotion ? false : { opacity: 0, scale: 0.97, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 3 }}

@@ -1,4 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { useAtomValue } from 'jotai';
+import { sessionMediaAssetsAtom } from '@/editor/media/media-state';
+import SectionLabel from '@/design-system/SectionLabel';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 import ImageSearchModal from '@/editor/ui/ImageSearchModal';
 import { ToolSelect } from '@/editor/controls';
 import {
@@ -87,6 +91,8 @@ function Preview({
 }
 
 export default function GalleryCreationWizard({ busy, error, onFinish, onCancel }: GalleryCreationWizardProps) {
+  const uiCase = useUiChromeCase();
+  const mediaAssets = useAtomValue(sessionMediaAssetsAtom);
   const [step, setStep] = useState<GalleryWizardStep>('media');
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [view, setView] = useState<GalleryViewId>('grid');
@@ -102,9 +108,9 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
 
   return (
     <>
-      <section className="space-y-3 p-3" aria-labelledby="gallery-creation-title">
+      <section data-gallery-creation className="space-y-3 p-3" aria-labelledby="gallery-creation-title">
         <div className="flex items-center justify-between gap-2">
-          <h3 id="gallery-creation-title" className="text-xs font-medium text-[var(--text-primary)]">Create Gallery</h3>
+          <div id="gallery-creation-title" className="flex-1"><SectionLabel size="xl">Gallery</SectionLabel></div>
           <div className="text-[10px] tabular-nums text-[var(--text-disabled)]" aria-live="polite">
             Step {stepIndex + 1} / {STEPS.length}
           </div>
@@ -131,7 +137,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
               onClick={() => setPickerOpen(true)}
               className="h-8 w-full rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[10px] font-medium text-[var(--text-primary)] hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:border-[var(--border-focus)] disabled:opacity-40"
             >
-              Choose media
+              {uiCase('Add media')}
             </button>
             {mediaUrls.length === 0 ? (
               <div data-gallery-empty-state className="flex min-h-[92px] flex-col items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 p-4 text-center">
@@ -142,12 +148,12 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                 <span className="mt-1 text-[9px] text-[var(--text-tertiary)]">Select one or more images, then shape the layout and behavior.</span>
               </div>
             ) : (
-              <div className="space-y-1" role="list" aria-label="Selected Gallery media">
+              <div className="grid grid-cols-2 gap-2.5" role="list" aria-label="Selected Gallery media">
                 {mediaUrls.map((url, index) => (
-                  <div key={url} role="listitem" className="flex h-11 items-center gap-2 rounded-[7px] border border-[var(--control-border)] bg-[var(--bg-surface)]/55 px-2">
-                    <img src={url} alt="" draggable={false} className="h-8 w-10 rounded-[4px] object-cover" />
-                    <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--text-secondary)]">{url.split('/').pop() || 'Image'}</span>
-                    <button
+                  <div key={url} role="listitem" className="relative min-w-0 overflow-hidden rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35">
+                    <img src={url} alt="" draggable={false} className="aspect-[4/3] w-full object-cover" />
+                    <span className="block truncate px-2 pt-1.5 text-[10px] text-[var(--text-primary)]">{mediaAssets.find(asset => asset.url === url)?.name || (/^(data|blob):/.test(url) ? uiCase('Image') : url.split('/').pop()?.split('?')[0] || uiCase('Image'))}</span>
+                    <div className="flex justify-end gap-1 p-1.5"><button
                       type="button"
                       aria-label={'Move image ' + (index + 1) + ' up'}
                       title="Move up"
@@ -182,7 +188,7 @@ export default function GalleryCreationWizard({ busy, error, onFinish, onCancel 
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true">
                         <path d="m2 2 6 6M8 2 2 8" />
                       </svg>
-                    </button>
+                    </button></div>
                   </div>
                 ))}
               </div>

@@ -25,7 +25,10 @@ describe('Shader Fill reuse contract', () => {
     expect(elementData).toContain('export const SHADER_LIBRARY_ITEMS');
     expect(shaderTab).toContain('SHADER_LIBRARY_ITEMS.filter');
     expect(shaderTab).toContain('filteredItems.map');
-    expect(shaderTab).toContain('SHADER_THUMBS[item.id]');
+    expect(shaderTab).toContain('<InsertItemPreview itemId={item.id} iconKey={item.iconKey}');
+    const preview = readFileSync(resolve(process.cwd(), 'src/editor/media/InsertItemPreview.tsx'), 'utf8');
+    expect(preview).toContain('ELEMENT_ICON_MAP[iconKey]');
+    expect(preview).toContain('SHADER_THUMBS[itemId]');
   });
 
   it('models the shader as a managed source child while hiding implementation detail from Layers', () => {

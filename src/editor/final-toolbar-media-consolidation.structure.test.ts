@@ -19,9 +19,10 @@ describe('final toolbar and Media consolidation', () => {
   it('keeps the narrow Media panel legible without changing toolbar Media architecture', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
     const segmented = read('src/editor/controls/ToolSegmentedControl.tsx');
-    expect(segmented).toContain("layout?: 'inline' | 'grid'");
-    expect(segmented).toContain("'grid grid-cols-2'");
-    expect(media).toContain("layout={chrome === 'full' ? 'grid' : 'inline'}");
+    expect(segmented).toContain("layout?: 'inline' | 'grid' | 'all-first'");
+    expect(segmented).toContain("'grid grid-cols-3'");
+    expect(segmented).toContain("gridColumn: '1 / -1'");
+    expect(media).toContain("layout={chrome === 'full' ? 'all-first' : 'inline'}");
     expect(media).toContain("data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}");
     expect(media).toContain("'w-full justify-center'");
     expect(media).toContain("'justify-start pt-12'");

@@ -77,7 +77,6 @@ export default function FloatingLeftPanelHost() {
         maxHeight: portraitSheet ? 'calc(100dvh - 120px)' : undefined,
         boxSizing: 'border-box',
         background: mobilePanel ? 'var(--bg-panel)' : undefined,
-        border: mobilePanel ? '1px solid var(--border-light)' : undefined,
         borderRadius: portraitSheet ? 12 : mobilePanel ? 8 : undefined,
         boxShadow: mobilePanel ? WORKSPACE_FLOAT_SHADOW : undefined,
         opacity: visible ? 1 : 0,
@@ -93,7 +92,7 @@ export default function FloatingLeftPanelHost() {
           <span className="capitalize">{panelId}</span><span aria-hidden>×</span>
         </button>
       )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1"><Panel /></div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><Panel /></div>
       {!mobilePanel && (
         <button type="button"
           aria-label="Resize floating left panel"

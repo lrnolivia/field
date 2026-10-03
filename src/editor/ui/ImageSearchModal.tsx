@@ -1,6 +1,6 @@
-// ImageSearchModal.tsx — Media search modal matching old builder design.
+// ImageSearchModal.tsx — Image picker sharing Media's search and thumbnail chrome.
 // Three tabs: Unsplash (search), Upload (drag-drop), Create (AI — placeholder).
-// 6-column grid, aspect-square thumbnails, hover zoom + dark overlay.
+// Responsive grid of rounded 4:3 thumbnails, hover zoom + dark overlay.
 // Search on Enter key, not on typing.
 // Uses shared Modal shell for portal, backdrop, Escape key, and close button.
 
@@ -9,6 +9,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { trace } from '@/shared/debug-trace';
 import Modal from '@/design-system/Modal';
+import SearchBar from '@/design-system/SearchBar';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
@@ -83,7 +84,6 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   // lists the website's existing images instead of only an empty drop zone.
   const [uploads, setUploads] = useState<{ url: string; size?: number }[]>([]);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
   // ── Admin-only 3D assets tab ──
   const [isAdmin, setIsAdmin] = useState(false);
   const [assets3d, setAssets3d] = useState<Asset3D[]>([]);
@@ -332,30 +332,19 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
 
           {/* Search input — only on Unsplash tab */}
           {tab === 'unsplash' && (
-            <input
-              ref={inputRef}
-              type="text"
+            <SearchBar
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
               onKeyDown={handleKeyDown}
-              // Select the whole query on focus so a click lets you retype
-              // immediately without clearing first.
-              onFocus={(e) => e.currentTarget.select()}
-              placeholder="Search images... (Enter to search)"
-              className="w-64 h-[var(--control-height)] px-3 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] text-[var(--text-primary)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors"
+              onFocus={(event) => event.currentTarget.select()}
+              placeholder="Search images… (Enter to search)"
+              className="min-w-0 flex-1"
             />
           )}
 
           {/* Search input — 3D assets (client-side filter, no Enter needed) */}
           {tab === '3d' && (
-            <input
-              type="text"
-              value={query3d}
-              onChange={(e) => setQuery3d(e.target.value)}
-              onFocus={(e) => e.currentTarget.select()}
-              placeholder="Search 3D assets..."
-              className="w-64 h-[var(--control-height)] px-3 text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] focus:border-[var(--border-focus)] text-[var(--text-primary)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] focus:[--cut-border-color:var(--border-focus)] focus:outline-none transition-colors"
-            />
+            <SearchBar value={query3d} onChange={setQuery3d} onFocus={(event) => event.currentTarget.select()} placeholder="Search 3D assets…" className="min-w-0 flex-1" />
           )}
         </div>
 
@@ -363,7 +352,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {tab === 'unsplash' && (
           <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-3 max-h-[260px] min-h-[180px]' : 'grid-cols-6 max-h-[500px] min-h-[400px]'}`}>
             {loading && Array.from({ length: 24 }).map((_, i) => (
-              <div key={i} className="aspect-square cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
+              <div key={i} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
             ))}
             {!loading && results.map(img => (
               <button
@@ -371,7 +360,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 onClick={() => handleSelect(img.urls.regular)}
                 aria-label={img.alt_description ? `Select ${img.alt_description}` : 'Select Unsplash image'}
                 aria-pressed={selectionMode === 'multiple' ? isSelected(img.urls.regular) : undefined}
-                className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(img.urls.regular) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+                className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden ${isSelected(img.urls.regular) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
               >
                 <div
                   className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
@@ -382,15 +371,15 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
             ))}
             {/* Loading-more skeletons (append) — existing results stay visible. */}
             {loadingMore && Array.from({ length: 6 }).map((_, i) => (
-              <div key={`more-${i}`} className="aspect-square cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
+              <div key={`more-${i}`} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
             ))}
             {!loading && results.length === 0 && (
-              <div className="col-span-6 text-center py-8 text-xs text-[var(--text-secondary)]">
+              <div className="col-span-full text-center py-8 text-xs text-[var(--text-secondary)]">
                 No images found. Try a different search term.
               </div>
             )}
             {!loading && !loadingMore && !hasMore && results.length > 0 && (
-              <div className="col-span-6 text-center py-4 text-[10px] text-[var(--text-disabled)]">
+              <div className="col-span-full text-center py-4 text-[10px] text-[var(--text-disabled)]">
                 That's all for this search — refine the term for different results.
               </div>
             )}
@@ -400,12 +389,12 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
           <div className="space-y-3">
-            <div className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
+            <div data-image-upload-grid className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
               {/* Upload drop zone — routes through `backend.uploadAsset`
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
                   gallery alongside every other upload. */}
-              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-28' : 'aspect-square'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
+              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-28' : 'aspect-[4/3]'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
@@ -443,7 +432,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                   onClick={() => handleSelect(item.url)}
                   aria-label={`Select uploaded image ${i + 1}`}
                   aria-pressed={selectionMode === 'multiple' ? isSelected(item.url) : undefined}
-                  className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden ${isSelected(item.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+                  className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden ${isSelected(item.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
                 >
                   <div
                     className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
@@ -454,7 +443,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
               ))}
             </div>
             {uploadError && (
-              <div className="px-2.5 py-1.5 cut-corners cut-border bg-red-500/10 border border-red-500/20 text-[11px] text-red-500 dark:text-red-400 leading-snug">
+              <div className="px-2.5 py-1.5 rounded-[6px] bg-red-500/10 border border-red-500/20 text-[11px] text-red-500 dark:text-red-400 leading-snug">
                 {uploadError}
               </div>
             )}
@@ -494,7 +483,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {tab === '3d' && (
           <div className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
             {!assets3dLoaded && Array.from({ length: 18 }).map((_, i) => (
-              <div key={i} className="aspect-square cut-corners overflow-hidden animate-pulse bg-gradient-to-r from-[var(--grid-line)] via-[var(--bg-hover)] to-[var(--grid-line)]" />
+              <div key={i} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
             ))}
             {assets3dLoaded && filtered3d.map(a => (
               <button
@@ -505,14 +494,14 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 // Light tile so dark + light renders are both visible (the WebPs
                 // are trimmed/transparent), matching the revyme-cloud asset cards.
                 aria-pressed={selectionMode === 'multiple' ? isSelected(a.url) : undefined}
-                className={`relative group cursor-pointer aspect-square cut-corners overflow-hidden bg-[#ececec] ${isSelected(a.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+                className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden bg-[#ececec] ${isSelected(a.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
               >
                 <img src={a.url} loading="lazy" alt={a.shape} className="w-full h-full object-contain p-2 transition-transform group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
               </button>
             ))}
             {assets3dLoaded && filtered3d.length === 0 && (
-              <div className="col-span-6 text-center py-8 text-xs text-[var(--text-secondary)]">
+              <div className="col-span-full text-center py-8 text-xs text-[var(--text-secondary)]">
                 No 3D assets found.
               </div>
             )}
@@ -529,7 +518,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                 type="button"
                 onClick={() => setSelectedUrls([])}
                 disabled={selectedUrls.length === 0}
-                className="h-[var(--control-height)] px-3 text-xs border border-[var(--control-border)] text-[var(--text-secondary)] disabled:opacity-40"
+                className="h-[var(--control-height)] rounded-[6px] bg-[var(--control-bg)] px-3 text-xs border border-[var(--control-border)] text-[var(--text-primary)] disabled:opacity-40"
               >
                 Clear
               </button>
@@ -542,7 +531,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
                   else selectedUrls.forEach(onSelect);
                   onClose();
                 }}
-                className="h-[var(--control-height)] px-3 text-xs bg-[var(--accent)] text-white disabled:opacity-40"
+                className="h-[var(--control-height)] rounded-[6px] px-3 text-xs bg-[var(--accent)] text-[var(--accent-text-fg)] disabled:opacity-40"
               >
                 Add {selectedUrls.length > 0 ? selectedUrls.length : ''}
               </button>
@@ -553,5 +542,5 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   );
   if (!isOpen) return null;
   const modalWidth = tab === 'upload' && uploads.length === 0 ? 520 : tab === 'create' ? 560 : 800;
-  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
+  return embedded || compact ? content : <Modal mobileFullScreen isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
 }

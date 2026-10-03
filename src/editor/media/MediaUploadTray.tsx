@@ -7,6 +7,7 @@ import {
   removeMediaUploadAtom,
   retryMediaUploadAtom,
 } from './media-state';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 import type { MediaUploadItem } from './media-system';
 
 const ACTIVE_STATUSES = new Set<MediaUploadItem['status']>(['queued', 'uploading', 'processing']);
@@ -34,6 +35,7 @@ function kindGlyph(item: MediaUploadItem): string {
 }
 
 export default function MediaUploadTray() {
+  const mobile = useMobileWorkspacePresentation() !== 'regular';
   const queue = useAtomValue(mediaUploadQueueAtom);
   const cancel = useSetAtom(cancelMediaUploadAtom);
   const remove = useSetAtom(removeMediaUploadAtom);
@@ -69,12 +71,12 @@ export default function MediaUploadTray() {
 
     if (previousActive.current > 0 && errorCount === 0 && completeCount > 0) {
       previousActive.current = 0;
-      const timer = window.setTimeout(() => setExpanded(false), 1400);
+      const timer = window.setTimeout(() => setExpanded(false), mobile ? 0 : 1400);
       return () => window.clearTimeout(timer);
     }
 
     previousActive.current = activeCount;
-  }, [activeCount, errorCount, completeCount]);
+  }, [activeCount, errorCount, completeCount, mobile]);
 
   if (queue.length === 0) return null;
 
