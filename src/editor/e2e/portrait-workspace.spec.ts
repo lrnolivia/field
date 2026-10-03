@@ -200,7 +200,7 @@ test('portrait Media selection is reversible until explicit placement', async ({
   await expect(media.locator('[data-preview-state="ready"]')).toBeVisible();
   await media.getByRole('button', { name:'Place image', exact:true }).focus();
   await page.keyboard.press('Tab');
-  await expect(media.getByRole('button', { name:'Done', exact:true })).toBeFocused();
+  await expect(media.getByRole('button', { name:'Back to canvas', exact:true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(media.getByRole('button', { name:'Place image', exact:true })).toBeFocused();
   await page.screenshot({ path:testInfo.outputPath('portrait-media-confirm-390.png') });

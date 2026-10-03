@@ -35,6 +35,7 @@ import {
   ConfirmModal,
   Toggle,
 } from './settings-shared';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { setWebsiteWatermark } from '@/backend/revyme-backend';
 import {
@@ -343,6 +344,7 @@ export default function SettingsOverlay() {
   const [editorThemeMode, setEditorThemeMode] = useAtom(editorThemeModeAtom);
   const [editorNeutralLevel, setEditorNeutralLevel] = useAtom(editorNeutralLevelAtom);
   const [websitePreviewTheme, setWebsitePreviewTheme] = useAtom(websitePreviewThemeAtom);
+  const mobileLayout = useMobileWorkspacePresentation() !== 'regular';
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [workspaceAutoHide, setWorkspaceAutoHide] = useAtom(workspaceAutoHideAtom);
@@ -384,7 +386,8 @@ export default function SettingsOverlay() {
   const abMenuRefs = useRef(new Map<string, HTMLButtonElement | null>());
 
   // ─── Mobile detection ──────────────────────────────────────────────
-  const [isMobile, setIsMobile] = useState(false);
+  const [compactViewport, setIsMobile] = useState(false);
+  const isMobile = mobileLayout || compactViewport;
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
     setIsMobile(mq.matches);
@@ -1184,7 +1187,7 @@ export default function SettingsOverlay() {
                   { id: 'docked', title: 'Full', description: 'Expanded panels' },
                   { id: 'compact-docked', title: 'Focus', description: 'More canvas, slim panels' },
                   { id: 'floating', title: 'Float', description: 'Detached working panels' },
-                ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).map((mode) => (
+                ] as Array<{ id: Exclude<WorkspaceMode, 'compact'>; title: string; description: string }>).filter(mode => !mobileLayout || mode.id !== 'docked').map((mode) => (
                   <ChoiceTile
                     key={mode.id}
                     active={workspaceMode === mode.id || (mode.id === 'compact-docked' && workspaceMode === 'compact')}
@@ -1393,7 +1396,8 @@ export default function SettingsOverlay() {
           File/Edit/Insert/View tabs would normally live.            */}
       <div
         className="relative flex items-center h-[52px] border-b border-[var(--control-border)] shrink-0"
-        style={{ backgroundColor: 'var(--bg-surface)', paddingRight: 260 }}
+        data-settings-topbar
+        style={{ backgroundColor: 'var(--bg-surface)', paddingRight: isMobile ? 0 : 260 }}
       >
         <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
           <LogoButton />
@@ -1419,7 +1423,6 @@ export default function SettingsOverlay() {
           <Button
             variant="secondary"
             size="sm"
-            tabIndex={-1}
             className="cut-corners"
             icon={<BackIcon />}
             onClick={onClose}

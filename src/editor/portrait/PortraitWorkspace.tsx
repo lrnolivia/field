@@ -15,9 +15,8 @@ import { settingsOverlayOpenAtom } from '@/code/stores/website-settings-store';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import { undo, redo } from '@/code/mutation/history';
 import { isGalleryNode } from '@/code/gallery/gallery-model';
-import { FieldGlyph } from '../glyph';
-import { FigmaCursorIcon, FigmaLibraryIcon, FigmaChevronDownIcon, FigmaImageIcon } from '@/shared/loew-figma-icons';
-import { PageDocumentIcon } from '@/shared/icons';
+import { FigmaChevronDownIcon } from '@/shared/loew-figma-icons';
+import MobileGlyph from './MobileGlyph';
 import PropertiesPanel from '../PropertiesPanel';
 import CommentsListPanel from '../CommentsListPanel';
 import { PANEL_MAP } from '../left-toolbar/LeftPanel';
@@ -66,6 +65,8 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   const [expanded, setExpanded] = useState(saved?.expanded ?? false);
   const large = expanded || !!destination && ['project', 'comments', 'media', 'library', 'presets', 'cms', 'locale', 'branches', 'insert', 'pages'].includes(destination);
   const node = useNode(selected[0]);
+  const gallery = selected.length === 1 && isGalleryNode(node);
+  const fullScreen = destination === 'library' || (destination === 'inspect' && gallery);
   const mode = useAtomValue(toolModeAtom);
   const viewer = useIsViewer();
   const reduced = useFieldReducedMotion();
@@ -139,8 +140,9 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   useEffect(() => {
     if (!destination) return;
     const key = (e: KeyboardEvent) => {
+      if (document.querySelector('[data-field-modal-window]')) return;
       if (e.key === 'Escape') { e.preventDefault(); close(); }
-      if (e.key === 'Tab' && large) {
+      if (e.key === 'Tab' && (large || fullScreen)) {
         const controls = Array.from(surface.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]') ?? []).filter(el => el.getClientRects().length);
         if (!controls.length) return;
         if (e.shiftKey && document.activeElement === controls[0]) { e.preventDefault(); controls[controls.length - 1].focus(); }
@@ -149,7 +151,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
     };
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
-  }, [destination, large, close]);
+  }, [destination, large, fullScreen, close]);
   useLayoutEffect(() => {
     if (!destination) {
       if (focusPending.current) { focusPending.current = false; (returnToBrowse.current ? browseButton.current : toolsButton.current)?.focus({ preventScroll: true }); }
@@ -174,7 +176,6 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
     window.visualViewport?.addEventListener('resize', reveal);
     return () => window.visualViewport?.removeEventListener('resize', reveal);
   }, []);
-  const gallery = selected.length === 1 && isGalleryNode(node);
   const title = destination === 'inspect' ? selected.length > 1 ? `${selected.length} objects` : node?.name || node?.type || 'Page'
     : destination === 'tools' ? 'Tools' : destination === 'browse' ? 'Browse' : DESTINATIONS.find(d => d.id === destination)?.title || 'Browse';
 
@@ -194,26 +195,26 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   // Media owns its dedicated adaptive controller and explicit placement step.
   const mediaOwnsSurface = toolbarPanel?.kind === 'media';
   return <div data-portrait-workspace data-field-no-canvas-input>
-    <div className="field-portrait-topbar"><span>{getFriendlyFileName(file)}</span><div>
-      <button type="button" aria-label="Undo" disabled={viewer} onClick={() => undo()}><svg viewBox="0 0 20 20" aria-hidden><path d="m7 4-4 4 4 4M3 8h8a5 5 0 0 1 0 10" /></svg></button>
-      <button type="button" aria-label="Redo" disabled={viewer} onClick={() => redo()}><svg viewBox="0 0 20 20" aria-hidden><path d="m13 4 4 4-4 4m4-4H9a5 5 0 0 0 0 10" /></svg></button>
-      <button type="button" aria-label="Open settings" onClick={() => setSettingsOpen(true)}><svg viewBox="0 0 20 20" aria-hidden><path d="M3 5h14M3 10h14M3 15h14M7 3v4m6 1v4m-5 1v4" /></svg></button>
+    <div className="field-portrait-topbar" aria-hidden={fullScreen || undefined} inert={fullScreen || undefined}><button type="button" className="field-mobile-main-pill" aria-label="Open project" onClick={() => open('project')}><MobileGlyph name="project" size={20} /><span>{getFriendlyFileName(file)}</span></button><div>
+      <button type="button" aria-label="Undo" disabled={viewer} onClick={() => undo()}><MobileGlyph name="undo" size={20} /></button>
+      <button type="button" aria-label="Redo" disabled={viewer} onClick={() => redo()}><MobileGlyph name="redo" size={20} /></button>
+      <button type="button" aria-label="Open settings" onClick={() => setSettingsOpen(true)}><MobileGlyph name="settings" size={20} /></button>
     </div></div>
     <AnimatePresence>{destination && !mediaOwnsSurface && <>
       {destination === 'tools' && <div className="field-portrait-tool-dismiss" onClick={close} />}
       {large && <motion.div className="field-portrait-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />}
-      <motion.section ref={surface} tabIndex={-1} role="dialog" aria-modal={large || undefined} aria-label={title}
-        data-portrait-surface={destination} data-expanded={large} className="field-portrait-surface"
+      <motion.section ref={surface} tabIndex={-1} role="dialog" aria-modal={large || fullScreen || undefined} aria-label={title}
+        data-portrait-surface={destination} data-expanded={large} data-mobile-full-screen={fullScreen || undefined} className="field-portrait-surface"
         initial={reduced ? false : { opacity: 0, y: 24, scale: .97, filter: 'blur(1.5px)' }} animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }} exit={reduced ? { opacity: 0 } : { opacity: 0, y: 14, scale: .98 }}
         transition={{ ...fieldSpatialTransition(reduced, fieldMotion.disclosure), layout: fieldSpatialTransition(reduced, { type: 'spring', stiffness: 520, damping: 42.3, mass: .86 }) }}>
-        <header><button type="button" aria-label="Back" onClick={back}><FigmaChevronDownIcon size={18} className="rotate-90" /></button><div><h2>{title}</h2>{destination === 'inspect' && <span>{viewer ? 'View only' : 'Changes save as you edit'}</span>}</div>
-          {destination === 'inspect' || destination === 'layers' ? <button type="button" aria-label={expanded ? 'Show canvas' : 'Expand workspace'} onClick={() => setExpanded(!expanded)}><svg viewBox="0 0 20 20" aria-hidden><path d="M3 7V3h4m6 0h4v4M3 13v4h4m6 0h4v-4" /></svg></button> : null}
+        <header><button type="button" aria-label="Back" onClick={back}><FigmaChevronDownIcon size={18} className="rotate-90" /></button><span className="field-mobile-header-glyph"><MobileGlyph name={gallery && destination === 'inspect' ? 'gallery' : destination === 'tools' ? 'tools' : destination === 'inspect' ? 'inspect' : destination === 'browse' ? 'browse' : destination} /></span><div><h2>{title}</h2>{destination === 'inspect' && <span>{viewer ? 'View only' : 'Changes save as you edit'}</span>}</div>
+          {!fullScreen && (destination === 'inspect' || destination === 'layers') ? <button type="button" aria-label={expanded ? 'Show canvas' : 'Expand workspace'} onClick={() => setExpanded(!expanded)}><MobileGlyph name="expand" size={20} /></button> : null}
           <button type="button" onClick={close} aria-label={destination === 'inspect' ? 'Close Properties' : `Close ${title}`}>Done</button>
         </header>
         <div className="field-portrait-content" data-field-chrome-panel>
           {destination === 'tools' && <div data-mobile-toolbar-expanded><QuickTools onChoose={close} /></div>}
           {destination === 'browse' && <nav aria-label="Browse project">{DESTINATIONS.map(d => <button type="button" key={d.id} className="field-portrait-destination" onClick={() => chooseBrowse(d.id)}>
-            <FieldGlyph behavior={d.id === 'media' ? 'media' : 'generic'}>{d.id === 'pages' ? <PageDocumentIcon size={22} /> : d.id === 'media' ? <FigmaImageIcon size={22} /> : <FigmaLibraryIcon size={22} />}</FieldGlyph>
+            <span className="field-mobile-menu-glyph"><MobileGlyph name={d.id} /></span>
             <span><strong>{d.title}</strong><small>{d.detail}</small></span><FigmaChevronDownIcon size={16} className="-rotate-90" />
           </button>)}</nav>}
           {destination === 'comments' && <CommentsListPanel />}
@@ -222,6 +223,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
           {destination === 'pages' && <PortraitPages onChoose={close} />}
           {destination === 'layers' && <PortraitLayers onEdit={() => open('inspect')} />}
           {destination === 'inspect' && <>
+            {fullScreen && <nav className="field-mobile-history" aria-label="Gallery history"><button type="button" aria-label="Undo" disabled={viewer} onClick={() => undo()}><MobileGlyph name="undo" size={18} />Undo</button><button type="button" aria-label="Redo" disabled={viewer} onClick={() => redo()}><MobileGlyph name="redo" size={18} />Redo</button></nav>}
             <nav className="field-portrait-task-nav" aria-label="Property tasks">
               {TASKS.slice(0, 3).map(t => <button type="button" key={t.id} aria-pressed={!allTasks && task === t.id} onClick={() => { setTask(t.id); setAllTasks(false); }}>{gallery ? t.id === 'context' ? 'Images' : t.id === 'geometry' ? 'Layout' : 'Image treatment' : t.title}</button>)}
               <button type="button" aria-expanded={allTasks} onClick={() => setAllTasks(!allTasks)}>All properties</button>
@@ -236,8 +238,8 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
       </motion.section>
     </>}</AnimatePresence>
     {!destination && <div className="field-portrait-dock" id="bottom-toolbar-container">
-      <button ref={browseButton} type="button" className="field-browse-button" aria-label="Open browse" onClick={() => open(lastBrowse)}><FieldGlyph behavior="layers"><FigmaLibraryIcon size={20} /></FieldGlyph><span>Browse</span></button>
-      <button ref={toolsButton} type="button" className="field-tools-fab" data-mobile-toolbar-launcher aria-label="Open tools" aria-expanded={false} onClick={() => open('tools')}><FieldGlyph><FigmaCursorIcon size={22} /></FieldGlyph><span>Tools<small>{mode === 'select' ? 'Move' : mode.replace('shape-', '')}</small></span></button>
+      <button ref={browseButton} type="button" className="field-browse-button" aria-label="Open browse" onClick={() => open(lastBrowse)}><MobileGlyph name="browse" /><span>Browse</span></button>
+      <button ref={toolsButton} type="button" className="field-tools-fab" data-mobile-toolbar-launcher aria-label="Open tools" aria-expanded={false} onClick={() => open('tools')}><MobileGlyph name="tools" /><span>Tools<small>{mode === 'select' ? 'Move' : mode.replace('shape-', '')}</small></span></button>
     </div>}
   </div>;
 }

@@ -350,5 +350,5 @@ export default function VideoSearchModal({ isOpen, onClose, onSelect, compact = 
       </div>
   );
   if (!isOpen) return null;
-  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
+  return embedded || compact ? content : <Modal mobileFullScreen isOpen={isOpen} onClose={onClose} title="Video" width={tab === 'pixabay' ? 800 : 520}>{content}</Modal>;
 }

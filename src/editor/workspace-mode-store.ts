@@ -2,6 +2,7 @@ import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import { leftPanelAtom } from '@/code/stores/left-panel-store';
 import {
+  mobileFocusActiveAtom,
   compactInspectorOpenAtom,
   floatingInspectorExpandedAtom,
   dockedLeftOpenAtom,
@@ -46,6 +47,16 @@ export const leftRailVisibleAtom = atom((get) => {
 });
 
 export const setWorkspaceModeAtom = atom(null, (get, set, mode: WorkspaceMode) => {
+  if (get(mobileFocusActiveAtom)) {
+    set(workspaceModeAtom, mode);
+    set(floatingPanelCollapsedAtom, true);
+    set(compactPanelOpenAtom, false);
+    set(floatingInspectorExpandedAtom, false);
+    set(compactInspectorOpenAtom, false);
+    set(rightInspectorTemporaryRevealAtom, false);
+    set(rightInspectorExplicitCollapseAtom, false);
+    return;
+  }
   const previousMode = get(workspaceModeAtom);
   const panel = get(leftPanelAtom);
   const floatingPanel = panel === 'vibe' ? 'layers' : panel;

@@ -9,7 +9,9 @@ import { previewModeAtom } from '@/code/stores/editor-store';
 
 /** Floating interaction semantics are canonical; docked modes only change wrapper geometry. */
 export default function WorkspaceModeCoordinator() {
-  const portrait = useMobileWorkspacePresentation() === 'portrait-sheet';
+  const presentation = useMobileWorkspacePresentation();
+  const portrait = presentation === 'portrait-sheet';
+  const mobile = presentation !== 'regular';
   const mode = useAtomValue(workspaceModeAtom);
   const [autoHide, setAutoHide] = useAtom(workspaceAutoHideAtom);
   const entrance = useAtomValue(floatingEntranceAtom);
@@ -107,13 +109,13 @@ export default function WorkspaceModeCoordinator() {
       event.preventDefault();
       event.stopPropagation();
       if (event.key === 'ArrowUp') setMode('floating');
-      else if (event.key === 'ArrowDown') setMode('docked');
+      else if (event.key === 'ArrowDown') setMode(mobile ? 'floating' : 'docked');
       else if (event.key === 'ArrowRight') setMode('compact-docked');
       else setAutoHide(!autoHide);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [autoHide, groupEditingId, previewMode, selectedIds.length, setAutoHide, setMode, shapeEditingId]);
+  }, [mobile, autoHide, groupEditingId, previewMode, selectedIds.length, setAutoHide, setMode, shapeEditingId]);
 
   return null;
 }

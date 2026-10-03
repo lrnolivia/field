@@ -389,7 +389,7 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
         {/* ─── Upload Tab ─── */}
         {tab === 'upload' && (
           <div className="space-y-3">
-            <div className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
+            <div data-image-upload-grid className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
               {/* Upload drop zone — routes through `backend.uploadAsset`
                   so the file lands in the project's R2 bucket (cloud) or
                   local backend store and shows up in the LeftPanel media
@@ -542,5 +542,5 @@ export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionM
   );
   if (!isOpen) return null;
   const modalWidth = tab === 'upload' && uploads.length === 0 ? 520 : tab === 'create' ? 560 : 800;
-  return embedded || compact ? content : <Modal isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
+  return embedded || compact ? content : <Modal mobileFullScreen isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
 }
