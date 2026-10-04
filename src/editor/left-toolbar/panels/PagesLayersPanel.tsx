@@ -95,7 +95,7 @@ export default function PagesLayersPanel() {
       className="flex flex-col h-full overflow-hidden min-h-0"
     >
       <DocumentSearch />
-      <div ref={shellRef} className="flex min-h-0 flex-1 flex-col gap-1">
+      <div ref={shellRef} className="flex min-h-0 flex-1 flex-col gap-1 px-2 pb-2">
       <div
         data-document-pages
         className="shrink-0 min-h-0 overflow-y-auto overscroll-contain scrollbar-hide"

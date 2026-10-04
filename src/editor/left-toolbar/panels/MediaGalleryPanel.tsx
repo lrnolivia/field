@@ -891,7 +891,7 @@ export default function MediaGalleryPanel({
           </span>
         </div>
       )}
-      <div data-media-search-row className="shrink-0 px-3 pb-2">
+      <div data-media-search-row className="px-2 pt-2 pb-1 shrink-0">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}

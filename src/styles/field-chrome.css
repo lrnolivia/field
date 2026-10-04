@@ -61,7 +61,7 @@
   --bg-elevated: var(--field-chrome-control-bg);
   --panel-inset: 10px;
 }
-[data-field-document-panel] { padding: 6px 8px; gap: 4px; }
+[data-field-document-panel] { padding: 0; gap: 4px; }
 [data-library-panel] { background: transparent; }
 .field-pages-section-header, .field-layers-section-header {
   min-height: 36px; height: 36px; padding-inline: 10px;

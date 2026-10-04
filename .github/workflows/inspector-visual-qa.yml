@@ -28,7 +28,31 @@ jobs:
           npx tsc --noEmit
           npm run lint
       - name: Run current combined editor acceptance
-        run: npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: qa-evidence/results.json
+        run: |
+          mkdir -p qa-evidence
+          set +e
+          npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line,json
+          status=$?
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          if (fs.existsSync('qa-evidence/results.json')) {
+            const report=JSON.parse(fs.readFileSync('qa-evidence/results.json','utf8'));
+            let count=0;
+            function walk(suite) {
+              for(const spec of suite.specs||[]) for(const test of spec.tests||[])
+                if(test.status==='unexpected' && count++<5) {
+                  const error=(test.results||[]).flatMap(r=>r.errors||[]).map(e=>e.message||'').join('\n').replace(/\u001b\[[0-9;]*m/g,'').slice(0,7000);
+                  const escape=s=>s.replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A');
+                  console.log('::error title=Browser acceptance::'+escape(spec.title+'\n'+error));
+                }
+              for(const child of suite.suites||[]) walk(child);
+            }
+            walk(report);
+          }
+          JS
+          exit "$status"
       - name: Stage screenshots inside the workspace
         if: always()
         run: |

@@ -158,3 +158,49 @@ for (const theme of ['light', 'dark'] as const) {
     console.log('CHROME_PARITY', theme, colors);
   });
 }
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`${theme}: sidebar search geometry matches Library and AI follows pane resizing`, async ({ page }) => {
+    await page.addInitScript(theme => {
+      localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(theme));
+      localStorage.setItem('field:prefs:leftContentWidth', JSON.stringify(320));
+    }, theme);
+    const editor = new EditorPage(page);
+    await editor.gotoWithSeed('LOCALE_TEXT');
+    await fullLayout(page);
+    const rail = page.locator('[data-left-menu-rail]');
+    const pane = page.locator('[data-editor-panel="left-primary"]:visible');
+    const geometry = async () => pane.locator('[data-field-searchbar]').evaluate(input => {
+      const box = input.getBoundingClientRect();
+      const host = input.closest('[data-editor-panel]')!.getBoundingClientRect();
+      return { left: box.left - host.left, right: host.right - box.right, top: box.top - host.top, height: box.height };
+    });
+    await rail.getByRole('button', { name: 'Library', exact: true }).click();
+    const reference = await geometry();
+    for (const name of ['Presets', 'CMS', 'Media', 'Pages & Layers']) {
+      await rail.getByRole('button', { name, exact: true }).click();
+      await expect(pane.locator('[data-field-searchbar]')).toHaveCount(1);
+      const actual = await geometry();
+      for (const key of ['left', 'right', 'top', 'height'] as const)
+        expect(Math.abs(actual[key] - reference[key]), `${name}/${key}`).toBeLessThanOrEqual(0.5);
+    }
+    await rail.getByRole('button', { name: 'AI assistant', exact: true }).click();
+    const dock = page.locator('[data-vibe-dock]');
+    for (const width of [232, 320, 420, 256]) {
+      const current = (await dock.boundingBox())!.width;
+      const handle = page.locator('[data-workspace-resize="left"]');
+      const box = (await handle.boundingBox())!;
+      await page.mouse.move(box.x + box.width / 2, box.y + Math.min(200, box.height - 10));
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 + width - current, box.y + Math.min(200, box.height - 10), { steps: 3 });
+      await page.mouse.up();
+      await expect.poll(() => dock.evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(width);
+      await expect.poll(async () => {
+        const edge = await page.locator('[data-workspace-island="left"]').evaluate(el => el.getBoundingClientRect().right);
+        const bounds = (await dock.boundingBox())!;
+        return Math.abs(bounds.x + bounds.width - edge);
+      }).toBeLessThanOrEqual(1);
+    }
+    await page.screenshot({ path: `../screenshots/field-sidebar-${theme}-parity.png` });
+  });
+}
