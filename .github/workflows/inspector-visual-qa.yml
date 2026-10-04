@@ -2,6 +2,8 @@ name: inspector visual qa
 
 on:
   workflow_dispatch:
+  push:
+    branches: [field/document-media-search-20261004]
 
 permissions:
   contents: read
@@ -20,6 +22,11 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
+      - name: Verify all production bundles and strict types
+        run: |
+          npm run build:all
+          npx tsc --noEmit
+          npm run lint
       - name: Run current combined editor acceptance
         run: npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line
       - name: Stage screenshots inside the workspace
