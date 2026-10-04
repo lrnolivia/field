@@ -62,9 +62,9 @@
 :where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) [data-field-section-label] > span {
   font-size: 12px; font-weight: 600; color: var(--text-primary);
 }
-[data-field-pages-tree] { padding: 6px 8px 8px; }
+[data-field-pages-tree] { padding: var(--field-panel-title-inset) 8px 8px; }
 [data-document-layers] { padding-bottom: 8px; }
-[data-document-layers] [data-layers-scroll] { padding: 6px 8px 0; }
+[data-document-layers] [data-layers-scroll] { padding: var(--field-panel-title-inset) 8px 0; }
 
 :where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel], [data-toolbar-panel]) [data-field-section-label],
 [data-inspector-section-header] {
@@ -86,11 +86,19 @@
 
 [data-library-panel] > [data-tool-divider] { display: none; }
 /* Content insets belong to the shared card, including empty and filtered lists. */
-:root { --field-panel-content-inset: 8px; }
+:root { --field-panel-content-inset: 8px; --field-panel-title-inset: 12px; }
 [data-field-task-panel] > :not([data-field-section-label]):not([data-tool-divider]) {
   padding-block: var(--field-panel-content-inset);
+  padding-top: var(--field-panel-title-inset);
 }
 [data-media-filter-tabs] { padding-bottom: var(--field-panel-content-inset); }
+[data-field-panel-section] > [data-media-filter-tabs] {
+  margin-top: 0;
+  padding-top: var(--field-panel-title-inset);
+}
+:where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) [data-library-section] [data-field-section-label] + :not([data-tool-divider]) {
+  margin-top: var(--field-panel-title-inset);
+}
 /* Follow the 11px shell minus the incumbent 5px horizontal / 4px vertical inset. */
 #bottom-toolbar-container:not(.field-portrait-dock) :is([data-toolbar-tool], [data-toolbar-chevron]) {
   border-radius: 6px / 7px;
