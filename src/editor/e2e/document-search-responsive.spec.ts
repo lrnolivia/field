@@ -195,8 +195,11 @@ for (const theme of ['light', 'dark'] as const) {
       await page.mouse.move(box.x + box.width / 2 + width - current, box.y + Math.min(200, box.height - 10), { steps: 3 });
       await page.mouse.up();
       await expect.poll(() => dock.evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(width);
-      const edges = await page.locator('[data-workspace-island="left"]').evaluate(el => el.getBoundingClientRect().right);
-      expect(Math.abs((await dock.boundingBox())!.x + width - edges)).toBeLessThanOrEqual(1);
+      await expect.poll(async () => {
+        const edge = await page.locator('[data-workspace-island="left"]').evaluate(el => el.getBoundingClientRect().right);
+        const bounds = (await dock.boundingBox())!;
+        return Math.abs(bounds.x + bounds.width - edge);
+      }).toBeLessThanOrEqual(1);
     }
     await page.screenshot({ path: `../screenshots/field-sidebar-${theme}-parity.png` });
   });
