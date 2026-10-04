@@ -116,7 +116,7 @@ for (const theme of ['light', 'dark']) {
     await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
     await expect.poll(() => editor.getPageCode()).toContain('data-field-pattern');
     const before = await editor.getPageCode();
-    await picker.getByRole('button', { name: /select source/i }).click();
+    await picker.getByRole('button', { name: /select (?:pattern )?source/i }).click();
     const catalog = page.locator('[data-pattern-source-catalog]');
     await expect(catalog.getByRole('textbox', { name: 'Search pattern library' })).toBeVisible();
     await expect(page.locator('[data-contextual-media-picker="fill-pattern"]')).toHaveCount(0);
@@ -130,7 +130,7 @@ for (const theme of ['light', 'dark']) {
     await expect.poll(() => editor.getPageCode()).toContain('waves-1');
     await expect.poll(() => editor.node('abs-child').evaluate(el => getComputedStyle(el).backgroundImage)).toContain('url(');
     const selected = await editor.getPageCode();
-    await picker.getByRole('button', { name: /select source/i }).click();
+    await picker.getByRole('button', { name: /select (?:pattern )?source/i }).click();
     await catalog.getByRole('button', { name: 'Use an image…' }).click();
     await expect(page.locator('[data-contextual-media-picker="fill-pattern"]')).toBeVisible();
     await page.keyboard.press('Escape');
