@@ -22,13 +22,19 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Run current combined editor acceptance
         run: npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line
+      - name: Stage screenshots inside the workspace
+        if: always()
+        run: |
+          mkdir -p qa-evidence/screenshots
+          if [ -d ../screenshots ]; then cp -a ../screenshots/. qa-evidence/screenshots/; fi
       - name: Preserve current-head screenshots and failure traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: field-combined-ui-review
           path: |
-            ../screenshots/*.png
+            qa-evidence/screenshots/
             test-results/
             playwright-report/
           retention-days: 7
+
