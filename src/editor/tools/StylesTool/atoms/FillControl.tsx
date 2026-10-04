@@ -64,6 +64,7 @@ import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
 import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
 import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
+import PatternSourcePanel from '@/editor/ui/PatternSourcePanel';
 import ShaderFillTab from '@/editor/ui/ShaderFillTab';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
@@ -433,6 +434,20 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     ));
   };
 
+  const openPatternSource = () => {
+    pushPanel('Pattern source', (
+      <PatternSourcePanel
+        activePatternId={config.source === 'pattern-monster' ? config.patternId : undefined}
+        onSelect={(definition, next) => {
+          setMonsterDefinition(definition);
+          applyPattern(next, definition);
+          popPanel();
+        }}
+        onChooseImage={openPatternMedia}
+      />
+    ));
+  };
+
   if (config.source === 'asset') {
     const preview = buildPatternFillStyles(config);
     const updateAsset = (next: Partial<AssetPatternFillConfig>) => {
@@ -449,7 +464,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={openPatternMedia}
+          onClick={openPatternSource}
           className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
           aria-label="Replace pattern source"
           title={config.assetUrl}
@@ -513,7 +528,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
           <span className="truncate pr-2">{monsterDefinition.title}</span>
           <span className="shrink-0">Pattern Monster · MIT</span>
         </div>
-        <button type="button" onClick={openPatternMedia} className="h-10 px-3 rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors">Select source…</button>
+        <button type="button" onClick={openPatternSource} className="h-10 px-3 rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors">Select source…</button>
         <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
 
         {maxColors > 2 && (
@@ -657,7 +672,7 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     <div className="flex flex-col gap-4">
       <button
         type="button"
-        onClick={openPatternMedia}
+        onClick={openPatternSource}
         className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
         aria-label="Select pattern source"
       >

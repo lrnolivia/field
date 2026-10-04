@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { project } from './inspector-project';
+import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
 import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 
 test.use({ viewport: { width: 1440, height: 1000 }, contextOptions: { reducedMotion: 'reduce' }, hasTouch: true });
@@ -94,5 +95,50 @@ for (const theme of ['light', 'dark']) for (const layout of ['docked', 'floating
       await editor.select(['frame']);
       await pane.screenshot({ path: `../screenshots/field-combined-${theme}-${layout}-${width}.png` });
     }
+  });
+}
+
+for (const theme of ['light', 'dark']) {
+  test(`${theme}: pattern source browses the catalog first and keeps image import secondary`, async ({ page }) => {
+    const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
+    seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx'].split('background:').join('backgroundColor:');
+    await page.addInitScript(({ seed, theme }) => {
+      localStorage.setItem('revyme-project-local', JSON.stringify(seed));
+      localStorage.setItem('revyme-onboarding-completed', 'true');
+      localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(theme));
+    }, { seed, theme });
+    const editor = new EditorPage(page);
+    await page.goto('/work/local');
+    await editor.node('abs-child').waitFor({ state: 'visible' });
+    await editor.select(['abs-child']);
+    await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
+    const picker = page.getByRole('dialog', { name: 'Paint picker' });
+    await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+    await expect.poll(() => editor.getPageCode()).toContain('data-field-pattern');
+    const before = await editor.getPageCode();
+    await picker.getByRole('button', { name: /select source/i }).click();
+    const catalog = page.locator('[data-pattern-source-catalog]');
+    await expect(catalog.getByRole('textbox', { name: 'Search pattern library' })).toBeVisible();
+    await expect(page.locator('[data-contextual-media-picker="fill-pattern"]')).toHaveCount(0);
+    await expect(catalog.getByRole('button', { name: 'Use an image…' })).toBeVisible();
+    await catalog.getByRole('textbox', { name: 'Search pattern library' }).fill('waves');
+    await expect(catalog.getByRole('button', { name: 'Waves - 1', exact: true })).toBeVisible();
+    await page.screenshot({ path: `../screenshots/field-pattern-source-${theme}.png` });
+    expect(await editor.getPageCode()).toBe(before);
+    await catalog.getByRole('button', { name: 'Waves - 1', exact: true }).click();
+    await expect(catalog).toHaveCount(0);
+    await expect.poll(() => editor.getPageCode()).toContain('waves-1');
+    await expect.poll(() => editor.node('abs-child').evaluate(el => getComputedStyle(el).backgroundImage)).toContain('url(');
+    const selected = await editor.getPageCode();
+    await picker.getByRole('button', { name: /select source/i }).click();
+    await catalog.getByRole('button', { name: 'Use an image…' }).click();
+    await expect(page.locator('[data-contextual-media-picker="fill-pattern"]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(catalog).toBeVisible();
+    expect(await editor.getPageCode()).toBe(selected);
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => editor.getPageCode()).toBe(before);
   });
 }
