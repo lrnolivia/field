@@ -2,6 +2,8 @@ name: inspector visual qa
 
 on:
   workflow_dispatch:
+  push:
+    branches: [field/document-media-search-20261004]
 
 permissions:
   contents: read
@@ -9,7 +11,7 @@ permissions:
 jobs:
   qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       CI: "true"
     steps:
@@ -18,7 +20,28 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
-      - name: Run Inspector visual QA
-        run: npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts --project=chromium --reporter=line
+      - name: Verify all production bundles and strict types
+        run: |
+          npm run build:all
+          npx tsc --noEmit
+          npm run lint
+      - name: Run current combined editor acceptance
+        run: npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line
+      - name: Stage screenshots inside the workspace
+        if: always()
+        run: |
+          mkdir -p qa-evidence/screenshots
+          if [ -d ../screenshots ]; then cp -a ../screenshots/. qa-evidence/screenshots/; fi
+      - name: Preserve current-head screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-combined-ui-review
+          path: |
+            qa-evidence/screenshots/
+            test-results/
+            playwright-report/
+          retention-days: 7
+

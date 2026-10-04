@@ -10,7 +10,8 @@ import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-type ButtonProps = ComponentPropsWithoutRef<typeof motion.button> & {
+type ButtonProps = Omit<ComponentPropsWithoutRef<typeof motion.button>, 'children'> & {
+  children?: React.ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;

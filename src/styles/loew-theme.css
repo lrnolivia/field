@@ -375,12 +375,14 @@ select {
 }
 .field-inspector-field-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) 52px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   gap: var(--inspector-grid-gap, var(--control-gap, 8px));
   align-items: center;
   min-width: 0;
 }
 .field-inspector-field-grid > * { min-width: 0; }
+.field-inspector-field-grid:not([data-has-size-actions]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.field-inspector-field-grid:not([data-has-size-actions]) > :last-child { display: none; }
 .field-alignment-matrix { transition: border-color 160ms ease; }
 .field-alignment-matrix:hover { border-color: var(--accent); }
 .field-alignment-dot,

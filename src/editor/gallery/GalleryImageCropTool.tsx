@@ -5,6 +5,7 @@ import { useNodesComputed } from '@/code/stores/node-family';
 import { isGalleryItemNode, isGalleryNode } from '@/code/gallery/gallery-model';
 import { formatObjectPosition, parseObjectPosition } from '@/canvas/gallery/crop-math';
 import GalleryCropOverlay from './GalleryCropOverlay';
+import { galleryMediaTreatmentPatch, parseGalleryZoom, parseGalleryRotation, GALLERY_IMAGE_ZOOM_STYLE_PROPERTY, GALLERY_IMAGE_ROTATION_STYLE_PROPERTY } from '@/code/gallery/gallery-media-treatment';
 
 /**
  * Direct-child selection companion for Gallery images.
@@ -16,7 +17,7 @@ import GalleryCropOverlay from './GalleryCropOverlay';
  * a coincidentally named image outside a Gallery never gets Gallery behavior.
  */
 export default function GalleryImageCropTool() {
-  const { node, nodeId, vpId, styles, updateStyle } = useControl();
+  const { node, nodeId, vpId, styles, updateMultipleStyles } = useControl();
   const [cropOpen, setCropOpen] = useState(false);
 
   const insideGallery = useNodesComputed((nodes) => {
@@ -48,7 +49,7 @@ export default function GalleryImageCropTool() {
             <button
               type="button"
               className="h-[var(--control-height-sm)] px-2 border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              onClick={() => updateStyle('objectPosition', '50% 50%')}
+              onClick={() => updateMultipleStyles(galleryMediaTreatmentPatch('50% 50%', parseGalleryZoom(styles[GALLERY_IMAGE_ZOOM_STYLE_PROPERTY]), parseGalleryRotation(styles[GALLERY_IMAGE_ROTATION_STYLE_PROPERTY])))}
               title="Reset image position"
             >
               Reset
@@ -66,7 +67,9 @@ export default function GalleryImageCropTool() {
           src={src}
           vpId={vpId}
           objectPosition={objectPosition}
-          onCommit={(value) => updateStyle('objectPosition', value)}
+          zoom={parseGalleryZoom(styles[GALLERY_IMAGE_ZOOM_STYLE_PROPERTY])}
+          rotation={parseGalleryRotation(styles[GALLERY_IMAGE_ROTATION_STYLE_PROPERTY])}
+          onCommit={(value) => updateMultipleStyles(galleryMediaTreatmentPatch(value.objectPosition, value.zoom, value.rotation))}
           onClose={() => setCropOpen(false)}
         />
       )}

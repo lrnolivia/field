@@ -27,7 +27,9 @@ test('portrait owns purpose-built tools, browse and focused editing without chan
   await page.getByRole('button', { name: 'Open tools', exact: true }).tap();
   const tools = page.locator('[data-portrait-surface="tools"]');
   await expect(tools).toBeVisible();
-  await expect(tools.locator('.field-quick-tile')).toHaveCount(4);
+  await expect(tools.locator('.field-quick-tile')).toHaveCount(0);
+  await expect(tools.getByRole('button', { name: 'Columns', exact: true })).toBeVisible();
+  await expect(tools.locator('.field-quick-row')).toHaveCount(17);
   await tools.getByRole('button', { name: 'Hand', exact: true }).tap();
   await expect(tools).toHaveCount(0);
   await page.getByRole('button', { name: 'Open tools', exact: true }).tap();

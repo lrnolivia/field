@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorInnerHighlightAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   builderThemeBrandId,
@@ -79,6 +79,8 @@ export function applyEditorChromePreferences(): void {
   const root = document.documentElement;
   root.classList.toggle('dark', mode === 'dark');
   root.dataset.themeMode = mode;
+  const innerHighlight = store.get(editorInnerHighlightAtom);
+  root.dataset.innerHighlight = ['buttons', 'everywhere'].includes(innerHighlight) ? innerHighlight : 'current';
   root.dataset.neutralLevel = level;
   root.dataset.lowercaseHeadings = lowercaseHeadings ? 'true' : 'false';
 }
@@ -271,6 +273,8 @@ export function subscribeBuilderTheme(): void {
     applyEditorChromePreferences();
     trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
   });
+
+  store.sub(editorInnerHighlightAtom, applyEditorChromePreferences);
 
   store.sub(lowercaseHeadingsAtom, () => {
     applyEditorChromePreferences();

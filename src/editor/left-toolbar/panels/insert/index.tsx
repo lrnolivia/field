@@ -2,6 +2,7 @@
 // Hover-driven: hovering a sidebar category opens the secondary detail panel.
 // Secondary panel is full-height, same width as first sidebar, opens cleanly to the right.
 
+import { placeInsertPalette } from './palette-placement';
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
@@ -145,16 +146,16 @@ function GridCard({ item }: GridCardProps) {
   const { onPointerDown, onClick, 'aria-label': ariaLabel } = useInsertCard(item);
   const Icon = ELEMENT_ICON_MAP[item.iconKey];
   const thumb = item.sectionBlueprintId ? SECTION_THUMBS[item.sectionBlueprintId] : SHADER_THUMBS[item.id];
-  const animatedPreview = Icon && isPreviewIcon(item.iconKey);
+  const animatedPreview = Object.prototype.hasOwnProperty.call(ELEMENT_ICON_MAP, item.iconKey) && isPreviewIcon(item.iconKey);
   const glyph = isTextCardGlyph(item.iconKey) ? <TextCardGlyph kind={item.iconKey} />
     : animatedPreview ? <InsertItemPreview itemId={item.id} iconKey={item.iconKey} />
     : thumb ? <img src={thumb} alt="" draggable={false} className="h-full w-full object-cover" />
-    : item.socialNetwork ? <SocialIcon network={item.socialNetwork} as="div" style={{ width: 30, height: 30 }} />
+    : item.socialNetwork ? <SocialIcon network={item.socialNetwork} as="div" bgColor="transparent" fgColor="currentColor" style={{ width: 30, height: 30 }} />
     : item.cmsNav ? <CmsNavGlyph dir={item.cmsNav} />
     : item.cmsFieldType ? <CmsFieldGlyph type={item.cmsFieldType} />
     : item.cmsCollection ? <CmsCollectionGlyph />
     : Icon ? <span className="flex h-7 w-7 items-center justify-center overflow-hidden [&_svg]:max-h-7 [&_svg]:max-w-7"><Icon /></span> : null;
-  return <MediaActionCard context="insert" label={item.name} glyph={glyph}
+  return <MediaActionCard context="insert" tone="neutral" label={item.name} glyph={glyph}
     onClick={onClick} onPointerDown={onPointerDown} itemId={item.id} ariaLabel={ariaLabel} />;
 }
 
@@ -272,30 +273,35 @@ export function SecondaryPanelContent({ category, sectionId }: SecondaryPanelCon
 
 // ─── Main InsertOverlay ────────────────────────────────────────────────────
 
-/** Width of the first sidebar panel (set by LeftPanel.tsx). */
-const SIDEBAR_WIDTH = 256;
 /** Width of the secondary detail panel. */
 const SECONDARY_WIDTH = 270;
-/** Left menu icon strip width. */
-const MENU_WIDTH = 52;
 /** Top toolbar height. */
 const TOP_BAR = 52;
 
 export default function InsertOverlay() {
   trace.fn('InsertOverlay.render');
 
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const [parentRect, setParentRect] = useState<DOMRect | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [floatingInsertRect, setFloatingInsertRect] = useState<DOMRect | null>(null);
   useEffect(() => {
     const update = () => {
+      setViewportWidth(window.innerWidth);
+      const parent = sidebarRef.current?.closest('[data-floating-left-panel], [data-workspace-left-body]') ?? sidebarRef.current;
+      const measured = parent?.getBoundingClientRect() ?? null;
+      setParentRect(previous => previous?.left === measured?.left && previous?.right === measured?.right ? previous : measured);
       const rect = document.querySelector('[data-floating-left-panel="insert"]')?.getBoundingClientRect() ?? null;
       setFloatingInsertRect((previous) => previous?.left === rect?.left && previous?.top === rect?.top
         && previous?.width === rect?.width && previous?.height === rect?.height ? previous : rect);
     };
     update();
+    const observer = new ResizeObserver(update);
+    if (sidebarRef.current) observer.observe(sidebarRef.current);
     window.addEventListener('pointermove', update);
     window.addEventListener('resize', update);
-    return () => { window.removeEventListener('pointermove', update); window.removeEventListener('resize', update); };
+    return () => { observer.disconnect(); window.removeEventListener('pointermove', update); window.removeEventListener('resize', update); };
   }, []);
   const setToolbarPanel = useSetAtom(toolbarPanelAtom);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -495,10 +501,9 @@ export default function InsertOverlay() {
   const activeCategoryData = activeCategory
     ? [...renderedCategories, ...CREATIVE_CATEGORIES, ...cmsCategories].find(c => c.id === activeCategory) ?? null
     : null;
-  const secondaryOpensLeft = !!floatingInsertRect && floatingInsertRect.right + SECONDARY_WIDTH + 8 > window.innerWidth;
-  const secondaryLeft = floatingInsertRect
-    ? secondaryOpensLeft ? Math.max(8, floatingInsertRect.left - SECONDARY_WIDTH) : floatingInsertRect.right
-    : MENU_WIDTH + SIDEBAR_WIDTH;
+  const placement = placeInsertPalette(parentRect ?? { left: 0, right: viewportWidth }, viewportWidth, SECONDARY_WIDTH);
+  const secondaryOpensLeft = placement.opensLeft;
+  const secondaryLeft = placement.left;
 
   // Sidebar category rows — the Insert / CMS / Creative groups below render
   // the exact same row markup, so they share this one helper.
@@ -518,6 +523,7 @@ export default function InsertOverlay() {
 
   return (
     <div
+      ref={sidebarRef} data-insert-sidebar
       className="flex flex-col h-full overflow-y-auto"
       onMouseLeave={scheduleClose}
       onMouseEnter={cancelClose}
@@ -586,7 +592,11 @@ export default function InsertOverlay() {
           query text). Either state on its own works as expected:
           search-only when nothing is hovered, hover-only when search
           is empty. Clearing both → portal closes. */}
-      {(activeCategoryData || searchActive) && createPortal(
+      {(activeCategoryData || searchActive) && placement.inline && <section data-insert-inline-detail className="shrink-0 border-t border-[var(--border-light)] p-2">
+        <div className="flex items-center justify-between py-2 text-xs"><strong>{activeCategoryData?.label ?? 'Search results'}</strong><button type="button" className="min-h-9 px-2" onClick={() => { setActiveCategory(null); setSearchQuery(''); }}>Close</button></div>
+        {activeCategoryData ? <SecondaryPanelContent category={activeCategoryData} /> : <SearchResultsPanel query={debouncedQuery} groups={searchResults} />}
+      </section>}
+      {(activeCategoryData || searchActive) && !placement.inline && createPortal(
         <motion.div
           data-editor-panel="left-secondary"
           // z-[9999] is one above the bottom toolbar (z-[9998] in
@@ -596,13 +606,13 @@ export default function InsertOverlay() {
           // in the panel. Now the secondary sidebar covers the toolbar
           // along its full height while open.
           className={`fixed bg-[var(--bg-panel)] flex min-h-0 flex-col overflow-hidden shadow-2xl ${floatingInsertRect ? 'z-[11001] rounded-r-[9px]' : 'z-[9999]'}`}
-          initial={{ opacity: 0, x: -14, scaleX: 0.96 }}
+          initial={{ opacity: 0, x: 0, scaleX: 0.96 }}
           animate={{ opacity: 1, x: 0, scaleX: 1 }}
           transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
           style={{
             left: secondaryLeft,
             top: floatingInsertRect ? floatingInsertRect.top + 44 : 0,
-            width: Math.min(SECONDARY_WIDTH, window.innerWidth - secondaryLeft - 8),
+            width: placement.width,
             height: floatingInsertRect ? Math.max(100, floatingInsertRect.height - 44) : '100vh',
             transformOrigin: secondaryOpensLeft ? 'right center' : 'left center',
           }}

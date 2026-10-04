@@ -4,6 +4,15 @@ import type { CanvasNode } from '@/code/parsing/parser';
 import type { ToolbarItem } from '../toolbar-item-config';
 import type { DragContext } from '../types';
 
+const makeNode = (overrides: Partial<CanvasNode>): CanvasNode => ({
+    id: '', type: 'div', name: '', parentId: null, children: [], styles: {}, attrs: {},
+    textContent: '', hasMixedContent: false, order: 0, isCanvasNode: false,
+    componentFile: null, componentInstanceId: null, isComponentRoot: false,
+    motionVariants: null, motionVariantsRef: null, responsiveVariantMap: null,
+    conditionalStyles: null, motionProps: null,
+    ...overrides,
+});
+
 const makeItem = (overrides: Partial<ToolbarItem> = {}): ToolbarItem => ({
   id: 'frame',
   elementType: 'div',
@@ -29,7 +38,7 @@ const makeContext = (overrides: Partial<DragContext> = {}): DragContext => ({
 describe('ToolbarDragStrategy', () => {
   it('resolves nested Gallery hits to the existing Gallery root', () => {
     const nodes = new Map<string, CanvasNode>([
-      ['gallery', {
+      ['gallery', makeNode({
         id: 'gallery',
         type: 'div',
         name: 'Gallery',
@@ -37,8 +46,8 @@ describe('ToolbarDragStrategy', () => {
         children: ['item'],
         styles: { '--field-gallery-view': 'grid' },
         attrs: {},
-      } as CanvasNode],
-      ['item', {
+      })],
+      ['item', makeNode({
         id: 'item',
         type: 'figure',
         name: 'Gallery Item',
@@ -46,8 +55,8 @@ describe('ToolbarDragStrategy', () => {
         children: ['image'],
         styles: { '--field-gallery-item': '1' },
         attrs: {},
-      } as CanvasNode],
-      ['image', {
+      })],
+      ['image', makeNode({
         id: 'image',
         type: 'img',
         name: 'Gallery Image',
@@ -55,7 +64,7 @@ describe('ToolbarDragStrategy', () => {
         children: [],
         styles: {},
         attrs: { src: '/a.jpg' },
-      } as CanvasNode],
+      })],
     ]);
 
     expect(resolveGalleryDropRoot(['image'], nodes)?.id).toBe('gallery');
@@ -65,7 +74,7 @@ describe('ToolbarDragStrategy', () => {
 
   it('leaves unrelated toolbar targets on the generic drop path', () => {
     const nodes = new Map<string, CanvasNode>([
-      ['frame', {
+      ['frame', makeNode({
         id: 'frame',
         type: 'div',
         name: 'Frame',
@@ -73,7 +82,7 @@ describe('ToolbarDragStrategy', () => {
         children: [],
         styles: {},
         attrs: {},
-      } as CanvasNode],
+      })],
     ]);
     expect(resolveGalleryDropRoot(['frame'], nodes)).toBeNull();
   });

@@ -68,7 +68,7 @@ function GradientAtom() {
           onClose={() => setOpen(false)}
         >
           {surface === 'custom' ? (
-            <GradientEditor value={editorValue} onChange={onChange} hideOverlay canonicalFill />
+            <GradientEditor value={editorValue} onChange={onChange} hideOverlay canonical />
           ) : (
             <AssetPresetGrid
               presets={gradientPresets}

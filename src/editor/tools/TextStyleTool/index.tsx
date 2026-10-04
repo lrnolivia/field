@@ -20,7 +20,7 @@ import {
   StrokeControl,
 } from './atoms';
 
-export default function TextStyleTool() {
+export default function TextStyleTool({ inline = false }: { inline?: boolean } = {}) {
   const { node, styles, updateStyle } = useControl();
   if (!node) return null;
 
@@ -37,6 +37,20 @@ export default function TextStyleTool() {
   };
 
   trace.fn('TextStyleTool:render', { nodeId: node.id, nodeType: node.type, hasPreset });
+
+  if (inline) return <div data-mobile-text-controls>
+    <div><FontFamilyControl compact /></div>
+    <div><TypographyPresetControl compact /></div>
+    <div><TextPropertyControl compact property="fontWeight" label="Weight" /></div>
+    <div><TextPropertyControl compact property="fontSize" label="Font Size" /></div>
+    <div><TextPropertyControl compact property="lineHeight" label="Line Height" /></div>
+    <div><TextPropertyControl compact property="letterSpacing" label="Spacing" /></div>
+    <div><AlignControl /></div><div><AdjustControl /></div>
+    <div><TypographyAdvancedPopover /></div>
+    <div><TextColorControl compactSection /></div>
+    <div><StrokeControl compactSection /></div>
+    <div><ShadowControl compactSection /></div>
+  </div>;
 
   return (
     <>
@@ -65,7 +79,7 @@ export default function TextStyleTool() {
             </>
           )}
 
-          <div data-typography-alignment-row className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+          <div data-typography-alignment-row className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center min-w-0">
             <AlignControl compact primary />
             <AdjustControl compact />
             <TypographyAdvancedPopover />

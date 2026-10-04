@@ -168,7 +168,7 @@ const mockCommitDragPosition = vi.fn();
 const mockGetActiveFilePath = vi.fn(() => 'app/page.tsx');
 const mockForceCanvasRender = vi.fn();
 const mockFindNodeRect = vi.fn();
-const mockFindNodeComputedStyles = vi.fn(() => ({}));
+const mockFindNodeComputedStyles = vi.fn((_id: string, _vp: string, _props: string[]): Record<string, string> => ({}));
 vi.mock('../node-ops', () => ({
   updateNodeStyles: (opts: any) => mockUpdateNodeStyles(opts),
   commitDragPosition: (id: any, styles: any, contentEl: any) => mockCommitDragPosition(id, styles, contentEl),
@@ -177,7 +177,7 @@ vi.mock('../node-ops', () => ({
   getSvgGroupAncestorChain: vi.fn(() => []),
   getViewportPrefix: vi.fn(() => ''),
   findNodeRect: (...args: any[]) => mockFindNodeRect(...args),
-  findNodeComputedStyles: (...args: any[]) => mockFindNodeComputedStyles(...args),
+  findNodeComputedStyles: (id: string, viewport: string, props: string[]) => mockFindNodeComputedStyles(id, viewport, props),
 }));
 
 vi.mock('@/code/svg/refit-group', () => ({

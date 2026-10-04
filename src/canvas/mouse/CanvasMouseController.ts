@@ -1,3 +1,4 @@
+import { isTextEditingAtom } from '@/code/stores/editor-store';
 // src/canvas/mouse/CanvasMouseController.ts
 //
 // Owns ALL mouse event handling extracted from Canvas.tsx:
@@ -651,6 +652,24 @@ export class CanvasMouseController {
     this.pendingShiftRemove = null;
     this.clearTextGloss();
     trace.action('canvas:touch-interaction-cancelled', {});
+  }
+
+  /** Phone taps enter the same source-owned text session as desktop editing.
+   * Resolve only the foremost hit; never drill through a frame or instance. */
+  startTouchTextEditAtPoint(x: number, y: number, beforeStart: () => void): boolean {
+    const hit = getNodeHitsAtPoint(x, y)[0];
+    if (!hit) return false;
+    const id = stripGhostSuffix(hit.id);
+    const nodes = this.store.get(nodesAtom);
+    const node = nodes.get(id);
+    if (!node || node.children.length || node.componentInstanceId
+      || redirectToComponentInstance(id, nodes, this.store.get(groupEditingIdAtom)) !== id
+      || !(node.textContent?.trim() || node.hasMixedContent || TEXT_TYPES.has(node.type))) return false;
+    this.opts.setInteractingViewport(vpIdFromPrefix(hit.vpPrefix));
+    this.opts.setSelectedIds([id]);
+    beforeStart();
+    this.opts.startTextEdit(hit.id, null, '', vpIdFromPrefix(hit.vpPrefix));
+    return this.store.get(isTextEditingAtom);
   }
 
   /** Shared node mousedown handler — used by ALL elements (Renderer-created and imperative-created). */

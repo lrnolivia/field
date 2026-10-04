@@ -1745,7 +1745,7 @@ if (heightIsAuto) {
 
   return (
     <ToolSection title="Layout" action={addAction} bare={bare}>
-      <div data-layout-size-pair className="field-inspector-field-grid">
+      <div data-layout-size-pair className="field-inspector-field-grid" data-has-size-actions={shouldShowAspectLock || canMakeSquare || undefined}>
         {primaryWidthControl}
         {primaryHeightControl}
         <div className="flex min-w-0 items-center justify-end gap-1">

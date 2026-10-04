@@ -458,7 +458,7 @@ export function extractSlug(filePath: string): string {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FileExplorer() {
+export default function FileExplorer({ showSearch = true }: { showSearch?: boolean } = {}) {
   // Viewer mode — the Pages "+" (new page / 404 page) is a write
   // action and gets disabled.
   const isViewer = useIsViewer();
@@ -1188,7 +1188,7 @@ export default function Page() {
       {/* Header */}
       <SectionLabel size="md" className="field-pages-section-header" right={
         <div className="flex items-center gap-0.5">
-          <PanelSearchButton
+          {showSearch && <PanelSearchButton
             active={pageSearchOpen}
             aria-expanded={pageSearchOpen}
             aria-label={pageSearchOpen ? 'Close page search' : 'Search pages'}
@@ -1201,7 +1201,7 @@ export default function Page() {
                 setPageSearchOpen(true);
               }
             }}
-          />
+          />}
           <div>
           <AddButton
             ref={addBtnRef}

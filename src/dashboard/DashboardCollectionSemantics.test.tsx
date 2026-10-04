@@ -111,7 +111,7 @@ describe('Dashboard collection semantics', () => {
     const { rerender } = render(<Dashboard active />);
     if (kind === 'delete') fireEvent.click(screen.getByRole('button', { name: 'Trash' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Project actions for Portfolio' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: kind === 'delete' ? 'Delete permanently…' : 'Rename', exact: true }));
+    fireEvent.click(screen.getByRole('menuitem', { name: kind === 'delete' ? 'Delete permanently…' : 'Rename' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
 
     // FieldShell retains this component while Back/Forward reveals the editor.

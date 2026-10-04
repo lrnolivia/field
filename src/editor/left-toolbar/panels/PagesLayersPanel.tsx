@@ -18,6 +18,7 @@ import {
   ratioFromPointer,
 } from './pages-layers-split';
 import './pages-layers.css';
+import DocumentSearch from './DocumentSearch';
 
 const SPLIT_STORAGE_KEY = 'field:pages-layers:pages-ratio';
 
@@ -84,21 +85,23 @@ export default function PagesLayersPanel() {
     if (event.key === 'End') next = 0.62;
     if (next == null) return;
     event.preventDefault();
+    event.stopPropagation();
     setPagesRatio(clampPagesRatio(next));
   }, [pagesRatio]);
 
   return (
     <div
-      ref={shellRef}
       data-field-document-panel
       className="flex flex-col h-full overflow-hidden min-h-0"
     >
+      <DocumentSearch />
+      <div ref={shellRef} className="flex min-h-0 flex-1 flex-col gap-1">
       <div
         data-document-pages
         className="shrink-0 min-h-0 overflow-y-auto overscroll-contain scrollbar-hide"
         style={{ flexBasis: `${pagesRatio * 100}%`, minHeight: 72, maxHeight: '62%' }}
       >
-        <FileExplorer />
+        <FileExplorer showSearch={false} />
       </div>
 
       <div
@@ -118,8 +121,9 @@ export default function PagesLayersPanel() {
 
       <div data-document-layers className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <PanelErrorBoundary name="layers-panel" resetKey={selectedId}>
-          <LayersPanel />
+          <LayersPanel showSearch={false} />
         </PanelErrorBoundary>
+      </div>
       </div>
     </div>
   );

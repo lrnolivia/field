@@ -35,5 +35,5 @@ export function TextCardGlyph({ kind }: { kind: string }) {
 }
 
 export function isTextCardGlyph(kind: string) {
-  return Object.hasOwn(shapes, kind);
+  return Object.prototype.hasOwnProperty.call(shapes, kind);
 }

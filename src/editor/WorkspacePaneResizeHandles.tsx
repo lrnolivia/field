@@ -17,7 +17,7 @@ import {
   clampRightPaneWidth,
   workspacePanelWidthsLockedAtom,
 } from '@/code/stores/workspace-panels-store';
-import { deriveWorkspaceLayout } from '@/editor/workspace-layout';
+import { deriveWorkspaceLayout, resolveRightFloatingHeight } from '@/editor/workspace-layout';
 import { leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import { trace } from '@/shared/debug-trace';
 
@@ -132,7 +132,7 @@ export default function WorkspacePaneResizeHandles({ hidden = false }: Props) {
           style={{
             right: layout.right.inset + layout.right.width - 4 - (rightDetached ? rightDragOffset.x : 0),
             top: layout.right.top + (rightDetached ? rightDragOffset.y : 0),
-            height: rightDetached ? Math.min(rightFloatingHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            height: rightDetached ? Math.min(resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight), window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
           }}
         >
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border-focus)] opacity-0 transition-opacity group-hover:opacity-100" />

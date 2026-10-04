@@ -51,7 +51,7 @@ function initialTextNamePreference(): boolean {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function LayersPanel() {
+export default function LayersPanel({ showSearch = true }: { showSearch?: boolean } = {}) {
   // DEFERRED tree source: LayersPanel rebuilds its whole tree (several
   // whole-map memos over ~860 nodes on a big page) on every commit. Doing
   // that inside the URGENT render pass kept the main thread busy after a
@@ -1190,7 +1190,7 @@ export default function LayersPanel() {
         className="field-layers-section-header"
         right={
           <div className="flex items-center gap-0.5">
-            <PanelSearchButton
+            {showSearch && <PanelSearchButton
               active={layerSearchOpen}
               aria-expanded={layerSearchOpen}
               aria-label={layerSearchOpen ? 'Close layer search' : 'Search layers'}
@@ -1203,7 +1203,7 @@ export default function LayersPanel() {
                   setLayerSearchOpen(true);
                 }
               }}
-            />
+            />}
             <button
               type="button"
               className="field-layer-tree-action"

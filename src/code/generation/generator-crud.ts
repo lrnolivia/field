@@ -198,6 +198,13 @@ function updateNodeInCodeFast(
   nodeId: string,
   styleChanges: Record<string, string>
 ): string | null {
+  // Mixed quotes and escapes need a real JavaScript string serializer.
+  // SVG pattern URLs contain both quote types; interpolating them in the
+  // fast path produced invalid JSX and the mutation guard rejected the fill.
+  if (Object.values(styleChanges).some(value =>
+    /[\\\r\n]/.test(value) || (value.includes("'") && value.includes('"'))
+  )) return null;
+
   const idIndex = findJSXDataIdIndex(code, nodeId);
   if (idIndex === -1) return null;
 
@@ -224,6 +231,10 @@ function updateNodeInCodeFast(
   const objEnd = objEndCandidate === -1 ? code.length - 1 : objEndCandidate;
 
   const styleContent = code.substring(objStart, objEnd);
+  // The quote/parenthesis scanner below is intentionally scalar-only.
+  // Previously serialized escapes must stay on the AST path as well.
+  if (styleContent.includes('\\')) return null;
+
 
   let newStyleContent = styleContent;
   for (const [key, value] of Object.entries(styleChanges)) {

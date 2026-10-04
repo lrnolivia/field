@@ -891,6 +891,14 @@ export default function MediaGalleryPanel({
           </span>
         </div>
       )}
+      <div data-media-search-row className="shrink-0 px-3 pb-2">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : tab === 'videos' ? 'Search videos…' : 'Search audio…'}
+            className="min-w-0 w-full flex-1"
+          />
+      </div>
       <div data-field-panel-section={chrome === 'full' ? '' : undefined}>
       {chrome === 'full' && (
         <SectionLabel size="md" right={storageLabel ? <span className="text-[10px] text-[var(--text-secondary)]">{storageLabel}</span> : undefined}>Media</SectionLabel>
@@ -917,19 +925,13 @@ export default function MediaGalleryPanel({
       </div>}
       {galleryOpen && <MediaPanelController onClose={closeGallery} onBackToMedia={closeGallery} />}
 
-      {/* Search + ingest are one compact command row. Media itself stays the visual focus. */}
+      {/* One ingest action, below the search and browse controls. */}
       <div className="px-3 mt-2">
         <div
           data-media-browser-commandbar
           data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}
           className={chrome === 'full' ? 'grid grid-cols-1 gap-1.5' : 'flex items-center gap-1.5'}
         >
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={tab === 'all' ? 'Search media…' : tab === 'images' ? 'Search images…' : tab === 'videos' ? 'Search videos…' : 'Search audio…'}
-            className="min-w-0 w-full flex-1"
-          />
           <input
             ref={fileInputRef}
             type="file"
