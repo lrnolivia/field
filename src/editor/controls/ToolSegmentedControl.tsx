@@ -11,6 +11,7 @@ interface Option {
   value: string;
   label?: string;
   icon?: React.ReactNode;
+  ariaLabel?: string;
 }
 
 interface Props {
@@ -49,7 +50,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
       data-field-selection-shell
       data-tool-segmented
       data-segmented-layout={layout}
-      className={`relative w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'all-first' ? 'grid grid-cols-3' : layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
+      className={`relative min-w-0 w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'all-first' ? 'grid grid-cols-3' : layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
     >
       {options.map((opt, index) => {
         const active = value === opt.value;
@@ -60,6 +61,8 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
             type="button"
             style={layout === 'all-first' && index === 0 ? { gridColumn: '1 / -1' } : undefined}
             aria-pressed={active}
+            aria-label={opt.ariaLabel}
+            title={opt.ariaLabel}
             initial="rest"
             whileHover="hover"
             whileTap="tap"

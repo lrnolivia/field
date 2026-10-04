@@ -190,7 +190,8 @@ export default function TypographyAdvancedPopover() {
         type="button"
         data-typography-options
         onClick={() => setOpen(v => !v)}
-        className={`h-[var(--control-height)] w-8 flex items-center justify-center rounded-[var(--control-radius)] ${open ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
+        onKeyDown={event => { if (['Enter', ' ', 'Escape'].includes(event.key)) event.stopPropagation(); }}
+        className={`h-7 min-h-7 w-8 flex items-center justify-center rounded-[var(--control-radius)] ${open ? 'bg-[var(--bg-selected)] text-[var(--text-primary)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
         title="Typography options"
         aria-haspopup="dialog"
         aria-expanded={open}
