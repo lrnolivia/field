@@ -91,7 +91,7 @@ for (const mode of ['dark', 'light'] as const) {
     expect(await media.locator('[data-media-filter-tabs]').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom))).toBeGreaterThanOrEqual(8);
     const titleGap = await media.locator('[data-media-filter-tabs]').evaluate(el => el.firstElementChild!.getBoundingClientRect().top - el.previousElementSibling!.getBoundingClientRect().bottom);
     expect(titleGap).toBe(12);
-    const outerGap = await media.locator('[data-field-panel-section]').evaluate(el => el.getBoundingClientRect().top - document.querySelector('[data-workspace-left-header]')!.getBoundingClientRect().bottom);
+    const outerGap = await media.locator('[data-media-search-row]').evaluate(el => el.getBoundingClientRect().top - document.querySelector('[data-workspace-left-header]')!.getBoundingClientRect().bottom);
     expect(outerGap).toBe(12);
     const filters = media.locator('[data-tool-segmented]');
     const filterGeometry = await filters.evaluate(el => ({ outer: parseFloat(getComputedStyle(el).borderTopLeftRadius), inset: parseFloat(getComputedStyle(el).paddingTop) + parseFloat(getComputedStyle(el).borderTopWidth), inner: parseFloat(getComputedStyle(el.querySelector('button')!).borderTopLeftRadius) }));

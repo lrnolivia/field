@@ -1,12 +1,24 @@
 /* Shared Field surface tiers, reconciled from the preserved PR124 token plan.
  * Scope is editor chrome only; the website canvas lives in its own document. */
 :root {
+  --field-chrome-pane-bg: var(--bg-panel);
   --field-chrome-section-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 3%);
   --field-chrome-control-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 9%);
   --field-chrome-hover-bg: color-mix(in srgb,var(--bg-panel),var(--text-primary) 13%);
   --field-chrome-header-bg: color-mix(in srgb,var(--field-chrome-section-bg),var(--text-primary) 2%);
   --field-chrome-pane-shadow: 0 4px 24px rgb(0 0 0 / 24%), 0 16px 48px rgb(0 0 0 / 12%);
   --field-chrome-shell-header-bg: color-mix(in srgb,var(--bg-panel) 60%,var(--bg-left-rail));
+}
+/* Container width is independent of the viewport in both docked and Float.
+ * Keep the two alignment groups usable before their intrinsic widths collide. */
+[data-properties-panel] { container: field-inspector / inline-size; min-width: 0; }
+[data-typography-alignment-row] > * { min-width: 0; }
+@container field-inspector (max-width: 360px) {
+  [data-typography-alignment-row] { grid-template-columns: minmax(0, 1fr) auto; }
+  [data-typography-alignment-row] > :first-child { grid-column: 1 / -1; }
+}
+@container field-inspector (max-width: 280px) {
+  [data-typography-weight-size], [data-typography-leading-spacing] { grid-template-columns: minmax(0, 1fr); }
 }
 :where([data-properties-panel],[data-editor-panel="left-primary"], [data-editor-panel="left-secondary"],[data-floating-left-panel],[data-toolbar-panel],[data-field-chrome-panel],[data-modal-root],[data-tool-popup],[role="dialog"]) {
   --bg-surface: var(--field-chrome-section-bg);

@@ -17,7 +17,7 @@ import {
 import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
 
 const SURFACE = {
-  background: 'var(--bg-panel)',
+  background: 'var(--field-chrome-pane-bg)',
   backdropFilter: 'none',
   WebkitBackdropFilter: 'none',
   boxSizing: 'border-box' as const,

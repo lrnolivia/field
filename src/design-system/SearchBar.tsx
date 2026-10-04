@@ -12,7 +12,7 @@
 // variables, styles/tokens, and similar growing collections are expected
 // to converge on this primitive when their interaction model permits it.
 
-import { useRef, useEffect, type KeyboardEventHandler, type FocusEventHandler } from 'react';
+import { useRef, useEffect, type KeyboardEventHandler, type FocusEventHandler, type RefObject, type InputHTMLAttributes } from 'react';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 interface Props {
@@ -24,14 +24,18 @@ interface Props {
   className?: string;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
   onFocus?: FocusEventHandler<HTMLInputElement>;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  inputProps?: Pick<InputHTMLAttributes<HTMLInputElement>, 'role' | 'aria-controls' | 'aria-expanded' | 'aria-activedescendant' | 'aria-autocomplete' | 'aria-describedby'>;
+  onClear?: () => void;
 }
 
-export default function SearchBar({ value, onChange, placeholder = 'Search…', autoFocus, onKeyDown, onFocus, className = '' }: Props) {
+export default function SearchBar({ value, onChange, placeholder = 'Search…', autoFocus, onKeyDown, onFocus, inputRef: externalRef, inputProps, onClear, className = '' }: Props) {
   const uiCase = useUiChromeCase();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const ownRef = useRef<HTMLInputElement>(null);
+  const inputRef = externalRef ?? ownRef;
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
-  }, [autoFocus]);
+  }, [autoFocus, inputRef]);
 
   return (
     <div className={`relative ${className}`}>
@@ -49,6 +53,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
       <input
+        {...inputProps}
         ref={inputRef}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
@@ -58,8 +63,11 @@ export default function SearchBar({ value, onChange, placeholder = 'Search…', 
         onChange={(e) => onChange(e.target.value)}
         placeholder={uiCase(placeholder) ?? undefined}
         aria-label={uiCase(placeholder) ?? undefined}
-        className="w-full h-7 pl-7 pr-2 py-0 text-[11px] rounded-[5px] border border-transparent bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] focus:bg-[var(--control-bg-hover)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]"
+        className={`w-full h-7 pl-7 ${onClear ? 'pr-7' : 'pr-2'} py-0 text-[11px] rounded-[5px] border border-transparent bg-[var(--control-bg)] hover:bg-[var(--control-bg-hover)] focus:bg-[var(--control-bg-hover)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]`}
       />
+      {onClear && value && <button type="button" aria-label="Clear search" title="Clear search"
+        className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--text-secondary)] hover:bg-[var(--control-bg-hover)]"
+        onClick={() => { onClear(); inputRef.current?.focus(); }} onKeyDown={e => e.stopPropagation()}>×</button>}
     </div>
   );
 }

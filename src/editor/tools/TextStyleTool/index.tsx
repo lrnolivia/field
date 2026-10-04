@@ -65,7 +65,7 @@ export default function TextStyleTool() {
             </>
           )}
 
-          <div data-typography-alignment-row className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+          <div data-typography-alignment-row className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center min-w-0">
             <AlignControl compact primary />
             <AdjustControl compact />
             <TypographyAdvancedPopover />
