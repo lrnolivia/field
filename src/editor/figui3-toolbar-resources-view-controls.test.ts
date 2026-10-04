@@ -30,9 +30,12 @@ describe('FigUI3 Library, Media, and view controls', () => {
 
   it('keeps editor appearance separate from website Canvas/Preview appearance', () => {
     const appearance = read('src/editor/EditorAppearanceControl.tsx');
+    const appearancePanel = read('src/editor/AppearancePopover.tsx');
     const canvasTheme = read('src/canvas/canvas-theme.ts');
     const preferences = read('src/code/stores/user-preferences-store.ts');
-    expect(appearance).toContain('applyEditorChromePreferences');
+    expect(appearance).toContain('<AppearancePopover');
+    expect(appearancePanel).toContain('applyEditorChromePreferences');
+    expect(appearancePanel).not.toContain('websitePreviewThemeAtom');
     expect(appearance).not.toContain('refreshCanvasTokens');
     expect(preferences).toContain('websitePreviewThemeAtom');
     expect(canvasTheme).toContain('websitePreviewThemeAtom');

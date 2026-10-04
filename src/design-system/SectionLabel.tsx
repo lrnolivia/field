@@ -1,3 +1,4 @@
+import GalleryGlyph from '@/editor/media/GalleryGlyph';
 // SectionLabel.tsx — Reusable section header label for sidebar panels.
 // FIGUI3_SIDEBAR_SECTION_LABEL_20260925
 // Used for: "Components", "Typography", "Color", "Pages", etc.
@@ -18,7 +19,8 @@ function HeaderIcon({ label }: { label: string }) {
     : /cms|collections/.test(name) ? FigmaCmsIcon
     : /branches/.test(name) ? FigmaBranchIcon
     : /localiz|locale|translation|language/.test(name) ? FigmaGlobeIcon
-    : /media|images|video|gallery/.test(name) ? FigmaImageIcon
+    : /gallery/.test(name) ? GalleryGlyph
+    : /media|images|video/.test(name) ? FigmaImageIcon
     : /typography|fonts/.test(name) ? FigmaTextIcon
     : /insert/.test(name) ? FigmaPlusIcon
     : FigmaSunIcon;

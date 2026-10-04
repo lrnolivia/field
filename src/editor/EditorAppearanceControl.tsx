@@ -1,66 +1,37 @@
-import { useAtom } from 'jotai';
 import { useCallback, useRef, useState } from 'react';
-import ThemeNeutralPopover from '@/editor/ui/ThemeNeutralPopover';
-import { editorNeutralLevelAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
-import type { EditorNeutralLevel, EditorThemeMode } from '@/shared/editor-neutral-theme';
-import { FigmaMoonIcon, FigmaSunIcon } from '@/shared/loew-figma-icons';
-import { trace } from '@/shared/debug-trace';
-import { applyEditorChromePreferences } from '@/editor/builder-theme';
+import AppearancePopover from '@/editor/AppearancePopover';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 export default function EditorAppearanceControl() {
-  const [mode, setMode] = useAtom(editorThemeModeAtom);
-  const [neutralLevel, setNeutralLevel] = useAtom(editorNeutralLevelAtom);
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
   const uiCase = useUiChromeCase();
 
-  const applyChoice = useCallback((nextMode: EditorThemeMode, nextLevel: EditorNeutralLevel) => {
-    const root = document.documentElement;
-    root.classList.add('theme-transition');
-    setMode(nextMode);
-    setNeutralLevel(nextLevel);
-    // Apply immediately instead of waiting on the global store subscriber.
-    // This control owns FIELD CHROME only; website Canvas/Preview appearance
-    // is a separate view preference.
-    applyEditorChromePreferences();
-    window.setTimeout(() => root.classList.remove('theme-transition'), 200);
-    setOpen(false);
-    trace.action('editor:theme-neutral', { mode: nextMode, level: nextLevel });
-  }, [setMode, setNeutralLevel]);
-
   return (
-    <div ref={anchorRef} className="relative z-10">
+    <div className="relative z-10">
       <button
+        ref={anchorRef}
         type="button"
         data-editor-appearance
         aria-expanded={open}
-        aria-label={uiCase('field appearance: ' + mode + ', neutral ' + neutralLevel) ?? undefined}
-        title={uiCase('field appearance: ' + mode + ' · Neutral ' + neutralLevel) ?? undefined}
-        onClick={() => setOpen((value) => !value)}
+        aria-haspopup="dialog"
+        aria-label={uiCase('Appearance') ?? undefined}
+        title={uiCase('Appearance') ?? undefined}
+        onKeyDown={event => event.stopPropagation()}
+        onClick={() => setOpen(value => !value)}
         className={`flex h-7 w-7 items-center justify-center rounded-[5px] border-none transition-colors ${
           open
             ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         }`}
       >
-        <span className="flex h-4 w-4 items-center justify-center">
-          {mode === 'dark'
-            ? <FigmaMoonIcon className="h-[13px] w-[13px] translate-x-[1px]" size={13} />
-            : <FigmaSunIcon className="h-[13px] w-[13px]" size={13} />
-          }
-        </span>
+        <svg data-appearance-brush aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6.5 8.5 5.4-6a1.4 1.4 0 0 1 2 2l-6 5.4M6.5 8.5l1.4 1.4" />
+          <path d="M7.9 9.9c.5 1.9-.8 3.4-3.1 3.4H2.5c1.1-.7 1.5-1.4 1.5-2.3 0-1.5 1.1-2.6 2.5-2.5" />
+        </svg>
       </button>
-      {open && (
-        <ThemeNeutralPopover
-          mode={mode}
-          level={neutralLevel}
-          anchorRef={anchorRef}
-          placement="right"
-          onSelect={applyChoice}
-          onClose={() => setOpen(false)}
-        />
-      )}
+      {open && <AppearancePopover anchorRef={anchorRef} onClose={close} />}
     </div>
   );
 }

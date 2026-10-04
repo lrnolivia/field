@@ -85,14 +85,29 @@
 }
 
 [data-library-panel] > [data-tool-divider] { display: none; }
-[data-field-task-panel] > :last-child { padding-bottom: 10px; }
+/* Content insets belong to the shared card, including empty and filtered lists. */
+:root { --field-panel-content-inset: 8px; }
+[data-field-task-panel] > :not([data-field-section-label]):not([data-tool-divider]) {
+  padding-block: var(--field-panel-content-inset);
+}
+[data-media-filter-tabs] { padding-bottom: var(--field-panel-content-inset); }
+/* Follow the 11px shell minus the incumbent 5px horizontal / 4px vertical inset. */
+#bottom-toolbar-container:not(.field-portrait-dock) :is([data-toolbar-tool], [data-toolbar-chevron]) {
+  border-radius: 6px / 7px;
+}
+#bottom-toolbar-container :is([data-toolbar-tool], [data-toolbar-chevron]):focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
 [data-editor-panel="left-secondary"] h3 { padding: 8px 10px; background: var(--field-chrome-header-bg); border-radius: 6px; }
 
 /* Shared panel edges: highlight top/left, lowlight bottom/right, soft depth.
  * Inset strokes do not change panel width or reintroduce internal dividers. */
 :root {
-  --field-panel-highlight: rgb(128 128 128 / 30%);
-  --field-panel-lowlight: rgb(0 0 0 / 30%);
+  /* Reversible visual experiment: scale decorative edges, never content or focus. */
+  --field-bevel-strength: 0.5;
+  --field-panel-highlight: rgb(128 128 128 / calc(30% * var(--field-bevel-strength)));
+  --field-panel-lowlight: rgb(0 0 0 / calc(30% * var(--field-bevel-strength)));
   --field-panel-depth: 0 6px 16px rgb(0 0 0 / 14%);
 }
 :is([data-inspector-section-card], [data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) {
@@ -124,8 +139,8 @@
 /* Controls and popup shells share the faint directional edge primitive.
  * Rail icons and toolbar items deliberately retain their flat treatment. */
 :root {
-  --field-control-highlight: color-mix(in srgb, white 12%, transparent);
-  --field-control-lowlight: color-mix(in srgb, black 12%, transparent);
+  --field-control-highlight: rgb(255 255 255 / calc(12% * var(--field-bevel-strength)));
+  --field-control-lowlight: rgb(0 0 0 / calc(12% * var(--field-bevel-strength)));
   --field-control-edge: inset 1px 1px 0 var(--field-control-highlight), inset -1px -1px 0 var(--field-control-lowlight);
 }
 :where([data-properties-panel], [data-tool-popup], [data-editor-panel], [data-floating-left-panel], [data-toolbar-panel], [data-modal-root], [data-field-modal-window], [data-settings-overlay]) :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"]):not(:where([data-inspector-section-header] button, [data-field-section-label] button, [data-value-wheel]:not([data-field-select-trigger]), [role="menuitem"], [data-media-action-card], [data-toolbar-tool], [data-toolbar-chevron-open], [data-toolbar-menu-option], [data-toolbar-menu-header] button)) {
@@ -151,7 +166,7 @@
   pointer-events: none;
 }
 [data-media-toolbar-surface] { position:relative; }
-[data-field-modal-window] { --field-control-highlight:rgb(128 128 128 / 30%); --field-control-lowlight:rgb(0 0 0 / 30%); }
+[data-field-modal-window] { --field-control-highlight:var(--field-panel-highlight); --field-control-lowlight:var(--field-panel-lowlight); }
 :where([data-modal-root], [data-field-modal-window], [data-media-toolbar-popover]) :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [data-field-select-trigger]) { box-shadow:var(--field-control-edge); }
 :where([data-tool-popup], [data-field-modal-window], [data-media-toolbar-surface]) :is(.border-t, .border-b) { border-width:0; }
 [data-floating-left-panel] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) { background:transparent; border-radius:0; box-shadow:none; }
@@ -237,4 +252,22 @@
 @media (pointer:coarse) {
   [data-gallery-item-list] button { min-width:44px; min-height:44px; }
   [data-gallery-creation] button { min-height:44px; }
+}
+
+/* Composite controls own one bevel; their editable segments stay visually continuous.
+ * Do not clip the pill: sizing menus and scrub targets must escape normally. */
+:is([data-figma-dimension], [data-appearance-radius], [data-locale-pill], [data-inspector-icon-group], [data-field-control-shell]) {
+  box-shadow: var(--field-control-edge);
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-locale-pill], [data-inspector-icon-group], [data-field-control-shell]) :is(input, button, [role="combobox"]) {
+  box-shadow: none;
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-field-control-shell]) input {
+  border: 0;
+  background: transparent;
+  clip-path: none;
+}
+:is([data-figma-dimension], [data-appearance-radius], [data-field-control-shell]):focus-within {
+  outline: 1px solid var(--border-focus);
+  outline-offset: 1px;
 }

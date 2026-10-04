@@ -76,7 +76,7 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
       <div data-layout-padding-toolbar className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
         <ControlLabel label="Padding" property="padding" plain cell />
         <div className="flex min-w-0 justify-end">
-          <div className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
+          <div data-field-control-shell className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
             <button
               type="button"
               data-layout-padding-equal

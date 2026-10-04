@@ -1,3 +1,4 @@
+import GalleryGlyph from './GalleryGlyph';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
@@ -121,7 +122,7 @@ export default function MediaToolbarPopover({
         className={TOOLBAR_MENU_SURFACE}
         style={{ maxHeight: 'inherit', height: expanded ? '100%' : undefined }}
       >
-        <ToolbarMenuHeader title={title} glyph={<MediaGlyph size={14} />} trailing={<>
+        <ToolbarMenuHeader title={title} glyph={title === 'Gallery' ? <GalleryGlyph size={18} /> : <MediaGlyph size={14} />} trailing={<>
           {onBack && <button type="button" onClick={onBack} aria-label="Back to Media" className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"><BackGlyph /></button>}
           <button type="button" onClick={onExpand} aria-label={`${expanded ? 'Collapse' : 'Expand'} ${title}`} title={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
             className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
