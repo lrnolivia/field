@@ -93,7 +93,7 @@ function ProjectChip({ compactIdentity = false }: { compactIdentity?: boolean } 
               if (rect) {
                 // UI3-style: anchor the menu at the END of the title control
                 // so it opens into the canvas instead of covering the left pane.
-                setMenuAnchor({ x: rect.right - 12, y: rect.bottom });
+                setMenuAnchor({ x: window.innerWidth <= 600 ? rect.left : rect.right - 12, y: rect.bottom });
               }
               setMenuOpen(v => !v);
             }}

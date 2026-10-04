@@ -328,7 +328,7 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
       {tab === 'gradient' && surface === 'custom' && (
         <GradientEditor
           value={resolvedGradient}
-          canonicalFill
+          canonical
           onChange={onGradientChange}
           onLiveChange={onGradientLiveChange}
           hideOverlay={isEditing}

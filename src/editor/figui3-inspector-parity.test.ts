@@ -4,21 +4,21 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(path, 'utf8');
 
 describe('FigUI3 Inspector parity contract', () => {
-  it('uses one canonical paint-row grammar with an explicitly reserved visibility slot', () => {
+  it('uses one canonical paint-row grammar with only source-backed action columns', () => {
     const paintRow = read('src/editor/controls/PaintRow.tsx');
     expect(paintRow).toContain('data-inspector-paint-row');
-    expect(paintRow).toContain('data-paint-visibility-slot');
+    expect(paintRow).not.toContain('data-paint-visibility-slot');
     expect(paintRow).toContain('data-inspector-paint-compound');
     expect(paintRow).toContain('54px');
-    expect(paintRow).toContain('_28px_28px');
+    expect(paintRow).not.toContain('_28px_28px');
   });
 
 
-  it('uses one canonical applied-effect row with a reserved visibility slot', () => {
+  it('uses one canonical applied-effect row with only source-backed action columns', () => {
     const effectRow = read('src/editor/controls/EffectRow.tsx');
     expect(effectRow).toContain('data-inspector-effect-row');
-    expect(effectRow).toContain('data-effect-visibility-slot');
-    expect(effectRow).toContain('_28px_28px');
+    expect(effectRow).not.toContain('data-effect-visibility-slot');
+    expect(effectRow).not.toContain('_28px_28px');
   });
 
   it('surfaces inline paint opacity for regular Fill and Stroke', () => {

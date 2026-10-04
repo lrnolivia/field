@@ -24,6 +24,7 @@ interface ToolPopupContextValue {
   pushPanel: (title: string, content: ReactNode | (() => ReactNode)) => void;
   /** Pop to previous panel (slides left) */
   popPanel: () => void;
+  canGoBack: boolean;
 }
 
 export const ToolPopupContext = createContext<ToolPopupContextValue | null>(null);
@@ -503,7 +504,7 @@ export default function ToolPopup({
           }}
         />
       )}
-      <ToolPopupContext.Provider value={{ pushPanel, popPanel }}>
+      <ToolPopupContext.Provider value={{ pushPanel, popPanel, canGoBack }}>
       <motion.div
         ref={popupRef}
         data-tool-popup=""

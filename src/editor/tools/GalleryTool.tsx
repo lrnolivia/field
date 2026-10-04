@@ -33,6 +33,8 @@ import {
 } from '@/code/gallery/gallery-model';
 import {
   buildGalleryCarouselSyncMutations,
+  removeGalleryCarouselControlMutations,
+  type GalleryCarouselSyncItem,
   clearGalleryCarouselSlideMutations,
   clearResponsivePatchMutations,
   cloneResponsiveOverrideMutations,

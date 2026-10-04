@@ -193,6 +193,7 @@
   border: 1px solid;
   border-color: var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight);
   border-radius: inherit;
+  box-shadow: inset 0 0 0 .5px var(--field-inner-surface-highlight, transparent);
   pointer-events: none;
 }
 
@@ -201,7 +202,9 @@
 :root {
   --field-control-highlight: rgb(255 255 255 / calc(12% * var(--field-bevel-strength)));
   --field-control-lowlight: rgb(0 0 0 / calc(12% * var(--field-bevel-strength)));
-  --field-control-edge: inset 1px 1px 0 var(--field-control-highlight), inset -1px -1px 0 var(--field-control-lowlight);
+  --field-inner-button-highlight: transparent;
+  --field-inner-surface-highlight: transparent;
+  --field-control-edge: inset 1px 1px 0 var(--field-control-highlight), inset -1px -1px 0 var(--field-control-lowlight), inset 0 0 0 1.5px var(--field-inner-button-highlight);
 }
 :where([data-properties-panel], [data-tool-popup], [data-editor-panel], [data-floating-left-panel], [data-toolbar-panel], [data-modal-root], [data-field-modal-window], [data-settings-overlay]) :where(button, input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"]):not(:where([data-inspector-section-header] button, [data-field-section-label] button, [data-value-wheel]:not([data-field-select-trigger]), [role="menuitem"], [data-media-action-card], [data-toolbar-tool], [data-toolbar-chevron-open], [data-toolbar-menu-option], [data-toolbar-menu-header] button)) {
   box-shadow: var(--field-control-edge);
@@ -223,6 +226,7 @@
   border: 1px solid;
   border-color: var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight);
   border-radius: inherit;
+  box-shadow: inset 0 0 0 .5px var(--field-inner-surface-highlight, transparent);
   pointer-events: none;
 }
 [data-media-toolbar-surface] { position:relative; }
@@ -343,4 +347,12 @@
   --field-menu-depth: 0 6px 18px rgb(0 0 0 / 8%);
   --shadow-md: 0 2px 8px rgb(0 0 0 / 8%);
   --shadow-lg: 0 4px 14px rgb(0 0 0 / 10%);
+}
+
+/* The approved outer edge remains the first painted layer. The extra ring is
+ * half a CSS pixel inside that edge and follows the same rounded geometry. */
+:root[data-inner-highlight="buttons"] { --field-inner-button-highlight: rgb(255 255 255 / 10%); }
+:root[data-inner-highlight="everywhere"] {
+  --field-inner-button-highlight: rgb(255 255 255 / 6%);
+  --field-inner-surface-highlight: rgb(255 255 255 / 18%);
 }

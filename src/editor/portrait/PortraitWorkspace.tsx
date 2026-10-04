@@ -5,9 +5,15 @@ import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/ed
 import { transformManager } from '@/canvas/transform';
 import { moveCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { getProjectId } from '@/backend/project-id';
+import { isTextEditingAtom } from '@/code/stores/editor-store';
+import { commitActiveTextEdit } from '@/canvas/text-edit-committer';
+import { ControlProvider } from '../controls/ControlProvider';
+import TextStyleTool from '../tools/TextStyleTool';
+import { LogoButton } from '../header/LeftHeader';
+import ProjectChip from '../header/ProjectChip';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { useNode } from '@/code/stores/node-family';
-import { activeFilePathAtom, getFriendlyFileName } from '@/code/project/active-file-store';
+import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { toolModeAtom } from '@/code/stores/tool-store';
 import { mobileFocusActiveAtom, rightPaneOpenAtom } from '@/code/stores/workspace-panels-store';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
@@ -25,14 +31,13 @@ import LibraryPanel from '../left-toolbar/panels/LibraryPanel';
 import { SecondaryPanelContent } from '../left-toolbar/panels/insert';
 import { CATEGORIES, CREATIVE_CATEGORIES } from '@/shared/insert-items/element-data';
 import { floatingPanelCollapsedAtom } from '../workspace-mode-store';
-import { QuickTools } from './QuickTools';
+import { QuickTools, CurrentToolGlyph, MOBILE_TOOLS } from './QuickTools';
 import { PortraitPages, PortraitLayers } from './PortraitBrowser';
 import PortraitLibrary from './PortraitLibrary';
 import { PORTRAIT_EDIT_EVENT, type PortraitDestination, type InspectorTask } from './interaction';
 import './portrait-workspace.css';
 
 const DESTINATIONS: Array<{ id: PortraitDestination; title: string; detail: string }> = [
-  { id: 'project', title: 'Project', detail: 'Preview, publish and project options' },
   { id: 'pages', title: 'Pages', detail: 'Choose a page or manage routes' },
   { id: 'layers', title: 'Layers', detail: 'Find, select and arrange objects' },
   { id: 'media', title: 'Media', detail: 'Choose images, video and audio' },
@@ -56,6 +61,7 @@ let lastPortraitSession: PortraitSession | null = null;
 export default function PortraitWorkspace({ projectControls }: { projectControls?: ReactNode }) {
   const file = useAtomValue(activeFilePathAtom);
   const selected = useAtomValue(selectedIdsAtom);
+  const textEditing = useAtomValue(isTextEditingAtom);
   const sessionKey = `${getProjectId()}|${file}`;
   const saved = lastPortraitSession?.key === sessionKey ? lastPortraitSession : null;
   const [destination, setDestination] = useState<PortraitDestination | null>(() => history.state?.fieldPortraitTask ? saved?.destination ?? null : null);
@@ -68,6 +74,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   const gallery = selected.length === 1 && isGalleryNode(node);
   const fullScreen = destination === 'library' || (destination === 'inspect' && gallery);
   const mode = useAtomValue(toolModeAtom);
+  const currentTool = MOBILE_TOOLS.find(tool => tool.mode === mode)?.label ?? 'Move';
   const viewer = useIsViewer();
   const reduced = useFieldReducedMotion();
   const mobileFocusActive = useAtomValue(mobileFocusActiveAtom);
@@ -134,6 +141,15 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   useEffect(() => { if (mobileFocusActive && rightOpen) { open('inspect'); setRightOpen(false); } }, [mobileFocusActive, rightOpen, open, setRightOpen]);
   useEffect(() => { if (mobileFocusActive && !leftCollapsed) { open(leftPanel === 'layers' || leftPanel === 'pages-layers' ? 'layers' : leftPanel === 'vibe' ? 'browse' : leftPanel); collapseLeft(true); } }, [mobileFocusActive, leftCollapsed, leftPanel, open, collapseLeft]);
   useEffect(() => { if (toolbarPanel) open(toolbarPanel.kind === 'insert' ? 'insert' : toolbarPanel.kind); }, [toolbarPanel, open]);
+  useEffect(() => {
+    if (!textEditing) return;
+    setDestination(null); setToolbarPanel(null); setRightOpen(false);
+    focusPending.current = false;
+    if (historyOwned.current && history.state?.fieldPortraitTask) {
+      const state = { ...history.state }; delete state.fieldPortraitTask;
+      history.replaceState(state, '', location.href); historyOwned.current = false;
+    }
+  }, [textEditing, setToolbarPanel, setRightOpen]);
   const selectionKey = selected.join('|');
   const previousSelection = useRef(selectionKey);
   useEffect(() => { if (previousSelection.current !== selectionKey) { previousSelection.current = selectionKey; setTask('context'); setAllTasks(false); } }, [selectionKey]);
@@ -157,6 +173,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
       if (focusPending.current) { focusPending.current = false; (returnToBrowse.current ? browseButton.current : toolsButton.current)?.focus({ preventScroll: true }); }
       return;
     }
+    if (textEditing) return;
     surface.current?.focus({ preventScroll: true });
     const point = revealPoint.current; revealPoint.current = null;
     if (point && destination === 'inspect' && surface.current) {
@@ -167,7 +184,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
         automaticCamera.current = { before: { ...before }, after: { ...transformManager.getTransform() } };
       }
     }
-  }, [destination]);
+  }, [destination, textEditing]);
   useEffect(() => {
     const reveal = () => {
       const active = document.activeElement;
@@ -195,12 +212,12 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
   // Media owns its dedicated adaptive controller and explicit placement step.
   const mediaOwnsSurface = toolbarPanel?.kind === 'media';
   return <div data-portrait-workspace data-field-no-canvas-input>
-    <div className="field-portrait-topbar" aria-hidden={fullScreen || undefined} inert={fullScreen || undefined}><button type="button" className="field-mobile-main-pill" aria-label="Open project" onClick={() => open('project')}><MobileGlyph name="project" size={20} /><span>{getFriendlyFileName(file)}</span></button><div>
+    <div className="field-portrait-topbar" aria-hidden={fullScreen || undefined} inert={fullScreen || undefined}><LogoButton /><div className="field-mobile-project-chip"><ProjectChip /></div><div>
       <button type="button" aria-label="Undo" disabled={viewer} onClick={() => undo()}><MobileGlyph name="undo" size={20} /></button>
       <button type="button" aria-label="Redo" disabled={viewer} onClick={() => redo()}><MobileGlyph name="redo" size={20} /></button>
       <button type="button" aria-label="Open settings" onClick={() => setSettingsOpen(true)}><MobileGlyph name="settings" size={20} /></button>
     </div></div>
-    <AnimatePresence>{destination && !mediaOwnsSurface && <>
+    <AnimatePresence>{destination && !mediaOwnsSurface && !textEditing && <>
       {destination === 'tools' && <div className="field-portrait-tool-dismiss" onClick={close} />}
       {large && <motion.div className="field-portrait-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close} />}
       <motion.section ref={surface} tabIndex={-1} role="dialog" aria-modal={large || fullScreen || undefined} aria-label={title}
@@ -212,7 +229,7 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
           <button type="button" onClick={close} aria-label={destination === 'inspect' ? 'Close Properties' : `Close ${title}`}>Done</button>
         </header>
         <div className="field-portrait-content" data-field-chrome-panel>
-          {destination === 'tools' && <div data-mobile-toolbar-expanded><QuickTools onChoose={close} /></div>}
+          {destination === 'tools' && <div data-mobile-toolbar-expanded><QuickTools vertical onChoose={close} /></div>}
           {destination === 'browse' && <nav aria-label="Browse project">{DESTINATIONS.map(d => <button type="button" key={d.id} className="field-portrait-destination" onClick={() => chooseBrowse(d.id)}>
             <span className="field-mobile-menu-glyph"><MobileGlyph name={d.id} /></span>
             <span><strong>{d.title}</strong><small>{d.detail}</small></span><FigmaChevronDownIcon size={16} className="-rotate-90" />
@@ -237,9 +254,13 @@ export default function PortraitWorkspace({ projectControls }: { projectControls
         </div>
       </motion.section>
     </>}</AnimatePresence>
-    {!destination && <div className="field-portrait-dock" id="bottom-toolbar-container">
+    {textEditing && <section data-field-mobile-text-toolbar data-properties-panel data-field-chrome-panel className="field-mobile-text-toolbar" aria-label="Text editing controls">
+      <div className="field-mobile-text-toolbar-header"><span>Text</span><button type="button" onClick={() => { void commitActiveTextEdit(); }}>Done</button></div>
+      <ControlProvider><TextStyleTool inline /></ControlProvider>
+    </section>}
+    {!destination && !textEditing && <div className="field-portrait-dock" id="bottom-toolbar-container">
       <button ref={browseButton} type="button" className="field-browse-button" aria-label="Open browse" onClick={() => open(lastBrowse)}><MobileGlyph name="browse" /><span>Browse</span></button>
-      <button ref={toolsButton} type="button" className="field-tools-fab" data-mobile-toolbar-launcher aria-label="Open tools" aria-expanded={false} onClick={() => open('tools')}><MobileGlyph name="tools" /><span>Tools<small>{mode === 'select' ? 'Move' : mode.replace('shape-', '')}</small></span></button>
+      <button ref={toolsButton} type="button" className="field-current-tool" data-mobile-toolbar-launcher aria-label="Open tools" aria-expanded={false} onClick={() => open('tools')}><CurrentToolGlyph mode={mode} /><span>{currentTool}</span><FigmaChevronDownIcon size={14} className="rotate-180" /></button>
     </div>}
   </div>;
 }

@@ -177,3 +177,21 @@
 .field-portrait-content button { min-height:44px; font-size:13px; }
 .field-portrait-content :where([class~="text-[9px]"],[class~="text-[10px]"],[class~="text-[11px]"]) { font-size:12px; }
 .field-portrait-content [data-field-section-label]>span { font-size:14px; }
+
+/* Menus share the desktop action owners, anchored below their top-bar triggers. */
+.field-portrait-topbar { gap:4px; padding:2px 4px; top:calc(8px + env(safe-area-inset-top,0px)); }
+.field-portrait-topbar > .field-mobile-project-chip { flex:1; min-width:0; }
+.field-mobile-project-chip [data-field-project-title] { width:100%; min-height:44px; display:flex; padding:0 4px; }
+.field-mobile-project-chip [data-field-current-page] { display:none; }
+.field-current-tool { min-height:48px; padding:0 12px; border-radius:16px; background:var(--bg-panel); color:var(--text-primary); font-size:13px; }
+.field-portrait-surface[data-portrait-surface=tools] { width:224px; max-width:calc(100vw - 24px); right:16px; bottom:calc(72px + env(safe-area-inset-bottom,0px) + var(--field-visible-bottom,0px)); }
+.field-portrait-surface[data-portrait-surface=tools] .field-portrait-content { padding:4px 8px 8px; }
+.field-portrait-surface[data-portrait-surface=tools] > header { min-height:44px; padding:0 4px; }
+.field-portrait-surface[data-portrait-surface=tools] .field-quick-list { margin:0; }
+.field-mobile-text-toolbar { position:fixed; inset:auto 8px calc(8px + var(--field-visible-bottom,0px)); z-index:11000; border-radius:12px; padding:4px 8px 8px; background:var(--bg-panel); color:var(--text-primary); box-shadow:var(--field-menu-depth); }
+.field-mobile-text-toolbar-header { display:flex; align-items:center; justify-content:space-between; font-size:12px; }
+.field-mobile-text-toolbar-header button { min-width:44px; min-height:44px; }
+[data-mobile-text-controls] { display:flex; align-items:center; gap:8px; overflow-x:auto; overscroll-behavior-x:contain; padding:2px 2px 6px; scrollbar-width:thin; }
+[data-mobile-text-controls] > div { flex:0 0 144px; min-width:0; }
+[data-mobile-text-controls] :is(input,select) { min-height:44px; font-size:16px; }
+[data-mobile-text-controls] button { min-height:44px; }

@@ -83,7 +83,6 @@ export const DEFAULT_MEDIA_ROUTE: MediaRoute = {
 export function createMediaSession(overrides: Partial<MediaSession> = {}): MediaSession {
   return {
     surface: 'toolbar',
-    route: DEFAULT_MEDIA_ROUTE,
     intent: 'browse',
     search: '',
     selectedIds: [],

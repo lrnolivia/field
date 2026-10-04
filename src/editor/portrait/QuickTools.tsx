@@ -6,7 +6,7 @@ import { toolModeAtom, creatorToolsLockedAtom, type ToolMode, isCreatorToolMode 
 import { commentModeActiveAtom } from '@/code/stores/comment-store';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { FieldGlyph } from '@/editor/glyph';
-import { FigmaCursorIcon, FigmaFrameIcon, FigmaTextIcon, FigmaHandIcon, FigmaSquareIcon, FigmaCircleIcon, FigmaTriangleIcon, FigmaSearchIcon, FigmaCommentIcon, FigmaPathIcon, FigmaPencilIcon } from '@/shared/loew-figma-icons';
+import { FigmaRowsIcon, FigmaColumnsIcon, FigmaGridIcon, FigmaCursorIcon, FigmaFrameIcon, FigmaTextIcon, FigmaHandIcon, FigmaSquareIcon, FigmaCircleIcon, FigmaTriangleIcon, FigmaSearchIcon, FigmaCommentIcon, FigmaPathIcon, FigmaPencilIcon } from '@/shared/loew-figma-icons';
 import { zoomToFit } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { usePaletteToggle } from '@/editor/command-palette/CommandPalette';
@@ -14,35 +14,42 @@ import { QUICK_TOOLS_EVENT } from './interaction';
 import { useMobileWorkspacePresentation } from '../mobile-workspace-presentation';
 
 const ScaleIcon: typeof FigmaCursorIcon = ({ size = 20, ...props }) => <svg {...props} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3.25 6.1V3.25H6.1M9.9 12.75h2.85V9.9M3.55 3.55l3.1 3.1M12.45 12.45l-3.1-3.1" /></svg>;
-const TOOLS: Array<{ mode: ToolMode; label: string; icon: typeof FigmaCursorIcon; primary?: boolean }> = [
-  { mode: 'select', label: 'Move', icon: FigmaCursorIcon, primary: true },
-  { mode: 'frame', label: 'Frame', icon: FigmaFrameIcon, primary: true },
-  { mode: 'text', label: 'Text', icon: FigmaTextIcon, primary: true },
-  { mode: 'shape-rect', label: 'Shape', icon: FigmaSquareIcon, primary: true },
-  { mode: 'hand', label: 'Hand', icon: FigmaHandIcon },
+export const MOBILE_TOOLS: Array<{ mode: ToolMode; label: string; icon: typeof FigmaCursorIcon }> = [
+  { mode: 'select', label: 'Move', icon: FigmaCursorIcon },
   { mode: 'scale', label: 'Scale', icon: ScaleIcon },
-  { mode: 'shape-line', label: 'Line', icon: FigmaPathIcon },
-  { mode: 'shape-triangle', label: 'Triangle', icon: FigmaTriangleIcon },
+  { mode: 'frame', label: 'Frame', icon: FigmaFrameIcon },
+  { mode: 'layout-rows', label: 'Rows', icon: FigmaRowsIcon },
+  { mode: 'layout-columns', label: 'Columns', icon: FigmaColumnsIcon },
+  { mode: 'layout-grids', label: 'Grid', icon: FigmaGridIcon },
+  { mode: 'shape-rect', label: 'Rectangle', icon: FigmaSquareIcon },
   { mode: 'shape-ellipse', label: 'Ellipse', icon: FigmaCircleIcon },
+  { mode: 'shape-triangle', label: 'Triangle', icon: FigmaTriangleIcon },
+  { mode: 'shape-line', label: 'Line', icon: FigmaPathIcon },
   { mode: 'shape-path', label: 'Pen', icon: FigmaPathIcon },
   { mode: 'sketch', label: 'Pencil', icon: FigmaPencilIcon },
+  { mode: 'text', label: 'Text', icon: FigmaTextIcon },
+  { mode: 'hand', label: 'Hand', icon: FigmaHandIcon },
 ];
-export function QuickTools({ onChoose }: { onChoose: () => void }) {
+export function CurrentToolGlyph({ mode }: { mode: ToolMode }) {
+  const Icon = MOBILE_TOOLS.find(tool => tool.mode === mode)?.icon ?? FigmaCursorIcon;
+  return <FieldGlyph behavior="generic"><Icon size={20} /></FieldGlyph>;
+}
+export function QuickTools({ onChoose, vertical = false }: { onChoose: () => void; vertical?: boolean }) {
   const [mode, setMode] = useAtom(toolModeAtom);
   const togglePalette = usePaletteToggle();
   const locked = useAtomValue(creatorToolsLockedAtom);
   const viewer = useIsViewer();
   const setComment = useSetAtom(commentModeActiveAtom);
-  const render = ({ mode: value, label, icon: Icon, primary }: typeof TOOLS[number]) => {
+  const render = ({ mode: value, label, icon: Icon }: typeof MOBILE_TOOLS[number]) => {
     const disabled = (viewer && value !== 'select' && value !== 'hand') || (locked && isCreatorToolMode(value));
     return <button type="button" key={value} disabled={disabled} aria-pressed={mode === value}
-      className={primary ? 'field-quick-tile' : 'field-quick-row'} onClick={() => { setComment(false); setMode(value); onChoose(); }}>
+      className={!vertical && ['select', 'frame', 'text', 'shape-rect'].includes(value) ? 'field-quick-tile' : 'field-quick-row'} onClick={() => { setComment(false); setMode(value); onChoose(); }}>
       <FieldGlyph behavior="generic"><Icon size={20} /></FieldGlyph><span>{label}</span>
       {mode === value && <span className="field-tool-current" aria-hidden>•</span>}
     </button>;
   };
-  return <div data-quick-tools><div className="field-quick-grid">{TOOLS.filter(x => x.primary).map(render)}</div>
-    <div className="field-quick-list">{TOOLS.filter(x => !x.primary).map(render)}</div>
+  return <div data-quick-tools><div className={vertical ? 'field-quick-list' : 'field-quick-grid'}>{MOBILE_TOOLS.filter(tool => vertical || ['select', 'frame', 'text', 'shape-rect'].includes(tool.mode)).map(render)}</div>
+    {!vertical && <div className="field-quick-list">{MOBILE_TOOLS.filter(tool => !['select', 'frame', 'text', 'shape-rect'].includes(tool.mode)).map(render)}</div>}
     <button type="button" className="field-quick-row" onClick={() => { setMode('select'); setComment(true); onChoose(); }}><FigmaCommentIcon size={20} /><span>Comment</span></button>
     <button type="button" className="field-quick-row" onClick={() => { const root = getContentRoot(); if (root) zoomToFit(root); onChoose(); }}><FigmaFrameIcon size={20} /><span>Fit canvas</span></button>
     <button type="button" className="field-quick-row" onClick={() => { onChoose(); togglePalette(); }}><FigmaSearchIcon size={20} /><span>Search commands</span></button>

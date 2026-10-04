@@ -1,6 +1,7 @@
 // LeftMenu.tsx — 52px icon strip for the left toolbar.
 // FigUI3 command rail: compact neutral controls, functional selection accent, restrained floating tooltip.
 
+import MobileGlyph from '@/editor/portrait/MobileGlyph';
 import MediaGlyph from '@/editor/media/MediaGlyph';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -33,15 +34,6 @@ import { useIsClosedSource } from '@/code/stores/closed-source-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import { LogoButton } from '@/editor/header/LeftHeader';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
-
-function SettingsGearIcon() {
-  return (
-    <svg data-settings-gear aria-hidden viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.5 3h5l.6 2.6 1.6.9 2.5-.8 2.5 4.3-1.9 1.8v1.8l1.9 1.8-2.5 4.3-2.5-.8-1.6.9-.6 2.2h-5l-.6-2.2-1.6-.9-2.5.8L2.3 15l1.9-1.8v-1.8L2.3 9.6l2.5-4.3 2.5.8 1.6-.9Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
 
 // ─── Code Icon ──────────────────────────────────────────────────────────────
 
@@ -443,7 +435,7 @@ export default function LeftMenu() {
               }}
               className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <SettingsGearIcon />
+              <MobileGlyph name="settings" size={16} />
             </button>
           </div>
         </div>
