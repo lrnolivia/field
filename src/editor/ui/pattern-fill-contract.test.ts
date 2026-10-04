@@ -38,7 +38,8 @@ describe('Pattern Fill source contract', () => {
     expect(fill).toContain('<ImageSearchModal');
     expect(fill).toContain('defaultAssetPatternFill(url)');
     expect(fill).toContain('aria-label="Select pattern source"');
-    expect(fill).toContain('onClick={openPatternMedia}');
+    expect(fill).toContain('onClick={openPatternSource}');
+    expect(fill).toContain('onChooseImage={openPatternMedia}');
   });
 
 });
