@@ -76,7 +76,8 @@ export function getPaddedCanvasFocusArea() {
   const viewport = window.visualViewport;
   const top = Math.max(72, (viewport?.offsetTop ?? 0) + 24);
   const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
-  const bottom = Math.max(top + 80, visibleBottom - 96);
+  const textToolbar = document.querySelector<HTMLElement>('[data-field-mobile-text-toolbar]')?.getBoundingClientRect();
+  const bottom = Math.max(top + 80, Math.min(visibleBottom - 96, (textToolbar?.top ?? visibleBottom) - 16));
   return { width: right - left, height: bottom - top, centerX: (left + right) / 2, centerY: (top + bottom) / 2 };
 }
 

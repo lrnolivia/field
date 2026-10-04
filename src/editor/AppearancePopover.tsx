@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useAtom } from 'jotai';
-import { builderThemeAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorInnerHighlightAtom, editorThemeModeAtom } from '@/code/stores/user-preferences-store';
 import { BUILDER_THEMES, builderAccentSurface, getBuilderThemeById } from '@/shared/builder-themes';
 import { useUiChromeCase } from './ui/useUiChromeCase';
 import { applyBuilderTheme, applyEditorChromePreferences } from './builder-theme';
@@ -16,6 +16,7 @@ export default function AppearancePopover({ anchorRef, onClose, embedded = false
 }) {
   const [themeId, setThemeId] = useAtom(builderThemeAtom);
   const [mode, setMode] = useAtom(editorThemeModeAtom);
+  const [innerHighlight, setInnerHighlight] = useAtom(editorInnerHighlightAtom);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [position, setPosition] = useState({ left: 12, top: 60 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -86,6 +87,17 @@ export default function AppearancePopover({ anchorRef, onClose, embedded = false
         <ToolSwitch value={mode === 'dark'} ariaLabel={uiCase('Light / dark') ?? undefined}
           onChange={dark => { setMode(dark ? 'dark' : 'light'); applyEditorChromePreferences(); applyBuilderTheme(); }} />
       </div>
+      <fieldset className="mb-2.5 border-0 p-0" data-appearance-inner-highlight>
+        <legend className="mb-1 text-[11px] text-[var(--text-secondary)]">{uiCase('Inner highlight')}</legend>
+        <div className="grid grid-cols-3 gap-1">
+          {([['current', 'Current'], ['buttons', 'Buttons only'], ['everywhere', 'Everywhere']] as const).map(([value, label]) => (
+            <button key={value} type="button" aria-pressed={innerHighlight === value}
+              className="min-h-9 rounded-[5px] px-1 text-[10px] aria-pressed:bg-[var(--bg-active)] focus-visible:outline-2 focus-visible:outline-[var(--accent-text)]"
+              onKeyDown={event => event.stopPropagation()}
+              onClick={() => { setInnerHighlight(value); applyEditorChromePreferences(); }}>{uiCase(label)}</button>
+          ))}
+        </div>
+      </fieldset>
       <div role="group" aria-label={uiCase('Accent color') ?? undefined} className="flex justify-between gap-1 border-t border-[var(--border-light)] pt-2"
         onMouseLeave={() => setPreviewId(null)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPreviewId(null); }}>
         {BUILDER_THEMES.map((theme, index) => (

@@ -77,7 +77,7 @@ export function resolveGalleryDragIdentity(
 
   if (!item || !image || !item.parentId) return null;
   const gallery = nodes.get(item.parentId);
-  if (!isGalleryNode(gallery)) return null;
+  if (!gallery || !isGalleryNode(gallery)) return null;
   return { galleryId: gallery.id, itemId: item.id, imageId: image.id };
 }
 

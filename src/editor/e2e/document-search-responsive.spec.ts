@@ -4,7 +4,7 @@ import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
 
 type SeedWindow = Window & { __e2e: { listFiles: () => string[]; readFile: (path: string) => string | null; selection: () => string[]; openFile: (path: string) => void } };
 
-test.use({ viewport: { width: 1600, height: 1100 }, reducedMotion: 'reduce' });
+test.use({ viewport: { width: 1600, height: 1100 }, contextOptions: { reducedMotion: 'reduce' } });
 
 async function fullLayout(page: Page) {
   await expect(page.locator('[data-editor-interactive]')).toHaveAttribute('data-editor-interactive', 'true');

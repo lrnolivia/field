@@ -116,7 +116,7 @@ for (const mode of ['dark', 'light'] as const) {
     await page.screenshot({ path: `../screenshots/field-global-${mode}-media.png` });
     const layoutTrigger = page.locator('[data-workspace-mode-trigger]').first();
     expect(await layoutTrigger.evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
-    await page.locator('[data-settings-gear]').first().screenshot({ path: `../screenshots/field-global-${mode}-gear.png` });
+    await page.locator('[data-left-rail-settings] [data-field-mobile-glyph="settings"]').first().screenshot({ path: `../screenshots/field-global-${mode}-gear.png` });
     await media.getByPlaceholder('Search media…').fill('preserved search');
     await media.locator('[data-media-gallery-entry]').click();
     const gallery = page.getByRole('dialog', { name: 'Gallery', exact: true });

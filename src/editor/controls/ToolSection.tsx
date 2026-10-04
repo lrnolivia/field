@@ -69,7 +69,7 @@ export default function ToolSection({ title, children, defaultOpen = true, colla
   // its items (user request 2026-09-09). No action → the native menu is left
   // alone.
   const onHeaderContextMenu = (e: React.MouseEvent) => {
-    const btn = actionRef.current?.querySelector('button:not(:disabled)');
+    const btn = actionRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)');
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();

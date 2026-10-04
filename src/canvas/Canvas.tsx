@@ -995,7 +995,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
     const resizeObserver = new ResizeObserver(scheduleGeometryReconcile);
     const observedGeometryTargets = new Set<Element>();
     const observeGeometryTargets = () => {
-      const targets: Element[] = [containerRef.current].filter((el): el is Element => !!el);
+      const targets: Element[] = [containerRef.current].filter((el): el is HTMLDivElement => !!el);
       document.querySelectorAll(workspaceGeometrySelector).forEach((el) => targets.push(el));
       for (const target of targets) {
         if (observedGeometryTargets.has(target)) continue;

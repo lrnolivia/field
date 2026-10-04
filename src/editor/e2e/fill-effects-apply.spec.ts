@@ -10,7 +10,7 @@ async function styleValue(editor: EditorPage, prop: string) {
 
 async function openPaintFixture(page: Page) {
   const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
-  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx'].replaceAll('background:', 'backgroundColor:');
+  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx'].split('background:').join('backgroundColor:');
   await page.addInitScript(data => {
     localStorage.setItem('revyme-project-local', JSON.stringify(data));
     localStorage.setItem('revyme-onboarding-completed', 'true');
