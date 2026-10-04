@@ -36,10 +36,9 @@ import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 function SettingsGearIcon() {
   return (
-    <svg aria-hidden viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="2.35" />
-      <path d="M8 1.5v1.65M8 12.85v1.65M1.5 8h1.65M12.85 8h1.65M3.4 3.4l1.17 1.17M11.43 11.43l1.17 1.17M12.6 3.4l-1.17 1.17M4.57 11.43 3.4 12.6" />
-      <circle cx="8" cy="8" r="5.15" opacity=".55" />
+    <svg data-settings-gear aria-hidden viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 3h5l.6 2.6 1.6.9 2.5-.8 2.5 4.3-1.9 1.8v1.8l1.9 1.8-2.5 4.3-2.5-.8-1.6.9-.6 2.2h-5l-.6-2.2-1.6-.9-2.5.8L2.3 15l1.9-1.8v-1.8L2.3 9.6l2.5-4.3 2.5.8 1.6-.9Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }

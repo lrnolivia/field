@@ -8,7 +8,8 @@ describe('FigUI3 bottom toolbar optical parity', () => {
   it('uses true-float rounded geometry instead of inherited cut corners', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(toolbar).toContain('FIGUI3_BOTTOM_TOOLBAR_POLISH_20260925');
-    expect(toolbar).toContain('rounded-[11px]');
+    expect(toolbar).toContain('rounded-[inherit]');
+    expect(toolbar).toContain('var(--field-selection-shell-radius, 11px)');
     expect(toolbar).not.toContain('cut-corners');
     expect(toolbar).not.toContain('cut-border');
   });

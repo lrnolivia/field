@@ -60,6 +60,8 @@ export default function ChromeTabBar<T extends string>({
 }) {
   return (
     <div
+      data-field-selection-shell
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation(); }}
       data-chrome-tabbar
       role={semantic === 'tabs' ? 'tablist' : 'navigation'}
       aria-label={ariaLabel}
@@ -69,6 +71,7 @@ export default function ChromeTabBar<T extends string>({
         const active = item.value === value;
         return (
           <button
+            data-field-selection-cell
             key={item.value}
             type="button"
             role={semantic === 'tabs' ? 'tab' : undefined}

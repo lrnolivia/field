@@ -25,9 +25,11 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
   const containerRef = useRef<HTMLDivElement>(null);
 
   const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (['Enter', ' '].includes(event.key)) { event.stopPropagation(); return; }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     if (options.length < 2) return;
     event.preventDefault();
+    event.stopPropagation();
     const next = event.key === 'Home'
       ? 0
       : event.key === 'End'
@@ -44,6 +46,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
     <div
       ref={containerRef}
       role="group"
+      data-field-selection-shell
       data-tool-segmented
       data-segmented-layout={layout}
       className={`relative w-full gap-0.5 rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-hover)]/32 p-0.5 ${layout === 'all-first' ? 'grid grid-cols-3' : layout === 'grid' ? 'grid grid-cols-2' : 'flex items-center'}`}
@@ -52,6 +55,7 @@ export default function ToolSegmentedControl({ value, onChange, options, size = 
         const active = value === opt.value;
         return (
           <motion.button
+            data-field-selection-cell
             key={opt.value}
             type="button"
             style={layout === 'all-first' && index === 0 ? { gridColumn: '1 / -1' } : undefined}

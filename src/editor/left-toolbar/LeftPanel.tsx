@@ -50,6 +50,7 @@ export default function LeftPanel() {
 
   return (
     <div
+      data-field-panel-body
       data-editor-panel="left-primary"
       data-visible={leftOpen && railVisible ? 'true' : 'false'}
       aria-hidden={leftOpen && railVisible ? undefined : true}

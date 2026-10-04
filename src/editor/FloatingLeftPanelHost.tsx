@@ -92,7 +92,7 @@ export default function FloatingLeftPanelHost() {
           <span className="capitalize">{panelId}</span><span aria-hidden>×</span>
         </button>
       )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><Panel /></div>
+      <div data-field-panel-body className="flex min-h-0 flex-1 flex-col overflow-hidden"><Panel /></div>
       {!mobilePanel && (
         <button type="button"
           aria-label="Resize floating left panel"

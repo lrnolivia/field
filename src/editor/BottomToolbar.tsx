@@ -728,7 +728,8 @@ export default function BottomToolbar() {
   }, [handleCommentClick]);
 
   if (isNarrowToolbar && !compactToolbarOpen) return (
-    <div ref={mobileToolbarRef} id="bottom-toolbar-container"
+    <div ref={mobileToolbarRef} data-field-selection-shell
+        id="bottom-toolbar-container"
       className="fixed left-1/2 -translate-x-1/2 z-[9998]"
       style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' }}>
       <button type="button" data-mobile-toolbar-launcher="" aria-label="Open tools" aria-expanded={false}
@@ -750,18 +751,19 @@ export default function BottomToolbar() {
       style={{ bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18, maxWidth: 'calc(100vw - 24px)', willChange: 'transform', isolation: 'isolate' }}
     >
       <div
+        data-field-selection-shell
         id="bottom-toolbar-container"
         className="relative flex items-center px-2 py-2 gap-0.5"
         data-mobile-tools-open={isNarrowToolbar ? "" : undefined}
         // isolation: the cut backdrop below sits at z -1; isolating keeps it
         // inside this container instead of sliding under the page.
-        style={{ borderRadius: 11, isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
+        style={{ borderRadius: 'var(--field-selection-shell-radius, 11px)', isolation: 'isolate', flexWrap: isNarrowToolbar ? 'wrap' : undefined, justifyContent: isNarrowToolbar ? 'center' : undefined }}
       >
         {/* True floating island: keep the shell on a separate backing layer so
             dropdowns can escape above the toolbar without being clipped. */}
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 rounded-[11px] border border-[var(--border-light)]"
+          className="absolute inset-0 -z-10 rounded-[inherit] border border-[var(--border-light)]"
           // Same flat surface as ChromeIslands — the bar floats 18px off the
           // bottom edge as its own island.
           style={{

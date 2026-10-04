@@ -397,7 +397,7 @@ select {
 }
 /* Bottom tool strip: smaller AND floating off the screen edge. */
 #bottom-toolbar-container {
-  padding: 4px 5px;
+  padding: var(--field-selection-inset-y, 4px) var(--field-selection-inset-x, 5px);
   gap: 0;
 }
 

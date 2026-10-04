@@ -42,7 +42,7 @@ function floatingStyle(side: WorkspaceSideLayout) {
         borderRadius: WORKSPACE_FLOAT_RADIUS,
         boxShadow: 'var(--field-chrome-pane-shadow)',
       }
-    : { borderRadius: 0, boxShadow: 'var(--field-chrome-pane-shadow)' };
+    : { borderRadius: 0, boxShadow: 'var(--field-chrome-docked-pane-shadow)' };
 }
 
 export default function ChromeIslands() {
@@ -81,7 +81,7 @@ export default function ChromeIslands() {
             : leftCollapsedWidth + (!mobile && ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)) ? leftContentWidth : 0),
           height: dockedLeft ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
           ...SURFACE,
-          ...(dockedLeft ? { borderRadius: 0, boxShadow: 'var(--field-chrome-pane-shadow)' } : {
+          ...(dockedLeft ? { borderRadius: 0, boxShadow: 'var(--field-chrome-docked-pane-shadow)' } : {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: 'var(--field-chrome-pane-shadow)',
           }),

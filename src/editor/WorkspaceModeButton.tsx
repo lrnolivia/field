@@ -32,6 +32,15 @@ export default function WorkspaceModeButton() {
   return <div ref={groupRef} data-workspace-layout-control data-expanded={expanded ? 'true' : 'false'}
     role="group" aria-label={uiCase('Workspace layout') ?? undefined}
     onPointerLeave={() => setExpanded(false)}
+    onKeyDown={event => {
+      if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        groupRef.current?.querySelector<HTMLButtonElement>('[data-workspace-mode-trigger]')?.focus();
+        setExpanded(false);
+      }
+    }}
     onBlurCapture={(event) => { if (!groupRef.current?.contains(event.relatedTarget as Node | null)) setExpanded(false); }}
     className="absolute right-[7px] top-0 z-20 flex h-full items-center overflow-hidden rounded-[6px] bg-[var(--bg-panel)] transition-[width] duration-300 ease-out"
     style={{ width: expanded ? 'calc(100% - 14px)' : 26 }}>
