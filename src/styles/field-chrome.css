@@ -99,9 +99,47 @@
 :where([data-editor-panel="left-primary"], [data-editor-panel="left-secondary"], [data-floating-left-panel]) [data-library-section] [data-field-section-label] + :not([data-tool-divider]) {
   margin-top: var(--field-panel-title-inset);
 }
-/* Follow the 11px shell minus the incumbent 5px horizontal / 4px vertical inset. */
+/* Shared concentric geometry: authored shell radius minus its actual inset.
+ * Keep x/y independent so narrow and elliptical highlights stay concentric. */
+[data-field-selection-shell] {
+  --field-selection-radius-x: max(0px, calc(var(--field-selection-shell-radius) - var(--field-selection-inset-x)));
+  --field-selection-radius-y: max(0px, calc(var(--field-selection-shell-radius) - var(--field-selection-inset-y)));
+}
+[data-field-selection-shell] [data-field-selection-cell] {
+  border-radius: var(--field-selection-radius-x) / var(--field-selection-radius-y);
+}
+/* Standalone active buttons paint their own shape; inset overlays inherit it. */
+:where([data-editor-panel], [data-properties-panel], [data-tool-popup], [data-modal-root], [role="menu"]) :is(button, [role="option"], [role="tab"]):is([aria-pressed="true"], [aria-selected="true"], [aria-current="true"])::before,
+:where([data-editor-panel], [data-properties-panel], [data-tool-popup], [data-modal-root], [role="menu"]) :is(button, [role="option"], [role="tab"]):is([aria-pressed="true"], [aria-selected="true"], [aria-current="true"])::after {
+  border-radius: inherit;
+}
+#bottom-toolbar-container:not(.field-portrait-dock) {
+  --field-selection-shell-radius: 11px;
+  --field-selection-inset-x: 5px;
+  --field-selection-inset-y: 4px;
+  border-radius: var(--field-selection-shell-radius);
+}
+:is([data-tool-segmented], [data-chrome-tabbar]) {
+  --field-selection-shell-radius: 8px;
+  --field-selection-inset-x: 3px; /* 2px padding + 1px border */
+  --field-selection-inset-y: 3px;
+  border-radius: var(--field-selection-shell-radius);
+  padding: calc(var(--field-selection-inset-y) - 1px) calc(var(--field-selection-inset-x) - 1px);
+}
+/* Flush segments follow only the enclosing corners; interior edges stay flush. */
+:is([data-inspector-icon-group], [data-field-selection-flush]) > button { border-radius: 0; }
+:is([data-inspector-icon-group], [data-field-selection-flush]) > button:first-child { border-top-left-radius: inherit; border-bottom-left-radius: inherit; }
+:is([data-inspector-icon-group], [data-field-selection-flush]) > button:last-child { border-top-right-radius: inherit; border-bottom-right-radius: inherit; }
+/* Outer project-header breathing room belongs to the shared content host. */
+[data-field-panel-body] { padding-top: var(--field-panel-title-inset); }
+[data-field-panel-body] > :first-child { padding-top: 0; margin-top: 0; }
+[data-field-panel-body] > :first-child > :first-child { padding-top: 0; margin-top: 0; }
+/* The collapsed layout glyph has no enclosing pill or decorative bevel. */
+[data-workspace-layout-control][data-expanded="false"] { background: transparent; }
+[data-workspace-layout-control] [data-workspace-mode-trigger] { box-shadow: none; }
+
 #bottom-toolbar-container:not(.field-portrait-dock) :is([data-toolbar-tool], [data-toolbar-chevron]) {
-  border-radius: 6px / 7px;
+  border-radius: var(--field-selection-radius-x) / var(--field-selection-radius-y);
 }
 #bottom-toolbar-container :is([data-toolbar-tool], [data-toolbar-chevron]):focus-visible {
   outline: 1px solid var(--border-focus);
@@ -117,6 +155,8 @@
   --field-panel-highlight: rgb(128 128 128 / calc(30% * var(--field-bevel-strength)));
   --field-panel-lowlight: rgb(0 0 0 / calc(30% * var(--field-bevel-strength)));
   --field-panel-depth: 0 6px 16px rgb(0 0 0 / 14%);
+  --field-menu-depth: 0 6px 18px rgb(0 0 0 / 16%);
+  --field-chrome-docked-pane-shadow: var(--field-chrome-pane-shadow);
 }
 :is([data-inspector-section-card], [data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) {
   position: relative;
@@ -158,7 +198,7 @@
 :where([data-tool-popup]) :is(.border-t, .border-b, [data-option-section], [data-effect-option-section], [data-effect-live-preview]) { border-width: 0; }
 :where([data-tool-popup]) :is([data-option-section], [data-effect-option-section], [data-effect-live-preview]) > div:first-child { background:var(--field-chrome-header-bg); }
 :is([data-workspace-right-toggle][data-detached="true"], #bottom-toolbar-container, [data-toolbar-dropdown], [data-tool-popup], [role="menu"]) {
-  box-shadow: var(--field-control-edge), 0 6px 18px rgb(0 0 0 / 16%);
+  box-shadow: var(--field-control-edge), var(--field-menu-depth);
 }
 
 /* Detached chrome receives one enclosing edge above its painted content.
@@ -278,4 +318,17 @@
 :is([data-figma-dimension], [data-appearance-radius], [data-field-control-shell]):focus-within {
   outline: 1px solid var(--border-focus);
   outline-offset: 1px;
+}
+
+/* Light-mode elevation is classified by surface. Floating islands retain depth. */
+:root:not(.dark) {
+  --field-chrome-docked-pane-shadow: 0 4px 24px rgb(0 0 0 / 12%), 0 16px 48px rgb(0 0 0 / 6%);
+}
+:root:not(.dark) :is([data-editor-panel], [data-properties-panel]) {
+  --field-panel-depth: 0 6px 16px rgb(0 0 0 / 10.5%);
+}
+:root:not(.dark):not(:has([data-floating-left-panel][data-workspace-mode="floating"])) :is([role="menu"], [data-toolbar-dropdown], [data-tool-popup], [data-field-appearance-popover]) {
+  --field-menu-depth: 0 6px 18px rgb(0 0 0 / 8%);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 8%);
+  --shadow-lg: 0 4px 14px rgb(0 0 0 / 10%);
 }

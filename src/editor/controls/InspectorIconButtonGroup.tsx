@@ -33,6 +33,7 @@ export default function InspectorIconButtonGroup({
   ariaLabel,
 }: Props) {
   const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (['Enter', ' '].includes(event.key)) { event.stopPropagation(); return; }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const enabled = buttons
       .map((button, buttonIndex) => ({ button, buttonIndex }))
@@ -41,6 +42,7 @@ export default function InspectorIconButtonGroup({
     const current = enabled.findIndex(({ buttonIndex }) => buttonIndex === index);
     if (current === -1) return;
     event.preventDefault();
+    event.stopPropagation();
     const next = event.key === 'Home'
       ? 0
       : event.key === 'End'

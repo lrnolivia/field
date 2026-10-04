@@ -12,7 +12,8 @@ describe('FigUI3 bottom toolbar Figma parity', () => {
     const utility = toolbar.indexOf('data-toolbar-cluster="utility"');
     expect(authoring).toBeGreaterThan(-1);
     expect(utility).toBeGreaterThan(authoring);
-    expect(toolbar).toContain('rounded-[11px]');
+    expect(toolbar).toContain('rounded-[inherit]');
+    expect(toolbar).toContain('var(--field-selection-shell-radius, 11px)');
     expect(toolbar).toContain('className="flex items-center gap-0.5"');
     expect(toolbar).not.toContain('data-toolbar-cluster="utility"\n          className="flex items-center gap-0.5 p-0.5');
   });
