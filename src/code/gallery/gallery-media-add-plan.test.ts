@@ -11,9 +11,11 @@ function gallery(styles: Record<string, string> = {}): CanvasNode {
     children: [],
     styles: { '--field-gallery-view': 'grid', ...styles },
     attrs: {},
-    textContent: '',
-    hasMixedContent: false,
-  } as CanvasNode;
+    textContent: '', hasMixedContent: false, order: 0, isCanvasNode: false,
+    componentFile: null, componentInstanceId: null, isComponentRoot: false,
+    motionVariants: null, motionVariantsRef: null, responsiveVariantMap: null,
+    conditionalStyles: null, motionProps: null,
+  };
 }
 
 describe('buildGalleryMediaAddPlan', () => {

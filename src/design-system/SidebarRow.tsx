@@ -11,10 +11,9 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type HTMLAttributes,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { motion } from "motion/react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import { FieldGlyph, FieldMorphGlyph, glyphIcons } from "@/editor/glyph";
 import EllipsisMenu from "./EllipsisMenu";
 import DropdownMenu, { type DropdownMenuEntry } from "./DropdownMenu";
@@ -50,7 +49,7 @@ const SIZE_CLASSES: Record<
 };
 
 interface SidebarRowProps extends Omit<
-  HTMLAttributes<HTMLDivElement>,
+  HTMLMotionProps<"div">,
   "children"
 > {
   icon: ReactNode;
