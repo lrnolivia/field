@@ -82,6 +82,7 @@ for (const mode of ['dark', 'light'] as const) {
     expect(popupRadius.stroke).toBe(popupRadius.shell);
     const menuShadow = await popup.evaluate(el => getComputedStyle(el).boxShadow);
     expect(menuShadow).toContain(mode === 'light' ? '0.08' : '0.16');
+    await expect.poll(() => popup.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
     await page.screenshot({ path: `../screenshots/field-global-${mode}-menu.png` });
     await page.keyboard.press('Escape');
     await page.locator('[data-tutorial="media-button"]').click();
@@ -147,11 +148,19 @@ for (const mode of ['dark', 'light'] as const) {
     await expect(floatingMedia).toBeVisible();
     const floatingShadow = await page.locator('[data-workspace-island="left"]').evaluate(el => getComputedStyle(el).boxShadow);
     expect(floatingShadow).toContain('0.24');
+    await expect.poll(() => floatingMedia.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
     await page.screenshot({ path: `../screenshots/field-global-${mode}-floating.png` });
     await chooser.locator('[data-workspace-mode-trigger]').focus();
     await page.keyboard.press('Enter');
     await chooser.getByRole('button', { name: /^full layout:/i }).focus();
     await page.keyboard.press('Enter');
+    await expect(page.locator('[data-workspace-left-header]')).toHaveAttribute('data-title-presentation', 'embedded');
+    await chooser.locator('[data-workspace-mode-trigger]').focus();
+    await page.keyboard.press('Enter');
+    await expect(chooser).toHaveAttribute('data-expanded', 'true');
+    await page.keyboard.press('Escape');
+    await expect(chooser).toHaveAttribute('data-expanded', 'false');
+    await expect(chooser.locator('[data-workspace-mode-trigger]')).toBeFocused();
     for (const strength of [1, 0.5]) {
       await page.evaluate(value => document.documentElement.style.setProperty('--field-bevel-strength', String(value)), strength);
       await page.screenshot({ path: `../screenshots/field-bevel-${mode}-${strength === 1 ? 'before' : 'after'}.png` });

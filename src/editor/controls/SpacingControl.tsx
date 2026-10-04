@@ -267,7 +267,7 @@ export default function SpacingControl({ values, labels, onChange, onChangeAll, 
         )}
 
         {/* Toggle group: uniform shows the static px badge, individual shows uniform icon */}
-        <div data-field-selection-flush data-field-control-shell className="flex items-center border border-[var(--control-border)] cut-corners cut-border [--cut-border-color:var(--control-border)] overflow-hidden shrink-0">
+        <div data-field-selection-flush data-field-control-shell onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation(); }} className="flex items-center border border-[var(--control-border)] cut-corners cut-border [--cut-border-color:var(--control-border)] overflow-hidden shrink-0">
           {/* Left button: when individual → shows uniform icon, click switches
               back to uniform (consolidates the longhands into shorthand).
               When uniform → a STATIC px badge; spacing is px-only, so there
