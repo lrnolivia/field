@@ -160,7 +160,7 @@ export default function DocumentSearch() {
     if (event.key === 'Tab') setOpen(false);
   };
 
-  return <div ref={hostRef} data-document-search className="shrink-0 px-3 pb-2">
+  return <div ref={hostRef} data-document-search className="px-2 pt-2 pb-1 shrink-0">
     <SearchBar value={query} onChange={changeQuery} placeholder="Search pages and layers…" inputRef={inputRef}
       onFocus={() => { if (hasQuery) setOpen(true); }} onClear={() => changeQuery('')} onKeyDown={onKeyDown}
       inputProps={{ role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': showResults,

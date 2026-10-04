@@ -2,7 +2,7 @@
 
 import { type ReactNode } from 'react';
 import { useAtomValue } from 'jotai';
-import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, LEFT_CONTENT_WIDTH } from '@/code/stores/workspace-panels-store';
+import { leftPaneOpenAtom, rightPaneOpenAtom, LEFT_RAIL_WIDTH, leftContentWidthAtom } from '@/code/stores/workspace-panels-store';
 import { deriveWorkspaceLayout, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import { trace } from '@/shared/debug-trace';
 import { leftRailVisibleAtom } from '@/editor/workspace-mode-store';
@@ -29,7 +29,8 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const rightOpen = useAtomValue(rightPaneOpenAtom);
-  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const workspace = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth });
   trace.fn('VibeDockShell.render', { contextLabel, presentation: workspace.left.presentation });
 
   if (!leftOpen || !railVisible) return null;
@@ -46,7 +47,7 @@ export default function VibeDockShell({ headerAccessory, contextLabel, onDetach,
       style={{
         left: workspace.left.inset + LEFT_RAIL_WIDTH,
         top: workspaceBodyTop(workspace.left),
-        width: LEFT_CONTENT_WIDTH,
+        width: workspace.left.width - LEFT_RAIL_WIDTH,
         height: workspaceBodyHeightCss(workspace.left),
       }}
     >
