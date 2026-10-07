@@ -40,6 +40,7 @@ import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/worksp
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
+import { useWorkspaceViewport } from '@/editor/useWorkspaceViewport';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -66,20 +67,13 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
   useEffect(() => transformManager.subscribe(() => setCompactZoom(Math.round(transformManager.getTransform().scale * 100))), []);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const rightFloatingHeight = useAtomValue(rightFloatingHeightAtom);
-  const [viewportSize, setViewportSize] = useState(() => ({
-    width: typeof window === 'undefined' ? 1440 : window.innerWidth,
-    height: typeof window === 'undefined' ? 900 : window.innerHeight,
-  }));
+  const viewportSize = useWorkspaceViewport();
   const workspace = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { rightPaneWidth, rightDetached });
   const floatingInspectorHeight = rightDetached
     ? resolveRightFloatingHeight(viewportSize.height, rightFloatingHeight)
     : rightFloatingHeight;
   trace.fn('RightHeader:render', { previewMode, presentation: workspace.right.presentation });
-  useEffect(() => {
-    const onResize = () => setViewportSize({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', onResize, { passive: true });
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+
 
   useEffect(() => {
     if (!rightDetached) return;

@@ -5,6 +5,7 @@ import {
   clampRightFloatingOffset,
   deriveWorkspaceLayout,
   resolveRightFloatingHeight,
+  resolveLeftFloatingHeight,
   WORKSPACE_BOTTOM_TOOLBAR_BOTTOM,
   WORKSPACE_FLOAT_INSET,
 } from './workspace-layout';
@@ -89,6 +90,15 @@ describe('deriveWorkspaceLayout', () => {
   it('preserves explicit floating Inspector height while enforcing edge margins', () => {
     expect(resolveRightFloatingHeight(900, 540)).toBe(540);
     expect(clampRightFloatingHeight(900, 1200, 6)).toBe(870);
+  });
+
+  it('resolves short and rotated viewports without mutating saved floating heights', () => {
+    expect(resolveLeftFloatingHeight(390, 680)).toBe(310);
+    expect(resolveLeftFloatingHeight(900, 680)).toBe(680);
+    expect(resolveLeftFloatingHeight(70, 680)).toBe(0);
+    expect(resolveRightFloatingHeight(390, -1)).toBe(360);
+    expect(resolveRightFloatingHeight(900, 540, 200)).toBe(540);
+    expect(resolveRightFloatingHeight(390, 540, 50)).toBe(316);
   });
 
   it('clamps a moved floating Inspector inside the 12px viewport margins', () => {

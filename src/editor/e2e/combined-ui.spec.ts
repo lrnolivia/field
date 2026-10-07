@@ -79,7 +79,11 @@ test('phone first text tap edits in place with shared horizontally scrollable co
   const strip = toolbar.locator('[data-mobile-text-controls]');
   expect(await strip.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
   expect((await toolbar.boundingBox())!.height).toBeLessThan(150);
-  await editable.press('End'); await editable.pressSequentially(' hello');
+  // The first tap selects the text. ArrowRight collapses to its end on both
+  // macOS and Linux; macOS End scrolls without collapsing that selection.
+  await editable.press('ArrowRight');
+  expect(await editable.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
+  await editable.pressSequentially(' hello');
   await toolbar.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(toolbar).toHaveCount(0);
   await expect.poll(() => editor.getPageCode()).toContain('Painter hello');

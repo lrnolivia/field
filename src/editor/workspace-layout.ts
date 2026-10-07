@@ -42,6 +42,11 @@ export const WORKSPACE_FLOAT_RADIUS = 8;
 export const WORKSPACE_FLOAT_SHADOW = '0 12px 32px rgba(0, 0, 0, 0.18)';
 export const WORKSPACE_FLOAT_MIN_INSPECTOR_HEIGHT = 320;
 
+/** Rail, content and backdrop share this clamp without rewriting a saved size. */
+export function resolveLeftFloatingHeight(viewportHeight: number, storedHeight: number): number {
+  return Math.max(0, Math.min(storedHeight, viewportHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET));
+}
+
 export interface WorkspaceFloatingOffset {
   x: number;
   y: number;
@@ -61,8 +66,9 @@ export function usesAutomaticRightFloatingHeight(storedHeight: number): boolean 
 export function resolveRightFloatingHeight(
   viewportHeight: number,
   storedHeight: number,
+  offsetY = 0,
 ): number {
-  const available = Math.max(0, viewportHeight - WORKSPACE_FLOAT_INSET * 2);
+  const available = Math.max(0, viewportHeight - WORKSPACE_FLOAT_INSET * 2 - Math.max(0, offsetY));
   const preferred = usesAutomaticRightFloatingHeight(storedHeight)
     ? viewportHeight - WORKSPACE_FLOAT_INSET - WORKSPACE_BOTTOM_TOOLBAR_BOTTOM
     : storedHeight;
