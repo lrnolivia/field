@@ -12,7 +12,8 @@ import { leftPanelAtom, codeEditorOpenAtom, DEFAULT_LEFT_PANEL, type LeftPanelId
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftCollapsedWidthAtom, floatingLeftHeightAtom } from '@/code/stores/workspace-panels-store';
 import { detachedLeftPanelAtom } from '@/editor/detached-left-panel-store';
 import { compactPanelOpenAtom, floatingLeftHiddenAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, setWorkspaceModeAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
-import { deriveWorkspaceLayout, WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
+import { deriveWorkspaceLayout, resolveLeftFloatingHeight, WORKSPACE_FLOAT_INSET, WORKSPACE_FLOAT_LEFT_TOP } from '@/editor/workspace-layout';
+import { useWorkspaceViewport } from '@/editor/useWorkspaceViewport';
 import { aiChatDetachedAtom } from '@/code/stores/editor-store';
 import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
 import { pluginEditorFileAtom } from '@/editor/plugin-editor/plugin-editor-store';
@@ -135,6 +136,7 @@ const MenuButton = React.memo(function MenuButton({
 // ─── LeftMenu ───────────────────────────────────────────────────────────────
 
 export default function LeftMenu() {
+  const viewport = useWorkspaceViewport();
   const activePanel = useAtomValue(leftPanelAtom);
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
@@ -273,11 +275,11 @@ export default function LeftMenu() {
       className="w-[52px] fixed z-[5002] flex flex-col justify-start items-center px-[13px]"
       // willChange/isolation: own compositor layer — see LeftPanel (grey
       // checkerboard under the zoom-out re-raster burst).
-      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: dockedShell ? 0 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
+      style={{ left: dockedShell ? 0 : WORKSPACE_FLOAT_INSET, top: dockedShell ? 0 : WORKSPACE_FLOAT_LEFT_TOP, width: dockedShell ? 52 : collapsedWidth, height: dockedShell ? '100vh' : resolveLeftFloatingHeight(viewport.height, floatingLeftHeight), backgroundColor: 'var(--bg-left-rail)', borderTopLeftRadius: dockedShell ? 0 : 8, borderBottomLeftRadius: dockedShell ? 0 : 8, borderTopRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, borderBottomRightRadius: dockedShell ? 0 : (workspaceMode === 'compact' ? !compactPanelOpen : floatingPanelCollapsed) ? 8 : 0, willChange: 'transform', isolation: 'isolate', paddingTop: dockedShell ? 0 : 10, opacity: railVisible ? 1 : 0, transform: railVisible ? 'translateX(0)' : 'translateX(-18px)', transition: 'transform 260ms ease, opacity 260ms ease, border-radius 260ms ease' }}
     >
       {dockedShell && <div className="flex h-[52px] w-full shrink-0 items-center justify-center"><LogoButton /></div>}
       {/* Right border */}
-      <div className="pointer-events-none absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />
+      {dockedShell && <div className="pointer-events-none absolute right-0 top-4 bottom-0 w-px bg-[var(--border-light)]" />}
 
       {/* Main rail tools own the flexible middle region. When the floating
           shell is shortened this region scrolls first; the utility cluster
@@ -328,6 +330,7 @@ export default function LeftMenu() {
         {/* Insert — accent (Minimal UI: was hardcoded green) */}
         <motion.button
           data-left-menu-item="insert"
+          aria-label={uiCase('Insert') ?? undefined}
           initial="rest"
           whileHover={!isViewer ? 'hover' : undefined}
           whileTap={!isViewer ? 'tap' : undefined}
@@ -485,4 +488,3 @@ export default function LeftMenu() {
     </>
   );
 }
-

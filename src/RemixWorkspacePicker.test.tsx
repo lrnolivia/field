@@ -54,7 +54,7 @@ describe('the workspace choice is obligatory', () => {
   it('a backdrop click does NOT dismiss it', async () => {
     open();
     await screen.findByText('My workspace');
-    const backdrop = document.querySelector('[data-modal-root] .bg-black\\/50');
+    const backdrop = document.querySelector('[data-modal-root] .bg-black\\/25');
     expect(backdrop, 'backdrop should exist').toBeTruthy();
     fireEvent.click(backdrop!);
     await waitFor(() => expect(screen.getByText('Continue')).toBeTruthy());

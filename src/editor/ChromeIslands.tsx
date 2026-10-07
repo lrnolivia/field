@@ -4,17 +4,20 @@
 
 import { useAtomValue } from 'jotai';
 import type { ComponentProps } from 'react';
+import { createPortal } from 'react-dom';
 import { useMobileWorkspacePresentation } from './mobile-workspace-presentation';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, floatingLeftHeightAtom, leftCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import {
   deriveWorkspaceLayout,
   resolveRightFloatingHeight,
+  resolveLeftFloatingHeight,
   WORKSPACE_FLOAT_INSET,
   WORKSPACE_FLOAT_LEFT_TOP,
   WORKSPACE_FLOAT_RADIUS,
   type WorkspaceSideLayout,
 } from './workspace-layout';
-import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { compactPanelOpenAtom, floatingInspectorVisibleAtom, floatingLeftDetailWidthAtom, floatingPanelCollapsedAtom, leftRailVisibleAtom, workspaceAutoHideAtom, workspaceModeAtom } from './workspace-mode-store';
+import { useWorkspaceViewport } from './useWorkspaceViewport';
 
 const SURFACE = {
   background: 'var(--field-chrome-pane-bg)',
@@ -29,10 +32,10 @@ function ChromeIsland({ style, ...props }: ComponentProps<'div'>) {
   const floating = style?.borderRadius !== 0;
   return <>
     <div {...props} style={style} />
-    {floating && <div aria-hidden data-field-floating-outline style={{
+    {floating && createPortal(<div aria-hidden data-field-floating-outline style={{
       ...style, background: 'transparent', boxShadow: 'none', position: 'fixed',
       zIndex: 10000, pointerEvents: 'none',
-    }} />}
+    }} />, document.body)}
   </>;
 }
 
@@ -46,7 +49,8 @@ function floatingStyle(side: WorkspaceSideLayout) {
 }
 
 export default function ChromeIslands() {
-  const mobile = useMobileWorkspacePresentation() !== 'regular';
+  const portrait = useMobileWorkspacePresentation() === 'portrait-sheet';
+  const viewport = useWorkspaceViewport();
   const leftOpen = useAtomValue(leftPaneOpenAtom);
   const mode = useAtomValue(workspaceModeAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
@@ -61,9 +65,10 @@ export default function ChromeIslands() {
   const inspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const leftCollapsedWidth = useAtomValue(leftCollapsedWidthAtom);
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const detailWidth = useAtomValue(floatingLeftDetailWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const layout = deriveWorkspaceLayout(leftOpen, rightOpen, { leftContentWidth, rightPaneWidth, rightDetached });
-  const resolvedRightHeight = resolveRightFloatingHeight(window.innerHeight, rightFloatingHeight);
+  const resolvedRightHeight = resolveRightFloatingHeight(viewport.height, rightFloatingHeight, rightDragOffset.y);
   const dockedLeft = mode === 'docked' || mode === 'compact-docked';
 
   return (
@@ -78,8 +83,8 @@ export default function ChromeIslands() {
           top: dockedLeft ? 0 : WORKSPACE_FLOAT_LEFT_TOP,
           width: dockedLeft
             ? 52 + (leftOpen ? leftContentWidth : 0)
-            : leftCollapsedWidth + (!mobile && ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)) ? leftContentWidth : 0),
-          height: dockedLeft ? '100vh' : Math.min(floatingLeftHeight, window.innerHeight - WORKSPACE_FLOAT_LEFT_TOP - WORKSPACE_FLOAT_INSET),
+            : leftCollapsedWidth + (!portrait && ((mode === 'floating' && (!autoHide || railVisible) && !floatingPanelCollapsed) || (mode === 'compact' && compactPanelOpen)) ? leftContentWidth + detailWidth : 0),
+          height: dockedLeft ? '100vh' : resolveLeftFloatingHeight(viewport.height, floatingLeftHeight),
           ...SURFACE,
           ...(dockedLeft ? { borderRadius: 0, boxShadow: 'var(--field-chrome-docked-pane-shadow)' } : {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
@@ -91,7 +96,7 @@ export default function ChromeIslands() {
         }}
       />
 
-      {rightOpen && !mobile && (
+      {rightOpen && !portrait && (
         <ChromeIsland
           aria-hidden
           data-workspace-island="right"
@@ -100,7 +105,7 @@ export default function ChromeIslands() {
             right: layout.right.inset,
             top: layout.right.top,
             width: layout.right.width,
-            height: rightDetached ? Math.min(resolvedRightHeight, window.innerHeight - layout.right.top - rightDragOffset.y - 8) : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
+            height: rightDetached ? resolvedRightHeight : `calc(100vh - ${layout.right.top + layout.right.bottom}px)`,
             transform: rightDetached ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)` : undefined,
             ...SURFACE,
             ...floatingStyle(layout.right),

@@ -37,7 +37,6 @@ import ProjectChip from './ProjectChip';
 import AppearancePopover from '@/editor/AppearancePopover';
 import KeyboardShortcutsModal from '@/editor/ui/KeyboardShortcutsModal';
 import AboutFieldModal from '@/editor/ui/AboutFieldModal';
-import ProjectSettingsModal from '@/editor/overlays/ProjectSettingsModal';
 import DropdownMenu, { type DropdownMenuEntry } from '@/design-system/DropdownMenu';
 import Button from '@/design-system/Button';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
@@ -395,7 +394,6 @@ export default function LeftHeader() {
           It stays mounted while the persistent title surface morphs between
           embedded, compact-pill and full-pill workspace presentations. */}
       <KeyboardShortcutsModal />
-      <ProjectSettingsModal />
     </>
   );
 }

@@ -244,6 +244,7 @@ function ChatSwitcher({ activeId, title, disabled, onPick, onNew, onDelete }: {
     const rows: DropdownMenuEntry[] = chats.map((c) => ({
       id: c.id,
       label: c.title,
+      preserveCase: true,
       shortcut: relativeAge(c.updatedAt, now),
       // The open chat is marked with a check, not a colour: the accent is the
       // selection colour everywhere else in the editor, and a tinted row in a

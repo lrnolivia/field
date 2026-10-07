@@ -68,10 +68,10 @@ function ExportConfigurationRow({ configuration, onChange, onRemove }: {
             className="h-[var(--control-height)] min-w-0 w-28 rounded-[var(--control-radius)] bg-[var(--control-bg)] px-2 text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-[var(--accent)]" />
         </label>
         <label className="flex items-center justify-between gap-3 text-[var(--text-disabled)]" title="Color profile selection is not available in the current export engine">
-          Color profile <select disabled aria-label="Color profile (unavailable)" className="w-28 rounded bg-[var(--control-bg)] px-2 py-1"><option>sRGB</option></select>
+          Color profile <span className="w-28"><ToolSelect disabled ariaLabel="Color profile (unavailable)" value="sRGB" options={[{ value: 'sRGB', label: 'sRGB' }]} onChange={() => {}} /></span>
         </label>
         <label className="flex items-center justify-between gap-3 text-[var(--text-disabled)]" title="Resampling selection is not available in the current export engine">
-          Image resampling <select disabled aria-label="Image resampling (unavailable)" className="w-28 rounded bg-[var(--control-bg)] px-2 py-1"><option>Detailed</option></select>
+          Image resampling <span className="w-28"><ToolSelect disabled ariaLabel="Image resampling (unavailable)" value="Detailed" options={[{ value: 'Detailed', label: 'Detailed' }]} onChange={() => {}} /></span>
         </label>
         <label className="flex items-center gap-2 text-[var(--text-secondary)]" title="The export captures the selected layer only">
           <input type="checkbox" checked disabled /> Ignore overlapping layers

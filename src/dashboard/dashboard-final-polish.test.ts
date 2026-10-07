@@ -17,9 +17,9 @@ describe('Dashboard final visual polish contract', () => {
     expect(dashboardCss).toContain(".field-project-card[data-refreshing='true'] .field-project-preview::before");
   });
 
-  it('uses a small stacked field mark instead of the old grid and orbit artwork', () => {
+  it('uses the page-shaped placeholder instead of the old grid and orbit artwork', () => {
     expect(dashboardCss).toContain('FIELD_DASHBOARD_CUTE_PLACEHOLDER_20260926');
-    expect(dashboardCss).toContain('.field-project-placeholder-grid');
+    expect(dashboardCss).toContain('.field-project-placeholder-page');
     expect(dashboardCss).not.toContain('background-size: 18px 18px');
     expect(dashboardCss).not.toContain('width: 92px;\n  height: 92px;');
   });

@@ -22,9 +22,9 @@ describe('Inspector Options Panel foundation', () => {
   it('promotes Background blur from a list numeric field into a canonical scalar popout', () => {
     const blur = read('src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx');
     expect(blur).toContain("useEditorPanel(");
-    expect(blur).toContain("{ kind: 'options' }");
+    expect(blur).toContain("{ kind: 'options', width: 300 }");
     expect(blur).toContain('<ScalarRow');
     expect(blur).toContain('unit="px"');
-    expect(blur).toContain('Reset blur');
+    expect(blur).toContain('onClick={onReset}>Reset</EffectOptionAction>');
   });
 });

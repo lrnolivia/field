@@ -138,7 +138,7 @@
   [data-settings-overlay] { padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
   [data-settings-overlay] :is(button,[role=combobox],select) { min-height:44px; }
   [data-settings-overlay] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea) { font-size:16px; min-height:44px; }
-  [data-mobile-panel-presentation] { box-shadow:var(--field-control-edge),var(--field-chrome-pane-shadow)!important; }
+  [data-mobile-panel-presentation="portrait-sheet"] { box-shadow:var(--field-control-edge),var(--field-chrome-pane-shadow)!important; }
   [data-workspace-layout-control] { overflow:visible; }
   [data-workspace-layout-control] button { min-height:44px; }
 }

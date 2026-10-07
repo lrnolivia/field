@@ -23,10 +23,14 @@ describe('left rail and floating panel geometry', () => {
     expect(panel).toContain('cursor-nwse-resize');
   });
 
-  it('keeps the rail above floating panel content', () => {
-    const rail = read('src/editor/left-toolbar/LeftMenu.tsx');
+  it('keeps floating content above the toolbar and below its enclosing outline', () => {
     const panel = read('src/editor/FloatingLeftPanelHost.tsx');
-    expect(rail).toContain('fixed z-[5002]');
-    expect(panel).toContain('fixed z-[5001]');
+    const toolbar = read('src/editor/BottomToolbar.tsx');
+    const island = read('src/editor/ChromeIslands.tsx');
+    const panelLayer = Number(panel.match(/fixed z-\[(\d+)\]/)?.[1]);
+    const toolbarLayer = Number(toolbar.match(/fixed[^\n]*z-\[(\d+)\]/)?.[1]);
+    const outlineLayer = Number(island.match(/zIndex:\s*(\d+)/)?.[1]);
+    expect(panelLayer).toBeGreaterThan(toolbarLayer);
+    expect(outlineLayer).toBeGreaterThan(panelLayer);
   });
 });

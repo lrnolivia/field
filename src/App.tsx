@@ -31,6 +31,7 @@ import { translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
 import CodeEditorPopup from './editor/CodeEditorPopup';
 import ComponentEditorOverlay from './editor/component-editor/ComponentEditorOverlay';
 import SettingsOverlay from './editor/overlays/SettingsOverlay';
+import ProjectSettingsModal from './editor/overlays/ProjectSettingsModal';
 import PageVariablesModal from './editor/ui/PageVariablesModal';
 import LinkedComponentModal from './cloud/components/LinkedComponentModal';
 import PluginEditor from './editor/plugin-editor/PluginEditor';
@@ -67,7 +68,7 @@ import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
 import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
 import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
 import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
-import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_FLOAT_SHADOW, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
 import './loading/canvas-reveal.css';
 import './editor/workspace-morph.css';
 import { useMobileWorkspacePresentation } from './editor/mobile-workspace-presentation';
@@ -94,13 +95,12 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const editorRootRef = useRef<HTMLDivElement>(null);
   const mobileWorkspacePresentation = useMobileWorkspacePresentation();
   const mobilePortraitSheet = mobileWorkspacePresentation === 'portrait-sheet';
-  const mobileLandscapeOverlay = mobileWorkspacePresentation === 'landscape-overlay';
   const isTextEditing = useAtomValue(isTextEditingAtom);
   const mobilePanelPresentation = mobileWorkspacePresentation !== 'regular';
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
   const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
-  const [rightPaneOpen, setRightPaneOpen] = useAtom(rightPaneOpenAtom);
+  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
   const rightDetached = useAtomValue(rightPaneDetachedAtom);
   const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
   const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
@@ -111,7 +111,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const railVisible = useAtomValue(leftRailVisibleAtom);
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
   const floatingInspectorHeight = rightDetached
-    ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight)
+    ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight, rightDragOffset.y)
     : rightFloatingHeight;
   const cameraInsets = mobilePanelPresentation ? { left: 0, top: 0, right: 0, bottom: 0 } : deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
     leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
@@ -375,50 +375,28 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
             data-mobile-panel-presentation={mobilePanelPresentation ? mobileWorkspacePresentation : undefined}
             aria-hidden={!floatingInspectorVisible}
             inert={!floatingInspectorVisible}
-            className="fixed z-[5000] flex flex-col overflow-hidden"
+            className={`fixed ${rightDetached ? 'z-[9999]' : 'z-[5000]'} flex flex-col overflow-hidden`}
             style={{
-              right: mobilePanelPresentation ? 8 : workspaceLayout.right.inset,
-              left: mobilePortraitSheet ? 8 : undefined,
-              top: mobilePortraitSheet ? 'auto' : mobileLandscapeOverlay ? 60 : workspaceBodyTop(workspaceLayout.right),
-              bottom: mobilePortraitSheet
-                ? 'calc(72px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))'
-                : mobileLandscapeOverlay ? 8 : undefined,
-              width: mobilePortraitSheet
-                ? 'auto'
-                : mobileLandscapeOverlay ? Math.min(workspaceLayout.right.width, 320) : workspaceLayout.right.width,
-              height: mobilePortraitSheet
-                ? 'min(500px, calc(var(--field-visible-height, 100dvh) - 140px))'
-                : mobileLandscapeOverlay
-                  ? 'calc(100dvh - 68px)'
-                  : rightDetached
-                    ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT)
-                    : workspaceBodyHeightCss(workspaceLayout.right),
-              transform: !mobilePanelPresentation && rightDetached
+              right: workspaceLayout.right.inset,
+              top: workspaceBodyTop(workspaceLayout.right),
+              width: workspaceLayout.right.width,
+              height: rightDetached
+                ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT)
+                : workspaceBodyHeightCss(workspaceLayout.right),
+              transform: rightDetached
                 ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)`
                 : undefined,
               boxSizing: 'border-box',
-              backgroundColor: mobilePanelPresentation ? 'var(--bg-panel)' : undefined,
-              border: mobilePanelPresentation ? '1px solid var(--border-light)' : undefined,
-              borderRadius: mobilePanelPresentation || workspaceLayout.right.presentation === 'floating'
-                ? (mobilePortraitSheet ? 12 : WORKSPACE_FLOAT_RADIUS)
-                : 0,
-              boxShadow: mobilePanelPresentation ? WORKSPACE_FLOAT_SHADOW : undefined,
+              backgroundColor: rightDetached ? 'var(--field-chrome-pane-bg)' : undefined,
+              borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
               opacity: floatingInspectorVisible ? 1 : 0,
-              translate: !floatingInspectorVisible
-                ? mobilePortraitSheet
-                  ? '0 calc(100% + 24px)'
-                  : (mobileLandscapeOverlay || rightDetached) ? 'calc(100% + 24px) 0' : undefined
-                : undefined,
+              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
               transition: 'translate 260ms ease, opacity 260ms ease',
             }}
           >
-            {mobilePanelPresentation && <button type="button" aria-label="Close Properties"
-              onClick={() => setRightPaneOpen(false)}
-              className="flex h-11 w-full shrink-0 items-center justify-between border-b border-[var(--border-light)] px-3 text-xs">
-              <span>Properties</span><span aria-hidden>×</span>
-            </button>}
             <RightSidebar />
-            {rightDetached && !mobilePanelPresentation && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
+            {rightDetached && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
               onPointerDown={(event) => {
                 event.preventDefault();
                 const startY = event.clientY;
@@ -432,7 +410,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
                 window.addEventListener('pointerup', stop, { once: true });
                 window.addEventListener('pointercancel', stop, { once: true });
               }}
-              className="absolute bottom-0 left-0 z-10 h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
+              className="absolute bottom-0 left-0 z-[5001] h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
               <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M2 5 11 14M2 10l4 4" stroke="currentColor" fill="none" /></svg>
             </button>}
           </div>
@@ -470,6 +448,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       <ComponentEditorOverlay />
       <CodeEditorPopup />
       <SettingsOverlay />
+      <ProjectSettingsModal />
       <PageVariablesModal />
       <LinkedComponentModalMount />
       {/* Plugin runtime — global free-floating window. Independent
@@ -756,4 +735,3 @@ function OfflineToast() {
     </div>
   );
 }
-

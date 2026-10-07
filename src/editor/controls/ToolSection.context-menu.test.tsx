@@ -13,12 +13,12 @@ describe('ToolSection header context menu', () => {
         <div>row</div>
       </ToolSection>,
     );
-    const ev = fireEvent.contextMenu(getByText('Animation'));
+    const ev = fireEvent.contextMenu(getByText(/^Animation$/i));
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(ev).toBe(false); // preventDefault called
   });
   test('no action → native context menu untouched', () => {
     const { getByText } = render(<ToolSection title="Styles"><div>row</div></ToolSection>);
-    expect(fireEvent.contextMenu(getByText('Styles'))).toBe(true);
+    expect(fireEvent.contextMenu(getByText(/^Styles$/i))).toBe(true);
   });
 });

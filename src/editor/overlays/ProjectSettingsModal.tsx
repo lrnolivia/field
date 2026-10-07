@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import Modal from '@/design-system/Modal';
+import ChromeTabBar from '@/editor/ui/ChromeTabBar';
 import {
   projectSettingsModalOpenAtom,
   websiteSettingsAtom,
@@ -50,9 +51,39 @@ function TrashIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   );
 }
 
+type ProjectSettingsSection = 'metadata' | 'branding' | 'appearance' | 'code';
+const PROJECT_SETTINGS_SECTIONS = [
+  { value: 'metadata', label: 'General' },
+  { value: 'branding', label: 'Branding' },
+  { value: 'appearance', label: 'Appearance' },
+  { value: 'code', label: 'Code' },
+] as const;
+
+// The monitor framing follows General Appearance's preview. This illustrates
+// the initial site theme; it does not render or modify the current website.
+function SiteThemePreview({ theme }: { theme: 'light' | 'dark' | 'system' }) {
+  return (
+    <div aria-hidden="true" className="mx-auto w-[196px] max-w-full">
+      <div className="rounded-[14px] border border-[var(--border-light)] bg-[var(--bg-active)] p-[5px] shadow-[0_5px_16px_rgba(0,0,0,0.10)]">
+        <div className="relative aspect-[16/10] overflow-hidden rounded-[9px] border border-black/10" style={{ background: theme === 'system' ? 'linear-gradient(90deg, #f2f2f2 50%, #242424 50%)' : theme === 'dark' ? '#242424' : '#f2f2f2' }}>
+          <div className="absolute inset-x-0 top-0 h-[14%] border-b border-black/10 bg-black/10" />
+          <div className="absolute left-[12%] right-[12%] top-[30%] h-[12%] rounded-[3px] bg-[var(--accent)] opacity-80" />
+          <div className="absolute left-[12%] right-[24%] top-[51%] h-[5%] rounded-full bg-[#8c8c8c]/50" />
+          <div className="absolute left-[12%] right-[35%] top-[63%] h-[5%] rounded-full bg-[#8c8c8c]/35" />
+        </div>
+      </div>
+      <div className="mx-auto h-2.5 w-6 border-x border-[var(--border-light)] bg-[var(--bg-active)]/70" />
+      <div className="mx-auto h-[3px] w-14 rounded-full bg-[var(--border-light)]" />
+    </div>
+  );
+}
+
 export default function ProjectSettingsModal() {
   const [isOpen, setIsOpen] = useAtom(projectSettingsModalOpenAtom);
   const [settings, setSettings] = useAtom(websiteSettingsAtom);
+  const [section, setSection] = useState<ProjectSettingsSection>('metadata');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const websiteId = getProjectId() || '';
 
   const faviconInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +99,7 @@ export default function ProjectSettingsModal() {
 
   const [showBadge, setShowBadge] = useState(true);
   const [badgeLoaded, setBadgeLoaded] = useState(false);
+  const [savingBadge, setSavingBadge] = useState(false);
 
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const [uploadingSocial, setUploadingSocial] = useState(false);
@@ -87,6 +119,9 @@ export default function ProjectSettingsModal() {
 
   useEffect(() => {
     if (!isOpen) return;
+    setSection('metadata');
+    setError(null);
+    setConfirmDiscard(false);
     const fresh = loadSettingsFromLayout();
     setSettings(fresh);
     setSiteName(fresh.name);
@@ -99,6 +134,8 @@ export default function ProjectSettingsModal() {
   }, [isOpen, setSettings]);
 
   useEffect(() => {
+    setSubdomain(null);
+    setBadgeLoaded(false);
     if (!isOpen || !websiteId) return;
     let cancelled = false;
     void (async () => {
@@ -118,6 +155,10 @@ export default function ProjectSettingsModal() {
   }, [isOpen, websiteId]);
 
   const close = () => {
+    if (metadataDirty || themeDirty || codeDirty) {
+      setConfirmDiscard(true);
+      return;
+    }
     trace.action('project-settings:close');
     setIsOpen(false);
   };
@@ -151,6 +192,7 @@ export default function ProjectSettingsModal() {
     onSuccess: (url: string) => void,
   ) => {
     if (!websiteId) return;
+    setError(null);
     setLoading(true);
     try {
       const formData = new FormData();
@@ -164,7 +206,7 @@ export default function ProjectSettingsModal() {
       onSuccess(data.url);
     } catch (error) {
       trace.error('project-settings:upload-failed', { source, error: String(error) });
-      alert('Failed to upload. Please try again.');
+      setError('Failed to upload. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -200,6 +242,7 @@ export default function ProjectSettingsModal() {
   };
 
   const removeFavicon = async () => {
+    setError(null);
     setConfirmFaviconRemove(false);
     if (!settings.faviconLight) return;
     setDeletingFavicon(true);
@@ -209,13 +252,14 @@ export default function ProjectSettingsModal() {
       queueMutation({ type: 'updateMetadata', metadata: { icons: { icon: '' } } });
     } catch (error) {
       trace.error('project-settings:remove-favicon-failed', { error: String(error) });
-      alert('Failed to remove favicon. Please try again.');
+      setError('Failed to remove favicon. Please try again.');
     } finally {
       setDeletingFavicon(false);
     }
   };
 
   const removeSocial = async () => {
+    setError(null);
     setConfirmSocialRemove(false);
     if (!settings.socialShareImage) return;
     setDeletingSocial(true);
@@ -225,22 +269,39 @@ export default function ProjectSettingsModal() {
       queueMutation({ type: 'updateMetadata', metadata: { openGraph: { images: [] } } });
     } catch (error) {
       trace.error('project-settings:remove-social-failed', { error: String(error) });
-      alert('Failed to remove social image. Please try again.');
+      setError('Failed to remove social image. Please try again.');
     } finally {
       setDeletingSocial(false);
     }
   };
 
   const toggleBadge = (show: boolean) => {
+    if (savingBadge || !badgeLoaded) return;
+    setError(null);
+    setSavingBadge(true);
     setShowBadge(show);
-    void setWebsiteWatermark(websiteId, !show).catch(() => setShowBadge(!show));
+    void setWebsiteWatermark(websiteId, !show).catch(() => { setShowBadge(!show); setError('Failed to update the published-site badge. Please try again.'); }).finally(() => setSavingBadge(false));
     trace.action('project-settings:watermark-toggle', { websiteId, show });
   };
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={close} title="Project settings" width={640}>
+      <Modal isOpen={isOpen} onClose={close} title="Project settings" width={640} mobileFullScreen>
         <div data-project-settings-modal className="px-3 py-3 space-y-3">
+          <div data-project-settings-tabs onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const index = PROJECT_SETTINGS_SECTIONS.findIndex(item => item.value === section);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? 3 : (index + (event.key === 'ArrowRight' ? 1 : 3)) % 4;
+            setSection(PROJECT_SETTINGS_SECTIONS[next].value);
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}>
+            <ChromeTabBar value={section} items={PROJECT_SETTINGS_SECTIONS} onChange={setSection} ariaLabel="Project settings sections" stretch compact />
+          </div>
+          {error && <div role="alert" className="flex items-start justify-between gap-3 text-xs text-[var(--accent-danger,#dc2626)]"><span>{error}</span><button type="button" onClick={() => setError(null)} aria-label="Dismiss error">Dismiss</button></div>}
+          <div role="tabpanel" aria-label={PROJECT_SETTINGS_SECTIONS.find(item => item.value === section)?.label}>
+          {section === 'metadata' &&
           <SettingsGroup surface title="Site metadata" action={<SaveButton onClick={saveMetadata} saving={false} dirty={metadataDirty} />}>
             <SettingsRow label="Name" htmlFor="project-site-name">
               <input id="project-site-name" value={siteName} onChange={(event) => setSiteName(event.target.value)} className={ROW_INPUT_CLS} placeholder="My website" />
@@ -254,13 +315,13 @@ export default function ProjectSettingsModal() {
             <SettingsRow label="Search preview" align="top" interactive={false}>
               <div className="cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/20 px-3 py-2.5">
                 <div className="text-[10px] text-[var(--text-tertiary)] truncate">{subdomain ? `${subdomain}.revyme.app` : 'yoursite.revyme.app'}</div>
-                <div className="mt-1 text-[14px] text-[#8ab4f8] font-medium leading-tight truncate">{siteName || 'My website'}</div>
+                <div className="mt-1 text-[14px] text-[var(--accent-text)] font-medium leading-tight truncate">{siteName || 'My website'}</div>
                 <div className="mt-1 text-[11px] text-[var(--text-secondary)] leading-4">{description || 'Made with Revyme'}</div>
               </div>
             </SettingsRow>
-          </SettingsGroup>
+          </SettingsGroup>}
 
-          <SettingsGroup surface title="Branding">
+          {section === 'branding' && <SettingsGroup surface title="Branding">
             <input ref={faviconInputRef} type="file" accept="image/png,image/x-icon,image/vnd.microsoft.icon" onChange={uploadFavicon} className="hidden" />
             <input ref={socialInputRef} type="file" accept="image/jpeg,image/jpg,image/png" onChange={uploadSocial} className="hidden" />
 
@@ -270,7 +331,7 @@ export default function ProjectSettingsModal() {
                   <div className="w-10 h-10 shrink-0 cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/50 flex items-center justify-center overflow-hidden">
                     {settings.faviconLight ? <img src={settings.faviconLight} alt="Favicon" className="w-full h-full object-contain" /> : <span className="text-[9px] text-[var(--text-tertiary)]">32×32</span>}
                   </div>
-                  <RowButton onClick={() => faviconInputRef.current?.click()} loading={uploadingFavicon}><UploadIcon /> Upload</RowButton>
+                  <RowButton onClick={() => faviconInputRef.current?.click()} loading={uploadingFavicon} disabled={!websiteId}><UploadIcon /> Upload</RowButton>
                   {settings.faviconLight && <RowButton onClick={() => setConfirmFaviconRemove(true)} loading={deletingFavicon} variant="danger" title="Remove favicon"><TrashIcon /></RowButton>}
                 </div>
                 <p className="text-xs text-[var(--text-tertiary)]">PNG or ICO, ideally 32×32 or 64×64.</p>
@@ -283,7 +344,7 @@ export default function ProjectSettingsModal() {
                   <div className="w-24 h-[50px] shrink-0 cut-corners cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/50 flex items-center justify-center overflow-hidden">
                     {settings.socialShareImage ? <img src={settings.socialShareImage} alt="Social share" className="w-full h-full object-cover" /> : <span className="text-[9px] text-[var(--text-tertiary)]">1200×630</span>}
                   </div>
-                  <RowButton onClick={() => socialInputRef.current?.click()} loading={uploadingSocial}><UploadIcon /> Upload</RowButton>
+                  <RowButton onClick={() => socialInputRef.current?.click()} loading={uploadingSocial} disabled={!websiteId}><UploadIcon /> Upload</RowButton>
                   {settings.socialShareImage && <RowButton onClick={() => setConfirmSocialRemove(true)} loading={deletingSocial} variant="danger" title="Remove social image"><TrashIcon /></RowButton>}
                 </div>
                 <p className="text-xs text-[var(--text-tertiary)]">Used when the site is shared on social platforms.</p>
@@ -294,15 +355,14 @@ export default function ProjectSettingsModal() {
               <SettingsRow label="Made in Revyme badge">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-[var(--text-tertiary)]">Show the published-site badge.</p>
-                  <div className={badgeLoaded ? '' : 'opacity-40 pointer-events-none'}>
-                    <Toggle value={showBadge} onChange={toggleBadge} />
-                  </div>
+                  <Toggle value={showBadge} onChange={toggleBadge} label="Show published-site badge" disabled={!badgeLoaded || savingBadge} />
                 </div>
               </SettingsRow>
             )}
-          </SettingsGroup>
+          </SettingsGroup>}
 
-          <SettingsGroup surface title="Site appearance" action={<SaveButton onClick={saveTheme} saving={false} dirty={themeDirty} />}>
+          {section === 'appearance' && <SettingsGroup surface title="Site appearance" action={<SaveButton onClick={saveTheme} saving={false} dirty={themeDirty} />}>
+            <div data-project-theme-preview className="px-3 py-4"><SiteThemePreview theme={defaultTheme} /></div>
             <SettingsRow label="Default theme" htmlFor="project-default-theme" align="top">
               <div className="flex flex-col gap-1">
                 <RowSelect
@@ -318,18 +378,21 @@ export default function ProjectSettingsModal() {
                 <p className="text-xs text-[var(--text-tertiary)]">Initial theme when visitors load this site.</p>
               </div>
             </SettingsRow>
-          </SettingsGroup>
+          </SettingsGroup>}
 
-          <SettingsGroup surface title="Custom code" action={<SaveButton onClick={saveCustomCode} saving={false} dirty={codeDirty} />}>
+          {section === 'code' && <SettingsGroup surface title="Custom code" action={<SaveButton onClick={saveCustomCode} saving={false} dirty={codeDirty} />}>
             <SettingsRow label="End of <head> tag" htmlFor="project-custom-head" align="top">
               <textarea id="project-custom-head" rows={4} value={customHead} onChange={(event) => setCustomHead(event.target.value)} className={`${ROW_INPUT_CLS} resize-none font-mono text-xs min-h-[72px]`} placeholder="<!-- Analytics, meta tags, or custom CSS -->" />
             </SettingsRow>
             <SettingsRow label="End of <body> tag" htmlFor="project-custom-body" align="top">
               <textarea id="project-custom-body" rows={4} value={customBody} onChange={(event) => setCustomBody(event.target.value)} className={`${ROW_INPUT_CLS} resize-none font-mono text-xs min-h-[72px]`} placeholder="<!-- Scripts or tracking code -->" />
             </SettingsRow>
-          </SettingsGroup>
+          </SettingsGroup>}
+          </div>
         </div>
       </Modal>
+
+      <ConfirmModal isOpen={isOpen && confirmDiscard} onCancel={() => setConfirmDiscard(false)} onConfirm={() => { setConfirmDiscard(false); setIsOpen(false); }} title="Discard unsaved project settings?" message="Your saved settings stay as they are. Unsaved name, description, language, theme and custom code changes will be discarded." confirmText="Discard" cancelText="Keep editing" variant="danger" />
 
       <ConfirmModal
         isOpen={confirmFaviconRemove}

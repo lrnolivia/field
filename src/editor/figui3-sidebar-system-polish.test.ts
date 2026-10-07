@@ -68,7 +68,8 @@ describe('FigUI3 sidebar system + document panel', () => {
     const layerRows = read('src/editor/LayersPanel/rows.tsx');
 
     expect(css).toContain('FIGUI3_DOCUMENT_PANEL_DENSITY_20260925');
-    expect(css).toContain('flex: 0 0 10px');
+    expect(css).toContain('flex: 0 0 var(--field-panel-section-gap, 10px)');
+    expect(read('src/styles/field-chrome.css')).toContain('--field-panel-section-gap: 10px');
     expect(css).toContain('height: 28px');
     expect(css).toContain('padding: 0 8px');
     expect(css).toContain('padding: 0 4px 4px');

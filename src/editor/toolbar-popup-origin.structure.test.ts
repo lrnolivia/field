@@ -6,11 +6,13 @@ const host = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/ToolbarPane
 
 describe('toolbar-origin popup host', () => {
   it('uses the canonical Media toolbar shell for legacy Media subflows too', () => {
-    expect(host).toContain("import MediaToolbarPopover from '@/editor/media/MediaToolbarPopover'");
+    expect(host).toContain('<MediaPanelController onClose=');
+    const media = fs.readFileSync(path.resolve(process.cwd(), 'src/editor/media/MediaPanelController.tsx'), 'utf8');
+    expect(media).toContain("import MediaToolbarPopover from './MediaToolbarPopover'");
     expect(host).not.toContain('function MediaToolbarPopover({');
-    expect(host).toContain('expanded={mediaExpanded}');
-    expect(host).toContain('<ImageSearchModal isOpen embedded');
-    expect(host).toContain('<VideoSearchModal isOpen embedded');
+    expect(media).toContain('expanded={expanded}');
+    expect(media).toMatch(/<ImageSearchModal\s+isOpen\s+embedded/);
+    expect(media).toMatch(/<VideoSearchModal\s+isOpen\s+embedded/);
     expect(host).not.toContain('<Modal isOpen title="Create Gallery"');
   });
 

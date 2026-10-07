@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir -p qa-evidence
           set +e
-          npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts --project=chromium --reporter=line,json
+          npx playwright test src/editor/e2e/inspector-visual-qa.spec.ts src/editor/e2e/combined-ui.spec.ts src/editor/e2e/document-search-responsive.spec.ts src/editor/e2e/panels-settings.spec.ts src/editor/e2e/connected-panels.spec.ts --project=chromium --reporter=line,json
           status=$?
           node --input-type=module <<'JS'
           import fs from 'node:fs';
@@ -68,4 +68,3 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
-

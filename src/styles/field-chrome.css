@@ -8,6 +8,7 @@
   --field-chrome-header-bg: color-mix(in srgb,var(--field-chrome-section-bg),var(--text-primary) 2%);
   --field-chrome-pane-shadow: 0 4px 24px rgb(0 0 0 / 24%), 0 16px 48px rgb(0 0 0 / 12%);
   --field-chrome-shell-header-bg: color-mix(in srgb,var(--bg-panel) 60%,var(--bg-left-rail));
+  --field-panel-section-gap: 10px;
 }
 /* Container width is independent of the viewport in both docked and Float.
  * Keep the two alignment groups usable before their intrinsic widths collide. */
@@ -63,6 +64,11 @@
 }
 [data-field-document-panel] { padding: 0; gap: 4px; }
 [data-library-panel] { background: transparent; }
+/* Match the measured Inspector rhythm between independent sections. CMS and
+ * Branches each contain one section; their compact rows keep their own spacing. */
+[data-library-panel] [data-library-section] {
+  margin-block: 0 var(--field-panel-section-gap);
+}
 .field-pages-section-header, .field-layers-section-header {
   min-height: 36px; height: 36px; padding-inline: 10px;
   border-bottom: 0;
@@ -97,6 +103,35 @@
 }
 
 [data-library-panel] > [data-tool-divider] { display: none; }
+/* Settings use the same section tiers and controls as the editor. Container
+ * width, rather than viewport width, determines when labelled rows stack. */
+:is([data-settings-overlay], [data-project-settings-modal]) [data-settings-group] {
+  container: field-settings / inline-size;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--field-chrome-section-bg);
+  box-shadow: var(--field-panel-depth);
+}
+:is([data-settings-overlay], [data-project-settings-modal]) [data-settings-group-header] {
+  padding: 10px 12px;
+  background: var(--field-chrome-header-bg);
+}
+:is([data-settings-overlay], [data-project-settings-modal]) [data-settings-row] {
+  padding: 12px;
+}
+:is([data-settings-overlay], [data-project-settings-modal]) [data-settings-row] > label {
+  font-size: 12px;
+}
+:is([data-settings-overlay], [data-project-settings-modal]) :is(button, input, textarea):focus-visible {
+  outline: 2px solid var(--border-focus, var(--accent));
+  outline-offset: 2px;
+}
+@container field-settings (max-width: 480px) {
+  [data-settings-row] { flex-direction: column; align-items: stretch; gap: 6px; }
+  [data-settings-row] > label { width: 100%; padding-top: 0; }
+}
 /* Content insets belong to the shared card, including empty and filtered lists. */
 :root { --field-panel-content-inset: 8px; --field-panel-title-inset: 12px; }
 [data-field-task-panel] > :not([data-field-section-label]):not([data-tool-divider]) {

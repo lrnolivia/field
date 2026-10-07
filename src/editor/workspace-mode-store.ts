@@ -33,6 +33,8 @@ export const floatingLeftHiddenAtom = atom(false);
 /** Hides only the left content pane; the floating icon rail stays visible. */
 export const floatingPanelCollapsedAtom = atom(true);
 export const compactPanelOpenAtom = atom(false);
+/** Transient adjacent Insert content extends the existing Float perimeter. */
+export const floatingLeftDetailWidthAtom = atom(0);
 export const floatingInspectorVisibleAtom = atom((get) => {
   if (!get(rightInspectorAutoHideAtom)) return true;
   return get(rightPaneOpenAtom) || get(rightInspectorTemporaryRevealAtom);

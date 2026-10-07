@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSetAtom } from 'jotai';
+import SettingsOverlay from '@/editor/overlays/SettingsOverlay';
+import { settingsSectionAtom } from '@/code/stores/website-settings-store';
 import { backend, type RevymeUser } from '@/backend';
 import {
   createFieldProject,
@@ -44,9 +47,12 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
   const [deleteTarget, setDeleteTarget] = useState<FieldProjectMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<RevymeUser | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const setSettingsSection = useSetAtom(settingsSectionAtom);
 
   useEffect(() => {
     if (!active) {
+      setSettingsOpen(false);
       setOpeningProjectId(null);
       // FieldShell keeps Dashboard mounted behind the editor. Dismiss its
       // transient UI so hidden dialogs cannot retain window keyboard traps.
@@ -252,6 +258,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
           setOpenMenuId(null);
         }}
         onQueryChange={setQuery}
+        onOpenSettings={() => { setSettingsSection('website'); setSettingsOpen(true); }}
       />
 
       <main className="field-dashboard-main">
@@ -302,6 +309,8 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
           )}
         </section>
       </main>
+
+      {active && settingsOpen && <SettingsOverlay open onClose={() => setSettingsOpen(false)} preferencesOnly />}
 
       <RenameProjectDialog
         project={active ? renameTarget : null}

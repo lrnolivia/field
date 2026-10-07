@@ -26,29 +26,29 @@ describe('FigUI3 bottom toolbar Figma parity', () => {
     expect(toolbar).toContain('label="Move" shortcut="V"');
     expect(toolbar).toContain('label="Hand tool" shortcut="H"');
     expect(toolbar).toContain('label="Scale" shortcut="K"');
-    expect(toolbar).toContain('label="Frame" shortcut="F"');
+    expect(toolbar).toContain('title="Frame (F)" dataTool="frame"');
     expect(toolbar).toContain('label="Section library…"');
   });
 
-  it('uses field-native shape semantics with Image/video as the default family face', () => {
+  it('keeps shape choices distinct from the dedicated Media launcher', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain("useState<ShapeToolChoice>('media')");
-    expect(toolbar).toContain('label="Image/video…"');
-    expect(toolbar).toContain('label="Rectangle" shortcut="R"');
-    expect(toolbar).toContain('label="Line" shortcut="L"');
-    expect(toolbar).toContain('label="Ellipse" shortcut="O"');
-    expect(toolbar).toContain('label="Triangle" shortcut="Shift+T"');
-    expect(toolbar).toContain('<ResourcesButton />');
+    expect(toolbar).toContain("useState<ShapeToolChoice>('rectangle')");
+    expect(toolbar).toContain('title="Media" dataTool="media"');
+    expect(toolbar).toContain("label: 'Rectangle', shortcut: 'R'");
+    expect(toolbar).toContain("label: 'Line', shortcut: 'L'");
+    expect(toolbar).toContain("label: 'Ellipse', shortcut: 'O'");
+    expect(toolbar).toContain("label: 'Triangle', shortcut: 'Shift+T'");
+    expect(toolbar).toContain("<LibraryDropdown {...menuProps('library')} />");
     expect(toolbar).not.toContain('<LayoutDropdown');
   });
 
-  it('groups Pen/Pencil while keeping Text direct and Resources canonical', () => {
+  it('groups Pen/Pencil while keeping Text direct and Library canonical', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(toolbar).toContain('function PenDropdown');
     expect(toolbar).toContain('label="Pen" shortcut="P"');
     expect(toolbar).toContain('label="Pencil" shortcut="Shift+P"');
     expect(toolbar).toContain('dataTool="text"');
-    expect(toolbar).toContain('<ResourcesButton />');
+    expect(toolbar).toContain("<LibraryDropdown {...menuProps('library')} />");
     expect(toolbar).not.toContain('function ResourcesMenu');
   });
 

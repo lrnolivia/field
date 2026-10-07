@@ -9,8 +9,8 @@ describe('FigUI3 corrective visual polish', () => {
     const css = read('src/styles/loew-theme.css');
     const transparentBorders = css.match(/--control-border: transparent;/g) ?? [];
     const transparentHoverBorders = css.match(/--control-border-hover: transparent;/g) ?? [];
-    expect(transparentBorders.length).toBeGreaterThanOrEqual(6);
-    expect(transparentHoverBorders.length).toBeGreaterThanOrEqual(6);
+    expect(transparentBorders.length).toBe(2);
+    expect(transparentHoverBorders.length).toBe(2);
     expect(css).toContain('--border-focus: var(--selection)');
     expect(css).toContain('FIGUI3_CORRECTIVE_DESTROKE_20260925');
   });
@@ -21,8 +21,9 @@ describe('FigUI3 corrective visual polish', () => {
     expect(iconGroup).not.toContain('border-l border-[var(--control-border)]');
     expect(iconGroup).not.toContain('border border-[var(--control-border)] bg-[var(--control-bg)]');
     expect(segmented).toContain('border border-transparent');
-    expect(segmented).toContain("boxShadow: 'none'");
-    expect(segmented).toContain("backgroundColor: 'var(--bg-active)'");
+    expect(segmented).not.toContain('boxShadow:');
+    expect(segmented).toContain('data-active-tab-marker');
+    expect(segmented).toContain('bg-[var(--bg-active)]');
   });
 
   it('uses one field-native font family trigger instead of a native select', () => {

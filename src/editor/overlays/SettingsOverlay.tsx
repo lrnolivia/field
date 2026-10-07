@@ -329,9 +329,10 @@ function SegmentedChoice({
 // SettingsOverlay
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function SettingsOverlay() {
+export default function SettingsOverlay({ open, onClose: closeOverride, preferencesOnly = false }: { open?: boolean; onClose?: () => void; preferencesOnly?: boolean } = {}) {
   // ─── Atoms ───────────────────────────────────────────────────────────
-  const [isOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
+  const [storedOpen, setIsOpen] = useAtom(settingsOverlayOpenAtom);
+  const isOpen = open ?? storedOpen;
   const [websiteSettings, setWebsiteSettings] = useAtom(websiteSettingsAtom);
   const [activeSection, setActiveSection] = useAtom(settingsSectionAtom);
   const [caseManagement, setCaseManagement] = useAtom(caseManagementAtom);
@@ -433,7 +434,7 @@ export default function SettingsOverlay() {
   const [showBadge, setShowBadge] = useState(true);
   const [badgeLoaded, setBadgeLoaded] = useState(false);
   useEffect(() => {
-    if (!CLOUD_ENABLED || !websiteId) return;
+    if (preferencesOnly || !CLOUD_ENABLED || !websiteId) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -444,7 +445,7 @@ export default function SettingsOverlay() {
       } catch { /* toggle stays at default-on, disabled until loaded */ }
     })();
     return () => { cancelled = true; };
-  }, [websiteId]);
+  }, [websiteId, preferencesOnly]);
   const handleToggleBadge = useCallback((show: boolean) => {
     setShowBadge(show); // optimistic — revert on failure
     void setWebsiteWatermark(websiteId, !show).catch(() => setShowBadge(!show));
@@ -482,7 +483,7 @@ export default function SettingsOverlay() {
   // so it snaps in / snaps out.
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || preferencesOnly) return;
     trace.action('settings:open');
     const fresh = loadSettingsFromLayout();
     setWebsiteSettings(fresh);
@@ -500,11 +501,11 @@ export default function SettingsOverlay() {
     // that atom now, so wiping it on every open would clobber the page
     // a URL refresh just restored.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, preferencesOnly]);
 
   // ─── A/B tests pages fetch ─────────────────────────────────────────
   useEffect(() => {
-    if (!isOpen || !websiteId) return;
+    if (preferencesOnly || !isOpen || !websiteId) return;
     let cancelled = false;
     const load = async () => {
       try {
@@ -532,7 +533,7 @@ export default function SettingsOverlay() {
       cancelled = true;
       window.removeEventListener('ab-tests-changed', load);
     };
-  }, [isOpen, websiteId]);
+  }, [isOpen, websiteId, preferencesOnly]);
 
   // ─── URL sync — restore on mount + reflect open/section in ?settings= ────
   //
@@ -568,6 +569,7 @@ export default function SettingsOverlay() {
 
   // Restore from URL on first mount.
   useEffect(() => {
+    if (preferencesOnly) return;
     const params = new URLSearchParams(window.location.search);
     const section = params.get('settings');
     if (section) {
@@ -580,6 +582,7 @@ export default function SettingsOverlay() {
   // Write to URL on every isOpen / activeSection / selectedAbTestPage /
   // selectedSeoPage change.
   useEffect(() => {
+    if (preferencesOnly) return;
     const params = new URLSearchParams(window.location.search);
     if (isOpen) {
       let value = activeSection;
@@ -602,10 +605,11 @@ export default function SettingsOverlay() {
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl);
     }
-  }, [isOpen, activeSection, selectedAbTestPage, selectedSeoPage]);
+  }, [isOpen, activeSection, selectedAbTestPage, selectedSeoPage, preferencesOnly]);
 
   // Sync state ← URL on browser back/forward.
   useEffect(() => {
+    if (preferencesOnly) return;
     const onPop = () => {
       const params = new URLSearchParams(window.location.search);
       const section = params.get('settings');
@@ -645,17 +649,17 @@ export default function SettingsOverlay() {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         trace.action('settings:close-escape');
-        setIsOpen(false);
+        if (closeOverride) closeOverride(); else setIsOpen(false);
       }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
+  }, [isOpen, closeOverride, setIsOpen]);
 
   // ─── Fetch subdomain for Google Search Preview ─────────────────────
 
   useEffect(() => {
-    if (!isOpen || !websiteId) return;
+    if (preferencesOnly || !isOpen || !websiteId) return;
     const fetchSubdomain = async () => {
       try {
         const response = await fetch(`/api/websites/${websiteId}`);
@@ -669,7 +673,7 @@ export default function SettingsOverlay() {
       }
     };
     fetchSubdomain();
-  }, [isOpen, websiteId]);
+  }, [isOpen, websiteId, preferencesOnly]);
 
   // ─── A/B Tests sidebar Rename / Delete handlers ────────────────────
 
@@ -895,7 +899,8 @@ export default function SettingsOverlay() {
 
   // ─── Menu categories (built from registry) ────────────────────────
 
-  const menuCategories = buildMenuCategories(getSettingsCategories(), abTestPages);
+  const allMenuCategories = buildMenuCategories(getSettingsCategories(), abTestPages);
+  const menuCategories = preferencesOnly ? allMenuCategories.map(category => ({ ...category, items: category.items.filter(item => ['website', 'appearance', 'workspace', 'canvas'].includes(item.id)) })).filter(category => category.items.length > 0) : allMenuCategories;
 
   const activeBuilderTheme = getBuilderThemeById(builderTheme) ?? BUILDER_THEMES[0]!;
   const activeAccent = editorThemeMode === 'dark' ? activeBuilderTheme.dark.accent : activeBuilderTheme.light.accent;
@@ -1010,7 +1015,7 @@ export default function SettingsOverlay() {
                   Apply loew.fi casing across eligible field chrome while preserving technical terms.
                 </p>
                 <div className="shrink-0 pt-0.5">
-                  <Toggle value={caseManagement} onChange={setCaseManagement} />
+                  <Toggle label="Lowercase headings" value={caseManagement} onChange={setCaseManagement} />
                 </div>
               </div>
             </SettingsRow>
@@ -1208,14 +1213,14 @@ export default function SettingsOverlay() {
                     <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto-hide left panel</div>
                     <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Keep the canvas clear until the rail is needed.</div>
                   </div>
-                  <Toggle value={workspaceAutoHide} onChange={setWorkspaceAutoHide} />
+                  <Toggle label="Auto-hide left panel" value={workspaceAutoHide} onChange={setWorkspaceAutoHide} />
                 </div>
                 <div className="flex items-center justify-between rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2.5">
                   <div>
                     <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto-hide Inspector</div>
                     <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Reveal the Inspector only when context needs it.</div>
                   </div>
-                  <Toggle value={rightInspectorAutoHide} onChange={handleInspectorAutoHide} />
+                  <Toggle label="Auto-hide Inspector" value={rightInspectorAutoHide} onChange={handleInspectorAutoHide} />
                 </div>
               </div>
             </SettingsRow>
@@ -1278,7 +1283,7 @@ export default function SettingsOverlay() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="text-[10px] text-[var(--text-secondary)]">Lock widths</span>
-                    <Toggle value={panelWidthsLocked} onChange={setPanelWidthsLocked} />
+                    <Toggle label="Lock widths" value={panelWidthsLocked} onChange={setPanelWidthsLocked} />
                   </div>
                 </div>
               </div>
@@ -1305,18 +1310,18 @@ export default function SettingsOverlay() {
                   <div className="text-[11px] font-medium text-[var(--text-primary)]">Auto focus layers</div>
                   <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Reveal and scroll to the selected layer automatically.</div>
                 </div>
-                <Toggle value={autoFocusLayers} onChange={setAutoFocusLayers} />
+                <Toggle label="Auto focus layers" value={autoFocusLayers} onChange={setAutoFocusLayers} />
               </div>
             </SettingsRow>
             <SettingsRow label="Guides">
               <div className="grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="flex items-center justify-between gap-3 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2">
                   <span className="text-[11px] text-[var(--text-primary)]">Show rulers</span>
-                  <Toggle value={showRulers} onChange={setShowRulers} />
+                  <Toggle label="Show rulers" value={showRulers} onChange={setShowRulers} />
                 </div>
                 <div className="flex items-center justify-between gap-3 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2">
                   <span className="text-[11px] text-[var(--text-primary)]">Pixel grid at high zoom</span>
-                  <Toggle value={showPixelGrid} onChange={setShowPixelGrid} />
+                  <Toggle label="Pixel grid at high zoom" value={showPixelGrid} onChange={setShowPixelGrid} />
                 </div>
               </div>
             </SettingsRow>
@@ -1326,7 +1331,7 @@ export default function SettingsOverlay() {
                   <div className="text-[11px] font-medium text-[var(--text-primary)]">Smooth zoom</div>
                   <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Animate wheel and shortcut zoom instead of snapping.</div>
                 </div>
-                <Toggle value={useSmoothZoom} onChange={setUseSmoothZoom} />
+                <Toggle label="Smooth zoom" value={useSmoothZoom} onChange={setUseSmoothZoom} />
               </div>
             </SettingsRow>
             <SettingsRow label="Auto pan" align="top">
@@ -1369,7 +1374,7 @@ export default function SettingsOverlay() {
 
   const onClose = () => {
     trace.action('settings:close');
-    setIsOpen(false);
+    if (closeOverride) closeOverride(); else setIsOpen(false);
   };
 
   const activeLabel = menuCategories
@@ -1380,6 +1385,9 @@ export default function SettingsOverlay() {
   return createPortal(
     <div
       data-settings-overlay
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
       className="fixed inset-0 z-[10000] flex flex-col"
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
@@ -1422,7 +1430,7 @@ export default function SettingsOverlay() {
             className="cut-corners"
             icon={<BackIcon />}
             onClick={onClose}
-            title="Back to canvas"
+            title={preferencesOnly ? 'Back to projects' : 'Back to canvas'}
           >
             Back
           </Button>
@@ -1435,7 +1443,7 @@ export default function SettingsOverlay() {
         </div>
         {['website', 'appearance', 'workspace', 'canvas'].includes(activeSection) && <div className="ml-auto pl-3 pr-3">
           <Button variant="primary" size="sm" onClick={() => {
-            flushNow();
+            if (!preferencesOnly) flushNow();
             trace.action('settings:save-preferences', { section: activeSection });
             onClose();
           }}>Save</Button>
@@ -1515,6 +1523,7 @@ export default function SettingsOverlay() {
                                   setSelectedAbTestPage(null);
                                 }
                               }}
+                              aria-current={isActive ? 'page' : undefined}
                               // `pr-9` reserves space so the row label never
                               // disappears behind the ellipsis on hover.
                               className={`w-full flex items-center gap-2 pl-3 ${showEllipsis ? 'pr-9' : 'pr-3'} h-8 cut-corners text-[11px] font-medium transition-colors cursor-pointer ${

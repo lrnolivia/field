@@ -21,7 +21,7 @@
 
 [data-field-pages-splitter] {
   position: relative;
-  flex: 0 0 10px;
+  flex: 0 0 var(--field-panel-section-gap, 10px);
   cursor: ns-resize;
   touch-action: none;
   outline: none;

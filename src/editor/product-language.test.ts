@@ -11,7 +11,7 @@ describe('field product language', () => {
     expect(logo).toContain("label: 'account'");
     expect(logo).toContain("label: 'appearance'");
     expect(logo).not.toContain("label: 'Go to Dashboard'");
-    expect(rail).toContain('title="media"');
+    expect(rail).toContain('title="Media"');
     expect(rail).not.toContain('title="Media Gallery"');
   });
 

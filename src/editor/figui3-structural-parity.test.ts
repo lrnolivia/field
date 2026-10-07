@@ -7,11 +7,11 @@ const read = (path: string) => readFileSync(path, 'utf8');
 describe('FigUI3 structural parity with explicit workspace modes', () => {
   it('keeps floating, docked, and collapsed as distinct user actions', () => {
     const layout = read('src/editor/workspace-layout.ts');
-    const restore = read('src/editor/WorkspaceRestoreBar.tsx');
+    const restore = read('src/editor/left-toolbar/LeftMenu.tsx');
     const floating = read('src/editor/FloatingLeftPanelHost.tsx');
     expect(layout).toContain('Pane presentation is explicit');
     expect(layout).toContain("presentation: 'floating'");
-    expect(restore).toContain('data-workspace-left-restore');
+    expect(restore).toContain('<WorkspaceCollapseButton side="left" collapsed={panelCollapsed}');
     expect(floating).toContain('Resize floating left panel');
   });
 
@@ -31,16 +31,17 @@ describe('FigUI3 structural parity with explicit workspace modes', () => {
     const geometry = inspector.indexOf('data-inspector-group="geometry"');
     expect(priority).toBeGreaterThan(-1);
     expect(priority).toBeLessThan(geometry);
-    expect(inspector).toContain('!isComponentInstance && <ComponentPropsTool />');
+    expect(inspector).toContain('!isComponentInstance && !isCodeComponentInstance && <ComponentPropsTool />');
   });
 
-  it('keeps frame Position separate while composing Size into Layout', () => {
+  it('keeps Position and permanent Layout separate from child Auto layout', () => {
     const inspector = read('src/editor/PropertiesPanel.tsx');
     const layout = read('src/editor/tools/LayoutTool.tsx');
     const position = read('src/editor/tools/PositionTool/index.tsx');
     expect(inspector).not.toContain('positionContent=');
-    expect(layout).toContain('sizeContent?: ReactNode');
-    expect(layout).toContain('{sizeContent}');
+    expect(layout).not.toContain('sizeContent');
+    expect(inspector).toContain('<SizeTool');
+    expect(read('src/editor/tools/SizeTool.tsx')).toContain('<ToolSection title="Layout"');
     expect(position).toContain('bare?: boolean');
     expect(position).toContain('title="Position"');
   });
@@ -48,7 +49,8 @@ describe('FigUI3 structural parity with explicit workspace modes', () => {
   it('uses rounded FigUI3 chrome for mode tabs and the Actions palette', () => {
     const tabs = read('src/editor/controls/InspectorModeTabs.tsx');
     const palette = read('src/editor/command-palette/CommandPalette.tsx');
-    expect(tabs).toContain('rounded-[5px]');
+    expect(tabs).toContain('data-inspector-mode-tabs');
+    expect(tabs).toContain('<WorkspaceCollapseButton');
     expect(tabs).not.toContain('cut-corners');
     expect(palette).toContain('rounded-[12px]');
     expect(palette).toContain('rounded-[6px]');

@@ -21,10 +21,12 @@ describe('FigUI3 bottom toolbar optical parity', () => {
     expect(toolbar).toContain('gap-px');
   });
 
-  it('keeps menu checks and tool icons in separate columns', () => {
+  it('marks the active menu item accessibly and keeps a dedicated glyph column', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain('{active ? <CheckSvg /> : null}');
+    expect(toolbar).toContain("aria-current={active ? 'true' : undefined}");
+    expect(toolbar).toContain('data-field-toolbar-glyph="menu"');
     expect(toolbar).toContain('{icon ?? null}');
-    expect(toolbar).toContain('min-w-[200px] rounded-[10px]');
+    expect(toolbar).toContain('className={TOOLBAR_MENU_SURFACE}');
+    expect(read('src/editor/media/toolbar-menu-chrome.ts')).toContain('rounded-[11px]');
   });
 });
