@@ -39,11 +39,12 @@ describe('FigUI3 Inspector parity contract', () => {
     const backdrop = read('src/editor/tools/StylesTool/atoms/BackdropFilterControl.tsx');
     const textShadow = read('src/editor/tools/TextStyleTool/atoms/ShadowControl.tsx');
     for (const source of [shadow, filter, backdrop, textShadow]) expect(source).toContain('<EffectRow');
-    expect(shadow).toContain('data-effect-editor');
+    expect(shadow).toContain('<EffectOptionsPanel>');
+    expect(shadow).toContain('data-shadow-live-preview');
     expect(textShadow).toContain('data-text-effect-editor');
-    expect(filter).toContain('<OptionSection title="Layer blur">');
-    expect(filter).toContain('<OptionSection title="Adjustments" divided>');
-    expect(filter).toContain('<OptionSection title="Color" divided>');
+    expect(filter).toContain('<EffectOptionSection title="Layer blur"');
+    expect(filter).toContain('<EffectOptionSection title="Adjustments"');
+    expect(filter).toContain('<EffectOptionSection title="Color"');
     expect(filter).toContain('ScalarRow label="Radius"');
     expect(filter).not.toContain('<OptionSection title="Filter">');
   });
@@ -58,10 +59,13 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(svg).toContain('drop-shadow(');
   });
 
-  it('owns Auto layout padding directly instead of nesting the generic PaddingControl', () => {
+  it('keeps box padding in permanent Layout instead of duplicating it in Auto layout', () => {
     const layout = read('src/editor/tools/LayoutTool.tsx');
-    expect(layout).toContain('data-auto-layout-padding');
-    expect(layout).toContain('setPaddingAxis');
+    const padding = read('src/editor/tools/LayoutPaddingControl.tsx');
+    expect(padding).toContain('data-layout-padding-axes');
+    expect(padding).toContain('data-layout-padding-sides');
+    expect(read('src/editor/PropertiesPanel.tsx')).toContain('<LayoutPaddingControl');
+    expect(layout).not.toContain('data-auto-layout-padding');
     expect(layout).not.toContain('<PaddingControl />');
   });
 
@@ -96,7 +100,7 @@ describe('FigUI3 Inspector parity contract', () => {
 
   it('keeps Typography Basics and Details aligned to the FigUI3 information hierarchy', () => {
     const typography = read('src/editor/tools/TextStyleTool/TypographyAdvancedPopover.tsx');
-    for (const label of ['Basics', 'Details', 'Vertical trim', 'Paragraph spacing', 'Numbers', 'Position', 'Letterforms', 'Ordinals', 'Stylistic sets', 'Kerning', 'Horizontal spacing']) {
+    for (const label of ['Basics', 'Details', 'Vertical trim', 'Paragraph spacing', 'Numbers', 'Position', 'Letterforms', 'Ordinals', 'Stylistic sets', 'Kerning', 'Letter spacing']) {
       expect(typography).toContain(label);
     }
     expect(typography).toContain('data-typography-preview');

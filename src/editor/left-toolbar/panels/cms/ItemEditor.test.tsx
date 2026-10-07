@@ -109,7 +109,7 @@ describe('ItemEditor slug ↔ title sync', () => {
   it('saves the synced slug', () => {
     const { onSave, slug } = setup(makeItem());
     typeTitle('Hello World');
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByText(/^Save$/i));
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0]._slug).toBe('hello-world');
     expect(slug().value).toBe('hello-world');

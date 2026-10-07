@@ -42,7 +42,7 @@ describe('SvgShapeTool — undo does not remount the shape sections', () => {
       const r = render(<PropertiesPanel />);
       await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
       expect(counts['svg-shape-tool:mount'] ?? 0).toBe(1);
-      expect(r.container.textContent).toContain('Stroke');
+      expect(r.container.textContent).toContain('stroke');
 
       // Restore step 2+4: seed + wake live readers (nodesAtom still old).
       const restored = page('#ff0000');
@@ -52,7 +52,7 @@ describe('SvgShapeTool — undo does not remount the shape sections', () => {
         store.set(nodeTreeStructureVersionAtom, (v) => v + 1);
       });
       // The sections must survive the window between the cache seed and the parsed fan-out.
-      expect(r.container.textContent).toContain('Stroke');
+      expect(r.container.textContent).toContain('stroke');
       // FigUI3 inline paint values omit the leading # while preserving the same color.
       expect(r.container.textContent).toContain('FF0000');
       // Deferred fan-out: code + version bump + reselect.
@@ -62,7 +62,7 @@ describe('SvgShapeTool — undo does not remount the shape sections', () => {
         store.set(selectedIdsAtom, ['shape-1']);
         await new Promise((r) => setTimeout(r, 50));
       });
-      expect(r.container.textContent).toContain('Stroke');
+      expect(r.container.textContent).toContain('stroke');
       expect(counts['properties-panel:unresolvable-selection-shell'] ?? 0).toBe(0);
       expect(counts['svg-shape-tool:unmount'] ?? 0).toBe(0);
       expect(counts['svg-shape-tool:mount']).toBe(1);

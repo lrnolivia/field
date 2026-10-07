@@ -29,8 +29,8 @@ describe('settings surface routing', () => {
     const start = settings.indexOf("if (activeSection === 'website')");
     const end = settings.indexOf('// Look up registered section', start);
     const block = settings.slice(start, end);
-    expect(block).toContain('field preferences that follow you across projects');
-    expect(block).toContain('Lowercase headings');
+    expect(block).toContain('Appearance, workspace, and canvas preferences each have their own settings page.');
+    expect(block).toContain('Case management');
     expect(block).not.toContain('Site metadata');
     expect(block).not.toContain('Custom code');
     expect(block).not.toContain('Default theme');

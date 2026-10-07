@@ -29,7 +29,7 @@ describe('FigUI3 popup geometry + de-stroke polish', () => {
   it('quietens the neutral appearance swatches without losing selection', () => {
     const file = read('src/editor/ui/ThemeNeutralPopover.tsx');
     expect(file).toContain('FIGUI3_POPUP_NEUTRAL_APPEARANCE_20260925');
-    expect(file).toContain('w-[168px]');
+    expect(file).toContain('w-[228px]');
     expect(file).toContain('border border-transparent');
     expect(file).toContain('shadow-[inset_0_0_0_1px_var(--selection)]');
     expect(file).toContain('hover:shadow-[inset_0_0_0_1px_var(--text-tertiary)]');

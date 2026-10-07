@@ -23,15 +23,16 @@ describe('field searchable-surface rule', () => {
     expect(media).toContain('filteredUploads');
   });
 
-  it('keeps Insert searchable while tiny Resources menu stays intentionally search-free', () => {
+  it('keeps Insert searchable while compact Library menu stays intentionally search-free', () => {
     const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
     const toolbar = read('src/editor/BottomToolbar.tsx');
     expect(insert).toContain('placeholder="Search elements…"');
-    const resourcesStart = toolbar.indexOf('function ResourcesMenu()');
+    const resourcesStart = toolbar.indexOf('function LibraryDropdown(');
     const resourcesEnd = toolbar.indexOf('// ─── Main BottomToolbar', resourcesStart);
     const resources = toolbar.slice(resourcesStart, resourcesEnd);
     expect(resources).not.toContain('<SearchBar');
     expect(resources).toContain('label="Components"');
-    expect(resources).toContain('label="Media gallery"');
+    expect(resources).toContain('label="Templates"');
+    expect(toolbar).toContain('title="Media" dataTool="media"');
   });
 });

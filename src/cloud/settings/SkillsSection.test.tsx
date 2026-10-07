@@ -24,12 +24,12 @@ beforeEach(() => {
 describe('SkillsSection', () => {
   it('adds a starter from the library — a template opens straight in the editor', () => {
     render(<SkillsSection />);
-    fireEvent.click(screen.getByText('Add from library'));
+    fireEvent.click(screen.getByText(/^Add from library$/i));
     const library = screen.getByTestId('skills-library');
     const seoRow = [...library.querySelectorAll('li')].find((li) => li.textContent?.includes('/seo-check'))!;
     fireEvent.click(seoRow.querySelector('button')!);
     expect(getProjectSkill('seo-check')?.content).toContain('get_seo');
-    expect(seoRow.textContent).toContain('Added');
+    expect(seoRow.textContent).toMatch(/added/i);
     // brand-voice is a template: added, and opened to fill in.
     const voiceRow = [...library.querySelectorAll('li')].find((li) => li.textContent?.includes('/brand-voice'))!;
     fireEvent.click(voiceRow.querySelector('button')!);
@@ -38,39 +38,39 @@ describe('SkillsSection', () => {
 
   it('writes a new skill; the name becomes a /command; a bad one says why', () => {
     render(<SkillsSection />);
-    fireEvent.click(screen.getByText('New skill'));
+    fireEvent.click(screen.getByText(/^New skill$/i));
     const [name, description] = screen.getByTestId('skill-editor').querySelectorAll('input');
     const content = screen.getByTestId('skill-editor').querySelector('textarea')!;
     fireEvent.change(name, { target: { value: 'Launch Check' } });
     expect(screen.getByText('Saved as /launch-check')).toBeTruthy();
     fireEvent.change(description, { target: { value: 'Before publishing' } });
     fireEvent.change(content, { target: { value: 'x'.repeat(8100) } });
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByText(/^Save$/i));
     expect(screen.getByTestId('skill-editor-error').textContent).toContain('8,000');
     fireEvent.change(content, { target: { value: 'Check every link.' } });
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByText(/^Save$/i));
     expect(getProjectSkill('launch-check')).toMatchObject({ description: 'Before publishing', content: 'Check every link.' });
     expect(screen.getByTestId('skills-list').textContent).toContain('/launch-check');
   });
 
   it('switches always-apply and deletes after confirming', () => {
     render(<SkillsSection />);
-    fireEvent.click(screen.getByText('New skill'));
+    fireEvent.click(screen.getByText(/^New skill$/i));
     fireEvent.change(screen.getByTestId('skill-editor').querySelector('input')!, { target: { value: 'voice' } });
     fireEvent.change(screen.getByTestId('skill-editor').querySelector('textarea')!, { target: { value: 'Short sentences.' } });
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByText(/^Save$/i));
     const row = screen.getByTestId('skills-list').querySelector('[data-skill="voice"]')!;
     fireEvent.click(row.querySelector('button[aria-pressed]')!);
     expect(getProjectSkill('voice')?.alwaysApply).toBe(true);
-    fireEvent.click(screen.getByText('Delete'));
-    const deletes = screen.getAllByText('Delete');
+    fireEvent.click(screen.getByText(/^Delete$/i));
+    const deletes = screen.getAllByText(/^Delete$/i);
     fireEvent.click(deletes[deletes.length - 1]);
     expect(listProjectSkills()).toEqual([]);
   });
 
   it('Generate queues the design-system request, closes Settings and opens the chat', () => {
     render(<SkillsSection />);
-    fireEvent.click(screen.getByText('Generate'));
+    fireEvent.click(screen.getByText(/^Generate$/i));
     expect(store.get(agentQueuedRequestAtom)?.text).toBe(GENERATE_DESIGN_SYSTEM_REQUEST);
     expect(store.get(settingsOverlayOpenAtom)).toBe(false);
     expect(store.get(leftPanelAtom)).toBe('vibe');

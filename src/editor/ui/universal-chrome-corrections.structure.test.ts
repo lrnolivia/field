@@ -8,10 +8,12 @@ describe('universal inspector/media chrome corrections', () => {
   it('keeps active tab indicators inside buttons across both tab primitives', () => {
     const chrome = read('src/editor/ui/ChromeTabBar.tsx');
     const segmented = read('src/editor/controls/ToolSegmentedControl.tsx');
-    expect(chrome).toContain('bottom-[2px]');
+    expect(chrome).toContain('data-active-tab-marker');
+    expect(chrome).toContain('left-[3px] top-1/2');
     expect(chrome).not.toContain('-bottom-[2px]');
-    expect(segmented).toContain('bottom-[2px]');
-    expect(segmented).toContain("background: 'var(--accent-surface)'");
+    expect(segmented).toContain('data-active-tab-marker');
+    expect(segmented).toContain('left-[3px] top-1/2');
+    expect(segmented).toContain('bg-[var(--accent)]');
     expect(segmented).not.toContain('useLayoutEffect');
   });
 

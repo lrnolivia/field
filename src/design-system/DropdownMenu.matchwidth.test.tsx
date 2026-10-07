@@ -12,7 +12,7 @@ afterEach(cleanup);
 
 const LONG = 'Here is hero section, reproduce it and do not change anything else on the page please';
 const items: DropdownMenuEntry[] = [
-  { id: 'a', label: LONG, shortcut: 'now', onClick: () => {} },
+  { id: 'a', label: LONG, preserveCase: true, shortcut: 'now', onClick: () => {} },
   { id: 'b', label: 'Delete this chat', onClick: () => {} },
 ];
 

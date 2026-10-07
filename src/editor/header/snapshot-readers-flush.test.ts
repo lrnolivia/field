@@ -27,7 +27,7 @@ const ROOT = join(__dirname, '..', '..');
 
 /** Full-project snapshot readers: (file, the call that reads every file). */
 const SNAPSHOT_READERS: Array<{ file: string; reads: string }> = [
-  { file: 'editor/header/PreviewOverlay.tsx', reads: 'projectFS.listFiles()' },
+  { file: 'preview/preview-project-payload.ts', reads: 'projectFS.listFiles()' },
   { file: 'editor/header/menu-builders.tsx', reads: 'projectFS.getSnapshot()' },
 ];
 
@@ -81,8 +81,11 @@ describe('project snapshot readers flush the mutation queue first', () => {
   // (user find 2026-07-26). Pinned the same way the theme already is.
   it('PreviewOverlay pins the locale, like it pins the theme', () => {
     const src = readFileSync(join(ROOT, 'editor/header/PreviewOverlay.tsx'), 'utf8');
-    expect(src).toContain("type: 'preview:force-theme'");
-    expect(src).toContain("type: 'preview:force-locale'");
+    expect(src).toContain('collectPreviewProjectPayload(activeLocale)');
+    expect(src).toContain('postPreviewProjectPayload(iframe.contentWindow, payload, POST_MESSAGE_TARGET)');
+    const payload = readFileSync(join(ROOT, 'preview/preview-project-payload.ts'), 'utf8');
+    expect(payload).toContain("type: 'preview:force-theme'");
+    expect(payload).toContain("type: 'preview:force-locale'");
     expect(src).toContain('activeLocaleAtom');
     // Must re-post when the editor's locale changes, not just on open.
     const deps = src.match(/\}, \[open, iframeReady, projectVersion[^\]]*\]\);/);

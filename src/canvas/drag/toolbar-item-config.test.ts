@@ -7,7 +7,10 @@ describe('getToolbarItemConfig', () => {
     const item = getToolbarItemConfig('frame');
     expect(item).not.toBeNull();
     expect(item!.elementType).toBe('div');
-    expect(item!.defaultStyles.width).toBe('200px');
+    expect(item!.defaultStyles.width).toBe('min-content');
+    expect(item!.defaultStyles.height).toBe('min-content');
+    expect(item!.defaultStyles.minWidth).toBe('200px');
+    expect(item!.defaultStyles.minHeight).toBe('200px');
     expect(item!.ghostSize).toEqual({ width: 200, height: 200 });
   });
 

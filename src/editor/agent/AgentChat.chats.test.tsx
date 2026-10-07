@@ -268,8 +268,10 @@ describe('deleting', () => {
     seed();
     render(<AgentChat />);
     fireEvent.click(screen.getByTitle('Switch chat'));
-    fireEvent.click(await screen.findByText('Delete this chat'));
-    fireEvent.click(await screen.findByText('Delete chat'));
+    // User-authored titles retain their case even when chrome labels are lowercase.
+    expect(await screen.findByRole('menuitem', { name: /^Make a hero/ })).toBeTruthy();
+    fireEvent.click(await screen.findByText(/^Delete this chat$/i));
+    fireEvent.click(await screen.findByText(/^Delete chat$/i));
 
     await waitFor(() => expect(listAgentChats().map((c) => c.id)).toEqual(['old']));
     expect(screen.getByText('Footer is in.')).toBeTruthy();

@@ -9,7 +9,7 @@ describe('field scroll integrity outside Inspector font picker', () => {
     const file = read('src/design-system/DropdownMenu.tsx');
     expect(file).toContain('FIELD_SCROLL_INTEGRITY_DROPDOWN_20260925');
     expect(file).toContain('data-scroll-surface="dropdown-menu"');
-    expect(file).toContain("maxHeight: 'min(360px, calc(100dvh - 16px))'");
+    expect(file).toContain("maxHeight: fitContentHeight ? 'calc(100dvh - 16px)' : 'min(360px, calc(100dvh - 16px))'");
     expect(file).toContain("overflowY: 'auto'");
     expect(file).toContain("overflowX: 'hidden'");
     expect(file).toContain("overscrollBehavior: 'contain'");

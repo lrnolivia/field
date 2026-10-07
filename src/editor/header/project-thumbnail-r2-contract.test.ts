@@ -38,7 +38,8 @@ describe('dashboard thumbnail warm-runtime integration contract', () => {
     const capture = source('src/preview-sandbox/capture-thumbnail.ts');
     expect(capture).toContain('SETTLE_MS = 120');
     expect(capture).toContain('FONT_READY_TIMEOUT_MS = 100');
-    expect(capture).toContain('RASTER_TIMEOUT_MS = 2500');
+    expect(capture).toContain('RASTER_TIMEOUT_MS = 9000');
+    expect(capture).toContain("setTimeout(() => reject(new Error('thumbnail raster timed out')), RASTER_TIMEOUT_MS)");
     expect(capture).toContain('THUMB_WIDTH = 640');
     expect(capture).toContain("document.getElementById('root') ?? document.body");
     expect(capture).toContain('skipFonts: true');

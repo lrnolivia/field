@@ -66,36 +66,36 @@ describe('PersistenceConflictBanner', () => {
     expect(conflictBanner().getAttribute('data-persistence-conflict-state')).toBe('compact');
     expect(screen.getByText('Saving paused — project changed elsewhere')).toBeTruthy();
     expect(within(conflictBanner()).getByRole('button', { name: 'Open latest' })).toBeTruthy();
-    expect(within(conflictBanner()).getByRole('button', { name: 'Reload latest' })).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: /^Reload latest$/i })).toBeTruthy();
   });
 
   it('canceling Reload latest preserves local state and compacts the still-active notice', () => {
     const onReloadLatest = vi.fn();
     const store = renderConflict({ onReloadLatest });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
-    const root = screen.getByText('Reload latest version?').closest('[data-modal-root]');
+    fireEvent.click(screen.getByRole('button', { name: /^Reload latest$/i }));
+    const root = screen.getByText(/^Reload latest version\?$/i).closest('[data-modal-root]');
     expect(root).toBeTruthy();
     expect(screen.getByText(/Reloading will discard those local edits/)).toBeTruthy();
 
-    fireEvent.click(within(root as HTMLElement).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(root as HTMLElement).getByRole('button', { name: /^Cancel$/i }));
 
     expect(onReloadLatest).not.toHaveBeenCalled();
     expect(store.get(persistenceConflictAtom)).toEqual(conflict);
     expect(conflictBanner().getAttribute('data-persistence-conflict-state')).toBe('compact');
     expect(screen.getByText('Saving paused — project changed elsewhere')).toBeTruthy();
     expect(within(conflictBanner()).getByRole('button', { name: 'Open latest' })).toBeTruthy();
-    expect(within(conflictBanner()).getByRole('button', { name: 'Reload latest' })).toBeTruthy();
+    expect(within(conflictBanner()).getByRole('button', { name: /^Reload latest$/i })).toBeTruthy();
   });
 
   it('confirmed Reload latest performs the supplied full-reload action', () => {
     const onReloadLatest = vi.fn();
     renderConflict({ onReloadLatest });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
-    const root = screen.getByText('Reload latest version?').closest('[data-modal-root]');
+    fireEvent.click(screen.getByRole('button', { name: /^Reload latest$/i }));
+    const root = screen.getByText(/^Reload latest version\?$/i).closest('[data-modal-root]');
     expect(root).toBeTruthy();
-    fireEvent.click(within(root as HTMLElement).getByRole('button', { name: 'Reload latest' }));
+    fireEvent.click(within(root as HTMLElement).getByRole('button', { name: /^Reload latest$/i }));
 
     expect(onReloadLatest).toHaveBeenCalledTimes(1);
   });

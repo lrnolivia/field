@@ -145,3 +145,21 @@ test('Project branding reports upload failure inline and keeps retry available',
   await modal.getByRole('button', { name: 'Dismiss error', exact: true }).click();
   await expect(modal.getByRole('alert')).toHaveCount(0);
 });
+
+test('Export options use disabled Field controls without changing project source', async ({ page }) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('LOCALE_TEXT');
+  await editor.select(['intro']);
+  const before = await source(page);
+  await page.getByRole('button', { name: 'Add export setting', exact: true }).click();
+  await page.getByRole('button', { name: 'Export options', exact: true }).click();
+  for (const [name, value] of [['Color profile (unavailable)', 'sRGB'], ['Image resampling (unavailable)', 'Detailed']]) {
+    const control = page.getByRole('button', { name, exact: true });
+    await expect(control).toBeVisible();
+    await expect(control).toBeDisabled();
+    await expect(control).toContainText(new RegExp(value, 'i'));
+  }
+  await expect(page.locator('[data-properties-panel] select')).toHaveCount(0);
+  expect(await source(page)).toEqual(before);
+  await page.screenshot({ animations: 'disabled', path: '../screenshots/field-export-native-controls.png' });
+});

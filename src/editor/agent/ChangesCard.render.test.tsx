@@ -125,7 +125,7 @@ describe('undo / redo', () => {
     fireEvent.click(screen.getByText('Undo'));
     expect(undo).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByLabelText('More'));
-    fireEvent.click(await screen.findByText('Redo'));
+    fireEvent.click(await screen.findByText(/^Redo$/i));
     expect(redo).toHaveBeenCalledTimes(1);
   });
 

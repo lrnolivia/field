@@ -17,7 +17,9 @@ describe('field.MOTION control integration contract', () => {
 
     expect(add).toContain('data-field-motion="add"');
     expect(add).toContain('data-field-motion-part="glyph"');
-    expect(sidebar).toContain('data-field-motion="sidebar-disclosure"');
+    expect(sidebar).toContain('<FieldGlyph behavior="chevron">');
+    expect(sidebar).toContain('active={expandable.expanded}');
+    expect(sidebar).toContain('to={glyphIcons.chevronDown}');
     expect(sidebar).not.toContain('transition: "transform 120ms"');
     expect(spacing).toContain('AxisMotionGlyph');
     expect(spacing).not.toContain('>↔</span>');

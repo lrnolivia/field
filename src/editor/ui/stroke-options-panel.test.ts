@@ -12,9 +12,9 @@ describe('Stroke options panel', () => {
     expect(border).toContain('<ScalarRow');
     expect(border).toContain('label="Sides"');
     expect(border).toContain('Individual sides');
-    expect(border).not.toContain('strokeLinecap');
-    expect(border).not.toContain('strokeLinejoin');
-    expect(border).not.toContain('strokeDasharray');
+    expect(border).not.toMatch(/(?:updateStyle|updateStyleLive)\(['"]strokeLinecap['"]/);
+    expect(border).not.toMatch(/(?:updateStyle|updateStyleLive)\(['"]strokeLinejoin['"]/);
+    expect(border).not.toMatch(/(?:updateStyle|updateStyleLive)\(['"]strokeDasharray['"]/);
   });
 
   it('keeps text stroke as a reduced source-backed subset of the same grammar', () => {

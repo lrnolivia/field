@@ -62,7 +62,7 @@ describe('TextFocusCamera', () => {
     callbacks.shift()?.(16);
     expect(followScreenRect).not.toHaveBeenCalled();
     callbacks.shift()?.(32);
-    expect(followScreenRect).toHaveBeenCalledWith(expect.objectContaining({ width: 80, height: 20 }));
+    expect(followScreenRect).toHaveBeenCalledWith(expect.objectContaining({ width: 80, height: 20 }), 1);
     focus.dispose();
     raf.mockRestore();
   });

@@ -90,18 +90,20 @@ describe('Figma inspector contract', () => {
     expect(styles).not.toContain('<ToolSection title="Styles"');
   });
 
-  it('keeps Design and Prototype as distinct inspector modes with inspector zoom', () => {
+  it('keeps the unified Inspector header and source-backed behavior controls', () => {
     const panel = read('src/editor/PropertiesPanel.tsx');
     const tabs = read('src/editor/controls/InspectorModeTabs.tsx');
     const zoom = read('src/editor/controls/InspectorZoomControl.tsx');
     expect(panel).toContain('<InspectorModeTabs />');
-    expect(panel).toContain("inspectorMode === 'design'");
-    expect(panel).toContain('data-inspector-group="prototype"');
+    expect(panel).toContain('data-inspector-group="geometry"');
+    expect(panel).toContain('data-inspector-group="behavior"');
     const header = read('src/editor/controls/InspectorObjectHeader.tsx');
     expect(header).toContain('Variables');
-    expect(tabs).toContain('Design');
-    expect(tabs).toContain('Prototype');
-    expect(tabs).toContain('<InspectorZoomControl />');
+    expect(tabs).toContain("uiCase('Inspector')");
+    expect(tabs).toContain('<WorkspaceAutoHideButton side="right"');
+    expect(tabs).toContain('<WorkspaceCollapseButton side="right"');
+    expect(panel).toContain('<InteractionsTool />');
+    expect(panel).toContain('<AnimationTool');
     expect(zoom).toContain('data-inspector-zoom');
   });
 
@@ -139,7 +141,7 @@ describe('Figma inspector contract', () => {
     expect(layout).toContain('Distribution');
     expect(layout).not.toContain('ControlLabel label="Direction"');
     expect(layout).not.toContain('ControlLabel label="Wrap"');
-    expect(layout).toContain('{alignmentMatrix}');
+    expect(layout).toContain(': alignmentMatrix}');
     // Box geometry belongs to permanent Layout, never to Auto layout.
     expect(layout).not.toContain('AutoLayoutPaddingControl');
     expect(layout).not.toContain('data-auto-layout-clip-content');
