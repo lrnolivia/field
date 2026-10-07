@@ -18,76 +18,71 @@ async function fullLayout(page: Page) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`${theme}: grouped project search navigates and reveals cross-page layers without source writes`, async ({ page }) => {
+  test(`${theme}: document search filters the existing trees, preserves context and restores without source writes`, async ({ page }) => {
     const project = { ...SEEDS.LOCALE_TEXT, files: { ...SEEDS.LOCALE_TEXT.files,
       'app/about/page.tsx': SEEDS.LOCALE_TEXT.files['app/page.tsx'],
       'app/about/page.client.tsx': SEEDS.LOCALE_TEXT.files['app/page.client.tsx'].replace('Painter', 'About painter'),
-      'components/SearchCard.tsx': 'export default function SearchCard() { return <div data-id="card-root" data-name="Card"><p data-id="card-heading" data-name="Master heading">Shared text</p></div>; }',
+      'components/SearchCard.tsx': 'export default function SearchCard() { return <div data-id="card-root" data-name="Card"><section data-id="card-section" data-name="Details"><p data-id="card-heading" data-name="Master heading">Shared text</p></section></div>; }',
     } };
     await page.addInitScript(({ project, theme }) => {
       localStorage.setItem('revyme-project-local', JSON.stringify(project));
       localStorage.setItem('revyme-onboarding-completed', 'true');
       localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(theme));
     }, { project, theme });
-    await page.goto('/work/local');
     const editor = new EditorPage(page);
-    await editor.sandbox().locator('[data-viewport]').first().waitFor();
+    await page.goto('/work/local');
     await fullLayout(page);
-    await expect(page.locator('[data-field-pages-tree]')).toContainText('/about');
     const panel = page.locator('[data-editor-panel="left-primary"]');
-    const search = panel.getByRole('combobox', { name: /Search pages and layers/i });
+    const search = panel.getByRole('textbox', { name: /Search pages and layers/i });
+    const pages = panel.locator('[data-document-pages]');
+    const layers = panel.locator('[data-document-layers]');
     await expect(panel.locator('[data-field-searchbar]')).toHaveCount(1);
     await expect(panel.getByRole('button', { name: 'Search pages', exact: true })).toHaveCount(0);
-    const before = await page.evaluate(() => (window as unknown as SeedWindow).__e2e.listFiles().filter(file => !file.startsWith('_meta/')).map((file: string) => [file, (window as unknown as SeedWindow).__e2e.readFile(file)]));
+    await expect(editor.node('intro')).toHaveText('Painter');
+    const before = await page.evaluate(() => (window as unknown as SeedWindow).__e2e.listFiles().filter(file => !file.startsWith('_meta/')).map(file => [file, (window as unknown as SeedWindow).__e2e.readFile(file)]));
+    const naturalHeight = (await pages.boundingBox())!.height;
+    expect(naturalHeight).toBeLessThan(150);
     await search.fill('about');
-    const results = page.locator('[data-document-search-results]');
-    await expect(results.getByRole('listbox')).toHaveAttribute('aria-busy', 'false');
-    await expect(results.getByRole('group', { name: 'Pages', exact: true })).toBeVisible();
-    await expect(results.getByRole('group', { name: 'Layers', exact: true })).toBeVisible();
-    await expect(results.locator('[data-document-result="page"]')).toHaveCount(1);
-    await expect(results.locator('[data-document-result="layer"]')).toHaveCount(4);
-    await page.screenshot({ path: `../screenshots/field-search-${theme}-grouped.png` });
-    await page.keyboard.press('Escape');
-    await expect(results).toHaveCount(0);
+    await expect(pages.locator('.field-page-row')).toHaveCount(1);
+    await expect(pages).toContainText('/about');
+    await expect(layers).toContainText('No layers match');
+    await expect(page.locator('[data-document-search-results]')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await expect(editor.node('intro')).toHaveText('Painter');
+    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.selection())).toEqual([]);
+    await pages.locator('.field-page-row').click();
+    await expect(editor.node('intro')).toHaveText('About painter');
     await expect(search).toHaveValue('about');
+    await search.fill('intro');
+    await expect(layers.locator('[data-layer-id="desktop:intro"]')).toBeVisible();
+    await expect(layers.locator('[data-layer-id="desktop:email-input"]')).toHaveCount(0);
+    await expect(layers).toContainText('Desktop');
+    await page.screenshot({ path: `../screenshots/field-in-place-search-${theme}.png` });
+    await page.keyboard.press('Escape');
+    await expect(search).toHaveValue('');
     await expect(search).toBeFocused();
-    await page.keyboard.press('ArrowDown');
-    await expect(results).toBeVisible();
-    await page.keyboard.press('Home');
-    await page.keyboard.press('Enter');
-    await expect(panel.locator('[data-field-pages-tree] [data-active="true"]')).toContainText('about');
-    await search.fill('Home');
-    await expect(results.getByRole('listbox')).toHaveAttribute('aria-busy', 'false');
-    await page.keyboard.press('Home');
-    await page.keyboard.press('Enter');
-    await expect(panel.locator('[data-field-pages-tree] [data-active="true"]')).toContainText('Home');
-    await search.fill('about painter');
-    await expect(results.getByRole('option')).toHaveCount(1);
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
-    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.selection())).toEqual(['intro']);
-    await expect(panel.locator('[data-field-pages-tree] [data-active="true"]')).toContainText('about');
-    await expect(panel.locator('[data-layer-id="desktop:intro"]')).toBeInViewport();
-    await expect(page.locator('[data-typography-alignment-row]')).toBeVisible();
+    await expect(pages.locator('.field-page-row')).toHaveCount(2);
+    await expect(layers.locator('[data-layer-id="desktop:email-input"]')).toBeVisible();
     await search.fill('no such result');
-    await expect(results).toContainText('No matching pages');
-    await expect(results).toContainText('No matching layers');
-    await page.keyboard.press('Enter');
-    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.selection())).toEqual(['intro']);
+    await expect(pages).toContainText('No pages match');
+    await expect(layers).toContainText('No layers match');
     await panel.getByRole('button', { name: 'Clear search', exact: true }).click();
     await expect(search).toHaveValue('');
-    await expect(results).toHaveCount(0);
     await search.fill('retained query');
-    await page.keyboard.press('Escape');
     await page.locator('[data-tutorial="media-button"]').click();
     await page.locator('[data-tutorial="layers-button"]').click();
     await expect(search).toHaveValue('retained query');
     await page.evaluate(() => (window as unknown as SeedWindow).__e2e.openFile('components/SearchCard.tsx'));
     await search.fill('Master heading');
-    await expect(results.getByRole('option')).toHaveCount(1);
-    await page.keyboard.press('Enter');
-    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.selection())).toEqual(['card-heading']);
-    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.listFiles().filter(file => !file.startsWith('_meta/')).map((file: string) => [file, (window as unknown as SeedWindow).__e2e.readFile(file)]))).toEqual(before);
+    await expect(layers).toContainText('Master heading');
+    await expect(layers).toContainText('Details');
+    await expect.poll(() => page.evaluate(() => (window as unknown as SeedWindow).__e2e.listFiles().filter(file => !file.startsWith('_meta/')).map(file => [file, (window as unknown as SeedWindow).__e2e.readFile(file)]))).toEqual(before);
+    await search.fill('');
+    const separator = panel.getByRole('separator', { name: 'Resize Pages and Layers' });
+    await separator.focus(); await page.keyboard.press('End');
+    expect((await pages.boundingBox())!.height).toBeGreaterThan(naturalHeight + 100);
+    await separator.dblclick();
+    await expect.poll(async () => (await pages.boundingBox())!.height).toBeLessThan(150);
   });
 
   test(`${theme}: Inspector controls reflow continuously with docked and Float panel widths`, async ({ page }) => {
@@ -99,6 +94,12 @@ for (const theme of ['light', 'dark'] as const) {
     const inspector = page.locator('[data-properties-panel]').last();
     const alignment = inspector.locator('[data-typography-alignment-row]');
     await expect(alignment).toBeVisible();
+    const inspectorCards = inspector.locator('[data-inspector-section-card]');
+    const firstCard = (await inspectorCards.nth(0).boundingBox())!;
+    const secondCard = (await inspectorCards.nth(1).boundingBox())!;
+    const inspectorGap = secondCard.y - firstCard.y - firstCard.height;
+    const documentGap = await page.locator('[data-field-pages-splitter]').evaluate(el => el.getBoundingClientRect().height);
+    expect(documentGap, `Pages/Layers gap must match the rendered Inspector gap (${inspectorGap}px)`).toBeCloseTo(inspectorGap, 1);
     const pane = page.locator('[data-workspace-right-body]');
     const widths = [480, 420, 380, 362, 361, 360, 359, 340, 320, 300, 320, 359, 360, 361, 362, 420, 480];
     for (const layout of ['full', 'float']) {

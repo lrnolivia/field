@@ -39,7 +39,6 @@ import { zoomTo100 } from '@/canvas/transform/CameraCommands';
 import { floatingInspectorVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
 import WorkspaceAutoHideButton, { WorkspaceCollapseButton } from '@/editor/WorkspaceAutoHideButton';
 import InspectorZoomControl from '@/editor/controls/InspectorZoomControl';
-import WebsitePreviewAppearanceControl from '@/editor/WebsitePreviewAppearanceControl';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -356,7 +355,6 @@ export default function RightHeader({ previewMode, onTogglePreview, embedded = f
             {!previewMode && (
               <div className="flex items-center gap-1">
                 <InspectorZoomControl />
-                <WebsitePreviewAppearanceControl />
               </div>
             )}
 

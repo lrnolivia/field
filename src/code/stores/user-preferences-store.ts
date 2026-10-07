@@ -107,9 +107,3 @@ export const caseManagementAtom = atomWithStorage<boolean>(
 
 /** Compatibility alias for heading-only callsites while they migrate. */
 export const lowercaseHeadingsAtom = caseManagementAtom;
-
-/** Reversible chrome experiment; never serialized into a website. */
-export type EditorInnerHighlight = 'current' | 'buttons' | 'everywhere';
-export const editorInnerHighlightAtom = atomWithStorage<EditorInnerHighlight>(
-  'field:prefs:innerHighlight', 'current', undefined, { getOnInit: true },
-);

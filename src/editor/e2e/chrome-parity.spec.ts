@@ -175,6 +175,17 @@ test('Settings saves preferences live and Save confirms and closes', async ({ pa
   await expect(toggle).toHaveAttribute('aria-pressed', before === 'true' ? 'false' : 'true');
   const expected = before !== 'true';
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('revyme:prefs:showRulers') ?? 'null'))).toBe(expected);
+  for (const width of [1600, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const topbar = settings.locator('[data-settings-topbar]');
+    await expect.poll(async () => {
+      const bar = (await topbar.boundingBox())!;
+      const save = (await topbar.getByRole('button', { name: /^save$/i }).boundingBox())!;
+      return Math.round(bar.x + bar.width - save.x - save.width);
+    }).toBe(12);
+    await page.screenshot({ path: `../screenshots/field-settings-save-${width}.png` });
+  }
+  await page.setViewportSize({ width: 1600, height: 1000 });
   await page.screenshot({ path: '/tmp/field-settings-save.png' });
   await settings.getByRole('button', { name: /^save$/i }).click();
   await expect(settings).toHaveCount(0);
