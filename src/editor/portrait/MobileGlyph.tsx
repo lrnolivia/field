@@ -1,4 +1,6 @@
 import GalleryGlyph from '../media/GalleryGlyph';
+import MediaGlyph from '../media/MediaGlyph';
+import { FigmaBranchIcon, FigmaCmsIcon, FigmaCommentIcon, FigmaLayersIcon, FigmaLibraryIcon, FigmaPlusIcon } from '@/shared/loew-figma-icons';
 import { FieldGlyph, type FieldGlyphBehavior } from '../glyph';
 
 export type MobileGlyphName = 'project' | 'browse' | 'pages' | 'layers' | 'media' | 'gallery' | 'library' | 'presets' | 'insert' | 'cms' | 'locale' | 'comments' | 'branches' | 'tools' | 'inspect' | 'undo' | 'redo' | 'settings' | 'expand';
@@ -27,6 +29,12 @@ const behaviors: Partial<Record<MobileGlyphName, FieldGlyphBehavior>> = { layers
 /** Compact, optically balanced line assets authored for the phone workspace. */
 export default function MobileGlyph({ name, size = 22 }: { name: MobileGlyphName; size?: number }) {
   if (name === 'gallery') return <FieldGlyph behavior="generic"><GalleryGlyph size={size} /></FieldGlyph>;
+  const sharedGlyphs = { media: MediaGlyph, layers: FigmaLayersIcon, library: FigmaLibraryIcon,
+    insert: FigmaPlusIcon, cms: FigmaCmsIcon, branches: FigmaBranchIcon, comments: FigmaCommentIcon };
+  if (name in sharedGlyphs) {
+    const Icon = sharedGlyphs[name as keyof typeof sharedGlyphs];
+    return <FieldGlyph behavior={behaviors[name] ?? 'generic'}><Icon size={size} /></FieldGlyph>;
+  }
   return <FieldGlyph behavior={behaviors[name] ?? 'generic'}><svg data-field-mobile-glyph={name} width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {paths[name].map((d, index) => <path key={index} d={d} />)}
   </svg></FieldGlyph>;
