@@ -72,9 +72,10 @@ export default function FloatingLeftPanelHost() {
         maxHeight: portraitSheet ? 'calc(100dvh - 120px)' : undefined,
         boxSizing: 'border-box',
         background: portraitSheet ? 'var(--bg-panel)' : 'var(--field-chrome-pane-bg)',
-        borderRadius: portraitSheet ? 12 : undefined,
-        borderTopRightRadius: !portraitSheet && !detailWidth ? 8 : undefined,
-        borderBottomRightRadius: !portraitSheet && !detailWidth ? 8 : undefined,
+        borderTopLeftRadius: portraitSheet ? 12 : 0,
+        borderBottomLeftRadius: portraitSheet ? 12 : 0,
+        borderTopRightRadius: portraitSheet ? 12 : detailWidth ? 0 : 8,
+        borderBottomRightRadius: portraitSheet ? 12 : detailWidth ? 0 : 8,
         boxShadow: portraitSheet ? WORKSPACE_FLOAT_SHADOW : undefined,
         opacity: visible ? 1 : 0,
         transform: visible
