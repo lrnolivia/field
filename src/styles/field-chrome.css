@@ -249,7 +249,7 @@
 }
 
 /* Detached chrome receives one enclosing edge above its painted content.
- * Native rail groups stay flat; inset sections blend into floating panes. */
+ * Native rail groups stay flat; section cards keep the shared desktop treatment. */
 :is([data-field-floating-outline], [data-workspace-right-toggle][data-detached="true"], [data-workspace-left-header]:not([data-title-presentation="embedded"]), [data-ai-chat-sheet], [data-workspace-layout-control][data-expanded="true"], #bottom-toolbar-container, [data-toolbar-dropdown], [data-media-toolbar-surface], [data-field-appearance-popover], [data-tool-popup], [data-field-modal-window], [data-toolbar-panel], [role="menu"], [role="listbox"][data-field-floating-surface])::after {
   content: '';
   position: absolute;
@@ -264,10 +264,6 @@
 [data-field-modal-window] { --field-control-highlight:var(--field-panel-highlight); --field-control-lowlight:var(--field-panel-lowlight); }
 :where([data-modal-root], [data-field-modal-window], [data-media-toolbar-popover]) :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [data-field-select-trigger]) { box-shadow:var(--field-control-edge); }
 :where([data-tool-popup], [data-field-modal-window], [data-media-toolbar-surface]) :is(.border-t, .border-b) { border-width:0; }
-[data-floating-left-panel] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) { background:transparent; border-radius:0; box-shadow:none; }
-[data-floating-left-panel] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section])::after { content:none; }
-:root:has([data-floating-left-panel][data-workspace-mode="floating"]) [data-properties-panel] [data-inspector-section-card] { background:transparent; border-radius:0; box-shadow:none; }
-:root:has([data-floating-left-panel][data-workspace-mode="floating"]) [data-properties-panel] [data-inspector-section-card]::after { content:none; }
 
 [data-media-action-card-icon] {
   box-shadow: var(--field-control-edge);

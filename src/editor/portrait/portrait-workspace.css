@@ -94,24 +94,22 @@
 
 /* Phone chrome uses the same edge, surface and elevation as desktop Float.
  * One continuous sheet owns its edge; fields and actionable glyph pills own theirs. */
-.field-portrait-topbar { top:calc(8px + env(safe-area-inset-top,0px)); border-radius:9px; background:var(--bg-panel); backdrop-filter:none; box-shadow:var(--field-control-edge),var(--field-chrome-pane-shadow); padding-left:6px; }
+.field-portrait-topbar { top:calc(8px + env(safe-area-inset-top,0px)); border-radius:var(--radius-xl); background:var(--field-chrome-shell-header-bg); backdrop-filter:none; box-shadow:var(--field-chrome-pane-shadow); padding-left:6px; }
 .field-portrait-topbar .field-mobile-main-pill { width:auto; flex:1; min-width:0; display:flex; gap:10px; padding:0 8px; text-align:left; font-size:13px; font-weight:600; }
 .field-mobile-main-pill>span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.field-portrait-dock { inset-inline:12px; justify-content:center; gap:6px; padding:5px!important; width:max-content; max-width:calc(100vw - 24px); margin-inline:auto; border-radius:9px; background:var(--bg-panel); box-shadow:var(--field-control-edge),var(--field-chrome-pane-shadow); pointer-events:auto; }
+.field-portrait-dock { inset-inline:12px; justify-content:center; gap:6px; padding:5px!important; width:max-content; max-width:calc(100vw - 24px); margin-inline:auto; border-radius:var(--radius-xl); background:var(--field-chrome-pane-bg); box-shadow:var(--field-menu-depth); pointer-events:auto; }
 .field-portrait-dock button { box-shadow:none; border-radius:6px!important; }
 #bottom-toolbar-container.field-portrait-dock .field-tools-fab { min-height:48px; padding:6px 16px; box-shadow:var(--field-control-edge); }
 #bottom-toolbar-container.field-portrait-dock .field-browse-button { min-height:48px; font-size:13px; }
 .field-portrait-scrim { background:rgb(0 0 0 / 28%); backdrop-filter:none; }
-.field-portrait-surface { border-radius:9px; box-shadow:var(--field-control-edge),var(--field-chrome-pane-shadow); }
+.field-portrait-surface { border-radius:var(--radius-xl); background:var(--field-chrome-pane-bg); box-shadow:var(--field-chrome-pane-shadow); }
 .field-portrait-surface>header { background:var(--field-chrome-shell-header-bg); border-bottom:0; gap:6px; padding:8px; min-height:64px; }
 .field-portrait-surface>header button { border-radius:6px; font-size:13px; }
 .field-portrait-surface>header button:last-child { box-shadow:var(--field-control-edge); }
 .field-portrait-surface>header .field-mobile-header-glyph,.field-mobile-menu-glyph { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; margin:0; border-radius:7px; background:var(--field-chrome-control-bg); color:var(--accent-text,var(--text-primary)); box-shadow:var(--field-control-edge); }
-.field-portrait-content { padding:12px; }
+.field-portrait-content { padding:var(--field-panel-section-gap); }
 .field-portrait-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea) { font-size:16px; min-height:44px; border-radius:6px; box-shadow:var(--field-control-edge); }
 .field-portrait-content :is(.field-quick-tile,.field-portrait-task-nav button,.field-portrait-split-row button,.field-layer-actions button,.field-layer-breadcrumbs button,.field-page-cards button) { border-radius:6px; box-shadow:var(--field-control-edge); }
-.field-portrait-content :is([data-field-panel-section],[data-field-task-panel],[data-library-section]) { background:transparent; box-shadow:none; border-radius:0; }
-.field-portrait-content :is([data-field-panel-section],[data-field-task-panel],[data-library-section])::after { content:none; }
 .field-portrait-destination { min-height:72px; border-bottom:0; border-radius:6px; }
 .field-portrait-destination:active { background:var(--field-chrome-hover-bg); }
 .field-portrait-destination small { font-size:12px; }
@@ -152,7 +150,7 @@
   [data-settings-topbar]>.absolute { max-width:80px; font-size:14px; }
   [data-gallery-item-list] [role=listitem] button { opacity:1; }
 }
-.field-portrait-topbar::after,.field-portrait-surface:not([data-mobile-full-screen=true])::after { content:''; position:absolute; inset:0; z-index:1; border:1px solid; border-color:var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight); border-radius:inherit; pointer-events:none; }
+.field-portrait-topbar::after,.field-portrait-surface:not([data-mobile-full-screen=true])::after,.field-mobile-text-toolbar::after { content:''; position:absolute; inset:0; z-index:2147483647; border:1px solid; border-color:var(--field-panel-highlight) var(--field-panel-lowlight) var(--field-panel-lowlight) var(--field-panel-highlight); border-radius:inherit; pointer-events:none; }
 [data-portrait-media] [data-media-action-card] { min-height:56px!important; font-size:14px!important; }
 [data-portrait-media] [data-media-action-card-icon] { width:36px; height:36px; }
 [data-portrait-media] [data-media-action-card-icon] svg { width:20px; height:20px; }
@@ -188,7 +186,7 @@
 .field-portrait-surface[data-portrait-surface=tools] .field-portrait-content { padding:4px 8px 8px; }
 .field-portrait-surface[data-portrait-surface=tools] > header { min-height:44px; padding:0 4px; }
 .field-portrait-surface[data-portrait-surface=tools] .field-quick-list { margin:0; }
-.field-mobile-text-toolbar { position:fixed; inset:auto 8px calc(8px + var(--field-visible-bottom,0px)); z-index:11000; border-radius:12px; padding:4px 8px 8px; background:var(--bg-panel); color:var(--text-primary); box-shadow:var(--field-menu-depth); }
+.field-mobile-text-toolbar { position:fixed; inset:auto 8px calc(8px + var(--field-visible-bottom,0px)); z-index:11000; border-radius:var(--radius-xl); padding:4px 8px 8px; background:var(--field-chrome-pane-bg); color:var(--text-primary); box-shadow:var(--field-menu-depth); }
 .field-mobile-text-toolbar-header { display:flex; align-items:center; justify-content:space-between; font-size:12px; }
 .field-mobile-text-toolbar-header button { min-width:44px; min-height:44px; }
 [data-mobile-text-controls] { display:flex; align-items:center; gap:8px; overflow-x:auto; overscroll-behavior-x:contain; padding:2px 2px 6px; scrollbar-width:thin; }

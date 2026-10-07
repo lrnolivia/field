@@ -95,6 +95,12 @@ for (const theme of ['light', 'dark']) {
     for (const name of ['Pages & Layers', 'Library', 'Presets', 'Media', 'CMS', 'Branches', 'Insert']) {
       await rail(page).getByRole('button', { name: new RegExp(`^${name}$`, 'i') }).tap();
       await continuousLeft(page);
+      const section = floating(page).locator('[data-document-pages], [data-library-section], [data-field-task-panel], [data-field-panel-section]').first();
+      if (await section.count()) {
+        await expect(section).toHaveCSS('border-top-left-radius', '8px');
+        expect(await section.evaluate(el => getComputedStyle(el, '::after').content)).not.toBe('none');
+      }
+      await page.screenshot({ animations: 'disabled', path: `../screenshots/field-mobile-parity-${name.replace(/[^a-z]/gi, '-').toLowerCase()}-${theme}.png` });
     }
     // Presets performs its existing import migration on first mount. Bind the
     // source invariant to the Insert/resize/rotation interactions below.
@@ -124,7 +130,30 @@ for (const theme of ['light', 'dark']) {
     await expect(page.locator('[data-portrait-surface="insert"]')).toBeVisible();
     await page.getByRole('button', { name: 'Back', exact: true }).tap();
     await expect(page.locator('[data-portrait-surface="browse"]')).toBeVisible();
+    // Portrait keeps finger-sized actions but shares Float's opaque surface,
+    // single perimeter and corner token instead of a second inset edge.
+    const sheet = page.locator('[data-portrait-surface="browse"]');
+    await expect(sheet).toHaveCSS('opacity', '1');
+    const portraitChrome = await sheet.evaluate(el => {
+      const style = getComputedStyle(el), edge = getComputedStyle(el, '::after');
+      return { radius: style.borderTopLeftRadius, shadow: style.boxShadow,
+        fill: style.backgroundColor, edge: edge.borderTopWidth,
+        target: el.querySelector('header button')!.getBoundingClientRect().height };
+    });
+    expect(portraitChrome.radius).toBe('8px');
+    expect(portraitChrome.shadow).not.toContain('inset');
+    expect(portraitChrome.fill).not.toBe('rgba(0, 0, 0, 0)');
+    expect(portraitChrome.edge).toBe('1px');
+    expect(portraitChrome.target).toBeGreaterThanOrEqual(44);
     await page.screenshot({ animations: 'disabled', path: `../screenshots/field-connected-portrait-${theme}.png` });
+    for (const name of ['Pages', 'Layers', 'Library', 'Presets', 'Insert', 'CMS', 'Languages', 'Branches']) {
+      await page.locator('.field-portrait-destination').filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).tap();
+      const task = page.locator('[data-portrait-surface]');
+      await expect(task).toHaveCSS('opacity', '1');
+      await page.screenshot({ animations: 'disabled', path: `../screenshots/field-portrait-parity-${name.toLowerCase()}-${theme}.png` });
+      await task.getByRole('button', { name: 'Back', exact: true }).tap();
+      await expect(page.locator('[data-portrait-surface="browse"]')).toBeVisible();
+    }
     await page.setViewportSize({ width: 844, height: 390 });
     await rail(page).getByRole('button', { name: /^insert$/i }).tap();
     if (!await floating(page).count()) await rail(page).getByRole('button', { name: /^insert$/i }).tap();
@@ -153,6 +182,18 @@ for (const theme of ['light', 'dark']) {
       await expect(body.getByRole('button', { name: 'Close Properties', exact: true })).toHaveCount(0);
     };
     await check();
+    const section = body.locator('[data-inspector-section-card]').first();
+    await expect(section).toBeVisible();
+    const sectionStyle = await section.evaluate(el => {
+      const s = getComputedStyle(el), edge = getComputedStyle(el, '::after');
+      return { radius: s.borderTopLeftRadius, fill: s.backgroundColor,
+        shadow: s.boxShadow, edge: edge.borderTopWidth, content: edge.content };
+    });
+    expect(sectionStyle.radius).toBe('8px');
+    expect(sectionStyle.fill).not.toBe('rgba(0, 0, 0, 0)');
+    expect(sectionStyle.shadow).not.toBe('none');
+    expect(sectionStyle.edge).toBe('1px');
+    expect(sectionStyle.content).not.toBe('none');
     expect((await rect(island)).height).toBe(360);
     await header.getByRole('button', { name: /^preview$/i }).waitFor();
     await page.screenshot({ animations: 'disabled', path: `../screenshots/field-connected-inspector-${theme}.png` });
