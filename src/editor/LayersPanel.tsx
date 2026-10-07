@@ -51,7 +51,7 @@ function initialTextNamePreference(): boolean {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function LayersPanel({ showSearch = true }: { showSearch?: boolean } = {}) {
+export default function LayersPanel({ showSearch = true, searchQuery, onSearchQueryChange }: { showSearch?: boolean; searchQuery?: string; onSearchQueryChange?: (value: string) => void } = {}) {
   // DEFERRED tree source: LayersPanel rebuilds its whole tree (several
   // whole-map memos over ~860 nodes on a big page) on every commit. Doing
   // that inside the URGENT render pass kept the main thread busy after a
@@ -123,7 +123,12 @@ export default function LayersPanel({ showSearch = true }: { showSearch?: boolea
   // viewport headers) below in `displayLayers`. Clearing the input
   // restores the user's manual expand state untouched — we never write
   // to the `expanded` set during search.
-  const [layerSearchQuery, setLayerSearchQuery] = useState('');
+  const [localLayerSearchQuery, setLocalLayerSearchQuery] = useState('');
+  const setLayerSearchQuery = useCallback((value: string) => {
+    setLocalLayerSearchQuery(value);
+    onSearchQueryChange?.(value);
+  }, [onSearchQueryChange]);
+  const layerSearchQuery = searchQuery ?? localLayerSearchQuery;
   const [layerSearchOpen, setLayerSearchOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLButtonElement>(null);
@@ -192,7 +197,7 @@ export default function LayersPanel({ showSearch = true }: { showSearch?: boolea
     }, 50);
     const clearTimer = setTimeout(() => setLocateFlash((current) => current?.revision === locateRequest.revision ? null : current), 1200);
     return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
-  }, [locateRequest?.revision, interactingVpId, nodes]);
+  }, [locateRequest?.revision, interactingVpId, nodes, setLayerSearchQuery]);
 
   // Find root nodes (no parentId, not style elements)
   const rootNodeIds = useMemo(() => {
@@ -1254,7 +1259,7 @@ export default function LayersPanel({ showSearch = true }: { showSearch?: boolea
         <div className="flex-1 flex items-center justify-center">
           <p className="text-xs text-[var(--text-disabled)]">No layers yet</p>
         </div>
-      ) : displayLayers.length === 0 ? (
+      ) : displayLayers.length === 0 || (layerSearchActive && !displayLayers.some(layer => layer.nodeId)) ? (
         <div className="flex-1 flex items-center justify-center px-4">
           <p className="text-xs text-[var(--text-disabled)] text-center">
             No layers match “{layerSearchQuery}”

@@ -458,7 +458,7 @@ export function extractSlug(filePath: string): string {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FileExplorer({ showSearch = true }: { showSearch?: boolean } = {}) {
+export default function FileExplorer({ showSearch = true, searchQuery }: { showSearch?: boolean; searchQuery?: string } = {}) {
   // Viewer mode — the Pages "+" (new page / 404 page) is a write
   // action and gets disabled.
   const isViewer = useIsViewer();
@@ -485,7 +485,8 @@ export default function FileExplorer({ showSearch = true }: { showSearch?: boole
   // rows are kept whenever ANY of their descendant pages match so the
   // user still sees the route-group container leading down to a deep
   // match. Empty query passes the tree through untouched.
-  const [pageSearchQuery, setPageSearchQuery] = useState('');
+  const [localPageSearchQuery, setPageSearchQuery] = useState('');
+  const pageSearchQuery = searchQuery ?? localPageSearchQuery;
   const [pageSearchOpen, setPageSearchOpen] = useState(false);
   const pageSearchActive = pageSearchQuery.trim().length > 0;
   // Drag state lives in module-level atoms (shared with the Library
@@ -1328,7 +1329,7 @@ export default function Page() {
             onBulkDelete={requestBulkDelete}
             dragIndicator={dragIndicator}
             draggedId={draggedId}
-            collapsed={collapsed}
+            collapsed={pageSearchActive ? new Set<string>() : collapsed}
             onSwitch={switchFile}
             onToggleCollapse={toggleCollapse}
             onDelete={deletePage}

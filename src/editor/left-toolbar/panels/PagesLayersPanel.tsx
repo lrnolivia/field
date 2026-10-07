@@ -10,6 +10,7 @@ import FileExplorer from '@/editor/FileExplorer';
 import LayersPanel from '@/editor/LayersPanel';
 import PanelErrorBoundary from '@/editor/ui/PanelErrorBoundary';
 import { selectedNodeAtom } from '@/code/stores/store';
+import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
 import { trace } from '@/shared/debug-trace';
 import {
   DEFAULT_PAGES_RATIO,
@@ -21,27 +22,37 @@ import './pages-layers.css';
 import DocumentSearch from './DocumentSearch';
 
 const SPLIT_STORAGE_KEY = 'field:pages-layers:pages-ratio';
+const queries = new WeakMap<object, string>();
 
 export const PAGES_LAYERS_PANEL_IDS = new Set<LeftPanelId>(['layers', 'pages-layers']);
 
-function initialPagesRatio(): number {
-  if (typeof window === 'undefined') return DEFAULT_PAGES_RATIO;
+function initialPagesRatio(): number | null {
   try {
-    return parseStoredPagesRatio(window.localStorage.getItem(SPLIT_STORAGE_KEY));
+    const raw = window.localStorage.getItem(SPLIT_STORAGE_KEY);
+    if (raw == null) return null;
+    const ratio = parseStoredPagesRatio(raw);
+    // Earlier versions saved the default even without a manual resize.
+    return ratio === DEFAULT_PAGES_RATIO ? null : ratio;
   } catch {
-    return DEFAULT_PAGES_RATIO;
+    return null;
   }
 }
 
 export default function PagesLayersPanel() {
   const selectedId = useAtomValue(selectedNodeAtom);
+  useAtomValue(projectVersionAtom);
+  const fs = projectFS;
+  const [query, setQuery] = useState(() => queries.get(fs) ?? '');
+  useEffect(() => { setQuery(queries.get(fs) ?? ''); }, [fs]);
+  const changeQuery = useCallback((value: string) => { queries.set(fs, value); setQuery(value); }, [fs]);
   const shellRef = useRef<HTMLDivElement>(null);
   const [pagesRatio, setPagesRatio] = useState(initialPagesRatio);
   trace.fn('PagesLayersPanel.render', { pagesRatio });
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(SPLIT_STORAGE_KEY, String(pagesRatio));
+      if (pagesRatio == null) window.localStorage.removeItem(SPLIT_STORAGE_KEY);
+      else window.localStorage.setItem(SPLIT_STORAGE_KEY, String(pagesRatio));
     } catch {
       // Storage is a convenience. The splitter remains fully functional
       // when localStorage is unavailable.
@@ -79,8 +90,11 @@ export default function PagesLayersPanel() {
   const handleSeparatorKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 0.05 : 0.02;
     let next: number | null = null;
-    if (event.key === 'ArrowUp') next = pagesRatio - step;
-    if (event.key === 'ArrowDown') next = pagesRatio + step;
+    const shellHeight = shellRef.current?.clientHeight ?? 0;
+    const visibleRatio = shellHeight ? (shellRef.current?.querySelector('[data-document-pages]')?.getBoundingClientRect().height ?? 0) / shellHeight : DEFAULT_PAGES_RATIO;
+    const currentRatio = pagesRatio ?? visibleRatio;
+    if (event.key === 'ArrowUp') next = currentRatio - step;
+    if (event.key === 'ArrowDown') next = currentRatio + step;
     if (event.key === 'Home') next = 0.12;
     if (event.key === 'End') next = 0.62;
     if (next == null) return;
@@ -94,14 +108,14 @@ export default function PagesLayersPanel() {
       data-field-document-panel
       className="flex flex-col h-full overflow-hidden min-h-0"
     >
-      <DocumentSearch />
-      <div ref={shellRef} className="flex min-h-0 flex-1 flex-col gap-1 px-2 pb-2">
+      <DocumentSearch value={query} onChange={changeQuery} />
+      <div ref={shellRef} className="flex min-h-0 flex-1 flex-col px-2 pb-2">
       <div
         data-document-pages
         className="shrink-0 min-h-0 overflow-y-auto overscroll-contain scrollbar-hide"
-        style={{ flexBasis: `${pagesRatio * 100}%`, minHeight: 72, maxHeight: '62%' }}
+        style={{ flexBasis: pagesRatio == null ? 'auto' : `${pagesRatio * 100}%`, minHeight: 72, maxHeight: '62%' }}
       >
-        <FileExplorer showSearch={false} />
+        <FileExplorer showSearch={false} searchQuery={query} />
       </div>
 
       <div
@@ -110,18 +124,19 @@ export default function PagesLayersPanel() {
         aria-orientation="horizontal"
         aria-valuemin={12}
         aria-valuemax={62}
-        aria-valuenow={Math.round(pagesRatio * 100)}
+        aria-valuenow={pagesRatio == null ? undefined : Math.round(pagesRatio * 100)}
+        aria-valuetext={pagesRatio == null ? 'Fit pages to content' : undefined}
         tabIndex={0}
         data-field-pages-splitter
         onPointerDown={beginResize}
-        onDoubleClick={() => setPagesRatio(DEFAULT_PAGES_RATIO)}
+        onDoubleClick={() => setPagesRatio(null)}
         onKeyDown={handleSeparatorKeyDown}
-        title="Drag to resize Pages and Layers · Double-click to reset"
+        title="Drag to resize Pages and Layers · Double-click to fit content"
       />
 
       <div data-document-layers className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <PanelErrorBoundary name="layers-panel" resetKey={selectedId}>
-          <LayersPanel showSearch={false} />
+          <LayersPanel showSearch={false} searchQuery={query} onSearchQueryChange={changeQuery} />
         </PanelErrorBoundary>
       </div>
       </div>

@@ -475,7 +475,7 @@ function MenuPanel({
                 ${entry.disabled ? '' : 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection,var(--accent))]'}
               `}
             >
-              {entry.icon && <span className="shrink-0 w-4 flex items-center justify-center text-[var(--accent-text)] group-hover:text-inherit"><FieldGlyph behavior="generic">{entry.icon}</FieldGlyph></span>}
+              {entry.icon && <span data-field-menu-item-glyph className="shrink-0 w-4 flex items-center justify-center text-[var(--accent-text)] group-hover:text-inherit"><FieldGlyph behavior="generic">{entry.icon}</FieldGlyph></span>}
               <span className={`flex-1 text-left font-medium ${width ? 'min-w-0 truncate' : ''}`} title={width ? displayLabel ?? undefined : undefined}>{displayLabel}</span>
               {entry.trailingIcon && <span className="shrink-0 min-w-4 flex items-center justify-center opacity-90 group-hover:opacity-100">{entry.trailingIcon}</span>}
               {entry.shortcut && <span className="text-[10px] text-[var(--text-secondary)] group-hover:text-[var(--accent-text-fg)]/70">{entry.shortcut}</span>}

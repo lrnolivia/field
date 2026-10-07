@@ -1384,12 +1384,8 @@ export default function SettingsOverlay() {
       style={{ backgroundColor: 'var(--bg-surface)' }}
     >
       {/* ─── Top bar (standard: back arrow left, title centered) ──
-          The editor's RightHeader is bumped to z-[10001] when settings
-          is open so it floats above this bar on the right. We reserve
-          260px of right padding (RightHeader's width) so the centered
-          title stays visually centered relative to the visible portion
-          of this bar.
-
+          Settings owns the full overlay header. Save follows its usable
+          right edge with the same inset at desktop and phone widths.
           Left side mirrors LeftHeader (51px logo column + vertical
           rule) so the chrome reads continuously with the editor — same
           treatment preview mode gets. The Back button sits where the
@@ -1397,7 +1393,7 @@ export default function SettingsOverlay() {
       <div
         className="relative flex items-center h-[52px] border-b border-[var(--control-border)] shrink-0"
         data-settings-topbar
-        style={{ backgroundColor: 'var(--bg-surface)', paddingRight: isMobile ? 0 : 260 }}
+        style={{ backgroundColor: 'var(--bg-surface)' }}
       >
         <div className="w-[51px] h-full flex items-center justify-center flex-shrink-0">
           <LogoButton />

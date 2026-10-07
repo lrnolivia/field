@@ -59,7 +59,7 @@ describe('FigUI3 sidebar system + document panel', () => {
     expect(file).not.toContain('--cut-border-color');
   });
 
-  it('tightens Pages/Layers chrome without changing row rhythm', () => {
+  it('matches Inspector section spacing without changing Pages/Layers row rhythm', () => {
     const css = read('src/editor/left-toolbar/panels/pages-layers.css');
     const theme = read('src/styles/loew-theme.css');
     const shell = read('src/editor/left-toolbar/panels/PagesLayersPanel.tsx');
@@ -68,7 +68,7 @@ describe('FigUI3 sidebar system + document panel', () => {
     const layerRows = read('src/editor/LayersPanel/rows.tsx');
 
     expect(css).toContain('FIGUI3_DOCUMENT_PANEL_DENSITY_20260925');
-    expect(css).toContain('flex: 0 0 5px');
+    expect(css).toContain('flex: 0 0 10px');
     expect(css).toContain('height: 28px');
     expect(css).toContain('padding: 0 8px');
     expect(css).toContain('padding: 0 4px 4px');

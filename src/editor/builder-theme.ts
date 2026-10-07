@@ -7,7 +7,7 @@
 // It does not theme the user's website.
 
 import { getDefaultStore } from 'jotai';
-import { builderThemeAtom, editorInnerHighlightAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
+import { builderThemeAtom, editorNeutralLevelAtom, editorThemeModeAtom, lowercaseHeadingsAtom } from '@/code/stores/user-preferences-store';
 import {
   DEFAULT_BUILDER_THEME_ID,
   builderThemeBrandId,
@@ -30,6 +30,7 @@ const OWNED_VARS = [
   '--rail-active-fg',
   '--accent-surface',
   '--accent-text',
+  '--field-open-parent-glyph',
 ] as const;
 
 const FIELD_BRAND_VERSION = 13;
@@ -79,8 +80,13 @@ export function applyEditorChromePreferences(): void {
   const root = document.documentElement;
   root.classList.toggle('dark', mode === 'dark');
   root.dataset.themeMode = mode;
-  const innerHighlight = store.get(editorInnerHighlightAtom);
-  root.dataset.innerHighlight = ['buttons', 'everywhere'].includes(innerHighlight) ? innerHighlight : 'current';
+  root.dataset.innerHighlight = 'current';
+  // Retire the experiment without clearing documents or unrelated preferences.
+  const previousHighlight = readStoredString('field:prefs:innerHighlight');
+  if (previousHighlight !== undefined && previousHighlight !== 'current') {
+    try { localStorage.setItem('field:prefs:innerHighlight', JSON.stringify('current')); }
+    catch { /* Current still renders when storage is unavailable. */ }
+  }
   root.dataset.neutralLevel = level;
   root.dataset.lowercaseHeadings = lowercaseHeadings ? 'true' : 'false';
 }
@@ -161,6 +167,8 @@ function paintAccent(theme: BuilderTheme): void {
 
   root.style.setProperty('--accent', builderAccentSurface(c.accent, c.accentTextFg));
 
+  root.style.setProperty('--field-open-parent-glyph', theme.id === 'gold' ? '#896600' : c.accentTextFg);
+
   // Exact foreground used by field identity artwork.
   root.style.setProperty('--accent-fg', c.accentFg);
   root.style.setProperty('--accent-brand-fg', c.accentFg);
@@ -194,7 +202,7 @@ function paintAccent(theme: BuilderTheme): void {
     );
   } else {
     // Darken readable accent text independently of the canonical fill hue.
-    root.style.setProperty('--accent-text', 'color-mix(in srgb, var(--accent) 55%, #000)');
+    root.style.setProperty('--accent-text', theme.id === 'gold' ? '#947000' : 'color-mix(in srgb, var(--accent) 55%, #000)');
   }
 }
 
@@ -273,8 +281,6 @@ export function subscribeBuilderTheme(): void {
     applyEditorChromePreferences();
     trace.action('editor-neutral-level:changed', { level: store.get(editorNeutralLevelAtom) });
   });
-
-  store.sub(editorInnerHighlightAtom, applyEditorChromePreferences);
 
   store.sub(lowercaseHeadingsAtom, () => {
     applyEditorChromePreferences();

@@ -41,11 +41,11 @@ describe('FigUI3 Library, Media, and view controls', () => {
     expect(canvasTheme).toContain('websitePreviewThemeAtom');
   });
 
-  it('keeps Zoom and website appearance beside Preview while pane controls live with Design/Prototype', () => {
+  it('keeps Zoom beside Preview and canonical Appearance separate from pane controls', () => {
     const header = read('src/editor/header/RightHeader.tsx');
     const tabs = read('src/editor/controls/InspectorModeTabs.tsx');
     expect(header).toContain('<InspectorZoomControl />');
-    expect(header).toContain('<WebsitePreviewAppearanceControl />');
+    expect(header).not.toContain('WebsitePreviewAppearanceControl');
     expect(header).not.toContain('data-inspector-header-pane-actions');
     expect(tabs).toContain('data-inspector-pane-actions');
     expect(tabs).toContain('right-inspector-autohide');

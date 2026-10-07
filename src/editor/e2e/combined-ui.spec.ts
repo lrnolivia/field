@@ -5,24 +5,53 @@ import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 
 test.use({ viewport: { width: 1440, height: 1000 }, contextOptions: { reducedMotion: 'reduce' }, hasTouch: true });
 for (const theme of ['light', 'dark']) {
-  test(`${theme}: Appearance treatments switch live and persist without editing the document`, async ({ page }) => {
-    await page.addInitScript(mode => localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(mode)), theme);
+  test(`${theme}: retired highlights migrate to Current while Appearance persists without document writes`, async ({ page }) => {
+    await page.addInitScript(mode => {
+      if (localStorage.getItem('field:test:appearance-seeded')) return;
+      localStorage.setItem('field:test:appearance-seeded', 'true');
+      localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(mode));
+      localStorage.setItem('field:prefs:innerHighlight', JSON.stringify(mode === 'light' ? 'buttons' : 'everywhere'));
+    }, theme);
     const editor = new EditorPage(page); await editor.gotoWithSeed('LOCALE_TEXT');
     await expect(page.locator('[data-editor-interactive]')).toHaveAttribute('data-editor-interactive', 'true');
     const before = await editor.getPageCode();
+    await expect(page.locator('html')).toHaveAttribute('data-inner-highlight', 'current');
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:innerHighlight') ?? 'null'))).toBe('current');
+    await expect(page.locator('[data-website-preview-appearance]')).toHaveCount(0);
     await page.locator('[data-editor-appearance]').click();
-    const choices = page.locator('[data-appearance-inner-highlight]');
-    await expect(choices.getByRole('button', { name: /^current$/i })).toHaveAttribute('aria-pressed', 'true');
-    for (const [name, value] of [['Buttons only', 'buttons'], ['Everywhere', 'everywhere'], ['Current', 'current']]) {
-      await choices.getByRole('button', { name: new RegExp(`^${name}$`, 'i') }).click();
-      await expect(page.locator('html')).toHaveAttribute('data-inner-highlight', value);
-      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('field:prefs:innerHighlight') ?? 'null'))).toBe(value);
-      await page.screenshot({ path: `../screenshots/field-combined-${theme}-appearance-${value}.png` });
-    }
-    await choices.getByRole('button', { name: /^everywhere$/i }).click();
+    const appearance = page.locator('[data-field-appearance-popover]');
+    await expect(appearance).toBeVisible();
+    await expect(page.locator('[data-appearance-inner-highlight]')).toHaveCount(0);
+    await appearance.getByRole('switch', { name: /light \/ dark/i }).click();
+    const mode = theme === 'light' ? 'dark' : 'light';
+    await expect(page.locator('html')).toHaveAttribute('data-theme-mode', mode);
+    await appearance.locator('[data-appearance-swatch="teal"]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-field-theme', 'teal');
+    await page.screenshot({ path: `../screenshots/field-current-appearance-${theme}.png` });
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-inner-highlight', 'everywhere');
+    await expect(page.locator('[data-editor-interactive]')).toHaveAttribute('data-editor-interactive', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-inner-highlight', 'current');
+    await expect(page.locator('html')).toHaveAttribute('data-theme-mode', mode);
+    await expect(page.locator('html')).toHaveAttribute('data-field-theme', 'teal');
     expect(await editor.getPageCode()).toBe(before);
+  });
+  test(`${theme}: Gold expanded parent glyph keeps its color when the pointer enters its submenu`, async ({ page }) => {
+    await page.addInitScript(mode => {
+      localStorage.setItem('revyme:prefs:themeMode', JSON.stringify(mode));
+      localStorage.setItem('revyme:prefs:builderTheme', JSON.stringify('gold'));
+    }, theme);
+    const editor = new EditorPage(page); await editor.gotoWithSeed('LOCALE_TEXT');
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const view = page.getByRole('menuitem', { name: /^view$/i });
+    await view.hover();
+    await expect(view).toHaveAttribute('aria-expanded', 'true');
+    const glyph = view.locator('[data-field-menu-item-glyph]');
+    const expandedColor = await glyph.evaluate(el => getComputedStyle(el).color);
+    expect(expandedColor).toBe('rgb(137, 102, 0)');
+    await page.getByRole('menuitem', { name: /^zoom in/i }).hover();
+    await expect(view).toHaveAttribute('aria-expanded', 'true');
+    expect(await glyph.evaluate(el => getComputedStyle(el).color)).toBe(expandedColor);
+    await page.screenshot({ path: `../screenshots/field-gold-expanded-${theme}.png` });
   });
 }
 test('phone first text tap edits in place with shared horizontally scrollable controls and real top-bar menus', async ({ page }) => {
