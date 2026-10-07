@@ -31,6 +31,7 @@ import { translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
 import CodeEditorPopup from './editor/CodeEditorPopup';
 import ComponentEditorOverlay from './editor/component-editor/ComponentEditorOverlay';
 import SettingsOverlay from './editor/overlays/SettingsOverlay';
+import ProjectSettingsModal from './editor/overlays/ProjectSettingsModal';
 import PageVariablesModal from './editor/ui/PageVariablesModal';
 import LinkedComponentModal from './cloud/components/LinkedComponentModal';
 import PluginEditor from './editor/plugin-editor/PluginEditor';
@@ -470,6 +471,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       <ComponentEditorOverlay />
       <CodeEditorPopup />
       <SettingsOverlay />
+      <ProjectSettingsModal />
       <PageVariablesModal />
       <LinkedComponentModalMount />
       {/* Plugin runtime — global free-floating window. Independent
@@ -756,4 +758,3 @@ function OfflineToast() {
     </div>
   );
 }
-

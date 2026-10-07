@@ -7,11 +7,12 @@
 // (--text-*, --bg-hover, --border-light, --accent) so the same components
 // render correctly in light and dark mode.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
 import { FlagIcon } from '@/shared/flag-icon';
+import { FIELD_SURFACE_Z, fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import UiHeadingText from '@/design-system/UiHeadingText';
 import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
 
@@ -56,12 +57,14 @@ export function SettingsGroup({
 }) {
   return (
     <section
+      data-settings-group
+      data-settings-surface={surface || undefined}
       className={surface
         ? 'overflow-hidden cut-corners cut-lg cut-border border border-[var(--border-light)] [--cut-border-color:var(--border-light)] bg-[var(--bg-hover)]/10'
         : undefined}
     >
       {(title || action) && (
-        <div className={`flex items-center justify-between ${surface ? 'px-4 py-2.5 border-b border-[var(--border-light)]' : 'px-3 py-3'}`}>
+        <div data-settings-group-header className={`flex items-center justify-between gap-3 ${surface ? 'px-4 py-2.5 border-b border-[var(--border-light)]' : 'px-3 py-3'}`}>
           {title ? (
             <h3
               className={`${surface ? 'text-xs' : 'text-sm'} font-semibold text-[var(--text-primary)]`}
@@ -99,7 +102,7 @@ export function SettingsRow({
   const itemsCls = align === 'top' ? 'sm:items-start' : 'sm:items-center';
   const hoverCls = interactive ? 'transition-colors hover:bg-[var(--bg-hover)]/40' : '';
   return (
-    <div className={`flex flex-col sm:flex-row gap-1 sm:gap-4 px-3 py-3 ${hoverCls} ${itemsCls}`}>
+    <div data-settings-row className={`flex flex-col sm:flex-row gap-1 sm:gap-4 px-3 py-3 ${hoverCls} ${itemsCls}`}>
       <label
         htmlFor={htmlFor}
         className={`w-full sm:w-44 shrink-0 text-sm text-[var(--text-secondary)] ${
@@ -139,6 +142,7 @@ export function SaveButton({
   const uiCase = useUiChromeCase();
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={!enabled}
       className={`px-4 cut-corners text-xs font-medium min-w-[72px] h-[30px] flex items-center justify-center transition-all ${
@@ -160,14 +164,21 @@ export function SaveButton({
 export function Toggle({
   value,
   onChange,
+  label,
+  disabled = false,
 }: {
   value: boolean;
   onChange: (v: boolean) => void;
+  label?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!value)}
-      className={`relative w-10 h-5 rounded-full transition-colors ${
+      className={`relative w-10 h-5 shrink-0 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         value ? 'bg-[var(--accent)]' : 'bg-[var(--bg-active)]'
       }`}
       aria-pressed={value}
@@ -252,7 +263,13 @@ export function RowSelect({
   const [rect, setRect] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
   const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open || !rect) return;
+    (popupRef.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]') ?? popupRef.current?.querySelector<HTMLButtonElement>('[role="option"]'))?.focus();
+  }, [open, rect]);
 
   useEffect(() => {
     if (!open) return;
@@ -260,7 +277,7 @@ export function RowSelect({
 
     const close = () => setOpen(false);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); triggerRef.current?.focus(); }
     };
     // An *outside* scroll invalidates the cached trigger rect, so close.
     // But scrolling *inside* the popup itself must NOT close it — the
@@ -272,18 +289,21 @@ export function RowSelect({
     };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', close);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', close);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
 
   return (
     <>
       <button
-        id={id}
+        id={id ?? `${listId}-trigger`}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={open ? listId : undefined}
         ref={triggerRef}
         type="button"
         onClick={() => {
@@ -316,11 +336,23 @@ export function RowSelect({
       {open && rect &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[10010]" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0" style={{ zIndex: fieldSurfaceZ('menu-backdrop', triggerRef.current) }} onClick={() => setOpen(false)} />
             <div
               ref={popupRef}
-              className="fixed z-[10011] max-h-[280px] overflow-y-auto cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-lg py-1"
+              id={listId}
+              role="listbox"
+              aria-labelledby={id ?? `${listId}-trigger`}
+              onKeyDown={event => {
+                if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+                const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : buttons.length - 1)) % buttons.length;
+                buttons[next]?.focus();
+              }}
+              className="fixed max-h-[280px] overflow-y-auto cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] bg-[var(--dropdown-bg)] shadow-lg py-1"
               style={{
+                zIndex: fieldSurfaceZ('select', triggerRef.current),
                 left: rect.left,
                 top: rect.bottom + 4,
                 width: Math.min(Math.max(rect.width, 180), 260),
@@ -330,10 +362,13 @@ export function RowSelect({
                 <button
                   key={opt.value}
                   type="button"
+                  role="option"
+                  aria-selected={opt.value === value}
                   onClick={() => {
                     trace.action('row-select:change', { id, from: value, to: opt.value });
                     onChange(opt.value);
                     setOpen(false);
+                    triggerRef.current?.focus();
                   }}
                   className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm transition-colors ${
                     opt.value === value
@@ -410,7 +445,8 @@ export function ConfirmModal({
       {isOpen && (
         <div
           className="fixed inset-0 flex items-center justify-center"
-          style={{ zIndex: 99999 }}
+          style={{ zIndex: FIELD_SURFACE_Z.modal }}
+          data-field-surface-scope="modal"
           onClick={isLoading ? undefined : onCancel}
         >
           {/* Backdrop */}
@@ -428,6 +464,9 @@ export function ConfirmModal({
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className="relative w-80 bg-[var(--bg-surface)] cut-corners cut-lg shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-light)]">
@@ -435,6 +474,7 @@ export function ConfirmModal({
               <button
                 onClick={onCancel}
                 disabled={isLoading}
+                aria-label="Close confirmation"
                 className="p-1 hover:bg-[var(--bg-hover)] cut-corners transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">

@@ -1,6 +1,7 @@
 import type { RevymeUser } from '@/backend';
 import { FigmaGridIcon, FigmaSearchIcon } from '@/shared/loew-figma-icons';
 import type { DashboardView } from './project-meta';
+import MobileGlyph from '@/editor/portrait/MobileGlyph';
 
 type Props = {
   view: DashboardView;
@@ -8,6 +9,7 @@ type Props = {
   user: RevymeUser | null;
   onViewChange: (view: DashboardView) => void;
   onQueryChange: (query: string) => void;
+  onOpenSettings?: () => void;
 };
 
 function ClockIcon() {
@@ -34,7 +36,7 @@ const nav: Array<{ id: DashboardView; label: string; icon: 'clock' | 'grid' | 's
   { id: 'trash', label: 'Trash', icon: 'trash' },
 ];
 
-export default function DashboardSidebar({ view, query, user, onViewChange, onQueryChange }: Props) {
+export default function DashboardSidebar({ view, query, user, onViewChange, onQueryChange, onOpenSettings }: Props) {
   return (
     <aside className="field-dashboard-sidebar">
       <div className="field-dashboard-brand" aria-label="field by loew.fi">
@@ -79,6 +81,10 @@ export default function DashboardSidebar({ view, query, user, onViewChange, onQu
             <span>{item.label}</span>
           </button>
         ))}
+        {onOpenSettings && <button type="button" className="field-dashboard-nav-row" aria-haspopup="dialog" onClick={onOpenSettings}>
+          <span className="field-dashboard-nav-icon"><MobileGlyph name="settings" size={14} /></span>
+          <span>Settings</span>
+        </button>}
       </nav>
 
       <div className="field-dashboard-profile">

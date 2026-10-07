@@ -39,7 +39,11 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, m
     const handleKey = (e: KeyboardEvent) => {
       // A non-dismissible modal still SWALLOWS Escape — letting it through
       // would run canvas shortcuts behind the modal.
-      if (e.key === 'Escape') { e.stopPropagation(); if (dismissible) onClose(); }
+      if (e.key === 'Escape') {
+        // A focused select popup owns the first Escape; keep its parent open.
+        if (e.target instanceof Element && e.target.closest('[role="listbox"]')) return;
+        e.stopPropagation(); if (dismissible) onClose();
+      }
     };
     window.addEventListener('keydown', handleKey, true);
     trace.action('modal:open', { title });
