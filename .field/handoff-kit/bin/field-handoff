@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, json, subprocess
+from pathlib import Path
+
+def run(repo: Path, *args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=repo, text=True, stderr=subprocess.STDOUT).rstrip("\n")
+
+def repo_root(raw):
+    p = Path(raw).expanduser().resolve() if raw else Path("/Users/lrnolivia/Repos/field")
+    if not (p / ".git").exists():
+        raise SystemExit(f"field repo not found: {p}")
+    return p
+
+ap = argparse.ArgumentParser(prog="field-handoff")
+ap.add_argument("--repo")
+sub = ap.add_subparsers(dest="cmd", required=True)
+sub.add_parser("doctor")
+sub.add_parser("context")
+sub.add_parser("manifest")
+paths = sub.add_parser("control-paths")
+paths.add_argument("assignment_id")
+args = ap.parse_args()
+
+repo = repo_root(args.repo)
+kit = repo / ".field/handoff-kit"
+manifest = json.loads((kit / "manifest.json").read_text())
+version = (kit / "VERSION").read_text().strip()
+
+if args.cmd == "manifest":
+    print(json.dumps(manifest, indent=2))
+    raise SystemExit(0)
+
+if args.cmd == "control-paths":
+    aid = args.assignment_id
+    print(f"assignment=.field/assignments/assignment-{aid}.md")
+    print(f"mail=.field/mail/{aid}.md")
+    print(f"qa=.field/qa/{aid}.md")
+    print(f"implementation_branch=field/{aid}")
+    raise SystemExit(0)
+
+head = run(repo, "rev-parse", "HEAD")
+try:
+    origin = run(repo, "rev-parse", "origin/main")
+except subprocess.CalledProcessError:
+    origin = "unavailable"
+
+if args.cmd == "doctor":
+    print(f"repo={repo}")
+    print(f"kit_version={version}")
+    print(f"head={head}")
+    print(f"origin_main={origin}")
+    print(f"control_branch={manifest['control_branch']}")
+    print(f"contract_worker_github_transport={manifest['contract_worker']['github_transport']}")
+    print("contract_worker_live_state=read field/control via Composio; local checkout is not authoritative cross-chat state")
+    print(f"legacy_tracker={manifest['legacy_tracker']}")
+    raise SystemExit(0)
+
+print(f"kit_version={version}")
+print(f"head={head}")
+print(f"origin_main={origin}")
+print(f"control_branch={manifest['control_branch']}")
+print()
+print("Contract Worker / Night Shift live coordination must be read from field/control through Composio.")
+print("The built-in ChatGPT GitHub connector is prohibited for that lane.")
+print("Legacy tracker.md remains relevant only for still-active pre-v2 Owned reservations during migration.")

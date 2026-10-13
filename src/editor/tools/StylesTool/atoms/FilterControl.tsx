@@ -1,0 +1,216 @@
+// FilterControl.tsx — Self-contained filter ToolAtom.
+// Fully migrated — uses useControlContext(), no legacy delegation.
+
+import { useState, useRef, useEffect } from 'react';
+import { ControlLabel, SingleEntryRow, EffectRow, ControlActionRow } from '../../../controls';
+import { useOverriddenLabel } from '../../../controls/label-override-context';
+import { useHoistMenuItem } from '../../../controls/hoist-context';
+import { FilterIcon } from '@/design-system/PropertyIcons';
+import { UnifiedControlProvider, useControlContext } from '../../../controls/unified';
+import { ShowControlLabels } from '../../../controls/unified/useControlContext';
+import { UsedByRow } from '../../../controls/unified/UsedByRow';
+import { VariableBoundPill } from '../../../controls/VariableBoundPill';
+import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import { extractNonShadowFilter } from '../../../ui/shadow-utils';
+import type { AtomProps } from '../../../controls/unified/types';
+import { EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ScalarRow } from '../../../ui/OptionsPanel';
+
+// ─── Filter parse/format ────────────────────────────────────────────────────
+
+function parseFilter(raw: string | undefined): {
+  blur: number; brightness: number; contrast: number; saturate: number; grayscale: number; hueRotate: number;
+} {
+  const def = { blur: 0, brightness: 100, contrast: 100, saturate: 100, grayscale: 0, hueRotate: 0 };
+  if (!raw || raw === 'none') return def;
+  const clean = extractNonShadowFilter(raw);
+  if (!clean) return def;
+  const num = (re: RegExp, fallback: number) => {
+    const m = clean.match(re);
+    return m ? parseFloat(m[1]) : fallback;
+  };
+  return {
+    blur: num(/blur\(\s*(-?[\d.]+)px\s*\)/, 0),
+    brightness: num(/brightness\(\s*(-?[\d.]+)%?\s*\)/, 100),
+    contrast: num(/contrast\(\s*(-?[\d.]+)%?\s*\)/, 100),
+    saturate: num(/saturate\(\s*(-?[\d.]+)%?\s*\)/, 100),
+    grayscale: num(/grayscale\(\s*(-?[\d.]+)%?\s*\)/, 0),
+    hueRotate: num(/hue-rotate\(\s*(-?[\d.]+)deg\s*\)/, 0),
+  };
+}
+
+function formatFilter(v: { blur: number; brightness: number; contrast: number; saturate: number; grayscale: number; hueRotate: number }, rawFilter?: string): string {
+  const parts: string[] = [];
+  if (v.blur !== 0) parts.push(`blur(${v.blur}px)`);
+  if (v.brightness !== 100) parts.push(`brightness(${v.brightness}%)`);
+  if (v.contrast !== 100) parts.push(`contrast(${v.contrast}%)`);
+  if (v.saturate !== 100) parts.push(`saturate(${v.saturate}%)`);
+  if (v.grayscale !== 0) parts.push(`grayscale(${v.grayscale}%)`);
+  if (v.hueRotate !== 0) parts.push(`hue-rotate(${v.hueRotate}deg)`);
+  const nonShadow = parts.join(' ');
+  if (rawFilter) {
+    const dropParts = (rawFilter.match(/drop-shadow\([^)]*(?:\([^)]*\)[^)]*)*\)/gi) || []).join(' ');
+    if (dropParts) return nonShadow ? `${nonShadow} ${dropParts}` : dropParts;
+  }
+  return nonShadow || '';
+}
+
+// ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
+
+function FilterEditorPanel({ initialValue, rawFilter, onChangeLive, onCommit }: {
+  initialValue: string;
+  rawFilter: string;
+  /** Per-frame DOM patch during a slider/chevron drag. */
+  onChangeLive: (val: string) => void;
+  /** Code write — slider/chevron release + typed input. */
+  onCommit: (val: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(initialValue);
+  const f = parseFilter(localValue);
+
+  // External re-seed (undo/redo while this editor is open): the parsed value
+  // comes back through the prop — re-seed when it changed. Own commits are
+  // skipped via the self-write counter so live/mid-drag state is never
+  // clobbered by the round-trip (ShadowControl's pattern).
+  const selfWriteRef = useRef(0);
+  const prevInitRef = useRef(initialValue);
+  useEffect(() => {
+    if (initialValue === prevInitRef.current) return;
+    prevInitRef.current = initialValue;
+    if (selfWriteRef.current > 0) { selfWriteRef.current--; return; }
+    setLocalValue(initialValue);
+  }, [initialValue]);
+
+  // `live=true` → DOM-only patch every frame; `live=false` → code commit.
+  const update = (patch: Partial<typeof f>, live: boolean) => {
+    const merged = { ...f, ...patch };
+    const val = formatFilter(merged, rawFilter);
+    setLocalValue(val);
+    if (live) { onChangeLive(val); } else { selfWriteRef.current++; onCommit(val); }
+  };
+
+
+  return (
+    <ShowControlLabels>
+      <EffectOptionsPanel>
+        <EffectOptionSection title="Layer blur" glyph={<InspectorSectionGlyph kind="blur" />}>
+          <ScalarRow label="Radius" value={f.blur} min={0} max={40} step={0.5} unit="px"
+            onChange={(v) => update({ blur: v }, false)} onChangeLive={(v) => update({ blur: v }, true)} onCommit={(v) => update({ blur: v }, false)} />
+        </EffectOptionSection>
+
+        <EffectOptionSection title="Adjustments" glyph={<InspectorSectionGlyph kind="adjustments" />}>
+          <ScalarRow label="Brightness" value={f.brightness} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ brightness: v }, false)} onChangeLive={(v) => update({ brightness: v }, true)} onCommit={(v) => update({ brightness: v }, false)} />
+          <ScalarRow label="Contrast" value={f.contrast} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ contrast: v }, false)} onChangeLive={(v) => update({ contrast: v }, true)} onCommit={(v) => update({ contrast: v }, false)} />
+          <ScalarRow label="Saturate" value={f.saturate} min={0} max={200} step={1} unit="%"
+            onChange={(v) => update({ saturate: v }, false)} onChangeLive={(v) => update({ saturate: v }, true)} onCommit={(v) => update({ saturate: v }, false)} />
+        </EffectOptionSection>
+
+        <EffectOptionSection title="Color" glyph={<InspectorSectionGlyph kind="color" />}>
+          <ScalarRow label="Grayscale" value={f.grayscale} min={0} max={100} step={1} unit="%"
+            onChange={(v) => update({ grayscale: v }, false)} onChangeLive={(v) => update({ grayscale: v }, true)} onCommit={(v) => update({ grayscale: v }, false)} />
+          <ScalarRow label="Hue rotate" value={f.hueRotate} min={0} max={360} step={1} unit="deg"
+            onChange={(v) => update({ hueRotate: v }, false)} onChangeLive={(v) => update({ hueRotate: v }, true)} onCommit={(v) => update({ hueRotate: v }, false)} />
+        </EffectOptionSection>
+      </EffectOptionsPanel>
+    </ShowControlLabels>
+  );
+}
+
+// ─── Atom ────────────────────────────────────────────────────────────────────
+
+function FilterAtom({ compactSection = false }: { compactSection?: boolean }) {
+  const { value, onChange, onChangeLive, node, binding, mode, allProps, hasVariable } = useControlContext();
+  const { openPanel, panelPopup } = useEditorPanel('Filter', () => (
+    <FilterEditorPanel initialValue={value || ''} rawFilter={allProps.filter || ''} onChangeLive={onChangeLive} onCommit={onChange} />
+  ), { kind: 'options', width: 300 });
+  const btnRef = useRef<HTMLDivElement>(null);
+  // Variable-name override for the instance-prop row (see useOverriddenLabel).
+  const { label: ovLabel, subLabel: ovSubLabel } = useOverriddenLabel('Filter');
+  // Plain label (no chevron, matches ControlRow atoms) on a page instance;
+  // non-plain (chevron → Hoist menu) only when a hoist item is present
+  // (component master) or in direct StylesTool editing. Mirrors
+  // ControlRow's `isPlain` so all instance-prop rows line up identically.
+  const ovHoist = useHoistMenuItem();
+  const labelPlain = mode !== 'direct' && !ovHoist;
+
+  // Binding check — animation/scroll first, variable pill second.
+  if (mode === 'direct' && binding.bound) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Filter" property="filter" />
+        <UsedByRow binding={binding} />
+      </div>
+    );
+  }
+  if (mode === 'direct' && hasVariable) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Filter" property="filter" />
+        <VariableBoundPill propertyLabel="Filter" />
+      </div>
+    );
+  }
+
+  const nonShadowFilter = extractNonShadowFilter(value || '');
+  const hasFilter = !!nonShadowFilter;
+
+  // Effects owns its empty state in the section header. A drop-shadow-only
+  // filter must not leak a second empty Layer blur row into the typed list.
+  if (compactSection && !hasFilter) return null;
+
+  const openEditor = () => {
+    openPanel();
+  };
+
+  const fns = (nonShadowFilter || '').match(/\w+\(/g) || [];
+  const fn = fns.length === 1 ? fns[0].replace('(', '') : '';
+  const effectLabel = fn === 'blur' ? 'Layer blur' : fns.length === 1 ? fn.replace(/^\w/, c => c.toUpperCase()) : 'Mixed';
+  const removeFilter = () => {
+    const dropOnly = (allProps.filter || '').match(/drop-shadow\([^)]*(?:\([^)]*\)[^)]*)*\)/gi)?.join(' ') || '';
+    onChange(dropOnly);
+  };
+
+  if (compactSection) {
+    return (
+      <>
+        <div ref={btnRef} className="w-full min-w-0">
+          <EffectRow
+            control={
+              <ControlActionRow onClick={openEditor} embedded>
+                <FilterIcon width={16} height={16} bg="var(--control-border)" className="shrink-0 opacity-70" />
+                <span className="truncate flex-1 text-left">{effectLabel}</span>
+              </ControlActionRow>
+            }
+            onRemove={removeFilter}
+          />
+        </div>
+        {panelPopup(btnRef)}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SingleEntryRow
+        label={ovLabel} property="filter" plain={labelPlain} subLabel={ovSubLabel}
+        hideLabel={compactSection}
+        hasValue={hasFilter}
+        onOpen={openEditor}
+        anchorRef={btnRef}
+        EmptyIcon={FilterIcon}
+        renderPreview={() => <span className="truncate flex-1">{effectLabel}</span>}
+        onRemove={removeFilter}
+      />
+      {panelPopup(btnRef)}
+    </>
+  );
+}
+
+export function FilterControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
+  return (
+    <UnifiedControlProvider property="filter" defaultValue="" mode={mode} {...mp}>
+      <FilterAtom compactSection={compactSection} />
+    </UnifiedControlProvider>
+  );
+}

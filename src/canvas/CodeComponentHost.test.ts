@@ -1,0 +1,178 @@
+// CodeComponentHost.test.ts — Unit tests for extractCodeComponentProps.
+//
+// Purpose: lock in the canvas/live-render symmetry for code components.
+// Code components like MatrixRain spread `...props.style` on their inner wrapper to
+// inherit width/height. extractCodeComponentProps must forward node.styles as a
+// `style` prop, while filtering out canvas-positioning props that belong
+// only on the Renderer's outer wrapper.
+
+import { describe, it, expect } from 'vitest';
+import { extractCodeComponentProps } from './CodeComponentHost';
+import type { CanvasNode } from '@/code/parsing/parser';
+
+function makeNode(overrides: Partial<CanvasNode>): CanvasNode {
+  return {
+    id: 'code-component-1',
+    type: 'MatrixRain',
+    parentId: null,
+    children: [],
+    styles: {},
+    attrs: {},
+    textContent: null,
+    isCodeComponent: true,
+    ...overrides,
+  } as CanvasNode;
+}
+
+describe('extractCodeComponentProps', () => {
+  it('forwards node.styles as the `style` prop so code components can self-size', () => {
+    const node = makeNode({
+      styles: { width: '100%', height: '100%', backgroundColor: '#020617' },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.style).toEqual({
+      width: '100%',
+      height: '100%',
+      backgroundColor: '#020617',
+    });
+  });
+
+  it('strips canvas-positioning props (position, left, top) from the forwarded style', () => {
+    // These belong only on the outer Renderer wrapper. Forwarding them to the
+    // code component's inner wrapper would re-apply absolute positioning relative to
+    // the outer, visually offsetting the code component.
+    const node = makeNode({
+      styles: {
+        position: 'absolute',
+        left: '120px',
+        top: '40px',
+        width: '300px',
+        height: '200px',
+        backgroundColor: '#020617',
+      },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.style).toEqual({
+      width: '300px',
+      height: '200px',
+      backgroundColor: '#020617',
+    });
+    expect(props.style.position).toBeUndefined();
+    expect(props.style.left).toBeUndefined();
+    expect(props.style.top).toBeUndefined();
+  });
+
+  it('strips transform/order/flex/margin (parent-context layout props)', () => {
+    const node = makeNode({
+      styles: {
+        transform: 'rotate(45deg)',
+        transformOrigin: '50% 50%',
+        order: '2',
+        flex: '1 1 auto',
+        flexShrink: '0',
+        alignSelf: 'stretch',
+        marginTop: '10px',
+        gridColumn: '1 / 3',
+        width: '100%',
+        height: '100%',
+      },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.style).toEqual({ width: '100%', height: '100%' });
+  });
+
+  it('does not add a style prop when node.styles is empty', () => {
+    const node = makeNode({ styles: {} });
+    const props = extractCodeComponentProps(node);
+    expect(props.style).toBeUndefined();
+  });
+
+  it('does not add a style prop when every node style is canvas-only', () => {
+    const node = makeNode({
+      styles: { position: 'absolute', left: '10px', top: '20px' },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.style).toBeUndefined();
+  });
+
+  it('still passes non-style attrs through (and skips data-* / className / style attrs)', () => {
+    const node = makeNode({
+      attrs: {
+        speed: '1.5',
+        bgColor: '#000000',
+        'data-id': 'code-component-1',
+        'data-name': 'MatrixRain',
+        className: 'foo',
+        // Defensive: even if some path leaks `style` into attrs, we strip it
+        // and let node.styles be the source of truth instead.
+        style: '{ "width": "50%" }',
+      },
+      styles: { width: '100%' },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.speed).toBe(1.5);          // numeric coerce
+    expect(props.bgColor).toBe('#000000');
+    expect(props['data-id']).toBeUndefined();
+    expect(props.className).toBeUndefined();
+    expect(props.style).toEqual({ width: '100%' });
+  });
+
+  it('forwards data-responsive (per-viewport prop overrides) intact', () => {
+    const node = makeNode({
+      attrs: { 'data-responsive': '{"768":{"speed":2}}' },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props['data-responsive']).toBe('{"768":{"speed":2}}');
+  });
+
+  // A code component fed a LIST (an FAQ accordion's questions, a pricing
+  // card's benefits) rendered its empty state on canvas while the deployed
+  // page rendered the list: the array prop never reached it.
+  it('parses literal list / object props instead of stringifying them', () => {
+    const node = makeNode({
+      componentJsonProps: {
+        items: '[{"question":"Q1","answer":"A1"},{"question":"Q2","answer":"A2"}]',
+        bodyFont: '{"fontWeight":600}',
+      },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.items).toEqual([
+      { question: 'Q1', answer: 'A1' },
+      { question: 'Q2', answer: 'A2' },
+    ]);
+    expect(props.bodyFont).toEqual({ fontWeight: 600 });
+  });
+
+  it('merges componentProps on top of attrs', () => {
+    const node = makeNode({
+      attrs: { speed: '1' },
+      componentProps: { speed: '2.5', fontSize: '20' },
+    });
+    const props = extractCodeComponentProps(node);
+    expect(props.speed).toBe(2.5);
+    expect(props.fontSize).toBe(20);
+  });
+});
+
+
+// ─── `display` is the WRAPPER's, never the inner root's ────────────────────
+// An instance dropped into a replica carries a base `display: 'none'` — the
+// only write that can hide the primary viewport (a band keyed at the primary
+// width is dropped by the generator). The entered tile's band unhides the
+// CONTAINER. This forward is not per-viewport, so passing the base value
+// inward hid the component on every tile INCLUDING the one it was dropped on.
+describe('extractCodeComponentProps — display stays on the wrapper', () => {
+  it('does not forward `display` (the replica hide would blank every tile)', () => {
+    const props = extractCodeComponentProps(makeNode({
+      styles: { width: '100%', height: '200px', display: 'none' },
+    }));
+    expect(props.style).toEqual({ width: '100%', height: '200px' });
+  });
+
+  it('does not forward an authored display either — the container carries it', () => {
+    const props = extractCodeComponentProps(makeNode({
+      styles: { display: 'flex', gap: '8px' },
+    }));
+    expect(props.style).toEqual({ gap: '8px' });
+  });
+});

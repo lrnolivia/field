@@ -1,0 +1,546 @@
+// ImageSearchModal.tsx — Image picker sharing Media's search and thumbnail chrome.
+// Three tabs: Unsplash (search), Upload (drag-drop), Create (AI — placeholder).
+// Responsive grid of rounded 4:3 thumbnails, hover zoom + dark overlay.
+// Search on Enter key, not on typing.
+// Uses shared Modal shell for portal, backdrop, Escape key, and close button.
+
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { CLOUD_ENABLED } from '@/shared/cloud-flag';
+import { trace } from '@/shared/debug-trace';
+import Modal from '@/design-system/Modal';
+import SearchBar from '@/design-system/SearchBar';
+import { backend } from '@/backend';
+import { getProjectId } from '@/backend/project-id';
+import { appendUniqueMedia, chooseMedia } from '@/editor/gallery/media-selection';
+import { sessionMediaAssetsAtom, upsertMediaUploadAtom, upsertSessionMediaAssetAtom } from '@/editor/media/media-state';
+import { ingestMediaFile, isMediaUploadCancelled, mediaAssetFromExternalUrl } from '@/editor/media/media-ingest';
+import ChromeTabBar, { type ChromeTabItem } from '@/editor/ui/ChromeTabBar';
+
+// Unsplash search. In CLOUD mode it goes through the backend proxy
+// (`/api/media/unsplash`) so Revyme's key stays server-side and out of the
+// browser bundle; in STANDALONE mode a self-hoster's own VITE key calls
+// Unsplash directly. Without either, the Unsplash tab is hidden (Upload +
+// Create remain fully functional).
+const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY as string | undefined;
+const HAS_UNSPLASH = CLOUD_ENABLED || !!UNSPLASH_ACCESS_KEY;
+
+const SEARCH_TERMS = ['nature', 'architecture', 'abstract', 'texture', 'gradient', 'minimal', 'dark', 'city', 'ocean', 'mountains'];
+
+// Unsplash pagination — infinite scroll, but CAPPED so scrolling can't drain the
+// API quota. 30/page (Unsplash's max per_page) × 8 pages = up to 240 results.
+const UNSPLASH_PER_PAGE = 30;
+const UNSPLASH_MAX_PAGES = 8;
+
+interface ImageSearchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (url: string) => void;
+  /** Existing consumers stay single-select by default. Gallery opts into multiple. */
+  selectionMode?: 'single' | 'multiple';
+  onSelectMany?: (urls: string[]) => void;
+  compact?: boolean;
+  embedded?: boolean;
+}
+
+interface UnsplashImage {
+  id: string;
+  urls: { small: string; regular: string; thumb: string };
+  alt_description: string | null;
+}
+
+// Admin-only platform 3D assets (LEGO-style renders) — license-restricted, so
+// the tab only appears for admins and the server gates /api/admin/3d-assets.
+// Subset of the manifest's Asset3D shape (the fields we render/search).
+interface Asset3D {
+  id: string;
+  url: string;          // full CDN URL to the WebP — used as <img src> and the pick value
+  shape: string;        // display name
+  material: string;
+  color: string | null;
+  packSlug: string;
+  keywords: string[];
+}
+
+type Tab = 'unsplash' | 'upload' | 'create' | '3d';
+
+export default function ImageSearchModal({ isOpen, onClose, onSelect, selectionMode = 'single', onSelectMany, compact = false, embedded = false }: ImageSearchModalProps) {
+  const [tab, setTab] = useState<Tab>(HAS_UNSPLASH ? 'unsplash' : 'upload');
+  const sessionMediaAssets = useAtomValue(sessionMediaAssetsAtom);
+  const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
+  const rememberMediaAsset = useSetAtom(upsertSessionMediaAssetAtom);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<UnsplashImage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const loadingMoreRef = useRef(false); // sync guard against concurrent page fetches
+  const pageRef = useRef(1);            // sync last-fetched page (avoids a stale-closure re-fetch)
+  const unsplashGridRef = useRef<HTMLDivElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Already-uploaded project media — the SAME source the LeftPanel
+  // MediaGalleryPanel reads (`/api/upload?...&type=image`), so the Upload tab
+  // lists the website's existing images instead of only an empty drop zone.
+  const [uploads, setUploads] = useState<{ url: string; size?: number }[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  // ── Admin-only 3D assets tab ──
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [assets3d, setAssets3d] = useState<Asset3D[]>([]);
+  const [assets3dLoaded, setAssets3dLoaded] = useState(false);
+  const [query3d, setQuery3d] = useState('');
+
+  // Search Unsplash. `pageNum`/`append` drive the capped infinite scroll: a fresh
+  // search (append=false) replaces results + resets scroll; scrolling near the
+  // bottom calls this with append=true to APPEND the next page (up to the cap).
+  const searchUnsplash = useCallback(async (q: string, pageNum = 1, append = false) => {
+    if (!q.trim()) return;
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setHasMore(false);
+      unsplashGridRef.current?.scrollTo({ top: 0 }); // reset scroll on a new search
+    }
+    trace.action('image-search:query', { query: q, page: pageNum, append });
+    try {
+      // Cloud → same-origin backend proxy (key server-side); standalone → direct
+      // with the self-hoster's own key. Both return the raw Unsplash shape.
+      const res = CLOUD_ENABLED
+        ? await fetch(
+            `/api/media/unsplash?query=${encodeURIComponent(q)}&per_page=${UNSPLASH_PER_PAGE}&page=${pageNum}`,
+            { credentials: 'same-origin' }
+          )
+        : await fetch(
+            `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=${UNSPLASH_PER_PAGE}&page=${pageNum}`,
+            { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+          );
+      const data = await res.json();
+      const imgs = (data.results || []) as UnsplashImage[];
+      setResults((prev) => {
+        if (!append) return imgs;
+        // Dedup by id — Unsplash pages don't normally overlap, but guard React keys.
+        const seen = new Set(prev.map((i) => i.id));
+        return [...prev, ...imgs.filter((i) => !seen.has(i.id))];
+      });
+      pageRef.current = pageNum;
+      const totalPages = typeof data.total_pages === 'number' ? data.total_pages : pageNum;
+      // More available only if the page was full AND we're under BOTH the API's
+      // page count and our own cap (protects the quota).
+      setHasMore(imgs.length > 0 && pageNum < Math.min(totalPages, UNSPLASH_MAX_PAGES));
+      trace.action('image-search:results', { count: imgs.length, page: pageNum });
+    } catch (err) {
+      trace.error('image-search:error', err);
+      if (!append) setResults([]);
+      setHasMore(false);
+    } finally {
+      if (append) setLoadingMore(false); else setLoading(false);
+    }
+  }, []);
+
+  // Fetch the next page when the grid scrolls near its bottom (capped infinite
+  // scroll). The ref guard fires synchronously so a fast scroll can't kick off
+  // several overlapping page fetches.
+  const loadMoreUnsplash = useCallback(() => {
+    if (loadingMoreRef.current || loading || !hasMore || !query.trim()) return;
+    loadingMoreRef.current = true;
+    searchUnsplash(query, pageRef.current + 1, true).finally(() => { loadingMoreRef.current = false; });
+  }, [loading, hasMore, query, searchUnsplash]);
+
+  const onUnsplashScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 340) loadMoreUnsplash();
+  }, [loadMoreUnsplash]);
+
+  // Load random results on open
+  useEffect(() => {
+    if (isOpen) {
+      const term = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
+      setQuery(term);
+      setResults([]);
+      setUploadError(null);
+      setSelectedUrls([]);
+      setTab(HAS_UNSPLASH ? 'unsplash' : 'upload');
+      if (HAS_UNSPLASH) searchUnsplash(term);
+    }
+  }, [isOpen, searchUnsplash]);
+
+  // Load the project's already-uploaded images for the Upload tab (mirrors
+  // MediaGalleryPanel.fetchUploads — same endpoint + response shape, cloud-
+  // gated). So the Upload tab shows the website's media, not just a drop zone.
+  const fetchUploadedMedia = useCallback(async () => {
+    try {
+      const assets = await backend.listAssets(getProjectId(), 'image');
+      if (assets === null) {
+        setUploads(
+          sessionMediaAssets
+            .filter((item) => item.kind === 'image' || item.kind === 'vector')
+            .map((item) => ({ url: item.url, size: item.size })),
+        );
+      } else {
+        setUploads(assets.map((item) => ({ url: item.url, size: item.size })));
+      }
+      trace.action('image-search:uploads-loaded', {
+        count: assets === null
+          ? sessionMediaAssets.filter((item) => item.kind === 'image' || item.kind === 'vector').length
+          : assets.length,
+        source: assets === null ? 'session' : 'backend',
+      });
+    } catch (err) {
+      trace.error('image-search:uploads-fetch-failed', err);
+    }
+  }, [sessionMediaAssets]);
+
+  useEffect(() => {
+    if (isOpen && tab === 'upload') fetchUploadedMedia();
+  }, [isOpen, tab, fetchUploadedMedia]);
+
+  // Detect admin on open so the 3D-assets tab only shows for admins. The server
+  // still gates /api/admin/3d-assets (403 for non-admins) — this is just UI.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    Promise.resolve(backend.getUser?.()).then(u => { if (!cancelled) setIsAdmin(!!u?.isAdmin); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  // Load the platform 3D-asset manifest (admin proxy, cookie-auth). Deduped to
+  // one tile per distinct asset (the manifest has many angles per shape) to
+  // keep the grid light; search narrows further.
+  const fetch3dAssets = useCallback(async () => {
+    if (assets3dLoaded) return;
+    try {
+      const res = await fetch('/api/admin/3d-assets', { credentials: 'include' });
+      if (!res.ok) return; // 403 for non-admins — leave the list empty
+      const data = await res.json();
+      const seen = new Set<string>();
+      const deduped: Asset3D[] = [];
+      for (const a of (data.assets || []) as Asset3D[]) {
+        const k = `${a.packSlug}/${a.shape}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        deduped.push(a);
+      }
+      setAssets3d(deduped);
+      setAssets3dLoaded(true);
+      trace.action('image-search:3d-loaded', { count: deduped.length });
+    } catch (err) {
+      trace.error('image-search:3d-fetch-failed', err);
+    }
+  }, [assets3dLoaded]);
+
+  useEffect(() => {
+    if (isOpen && tab === '3d' && isAdmin) fetch3dAssets();
+  }, [isOpen, tab, isAdmin, fetch3dAssets]);
+
+  const filtered3d = useMemo(() => {
+    const q = query3d.trim().toLowerCase();
+    if (!q) return assets3d;
+    return assets3d.filter(a =>
+      a.shape.toLowerCase().includes(q) ||
+      a.material.toLowerCase().includes(q) ||
+      (a.color || '').toLowerCase().includes(q) ||
+      a.keywords.some(k => k.toLowerCase().includes(q)));
+  }, [assets3d, query3d]);
+
+  // File uploads use the same Media ingest/dedup/queue path as toolbar, canvas,
+  // and the canonical Media browser.
+  const handleFileUpload = useCallback(async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    trace.action('image-search:upload-start', { name: file.name, size: file.size });
+    try {
+      const result = await ingestMediaFile({
+        file,
+        projectId: getProjectId(),
+        kind: file.type === 'image/svg+xml' ? 'vector' : 'image',
+        upsert: upsertMediaUpload,
+        idPrefix: 'image-picker',
+        rememberAsset: rememberMediaAsset,
+        retryable: false,
+      });
+      trace.action('image-search:upload-success', {
+        url: result.url,
+        reusedExisting: result.reusedExisting,
+      });
+      if (selectionMode === 'multiple') {
+        setUploads((prev) => prev.some((item) => item.url === result.url)
+          ? prev
+          : [{ url: result.url, size: file.size }, ...prev]);
+        setSelectedUrls((prev) => appendUniqueMedia(prev, result.url));
+      } else {
+        onSelect(result.url);
+        onClose();
+      }
+    } catch (err) {
+      if (!isMediaUploadCancelled(err)) {
+        trace.error('image-search:upload-failed', err);
+        setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      }
+    } finally {
+      setUploading(false);
+    }
+  }, [
+    onSelect,
+    onClose,
+    selectionMode,
+    upsertMediaUpload,
+    rememberMediaAsset,
+  ]);
+
+  const registerExternalImage = useCallback((url: string) => {
+    if (uploads.some((item) => item.url === url)) return;
+    rememberMediaAsset(mediaAssetFromExternalUrl(url, 'image'));
+  }, [uploads, rememberMediaAsset]);
+
+  const handleSelect = (url: string) => {
+    trace.action('image-search:select', { url: url.slice(0, 80), selectionMode });
+    const decision = chooseMedia(selectionMode, selectedUrls, url);
+    if (decision.directUrl) {
+      registerExternalImage(decision.directUrl);
+      onSelect(decision.directUrl);
+      if (decision.close) onClose();
+      return;
+    }
+    setSelectedUrls(decision.selectedUrls);
+  };
+
+  const isSelected = (url: string) => selectionMode === 'multiple' && selectedUrls.includes(url);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchUnsplash(query);
+    }
+  };
+
+  const content = (
+      <div data-media-creation-content="image" className="min-h-0 space-y-2.5 p-3">
+        {/* Header: tabs + search */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <ChromeTabBar
+            value={tab}
+            onChange={setTab}
+            ariaLabel="Image source"
+            items={[
+              ...((HAS_UNSPLASH ? [{ value: 'unsplash', label: 'Unsplash', glyph: 'search' }] : []) as ChromeTabItem<Tab>[]),
+              { value: 'upload', label: 'Upload', glyph: 'upload' },
+              { value: 'create', label: 'Create', glyph: 'create' },
+              ...(isAdmin ? [{ value: '3d' as Tab, label: '3D Assets', glyph: 'cube' as const }] : []),
+            ]}
+          />
+
+          {/* Search input — only on Unsplash tab */}
+          {tab === 'unsplash' && (
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              onKeyDown={handleKeyDown}
+              onFocus={(event) => event.currentTarget.select()}
+              placeholder="Search images… (Enter to search)"
+              className="min-w-0 flex-1"
+            />
+          )}
+
+          {/* Search input — 3D assets (client-side filter, no Enter needed) */}
+          {tab === '3d' && (
+            <SearchBar value={query3d} onChange={setQuery3d} onFocus={(event) => event.currentTarget.select()} placeholder="Search 3D assets…" className="min-w-0 flex-1" />
+          )}
+        </div>
+
+        {/* ─── Unsplash Tab ─── */}
+        {tab === 'unsplash' && (
+          <div ref={unsplashGridRef} onScroll={onUnsplashScroll} className={`grid gap-3 overflow-y-auto scrollbar-hide ${compact ? 'grid-cols-3 max-h-[260px] min-h-[180px]' : 'grid-cols-6 max-h-[500px] min-h-[400px]'}`}>
+            {loading && Array.from({ length: 24 }).map((_, i) => (
+              <div key={i} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
+            ))}
+            {!loading && results.map(img => (
+              <button
+                key={img.id}
+                onClick={() => handleSelect(img.urls.regular)}
+                aria-label={img.alt_description ? `Select ${img.alt_description}` : 'Select Unsplash image'}
+                aria-pressed={selectionMode === 'multiple' ? isSelected(img.urls.regular) : undefined}
+                className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden ${isSelected(img.urls.regular) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+              >
+                <div
+                  className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
+                  style={{ backgroundImage: `url(${img.urls.small})` }}
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+              </button>
+            ))}
+            {/* Loading-more skeletons (append) — existing results stay visible. */}
+            {loadingMore && Array.from({ length: 6 }).map((_, i) => (
+              <div key={`more-${i}`} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
+            ))}
+            {!loading && results.length === 0 && (
+              <div className="col-span-full text-center py-8 text-xs text-[var(--text-secondary)]">
+                No images found. Try a different search term.
+              </div>
+            )}
+            {!loading && !loadingMore && !hasMore && results.length > 0 && (
+              <div className="col-span-full text-center py-4 text-[10px] text-[var(--text-disabled)]">
+                That's all for this search — refine the term for different results.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Upload Tab ─── */}
+        {tab === 'upload' && (
+          <div className="space-y-3">
+            <div data-image-upload-grid className={`grid gap-3 overflow-y-auto scrollbar-hide ${uploads.length === 0 ? 'grid-cols-3' : compact ? 'grid-cols-3 max-h-[260px]' : 'grid-cols-6 max-h-[500px]'}`}>
+              {/* Upload drop zone — routes through `backend.uploadAsset`
+                  so the file lands in the project's R2 bucket (cloud) or
+                  local backend store and shows up in the LeftPanel media
+                  gallery alongside every other upload. */}
+              <label data-media-upload-surface="image" className={`${uploads.length === 0 ? 'col-span-3 h-28' : 'aspect-[4/3]'} relative overflow-hidden rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)]/70 flex flex-col items-center justify-center gap-2.5 transition-[background-color,border-color,box-shadow] ${uploading ? 'opacity-60 cursor-progress' : 'hover:bg-[var(--bg-hover)]/55 hover:border-[var(--control-border-hover)] hover:shadow-[0_5px_18px_rgba(0,0,0,0.06)] cursor-pointer'}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45 text-[var(--accent)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </span>
+                <span className="text-[11px] font-medium text-[var(--text-primary)]">{uploading ? 'Uploading…' : uploads.length === 0 ? 'Choose images' : 'Upload'}</span>
+                {uploads.length === 0 && <span className="text-[9px] text-[var(--text-tertiary)]">Add files to this project’s Media library</span>}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple={selectionMode === 'multiple'}
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={async (e) => {
+                    const input = e.currentTarget;
+                    const files = Array.from(input.files ?? []);
+                    if (files.length === 0) return;
+                    // Gallery multi-select also means multi-UPLOAD: one native
+                    // file pick may contain several images. Upload sequentially
+                    // through the existing canonical backend so the busy state
+                    // stays truthful and every returned URL lands in the same
+                    // pending Gallery selection. Single-image consumers keep
+                    // the historical one-file behavior.
+                    const chosen = selectionMode === 'multiple' ? files : files.slice(0, 1);
+                    for (const file of chosen) await handleFileUpload(file);
+                    input.value = ''; // allow re-uploading the same file(s)
+                  }}
+                />
+              </label>
+              {/* The website's already-uploaded images — same library as the
+                  LeftPanel Media gallery. Click one to use it as the fill. */}
+              {uploads.map((item, i) => (
+                <button
+                  key={item.url + i}
+                  onClick={() => handleSelect(item.url)}
+                  aria-label={`Select uploaded image ${i + 1}`}
+                  aria-pressed={selectionMode === 'multiple' ? isSelected(item.url) : undefined}
+                  className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden ${isSelected(item.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+                >
+                  <div
+                    className="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105"
+                    style={{ backgroundImage: `url(${item.url})` }}
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                </button>
+              ))}
+            </div>
+            {uploadError && (
+              <div className="px-2.5 py-1.5 rounded-[6px] bg-red-500/10 border border-red-500/20 text-[11px] text-red-500 dark:text-red-400 leading-snug">
+                {uploadError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Create remains discoverable, but this build has no generation backend.
+            Do not present a fake Generate action until the provider contract exists. */}
+        {tab === 'create' && (
+          <div
+            data-media-create-unavailable="image"
+            className={`flex items-center justify-center ${compact ? 'min-h-[180px]' : 'min-h-[400px]'}`}
+          >
+            <div className="w-full max-w-[320px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] p-3">
+              <div className="flex items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-[var(--border-light)] text-[13px] text-[var(--text-tertiary)]"
+                >
+                  ◇
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-[var(--text-primary)]">Create image</p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                    Image generation is not connected in this build yet.
+                  </p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">
+                    Use Upload, a URL, or Unsplash for now.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 3D Assets Tab (admin only) ─── */}
+        {tab === '3d' && (
+          <div className="grid grid-cols-6 gap-3 max-h-[500px] min-h-[400px] overflow-y-auto scrollbar-hide">
+            {!assets3dLoaded && Array.from({ length: 18 }).map((_, i) => (
+              <div key={i} className="aspect-[4/3] rounded-[7px] border border-[var(--border-light)] overflow-hidden animate-pulse bg-[var(--bg-hover)]/35" />
+            ))}
+            {assets3dLoaded && filtered3d.map(a => (
+              <button
+                key={a.id}
+                onClick={() => handleSelect(a.url)}
+                title={`${a.shape} · ${a.material}${a.color ? ` · ${a.color}` : ''}`}
+                aria-label={`Select ${a.shape}`}
+                // Light tile so dark + light renders are both visible (the WebPs
+                // are trimmed/transparent), matching the revyme-cloud asset cards.
+                aria-pressed={selectionMode === 'multiple' ? isSelected(a.url) : undefined}
+                className={`relative group cursor-pointer aspect-[4/3] rounded-[7px] border border-[var(--border-light)] bg-[var(--bg-hover)]/35 overflow-hidden bg-[#ececec] ${isSelected(a.url) ? 'ring-1 ring-inset ring-[var(--border-focus)]' : ''}`}
+              >
+                <img src={a.url} loading="lazy" alt={a.shape} className="w-full h-full object-contain p-2 transition-transform group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
+              </button>
+            ))}
+            {assets3dLoaded && filtered3d.length === 0 && (
+              <div className="col-span-full text-center py-8 text-xs text-[var(--text-secondary)]">
+                No 3D assets found.
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectionMode === 'multiple' && (
+          <div data-image-multi-select-footer className="pt-2.5 border-t border-[var(--border-light)] flex items-center justify-between gap-3">
+            <span aria-live="polite" className="text-[11px] tabular-nums text-[var(--text-secondary)]">
+              {selectedUrls.length} {selectedUrls.length === 1 ? 'image' : 'images'} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedUrls([])}
+                disabled={selectedUrls.length === 0}
+                className="h-[var(--control-height)] rounded-[6px] bg-[var(--control-bg)] px-3 text-xs border border-[var(--control-border)] text-[var(--text-primary)] disabled:opacity-40"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                disabled={selectedUrls.length === 0}
+                onClick={() => {
+                  selectedUrls.forEach(registerExternalImage);
+                  if (onSelectMany) onSelectMany(selectedUrls);
+                  else selectedUrls.forEach(onSelect);
+                  onClose();
+                }}
+                className="h-[var(--control-height)] rounded-[6px] px-3 text-xs bg-[var(--accent)] text-[var(--accent-text-fg)] disabled:opacity-40"
+              >
+                Add {selectedUrls.length > 0 ? selectedUrls.length : ''}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+  );
+  if (!isOpen) return null;
+  const modalWidth = tab === 'upload' && uploads.length === 0 ? 520 : tab === 'create' ? 560 : 800;
+  return embedded || compact ? content : <Modal mobileFullScreen isOpen={isOpen} onClose={onClose} title="Images" width={modalWidth}>{content}</Modal>;
+}

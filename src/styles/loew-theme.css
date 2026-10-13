@@ -1,0 +1,719 @@
+/* loew-theme.css — Figma-first editor-chrome theme.
+ *
+ * Editor chrome ONLY. The user website lives in the canvas iframe and does not
+ * load this stylesheet.
+ *
+ * Keep this import AFTER globals.css. It is deliberately unlayered so it beats
+ * upstream @layer theme tokens without specificity games.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* 1. Core geometry + typography                                               */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Smaller, denser than the first Figma pass. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 7px;
+  --radius-xl: 8px;
+
+  --cut: 0px;
+  --cut-round: var(--radius-md);
+
+  --control-height: 24px;
+  --control-height-sm: 22px;
+  --control-pad-x: 6px;
+  --control-gap: 4px;
+
+  /* Graphite is intentionally GREY, not white, in both themes. */
+  --accent: #6b6b6b;
+  --accent-fg: #ffffff;
+  --accent-hover: color-mix(in srgb, var(--accent) 84%, #fff);
+  --accent-text: color-mix(in srgb, var(--accent) 72%, #000);
+  --accent-strong: var(--accent);
+  --accent-strong-fg: var(--accent-fg);
+  --accent-muted: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-surface: color-mix(in srgb, var(--accent) 10%, transparent);
+
+  /* Component/master mode: restrained steel, not purple. */
+  --accent-secondary: #557087;
+  --accent-secondary-hover: #667f94;
+  --accent-secondary-fg: #ffffff;
+
+  /* Component identity follows the active field accent. Keep this semantic:
+   * component UI asks for component-accent; themes decide what accent means. */
+  --component-accent: var(--accent);
+  --component-accent-hover: var(--accent-hover);
+  --component-accent-fg: var(--accent-fg);
+  --component-accent-muted: color-mix(in srgb, var(--component-accent) 18%, transparent);
+
+  /* Functional canvas selection stays Figma-blue. */
+  --selection: #0d99ff;
+
+  --shadow-sm: 0 0 0 transparent;
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.16);
+  --shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.20);
+  --shadow-xl: 0 6px 18px rgba(0, 0, 0, 0.24);
+  --shadow-2xl: 0 8px 24px rgba(0, 0, 0, 0.28);
+
+  --loew-ui-font: Inter, "SF Pro Text", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--loew-ui-font);
+}
+
+body {
+  font-size: 11px;
+  line-height: 1.25;
+  letter-spacing: -0.004em;
+  font-synthesis: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 11px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 2. Light mode                                                               */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --bg-canvas: #e5e5e5;
+  --bg-surface: #f8f8f8;
+  --bg-toolbar: #f6f6f6;
+  --bg-panel: #f4f4f4;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 94%, black);
+  --bg-hover: #e7e7e7;
+  --bg-active: #dddddd;
+  --bg-tertiary: #ededed;
+
+  --canvas-chrome-bg: #f7f7f7;
+  --canvas-chrome-border: #d1d1d1;
+  --canvas-chrome-shadow-color: rgba(0, 0, 0, 0.08);
+  --variant-card-bg: #ffffff;
+  --variant-card-bg-hover: #f0f0f0;
+  --variant-card-badge: #e3e3e3;
+
+  --text-primary: #1e1e1e;
+  --text-secondary: #626262;
+  --text-prose: #484848;
+  --text-disabled: #a2a2a2;
+  --text-tertiary: #858585;
+  --text-muted: #979797;
+
+  --border-light: rgba(0, 0, 0, 0.10);
+  --border-default: rgba(0, 0, 0, 0.17);
+  --border-focus: var(--selection);
+
+  --grid-line: #eaeaea;
+  --control-bg: var(--grid-line);
+  --control-bg-hover: #e0e0e0;
+  --control-bg-active: #d6d6d6;
+  --control-border: transparent;
+  --control-border-hover: transparent;
+  --choice-bg: #e8e8e8;
+  --segmented-bg: #f8f8f8;
+  --slider-bg: #d3d3d3;
+  --slider-thumb-border: rgba(0, 0, 0, 0.18);
+
+  --btn-secondary-bg: #ebebeb;
+  --btn-secondary-hover: #e2e2e2;
+  --button-secondary-bg: rgba(0, 0, 0, 0.045);
+  --button-secondary-hover: rgba(0, 0, 0, 0.075);
+
+  --dropdown-bg: #fafafa;
+
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 18%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 3. Dark mode — primary target                                               */
+/* -------------------------------------------------------------------------- */
+
+.dark {
+  --bg-canvas: #1e1e1e;
+  --bg-surface: #242424;
+  --bg-toolbar: #242424;
+  --bg-panel: #242424;
+  --bg-left-rail: color-mix(in srgb, var(--bg-panel) 82%, black);
+  --bg-hover: #2f2f2f;
+  --bg-active: #373737;
+  --bg-tertiary: #2a2a2a;
+
+  --canvas-chrome-bg: #242424;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.09);
+  --canvas-chrome-shadow-color: rgba(0, 0, 0, 0.17);
+  --variant-card-bg: #292929;
+  --variant-card-bg-hover: #313131;
+  --variant-card-badge: #3a3a3a;
+
+  --text-primary: #f3f3f3;
+  --text-secondary: #b4b4b4;
+  --text-prose: #cccccc;
+  --text-disabled: #707070;
+  --text-tertiary: #898989;
+  --text-muted: #969696;
+
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.13);
+  --border-focus: var(--selection);
+
+  --grid-line: #2b2b2b;
+  --control-bg: var(--grid-line);
+  --control-bg-hover: #333333;
+  --control-bg-active: #3a3a3a;
+  --control-border: transparent;
+  --control-border-hover: transparent;
+  --choice-bg: #1f1f1f;
+  --segmented-bg: #393939;
+  --slider-bg: #383838;
+  --slider-thumb-border: rgba(255, 255, 255, 0.40);
+
+  --btn-secondary-bg: #2b2b2b;
+  --btn-secondary-hover: #343434;
+  --button-secondary-bg: rgba(255, 255, 255, 0.05);
+  --button-secondary-hover: rgba(255, 255, 255, 0.085);
+
+  --dropdown-bg: #2a2a2a;
+
+  /* Monochrome/Graphite selection is grey, not a white slab. */
+  --accent: #6b6b6b;
+  --accent-fg: #ffffff;
+  --accent-hover: #797979;
+  --accent-text: #c2c2c2;
+  --accent-strong: #6b6b6b;
+  --accent-strong-fg: #ffffff;
+  --accent-muted: rgba(255, 255, 255, 0.075);
+  --accent-surface: rgba(255, 255, 255, 0.065);
+
+  --field-layer-selected-bg: color-mix(in srgb, var(--accent) 22%, transparent);
+  --field-layer-selected-border: color-mix(in srgb, var(--accent) 52%, transparent);
+
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 6px 20px rgba(0, 0, 0, 0.44);
+  --shadow-2xl: 0 8px 28px rgba(0, 0, 0, 0.48);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 4. Kill old cut-corner language                                             */
+/* -------------------------------------------------------------------------- */
+
+.cut-corners,
+.cut-br,
+.cut-tl,
+.cut-bl,
+.cut-tr,
+.cut-r {
+  clip-path: none;
+}
+
+.cut-border,
+.cut-border-tl {
+  background-image: none;
+}
+
+.cut-corners {
+  border-radius: var(--radius-md);
+}
+
+.cut-corners.cut-sm {
+  border-radius: var(--radius-sm);
+}
+
+.cut-corners.cut-lg {
+  border-radius: var(--radius-lg);
+}
+
+/* Generic floating/single-corner helpers keep restrained rounding. Structural
+ * sidebars are explicitly squared below. */
+.cut-br { border-radius: 0 0 var(--radius-lg) 0; }
+.cut-tl { border-radius: var(--radius-lg) 0 0 0; }
+.cut-bl { border-radius: 0 0 0 var(--radius-lg); }
+.cut-tr { border-radius: 0 var(--radius-lg) 0 0; }
+.cut-r  { border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+
+.cut-br.cut-lg { border-bottom-right-radius: var(--radius-xl); }
+.cut-tl.cut-lg { border-top-left-radius: var(--radius-xl); }
+.cut-bl.cut-lg { border-bottom-left-radius: var(--radius-xl); }
+.cut-tr.cut-lg { border-top-right-radius: var(--radius-xl); }
+
+/* Figma-style docked panes are RECTILINEAR. */
+[data-editor-panel="left-primary"],
+[data-properties-panel] {
+  border-radius: 0;
+}
+
+/* Figma Inspector inputs share one inset, fill, radius, and value scale.
+   The floating Inspector reuses this same component tree and tokens. */
+[data-properties-panel] {
+  --control-pad-x: 8px;
+  --control-radius: 6px;
+  --cut-round: 6px;
+  --field-row-height: 24px;
+}
+
+.dark [data-properties-panel] {
+  --grid-line: #383838;
+  --control-bg: #383838;
+  --control-bg-hover: #414141;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 5. Density                                                                  */
+/* -------------------------------------------------------------------------- */
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  border-radius: var(--radius-md);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select {
+  min-height: var(--control-height-sm);
+}
+
+/* Sidebars: smaller type, but preserve enough hierarchy to scan quickly. */
+[data-editor-panel],
+[data-properties-panel] {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+[data-editor-panel] .text-sm,
+[data-properties-panel] .text-sm {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+[data-editor-panel] .text-xs,
+[data-properties-panel] .text-xs {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+[data-editor-panel] [class*="text-[13px]"],
+[data-properties-panel] [class*="text-[13px]"] {
+  font-size: 12px;
+  line-height: 15px;
+}
+
+[data-editor-panel] [class*="text-[12px]"],
+[data-properties-panel] [class*="text-[12px]"] {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+/* Left rail: keep structural width, reduce visual mass. */
+[data-left-menu-rail] {
+  padding-left: 13px;
+  padding-right: 13px;
+}
+
+[data-left-menu-rail] button {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+}
+
+[data-left-menu-rail] button svg {
+  width: 15px;
+  height: 15px;
+}
+
+[data-left-menu-rail] .vibe-ring {
+  width: 24px;
+  height: 24px;
+}
+
+[data-left-menu-rail] .vibe-face {
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+}
+
+/* Inspector spacing contract: peer editing cells use the SAME 8px rhythm
+ * horizontally that sections use vertically. Keep compact micro-gaps inside
+ * segmented controls / icon lanes; this token is for sibling editor cells. */
+[data-properties-panel] {
+  --inspector-grid-gap: 8px;
+}
+
+[data-properties-panel] [data-inspector-section-content],
+[data-properties-panel] [data-tool-row-value],
+[data-properties-panel] [data-layout-padding-axes],
+[data-properties-panel] [data-layout-padding-sides],
+[data-properties-panel] [data-spacing-axis-pair] {
+  gap: var(--inspector-grid-gap);
+}
+
+[data-inspector-peer-row] {
+  gap: var(--inspector-grid-gap, 8px);
+}
+
+/* Inspector property rows share columns. The last track reserves a stable
+ * action lane; the two value tracks divide the remaining resizable width. */
+.field-inspector-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: var(--inspector-grid-gap, var(--control-gap, 8px));
+  align-items: center;
+  min-width: 0;
+}
+.field-inspector-field-grid > * { min-width: 0; }
+.field-inspector-field-grid:not([data-has-size-actions]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.field-inspector-field-grid:not([data-has-size-actions]) > :last-child { display: none; }
+.field-alignment-matrix { transition: border-color 160ms ease; }
+.field-alignment-matrix:hover { border-color: var(--accent); }
+.field-alignment-dot,
+.field-alignment-glyph { transition: opacity 150ms ease, transform 150ms ease; }
+.field-alignment-glyph { left: 50%; top: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+.field-alignment-cell:hover .field-alignment-dot,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-dot { opacity: 0; }
+.field-alignment-cell:hover .field-alignment-glyph,
+.field-alignment-cell[aria-pressed="true"] .field-alignment-glyph { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .field-alignment-matrix,
+  .field-alignment-dot,
+  .field-alignment-glyph { transition: none; }
+}
+/* Bottom tool strip: smaller AND floating off the screen edge. */
+#bottom-toolbar-container {
+  padding: var(--field-selection-inset-y, 4px) var(--field-selection-inset-x, 5px);
+  gap: 0;
+}
+
+#bottom-toolbar-container > [aria-hidden="true"] {
+  border-radius: var(--radius-lg);
+}
+
+#bottom-toolbar-container button {
+  min-height: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+}
+
+#bottom-toolbar-container svg {
+  width: 16px;
+  height: 16px;
+}
+
+#bottom-toolbar-container [class*="h-[26px]"] {
+  height: 18px;
+}
+
+#bottom-toolbar-container [class*="min-w-[50px]"] {
+  min-width: 44px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+[role="menu"],
+[role="listbox"] {
+  border-radius: var(--radius-lg);
+}
+
+/* Nested web-only tools remain real category cards inside Advanced, but they
+ * align to the parent card's content edge instead of adding another outer inset. */
+[data-advanced-subtools] > [data-inspector-section] {
+  margin-left: 0;
+  margin-right: 0;
+}
+[data-advanced-subtools] > [data-inspector-section] + [data-inspector-section] {
+  margin-top: var(--inspector-grid-gap, 8px);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. Icon rendering                                                           */
+/* -------------------------------------------------------------------------- */
+
+.loew-figma-icon {
+  display: block;
+  flex: none;
+  color: currentColor;
+  shape-rendering: geometricPrecision;
+}
+
+[data-left-menu-rail] svg,
+#bottom-toolbar-container svg {
+  overflow: visible;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. Vibe / agent status                                                      */
+/* -------------------------------------------------------------------------- */
+
+.vibe-ring {
+  --vibe-neon: var(--accent-text);
+  --vibe-neon-2: var(--accent-text);
+}
+
+.vibe-working .vibe-face::before {
+  display: none;
+}
+
+.vibe-working .vibe-text {
+  animation: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 8. Fine-grain hierarchy                                                     */
+/* -------------------------------------------------------------------------- */
+
+[data-editor-panel] {
+  box-shadow: none;
+}
+
+.text-\[10px\] {
+  letter-spacing: 0;
+}
+
+[data-viewport-header],
+[data-frame-header] {
+  border-radius: var(--radius-sm);
+}/* -------------------------------------------------------------------------- */
+/* FIGUI3_GLOBAL_PARITY_20260925                                               */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Semantic aliases used by newer Inspector work. */
+  --control-radius: var(--radius-md);
+  --bg-selected: var(--bg-active);
+  --bg-raised: var(--control-bg);
+  --field-ui-font-size: 11px;
+  --field-ui-font-size-compact: 10px;
+  --field-row-height: 24px;
+  --field-menu-row-height: 28px;
+  --panel-inset: 16px;
+}
+
+/* Level 3 is the current Light/Dark palette (Default). Five steps create
+ * a legible neutral ramp without changing accent, website colors or page
+ * overrides. Light intentionally spans farther than Dark. */
+html[data-neutral-level="1"]:not(.dark) {
+  --bg-canvas: #f4f4f4;
+  --bg-surface: #ffffff;
+  --bg-toolbar: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-hover: #f2f2f2;
+  --bg-active: #e9e9e9;
+  --bg-tertiary: #f7f7f7;
+  --grid-line: #f3f3f3;
+  --control-bg: #f3f3f3;
+  --control-bg-hover: #eaeaea;
+  --control-bg-active: #e1e1e1;
+  --choice-bg: #f2f2f2;
+  --segmented-bg: #ffffff;
+  --canvas-chrome-bg: #ffffff;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.08);
+  --border-light: rgba(0, 0, 0, 0.07);
+  --border-default: rgba(0, 0, 0, 0.13);
+  --dropdown-bg: #ffffff;
+}
+
+html[data-neutral-level="2"]:not(.dark) {
+  --bg-canvas: #ececec;
+  --bg-surface: #fcfcfc;
+  --bg-toolbar: #fbfbfb;
+  --bg-panel: #fafafa;
+  --bg-hover: #ececec;
+  --bg-active: #e2e2e2;
+  --bg-tertiary: #f2f2f2;
+  --grid-line: #eeeeee;
+  --control-bg: #eeeeee;
+  --control-bg-hover: #e5e5e5;
+  --control-bg-active: #dbdbdb;
+  --choice-bg: #ededed;
+  --segmented-bg: #fcfcfc;
+  --canvas-chrome-bg: #fbfbfb;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.09);
+  --border-light: rgba(0, 0, 0, 0.085);
+  --border-default: rgba(0, 0, 0, 0.15);
+  --dropdown-bg: #fcfcfc;
+}
+
+html[data-neutral-level="4"]:not(.dark) {
+  --bg-canvas: #dcdcdc;
+  --bg-surface: #efefef;
+  --bg-toolbar: #ededed;
+  --bg-panel: #e9e9e9;
+  --bg-hover: #dddddd;
+  --bg-active: #d2d2d2;
+  --bg-tertiary: #e3e3e3;
+  --grid-line: #e0e0e0;
+  --control-bg: #e0e0e0;
+  --control-bg-hover: #d6d6d6;
+  --control-bg-active: #cccccc;
+  --choice-bg: #dddddd;
+  --segmented-bg: #efefef;
+  --canvas-chrome-bg: #ededed;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.12);
+  --border-light: rgba(0, 0, 0, 0.12);
+  --border-default: rgba(0, 0, 0, 0.19);
+  --dropdown-bg: #f0f0f0;
+}
+
+html[data-neutral-level="5"]:not(.dark) {
+  --bg-canvas: #d0d0d0;
+  --bg-surface: #e5e5e5;
+  --bg-toolbar: #e2e2e2;
+  --bg-panel: #dddddd;
+  --bg-hover: #d1d1d1;
+  --bg-active: #c5c5c5;
+  --bg-tertiary: #d8d8d8;
+  --grid-line: #d5d5d5;
+  --control-bg: #d5d5d5;
+  --control-bg-hover: #cbcbcb;
+  --control-bg-active: #c1c1c1;
+  --choice-bg: #d2d2d2;
+  --segmented-bg: #e5e5e5;
+  --canvas-chrome-bg: #e2e2e2;
+  --canvas-chrome-border: rgba(0, 0, 0, 0.14);
+  --border-light: rgba(0, 0, 0, 0.14);
+  --border-default: rgba(0, 0, 0, 0.22);
+  --dropdown-bg: #e7e7e7;
+}
+
+html.dark[data-neutral-level="1"] {
+  --bg-canvas: #282828;
+  --bg-surface: #303030;
+  --bg-toolbar: #303030;
+  --bg-panel: #303030;
+  --bg-hover: #3b3b3b;
+  --bg-active: #444444;
+  --bg-tertiary: #353535;
+  --grid-line: #373737;
+  --control-bg: #373737;
+  --control-bg-hover: #404040;
+  --control-bg-active: #484848;
+  --choice-bg: #2d2d2d;
+  --segmented-bg: #454545;
+  --canvas-chrome-bg: #303030;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.145);
+  --dropdown-bg: #353535;
+}
+
+html.dark[data-neutral-level="2"] {
+  --bg-canvas: #222222;
+  --bg-surface: #2a2a2a;
+  --bg-toolbar: #2a2a2a;
+  --bg-panel: #2a2a2a;
+  --bg-hover: #353535;
+  --bg-active: #3d3d3d;
+  --bg-tertiary: #303030;
+  --grid-line: #313131;
+  --control-bg: #313131;
+  --control-bg-hover: #393939;
+  --control-bg-active: #414141;
+  --choice-bg: #272727;
+  --segmented-bg: #3f3f3f;
+  --canvas-chrome-bg: #2a2a2a;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.075);
+  --border-light: rgba(255, 255, 255, 0.075);
+  --border-default: rgba(255, 255, 255, 0.138);
+  --dropdown-bg: #303030;
+}
+
+html.dark[data-neutral-level="4"] {
+  --bg-canvas: #181818;
+  --bg-surface: #1e1e1e;
+  --bg-toolbar: #1e1e1e;
+  --bg-panel: #1e1e1e;
+  --bg-hover: #292929;
+  --bg-active: #313131;
+  --bg-tertiary: #232323;
+  --grid-line: #252525;
+  --control-bg: #252525;
+  --control-bg-hover: #2d2d2d;
+  --control-bg-active: #353535;
+  --choice-bg: #1c1c1c;
+  --segmented-bg: #313131;
+  --canvas-chrome-bg: #1e1e1e;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.065);
+  --border-light: rgba(255, 255, 255, 0.065);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --dropdown-bg: #232323;
+}
+
+html.dark[data-neutral-level="5"] {
+  --bg-canvas: #121212;
+  --bg-surface: #181818;
+  --bg-toolbar: #181818;
+  --bg-panel: #181818;
+  --bg-hover: #232323;
+  --bg-active: #2b2b2b;
+  --bg-tertiary: #1d1d1d;
+  --grid-line: #1f1f1f;
+  --control-bg: #1f1f1f;
+  --control-bg-hover: #272727;
+  --control-bg-active: #2f2f2f;
+  --choice-bg: #161616;
+  --segmented-bg: #2b2b2b;
+  --canvas-chrome-bg: #181818;
+  --canvas-chrome-border: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.11);
+  --dropdown-bg: #1d1d1d;
+}
+
+/* Stronger optical content inside tighter structures: Figma density comes from
+ * construction, not microscopic text. */
+[data-properties-panel] [data-inspector-object-header] > div:first-child {
+  min-height: 32px;
+  padding-left: var(--panel-inset);
+  padding-right: var(--panel-inset);
+}
+
+[data-properties-panel] [data-inspector-object-header] button,
+[data-properties-panel] [data-inspector-object-header] [class*="text-[13px]"] {
+  font-size: 12px;
+}
+
+[data-tool-popup] {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+[role="menu"],
+[role="listbox"],
+[data-tool-popup],
+[data-theme-neutral-popover] {
+  font-size: 11px;
+}
+
+/* Keep the canvas editor backdrop independent of the website iframe. The
+ * actual root consumes this variable in Canvas.tsx; explicit page overrides
+ * are written by PageAppearanceBridge, otherwise this follows --bg-canvas. */
+html[data-page-canvas-visible="false"] {
+  --page-canvas-background: var(--bg-canvas);
+}
+
+
+/* FIGUI3_CORRECTIVE_DESTROKE_20260925
+ * Inspector controls are intentionally fill-led, not outline-led.
+ * Resting and hover control edges stay transparent; functional focus uses
+ * Figma selection blue. Semantic section dividers and bounded swatches keep
+ * their own edge tokens. */

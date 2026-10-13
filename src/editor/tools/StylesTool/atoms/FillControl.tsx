@@ -1,0 +1,2206 @@
+// FillControl.tsx — Self-contained fill ToolAtom (solid/gradient/pattern/image/video/shader).
+// Supports Single mode (current behavior) and Multiple mode (stacked background layers).
+
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useLivePreview } from '../../../hooks/useLivePreview';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { cmsPageMetaAtom } from '@/code/stores/cms-page-store';
+import LocaleBoundPill, { useLocaleStyleOverrides } from '@/editor/controls/LocaleBoundPill';
+import { UnifiedControlProvider, useControlContext, useControlContextOptional, InspectorProvenanceBoundary } from '../../../controls/unified';
+import { UsedByRow } from '../../../controls/unified/UsedByRow';
+import { VariableBoundPill, LegacyVariableBoundPill } from '../../../controls/VariableBoundPill';
+import { useControlOptional } from '../../../controls/ControlProvider';
+import { CmsBoundPill, CmsMissingPill, cmsOrphanInScope } from '../../../controls/CmsBoundPill';
+import type { MenuItem } from '../../../controls/control-menu-items';
+import { createDefaultGradient, formatGradient } from '@/shared/gradient-utils';
+import { toHexDisplay } from '../../../ui/color-utils';
+import { splitPaintOpacity, serializePaintOpacity } from '../../../ui/paint-opacity';
+import type { AtomProps } from '../../../controls/unified/types';
+import { ToolSelect, ToolSegmentedControl, ControlActionRow, ColorSwatch, ControlLabel, RemoveButton, PaintRow, ToolRow, ToolInput, ColorInput } from '../../../controls';
+import { YES_NO_OPTIONS } from '../../../controls/css-property-options';
+import ToolPopup, { useToolPopup } from '../../../ui/ToolPopup';
+import PaintPickerShell, { ALL_PAINT_TYPES, SOLID_ONLY_PAINT_TYPES, type PaintPickerSurface, type PaintType } from '../../../ui/PaintPickerShell';
+import ColorPicker from '../../../ui/ColorPicker';
+import CreateColorPresetPanel from '../../../ui/CreateColorPresetPanel';
+import { CreatePresetPopupBody } from '../../../ui/CreatePresetPopup';
+import GradientEditor from '../../../ui/GradientEditor';
+import ImageSearchModal from '../../../ui/ImageSearchModal';
+import CropModal from '../../../ui/CropModal';
+import VideoSearchModal from '../../../ui/VideoSearchModal';
+import AssetPresetGrid from '../../../ui/AssetPresetGrid';
+import CreateImagePresetPanel from '../../../ui/CreateImagePresetPanel';
+import CreateVideoPresetPanel from '../../../ui/CreateVideoPresetPanel';
+import EditAssetPresetPanel from '../../../ui/EditAssetPresetPanel';
+import ColorPresetEditPanel from '../../../ui/ColorPresetEditPanel';
+import { getCanvasBridge } from '@/canvas/canvas-bridge';
+import { isComponentFileAtom, selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
+import { useNodesComputed } from '@/code/stores/node-family';
+import { aggregateSelectionColors } from '@/editor/selection-colors';
+import { forSelectionTargets } from '../../../controls/multi-select-targets';
+import { isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
+import { fillClearStyles, isTransparentColor } from './fill-clear';
+import { getContentRoot, updateNodeStyles } from '@/canvas/node-ops';
+import { activeCodeAtom } from '@/code/project/active-file-store';
+import { getPropType } from '@/code/components/prop-meta';
+import {
+  parseBackgroundLayers, formatBackgroundLayers, isMultiLayerBackground,
+  createDefaultLayer, getLayerLabel,
+  type BgLayer, type BgLayerType,
+} from '../../../ui/background-layer-utils';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
+import { presetTokensAtom, livePresetTokenAtom } from '@/code/stores/preset-store';
+import { resolveCssTokens } from '@/code/project/preset-ops';
+import { queueMutation } from '@/code/mutation/mutation-queue';
+import { instantCreateAndEditVariable } from '../../../controls/instant-create-variable';
+import { activeFilePathAtom } from '@/code/project/active-file-store';
+import { pageVariablesAtom } from '@/code/stores/page-variables-store';
+import { variableModalRequestAtom } from '@/code/stores/store';
+import { canAcceptChildren } from '@/shared/constants';
+import type { CanvasNode } from '@/code/parsing/parser';
+import { trace } from '@/shared/debug-trace';
+import { parseVarRef } from '@/shared/css-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
+import PatternSourcePanel from '@/editor/ui/PatternSourcePanel';
+import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+
+// ─── Shared Constants ───────────────────────────────────────────────────────
+
+const SIZE_OPTIONS = [
+  { value: 'cover', label: 'Cover' },
+  { value: 'contain', label: 'Contain' },
+  { value: 'auto', label: 'Auto' },
+  { value: '100% 100%', label: 'Stretch' },
+];
+
+const POSITION_OPTIONS = [
+  { value: 'center', label: 'Center' },
+  { value: 'top', label: 'Top' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+  { value: 'top left', label: 'Top Left' },
+  { value: 'top right', label: 'Top Right' },
+  { value: 'bottom left', label: 'Bottom Left' },
+  { value: 'bottom right', label: 'Bottom Right' },
+];
+
+const REPEAT_OPTIONS = [
+  { value: 'no-repeat', label: 'No Repeat' },
+  { value: 'repeat', label: 'Repeat' },
+  { value: 'repeat-x', label: 'Repeat X' },
+  { value: 'repeat-y', label: 'Repeat Y' },
+];
+
+const ATTACHMENT_OPTIONS = [
+  { value: 'scroll', label: 'Scroll' },
+  { value: 'fixed', label: 'Fixed' },
+  { value: 'local', label: 'Local' },
+];
+
+const BLEND_MODE_OPTIONS = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'multiply', label: 'Multiply' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'overlay', label: 'Overlay' },
+  { value: 'darken', label: 'Darken' },
+  { value: 'lighten', label: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge' },
+  { value: 'color-burn', label: 'Color Burn' },
+  { value: 'hard-light', label: 'Hard Light' },
+  { value: 'soft-light', label: 'Soft Light' },
+  { value: 'difference', label: 'Difference' },
+  { value: 'exclusion', label: 'Exclusion' },
+  { value: 'hue', label: 'Hue' },
+  { value: 'saturation', label: 'Saturation' },
+  { value: 'color', label: 'Color' },
+  { value: 'luminosity', label: 'Luminosity' },
+];
+
+// ─── Image Fill Tab (shared between Single and Multiple) ────────────────────
+
+function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; libraryOnly?: boolean }) {
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const { pushPanel, popPanel } = useToolPopup();
+  const allTokens = useAtomValue(presetTokensAtom);
+  const imagePresets = allTokens.filter(t => t.category === 'image');
+
+  const bg = styles.backgroundImage || '';
+  // Detect var(--image-name) — i.e. the user has applied an image preset.
+  const presetMatch = bg.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+  const activePresetName = presetMatch && imagePresets.some(p => p.name === presetMatch[1])
+    ? presetMatch[1]
+    : undefined;
+  // Resolve the underlying URL for preview (preset reference or direct url()).
+  const previewUrl = activePresetName
+    ? extractUrl(imagePresets.find(p => p.name === activePresetName)?.value || '')
+    : extractUrl(bg);
+  const hasImage = !!previewUrl;
+  const previewBg = previewUrl ? `url(${previewUrl})` : 'none';
+
+  const handleCreatePreset = useCallback(() => {
+    pushPanel('New Image Preset', (
+      <CreateImagePresetPanel initialValue={bg} onCreated={() => popPanel()} />
+    ));
+  }, [pushPanel, popPanel, bg]);
+
+  const handleEditPreset = useCallback((name: string) => {
+    const token = imagePresets.find(t => t.name === name);
+    if (!token) return;
+    const displayName = token.label || name.replace(/^image-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    pushPanel(`Edit "${displayName}"`, (
+      <EditAssetPresetPanel
+        presetName={name}
+        type="image"
+        initialValue={token.value}
+        onDeleted={() => popPanel()}
+      />
+    ));
+  }, [pushPanel, popPanel, imagePresets]);
+
+  const applyImageUrl = useCallback((url: string) => {
+    onUpdate('backgroundColor', '');
+    onUpdate('background', '');
+    onUpdate('backgroundImage', `url(${url})`);
+    onUpdate('backgroundSize', styles.backgroundSize || 'cover');
+    onUpdate('backgroundPosition', styles.backgroundPosition || 'center');
+    onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat');
+    trace.action('fill:image-selected', { url: url.slice(0, 80), source: 'media-context' });
+  }, [onUpdate, styles.backgroundSize, styles.backgroundPosition, styles.backgroundRepeat]);
+
+  const openMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-image" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={applyImageUrl}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, applyImageUrl]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!libraryOnly && (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-[190px]">
+              <ToolSelect
+                value={styles.backgroundSize || 'cover'}
+                onChange={(value) => onUpdate('backgroundSize', value)}
+                options={SIZE_OPTIONS}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => hasImage && setCropModalOpen(true)}
+              disabled={!hasImage}
+              aria-label="Crop image"
+              title="Crop image"
+              className="w-9 h-9 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-default transition-colors"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" />
+              </svg>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={openMedia}
+            className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+            title={previewUrl || 'Select image source'}
+          >
+            <span
+              className="absolute inset-0"
+              style={hasImage
+                ? { backgroundImage: previewBg, backgroundSize: styles.backgroundSize || 'cover', backgroundPosition: styles.backgroundPosition || 'center', backgroundRepeat: styles.backgroundRepeat || 'no-repeat' }
+                : ALPHA_CHECKER_STYLE}
+              aria-hidden
+            />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+                {hasImage ? 'Replace source…' : 'Select source…'}
+              </span>
+            </span>
+          </button>
+
+          {hasImage && (
+            <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
+              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                <span className="text-[12px] text-[var(--text-secondary)]">Position</span>
+                <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(value) => onUpdate('backgroundPosition', value)} options={POSITION_OPTIONS} />
+              </div>
+              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                <span className="text-[12px] text-[var(--text-secondary)]">Repeat</span>
+                <ToolSelect value={styles.backgroundRepeat || 'no-repeat'} onChange={(value) => onUpdate('backgroundRepeat', value)} options={REPEAT_OPTIONS} />
+              </div>
+              <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+                <span className="text-[12px] text-[var(--text-secondary)]">Attachment</span>
+                <ToolSelect value={styles.backgroundAttachment || 'scroll'} onChange={(value) => onUpdate('backgroundAttachment', value)} options={ATTACHMENT_OPTIONS} />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={imagePresets}
+          type="image"
+          activePresetName={activePresetName}
+          onApplyPreset={(varVal) => {
+            onUpdate('backgroundColor', '');
+            onUpdate('background', '');
+            onUpdate('backgroundImage', varVal);
+            onUpdate('backgroundSize', styles.backgroundSize || 'cover');
+            onUpdate('backgroundPosition', styles.backgroundPosition || 'center');
+            onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat');
+            trace.action('fill:image-preset-applied', { var: varVal });
+          }}
+          onCreatePreset={handleCreatePreset}
+          onEditPreset={handleEditPreset}
+        />
+      )}
+
+      <CropModal
+        isOpen={cropModalOpen}
+        onClose={() => setCropModalOpen(false)}
+        src={previewUrl}
+        onApply={(url) => {
+          onUpdate('backgroundColor', '');
+          onUpdate('background', '');
+          onUpdate('backgroundImage', `url(${url})`);
+          onUpdate('backgroundSize', styles.backgroundSize || 'cover');
+          onUpdate('backgroundPosition', styles.backgroundPosition || 'center');
+          onUpdate('backgroundRepeat', styles.backgroundRepeat || 'no-repeat');
+          trace.action('fill:image-cropped', { url: url.slice(0, 80) });
+        }}
+      />
+    </div>
+  );
+}
+
+/** Pull URL out of `url(...)` wrapper (handles single/double/no quotes). */
+function extractUrl(value: string): string | null {
+  const m = value.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/);
+  return m ? m[1] : null;
+}
+
+// ─── Single Mode Fill Popup Content ─────────────────────────────────────────
+
+type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video' | 'shader';
+
+function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
+  if (node?.attrs?.['data-field-shader-fill']) return 'shader';
+  if (node?.attrs?.['data-field-pattern']) return 'pattern';
+  // bg-video child on the node = Video tab. This is the new canonical state;
+  // the legacy `backgroundVideo` style key was a no-op CSS prop that the parser
+  // now strips silently, so we don't check it here.
+  if (node?.bgVideo) return 'video';
+  const bgImage = styles.backgroundImage || '';
+  // Direct url() — Image tab.
+  if (bgImage.includes('url(')) return 'image';
+  // Image preset reference (`var(--image-...)`). Other var() refs fall through
+  // to color tab so things like `var(--color-brand)` don't open Image.
+  if (/^var\(\s*--image-/.test(bgImage)) return 'image';
+  if (styles.background?.includes('gradient') || bgImage.includes('gradient')) return 'gradient';
+  return 'color';
+}
+
+function fillTypeSignature(styles: Record<string, string>, node?: CanvasNode | null): string {
+  const type = detectFillTab(styles, node);
+  return [
+    type,
+    node?.attrs?.['data-field-pattern'] ? 'pattern' : '',
+    node?.attrs?.['data-field-shader-fill'] ? 'shader' : '',
+    node?.bgVideo ? 'video' : '',
+  ].join('|');
+}
+
+function hasSemanticSingleFill(node?: CanvasNode | null): boolean {
+  return !!(
+    node?.attrs?.['data-field-pattern']
+    || node?.attrs?.['data-field-shader-fill']
+    || node?.bgVideo
+  );
+}
+
+/** Transparent-checker pattern for the empty poster swatch — matches the
+ *  alpha-checker visual the rest of the editor uses for "no value yet". */
+const ALPHA_CHECKER_STYLE: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%), ' +
+    'linear-gradient(-45deg, rgba(255,255,255,0.15) 25%, transparent 25%), ' +
+    'linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.15) 75%), ' +
+    'linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.15) 75%)',
+  backgroundSize: '6px 6px',
+  backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0',
+};
+
+function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+  const { pushPanel, popPanel } = useToolPopup();
+  const nodeId = node?.id ?? null;
+  const raw = node?.attrs?.['data-field-pattern'] || '';
+  const [config, setConfig] = useState<PatternFillConfig>(() => parsePatternFillConfig(raw));
+  const [monsterDefinition, setMonsterDefinition] = useState<PatternMonsterDefinition | null>(null);
+
+  useEffect(() => {
+    setConfig(parsePatternFillConfig(raw));
+  }, [nodeId, raw]);
+
+  const monsterId = config.source === 'pattern-monster' ? config.patternId : null;
+  useEffect(() => {
+    if (!monsterId) {
+      setMonsterDefinition(null);
+      return;
+    }
+    let cancelled = false;
+    import('@/editor/ui/patterns/pattern-monster-catalog').then(module => {
+      if (!cancelled) setMonsterDefinition(module.findPatternMonsterDefinition(monsterId) || null);
+    });
+    return () => { cancelled = true; };
+  }, [monsterId]);
+
+  const applyPattern = useCallback((next: PatternFillConfig, definition?: PatternMonsterDefinition | null) => {
+    const resolvedDefinition = next.source === 'pattern-monster' ? (definition || monsterDefinition) : undefined;
+    if (next.source === 'pattern-monster' && !resolvedDefinition) return;
+
+    setConfig(next);
+    if (!nodeId) return;
+    const compiled = buildPatternFillStyles(next, resolvedDefinition);
+    forSelectionTargets(nodeId, (tid) => {
+      queueMutation({
+        type: 'updateStyles',
+        nodeId: tid,
+        styles: {
+          background: '',
+          backgroundColor: compiled.backgroundColor,
+          backgroundImage: compiled.backgroundImage,
+          backgroundSize: compiled.backgroundSize,
+          backgroundPosition: compiled.backgroundPosition,
+          backgroundRepeat: compiled.backgroundRepeat,
+          backgroundAttachment: '',
+          WebkitMaskImage: compiled.WebkitMaskImage,
+          maskImage: compiled.maskImage,
+        },
+      });
+      queueMutation({
+        type: 'updateHtmlAttrs',
+        nodeId: tid,
+        attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
+      });
+    });
+    trace.action('fill:pattern-applied', {
+      nodeId,
+      source: next.source,
+      pattern: next.source === 'field' ? next.kind : next.source === 'pattern-monster' ? next.patternId : next.assetUrl,
+    });
+  }, [nodeId, monsterDefinition]);
+
+  if (libraryOnly) {
+    return (
+      <PatternLibraryPanel
+        activePatternId={config.source === 'pattern-monster' ? config.patternId : undefined}
+        onSelect={(definition, next) => {
+          setMonsterDefinition(definition);
+          applyPattern(next, definition);
+        }}
+      />
+    );
+  }
+
+  const openPatternMedia = () => {
+    pushPanel('Pattern source', (
+      <div data-contextual-media-picker="fill-pattern" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={(url) => {
+            applyPattern(defaultAssetPatternFill(url));
+            // ImageSearchModal closes its own single-select flow through onClose.
+          }}
+        />
+      </div>
+    ));
+  };
+
+  const openPatternSource = () => {
+    pushPanel('Pattern source', (
+      <PatternSourcePanel
+        activePatternId={config.source === 'pattern-monster' ? config.patternId : undefined}
+        onSelect={(definition, next) => {
+          setMonsterDefinition(definition);
+          applyPattern(next, definition);
+          popPanel();
+        }}
+        onChooseImage={openPatternMedia}
+      />
+    ));
+  };
+
+  if (config.source === 'asset') {
+    const preview = buildPatternFillStyles(config);
+    const updateAsset = (next: Partial<AssetPatternFillConfig>) => {
+      applyPattern({ ...config, ...next });
+    };
+    const repeatOptions: Array<{ value: AssetPatternRepeat; label: string }> = [
+      { value: 'repeat', label: 'Tile' },
+      { value: 'repeat-x', label: 'X only' },
+      { value: 'repeat-y', label: 'Y only' },
+      { value: 'no-repeat', label: 'Once' },
+    ];
+
+    return (
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={openPatternSource}
+          className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+          aria-label="Replace pattern source"
+          title={config.assetUrl}
+        >
+          <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="m7 14 3-3 3 3 2-2 2 2" /></svg>
+              Select source…
+            </span>
+          </span>
+        </button>
+
+        <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Tile type</span>
+            <ToolSegmentedControl
+              value={config.repeat}
+              onChange={(value) => updateAsset({ repeat: value as AssetPatternRepeat })}
+              options={repeatOptions.map(option => ({ value: option.value, label: option.label }))}
+              size="sm"
+            />
+          </div>
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Scale</span>
+            <ToolInput value={String(config.tileSize)} onChange={(value) => updateAsset({ tileSize: Math.max(4, Math.min(1024, Number(value) || 4)) })} min={4} max={1024} step={1} chevronLabel="px" ariaLabel="Pattern tile size" />
+          </div>
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Alignment</span>
+            <ToolSelect value={config.position} onChange={(value) => updateAsset({ position: value })} options={POSITION_OPTIONS} ariaLabel="Pattern alignment" />
+          </div>
+          <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Background</span>
+            <ColorInput value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background} onChange={(value) => updateAsset({ background: value })} showAlpha />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (config.source === 'pattern-monster') {
+    if (!monsterDefinition) {
+      return <div className="py-8 text-center text-[11px] text-[var(--text-disabled)]">Loading pattern controls…</div>;
+    }
+
+    const preview = buildPatternFillStyles(config, monsterDefinition);
+    const maxColors = patternMonsterMaxColors(monsterDefinition);
+    const updateMonster = (next: Partial<PatternMonsterFillConfig>) => {
+      applyPattern({ ...config, ...next }, monsterDefinition);
+    };
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div
+          className="w-full aspect-square max-h-[300px] rounded-[10px] border border-[var(--control-border)]"
+          style={preview as React.CSSProperties}
+          aria-label={`${monsterDefinition.title} preview`}
+        />
+
+        <div className="flex items-center justify-between px-0.5 text-[10px] text-[var(--text-disabled)]">
+          <span className="truncate pr-2">{monsterDefinition.title}</span>
+          <span className="shrink-0">Pattern Monster · MIT</span>
+        </div>
+        <button type="button" onClick={openPatternSource} className="h-10 px-3 rounded-[8px] border border-[var(--control-border)] bg-[var(--control-bg)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors">Select source…</button>
+        <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
+
+        {maxColors > 2 && (
+          <ToolRow label="Colors" hideCreateVariable>
+            <ToolInput
+              value={String(config.colorCount)}
+              onChange={(value) => updateMonster({ colorCount: Math.max(2, Math.min(maxColors, Math.round(Number(value) || 2))) })}
+              min={2}
+              max={maxColors}
+              step={1}
+              ariaLabel="Pattern color count"
+            />
+          </ToolRow>
+        )}
+
+        {config.colors.slice(0, config.colorCount).map((color, index) => (
+          <ToolRow key={index} label={index === 0 ? 'Background' : `Color ${index}`} hideCreateVariable>
+            <ColorInput
+              allowPresets={false}
+              value={color}
+              onChange={(value) => {
+                const colors = [...config.colors];
+                colors[index] = value;
+                updateMonster({ colors });
+              }}
+              showAlpha
+            />
+          </ToolRow>
+        ))}
+
+        <ToolRow label="Scale" hideCreateVariable>
+          <ToolInput
+            value={String(config.scale)}
+            onChange={(value) => updateMonster({ scale: Math.max(1, Math.min(monsterDefinition.maxScale, Number(value) || 1)) })}
+            min={1}
+            max={monsterDefinition.maxScale}
+            step={0.25}
+            ariaLabel="Pattern scale"
+          />
+        </ToolRow>
+
+        {monsterDefinition.mode !== 'fill' && (
+          <ToolRow label="Stroke" hideCreateVariable>
+            <ToolInput
+              value={String(config.stroke)}
+              onChange={(value) => updateMonster({ stroke: Math.max(0.5, Math.min(monsterDefinition.maxStroke, Number(value) || 0.5)) })}
+              min={0.5}
+              max={monsterDefinition.maxStroke}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern stroke width"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.mode === 'stroke-join' && (
+          <ToolRow label="Join" hideCreateVariable>
+            <ToolSegmentedControl
+              value={String(config.join)}
+              onChange={(value) => updateMonster({ join: value === '2' ? 2 : 1 })}
+              options={[{ value: '1', label: 'Square' }, { value: '2', label: 'Round' }]}
+              size="sm"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[0] > 0 && (
+          <ToolRow label="Spacing X" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[0])}
+              onChange={(value) => updateMonster({ spacing: [Math.max(0, Math.min(monsterDefinition.maxSpacing[0], Number(value) || 0)), config.spacing[1]] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[0]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern horizontal spacing"
+            />
+          </ToolRow>
+        )}
+
+        {monsterDefinition.maxSpacing[1] > 0 && (
+          <ToolRow label="Spacing Y" hideCreateVariable>
+            <ToolInput
+              value={String(config.spacing[1])}
+              onChange={(value) => updateMonster({ spacing: [config.spacing[0], Math.max(0, Math.min(monsterDefinition.maxSpacing[1], Number(value) || 0))] })}
+              min={0}
+              max={monsterDefinition.maxSpacing[1]}
+              step={0.5}
+              chevronLabel="px"
+              ariaLabel="Pattern vertical spacing"
+            />
+          </ToolRow>
+        )}
+
+        <ToolRow label="Angle" hideCreateVariable>
+          <ToolInput
+            value={String(config.angle)}
+            onChange={(value) => updateMonster({ angle: Math.max(0, Math.min(180, Number(value) || 0)) })}
+            min={0}
+            max={180}
+            step={5}
+            chevronLabel="°"
+            ariaLabel="Pattern angle"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset X" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveLeft)}
+            onChange={(value) => updateMonster({ moveLeft: Math.max(monsterDefinition.width * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.width * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern horizontal offset"
+          />
+        </ToolRow>
+
+        <ToolRow label="Offset Y" hideCreateVariable>
+          <ToolInput
+            value={String(config.moveTop)}
+            onChange={(value) => updateMonster({ moveTop: Math.max(monsterDefinition.height * -2, Math.min(0, Number(value) || 0)) })}
+            min={monsterDefinition.height * -2}
+            max={0}
+            step={1}
+            chevronLabel="px"
+            ariaLabel="Pattern vertical offset"
+          />
+        </ToolRow>
+        </div>
+      </div>
+    );
+  }
+
+  const preview = buildPatternFillStyles(config);
+  const updateField = (next: Partial<FieldPatternFillConfig>) => {
+    applyPattern({ ...config, ...next });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <button
+        type="button"
+        onClick={openPatternSource}
+        className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+        aria-label="Select pattern source"
+      >
+        <span className="absolute inset-0" style={preview as React.CSSProperties} aria-hidden />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></svg>
+            Select source…
+          </span>
+        </span>
+      </button>
+
+      <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Tile type</span>
+          <ToolSelect value={config.kind} onChange={(value) => updateField({ kind: value as PatternKind })} options={PATTERN_KIND_OPTIONS} ariaLabel="Pattern kind" />
+        </div>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Scale</span>
+          <ToolInput value={String(config.tileSize)} onChange={(value) => updateField({ tileSize: Math.max(4, Math.min(120, Number(value) || 4)) })} min={4} max={120} step={1} chevronLabel="px" ariaLabel="Pattern scale" />
+        </div>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Opacity</span>
+          <ToolInput value={String(Math.round(config.opacity * 100))} onChange={(value) => updateField({ opacity: Math.max(0, Math.min(100, Number(value) || 0)) / 100 })} min={0} max={100} step={1} chevronLabel="%" ariaLabel="Pattern opacity" />
+        </div>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Thickness</span>
+          <ToolInput value={String(config.thickness)} onChange={(value) => updateField({ thickness: Math.max(0.5, Math.min(12, Number(value) || 0.5)) })} min={0.5} max={12} step={0.5} chevronLabel="px" ariaLabel="Pattern thickness" />
+        </div>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Foreground</span>
+          <ColorInput allowPresets={false} value={config.color} onChange={(value) => updateField({ color: value })} showAlpha />
+        </div>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[12px] text-[var(--text-secondary)]">Background</span>
+          <ColorInput allowPresets={false} value={config.background === 'transparent' ? 'rgba(0,0,0,0)' : config.background} onChange={(value) => updateField({ background: value })} showAlpha />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const VIDEO_OBJECT_FIT_OPTIONS = [
+  { value: 'cover', label: 'Cover' },
+  { value: 'contain', label: 'Contain' },
+  { value: 'fill', label: 'Stretch' },
+  { value: 'none', label: 'None' },
+  { value: 'scale-down', label: 'Scale Down' },
+];
+
+function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+  const { pushPanel, popPanel } = useToolPopup();
+  const allTokens = useAtomValue(presetTokensAtom);
+  const videoPresets = allTokens.filter(t => t.category === 'video');
+
+  const nodeId = node?.id ?? null;
+  const nodeTag = node?.type ?? null;
+  const acceptsChildren = nodeTag ? canAcceptChildren(nodeTag) : true;
+
+  const cfg = node?.bgVideo;
+  const currentUrl = cfg?.src ?? '';
+  const activePresetName = currentUrl
+    ? videoPresets.find(p => p.value === currentUrl)?.name
+    : undefined;
+  const hasVideo = !!currentUrl;
+
+  // Partial-update wrapper — every toggle/select calls this with one field.
+  const patchVideo = useCallback((opts: Parameters<typeof queueMutation>[0] extends infer _ ? Record<string, unknown> : never) => {
+    if (!nodeId) return;
+    forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'setVideoFill', nodeId: tid, opts: opts as any }));
+    trace.action('fill:video-patched', { nodeId, fields: Object.keys(opts) });
+  }, [nodeId]);
+
+  // Apply a NEW src — used by the file picker and by preset-apply. Also
+  // clears competing fills that may be set on the host.
+  const applyVideoSrc = useCallback((url: string) => {
+    if (!nodeId) return;
+    forSelectionTargets(nodeId, (tid) => {
+      queueMutation({ type: 'setVideoFill', nodeId: tid, opts: { src: url } });
+      queueMutation({ type: 'updateStyles', nodeId: tid, styles: {
+        backgroundColor: '',
+        background: '',
+        backgroundImage: '',
+        backgroundVideo: '',
+      } });
+    });
+    trace.action('fill:video-src-applied', { nodeId, urlLength: url.length });
+  }, [nodeId]);
+
+  const openVideoMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video" className="min-h-0">
+        <VideoSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={applyVideoSrc}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, applyVideoSrc]);
+
+  const openPosterMedia = useCallback(() => {
+    pushPanel('Media', (
+      <div data-contextual-media-picker="fill-video-poster" className="min-h-0">
+        <ImageSearchModal
+          isOpen
+          embedded
+          compact
+          onClose={() => popPanel()}
+          onSelect={(url) => patchVideo({ poster: url })}
+        />
+      </div>
+    ));
+  }, [pushPanel, popPanel, patchVideo]);
+
+  const handleCreatePreset = useCallback(() => {
+    pushPanel('New Video Preset', (
+      <CreateVideoPresetPanel initialValue={currentUrl} onCreated={() => popPanel()} />
+    ));
+  }, [pushPanel, popPanel, currentUrl]);
+
+  const handleEditPreset = useCallback((name: string) => {
+    const token = videoPresets.find(t => t.name === name);
+    if (!token) return;
+    const displayName = token.label || name.replace(/^video-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    pushPanel(`Edit "${displayName}"`, (
+      <EditAssetPresetPanel
+        presetName={name}
+        type="video"
+        initialValue={token.value}
+        onDeleted={() => popPanel()}
+      />
+    ));
+  }, [pushPanel, popPanel, videoPresets]);
+
+  if (!acceptsChildren) {
+    return (
+      <div className="flex flex-col gap-2 py-2">
+        <p className="text-[10px] text-[var(--text-disabled)]">
+          Video backgrounds need an element that can hold children — switch the
+          tag to a frame (div / section / etc.) first.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!libraryOnly && (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-[190px]">
+              <ToolSelect
+                value={cfg?.objectFit || 'cover'}
+                onChange={(value) => hasVideo && patchVideo({ objectFit: value })}
+                options={VIDEO_OBJECT_FIT_OPTIONS}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={openVideoMedia}
+              className="w-9 h-9 flex items-center justify-center rounded-[7px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
+              title="Replace video"
+              aria-label="Replace video"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 1-2.34-5.66L20 7.68" /><path d="M20 3v4.68h-4.68" /></svg>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={openVideoMedia}
+            className="relative w-full aspect-square max-h-[300px] overflow-hidden rounded-[10px] border border-[var(--control-border)] bg-[var(--canvas-bg)] group"
+            title={currentUrl || 'Select video source'}
+          >
+            {hasVideo ? (
+              <video
+                src={currentUrl}
+                muted
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              />
+            ) : (
+              <span className="absolute inset-0" style={ALPHA_CHECKER_STYLE} aria-hidden />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="h-9 px-3 rounded-[7px] border border-white/15 bg-black/45 backdrop-blur-sm flex items-center gap-2 text-[13px] font-medium text-white shadow-sm group-hover:bg-black/55 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m10 8 6 4-6 4Z" /></svg>
+                {hasVideo ? 'Replace source…' : 'Select source…'}
+              </span>
+            </span>
+          </button>
+
+          {hasVideo && cfg && (
+            <div className="border-t border-[var(--border-light)] pt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Autoplay</span>
+                <ToolSegmentedControl size="sm" value={cfg.autoPlay ? 'yes' : 'no'} onChange={(v) => patchVideo({ autoPlay: v === 'yes' })} options={YES_NO_OPTIONS} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Muted</span>
+                <ToolSegmentedControl size="sm" value={cfg.muted ? 'yes' : 'no'} onChange={(v) => patchVideo({ muted: v === 'yes' })} options={YES_NO_OPTIONS} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Loop</span>
+                <ToolSegmentedControl size="sm" value={cfg.loop ? 'yes' : 'no'} onChange={(v) => patchVideo({ loop: v === 'yes' })} options={YES_NO_OPTIONS} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Controls</span>
+                <ToolSegmentedControl size="sm" value={cfg.controls ? 'yes' : 'no'} onChange={(v) => patchVideo({ controls: v === 'yes' })} options={YES_NO_OPTIONS} />
+              </div>
+              <div className="col-span-2 grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 pt-1">
+                <span className="text-[12px] text-[var(--text-secondary)]">Poster</span>
+                <ControlActionRow onClick={openPosterMedia} className="justify-between">
+                  <span className="flex items-center gap-2 truncate">
+                    <ColorSwatch
+                      style={cfg.poster
+                        ? { backgroundImage: `url(${cfg.poster})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : ALPHA_CHECKER_STYLE}
+                    />
+                    <span className={`text-xs truncate ${cfg.poster ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                      {cfg.poster ? 'Poster set' : 'Choose media'}
+                    </span>
+                  </span>
+                  {cfg.poster && (
+                    <span
+                      onClick={(event) => { event.stopPropagation(); patchVideo({ poster: '' }); }}
+                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm leading-none cursor-pointer shrink-0 px-1"
+                    >
+                      &minus;
+                    </span>
+                  )}
+                </ControlActionRow>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {libraryOnly && (
+        <AssetPresetGrid
+          presets={videoPresets}
+          type="video"
+          activePresetName={activePresetName}
+          onApplyPreset={(varVal) => {
+            const match = varVal.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+            const tokenName = match?.[1];
+            const token = tokenName ? videoPresets.find(p => p.name === tokenName) : undefined;
+            if (token) applyVideoSrc(token.value);
+          }}
+          onCreatePreset={handleCreatePreset}
+          onEditPreset={handleEditPreset}
+        />
+      )}
+    </div>
+  );
+}
+
+function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, solidOnly, onClose }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; onUpdateLive?: (k: string, v: string) => void; onLivePreview?: (color: string | null) => void; solidOnly?: boolean; onClose: () => void }) {
+  const ctx = useControlContextOptional();
+  // Legacy control ctx exposes `updateStyleLive` — the fast canvas-only DOM
+  // patch used for smooth drags (commit via onUpdate on release).
+  const legacyCtl = useControlOptional();
+  const nodeId = ctx?.nodeId ?? null;
+  const node = ctx?.node ?? null;
+  const [tab, setTab] = useState<FillTab>(() => (solidOnly ? 'color' : detectFillTab(styles, node)));
+  const [surface, setSurface] = useState<PaintPickerSurface>('custom');
+  const { pushPanel, popPanel } = useToolPopup();
+  const allTokens = useAtomValue(presetTokensAtom);
+  const colorPresets = useMemo(() => allTokens.filter(t => t.category === 'color'), [allTokens]);
+  const gradientPresets = allTokens.filter(t => t.category === 'gradient');
+  // Same document-order extraction that powers Selection colors. Using page
+  // roots turns that existing deterministic utility into Figma-style "On this page".
+  const pageColors = useNodesComputed((nodes) => {
+    const roots = Array.from(nodes.values())
+      .filter(candidate => !candidate.parentId || !nodes.has(candidate.parentId))
+      .map(candidate => candidate.id);
+    return aggregateSelectionColors(roots, nodes, (id) => getNodeFromCache(id) ?? nodes.get(id))
+      .map(group => ({
+        value: group.value,
+        swatch: group.value.startsWith('var(') ? resolveCssTokens(group.value, colorPresets) : group.value,
+      }));
+  }, [colorPresets]);
+
+  const handleCreatePreset = useCallback((color: string) => {
+    pushPanel('New Color Preset', (
+      <CreateColorPresetPanel initialColor={color} onCreated={() => popPanel()} />
+    ));
+    trace.action('fill-control:create-preset-panel', { color });
+  }, [pushPanel, popPanel]);
+
+  // Re-detect only when the semantic fill TYPE changes. This catches undo/redo
+  // on the same node without resetting the tab while a color/gradient value is
+  // merely being edited inside its current type.
+  const typeSig = solidOnly ? 'color' : fillTypeSignature(styles, node);
+  useEffect(() => {
+    // An image/video/shader type has an empty state while its source is being
+    // chosen. Keep that editor open rather than detecting the empty paint as Solid.
+    if (!solidOnly && !styles.backgroundColor && !styles.backgroundImage && !styles.background && !hasSemanticSingleFill(node)) return;
+    setTab(solidOnly ? 'color' : detectFillTab(styles, node));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeId, solidOnly, typeSig]);
+
+  const changeFillType = (newTab: FillTab) => {
+    trace.action('fill:tab-change', { from: tab, to: newTab });
+    if (newTab !== tab) {
+      if (tab === 'color') onUpdate('backgroundColor', '');
+      if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
+      if (tab === 'image') { onUpdate('backgroundImage', ''); onUpdate('backgroundSize', ''); onUpdate('backgroundPosition', ''); onUpdate('backgroundRepeat', ''); onUpdate('backgroundAttachment', ''); }
+      if (tab === 'pattern') {
+        onUpdate('backgroundColor', '');
+        onUpdate('backgroundImage', '');
+        onUpdate('backgroundSize', '');
+        onUpdate('backgroundPosition', '');
+        onUpdate('backgroundRepeat', '');
+        onUpdate('WebkitMaskImage', '');
+        onUpdate('maskImage', '');
+        if (nodeId) {
+          forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '' } }));
+        }
+      }
+      if (tab === 'video' && nodeId) {
+        forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
+      }
+      if (tab === 'shader' && nodeId) {
+        forSelectionTargets(nodeId, (tid) => {
+          queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } });
+          for (const id of getNodeFromCache(tid)?.children ?? []) {
+            if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
+          }
+        });
+      }
+    }
+
+    if (newTab === 'gradient' && newTab !== tab) {
+      onUpdate('background', '');
+      onUpdate('backgroundImage', formatGradient(createDefaultGradient()));
+    }
+
+    if (newTab === 'color' && newTab !== tab) {
+      onUpdate('backgroundColor', '#FFFFFF');
+    }
+
+    if (newTab === 'shader' && !node?.attrs?.['data-field-shader-fill']) {
+      // Shader is library-backed: opening an empty Shader fill should land on
+      // the existing shader gallery instead of a dead-end "choose from Libraries" state.
+      setSurface('libraries');
+    }
+
+    if (newTab === 'pattern' && nodeId) {
+      const compiled = buildPatternFillStyles(DEFAULT_PATTERN_FILL);
+      forSelectionTargets(nodeId, (tid) => {
+        queueMutation({
+          type: 'updateStyles',
+          nodeId: tid,
+          styles: {
+            background: '',
+            backgroundColor: compiled.backgroundColor,
+            backgroundImage: compiled.backgroundImage,
+            backgroundSize: compiled.backgroundSize,
+            backgroundPosition: compiled.backgroundPosition,
+            backgroundRepeat: compiled.backgroundRepeat,
+            backgroundAttachment: '',
+            WebkitMaskImage: compiled.WebkitMaskImage,
+            maskImage: compiled.maskImage,
+          },
+        });
+        queueMutation({
+          type: 'updateHtmlAttrs',
+          nodeId: tid,
+          attrs: { 'data-field-pattern': serializePatternFillConfig(DEFAULT_PATTERN_FILL) },
+        });
+      });
+    }
+
+    setTab(newTab);
+  };
+
+  const activePaintType: PaintType = tab === 'color' ? 'solid' : tab;
+  const supportedPaintTypes = solidOnly ? SOLID_ONLY_PAINT_TYPES : ALL_PAINT_TYPES;
+  const changePaintType = (type: PaintType) => changeFillType(type === 'solid' ? 'color' : type as FillTab);
+
+
+  return (
+    <PaintPickerShell
+      surface={surface}
+      onSurfaceChange={setSurface}
+      activeType={activePaintType}
+      onTypeChange={changePaintType}
+      supportedTypes={supportedPaintTypes}
+      contextLabel={solidOnly ? 'this property' : 'Fill'}
+      onPlus={() => setSurface('libraries')}
+      onClose={onClose}
+    >
+      {/* Canonical editor view for the selected paint type */}
+      {tab === 'color' && (() => {
+        // solidOnly: a color COMMIT also clears any lingering image/gradient
+        // channels — there are no tabs to clear them from, and a stale
+        // `backgroundImage` (e.g. the pre-rule select-caret bake) would keep
+        // painting over the picked color forever.
+        const commitColor = (c: string) => {
+          onUpdate('backgroundColor', c);
+          if (solidOnly) {
+            if (styles.backgroundImage) onUpdate('backgroundImage', '');
+            if (styles.background) onUpdate('background', '');
+          }
+        };
+        const bgVal = styles.backgroundColor || '';
+        const currentPresetName = bgVal.startsWith('var(--') ? parseVarRef(bgVal) || '' : '';
+        const resolvedBg = currentPresetName
+          ? (colorPresets.find(t => t.name === currentPresetName)?.value || '#000000')
+          : (bgVal || '#000000');
+        return (
+          <ColorPicker
+            value={resolvedBg}
+            embeddedBody
+            libraryOnly={surface === 'libraries'}
+            showPresets={surface === 'libraries'}
+            // Smooth drag: onChange LIVE-PATCHES the canvas DOM every frame (no
+            // per-frame code write); onChangeEnd commits once on release (and
+            // immediately for one-shot edits: hex input, eyedropper). Falls back
+            // to a per-frame code write when there's no live ctx.
+            onChange={legacyCtl
+              ? (c) => {
+                  if (onUpdateLive) onUpdateLive('backgroundColor', c);
+                  else legacyCtl.updateStyleLive('backgroundColor', c);
+                  onLivePreview?.(c);
+                }
+              : (c) => { trace.action('fill:color', { value: c }); commitColor(c); }}
+            onChangeEnd={legacyCtl ? (c) => { trace.action('fill:color', { value: c }); onLivePreview?.(c); commitColor(c); } : undefined}
+            showAlpha
+            pageColors={surface === 'custom' ? pageColors : []}
+            onCreatePreset={handleCreatePreset}
+            colorPresets={colorPresets}
+            onApplyPreset={(varVal) => { commitColor(varVal); }}
+            activePresetName={currentPresetName || undefined}
+            onEditPreset={(name) => {
+              const token = colorPresets.find(t => t.name === name);
+              if (!token) return;
+              const displayName = (token.label || name.replace(/^color-/, '')).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              pushPanel(`Edit "${displayName}"`, (
+                <ColorPresetEditPanel
+                  presetName={name}
+                  initialValue={token.value}
+                  onUpdate={(val) => {
+                    // Canvas-side fast path + queued persistence — same as
+                    // ColorInput / GradientEditor wire it. The shared panel
+                    // handles dark-mode internally via setDarkTokenValue.
+                    const bridge = getCanvasBridge() as any;
+                    if (typeof bridge?.setCanvasTokenVar === 'function') {
+                      bridge.setCanvasTokenVar(name, val);
+                    }
+                    queueMutation({ type: 'updatePresetToken', name, value: val });
+                  }}
+                />
+              ));
+            }}
+          />
+        );
+      })()}
+
+      {tab === 'gradient' && (() => {
+        const rawGradient = styles.backgroundImage || styles.background || '';
+        const activeGradientPreset = rawGradient.startsWith('var(--') ? parseVarRef(rawGradient) || '' : '';
+        const resolvedGradient = activeGradientPreset
+          ? resolveCssTokens(rawGradient, gradientPresets)
+          : rawGradient;
+        const applyGradient = (css: string) => {
+          if (styles.background) onUpdate('background', '');
+          if (styles.backgroundColor) onUpdate('backgroundColor', '');
+          if (styles.backgroundSize) onUpdate('backgroundSize', '');
+          if (styles.backgroundPosition) onUpdate('backgroundPosition', '');
+          if (styles.backgroundRepeat) onUpdate('backgroundRepeat', '');
+          if (styles.backgroundAttachment) onUpdate('backgroundAttachment', '');
+          onUpdate('backgroundImage', css);
+        };
+
+        if (surface === 'libraries' && !solidOnly) {
+          return (
+            <AssetPresetGrid
+              presets={gradientPresets}
+              type="gradient"
+              activePresetName={activeGradientPreset || undefined}
+              onApplyPreset={applyGradient}
+              onCreatePreset={() => {
+                pushPanel('New Gradient Preset', (
+                  <CreatePresetPopupBody
+                    category="gradient"
+                    initialValue={resolvedGradient || formatGradient(createDefaultGradient())}
+                    onClose={() => popPanel()}
+                    onApply={applyGradient}
+                  />
+                ));
+              }}
+            />
+          );
+        }
+
+        return (
+          <GradientEditor
+            value={resolvedGradient}
+            canonical
+            onChange={applyGradient}
+            onLiveChange={legacyCtl ? (css) => legacyCtl.updateStyleLive('backgroundImage', css) : undefined}
+          />
+        );
+      })()}
+
+      {tab === 'pattern' && (
+        <PatternFillTab node={node} libraryOnly={surface === 'libraries'} />
+      )}
+
+      {tab === 'shader' && (
+        <ShaderFillTab
+          node={node}
+          libraryOnly={surface === 'libraries'}
+          onSelected={() => setSurface('custom')}
+          onDismissLibrary={() => setSurface('custom')}
+        />
+      )}
+
+      {tab === 'image' && (
+        <ImageFillTab styles={styles} onUpdate={onUpdate} libraryOnly={surface === 'libraries'} />
+      )}
+
+      {tab === 'video' && (
+        <VideoFillTab node={node} libraryOnly={surface === 'libraries'} />
+      )}
+    </PaintPickerShell>
+  );
+}
+
+// ─── Layer Editor Panel (pushPanel content for Multiple mode) ────────────────
+
+function LayerEditorPanel({ layer: initialLayer, onChange, onChangeLive }: {
+  layer: BgLayer;
+  onChange: (updated: BgLayer) => void;
+  /** Per-frame (DOM-only) variant of onChange for picker drags. */
+  onChangeLive?: (updated: BgLayer) => void;
+}) {
+  // Own local state so the panel is reactive even inside a frozen pushPanel
+  const [layer, setLayer] = useState<BgLayer>(initialLayer);
+  const [tab, setTab] = useState<'color' | 'gradient' | 'image'>(() => initialLayer.type);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+
+  // External re-seed (undo/redo while a layer panel is open). Own updates
+  // flow through `update` below (local sig kept in step), so a differing
+  // incoming layer is always external.
+  const initLayerSig = JSON.stringify(initialLayer);
+  const localLayerSigRef = useRef(initLayerSig);
+  const prevInitLayerSigRef = useRef(initLayerSig);
+  useEffect(() => {
+    if (initLayerSig === prevInitLayerSigRef.current) return;
+    prevInitLayerSigRef.current = initLayerSig;
+    if (localLayerSigRef.current === initLayerSig) return;
+    localLayerSigRef.current = initLayerSig;
+    setLayer(initialLayer);
+    setTab(initialLayer.type);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initLayerSig]);
+
+  // Update local + flush to parent in one call
+  const update = useCallback((updated: BgLayer) => {
+    setLayer(updated);
+    localLayerSigRef.current = JSON.stringify(updated);
+    onChange(updated);
+  }, [onChange]);
+
+  // Per-frame variant: local state + DOM-only flush; the commit comes from
+  // `update` on release. Falls back to the commit path when the caller
+  // didn't wire a live flush (nothing regresses for such callers).
+  const updateLive = useCallback((updated: BgLayer) => {
+    if (!onChangeLive) { update(updated); return; }
+    setLayer(updated);
+    localLayerSigRef.current = JSON.stringify(updated);
+    onChangeLive(updated);
+  }, [onChangeLive, update]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Type selector */}
+      <ToolSegmentedControl
+        value={tab}
+        onChange={(v) => {
+          const newTab = v as 'color' | 'gradient' | 'image';
+          trace.action('fill-layer:tab-change', { layerId: layer.id, from: tab, to: newTab });
+          setTab(newTab);
+          // Set a default value for the new type
+          if (newTab === 'gradient' && !layer.value.includes('gradient')) {
+            update({ ...layer, type: 'gradient', value: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)' });
+          } else if (newTab === 'image' && !layer.value.includes('url(')) {
+            update({ ...layer, type: 'image', value: '' });
+          } else if (newTab === 'color') {
+            update({ ...layer, type: 'color', value: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5))' });
+          }
+        }}
+        options={[
+          { value: 'color', label: 'Color' },
+          { value: 'gradient', label: 'Gradient' },
+          { value: 'image', label: 'Image' },
+        ]}
+        size="sm"
+      />
+
+      {/* Editor for the type */}
+      {tab === 'color' && (
+        <ColorPicker
+          value={(() => {
+            // Extract color from flat gradient like "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5))"
+            // (rgba/rgb, hsla/hsl, or hex — the solid-color trick can use any).
+            const match = layer.value.match(/rgba?\([^)]+\)|hsla?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
+            return match ? match[0] : '#000000';
+          })()}
+          // Smooth drag: onChange LIVE-patches the canvas per frame (DOM
+          // only), onChangeEnd commits once on release — the same split the
+          // single-fill picker uses. Colors wrap as flat gradients (CSS
+          // backgroundImage needs gradient or url, not bare colors).
+          onChange={(c) => {
+            updateLive({ ...layer, type: 'color', value: `linear-gradient(${c}, ${c})` });
+          }}
+          onChangeEnd={(c) => {
+            update({ ...layer, type: 'color', value: `linear-gradient(${c}, ${c})` });
+          }}
+          showAlpha
+        />
+      )}
+
+      {tab === 'gradient' && (
+        <GradientEditor
+          value={layer.value}
+          // With onLiveChange wired, GradientEditor patches per frame through
+          // the DOM-only layer flush and fires onChange ONCE on release —
+          // same split as the color tab above (multi-layer gradient drags ran
+          // the full commit pipeline per frame, 2026-08-18).
+          onChange={(css) => update({ ...layer, type: 'gradient', value: css })}
+          onLiveChange={onChangeLive ? (css) => updateLive({ ...layer, type: 'gradient', value: css }) : undefined}
+        />
+      )}
+
+      {tab === 'image' && (
+        <div className="flex flex-col gap-3">
+          {layer.value.includes('url(') ? (
+            <div className="flex flex-col gap-2">
+              <div className="w-full h-28 cut-corners cut-border [--cut-border-color:var(--border-light)] border border-[var(--border-light)] overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setImageModalOpen(true)}
+                style={{ backgroundImage: layer.value, backgroundSize: layer.size || 'cover', backgroundPosition: layer.position || 'center' }}
+              />
+              <div className="flex gap-1.5">
+                <button onClick={() => setImageModalOpen(true)}
+                  className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer">
+                  Change
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setImageModalOpen(true)}
+              className="w-full h-20 cut-corners cut-border border-2 border-dashed border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--accent)] hover:[--cut-border-color:var(--accent)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+              </svg>
+              Choose Image
+            </button>
+          )}
+          <ImageSearchModal
+            isOpen={imageModalOpen}
+            onClose={() => setImageModalOpen(false)}
+            onSelect={(url) => {
+              update({ ...layer, type: 'image', value: `url(${url})` });
+              trace.action('fill-layer:image-selected', { layerId: layer.id, url: url.slice(0, 80) });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Per-layer controls — Size/Position/Repeat/Attachment only for images.
+          Gradients already have their own direction/shape/center/repeat in GradientEditor.
+          Blend mode is relevant for all layer types. */}
+      <div className="border-t border-[var(--border-light)] pt-3 flex flex-col gap-2">
+        {tab === 'image' && (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Size" property="backgroundSize" plain />
+              <ToolSelect value={layer.size} onChange={(v) => update({ ...layer, size: v })} options={SIZE_OPTIONS} />
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Position" property="backgroundPosition" plain />
+              <ToolSelect value={layer.position} onChange={(v) => update({ ...layer, position: v })} options={POSITION_OPTIONS} />
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Repeat" property="backgroundRepeat" plain />
+              <ToolSelect value={layer.repeat} onChange={(v) => update({ ...layer, repeat: v })} options={REPEAT_OPTIONS} />
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Attachment" property="backgroundAttachment" plain />
+              <ToolSelect value={layer.attachment} onChange={(v) => update({ ...layer, attachment: v })} options={ATTACHMENT_OPTIONS} />
+            </div>
+          </>
+        )}
+        <div className="flex items-center justify-between w-full">
+          <ControlLabel label="Blend" property="backgroundBlendMode" plain />
+          <ToolSelect value={layer.blendMode} onChange={(v) => update({ ...layer, blendMode: v })} options={BLEND_MODE_OPTIONS} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sortable Layer Row ─────────────────────────────────────────────────────
+
+function SortableLayerRow({ layer, onEdit, onRemove }: {
+  layer: BgLayer;
+  onEdit: (layer: BgLayer) => void;
+  onRemove: (layerId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: layer.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? 'none' : transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    // The WHOLE row is the drag handle (dnd-kit listeners here, not just the grip) AND the click target:
+    // the PointerSensor's `distance: 3` activation means a press-and-move REORDERS, while a plain click (no
+    // movement) falls through to onClick → edit the layer. Mouse-down anywhere on the row to drag; click to enter.
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={() => onEdit(layer)}
+      className={`relative flex items-center gap-2 px-2 py-1.5 cut-corners cut-border border transition-colors cursor-grab active:cursor-grabbing touch-none
+        ${isDragging ? 'border-[var(--accent)] [--cut-border-color:var(--accent)] shadow-lg' : 'border-[var(--control-border)] [--cut-border-color:var(--control-border)] hover:border-[var(--control-border-hover)] hover:[--cut-border-color:var(--control-border-hover)]'}
+        bg-[var(--grid-line)]`}
+    >
+      {/* Grip — now just a visual affordance (the whole row drags). */}
+      <div className="flex-shrink-0 text-[var(--text-disabled)]">
+        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+          <circle cx="3" cy="3" r="1.2"/><circle cx="7" cy="3" r="1.2"/>
+          <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
+          <circle cx="3" cy="11" r="1.2"/><circle cx="7" cy="11" r="1.2"/>
+        </svg>
+      </div>
+
+      {/* Swatch */}
+      <div
+        className="flex-shrink-0 w-6 h-6 rounded border border-[var(--border-light)] overflow-hidden"
+        style={layer.type === 'image'
+          ? { backgroundImage: layer.value, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : { background: layer.value }
+        }
+      />
+
+      {/* Label */}
+      <span className="flex-1 text-xs text-[var(--text-primary)] truncate">
+        {getLayerLabel(layer)}
+      </span>
+
+      {/* Remove — stop pointer/click from starting a drag or entering the layer. */}
+      <span onPointerDown={(e) => e.stopPropagation()}>
+        <RemoveButton onClick={(e) => { e.stopPropagation(); onRemove(layer.id); }} />
+      </span>
+    </div>
+  );
+}
+
+// ─── Multiple Mode Fill Content ─────────────────────────────────────────────
+
+function MultiModeFillContent({ styles, onUpdate, onChangeMultiple }: {
+  styles: Record<string, string>;
+  onUpdate: (k: string, v: string) => void;
+  onChangeMultiple: (s: Record<string, string>) => void;
+}) {
+  const { pushPanel } = useToolPopup();
+  const [layers, setLayers] = useState<BgLayer[]>(() => parseBackgroundLayers(styles));
+  const ctx = useControlContextOptional();
+  const nodeId = ctx?.nodeId ?? null;
+
+  // Re-parse on node change AND on EXTERNAL style changes (undo/redo while
+  // the Fill popup is open) — the id-only sync kept deleted/changed layers
+  // in the list until reselect. Own flushes are skipped via the self-write
+  // counter (ShadowControl's pattern).
+  const bgSig = `${styles.backgroundImage ?? ''}|${styles.backgroundColor ?? ''}|${styles.background ?? ''}`;
+  const selfWriteRef = useRef(0);
+  const prevBgSigRef = useRef(bgSig);
+  useEffect(() => {
+    setLayers(parseBackgroundLayers(styles));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeId]);
+  useEffect(() => {
+    if (bgSig === prevBgSigRef.current) return;
+    prevBgSigRef.current = bgSig;
+    if (selfWriteRef.current > 0) { selfWriteRef.current--; return; }
+    trace.action('fill-multi:reseed-from-parse', { nodeId });
+    setLayers(parseBackgroundLayers(styles));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bgSig]);
+
+  // Flush layers to CSS
+  const flushLayers = useCallback((newLayers: BgLayer[]) => {
+    setLayers(newLayers);
+    selfWriteRef.current++;
+    const css = formatBackgroundLayers(newLayers);
+    onChangeMultiple({ ...css, background: '' });
+    trace.action('fill-multi:flush', { layerCount: newLayers.length });
+  }, [onChangeMultiple]);
+
+  // LIVE flush — DOM-only patch per drag frame, NO commit. A layer's color
+  // picker used to route every drag tick through `flushLayers` →
+  // onChangeMultiple → generator code write → full reparse → panel
+  // re-render ("multi-background color picker is extremely slow while the
+  // single fill is smooth", 2026-08-18: 48 JSX parses in a 3s drag). Same
+  // split the single-fill picker and the fancy-radius editor use: patch the
+  // iframe element inline per frame, commit once on release via flushLayers.
+  const selectedIds = useAtomValue(selectedIdsAtom);
+  const flushLayersLive = useCallback((newLayers: BgLayer[]) => {
+    setLayers(newLayers);
+    const css = formatBackgroundLayers(newLayers);
+    const contentEl = getContentRoot();
+    if (!contentEl) return;
+    for (const id of selectedIds) {
+      updateNodeStyles({ id, styles: { ...css, background: '' }, contentEl, domOnly: true });
+    }
+  }, [selectedIds]);
+
+  const removeLayer = useCallback((layerId: string) => {
+    const newLayers = layers.filter(l => l.id !== layerId);
+    flushLayers(newLayers);
+    trace.action('fill-multi:remove-layer', { layerId });
+  }, [layers, flushLayers]);
+
+  const addLayer = useCallback((type: BgLayerType) => {
+    const layer = createDefaultLayer(type);
+    const newLayers = [layer, ...layers];
+    flushLayers(newLayers);
+    trace.action('fill-multi:add-layer', { type, layerId: layer.id });
+    return layer;
+  }, [layers, flushLayers]);
+
+  const openLayerEditor = useCallback((layer: BgLayer) => {
+    const label = getLayerLabel(layer);
+    pushPanel(label, (
+      <LayerEditorPanelConnected
+        layerId={layer.id}
+        layersRef={layersRef}
+        onFlush={flushLayers}
+        onFlushLive={flushLayersLive}
+      />
+    ));
+  }, [pushPanel, flushLayers, flushLayersLive]);
+
+  // Keep a ref to layers so the pushPanel content can read current state
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
+
+  // ── dnd-kit sortable ──
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentLayers = layersRef.current;
+    const oldIdx = currentLayers.findIndex(l => l.id === active.id);
+    const newIdx = currentLayers.findIndex(l => l.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+
+    const reordered = arrayMove(currentLayers, oldIdx, newIdx);
+    flushLayers(reordered);
+    trace.action('fill-multi:reorder', { layerId: active.id as string, from: oldIdx, to: newIdx });
+  }, [flushLayers]);
+
+  const layerIds = layers.map(l => l.id);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Sortable layer list */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={layerIds} strategy={verticalListSortingStrategy}>
+          {layers.map((layer) => (
+            <SortableLayerRow
+              key={layer.id}
+              layer={layer}
+              onEdit={openLayerEditor}
+              onRemove={removeLayer}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      {/* + Add Layer */}
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => { const l = addLayer('gradient'); openLayerEditor(l); }}
+          className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer"
+        >
+          + Gradient
+        </button>
+        <button
+          onClick={() => { const l = addLayer('image'); openLayerEditor(l); }}
+          className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer"
+        >
+          + Image
+        </button>
+        <button
+          onClick={() => { const l = addLayer('color'); openLayerEditor(l); }}
+          className="flex-1 h-[var(--control-height-sm)] text-xs bg-[var(--grid-line)] border border-[var(--control-border)] [--cut-border-color:var(--control-border)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--control-border-hover)] transition-colors cursor-pointer"
+        >
+          + Color
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Connected Layer Editor (reads from ref to stay in sync) ────────────────
+
+function LayerEditorPanelConnected({ layerId, layersRef, onFlush, onFlushLive }: {
+  layerId: string;
+  layersRef: React.RefObject<BgLayer[]>;
+  onFlush: (layers: BgLayer[]) => void;
+  /** DOM-only per-frame flush for picker drags — commit stays with onFlush. */
+  onFlushLive?: (layers: BgLayer[]) => void;
+}) {
+  // Find the layer by ID from current ref
+  const layer = layersRef.current?.find(l => l.id === layerId);
+  if (!layer) return <div className="text-xs text-[var(--text-disabled)]">Layer removed</div>;
+
+  const withLayer = (updated: BgLayer) =>
+    (layersRef.current || []).map(l => l.id === layerId ? updated : l);
+  return (
+    <LayerEditorPanel
+      layer={layer}
+      onChange={(updated) => onFlush(withLayer(updated))}
+      onChangeLive={onFlushLive ? (updated) => onFlushLive(withLayer(updated)) : undefined}
+    />
+  );
+}
+
+// ─── Fill Popup Content (Single/Multiple mode switch) ───────────────────────
+
+type FillMode = 'single' | 'multiple';
+
+/** Form controls get a SOLID-COLOR-ONLY Fill: no Single/Multiple, no
+ *  Gradient/Image/Video tabs. A background-image fill on a <select> occupies
+ *  the same CSS channel as the Input tool's caret icon (`select[data-id]`
+ *  rule) — inline wins and the chevron silently vanishes. Solid color is the
+ *  only conflict-free fill for inputs, so the picker offers exactly that
+ *  (user decision 2026-08-13). */
+function isFormControlNode(node: { type?: string } | null | undefined): boolean {
+  return node?.type === 'input' || node?.type === 'textarea' || node?.type === 'select';
+}
+
+function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, nodeId: nodeIdProp, onLivePreview, onClose }: {
+  styles: Record<string, string>;
+  onUpdate: (k: string, v: string) => void;
+  onUpdateLive?: (k: string, v: string) => void;
+  onChangeMultiple: (s: Record<string, string>) => void;
+  nodeId?: string | null;
+  /** Per-frame solid-color preview for the row swatch during a picker drag. */
+  onLivePreview?: (color: string | null) => void;
+  onClose: () => void;
+}) {
+  const ctx = useControlContextOptional();
+  const nodeId = ctx?.nodeId ?? nodeIdProp ?? null;
+  const solidOnly = isFormControlNode(ctx?.node);
+  const semanticSingleFill = hasSemanticSingleFill(ctx?.node);
+  const [mode, setMode] = useState<FillMode>(() =>
+    semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single')
+  );
+
+  // Re-detect mode on node change AND on external style changes (an undo
+  // that reverts multi-layer → single must flip the tab back).
+  const modeSig = `${nodeId}|${semanticSingleFill}|${isMultiLayerBackground(styles)}`;
+  const prevModeSigRef = useRef(modeSig);
+  useEffect(() => {
+    if (modeSig === prevModeSigRef.current) return;
+    prevModeSigRef.current = modeSig;
+    setMode(semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeSig]);
+
+  const handleModeChange = useCallback((v: string) => {
+    const newMode = v as FillMode;
+    if (semanticSingleFill && newMode === 'multiple') return;
+    trace.action('fill:mode-change', { from: mode, to: newMode });
+
+    if (newMode === 'multiple' && mode === 'single') {
+      // Convert current single fill to a layer if there's a gradient or image
+      // backgroundColor stays as base color — no conversion needed
+      // backgroundImage (gradient or url) becomes Layer 1
+    }
+
+    if (newMode === 'single' && mode === 'multiple') {
+      // Keep only the top layer + backgroundColor
+      const layers = parseBackgroundLayers(styles);
+      if (layers.length > 0) {
+        const top = layers[0];
+        if (top.type === 'gradient' || top.type === 'color') {
+          onChangeMultiple({
+            backgroundImage: top.value,
+            backgroundSize: '',
+            backgroundPosition: '',
+            backgroundRepeat: '',
+            backgroundAttachment: '',
+            backgroundBlendMode: '',
+            background: '',
+          });
+        } else if (top.type === 'image') {
+          onChangeMultiple({
+            backgroundImage: top.value,
+            backgroundSize: top.size,
+            backgroundPosition: top.position,
+            backgroundRepeat: top.repeat,
+            backgroundAttachment: top.attachment,
+            backgroundBlendMode: '',
+            background: '',
+          });
+        }
+      }
+    }
+
+    setMode(newMode);
+  }, [mode, styles, onChangeMultiple, semanticSingleFill]);
+
+  if (solidOnly || mode === 'single') {
+    return (
+      <SingleModeFillContent
+        styles={styles}
+        onUpdate={onUpdate}
+        onUpdateLive={onUpdateLive}
+        onLivePreview={onLivePreview}
+        solidOnly={solidOnly}
+        onClose={onClose}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full bg-[var(--bg-surface)]">
+      <div className="h-[52px] px-4 flex items-center justify-between border-b border-[var(--border-light)]">
+        <span className="text-[13px] font-medium">Fill layers</span>
+        <button type="button" onClick={onClose} aria-label="Close Fill picker" className="w-8 h-8 flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div className="p-4">
+        <MultiModeFillContent styles={styles} onUpdate={onUpdate} onChangeMultiple={onChangeMultiple} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Fill Atom (inner component) ─────────────────────────────────────────────
+
+function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
+  const { node, onChangeMultiple, binding, mode, allProps, hasVariable } = useControlContext();
+  const legacyCtl = useControlOptional();
+  const fillCmsPageMeta = useAtomValue(cmsPageMetaAtom);
+  const styles = allProps;
+  const rawBackgroundColor = styles.backgroundColor || '';
+  const fillPaint = splitPaintOpacity(rawBackgroundColor);
+  const popupStyles = fillPaint.base !== rawBackgroundColor ? { ...styles, backgroundColor: fillPaint.base } : styles;
+  const onUpdate = (k: string, v: string) => {
+    onChangeMultiple({ [k]: k === 'backgroundColor' && v ? serializePaintOpacity(v, fillPaint.opacity) : v });
+  };
+  const onUpdateLive = (k: string, v: string) => {
+    if (!legacyCtl?.updateStyleLive) return;
+    legacyCtl.updateStyleLive(k, k === 'backgroundColor' && v ? serializePaintOpacity(v, fillPaint.opacity) : v);
+  };
+  const btnRef = useRef<HTMLDivElement>(null);
+  const [fillPopupOpen, setFillPopupOpen] = useState(false);
+  const allTokens = useAtomValue(presetTokensAtom);
+  // File-aware accent: purple ("--accent-secondary") on component master files,
+  // standard accent (blue) on regular pages — same convention applied across
+  // the menu items + bound pill.
+  const isComponentFile = useAtomValue(isComponentFileAtom);
+  const fillHoverColor: 'accent' | 'accent-secondary' = isComponentFile ? 'accent-secondary' : 'accent';
+  // A NON-default variant tile: the × must write explicit neutrals, not ''
+  // (which means "inherit default" there) — see fill-clear.ts.
+  const isVariantTile = useAtomValue(isComponentVariantViewportAtom);
+  const activeVariant = useAtomValue(activeComponentVariantAtom);
+  const onNonDefaultVariant = !!isVariantTile && !!activeVariant && activeVariant !== 'default';
+  // Locale `:lang()` overrides on the fill → blue Locale pill (Phase 4).
+  const fillLocaleOverrides = useLocaleStyleOverrides('backgroundColor', node?.id ?? null);
+  // Active file code — used to read a bound Fill variable's @propMeta TYPE so an
+  // image/video variable can surface its object-fit + focal-point rows inline.
+  const activeCode = useAtomValue(activeCodeAtom);
+
+  // Live color-drag preview for the row swatch + hex label. While the user
+  // drags the Fill color picker the canvas is patched DOM-only (no commit), so
+  // the committed `styles.backgroundColor` stays frozen and the row swatch
+  // would lag until release. Mirror the dragged color here so the swatch tracks
+  // it in real time WITHOUT a per-frame code write (which is what made it low
+  // FPS before). The effect clears the override the moment the committed value
+  // changes (the release re-parse) — no flicker, because by then the committed
+  // value equals the last dragged color; and it never masks a later external
+  // edit (preset apply, undo) since any real change to backgroundColor resets it.
+  const [livePreviewColor, setLivePreviewColor] = useLivePreview<string>([styles.backgroundColor]);
+
+  // Live override of an APPLIED color preset's value while it's being dragged
+  // in its edit popup (presets panel / Library) — so the Fill row swatch tracks
+  // the edit in real time, same as the presets-panel swatch.
+  const livePreset = useAtomValue(livePresetTokenAtom);
+
+  // ─── Fill-specific Create Variable submenu ─────────────────────────────
+  // The Fill row holds a multi-tab editor (color / gradient / image / video).
+  // A single "Create Variable" entry can't represent that — each tab edits a
+  // *different* CSS property. So FillControl provides its own submenu with three
+  // leaves (Color / Gradient / Image — video is excluded, it's not a CSS value); each INSTANT-creates a
+  // variable on the matching property + opens the manage modal in edit mode.
+  // Hide the default Create Variable on this row to avoid two competing entries.
+  // Instant-create (the reference): make the variable NOW with an auto-name + bind it, then open the manage modal in
+  // EDIT mode — the SAME flow every other control uses (NOT the old create FORM with a "Create Variable" button).
+  const fillActiveFilePath = useAtomValue(activeFilePathAtom);
+  const fillPageVariables = useAtomValue(pageVariablesAtom);
+  const setFillVarModalRequest = useSetAtom(variableModalRequestAtom);
+  const createFillVar = (property: string, label: string, value: string) => {
+    if (!legacyCtl) return;
+    instantCreateAndEditVariable({
+      property, propertyLabel: label, value,
+      activeFilePath: fillActiveFilePath, pageVariables: fillPageVariables,
+      createVariable: legacyCtl.createVariable,
+      setVariableModalRequest: setFillVarModalRequest,
+    });
+  };
+
+  const fillVariableSubmenu: MenuItem[] = [
+    {
+      label: 'Color',
+      show: true,
+      onClick: () => createFillVar('backgroundColor', 'Color', styles.backgroundColor || '#ffffff'),
+    },
+    {
+      label: 'Gradient',
+      show: true,
+      onClick: () => createFillVar('background', 'Gradient',
+        (styles.background && /gradient/.test(styles.background)) ? styles.background : formatGradient(createDefaultGradient())),
+    },
+    {
+      label: 'Image',
+      show: true,
+      onClick: () => createFillVar('backgroundImage', 'Image', styles.backgroundImage || ''),
+    },
+    // No "Video" leaf: video isn't a CSS-property value swap (color/image/gradient are) — it needs a real
+    // <video> DOM element, so it can't be a style variable. A video FILL stays a per-node feature, not a var.
+  ];
+
+  const fillExtraMenuItems: MenuItem[] = [
+    {
+      label: 'Create Variable',
+      show: !!(legacyCtl && legacyCtl.nodeId),
+      hoverColor: fillHoverColor,
+      onClick: () => { /* parent dropdown opens the submenu on hover */ },
+      submenuItems: fillVariableSubmenu,
+    },
+  ];
+
+  // Detached CMS Fill (design-tool parity): a `backgroundImage: url(${item.image})` /
+  // `backgroundColor: item.brand` binding dragged OUT of its `.map()` is stashed as
+  // `data-cms-orphan="__style.<cssProp>:field"`. Show the blue "Missing" pill (same
+  // as a component-instance Missing prop) instead of an empty "Add" fill.
+  const fillOrphan = legacyCtl?.node?.orphanBindings?.find(
+    (o) => o.prop === '__style.backgroundImage' || o.prop === '__style.backgroundColor',
+  );
+  if (fillOrphan && legacyCtl?.node) {
+    const orphanNodeId = legacyCtl.node.id;
+    // See ContentControl: on a `[slug]` page the field is this page's own, so
+    // the pill names it instead of claiming it went missing.
+    const fillOrphanLabel = cmsOrphanInScope(fillOrphan.field, legacyCtl.cmsBinding, fillCmsPageMeta?.kind === 'detail');
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Fill" property="backgroundColor" />
+        <CmsMissingPill
+          field={fillOrphan.field}
+          label={fillOrphanLabel ?? undefined}
+          onClear={() => queueMutation({ type: 'clearCmsOrphan', nodeId: orphanNodeId, propName: fillOrphan.prop })}
+        />
+      </div>
+    );
+  }
+
+  // CMS-bound: blue pill, takes priority over all other Fill bindings
+  // (animation, variable, asset preset). Same pattern as ContentControl.
+  // Look at backgroundColor first; getBindingForProperty already aliases
+  // it to backgroundImage when the bound field is image-typed.
+  if (legacyCtl?.cmsBinding?.getBindingForProperty('backgroundColor')) {
+    // IMAGE-typed CMS binding (`backgroundImage: url(${item.field})`): surface the
+    // same Size (object-fit) + Focal Point rows the variable-bound image fill shows
+    // — backgroundSize/backgroundPosition are the node's OWN styles (not bound), so
+    // the user can tune how every row's bound image sits in its frame (the reference
+    // parity; ghost copies pick the styles up via the template style sync).
+    const cmsFillIsImage = !!legacyCtl.node?.styleBindings?.some((b: { styleProp: string }) => b.styleProp === 'backgroundImage')
+      || /url\(/.test(styles.backgroundImage || '');
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <ControlLabel label="Fill" property="backgroundColor" />
+          <CmsBoundPill
+            property="backgroundColor"
+            fallbackValue={styles.backgroundColor || styles.backgroundImage || ''}
+          />
+        </div>
+        {cmsFillIsImage && (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Size" property="backgroundSize" plain />
+              <ToolSelect value={styles.backgroundSize || 'cover'} onChange={(v) => onChangeMultiple({ backgroundSize: v })} options={SIZE_OPTIONS} />
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Focal Point" property="backgroundPosition" plain />
+              <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(v) => onChangeMultiple({ backgroundPosition: v })} options={POSITION_OPTIONS} />
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Bound check — animation/scroll first, variable pill second.
+  if (mode === 'direct' && binding.bound) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Fill" property="backgroundColor" />
+        <UsedByRow binding={binding} />
+      </div>
+    );
+  }
+  // Variable-bound: Fill is a multi-property atom (color / gradient / image),
+  // so the purple state has to come from ANY of those bindings — not just
+  // the unified context's `hasVariable`, which only watches backgroundColor.
+  //
+  // Detection uses the legacy ControlProvider's `getValueSource` so the
+  // result agrees with what `ControlLabel` sees (it uses the same helper).
+  // The previous `node.styleVariables` walk caught only the post-resolve
+  // marker case; if the parser left the value as `var:propName` (variable
+  // declared but not in propDefaults yet, or a type-mismatch keeping the
+  // resolve from running) the marker wasn't set and FillControl's pill
+  // disappeared while ControlLabel still showed the two-line bound state —
+  // exactly the inconsistency the user reported.
+  const fillBoundEntry: { property: string; ref: string; current: string } | null = (() => {
+    if (mode !== 'direct' || !legacyCtl) return null;
+    for (const prop of ['backgroundColor', 'background', 'backgroundImage'] as const) {
+      const src = legacyCtl.getValueSource(prop);
+      if (src.source === 'prop' && src.ref) {
+        return { property: prop, ref: src.ref, current: styles[prop] || '' };
+      }
+    }
+    return null;
+  })();
+  if (fillLocaleOverrides.length > 0 && node?.id) {
+    return (
+      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+        <ControlLabel label="Fill" property="backgroundColor" cell />
+        <LocaleBoundPill
+          property="backgroundColor"
+          propertyLabel="Fill"
+          nodeId={node.id}
+          baseValue={styles.backgroundColor || ''}
+          onChangeBase={(v) => onChangeMultiple({ backgroundColor: v })}
+        />
+      </div>
+    );
+  }
+  if (fillBoundEntry && legacyCtl) {
+    // When the bound variable is an IMAGE, surface object-fit (Size) + focal point
+    // (Position) INLINE under the pill — they're independent node styles
+    // (backgroundSize/backgroundPosition), so they're set PER-VARIANT through the
+    // same write path as any other control (design-tool parity). A color/gradient
+    // variable shows just the pill. (VIDEO fit/position live on the bgVideo child
+    // via setVideoFill — a separate wiring — so they're not surfaced here yet.)
+    const fillVarType = getPropType(activeCode, fillBoundEntry.ref);
+    const showImageRows = fillVarType === 'image';
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center justify-between w-full">
+          <ControlLabel label="Fill" property={fillBoundEntry.property} />
+          <LegacyVariableBoundPill
+            property={fillBoundEntry.property}
+            propertyLabel="Fill"
+            variableRef={fillBoundEntry.ref}
+            currentValue={fillBoundEntry.current}
+            removeVariable={legacyCtl.removeVariable}
+          />
+        </div>
+        {showImageRows && (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Size" property="backgroundSize" plain />
+              <ToolSelect value={styles.backgroundSize || 'cover'} onChange={(v) => onChangeMultiple({ backgroundSize: v })} options={SIZE_OPTIONS} />
+            </div>
+            <div className="flex items-center justify-between w-full">
+              <ControlLabel label="Focal Point" property="backgroundPosition" plain />
+              <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(v) => onChangeMultiple({ backgroundPosition: v })} options={POSITION_OPTIONS} />
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  // Fallback to the unified pill in case styleVariables hasn't been populated
+  // yet but the unified context's binding detection has fired.
+  if (mode === 'direct' && hasVariable) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Fill" property="backgroundColor" />
+        <VariableBoundPill propertyLabel="Fill" />
+      </div>
+    );
+  }
+
+  // Detect fill type for preview swatch. Opacity is surfaced separately.
+  const bgColor = fillPaint.base;
+  const bgImage = styles.backgroundImage || '';
+  // Video lives on the node (bg-video child), not as a fake CSS prop anymore.
+  const bgVideoUrl = node?.bgVideo?.src ?? '';
+  const bgProp = styles.background || '';
+  const hasGradient = bgProp.includes('gradient') || bgImage.includes('gradient');
+  const hasImage = bgImage.includes('url(');
+  const hasVideo = !!bgVideoUrl;
+  const isMulti = isMultiLayerBackground(styles);
+
+  // Preset reference detection — color/image/video share the blue-pill row UI.
+  // Color/image presets are stored as `var(--name)` in their style property;
+  // video presets are baked at apply-time so we match by URL against tokens.
+  const colorVarMatch = bgColor.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+  const imageVarMatch = bgImage.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+  const colorPresetToken = colorVarMatch ? allTokens.find(t => t.name === colorVarMatch[1] && t.category === 'color') : undefined;
+  const imagePresetToken = imageVarMatch ? allTokens.find(t => t.name === imageVarMatch[1] && t.category === 'image') : undefined;
+  const videoPresetToken = bgVideoUrl ? allTokens.find(t => t.value === bgVideoUrl && t.category === 'video') : undefined;
+  const presetKind: 'color' | 'image' | 'video' | null =
+    imagePresetToken ? 'image' : videoPresetToken ? 'video' : colorPresetToken ? 'color' : null;
+  const isPresetRef = presetKind !== null;
+
+  // True when ANY fill is present — drives the empty alpha-checker placeholder
+  // and gates the × clear button. A live color drag counts as a fill so the
+  // row doesn't flash to the "Add" placeholder mid-drag.
+  // Legacy transparent literals remain empty; an authored color-mix at 0%
+  // stays a real paint so the inline opacity can be brought back up.
+  const hasSolidColor = !!rawBackgroundColor && (rawBackgroundColor.includes('color-mix(') || !isTransparentColor(rawBackgroundColor));
+  const hasAnyFill = livePreviewColor != null || isMulti || isPresetRef || hasGradient || hasImage || hasVideo || hasSolidColor || hasSemanticSingleFill(node);
+
+  // Empty Fill is represented by the section header + button, not a second
+  // nested "Fill → Add" row.
+  if (compactSection && !hasAnyFill && !fillPopupOpen) return null;
+
+  // Click-handler for the × on the Fill row — wipes EVERY background-related
+  // value (color, gradient, image, multi-layer extras, AND the bg-video
+  // child) so the row collapses back to its empty / "Add" state regardless
+  // of which fill type is currently in use.
+  // NB: plain function, not useCallback. Sits AFTER the early-return branches
+  // (bound / hasVariable above), so wrapping in a hook would violate the
+  // hooks-rule when the bound branch returns early — fewer hooks than a
+  // normal render → "Rendered fewer hooks than expected" crash.
+  const handleClearAll = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    onChangeMultiple(fillClearStyles(onNonDefaultVariant, styles));
+    if (node?.id && node.bgVideo) {
+      forSelectionTargets(node.id, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
+    }
+    if (node?.id) forSelectionTargets(node.id, (tid) => {
+      const target = getNodeFromCache(tid);
+      if (target?.attrs?.['data-field-pattern'] || target?.attrs?.['data-field-shader-fill']) {
+        queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '', 'data-field-shader-fill': '' } });
+      }
+      for (const id of target?.children ?? []) {
+        if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
+      }
+    });
+    trace.action('fill:clear-all', { nodeId: node?.id, onNonDefaultVariant });
+  };
+
+  // Empty state defaults — alpha-checker swatch + "Add" label. Each branch
+  // below overrides these when a fill is actually set; if none match the
+  // row keeps the placeholder so the user can see at-a-glance there's no
+  // background AND has a clear affordance to open the popup and pick one.
+  let swatchStyle: React.CSSProperties = ALPHA_CHECKER_STYLE;
+  let labelText = 'Add';
+
+  if (livePreviewColor != null) {
+    // Live color-picker drag — show the dragged solid color directly. Takes
+    // priority over the committed-style branches so the swatch + hex track the
+    // picker in real time (the Color tab clears any gradient/image first).
+    swatchStyle = { backgroundColor: livePreviewColor };
+    labelText = toHexDisplay(livePreviewColor);
+  } else if (isMulti) {
+    // Show composite background preview. Resolve design-token var()s to their
+    // values — the swatch renders in the EDITOR frame where project tokens
+    // aren't in scope, so an unresolved var() would blank the preview.
+    swatchStyle = { backgroundImage: resolveCssTokens(bgImage, allTokens), backgroundSize: 'cover', backgroundPosition: 'center' };
+    const layerCount = parseBackgroundLayers(styles).length;
+    labelText = `${layerCount} Layers`;
+  } else if (isPresetRef) {
+    const token = imagePresetToken || videoPresetToken || colorPresetToken!;
+    const prefix = presetKind === 'image' ? 'image-' : presetKind === 'video' ? 'video-' : 'color-';
+    labelText = token.label || token.name.replace(new RegExp('^' + prefix), '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    if (presetKind === 'image') {
+      const url = token.value.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/)?.[1] || '';
+      swatchStyle = { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    } else if (presetKind === 'video') {
+      // No good way to show a moving video in a tiny square — solid black with
+      // the preset name in the label text reads cleanly.
+      swatchStyle = { background: '#000' };
+    } else {
+      // Color preset — reflect an in-progress edit of THIS preset live.
+      const liveColor = livePreset && colorPresetToken && livePreset.name === colorPresetToken.name
+        ? livePreset.value : token.value;
+      swatchStyle = { backgroundColor: serializePaintOpacity(liveColor, fillPaint.opacity) };
+    }
+  } else if (hasGradient) {
+    const gradientCSS = bgProp || bgImage;
+    // Resolve design-token var()s (e.g. var(--color-green-mint)) to their hex
+    // values: this swatch renders in the EDITOR frame, where the project tokens
+    // aren't defined, so a token-coloured stop would otherwise make the whole
+    // gradient invalid and the swatch blank.
+    swatchStyle = { background: resolveCssTokens(gradientCSS, allTokens) };
+    if (gradientCSS.startsWith('linear-gradient')) labelText = 'Linear';
+    else if (gradientCSS.startsWith('radial-gradient')) labelText = 'Radial';
+    else if (gradientCSS.startsWith('conic-gradient')) labelText = 'Conic';
+    else labelText = 'Gradient';
+  } else if (hasImage) {
+    swatchStyle = { backgroundImage: bgImage, backgroundSize: 'cover' };
+    labelText = 'Image';
+  } else if (hasVideo) {
+    // Raw bg-video URL with no matching preset.
+    swatchStyle = { background: '#000' };
+    labelText = 'Video';
+  } else if (node?.attrs?.['data-field-shader-fill']) {
+    labelText = 'Shader';
+    swatchStyle = { background: 'var(--accent-surface)' };
+  } else if (hasSolidColor) {
+    swatchStyle = { backgroundColor: rawBackgroundColor };
+    labelText = toHexDisplay(bgColor).replace(/^#/, '');
+  }
+
+  const solidPaintOpacity = (presetKind === 'color' || hasSolidColor) ? fillPaint.opacity : 100;
+  const canEditSolidOpacity = (presetKind === 'color' || hasSolidColor) && fillPaint.adjustable;
+  const openFillEditor = () => {
+    trace.action('fill:open-universal-picker', { nodeId: node?.id });
+    setFillPopupOpen(true);
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between w-full">
+        {!compactSection && (
+          <ControlLabel label="Fill" property="backgroundColor" hideCreateVariable extraMenuItems={fillExtraMenuItems} />
+        )}
+        <div ref={btnRef} className={compactSection ? "flex-1 min-w-0" : "w-full min-w-0"}>
+          <PaintRow
+            control={
+              <ControlActionRow onClick={openFillEditor} embedded className="justify-between">
+                <span className="flex items-center gap-2 truncate">
+                  <ColorSwatch style={swatchStyle} />
+                  <span className={`text-xs truncate ${hasAnyFill ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{labelText}</span>
+                </span>
+              </ControlActionRow>
+            }
+            opacity={solidPaintOpacity}
+            opacityDisabled={!canEditSolidOpacity}
+            onOpacityChange={canEditSolidOpacity ? (value) => onChangeMultiple({ backgroundColor: serializePaintOpacity(bgColor, value) }) : undefined}
+            onOpacityChangeLive={canEditSolidOpacity && legacyCtl?.updateStyleLive ? (value) => legacyCtl.updateStyleLive('backgroundColor', serializePaintOpacity(bgColor, value)) : undefined}
+            onRemove={hasAnyFill ? () => handleClearAll() : undefined}
+            opacityLabel="Fill opacity"
+          />
+        </div>
+      </div>
+      <ToolPopup
+        isOpen={fillPopupOpen}
+        onClose={() => setFillPopupOpen(false)}
+        title="Fill"
+        ariaLabel="Paint picker"
+        anchorRef={btnRef}
+        width={304}
+        side="left"
+        hideHeader
+        showNestedHeaderWhenHidden
+        radius={10}
+        outsidePointerMode="close"
+        contentClassName="w-full flex-shrink-0 p-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
+        resetKey={node?.id ?? 'fill'}
+      >
+        <FillPopupContent
+          styles={popupStyles}
+          onUpdate={onUpdate}
+          onUpdateLive={onUpdateLive}
+          onChangeMultiple={onChangeMultiple}
+          nodeId={node?.id}
+          onLivePreview={(color) => setLivePreviewColor(color ? serializePaintOpacity(color, fillPaint.opacity) : color)}
+          onClose={() => setFillPopupOpen(false)}
+        />
+      </ToolPopup>
+
+      {/* Create-Variable modal for the chosen Fill submenu type. The modal
+          embeds the right atom in `variableDefault` mode via the registry —
+          backgroundColor → ColorPicker, background → GradientEditor,
+          backgroundImage → ImageSearchModal — and on Create routes to
+          legacy createVariable() with the chosen property. */}
+    </>
+  );
+}
+
+// (Local `PresetEditPanelInline` was extracted to
+// `ui/ColorPresetEditPanel.tsx` — it lived here as a near-duplicate of the
+// version in ColorInput.tsx. Both consumers now import the shared one so
+// the Edit-preset hover button looks and behaves the same in every place.)
+
+// ─── Exported ToolAtom ──────────────────────────────────────────────────────
+
+export function FillControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
+  return (
+    <UnifiedControlProvider property="backgroundColor" defaultValue="" mode={mode} {...mp}>
+      <InspectorProvenanceBoundary>
+        <FillAtom compactSection={compactSection} />
+      </InspectorProvenanceBoundary>
+    </UnifiedControlProvider>
+  );
+}

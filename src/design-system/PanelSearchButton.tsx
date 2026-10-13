@@ -1,0 +1,50 @@
+// PanelSearchButton.tsx — compact on-demand search action for sidebar sections.
+// FIGUI3_SIDEBAR_SEARCH_ACTION_20260925
+// Search should be an action by default; the full input appears only while the
+// user is actively filtering a section.
+
+import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { useUiChromeCase } from '@/editor/ui/useUiChromeCase';
+
+interface PanelSearchButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+}
+
+const PanelSearchButton = forwardRef<HTMLButtonElement, PanelSearchButtonProps>(
+  ({ active = false, className = '', title, 'aria-label': ariaLabel, ...props }, ref) => {
+    const uiCase = useUiChromeCase();
+    return (
+    <button
+      ref={ref}
+      type="button"
+      aria-pressed={active}
+      aria-label={typeof ariaLabel === 'string' ? uiCase(ariaLabel) ?? undefined : ariaLabel}
+      title={typeof title === 'string' ? uiCase(title) ?? undefined : title}
+      className={`w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors cursor-pointer ${
+        active
+          ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+          : 'text-[var(--text-disabled)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+      } ${className}`}
+      {...props}
+    >
+      <svg
+        aria-hidden
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <line x1="20" y1="20" x2="16.65" y2="16.65" />
+      </svg>
+    </button>
+    );
+  },
+);
+
+PanelSearchButton.displayName = 'PanelSearchButton';
+export default PanelSearchButton;

@@ -1,0 +1,651 @@
+.field-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg-canvas, var(--bg-surface));
+}
+
+.field-shell-builder,
+.field-shell-empty-canvas,
+.field-dashboard-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.field-project-opening-overlay {
+  position: fixed;
+  z-index: 150001;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: top left;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-tertiary);
+  background-size: cover;
+  background-position: top center;
+  will-change: transform, filter, opacity;
+}
+
+.field-shell-builder {
+  z-index: 0;
+}
+
+.field-shell-empty-canvas {
+  background: var(--bg-canvas, var(--bg-surface));
+}
+
+.field-dashboard-layer {
+  z-index: 150000;
+  overflow: hidden;
+  visibility: visible;
+  pointer-events: auto;
+  background: transparent;
+}
+
+/* Dashboard and editor chrome now share one spatial motion grammar.
+ * WAAPI owns motion; CSS owns only deterministic rest/offscreen states. */
+.field-dashboard-layer .field-dashboard-page {
+  background: transparent;
+}
+
+.field-dashboard-layer .field-dashboard-sidebar,
+.field-dashboard-layer .field-dashboard-main {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.field-dashboard-layer[data-state='showing'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar {
+  transform: translate3d(calc(-100% - 16px), 0, 0);
+}
+
+.field-dashboard-layer[data-state='showing'] .field-dashboard-main,
+.field-dashboard-layer[data-state='hidden'] .field-dashboard-main {
+  transform: translate3d(calc(100% + 16px), 0, 0);
+}
+
+.field-dashboard-layer[data-state='visible'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='visible'] .field-dashboard-main,
+.field-dashboard-layer[data-state='hiding'] .field-dashboard-sidebar,
+.field-dashboard-layer[data-state='hiding'] .field-dashboard-main {
+  transform: translate3d(0, 0, 0);
+}
+
+.field-dashboard-layer[data-state='hiding'],
+.field-dashboard-layer[data-state='hidden'] {
+  pointer-events: none;
+}
+
+/* Keep the Dashboard layer continuously composited while hidden. The slabs are
+ * fully offscreen, pointer events are disabled, and React owns aria-hidden.
+ * Avoiding a visibility flip prevents a one-frame compositor flash at handoff. */
+
+.field-new-project-backdrop {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 34%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.field-new-project-modal {
+  width: min(560px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--dropdown-bg);
+  box-shadow: var(--shadow-xl);
+  color: var(--text-primary);
+}
+
+.field-new-project-head,
+.field-new-project-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.field-new-project-head {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.field-new-project-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.field-new-project-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 620;
+  letter-spacing: -.01em;
+}
+
+.field-new-project-step {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.field-new-project-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.field-new-project-field,
+.field-new-project-fieldset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field-new-project-field > span,
+.field-new-project-fieldset > legend {
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.field-new-project-fieldset > legend span {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.field-new-project-field > input:not([type='color']),
+.field-new-project-color-control {
+  height: 30px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--control-bg);
+}
+
+.field-new-project-field > input:not([type='color']) {
+  min-width: 0;
+  padding: 0 9px;
+  outline: 0;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.field-new-project-field > input:not([type='color']):focus,
+.field-new-project-color-control:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: inset 0 0 0 1px var(--border-focus);
+}
+
+.field-new-project-canvas-grid,
+.field-new-project-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.field-new-project-canvas-option,
+.field-new-project-style-option,
+.field-new-project-responsive-option {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  cursor: default;
+}
+
+.field-new-project-canvas-option:hover,
+.field-new-project-style-option:hover,
+.field-new-project-responsive-option:hover {
+  border-color: var(--control-border-hover);
+}
+
+.field-new-project-canvas-option[data-selected='true'],
+.field-new-project-style-option[data-selected='true'],
+.field-new-project-responsive-option[data-selected='true'] {
+  border-color: var(--border-focus);
+  box-shadow: inset 0 0 0 1px var(--border-focus);
+  background: var(--bg-active);
+}
+
+.field-new-project-canvas-option > input,
+.field-new-project-style-option > input,
+.field-new-project-responsive-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.field-new-project-canvas-option {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  padding: 8px;
+}
+
+.field-new-project-screen {
+  display: block;
+  width: 34px;
+  max-height: 34px;
+  justify-self: center;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--bg-tertiary));
+}
+
+.field-new-project-screen-small {
+  width: 30px;
+  max-height: 34px;
+}
+
+.field-new-project-option-copy,
+.field-new-project-style-option > span:last-child,
+.field-new-project-responsive-option > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-new-project-option-copy strong,
+.field-new-project-style-option strong,
+.field-new-project-responsive-option strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-new-project-option-copy small,
+.field-new-project-style-option small,
+.field-new-project-responsive-option small {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  line-height: 12px;
+}
+
+.field-new-project-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.field-new-project-color-control {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+}
+
+.field-new-project-color-swatch {
+  width: 38px;
+  height: 28px;
+  padding: 4px 6px;
+  border: 0;
+  border-right: 1px solid var(--border-light);
+  background: transparent;
+}
+
+.field-new-project-color-text {
+  min-width: 0;
+  height: 100%;
+  padding: 0 9px;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.field-new-project-style-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-height: 54px;
+  padding: 8px;
+}
+
+.field-new-project-style-dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+}
+
+.field-new-project-help,
+.field-new-project-template-note p,
+.field-new-project-no-responsive {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.field-new-project-responsive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-new-project-responsive-option {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+}
+
+.field-new-project-template-note {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.field-new-project-template-note > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 560;
+}
+
+.field-new-project-error {
+  margin: 0 16px 12px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, #d84f4f 42%, var(--border-light));
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: color-mix(in srgb, #d84f4f 8%, var(--bg-surface));
+  font-size: 10px;
+}
+
+.field-new-project-actions {
+  border-top: 1px solid var(--border-light);
+}
+
+.field-new-project-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-new-project-primary,
+.field-new-project-secondary {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  font-weight: 560;
+}
+
+.field-new-project-primary {
+  border: 1px solid color-mix(in srgb, var(--accent) 78%, transparent);
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+.field-new-project-secondary {
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  background: var(--button-secondary-bg);
+}
+
+.field-new-project-primary:disabled,
+.field-new-project-secondary:disabled {
+  opacity: .55;
+}
+
+.field-new-project-done {
+  display: flex;
+  width: auto;
+  min-width: 230px;
+  max-width: min(360px, calc(100vw - 48px));
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  overflow: hidden;
+}
+
+.field-new-project-done-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-light));
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-surface));
+}
+
+.field-new-project-done-mark svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: field-dashboard-done-pop 280ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes field-dashboard-done-pop {
+  from { opacity: 0; transform: rotate(-28deg) scale(.55); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-new-project-done-mark svg { animation: none; }
+}
+
+.field-new-project-done > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-new-project-done strong {
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.field-new-project-done span:not(.field-new-project-done-mark) {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* FIELD_DASHBOARD_FINAL_WIZARD_POLISH_20260926
+ * Keep New Project fast and visual: tiny device choices, one compact color row,
+ * and style chips instead of four settings cards. Creation semantics stay the same. */
+.field-new-project-modal {
+  width: min(500px, calc(100vw - 48px));
+}
+
+.field-new-project-head,
+.field-new-project-actions {
+  padding: 12px 14px;
+}
+
+.field-new-project-body {
+  gap: 13px;
+  padding: 14px;
+}
+
+.field-new-project-field,
+.field-new-project-fieldset {
+  gap: 6px;
+}
+
+.field-new-project-canvas-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.field-new-project-style-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.field-new-project-canvas-option {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 4px 6px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: transparent;
+}
+
+.field-new-project-canvas-option[data-selected='true'] {
+  background: color-mix(in srgb, var(--bg-active) 76%, transparent);
+}
+
+.field-new-project-screen {
+  width: 28px;
+  max-height: 28px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+}
+
+.field-new-project-option-copy {
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.field-new-project-option-copy strong {
+  font-size: 9px;
+}
+
+.field-new-project-option-copy small {
+  font-size: 8px;
+  line-height: 10px;
+}
+
+.field-new-project-row {
+  justify-items: start;
+}
+
+.field-new-project-row .field-new-project-field {
+  width: 168px;
+}
+
+.field-new-project-color-control {
+  width: 168px;
+  height: 28px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  border-radius: 7px;
+}
+
+.field-new-project-color-swatch {
+  width: 28px;
+  height: 26px;
+  padding: 4px;
+}
+
+.field-new-project-color-text {
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+.field-new-project-style-option {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 8px;
+}
+
+.field-new-project-style-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 0;
+  flex: 0 0 10px;
+}
+
+.field-new-project-style-option > span:last-child {
+  display: block;
+  min-width: 0;
+}
+
+.field-new-project-style-option strong {
+  font-size: 9px;
+}
+
+.field-new-project-style-option small {
+  display: none;
+}
+
+.field-new-project-actions-right .field-new-project-secondary {
+  padding: 0 6px;
+  border-color: transparent;
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.field-new-project-actions-right .field-new-project-secondary:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+@media (max-width: 620px) {
+  .field-new-project-backdrop {
+    padding: 12px;
+  }
+
+  .field-new-project-modal {
+    width: min(100%, 520px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .field-new-project-canvas-grid,
+  .field-new-project-style-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  /* FIELD_DASHBOARD_FINAL_WIZARD_POLISH_MOBILE_20260926 */
+  .field-new-project-canvas-grid,
+  .field-new-project-style-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-dashboard-layer .field-dashboard-sidebar,
+  .field-dashboard-layer .field-dashboard-main {
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+}

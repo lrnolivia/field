@@ -1,0 +1,737 @@
+import { useEffect, useRef, useState } from 'react';
+import { useAtom, useAtomValue } from 'jotai';
+import { Toaster } from 'sonner';
+import Canvas from './canvas/Canvas';
+import PropertiesPanel from './editor/PropertiesPanel';
+import PortraitWorkspace from './editor/portrait/PortraitWorkspace';
+import { DesktopQuickTools } from './editor/portrait/QuickTools';
+import './editor/portrait/portrait-workspace.css';
+import './styles/field-chrome.css';
+import CommentsListPanel from './editor/CommentsListPanel';
+import { commentModeActiveAtom } from './code/stores/comment-store';
+import DebugToolbar from './editor/ui/DebugToolbar';
+import ChromeIslands from './editor/ChromeIslands';
+import PageAppearanceBridge from './editor/PageAppearanceBridge';
+import BottomToolbar from './editor/BottomToolbar';
+import PageChat from './editor/PageChat';
+import { componentEditorFileAtom } from '@/code/stores/component-editor-store';
+import { isComponentFileAtom } from './code/stores/store';
+import KeyframeSheet from './editor/tools/AnimationTool/css/KeyframeSheet';
+import PreviewOverlay from './editor/header/PreviewOverlay';
+import ProjectThumbnailCaptureHost from './editor/header/ProjectThumbnailCaptureHost';
+import { LeftMenu, LeftPanel, leftPanelAtom } from './editor/left-toolbar';
+import LeftHeader from './editor/header/LeftHeader';
+import RightHeader from './editor/header/RightHeader';
+import { commitActiveTextEdit } from './canvas/text-edit-committer';
+import TranslationsOverlay from './editor/left-toolbar/panels/locale/TranslationsOverlay';
+import CmsOverlay, { cmsOverlayOpenAtom } from './editor/left-toolbar/panels/cms/CmsOverlay';
+import CmsEditorOverlay from './editor/left-toolbar/panels/cms/CmsEditorOverlay';
+import { cmsEditorOpenAtom } from '@/code/stores/cms-editor-store';
+import { translationsOverlayOpenAtom } from '@/code/stores/left-panel-store';
+import CodeEditorPopup from './editor/CodeEditorPopup';
+import ComponentEditorOverlay from './editor/component-editor/ComponentEditorOverlay';
+import SettingsOverlay from './editor/overlays/SettingsOverlay';
+import ProjectSettingsModal from './editor/overlays/ProjectSettingsModal';
+import PageVariablesModal from './editor/ui/PageVariablesModal';
+import LinkedComponentModal from './cloud/components/LinkedComponentModal';
+import PluginEditor from './editor/plugin-editor/PluginEditor';
+import { pluginEditorFileAtom } from './editor/plugin-editor/plugin-editor-store';
+import PluginRuntimeWindow from './plugins/PluginRuntimeWindow';
+import PluginVideoPickerHost from './plugins/PluginVideoPickerHost';
+import { UploadInstructionsModal } from './plugins/UploadInstructionsModal';
+import { CommandPalette } from './editor/command-palette/CommandPalette';
+import ToolbarPanelHost from './editor/ToolbarPanelHost';
+import MediaUploadTray from './editor/media/MediaUploadTray';
+import FloatingLeftPanelHost from './editor/FloatingLeftPanelHost';
+import NewWebsiteTemplatesModal from './cloud/NewWebsiteTemplatesModal';
+import { linkedComponentModalUrlAtom } from './cloud/components/linked-component-modal-store';
+import { usePrefetchCdnMetadataForActiveFile } from './cloud/components/cdn-metadata-hook';
+import { useSetAtom } from 'jotai';
+import { initCloudPlugin } from './cloud/cloud-plugin';
+import { CLOUD_ENABLED } from './shared/cloud-flag';
+import { previewModeAtom, isTextEditingAtom } from './code/stores/editor-store';
+import { CollaborationProvider } from './canvas/collab/CollaborationProvider';
+import CollaborationLayer from './canvas/collab/CollaborationLayer';
+import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from './code/stores/viewer-mode-store';
+import { useActiveBranchId } from './code/stores/agent-run-lock-store';
+import { MAIN_BRANCH_ID } from './code/project/project-fs';
+import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
+import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
+import { transformManager } from '@/canvas/transform/TransformManager';
+import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
+import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
+import WorkspaceRestoreBar from '@/editor/WorkspaceRestoreBar';
+import WorkspaceModeCoordinator from '@/editor/WorkspaceModeCoordinator';
+import MobileFocusCoordinator from '@/editor/MobileFocusCoordinator';
+import WorkspacePaneResizeHandles from '@/editor/WorkspacePaneResizeHandles';
+import PersistenceConflictBanner from '@/editor/PersistenceConflictBanner';
+import EditorRealtimeSync from '@/editor/EditorRealtimeSync';
+import EditorEntranceCoordinator from '@/editor/EditorEntranceCoordinator';
+import { clampRightFloatingHeight, deriveWorkspaceCameraInsets, deriveWorkspaceLayout, resolveRightFloatingHeight, WORKSPACE_FLOAT_RADIUS, WORKSPACE_HEADER_HEIGHT, workspaceBodyHeightCss, workspaceBodyTop } from '@/editor/workspace-layout';
+import './loading/canvas-reveal.css';
+import './editor/workspace-morph.css';
+import { useMobileWorkspacePresentation } from './editor/mobile-workspace-presentation';
+// Sketch draw animations intentionally do NOT auto-play on the canvas —
+// it's an editing surface, and auto-playback on every preview exit /
+// page open is distracting noise. The animation runs in PREVIEW (and at
+// export time) because the generated source contains a real `useEffect`
+// that calls `playSketchDraw` from `@revyme/runtime`; the canvas just
+// shows the static committed `d` for each stroke.
+
+// Register cloud plugin sections (Plans, Domain, Analytics, Submit) —
+// cloud mode only. Standalone/OSS builds get just the core Website
+// settings section; the SettingsOverlay renders whatever is registered.
+if (CLOUD_ENABLED) initCloudPlugin();
+
+interface AppProps {
+  onCanvasFirstPaint?: () => void;
+  onCanvasRevealComplete?: () => void;
+  canvasRevealPhase?: 'pending' | 'entering' | 'settled';
+  interactive?: boolean;
+}
+
+export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvasRevealPhase = 'settled', interactive = true }: AppProps = {}) {
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  const mobileWorkspacePresentation = useMobileWorkspacePresentation();
+  const mobilePortraitSheet = mobileWorkspacePresentation === 'portrait-sheet';
+  const isTextEditing = useAtomValue(isTextEditingAtom);
+  const mobilePanelPresentation = mobileWorkspacePresentation !== 'regular';
+  const workspaceMode = useAtomValue(workspaceModeAtom);
+  const floatingInspectorVisible = useAtomValue(floatingInspectorVisibleAtom);
+  const [leftPaneOpen] = useAtom(leftPaneOpenAtom);
+  const rightPaneOpen = useAtomValue(rightPaneOpenAtom);
+  const rightDetached = useAtomValue(rightPaneDetachedAtom);
+  const rightDragOffset = useAtomValue(rightPaneDragOffsetAtom);
+  const [rightFloatingHeight, setRightFloatingHeight] = useAtom(rightFloatingHeightAtom);
+  const [viewportHeight, setViewportHeight] = useState(() => typeof window === 'undefined' ? 900 : window.innerHeight);
+  const rightCollapsedWidth = useAtomValue(rightCollapsedWidthAtom);
+  const leftContentWidth = useAtomValue(leftContentWidthAtom);
+  const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
+  const railVisible = useAtomValue(leftRailVisibleAtom);
+  const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
+  const floatingInspectorHeight = rightDetached
+    ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight, rightDragOffset.y)
+    : rightFloatingHeight;
+  const cameraInsets = mobilePanelPresentation ? { left: 0, top: 0, right: 0, bottom: 0 } : deriveWorkspaceCameraInsets(workspaceMode, leftPaneOpen, rightPaneOpen, railVisible, floatingInspectorVisible, {
+    leftContentWidth, rightPaneWidth, rightDetached, rightCollapsedWidth,
+  });
+  const previousInsets = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+  const previousMode = useRef(workspaceMode);
+
+  useEffect(() => {
+    const onResize = () => setViewportHeight(window.innerHeight);
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const root = editorRootRef.current;
+    if (!root) return;
+    if (interactive) root.removeAttribute('inert');
+    else root.setAttribute('inert', '');
+    return () => root.removeAttribute('inert');
+  }, [interactive]);
+
+  useEffect(() => {
+    setCanvasInsets(cameraInsets);
+    const previous = previousInsets.current;
+    if (previous && (
+      previous.left !== cameraInsets.left ||
+      previous.top !== cameraInsets.top ||
+      previous.right !== cameraInsets.right ||
+      previous.bottom !== cameraInsets.bottom
+    )) {
+      // Preserve zoom while moving the page with the center of the new camera-safe
+      // rectangle. Floating panes overlay the physical canvas; only automatic
+      // fit/center operations consume these safe insets.
+      const dx = (cameraInsets.left - previous.left - cameraInsets.right + previous.right) / 2;
+      const dy = (cameraInsets.top - previous.top - cameraInsets.bottom + previous.bottom) / 2;
+      if (previousMode.current !== workspaceMode) {
+        const current = transformManager.getTransform();
+        animateCanvasTo(current.x + dx, current.y + dy, current.scale, 340);
+      } else {
+        transformManager.pan(dx, dy);
+      }
+    }
+    previousInsets.current = { ...cameraInsets };
+    previousMode.current = workspaceMode;
+  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom, workspaceMode]);
+  // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
+  // keyboard shortcut can both flip it without prop-drilling. The
+  // right-header Preview button still drives the same atom via the
+  // `onTogglePreview` prop below.
+  const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
+  const componentEditorOpen = useAtomValue(componentEditorFileAtom) !== null;
+  // Plugin editor takes over the canvas chrome the same way
+  // ComponentEditor does — when open we hide the BottomToolbar (and
+  // any other floating canvas-only UI) so the overlay can reach
+  // edge-to-edge without competing chrome.
+  const pluginEditorOpen = useAtomValue(pluginEditorFileAtom) !== null;
+  // The CMS panel is a full data-management surface — the canvas creator
+  // tools don't apply there, so the BottomToolbar hides while it's open.
+  const cmsPanelOpen = useAtomValue(leftPanelAtom) === 'cms';
+  const [cmsOverlayOpen, setCmsOverlayOpen] = useAtom(cmsOverlayOpenAtom);
+  const [cmsEditorOpen, setCmsEditorOpen] = useAtom(cmsEditorOpenAtom);
+  const translationsOverlayOpen = useAtomValue(translationsOverlayOpenAtom);
+  // The BottomToolbar hides only while a CMS collection OVERLAY actually
+  // covers the canvas — not merely when the CMS panel (the collection list)
+  // is the active left panel, which still leaves the canvas visible.
+  const cmsOverlayShowing = cmsOverlayOpen || cmsEditorOpen;
+  // Leaving the CMS panel (clicking another left-menu icon) closes any open
+  // CMS collection overlay — it would otherwise linger over an unrelated panel.
+  useEffect(() => {
+    if (!cmsPanelOpen) {
+      setCmsOverlayOpen(false);
+      setCmsEditorOpen(false);
+    }
+  }, [cmsPanelOpen, setCmsOverlayOpen, setCmsEditorOpen]);
+  // Same rule for the Localization overlay: it may only exist while the
+  // globe (locale) panel is the active left panel — clicking any other
+  // left-menu icon dismisses it (the overlay atom's write-through selects
+  // the locale panel on open, so the two stay in lockstep).
+  const localePanelOpen = useAtomValue(leftPanelAtom) === 'locale';
+  const setTranslationsOverlayOpen = useSetAtom(translationsOverlayOpenAtom);
+  useEffect(() => {
+    if (!localePanelOpen && translationsOverlayOpen) setTranslationsOverlayOpen(false);
+  }, [localePanelOpen, translationsOverlayOpen, setTranslationsOverlayOpen]);
+  // Viewers can't change anything — the AI page/design chat bubbles
+  // would just produce mutations the queue no-ops, so hide them.
+  const isViewer = useIsViewer();
+  const isViewerRole = useIsViewerRole();
+
+  // Ctrl/Cmd+P → toggle preview. Ignored when typing in inputs /
+  // textareas / contenteditable so the shortcut doesn't fight with
+  // browser print or text input. preventDefault on the dispatched
+  // event suppresses the browser print dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.altKey || e.shiftKey) return;
+      if (e.key.toLowerCase() !== 'p') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return;
+      e.preventDefault();
+      setPreviewMode((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setPreviewMode]);
+  // Icon-set masters route the AI chat differently — icon sets
+  // keep their own streaming chat.
+  // Component master files re-skin the editor accent from blue (--accent)
+  // to purple (--accent-secondary). The override goes on `<html>` (NOT a
+  // child div) so it reaches portaled UI too: dropdown menus, the
+  // variable modal, the preset picker, ToolPopups, etc. all render via
+  // `createPortal(document.body)` and would otherwise miss an override
+  // scoped to the editor root. The canvas iframe is a separate document
+  // so its own --accent stays blue regardless — the canvas Renderer's
+  // color rules depend on that.
+  const isComponentFile = useAtomValue(isComponentFileAtom);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isComponentFile) {
+      // The builder theme writes the same inline properties, so it stands
+      // down for the duration — otherwise switching theme while inside a
+      // component would paint over the purple component-mode signal.
+      suspendBuilderTheme();
+      root.style.setProperty('--accent', 'var(--accent-secondary)');
+      // The FOREGROUND has to move with the fill. Overriding only --accent
+      // left every accent-filled control (Publish, Variables, the active
+      // tool) purple while its LABEL kept --accent-fg, which is the
+      // near-black chosen for gold — black text on purple, and unreadable
+      // once the two accents stopped being the same hue family.
+      root.style.setProperty('--accent-fg', 'var(--accent-secondary-fg)');
+      root.style.setProperty('--accent-strong', 'var(--accent-secondary)');
+      root.style.setProperty('--accent-strong-fg', 'var(--accent-secondary-fg)');
+      // `--border-focus` is the colour for focused inputs / dropdowns —
+      // separate token from --accent in globals.css. Without overriding
+      // it, focused ToolInputs keep the brand accent even when everything
+      // else turns purple.
+      root.style.setProperty('--border-focus', 'var(--accent-secondary)');
+    } else {
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-fg');
+      root.style.removeProperty('--accent-strong');
+      root.style.removeProperty('--accent-strong-fg');
+      root.style.removeProperty('--border-focus');
+      // These removes wipe the builder theme's inline values too (same
+      // `<html>` style), so repaint it — without this, leaving a component
+      // dropped a Monochrome / Green Forest user back to the stock brass.
+      resumeBuilderTheme();
+    }
+    return () => {
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-fg');
+      root.style.removeProperty('--accent-strong');
+      root.style.removeProperty('--accent-strong-fg');
+      root.style.removeProperty('--border-focus');
+      resumeBuilderTheme();
+    };
+  }, [isComponentFile]);
+
+  return (
+    <CollaborationProvider>
+    <div
+      ref={editorRootRef}
+      aria-busy={!interactive ? true : undefined}
+      data-editor-interactive={interactive ? 'true' : 'false'}
+      data-canvas-reveal-phase={canvasRevealPhase}
+      onAnimationEnd={(event) => {
+        if (event.animationName === 'field-canvas-reveal'
+          && (event.target as HTMLElement).hasAttribute('data-canvas-iframe')) {
+          onCanvasRevealComplete?.();
+        }
+      }}
+      style={{ display: 'flex', height: '100dvh', flexDirection: 'column', '--workspace-left-width': `${cameraInsets.left}px`, '--workspace-right-width': `${cameraInsets.right}px` } as React.CSSProperties}
+    >
+      {/* Debug toolbar — floating at top center, above everything */}
+      <DebugToolbar />
+      <MobileFocusCoordinator />
+      {mobilePanelPresentation && isTextEditing && <button type="button" data-mobile-text-done
+        onPointerDown={(event) => event.preventDefault()}
+        onClick={() => { void commitActiveTextEdit(); }}
+        className="fixed right-3 z-[16000] flex h-11 items-center rounded-md border border-[var(--border-light)] bg-[var(--bg-panel)] px-4 text-xs"
+        style={{ bottom: 'calc(12px + var(--field-visible-bottom, 0px) + env(safe-area-inset-bottom, 0px))' }}>
+        Done
+      </button>}
+      <WorkspaceModeCoordinator />
+      {!mobilePortraitSheet && <ChromeIslands />}
+      <WorkspacePaneResizeHandles hidden={previewMode || mobilePortraitSheet} />
+      <PageAppearanceBridge />
+      {/* Live-collab broadcast loops + remote cursor overlay. Renders
+          inside the provider so its hooks have context; the overlay
+          itself is `position: fixed` and floats above the canvas. */}
+      <CollaborationLayer />
+      {/* View-only banner — shown when the current user is a viewer by
+          ROLE. Owners and editors never see it. */}
+      <ViewOnlyBanner />
+      <AgentEditingBanner />
+      {/* Network watcher — flips the editor into the offline read-only
+          state when the connection drops, and the matching toast. */}
+      <OfflineWatcher />
+      <OfflineToast />
+      <EditorRealtimeSync />
+      <EditorEntranceCoordinator />
+      <PersistenceConflictBanner />
+
+      {!mobilePortraitSheet && <>
+      {/* Headers — fixed at top corners, canvas visible between them */}
+      <LeftHeader />
+      <WorkspaceRestoreBar />
+      <RightHeader previewMode={previewMode} onTogglePreview={async () => {
+        // Entering the live preview while a text-edit session is active: commit it
+        // FIRST. Text-edit style changes only land in the code when the session
+        // EXITS, so without this the preview would read stale code and miss the
+        // just-made edits (color/font/…). No-op when nothing is being edited.
+        if (!previewMode) await commitActiveTextEdit();
+        setPreviewMode(!previewMode);
+      }} />
+
+      </>}
+      {mobilePortraitSheet && previewMode && <button type="button" data-field-no-canvas-input className="fixed top-3 right-3 z-[16000] rounded-xl bg-[var(--bg-panel)] px-4 py-3 text-sm text-[var(--text-primary)]" onClick={() => setPreviewMode(false)}>Exit preview</button>}
+      {mobilePortraitSheet && !previewMode && <PortraitWorkspace projectControls={<>
+      <LeftHeader />
+      <RightHeader embedded previewMode={previewMode} onTogglePreview={async () => {
+        // Entering the live preview while a text-edit session is active: commit it
+        // FIRST. Text-edit style changes only land in the code when the session
+        // EXITS, so without this the preview would read stale code and miss the
+        // just-made edits (color/font/…). No-op when nothing is being edited.
+        if (!previewMode) await commitActiveTextEdit();
+        setPreviewMode(!previewMode);
+      }} />
+
+      </>} />}
+
+      {/* Left toolbar: fixed icon menu + collapsible panel. NOT inert
+          for viewers — they need to switch panels (Pages, Layers,
+          Library, …) and navigate between the website's pages to view
+          them. Write actions inside the panels (add page, insert,
+          CMS edit, …) bottom out at the mutation-queue gate, and the
+          prominent ones are individually disabled in viewer mode. */}
+      {!mobilePortraitSheet && <><LeftMenu /><LeftPanel />{!previewMode && <FloatingLeftPanelHost />}</>}
+
+      {/* Main — offset ONLY by the 52px icon rail: the canvas runs FULL-BLEED
+          under both side panels (the right sidebar pulls itself over it with
+          marginLeft: -260). This is what feeds the panels' glassmorphism —
+          backdrop-blur needs real canvas behind the glass, not app
+          background — and the cut notches keep working for free. Camera
+          fits/pans center in the VISIBLE strip between the slabs:
+          getAvailableArea (CameraCommands) adds insets.left now that the
+          container origin is 0. To revert to opaque panels,
+          restore marginLeft 296 here and -12 on the right-sidebar shells
+          (the 12px = the cut-notch underlap). */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative', marginLeft: 0 }}>
+        <Canvas onFirstCanvasPaint={onCanvasFirstPaint} />
+        {/* Right panel: PropertiesPanel by default, swap for the
+            project-wide comments list while comment mode is active.
+            Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside
+            RightSidebar (fieldset-disable on the Properties panel; the
+            comments list stays interactive). */}
+        {!previewMode && !mobilePortraitSheet && rightPaneOpen && (
+          <div
+            data-workspace-right-body
+            data-visible={floatingInspectorVisible ? 'true' : 'false'}
+            data-mobile-panel-presentation={mobilePanelPresentation ? mobileWorkspacePresentation : undefined}
+            aria-hidden={!floatingInspectorVisible}
+            inert={!floatingInspectorVisible}
+            className={`fixed ${rightDetached ? 'z-[9999]' : 'z-[5000]'} flex flex-col overflow-hidden`}
+            style={{
+              right: workspaceLayout.right.inset,
+              top: workspaceBodyTop(workspaceLayout.right),
+              width: workspaceLayout.right.width,
+              height: rightDetached
+                ? Math.max(0, floatingInspectorHeight - WORKSPACE_HEADER_HEIGHT)
+                : workspaceBodyHeightCss(workspaceLayout.right),
+              transform: rightDetached
+                ? `translate(${rightDragOffset.x}px, ${rightDragOffset.y}px)`
+                : undefined,
+              boxSizing: 'border-box',
+              backgroundColor: rightDetached ? 'var(--field-chrome-pane-bg)' : undefined,
+              borderBottomLeftRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              borderBottomRightRadius: workspaceLayout.right.presentation === 'floating' ? WORKSPACE_FLOAT_RADIUS : 0,
+              opacity: floatingInspectorVisible ? 1 : 0,
+              translate: rightDetached && !floatingInspectorVisible ? 'calc(100% + 24px) 0' : undefined,
+              transition: 'translate 260ms ease, opacity 260ms ease',
+            }}
+          >
+            <RightSidebar />
+            {rightDetached && <button type="button" aria-label="Resize floating properties pane" title="Resize Inspector"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                const startY = event.clientY;
+                const startHeight = floatingInspectorHeight;
+                document.documentElement.dataset.workspaceResizing = 'true';
+                const move = (next: PointerEvent) => setRightFloatingHeight(
+                  clampRightFloatingHeight(window.innerHeight, startHeight + next.clientY - startY, rightDragOffset.y),
+                );
+                const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); delete document.documentElement.dataset.workspaceResizing; };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', stop, { once: true });
+                window.addEventListener('pointercancel', stop, { once: true });
+              }}
+              className="absolute bottom-0 left-0 z-[5001] h-5 w-5 cursor-nesw-resize touch-none text-[var(--text-tertiary)]">
+              <svg aria-hidden viewBox="0 0 16 16" width="16" height="16"><path d="M2 5 11 14M2 10l4 4" stroke="currentColor" fill="none" /></svg>
+            </button>}
+          </div>
+        )}
+        {/* AI chat — the ONE agent (Vibe), docked or popped out, for pages,
+            design components and icon sets alike: the surface tells it what
+            a bare request is about (an icon set: icons in the set). */}
+        {/* The chat keys on the ROLE, not on viewer mode: while an agent run
+            locks the branch the editor is read-only (viewer reason `agent`),
+            and the chat is exactly where the run is watched and stopped. */}
+        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !isViewerRole && <PageChat />}
+        {!previewMode && !componentEditorOpen && !pluginEditorOpen && !cmsOverlayShowing && !translationsOverlayOpen && !mobilePortraitSheet && <BottomToolbar />}
+        {!previewMode && !mobilePortraitSheet && <DesktopQuickTools />}
+        {/* Sketch brush controls live in the right PropertiesPanel
+            (SketchTool) so they sit in the same place as every other
+            element's properties — not in a floating toolbar. */}
+        {!previewMode && <KeyframeSheet />}
+        {/* Sketch draw animations only play in preview / export — the
+            canvas is for editing, not auto-playback (see comment at
+            top of file). */}
+      </div>
+
+      {/* Preview overlay — fullscreen iframe running the in-house React
+          preview-sandbox (vite on :5175). Replaced the old `ServerPreview`
+          (Next.js dev server in live-renderer/preview-project) — see
+          `src/editor/header/PreviewOverlay.tsx` for the postMessage
+          protocol that ships ProjectFS into the iframe. */}
+      <ProjectThumbnailCaptureHost suspended={previewMode} />
+      <PreviewOverlay open={previewMode} onClose={() => setPreviewMode(false)} />
+
+      {/* Global overlays — portaled, always rendered */}
+      <TranslationsOverlay />
+      <CmsOverlay />
+      <CmsEditorOverlay />
+      <ComponentEditorOverlay />
+      <CodeEditorPopup />
+      <SettingsOverlay />
+      <ProjectSettingsModal />
+      <PageVariablesModal />
+      <LinkedComponentModalMount />
+      {/* Plugin runtime — global free-floating window. Independent
+          of the ToolPopup singleton, so it stays open regardless of
+          which left-panel section / tool popup is active. Closes
+          only via its own × button or programmatic atom clear. */}
+      <PluginRuntimeWindow hidden={previewMode} />
+      {/* Bridges the `assets.pickVideo` plugin RPC to the native video picker
+          (same Pixabay/Upload/URL modal as the Fill tool). Renders nothing until
+          a plugin requests a pick. */}
+      <PluginVideoPickerHost />
+      {/* Upload Instructions modal — walks plugin authors through the
+          `@revyme/plugin-tools pack` CLI + dashboard upload flow.
+          Opened from a Tier 1 dev plugin's right-click menu. */}
+      <UploadInstructionsModal />
+      {/* cmd+K command palette — bottom-toolbar dropdown for searching
+          marketplace plugins (and later commands/blocks/templates).
+          Portal-mounted so it escapes any overflow/transform ancestors. */}
+      <CommandPalette />
+      <ToolbarPanelHost />
+      {!previewMode && <MediaUploadTray />}
+      {/* "Start from a template" prompt — brand-new cloud websites only
+          (ProjectLoader arms it when the site loads with zero files).
+          Offers free marketplace templates; closing keeps the blank
+          canvas. Cloud-gated so the OSS build tree-shakes it out. */}
+      {CLOUD_ENABLED && !isViewer && <NewWebsiteTemplatesModal />}
+      {/* Plugin editor overlay — Monaco split with live iframe preview
+          for Tier 2 (in-browser-authored) plugins. Reads
+          `pluginEditorFileAtom`; null = closed. */}
+      <PluginEditorMount />
+
+      {/* Toast container — same dark style as the old builder.
+          `position="bottom-center"` + `offset` lifts toasts above the
+          48px bottom toolbar so they don't hide behind it. Calls to
+          `toast(...)` from anywhere in the app render here via portal. */}
+      <Toaster
+        position="bottom-center"
+        offset={64}
+        toastOptions={{
+          style: {
+            background: '#1a1a1a',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#fff',
+            fontSize: '13px',
+          },
+        }}
+      />
+    </div>
+    </CollaborationProvider>
+  );
+}
+
+// PluginEditor mount — atom-driven Monaco overlay for Tier 2 plugins.
+// `pluginEditorFileAtom` set to a `plugins/{Name}.tsx` path opens the
+// editor; setting null closes it. Library "Plugins" section's
+// "+ New plugin" + "Edit" actions write to this atom.
+function PluginEditorMount() {
+  const filePath = useAtomValue(pluginEditorFileAtom);
+  const setFilePath = useSetAtom(pluginEditorFileAtom);
+  if (!filePath) return null;
+  return <PluginEditor filePath={filePath} onClose={() => setFilePath(null)} />;
+}
+
+// LinkedComponentModal mount — read URL atom, pass through. Atom-driven so
+// any place in the app can open the modal by writing the CDN URL into
+// `linkedComponentModalUrlAtom` (today: canvas double-click handler).
+function LinkedComponentModalMount() {
+  const state = useAtomValue(linkedComponentModalUrlAtom);
+  const setState = useSetAtom(linkedComponentModalUrlAtom);
+  // Warm the metadata cache for every CDN-linked instance on the active page
+  // so the modal's closed-source verdict is INSTANT on double-click (no
+  // "Unlink" flash before the closed-source message).
+  usePrefetchCdnMetadataForActiveFile();
+  return (
+    <LinkedComponentModal
+      isOpen={state !== null}
+      onClose={() => setState(null)}
+      cdnUrl={state?.url ?? null}
+      instanceNodeId={state?.nodeId ?? null}
+    />
+  );
+}
+
+// Right sidebar — switches between the default PropertiesPanel and the
+// project-wide CommentsListPanel based on `commentModeActiveAtom`. Kept
+// in a separate component so the atom subscription doesn't re-render the
+// entire <App />, just the panel slot.
+//
+// Viewer read-only handling: the Properties panel is wrapped in a
+// `<fieldset disabled>` — natively disables every form control inside
+// (real disabled styling, like a `<input disabled>`), auto-applies to
+// anything React renders later, and crucially does NOT block wheel
+// scrolling (unlike `inert`, which suppresses scroll events). The
+// comments list is left interactive — viewers can read/reply to
+// comments, that's the one thing they CAN do.
+function RightSidebar() {
+  const commentMode = useAtomValue(commentModeActiveAtom);
+  const isViewer = useIsViewer();
+  if (commentMode) return <CommentsListPanel />;
+  return (
+    <fieldset
+      disabled={isViewer}
+      // `display: contents` + reset the fieldset's default chrome so it
+      // adds zero layout — the disabled propagation is DOM-based and
+      // unaffected by display. `min-inline-size: 0` defeats fieldset's
+      // built-in min-content width.
+      style={{ display: 'contents', border: 'none', margin: 0, padding: 0, minInlineSize: 0 }}
+    >
+      <PropertiesPanel />
+    </fieldset>
+  );
+}
+
+// ─── View-only mode bits ────────────────────────────────────────────────────
+
+/** Read-only pill shown just above the bottom toolbar when the current
+ *  user is a viewer BY ROLE. Bottom-center so it sits with the other
+ *  canvas chrome instead of stealing the top edge. Non-interactive.
+ *  Offline read-only mode gets the `<OfflineToast />` instead — this
+ *  banner keys off the reason so the two never show at once. */
+function ViewOnlyBanner() {
+  const reason = useViewerReason();
+  if (reason !== 'viewer') return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        // BottomToolbar is `bottom: 16px` and ~44px tall — sit 8px above
+        // it (16 + 44 + 8 = 68) so the two read as a stacked cluster.
+        bottom: 68,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9998,
+        padding: '4px 12px',
+        background: 'rgba(0, 0, 0, 0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: 999,
+        color: 'rgba(255, 255, 255, 0.85)',
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: 0.2,
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+        userSelect: 'none',
+      }}
+    >
+      View only — you don't have edit access to this website.
+    </div>
+  );
+}
+
+/** The third read-only reason: an agent run holds the branch the user is
+ *  on. Same pill, same spot as the viewer banner (the reasons are mutually
+ *  exclusive); it names the branch and says where the run is stopped, since
+ *  the chat is the one surface that stays live. Gone the moment the run
+ *  finishes — the lock transition re-emits the viewer store. */
+function AgentEditingBanner() {
+  const reason = useViewerReason();
+  const branch = useActiveBranchId();
+  if (reason !== 'agent') return null;
+  return (
+    <div
+      data-testid="agent-editing-banner"
+      style={{
+        position: 'fixed',
+        bottom: 68,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9998,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '4px 12px',
+        // Solid, no blur: a frosted pill over the canvas read as part of the
+        // page behind it; this is editor chrome and must look like it.
+        background: 'var(--bg-tertiary)',
+        border: '1px solid var(--border-light)',
+        borderRadius: 999,
+        // The property panel's control-label colour (ControlLabel default):
+        // readable, not the full-white that shouted over the canvas.
+        color: 'var(--text-secondary)',
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: 0.2,
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+        userSelect: 'none',
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--accent)', boxShadow: '0 0 6px var(--accent)' }} />
+      Agent is editing {branch === MAIN_BRANCH_ID ? 'main' : `branch ${branch}`} — read-only until it finishes. Stop it from the chat.
+    </div>
+  );
+}
+
+/** Watches the browser's network status and flips the editor into the
+ *  offline read-only state. The `offline` event fires the instant the
+ *  network interface drops (`navigator.onLine` → false); a short
+ *  debounce rides out 1-second blips so a flaky connection doesn't
+ *  strobe the whole editor. Recovery (`online`) unlocks immediately.
+ *  Renders nothing — it's a pure side-effect mount. */
+function OfflineWatcher() {
+  useEffect(() => {
+    let pending: number | null = null;
+    const goOffline = () => {
+      if (pending !== null) return;
+      pending = window.setTimeout(() => {
+        pending = null;
+        setOfflineMode(true);
+      }, 2000);
+    };
+    const goOnline = () => {
+      if (pending !== null) {
+        window.clearTimeout(pending);
+        pending = null;
+      }
+      setOfflineMode(false);
+    };
+    // Catch the case where the editor loads while already offline.
+    if (!navigator.onLine) goOffline();
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => {
+      if (pending !== null) window.clearTimeout(pending);
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+    };
+  }, []);
+  return null;
+}
+
+/** Persistent toast shown while the user is offline. Unlike the timed
+ *  `toast(...)` API this is declarative — it stays for the whole
+ *  offline window and disappears the instant the network returns.
+ *  Sits where the `ViewOnlyBanner` does (the two are mutually exclusive
+ *  via the viewer reason). */
+function OfflineToast() {
+  const reason = useViewerReason();
+  if (reason !== 'offline') return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 68,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9998,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 14px',
+        background: 'var(--bg-tertiary)',
+        border: '1px solid var(--border-light)',
+        borderRadius: 10,
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+        color: 'var(--text-primary)',
+        fontSize: 12,
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+        userSelect: 'none',
+      }}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#f87171"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <line x1="1" y1="1" x2="23" y2="23" />
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+      <span>Reconnect to the internet to continue editing.</span>
+    </div>
+  );
+}

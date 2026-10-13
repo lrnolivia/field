@@ -1,0 +1,98 @@
+/* Collapse/restore uses the same restrained spatial grammar as chrome entry. */
+/* Keep header controls, including the logo, out of the very first editor frame.
+   The entrance coordinator takes ownership before the first painted frame. */
+html:not([data-editor-entrance-state]) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore][data-visible='true'],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle][data-visible='true']
+) {
+  opacity: 0;
+}
+
+/* The normal pane opacity transition must not interpolate the coordinator's
+   initial hidden state; that was exposing the header before its late beat. */
+html:is(:not([data-editor-entrance-state]), [data-editor-entrance-state='prepared'], [data-editor-entrance-state='waiting-canvas']) :is(
+  [data-workspace-left-header],
+  [data-workspace-left-restore],
+  [data-workspace-right-header],
+  [data-workspace-right-toggle]
+) {
+  transition: none;
+}
+
+[data-workspace-island],
+[data-workspace-right-header],
+[data-workspace-right-body],
+[data-workspace-right-toggle],
+[data-workspace-left-header],
+[data-left-menu-rail],
+[data-editor-panel='left-primary'],
+[data-workspace-left-restore] {
+  transition:
+    left 340ms cubic-bezier(.2, .8, .2, 1),
+    right 340ms cubic-bezier(.2, .8, .2, 1),
+    top 340ms cubic-bezier(.2, .8, .2, 1),
+    width 340ms cubic-bezier(.2, .8, .2, 1),
+    height 340ms cubic-bezier(.2, .8, .2, 1),
+    border-radius 340ms cubic-bezier(.2, .8, .2, 1),
+    box-shadow 340ms cubic-bezier(.2, .8, .2, 1),
+    opacity 200ms ease,
+    transform 340ms cubic-bezier(.2, .8, .2, 1);
+}
+
+[data-workspace-left-header][data-visible='false'],
+[data-left-menu-rail][data-visible='false'],
+[data-editor-panel='left-primary'][data-visible='false'] {
+  opacity: 0;
+  transform: translateX(-12px) scale(.98);
+  pointer-events: none;
+}
+
+[data-workspace-left-header][data-visible='false'] {
+  transform: none;
+}
+
+[data-left-menu-rail][data-visible='false'] {
+  transform: translateX(-48px);
+}
+
+[data-workspace-left-restore][data-visible='false'] {
+  opacity: 0;
+  transform: none;
+  pointer-events: none;
+}
+
+html[data-workspace-resizing='true'] :is(
+  [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+  [data-workspace-left-header], [data-left-menu-rail], [data-editor-panel='left-primary']
+) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-editor-entrance-state]) :is(
+    [data-workspace-left-header], [data-workspace-left-restore][data-visible='true'],
+    [data-workspace-right-header], [data-workspace-right-toggle][data-visible='true']
+  ) { opacity: revert; }
+  :is(
+    [data-workspace-island], [data-workspace-right-header], [data-workspace-right-body],
+    [data-workspace-right-toggle], [data-workspace-left-header], [data-left-menu-rail],
+    [data-editor-panel='left-primary'], [data-workspace-left-restore]
+  ) { transition: none; }
+}
+
+
+/* The title yields to the layout chooser without resizing its surface. */
+[data-title-identity] {
+  transition: opacity 180ms ease, transform 240ms ease;
+}
+:is([data-workspace-left-header], [data-workspace-left-restore]):has([data-workspace-layout-control][data-expanded='true']) [data-title-identity] {
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-title-identity], [data-workspace-layout-control] { transition: none !important; }
+}

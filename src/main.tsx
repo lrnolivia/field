@@ -1,0 +1,29 @@
+import { createRoot } from 'react-dom/client';
+import { Provider, getDefaultStore } from 'jotai';
+import FieldShell from './FieldShell';
+import './styles/globals.css';
+import './styles/loew-theme.css'; // Minimal UI theme — must stay AFTER globals.css (see LOEW_THEME.md)
+import './styles/dashboard.css';
+import './styles/field-shell.css';
+import './styles/field-glyph-global.css';
+import { subscribeBuilderTheme } from './editor/builder-theme';
+
+// Mark the main field app document as the universal field.GLYPH motion surface.
+// Canvas and Preview use separate entrypoints/documents and never receive this marker.
+document.documentElement.dataset.fieldGlyphMotion = 'true';
+
+// Restore the saved builder accent BEFORE the first paint (so a non-default
+// theme doesn't flash the stock brass on reload) and keep it in sync with both
+// the atom and the light/dark switch thereafter.
+subscribeBuilderTheme();
+
+// Bind <Provider> to the global default store so non-React code paths
+// (e.g. the dev-only `__e2e` hook in ProjectLoader, mutation queue
+// callbacks) can read/write the same atoms React subscribes to. Without
+// `store=`, <Provider> creates a fresh scoped store and any
+// `getDefaultStore()` call lands on a different instance — atom writes
+// from one path become invisible to readers on the other.
+createRoot(document.getElementById('root')!).render(
+  <Provider store={getDefaultStore()}>
+    <FieldShell />
+  </Provider>);

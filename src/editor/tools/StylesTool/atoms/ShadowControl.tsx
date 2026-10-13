@@ -1,0 +1,563 @@
+// ShadowControl.tsx — Fully self-contained shadow ToolAtom.
+// Multi-entry box-shadow + drop-shadow editor using unified control system.
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useDebouncedCallback } from '@/editor/hooks/useDebouncedCallback';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { projectVersionAtom } from '@/code/project/project-fs';
+import { liveUpdatePresetToken } from '../../../ui/preset-live-update';
+import { UnifiedControlProvider } from '../../../controls/unified/ControlProvider';
+import { useControlContext, ShowControlLabels, InspectorProvenanceBoundary } from '../../../controls/unified/useControlContext';
+import { UsedByRow } from '../../../controls/unified/UsedByRow';
+import type { AtomProps } from '../../../controls/unified/types';
+import ToolInput from '../../../controls/ToolInput';
+import '../../../controls/ColorInput';
+import '../../../controls/ToolSegmentedControl';
+import { EntryList } from '../../../controls/EntryList';
+import { EffectRow } from '../../../controls/EffectRow';
+import { ControlActionRow } from '../../../controls/ControlActionRow';
+import ControlLabel from '../../../controls/ControlLabel';
+import { ColorSwatch } from '../../../controls/ColorSwatch';
+import { useHoistMenuItem } from '../../../controls/hoist-context';
+import { VariableBoundPill } from '../../../controls/VariableBoundPill';
+import { ShadowIcon } from '@/design-system/PropertyIcons';
+import ToolPopup from '../../../ui/ToolPopup';
+import { useEditorPanel } from '../../../hooks/useEditorPanel';
+import {
+  parseShadowEntries, formatShadowEntries, buildShadowStylePatch, createDefaultShadow,
+  type ShadowEntry,
+} from '../../../ui/shadow-utils';
+import { parsePx, formatPx } from '../style-helpers';
+import { presetTokensAtom } from '@/code/stores/preset-store';
+import { trace } from '@/shared/debug-trace';
+import { resolvePresetColor } from '@/shared/css-utils';
+import { EffectPreviewFrame, EffectOptionsPanel, EffectOptionSection, InspectorSectionGlyph, ChoiceRow, SpatialRow, ScalarRow, PaintOptionRow } from '../../../ui/OptionsPanel';
+
+// ─── Functional preview ─────────────────────────────────────────────────────
+
+function ShadowLivePreview({
+  entry,
+  layer,
+  count,
+  onOffsetLive,
+  onOffsetCommit,
+}: {
+  entry: ShadowEntry;
+  layer: number;
+  count: number;
+  onOffsetLive: (x: number, y: number) => void;
+  onOffsetCommit: (x: number, y: number) => void;
+}) {
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null);
+  const clampOffset = (value: number) => Math.max(-48, Math.min(48, Math.round(value)));
+  const shadowValue = entry.type === 'box'
+    ? `${entry.inset ? 'inset ' : ''}${entry.x}px ${entry.y}px ${entry.blur}px ${entry.spread}px ${entry.color}`
+    : undefined;
+  const dropFilter = entry.type === 'drop'
+    ? `drop-shadow(${entry.x}px ${entry.y}px ${entry.blur}px ${entry.color})`
+    : undefined;
+
+  const nudge = (dx: number, dy: number) => {
+    onOffsetCommit(clampOffset(entry.x + dx), clampOffset(entry.y + dy));
+  };
+
+  return (
+    <EffectPreviewFrame
+      details={<>Layer {layer}/{count} · X {entry.x} · Y {entry.y} · Blur {entry.blur}</>}
+      hint="Drag the object or use arrow keys to change shadow offset."
+    >
+      <button
+        type="button"
+        data-shadow-live-preview
+        aria-label="Shadow preview. Drag or use arrow keys to change offset."
+        className="relative h-10 w-14 cursor-move rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] outline-none transition-[border-color,transform] focus-visible:border-[var(--border-focus)] active:scale-[0.98]"
+        style={{ boxShadow: shadowValue, filter: dropFilter }}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 10 : 1;
+          if (event.key === 'ArrowLeft') { event.preventDefault(); nudge(-step, 0); }
+          if (event.key === 'ArrowRight') { event.preventDefault(); nudge(step, 0); }
+          if (event.key === 'ArrowUp') { event.preventDefault(); nudge(0, -step); }
+          if (event.key === 'ArrowDown') { event.preventDefault(); nudge(0, step); }
+        }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            startX: entry.x,
+            startY: entry.y,
+          };
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          onOffsetLive(
+            clampOffset(drag.startX + event.clientX - drag.x),
+            clampOffset(drag.startY + event.clientY - drag.y),
+          );
+        }}
+        onPointerUp={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          const x = clampOffset(drag.startX + event.clientX - drag.x);
+          const y = clampOffset(drag.startY + event.clientY - drag.y);
+          dragRef.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          onOffsetCommit(x, y);
+        }}
+        onPointerCancel={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          dragRef.current = null;
+          onOffsetCommit(entry.x, entry.y);
+        }}
+      >
+        <span className="absolute inset-2 rounded-[3px] border border-[var(--border-light)] bg-[var(--bg-hover)]/45" />
+      </button>
+    </EffectPreviewFrame>
+  );
+}
+
+// ─── Self-contained editor panel (reactive inside pushPanel) ─────────────────
+
+function ShadowEditorPanel({ initialIdx, initialBoxShadow, initialFilter, onChangeLive, onCommit }: {
+  initialIdx: number;
+  initialBoxShadow: string;
+  initialFilter: string;
+  /** Multi-prop DOM-only live patch (boxShadow + filter) — chevron-drag. */
+  onChangeLive: (styles: Record<string, string>) => void;
+  onCommit: (styles: Record<string, string>) => void;
+}) {
+  const boxShadow = initialBoxShadow;
+  const filter = initialFilter;
+
+  const [entries, setEntries] = useState<ShadowEntry[]>(() => parseShadowEntries(boxShadow, filter));
+  const [activeIdx, setActiveIdx] = useState(initialIdx);
+  const selfWriteCountRef = useRef(0);
+  const prevBoxRef = useRef(boxShadow);
+  const prevFilterRef = useRef(filter);
+
+  // The popup stays mounted across entry switches (single ToolPopup, not a remount). `useState(initialIdx)` only
+  // seeds on MOUNT — so clicking a DIFFERENT shadow row while the popup is open re-passes a new `initialIdx` but
+  // left the panel showing the first shadow. Sync to it so the popup follows the row you click.
+  useEffect(() => { setActiveIdx(initialIdx); }, [initialIdx]);
+
+  useEffect(() => {
+    if (boxShadow !== prevBoxRef.current || filter !== prevFilterRef.current) {
+      prevBoxRef.current = boxShadow;
+      prevFilterRef.current = filter;
+      if (selfWriteCountRef.current > 0) {
+        selfWriteCountRef.current--;
+        return;
+      }
+      const parsed = parseShadowEntries(boxShadow, filter);
+      setEntries(parsed);
+      if (activeIdx >= parsed.length) setActiveIdx(Math.max(0, parsed.length - 1));
+    }
+  }, [boxShadow, filter]);
+
+  const commitEntries = (newEntries: ShadowEntry[]) => {
+    const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
+    setEntries(withIds);
+    const patch = buildShadowStylePatch(withIds, filter);
+    trace.action('shadow-panel:commit', { count: withIds.length, keys: Object.keys(patch) });
+    selfWriteCountRef.current = Object.keys(patch).length;
+    onCommit(patch);
+  };
+
+  const updateEntry = (idx: number, patch: Partial<ShadowEntry>) => {
+    const updated = entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
+    commitEntries(updated);
+  };
+
+  // LIVE — every chevron-drag frame: local state + DOM-only patch of BOTH
+  // boxShadow + filter. NO code write, NO selfWriteCount bump (a DOM patch
+  // doesn't echo back through `value`). The commit fires on chevron release.
+  const liveEntries = (newEntries: ShadowEntry[]) => {
+    const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
+    setEntries(withIds);
+    onChangeLive(buildShadowStylePatch(withIds, filter));
+  };
+  const updateEntryLive = (idx: number, patch: Partial<ShadowEntry>) => {
+    liveEntries(entries.map((e, i) => i === idx ? { ...e, ...patch } : e));
+  };
+
+  const activeEntry = entries[activeIdx];
+  if (!activeEntry) return null;
+
+  // Shared field options grammar: semantic choices first, then spatial
+  // geometry, softness, and paint. Existing source serialization is unchanged.
+  return (
+    <ShowControlLabels>
+      <EffectOptionsPanel>
+        <ShadowLivePreview
+          entry={activeEntry}
+          layer={activeIdx + 1}
+          count={entries.length}
+          onOffsetLive={(x, y) => updateEntryLive(activeIdx, { x, y })}
+          onOffsetCommit={(x, y) => updateEntry(activeIdx, { x, y })}
+        />
+        <EffectOptionSection title="Style" glyph={<InspectorSectionGlyph kind="style" />}>
+          <ChoiceRow
+            label="Type"
+            value={activeEntry.type}
+            onChange={(v) => {
+              const patch: Partial<ShadowEntry> = { type: v as 'box' | 'drop' };
+              if (v === 'drop') { patch.spread = 0; patch.inset = false; }
+              updateEntry(activeIdx, patch);
+            }}
+            options={[{ value: 'box', label: 'Shadow' }, { value: 'drop', label: 'Filter' }]}
+          />
+          {activeEntry.type === 'box' && (
+            <ChoiceRow
+              label="Position"
+              value={activeEntry.inset ? 'inside' : 'outside'}
+              onChange={(v) => updateEntry(activeIdx, { inset: v === 'inside' })}
+              options={[{ value: 'outside', label: 'Drop' }, { value: 'inside', label: 'Inner' }]}
+            />
+          )}
+        </EffectOptionSection>
+
+        <EffectOptionSection title="Geometry" glyph={<InspectorSectionGlyph kind="geometry" />}>
+          <SpatialRow label="Offset">
+            <ToolInput
+              value={formatPx(activeEntry.x)}
+              onChange={(v) => updateEntry(activeIdx, { x: parsePx(v) })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { x: parsePx(v) })}
+              onCommit={(v) => updateEntry(activeIdx, { x: parsePx(v) })}
+              step={1}
+              chevronLabel="X"
+              ariaLabel="Shadow X"
+            />
+            <ToolInput
+              value={formatPx(activeEntry.y)}
+              onChange={(v) => updateEntry(activeIdx, { y: parsePx(v) })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { y: parsePx(v) })}
+              onCommit={(v) => updateEntry(activeIdx, { y: parsePx(v) })}
+              step={1}
+              chevronLabel="Y"
+              ariaLabel="Shadow Y"
+            />
+          </SpatialRow>
+          <ScalarRow
+            label="Blur"
+            value={activeEntry.blur}
+            min={0}
+            max={100}
+            step={1}
+            unit="px"
+            onChange={(v) => updateEntry(activeIdx, { blur: v })}
+            onChangeLive={(v) => updateEntryLive(activeIdx, { blur: v })}
+            onCommit={(v) => updateEntry(activeIdx, { blur: v })}
+          />
+          {activeEntry.type === 'box' && (
+            <ScalarRow
+              label="Spread"
+              value={activeEntry.spread}
+              min={-100}
+              max={100}
+              step={1}
+              unit="px"
+              onChange={(v) => updateEntry(activeIdx, { spread: v })}
+              onChangeLive={(v) => updateEntryLive(activeIdx, { spread: v })}
+              onCommit={(v) => updateEntry(activeIdx, { spread: v })}
+            />
+          )}
+        </EffectOptionSection>
+
+        <EffectOptionSection title="Paint" glyph={<InspectorSectionGlyph kind="paint" />}>
+          <PaintOptionRow
+            label="Color"
+            value={activeEntry.color}
+            onChange={(v) => updateEntry(activeIdx, { color: v })}
+            onChangeLive={(v) => updateEntryLive(activeIdx, { color: v })}
+          />
+        </EffectOptionSection>
+      </EffectOptionsPanel>
+    </ShowControlLabels>
+  );
+}
+
+// ─── Inner atom ───────────────────────────────────────────────────────────────
+
+function ShadowAtom({ compactSection = false }: { compactSection?: boolean }) {
+  const { value, node, onChange, onChangeMultiple, onChangeMultipleLive, binding, mode, allProps, hasVariable } = useControlContext();
+  // When an injected chevron menu (Hoist Variable / Set Variable / Apply Preset) is present — i.e. this
+  // Shadow atom is mounted on a component-INSTANCE prop row in variableDefault mode — the header label must
+  // KEEP its chevron so the menu is reachable. Without this, Shadow was the only compound atom (vs Filter /
+  // ClipPath / Fill) that force-plained its label in non-direct modes → no Hoist Variable for shadow.
+  const ovHoist = useHoistMenuItem();
+  const { isOpen, openPanel, panelPopup } = useEditorPanel('Shadow', () => (
+    activeEntry && (
+      <ShadowEditorPanel initialIdx={activeIdx} initialBoxShadow={boxShadow} initialFilter={filter} onChangeLive={onChangeMultipleLive} onCommit={onChangeMultiple} />
+    )
+  ), { kind: 'options', width: 300 });
+  const styles = allProps;
+  const allTokens = useAtomValue(presetTokensAtom);
+
+  // boxShadow from unified context value (works in both direct and scrollStop modes)
+  const boxShadow = value || '';
+  const filter = styles.filter ?? '';
+
+  const [entries, setEntries] = useState<ShadowEntry[]>(() => parseShadowEntries(boxShadow, filter));
+  const [activeIdx, setActiveIdx] = useState<number>(0);
+  const btnRef = useRef<HTMLElement>(null);
+
+  // Skip re-sync when WE caused the change (not a node switch / undo / code edit)
+  const selfWriteCountRef = useRef(0);
+
+  // Re-sync when props change — but skip if we caused it
+  const prevBoxRef = useRef(boxShadow);
+  const prevFilterRef = useRef(filter);
+  useEffect(() => {
+    if (boxShadow !== prevBoxRef.current || filter !== prevFilterRef.current) {
+      prevBoxRef.current = boxShadow;
+      prevFilterRef.current = filter;
+      if (selfWriteCountRef.current > 0) {
+        selfWriteCountRef.current--;
+        return; // We caused this — skip re-parse, keep activeIdx
+      }
+      // External change (node switch, undo, code edit) — re-parse and reset
+      setEntries(parseShadowEntries(boxShadow, filter));
+      setActiveIdx(0);
+    }
+  }, [boxShadow, filter]);
+
+  // Commit entries back to CSS
+  const commitEntries = (newEntries: ShadowEntry[]) => {
+    // Re-assign deterministic IDs
+    const withIds = newEntries.map((e, i) => ({ ...e, id: `shadow-${i}` }));
+    setEntries(withIds);
+    const patch = buildShadowStylePatch(withIds, filter);
+    trace.action('shadow:commit', { count: withIds.length, keys: Object.keys(patch), boxShadow: (patch.boxShadow ?? '').slice(0, 60) });
+    selfWriteCountRef.current = Object.keys(patch).length;
+    onChangeMultiple(patch);
+  };
+
+  // Update a single entry
+  const updateEntry = (idx: number, patch: Partial<ShadowEntry>) => {
+    const updated = entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
+    commitEntries(updated);
+  };
+
+  const activeEntry = entries[activeIdx];
+
+  trace.fn('ShadowAtom:render', { entryCount: entries.length, activeIdx, isOpen });
+
+  // Bound check — show UsedByRow for animation/scroll, or the purple variable
+  // pill when a component prop drives this style. Variable wins only if the
+  // animation isn't already taking the slot — same priority as ControlRow.
+  if (mode === 'direct' && binding.bound) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Shadow" property="boxShadow" />
+        <UsedByRow binding={binding} />
+      </div>
+    );
+  }
+  if (mode === 'direct' && hasVariable) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Shadow" property="boxShadow" />
+        <VariableBoundPill propertyLabel="Shadow" />
+      </div>
+    );
+  }
+
+  const openEditor = (idx: number, freshBoxShadow?: string) => {
+    setActiveIdx(idx);
+    openPanel(<ShadowEditorPanel initialIdx={idx} initialBoxShadow={freshBoxShadow ?? boxShadow} initialFilter={filter} onChangeLive={onChangeMultipleLive} onCommit={onChangeMultiple} />);
+  };
+
+  const handleAdd = () => {
+    if (entries.length === 0) {
+      const def = createDefaultShadow();
+      const fresh = [def];
+      commitEntries(fresh);
+      const { boxShadow: freshBS } = formatShadowEntries(fresh);
+      openEditor(0, freshBS);
+    } else {
+      const newEntry: ShadowEntry = { ...createDefaultShadow(), id: `shadow-${entries.length}` };
+      const newEntries = [...entries, newEntry];
+      const newIdx = newEntries.length - 1;
+      commitEntries(newEntries);
+      const { boxShadow: freshBS } = formatShadowEntries(newEntries);
+      openEditor(newIdx, freshBS);
+    }
+  };
+
+  const handleRemove = (idx: number) => {
+    const n = [...entries];
+    n.splice(idx, 1);
+    commitEntries(n);
+  };
+
+  // Shadow preset reference: when boxShadow is exactly `var(--shadow-...)`, the
+  // EntryList view (which expects parsed shadow entries) doesn't really apply
+  // — show a blue-pill row instead, mirroring the color/image/video preset
+  // affordance in FillControl. The pill swatch uses the resolved shadow's
+  // color so the user gets a quick visual hint.
+  const presetMatch = boxShadow.match(/^var\(\s*--([^)\s,]+)\s*\)$/);
+  const shadowPresetToken = presetMatch
+    ? allTokens.find(t => t.name === presetMatch[1] && t.category === 'shadow')
+    : undefined;
+
+  if (shadowPresetToken && mode !== 'preset') {
+    return (
+      <ShadowPresetPillRow
+        tokenName={shadowPresetToken.name}
+        tokenLabel={shadowPresetToken.label
+          || shadowPresetToken.name.replace(/^shadow-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+        currentValue={shadowPresetToken.value}
+        previewColor={(() => {
+          const entries = parseShadowEntries(shadowPresetToken.value, '');
+          return entries[0] ? resolvePresetColor(entries[0].color, allTokens) : '#000';
+        })()}
+        onClear={() => onChange('')}
+      />
+    );
+  }
+
+  if (compactSection && entries.length === 0) return null;
+
+  if (compactSection) {
+    return (
+      <>
+        <div className="flex flex-col gap-1 w-full">
+          {entries.map((entry, idx) => (
+            <div key={entry.id} ref={idx === 0 ? btnRef as React.RefObject<HTMLDivElement> : undefined}>
+              <EffectRow
+                control={
+                  <ControlActionRow onClick={() => openEditor(idx)} embedded>
+                    <ColorSwatch style={{ backgroundColor: resolvePresetColor(entry.color, allTokens) }} />
+                    <span className="flex-1 min-w-0 text-xs text-[var(--text-primary)] truncate text-left">
+                      {entry.type === 'drop' ? 'Drop shadow' : entry.inset ? 'Inner shadow' : 'Drop shadow'}
+                    </span>
+                  </ControlActionRow>
+                }
+                onRemove={() => handleRemove(idx)}
+              />
+            </div>
+          ))}
+        </div>
+        {panelPopup(btnRef)}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <EntryList
+        label="Shadow"
+        property="boxShadow"
+        entries={entries}
+        onEdit={openEditor}
+        onRemove={handleRemove}
+        onAdd={handleAdd}
+        renderSwatch={(e) => ({ backgroundColor: resolvePresetColor(e.color, allTokens) })}
+        renderLabel={(e) => e.type === 'drop' ? 'Drop shadow' : e.inset ? 'Inner shadow' : 'Drop shadow'}
+        addButtonRef={btnRef}
+        suppressLabel={compactSection}
+        hideAddRow={compactSection}
+        EmptyIcon={ShadowIcon}
+        nonInteractive={mode === 'preset'}
+        plainLabel={mode !== 'direct' && !ovHoist}
+      />
+
+      {/* Shadow entry editor popup — only when NOT inside a parent popup */}
+      {panelPopup(btnRef)}
+    </>
+  );
+}
+
+// ─── Shadow preset pill row — opens an edit popup on click ─────────────────
+
+/**
+ * The blue pill the row collapses to when a shadow preset is applied to the
+ * node. Click → opens a ToolPopup that edits the preset *itself* (live updates
+ * to the token write to tokens.css and propagate everywhere the preset is
+ * used). × → unlinks the preset from this node only (caller's onClear).
+ */
+function ShadowPresetPillRow({ tokenName, tokenLabel, currentValue, previewColor, onClear }: {
+  tokenName: string;
+  tokenLabel: string;
+  currentValue: string;
+  previewColor: string;
+  onClear: () => void;
+}) {
+  const [editOpen, setEditOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const bumpVersion = useSetAtom(projectVersionAtom);
+
+  // Live preset edit: liveUpdatePresetToken paints the canvas immediately
+  // via the bridge's setCanvasTokenVar AND queues the tokens.css write. We
+  // debounce the version bump (which fans out to every preset consumer) so
+  // a dragged X/Y/blur slider doesn't trigger a re-render storm.
+  const debouncedBump = useDebouncedCallback(() => bumpVersion(v => v + 1), 300);
+  const handleEditChange = useCallback((newValue: string) => {
+    liveUpdatePresetToken(tokenName, newValue);
+    debouncedBump.call();
+    trace.action('shadow-preset:edit', { tokenName });
+  }, [tokenName, debouncedBump]);
+
+  // Final bump on close so any final value is captured by the derived atoms.
+  useEffect(() => {
+    return () => {
+      debouncedBump.cancel();
+      bumpVersion(v => v + 1);
+    };
+  }, [bumpVersion, debouncedBump]);
+
+  return (
+    <>
+      <div className="flex items-center justify-between w-full">
+        <ControlLabel label="Shadow" property="boxShadow" />
+        <button
+          ref={anchorRef}
+          className="w-full h-8 flex items-center gap-2 px-2 bg-[var(--accent)] cut-corners cursor-pointer transition-colors min-w-0 overflow-hidden hover:opacity-90"
+          onClick={() => setEditOpen(true)}
+        >
+          <ColorSwatch style={{ backgroundColor: previewColor }} />
+          <span className="text-xs font-medium text-[var(--accent-fg)] truncate flex-1 text-left">
+            {tokenLabel}
+          </span>
+          <span
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="text-[var(--accent-fg)] opacity-70 hover:opacity-100 text-sm leading-none cursor-pointer shrink-0"
+          >
+            &minus;
+          </span>
+        </button>
+      </div>
+
+      {editOpen && (
+        <ToolPopup
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
+          title={`Edit "${tokenLabel}"`}
+          anchorRef={anchorRef}
+          kind="options"
+        >
+          <ShadowControl
+            mode="preset"
+            externalValue={currentValue}
+            externalOnChange={handleEditChange}
+          />
+        </ToolPopup>
+      )}
+    </>
+  );
+}
+
+// ─── Exported wrapper ─────────────────────────────────────────────────────────
+
+export function ShadowControl({ mode = 'direct', compactSection = false, ...mp }: AtomProps & { compactSection?: boolean }) {
+  return (
+    <UnifiedControlProvider property="boxShadow" defaultValue="" mode={mode} {...mp}>
+      <InspectorProvenanceBoundary>
+        <ShadowAtom compactSection={compactSection} />
+      </InspectorProvenanceBoundary>
+    </UnifiedControlProvider>
+  );
+}

@@ -1,0 +1,291 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FieldBackend, PersistenceConflictError } from './field-backend';
+import { resolveBackendKind } from './index';
+import type { ProjectData } from './types';
+import { isRetryableSaveError } from './autosave';
+import { getFieldSessionId } from './project-events';
+
+const project: ProjectData = {
+  format: 'revyme-v1',
+  files: { 'app/page.client.tsx': 'hello' },
+};
+
+function response(body: unknown, status: number, etag?: string): Response {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  if (etag) headers.set('ETag', etag);
+  return new Response(body === null ? null : JSON.stringify(body), { status, headers });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('backend selection', () => {
+  it('keeps explicitly-enabled Revyme Cloud authoritative', () => {
+    expect(resolveBackendKind({ cloudEnabled: true, isDev: true, forceLocal: true })).toBe('revyme');
+  });
+
+  it('uses LocalBackend in ordinary development', () => {
+    expect(resolveBackendKind({ cloudEnabled: false, isDev: true, forceLocal: false })).toBe('local');
+  });
+
+  it('uses FieldBackend for a normal production field build', () => {
+    expect(resolveBackendKind({ cloudEnabled: false, isDev: false, forceLocal: false })).toBe('field');
+  });
+
+  it('supports an explicit local production-preview fallback', () => {
+    expect(resolveBackendKind({ cloudEnabled: false, isDev: false, forceLocal: true })).toBe('local');
+  });
+});
+
+
+describe('FieldBackend read-only QA bootstrap', () => {
+  it('loads the injected real project snapshot without Access or project API calls', async () => {
+    vi.stubGlobal('window', {
+      __FIELD_QA_PROJECT__: {
+        id: 'qa-project',
+        data: project,
+        meta: { name: 'QA project' },
+      },
+    });
+
+    const fetchImpl = vi.fn();
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      legacyLoader: async () => null,
+    });
+
+    await expect(backend.getUser()).resolves.toBeNull();
+    await expect(backend.loadProject('qa-project')).resolves.toEqual(project);
+    await expect(backend.getWebsiteName('qa-project')).resolves.toBe('QA project');
+    await expect(backend.getWebsiteRole('qa-project')).resolves.toBe('viewer');
+    await expect(backend.saveProject('qa-project', project)).rejects.toThrow('read-only');
+    await expect(backend.renameWebsite('qa-project', 'nope')).rejects.toThrow('read-only');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('FieldBackend Access identity', () => {
+  it('uses the authenticated Cloudflare Access identity instead of Local User', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-1',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+    }, 200));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-1',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/cdn-cgi/access/get-identity');
+    const init = fetchImpl.mock.calls[0][1] as RequestInit;
+    expect(init.credentials).toBe('include');
+    expect(init.cache).toBe('no-store');
+  });
+
+  it('uses a provider picture when Access exposes one', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-photo',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+      idp: { type: 'google' },
+      oidc_fields: {
+        picture: 'https://example.com/lauren.jpg',
+      },
+    }, 200));
+
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-photo',
+      name: 'Lauren Olivia',
+      email: 'lauren@example.com',
+      image: 'https://example.com/lauren.jpg',
+      providerImage: 'https://example.com/lauren.jpg',
+      identityProvider: 'google',
+    });
+  });
+
+  it('falls back to the verified email identity when Access has no display name', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response({
+      user_uuid: 'access-user-2',
+      email: 'lauren@example.com',
+    }, 200));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await expect(backend.getUser()).resolves.toEqual({
+      id: 'access-user-2',
+      name: 'lauren',
+      email: 'lauren@example.com',
+    });
+  });
+});
+
+describe('FieldBackend project persistence', () => {
+  it('loads remote ProjectData, captures its ETag, and uses it on the next save', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, '"rev-a"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"rev-b"'));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    expect(await backend.loadProject('local')).toEqual(project);
+    await backend.saveProject('local', project);
+
+    const saveInit = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-a"');
+    expect(new Headers(saveInit.headers).get('If-None-Match')).toBeNull();
+    expect(new Headers(saveInit.headers).get('X-Field-Session-Id')).toBe(getFieldSessionId());
+  });
+
+  it('normalizes a Cloudflare-weakened R2 ETag before the next conditional save', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, 'W/"rev-a"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, 'W/"rev-b"'));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    expect(await backend.loadProject('local')).toEqual(project);
+    await backend.saveProject('local', project);
+
+    const saveInit = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-a"');
+  });
+
+  it('uses conditional-create semantics for a first remote save', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response({ error: 'not found' }, 404))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"rev-a"'));
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as typeof fetch,
+      legacyLoader: async () => null,
+    });
+
+    expect(await backend.loadProject('new-project')).toBeNull();
+    await backend.saveProject('new-project', project);
+    const saveInit = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-None-Match')).toBe('*');
+  });
+
+  it('classifies a stale conditional save as a persistence conflict', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, '"rev-a"'))
+      .mockResolvedValueOnce(response({ error: 'conflict' }, 412));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await backend.loadProject('local');
+    await expect(backend.saveProject('local', project)).rejects.toBeInstanceOf(PersistenceConflictError);
+  });
+
+  it('blocks a known realtime-stale revision before issuing another PUT', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response(project, 200, '"rev-a"'));
+    const fieldBackend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await fieldBackend.loadProject('local');
+    fieldBackend.markProjectRevisionStale('local');
+    fetchImpl.mockClear();
+
+    await expect(fieldBackend.saveProject('local', project)).rejects.toBeInstanceOf(PersistenceConflictError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('peeks a remote revision without adopting it until the editor accepts that snapshot', async () => {
+    const remote = { ...project, files: { 'app/page.client.tsx': 'remote' } };
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response(project, 200, '"rev-a"'))
+      .mockResolvedValueOnce(response(remote, 200, '"rev-b"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"rev-c"'));
+    const fieldBackend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    await fieldBackend.loadProject('local');
+    const peeked = await fieldBackend.peekRemoteProject('local');
+    expect(peeked).toEqual({ data: remote, revision: '"rev-b"' });
+    expect(fieldBackend.getProjectRevision('local')).toBe('"rev-a"');
+
+    fieldBackend.adoptProjectRevision('local', peeked!.revision);
+    await fieldBackend.saveProject('local', remote);
+
+    const saveInit = fetchImpl.mock.calls[2][1] as RequestInit;
+    expect(new Headers(saveInit.headers).get('If-Match')).toBe('"rev-b"');
+  });
+
+  it('migrates a valid legacy local snapshot exactly when remote state is absent', async () => {
+    const legacyLoader = vi.fn(async () => project);
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response({ error: 'not found' }, 404))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"rev-a"'))
+      .mockResolvedValueOnce(response(project, 200, '"rev-a"'));
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as typeof fetch,
+      legacyLoader,
+    });
+
+    expect(await backend.loadProject('local')).toEqual(project);
+    expect(legacyLoader).toHaveBeenCalledTimes(1);
+    const migrationPut = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(migrationPut.method).toBe('PUT');
+    expect(new Headers(migrationPut.headers).get('If-None-Match')).toBe('*');
+  });
+
+  it('never consults legacy local state when a remote project already exists', async () => {
+    const legacyLoader = vi.fn(async () => ({ ...project, files: { stale: 'legacy' } }));
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response(project, 200, '"remote"'));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch, legacyLoader });
+
+    expect(await backend.loadProject('local')).toEqual(project);
+    expect(legacyLoader).not.toHaveBeenCalled();
+  });
+});
+
+describe('FieldBackend project metadata', () => {
+  it('round-trips project name metadata with revision-aware writes', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response({ name: 'field' }, 200, '"meta-a"'))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"meta-b"'));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as typeof fetch });
+
+    expect(await backend.getWebsiteName('local')).toBe('field');
+    await backend.renameWebsite('local', 'field two');
+    const init = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(init.headers).get('If-Match')).toBe('"meta-a"');
+    expect(JSON.parse(String(init.body))).toEqual({ name: 'field two' });
+  });
+
+  it('migrates the optimistic local name only when remote metadata is absent', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response({ error: 'not found' }, 404))
+      .mockResolvedValueOnce(response({ ok: true }, 200, '"meta-a"'))
+      .mockResolvedValueOnce(response({ name: 'Legacy Name' }, 200, '"meta-a"'));
+    const backend = new FieldBackend({
+      fetchImpl: fetchImpl as typeof fetch,
+      legacyNameReader: () => 'Legacy Name',
+    });
+
+    expect(await backend.getWebsiteName('local')).toBe('Legacy Name');
+    const init = fetchImpl.mock.calls[1][1] as RequestInit;
+    expect(new Headers(init.headers).get('If-None-Match')).toBe('*');
+  });
+});
+
+
+describe('autosave conflict classification', () => {
+  it('never classifies a persistence conflict as retryable', () => {
+    expect(isRetryableSaveError(new PersistenceConflictError())).toBe(false);
+    expect(isRetryableSaveError(new Error('503'))).toBe(true);
+  });
+});
+
+
+describe('FieldBackend Media inventory', () => {
+  it('does not pretend editor-only R2 is a source-safe durable asset catalog yet', async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 500 }));
+    const backend = new FieldBackend({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    expect(await backend.listAssets('site-1')).toBeNull();
+    expect(await backend.getAssetStorageInfo('site-1')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

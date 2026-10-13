@@ -1,0 +1,30 @@
+/* Drag sources have no button semantics, so the button fallback cannot reach
+   their glyphs. Animate only the hovered item, never every icon in the grid. */
+[data-field-icon-cell] > span,
+[data-toolbar-item] > div:first-child svg {
+  transform-origin: center;
+  transition: transform 180ms cubic-bezier(.2, .8, .2, 1), opacity 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-field-icon-cell]:hover > span {
+    transform: translateY(-2px) scale(1.12) rotate(-4deg);
+  }
+  [data-toolbar-item]:hover > div:first-child svg {
+    transform: translateY(-2px) scale(1.1) rotate(-4deg);
+  }
+}
+
+[data-field-icon-cell]:active > span,
+[data-toolbar-item]:active > div:first-child svg {
+  transform: scale(.86);
+  transition-duration: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-field-icon-cell] > span,
+  [data-toolbar-item] > div:first-child svg {
+    transform: none !important;
+    transition: none;
+  }
+}

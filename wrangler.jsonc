@@ -1,0 +1,70 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "field",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-09-24",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none"
+  },
+  "version_metadata": {
+    "binding": "FIELD_VERSION"
+  },
+  "r2_buckets": [
+    {
+      "binding": "FIELD_PROJECTS",
+      "bucket_name": "field-projects"
+    },
+    {
+      "binding": "FIELD_QA_PROJECTS",
+      "bucket_name": "field-projects"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FIELD_PROJECT_EVENTS",
+        "class_name": "FieldProjectEventRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "FieldProjectEventRoom"
+      ]
+    }
+  ],
+  "keep_vars": true,
+  "vars": {
+    "FIELD_ACCESS_TEAM_DOMAIN": "https://loewfi.cloudflareaccess.com",
+    "FIELD_ACCESS_AUD": "feb0d2d67c868891ad464d966f1a5c41670a6e80a355dc02e61c979a0e5b6b39"
+  },
+  "previews": {
+    "vars": {
+      "FIELD_ACCESS_TEAM_DOMAIN": "https://loewfi.cloudflareaccess.com",
+      "FIELD_ACCESS_AUD": "feb0d2d67c868891ad464d966f1a5c41670a6e80a355dc02e61c979a0e5b6b39"
+    },
+    "r2_buckets": [
+      {
+        "binding": "FIELD_PROJECTS",
+        "bucket_name": "field-projects-preview"
+      },
+      {
+        "binding": "FIELD_QA_PROJECTS",
+        "bucket_name": "field-projects"
+      }
+    ],
+    "durable_objects": {
+      "bindings": [
+        {
+          "name": "FIELD_PROJECT_EVENTS",
+          "class_name": "FieldProjectEventRoom"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,103 @@
+import { describe, it, expect } from 'vitest';
+import {
+  isCanvasChromeWheel,
+  shouldRouteCanvasWheel,
+  CANVAS_WHEEL_MARKER,
+  CANVAS_WHEEL_BLOCK_MARKER,
+  isCanvasWheelBlocked,
+} from './useCanvasTransform';
+
+// A pinch/wheel with the cursor on a body-portalled connection handle zoomed
+// the BROWSER instead of the canvas (2026-09-07): the handle sits outside the
+// canvas container, so its wheel never reached the container listener. Marked
+// chrome outside the container is routed to the canvas zoom handler.
+describe('isCanvasChromeWheel', () => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  it('routes marked chrome outside the container', () => {
+    const handle = document.createElement('svg');
+    handle.setAttribute(CANVAS_WHEEL_MARKER, '');
+    const inner = document.createElement('path');
+    handle.appendChild(inner);
+    document.body.appendChild(handle);
+    expect(isCanvasChromeWheel(inner, container)).toBe(true);
+    expect(isCanvasChromeWheel(handle, container)).toBe(true);
+  });
+
+  it('ignores unmarked elements (panels) and anything inside the container', () => {
+    const panel = document.createElement('div');
+    document.body.appendChild(panel);
+    expect(isCanvasChromeWheel(panel, container)).toBe(false);
+    const inside = document.createElement('div');
+    inside.setAttribute(CANVAS_WHEEL_MARKER, '');
+    container.appendChild(inside);
+    expect(isCanvasChromeWheel(inside, container)).toBe(false); // container's own listener handles it
+    expect(isCanvasChromeWheel(null, container)).toBe(false);
+  });
+});
+
+
+describe('shouldRouteCanvasWheel', () => {
+  const rect = { left: 100, right: 700, top: 50, bottom: 550 } as DOMRect;
+
+  it('routes a wheel targeted inside the canvas', () => {
+    const container = document.createElement('div');
+    const inside = document.createElement('div');
+    container.appendChild(inside);
+    expect(shouldRouteCanvasWheel(inside, 0, 0, container, rect)).toBe(true);
+  });
+
+  it('routes by coordinates when Safari retargets the wheel outside the canvas', () => {
+    const container = document.createElement('div');
+    const ancestor = document.createElement('div');
+    ancestor.appendChild(container);
+    document.body.appendChild(ancestor);
+    expect(shouldRouteCanvasWheel(ancestor, 350, 240, container, rect)).toBe(true);
+  });
+
+  it('leaves gestures to a panel overlapping the full-bleed canvas', () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    document.body.append(container, panel);
+    expect(shouldRouteCanvasWheel(panel, 350, 240, container, rect)).toBe(false);
+  });
+
+  it('hit-tests chrome when Safari retargets the gesture to the app root', () => {
+    const root = document.createElement('div');
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    root.append(container, panel);
+    document.body.appendChild(root);
+    const original = document.elementFromPoint;
+    document.elementFromPoint = () => panel;
+    try { expect(shouldRouteCanvasWheel(root, 350, 240, container, rect)).toBe(false); }
+    finally { document.elementFromPoint = original; }
+  });
+
+  it('ignores an unmarked wheel outside the canvas bounds', () => {
+    const container = document.createElement('div');
+    const outside = document.createElement('div');
+    document.body.appendChild(outside);
+    expect(shouldRouteCanvasWheel(outside, 20, 20, container, rect)).toBe(false);
+  });
+
+  it('still routes marked portalled canvas chrome outside the bounds', () => {
+    const container = document.createElement('div');
+    const chrome = document.createElement('div');
+    chrome.setAttribute(CANVAS_WHEEL_MARKER, '');
+    document.body.appendChild(chrome);
+    expect(shouldRouteCanvasWheel(chrome, 20, 20, container, rect)).toBe(true);
+  });
+
+  it('blocks field-owned portalled Inspector UI even when its coordinates overlap the canvas', () => {
+    const container = document.createElement('div');
+    const menu = document.createElement('div');
+    menu.setAttribute(CANVAS_WHEEL_BLOCK_MARKER, '');
+    const row = document.createElement('button');
+    menu.appendChild(row);
+    document.body.appendChild(menu);
+    expect(isCanvasWheelBlocked(row)).toBe(true);
+    expect(shouldRouteCanvasWheel(row, 350, 240, container, rect)).toBe(false);
+  });
+});

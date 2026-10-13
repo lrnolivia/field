@@ -1,0 +1,617 @@
+// field-backend.ts — field-hosted ProjectBackend backed by the same-origin
+// Cloudflare Worker + R2. R2 is durable EDITOR WORKING STATE only; published
+// website/source truth remains the later GitHub bridge.
+
+import type { ProjectBackend, ProjectData, ProjectMediaAsset, ProjectMediaAssetKind, ProjectMediaStorageInfo, RevymeUser, WorkspaceFont, UploadAssetOptions } from './types';
+import { isKnownProjectFormat } from './types';
+import { LocalBackend } from './local-backend';
+import { trace } from '@/shared/debug-trace';
+import { getFieldSessionId } from './project-events';
+
+const API_PREFIX = '/api/field/projects';
+const ACCESS_IDENTITY_PATH = '/cdn-cgi/access/get-identity';
+const LEGACY_PROJECT_NAME_PREFIX = 'revyme:project-name:';
+
+export class PersistenceConflictError extends Error {
+  readonly code = 'PERSISTENCE_CONFLICT';
+  readonly status = 412;
+
+  constructor(message = 'Remote project changed in another session.') {
+    super(message);
+    this.name = 'PersistenceConflictError';
+  }
+}
+
+export function isPersistenceConflictError(error: unknown): error is PersistenceConflictError {
+  return error instanceof PersistenceConflictError || (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'PERSISTENCE_CONFLICT'
+  );
+}
+
+interface FieldBackendOptions {
+  fetchImpl?: typeof fetch;
+  legacyLoader?: (id: string) => Promise<ProjectData | null>;
+  legacyNameReader?: (id: string) => string | null;
+}
+
+export interface RemoteProjectSnapshot {
+  data: ProjectData;
+  revision: string;
+}
+
+
+interface FieldQaBootstrap {
+  id: string;
+  data: ProjectData;
+  meta?: {
+    name?: string | null;
+  } | null;
+}
+
+function getFieldQaBootstrap(id?: string): FieldQaBootstrap | null {
+  if (typeof window === 'undefined') return null;
+  const candidate = (window as Window & {
+    __FIELD_QA_PROJECT__?: unknown;
+  }).__FIELD_QA_PROJECT__;
+
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const row = candidate as {
+    id?: unknown;
+    data?: unknown;
+    meta?: unknown;
+  };
+  if (typeof row.id !== 'string' || !row.id) return null;
+  if (id !== undefined && row.id !== id) return null;
+  if (!hasProjectFiles(row.data)) return null;
+
+  const meta = row.meta && typeof row.meta === 'object' && !Array.isArray(row.meta)
+    ? row.meta as { name?: string | null }
+    : null;
+
+  return {
+    id: row.id,
+    data: row.data,
+    meta,
+  };
+}
+
+function qaReadOnlyError(): Error {
+  return new Error('QA project snapshots are read-only.');
+}
+
+function defaultLegacyNameReader(id: string): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const value = window.localStorage.getItem(LEGACY_PROJECT_NAME_PREFIX + id)?.trim() ?? '';
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+function projectPath(id: string, suffix = ''): string {
+  return `${API_PREFIX}/${encodeURIComponent(id)}${suffix}`;
+}
+
+function normalizeR2Revision(value: string): string {
+  const revision = value.trim();
+
+  // R2 gives the Worker a strong quoted httpEtag, but Cloudflare may weaken
+  // an HTTP ETag in transit when response encoding changes:
+  //
+  //   "abc" -> W/"abc"
+  //
+  // That weak validator cannot be reused as an If-Match precondition for the
+  // underlying R2 object. In this API the opaque tag originated directly from
+  // R2, so restore the strong R2 spelling before caching the revision.
+  return revision.startsWith('W/') ? revision.slice(2) : revision;
+}
+
+function requireRevision(response: Response, context: string): string {
+  const rawRevision = response.headers.get('ETag');
+  if (!rawRevision) {
+    throw new Error(`${context} succeeded without an ETag revision`);
+  }
+
+  const revision = normalizeR2Revision(rawRevision);
+  if (!revision) {
+    throw new Error(`${context} returned an empty ETag revision`);
+  }
+
+  return revision;
+}
+
+function hasProjectFiles(value: unknown): value is ProjectData {
+  if (!value || typeof value !== 'object') return false;
+  const files = (value as { files?: unknown }).files;
+  if (!files || typeof files !== 'object' || Array.isArray(files)) return false;
+  return Object.keys(files as Record<string, unknown>).length > 0;
+}
+
+async function responseError(response: Response, label: string): Promise<Error> {
+  const body = await response.text().catch(() => '');
+  return new Error(`${label} failed: ${response.status}${body ? ` ${body}` : ''}`);
+}
+
+/**
+ * field's hosted persistence adapter.
+ *
+ * Important invariants:
+ * - every project write is conditional (create-only or If-Match);
+ * - an R2 404 is the ONLY condition that may consult legacy localStorage;
+ * - existing remote state always wins over browser-local state;
+ * - assets remain self-contained data: URLs in ProjectData for this pass.
+ */
+export class FieldBackend implements ProjectBackend {
+  private readonly localFallback = new LocalBackend();
+  private readonly fetchImpl: typeof fetch;
+  private readonly legacyLoader: (id: string) => Promise<ProjectData | null>;
+  private readonly legacyNameReader: (id: string) => string | null;
+  private readonly projectRevisions = new Map<string, string | null>();
+  private readonly metaRevisions = new Map<string, string | null>();
+  private readonly staleProjectRevisions = new Set<string>();
+
+  constructor(options: FieldBackendOptions = {}) {
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+    this.legacyLoader = options.legacyLoader ?? ((id) => this.localFallback.loadProject(id));
+    this.legacyNameReader = options.legacyNameReader ?? defaultLegacyNameReader;
+  }
+
+  async getUser(): Promise<RevymeUser | null> {
+    // QA snapshots are intentionally anonymous and read-only. The server
+    // injected the project before React booted, so no Access identity is needed.
+    if (getFieldQaBootstrap()) return null;
+
+    // Hosted field uses Cloudflare Access as its identity boundary. Ask
+    // Cloudflare for the authenticated identity instead of exposing the
+    // standalone LocalBackend's synthetic "Local User" in production chrome.
+    let response: Response;
+    try {
+      response = await this.fetchImpl(ACCESS_IDENTITY_PATH, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+    } catch (error) {
+      trace.error('field-backend:user-network-error', { error: String(error) });
+      throw error;
+    }
+
+    if (response.status === 401 || response.status === 403) return null;
+    if (!response.ok) {
+      throw await responseError(response, 'Access identity load');
+    }
+
+    const body = await response.json().catch(() => null) as {
+      id?: unknown;
+      user_uuid?: unknown;
+      name?: unknown;
+      email?: unknown;
+      picture?: unknown;
+      oidc_fields?: unknown;
+      idp?: unknown;
+    } | null;
+
+    const email = typeof body?.email === 'string' ? body.email.trim() : '';
+    const id =
+      typeof body?.user_uuid === 'string' && body.user_uuid.trim()
+        ? body.user_uuid.trim()
+        : typeof body?.id === 'string' && body.id.trim()
+          ? body.id.trim()
+          : email;
+    const name =
+      typeof body?.name === 'string' && body.name.trim()
+        ? body.name.trim()
+        : email.split('@')[0] || 'You';
+
+    if (!id || !email) {
+      throw new Error('Cloudflare Access identity response is incomplete');
+    }
+
+    const oidcFields =
+      body?.oidc_fields && typeof body.oidc_fields === 'object'
+        ? body.oidc_fields as Record<string, unknown>
+        : null;
+
+    const providerImageCandidate = [
+      body?.picture,
+      oidcFields?.picture,
+      oidcFields?.avatar,
+      oidcFields?.avatar_url,
+      oidcFields?.image,
+    ].find((value) => typeof value === 'string' && value.trim()) as
+      | string
+      | undefined;
+
+    let providerImage: string | undefined;
+    if (providerImageCandidate) {
+      try {
+        const parsed = new URL(providerImageCandidate);
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+          providerImage = parsed.toString();
+        }
+      } catch {
+        // Ignore malformed/non-web provider images.
+      }
+    }
+
+    const idp =
+      body?.idp && typeof body.idp === 'object'
+        ? body.idp as Record<string, unknown>
+        : null;
+
+    const identityProvider =
+      typeof idp?.type === 'string' && idp.type.trim()
+        ? idp.type.trim()
+        : typeof idp?.name === 'string' && idp.name.trim()
+          ? idp.name.trim()
+          : undefined;
+
+    const user: RevymeUser = { id, name, email };
+
+    if (providerImage) {
+      user.image = providerImage;
+      user.providerImage = providerImage;
+    }
+
+    if (identityProvider) {
+      user.identityProvider = identityProvider;
+    }
+
+    return user;
+  }
+
+  getProjectRevision(id: string): string | null | undefined {
+    return this.projectRevisions.get(id);
+  }
+
+  markProjectRevisionStale(id: string): void {
+    this.staleProjectRevisions.add(id);
+  }
+
+  adoptProjectRevision(id: string, revision: string): void {
+    this.projectRevisions.set(id, normalizeR2Revision(revision));
+    this.staleProjectRevisions.delete(id);
+  }
+
+  /** Read the authoritative remote snapshot WITHOUT adopting its revision.
+   * Realtime reconciliation uses this to compare first, then either adopt the
+   * clean remote state or preserve dirty local work and enter conflict. */
+  async peekRemoteProject(id: string): Promise<RemoteProjectSnapshot | null> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      return { data: qa.data, revision: '"field-qa-readonly"' };
+    }
+
+    const response = await this.fetchImpl(projectPath(id), {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) throw await responseError(response, 'Project load');
+
+    const revision = requireRevision(response, 'Project load');
+    let parsed: unknown;
+    try {
+      parsed = await response.json();
+    } catch (error) {
+      throw new Error(`Project load returned invalid JSON: ${String(error)}`);
+    }
+
+    if (!hasProjectFiles(parsed)) {
+      trace.error('field-backend:remote-project-invalid', { id, revision });
+      throw new Error('Remote project exists but does not contain a valid project snapshot');
+    }
+
+    const data = parsed as ProjectData;
+    if (!isKnownProjectFormat(data.format)) {
+      trace.error('field-backend:unknown-format', { id, format: data.format });
+    }
+    return { data, revision };
+  }
+
+  private async fetchRemoteProject(id: string): Promise<{ found: boolean; data: ProjectData | null }> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      this.projectRevisions.set(id, null);
+      this.staleProjectRevisions.delete(id);
+      trace.action('backend:load-project', {
+        id,
+        source: 'field-qa-bootstrap',
+        fileCount: Object.keys(qa.data.files).length,
+      });
+      return { found: true, data: qa.data };
+    }
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(projectPath(id), {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+    } catch (error) {
+      trace.error('field-backend:load-network-error', { id, error: String(error) });
+      throw error;
+    }
+
+    if (response.status === 404) {
+      this.projectRevisions.set(id, null);
+      this.staleProjectRevisions.delete(id);
+      return { found: false, data: null };
+    }
+    if (!response.ok) {
+      throw await responseError(response, 'Project load');
+    }
+
+    const revision = requireRevision(response, 'Project load');
+    this.adoptProjectRevision(id, revision);
+
+    let parsed: unknown;
+    try {
+      parsed = await response.json();
+    } catch (error) {
+      throw new Error(`Project load returned invalid JSON: ${String(error)}`);
+    }
+
+    if (!hasProjectFiles(parsed)) {
+      // An R2 object already exists, so this is NOT a new-project miss. Treat
+      // malformed/fileless remote state as a hard load failure; returning null
+      // would make ProjectLoader seed a starter and autosave it over the only
+      // remote copy.
+      trace.error('field-backend:remote-project-invalid', { id, revision });
+      throw new Error('Remote project exists but does not contain a valid project snapshot');
+    }
+    const data = parsed as ProjectData;
+    if (!isKnownProjectFormat(data.format)) {
+      // Match the existing safety rule: files present = real authored work.
+      // Unknown future format tags are logged, never discarded into an empty
+      // starter that autosave could write back over the project.
+      trace.error('field-backend:unknown-format', { id, format: data.format });
+    }
+    trace.action('backend:load-project', {
+      id,
+      source: 'field-r2',
+      revision,
+      fileCount: Object.keys(data.files).length,
+    });
+    return { found: true, data };
+  }
+
+  async loadProject(id: string): Promise<ProjectData | null> {
+    const remote = await this.fetchRemoteProject(id);
+    if (remote.found) return remote.data;
+
+    // One-time migration source. Never consult this after a remote object is
+    // present, so stale local state cannot replace R2 state.
+    const legacy = await this.legacyLoader(id);
+    if (!legacy) {
+      trace.action('field-backend:remote-miss-no-legacy', { id });
+      return null;
+    }
+
+    trace.action('field-backend:legacy-migration-start', {
+      id,
+      fileCount: Object.keys(legacy.files).length,
+    });
+    try {
+      await this.saveProject(id, legacy); // If-None-Match: *
+    } catch (error) {
+      if (!isPersistenceConflictError(error)) throw error;
+      // Another browser won the create race. That remote state is now the
+      // authority; do not retry the stale local copy.
+      trace.action('field-backend:legacy-migration-raced', { id });
+    }
+
+    const migrated = await this.fetchRemoteProject(id);
+    if (!migrated.found) {
+      throw new Error('Legacy migration completed without a remote project');
+    }
+    trace.action('field-backend:legacy-migration-complete', { id });
+    return migrated.data;
+  }
+
+  async saveProject(id: string, data: ProjectData): Promise<void> {
+    if (getFieldQaBootstrap(id)) throw qaReadOnlyError();
+
+    if (this.staleProjectRevisions.has(id)) {
+      trace.error('field-backend:save-blocked-stale-realtime-revision', { id });
+      throw new PersistenceConflictError();
+    }
+
+    const expected = this.projectRevisions.get(id);
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'X-Field-Session-Id': getFieldSessionId(),
+    });
+    if (expected) headers.set('If-Match', expected);
+    else headers.set('If-None-Match', '*');
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(projectPath(id), {
+        method: 'PUT',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      trace.error('field-backend:save-network-error', { id, error: String(error) });
+      throw error;
+    }
+
+    if (response.status === 409 || response.status === 412) {
+      trace.error('field-backend:save-conflict', { id, expected });
+      throw new PersistenceConflictError();
+    }
+    if (!response.ok) {
+      throw await responseError(response, 'Project save');
+    }
+
+    const revision = requireRevision(response, 'Project save');
+    this.adoptProjectRevision(id, revision);
+    trace.action('backend:save-project', {
+      id,
+      source: 'field-r2',
+      revision,
+      fileCount: Object.keys(data.files).length,
+    });
+  }
+
+  private async fetchRemoteName(id: string): Promise<{ found: boolean; name: string | null }> {
+    const qa = getFieldQaBootstrap(id);
+    if (qa) {
+      this.metaRevisions.set(id, null);
+      return {
+        found: true,
+        name: typeof qa.meta?.name === 'string' ? qa.meta.name : null,
+      };
+    }
+
+    let response: Response;
+    try {
+      response = await this.fetchImpl(projectPath(id, '/meta'), {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+    } catch (error) {
+      trace.error('field-backend:get-name-network-error', { id, error: String(error) });
+      throw error;
+    }
+
+    if (response.status === 404) {
+      this.metaRevisions.set(id, null);
+      return { found: false, name: null };
+    }
+    if (!response.ok) {
+      trace.error('field-backend:get-name-error', { id, status: response.status });
+      throw await responseError(response, 'Project metadata load');
+    }
+
+    const revision = requireRevision(response, 'Project metadata load');
+    this.metaRevisions.set(id, revision);
+    const body = await response.json().catch(() => null) as { name?: unknown } | null;
+    return {
+      found: true,
+      name: typeof body?.name === 'string' ? body.name : null,
+    };
+  }
+
+  async getWebsiteName(id: string): Promise<string | null> {
+    let remote: { found: boolean; name: string | null };
+    try {
+      remote = await this.fetchRemoteName(id);
+    } catch (error) {
+      // Name metadata is non-critical to opening the project. Fail soft here,
+      // but crucially do NOT reinterpret an unavailable remote read as 404 —
+      // that could migrate stale browser-local metadata over remote state.
+      trace.error('field-backend:get-name-unavailable', { id, error: String(error) });
+      return null;
+    }
+    if (remote.found) return remote.name;
+
+    // Preserve an existing standalone project name during the same one-time
+    // transition as the document. This is only consulted when meta.json does
+    // not exist; once remote metadata exists it always wins.
+    const legacyName = this.legacyNameReader(id);
+    if (!legacyName) return null;
+
+    try {
+      await this.renameWebsite(id, legacyName);
+    } catch (error) {
+      if (!isPersistenceConflictError(error)) {
+        trace.error('field-backend:legacy-name-migration-error', { id, error: String(error) });
+        return null;
+      }
+      // Another session created metadata first. Read that authoritative value.
+    }
+
+    const migrated = await this.fetchRemoteName(id);
+    return migrated.name;
+  }
+
+  async renameWebsite(id: string, name: string): Promise<void> {
+    if (getFieldQaBootstrap(id)) throw qaReadOnlyError();
+
+    const expected = this.metaRevisions.get(id);
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'X-Field-Session-Id': getFieldSessionId(),
+    });
+    if (expected) headers.set('If-Match', expected);
+    else headers.set('If-None-Match', '*');
+
+    const response = await this.fetchImpl(projectPath(id, '/meta'), {
+      method: 'PUT',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({ name: name.trim() }),
+    });
+
+    if (response.status === 409 || response.status === 412) {
+      throw new PersistenceConflictError('Project name changed in another session.');
+    }
+    if (!response.ok) {
+      throw await responseError(response, 'Project rename');
+    }
+    this.metaRevisions.set(id, requireRevision(response, 'Project rename'));
+    trace.action('backend:rename-website', { id, name: name.trim(), source: 'field-r2' });
+  }
+
+  async uploadAsset(id: string, file: File, options?: UploadAssetOptions): Promise<string> {
+    // Keep project snapshots self-contained for this assignment. A later
+    // asset-canonicalization pass may externalize bytes and materialize them
+    // into GitHub/public source during publish.
+    return this.localFallback.uploadAsset(id, file, options);
+  }
+
+  async listAssets(_id: string, _kind?: ProjectMediaAssetKind): Promise<ProjectMediaAsset[] | null> {
+    // IMPORTANT: hosted field intentionally keeps uploaded source bytes as
+    // data: URLs for now so source/Preview/production remain aligned. Do not
+    // externalize them into editor-only R2 URLs until publish materialization
+    // has a deterministic public-asset contract.
+    return null;
+  }
+
+  async getAssetStorageInfo(_id: string): Promise<ProjectMediaStorageInfo | null> {
+    return null;
+  }
+
+  async deleteAssets(id: string, keys: string[]): Promise<void> {
+    return this.localFallback.deleteAssets(id, keys);
+  }
+
+  async fetchMediaBytes(url: string): Promise<Blob> {
+    return this.localFallback.fetchMediaBytes(url);
+  }
+
+  async getWebsiteRole(id: string): Promise<'owner' | 'editor' | 'viewer'> {
+    return getFieldQaBootstrap(id) ? 'viewer' : 'owner';
+  }
+
+  async getWebsiteClosedSource(_id: string): Promise<boolean> {
+    return false;
+  }
+
+  async getWebsiteWorkspaceId(_id: string): Promise<string | null> {
+    return null;
+  }
+
+  async getCredits(_workspaceId: string): Promise<number | null> {
+    return null;
+  }
+
+  async listWorkspaceFonts(_workspaceId: string): Promise<WorkspaceFont[]> {
+    return [];
+  }
+}

@@ -1,0 +1,981 @@
+// PropertiesPanel.tsx — Right sidebar: composes tool components.
+// All tools sit inside <ControlProvider> which handles style read/write routing.
+
+import React from 'react';
+import type { InspectorTask } from './portrait/interaction';
+import GalleryTool from './tools/GalleryTool';
+import { isGalleryNode } from '@/code/gallery/gallery-model';
+import { useAtomValue } from 'jotai';
+import { selectedNodeAtom, selectedIdsAtom } from '../code/stores/store';
+import { useNodesComputed } from '../code/stores/node-family';
+import { activeFilePathAtom, isComponentFilePath, isIconSetFilePath, isPageClientFile, isPageServerFile, isDesignComponentFile, isVariantFile, isTemplateFilePath } from '../code/project/active-file-store';
+import { activeEditorAtom } from '../code/stores/editor-store';
+import { isDefaultLocaleAtom } from '../code/stores/locale-store';
+import TranslationPanel from './tools/TranslationPanel';
+import { ToolDivider, InspectorModeTabs } from './controls';
+import InspectorObjectHeader from './controls/InspectorObjectHeader';
+import { ControlProvider, useControl } from './controls/ControlProvider';
+import { trace } from '@/shared/debug-trace';
+import PanelErrorBoundary from '@/editor/ui/PanelErrorBoundary';
+import { LocalizeGate } from './controls/localize-gate';
+import SizeTool from './tools/SizeTool';
+import LayoutPaddingControl from './tools/LayoutPaddingControl';
+import PositionTool from './tools/PositionTool';
+import MultiAlignmentControl from './tools/PositionTool/MultiAlignmentControl';
+import LayoutTool, { GridChildControls } from './tools/LayoutTool';
+import { resolveMultiSelectLayoutType } from './multi-select-layout';
+import ComponentPropsTool from './tools/ComponentPropsTool';
+import IconSetTool from './tools/IconSetTool';
+import TextStyleTool from './tools/TextStyleTool';
+import StylesTool from './tools/StylesTool';
+import CursorTool from './tools/CursorTool';
+import AccessibilityTool from './tools/AccessibilityTool';
+import ScrollSectionTool from './tools/ScrollSectionTool';
+import CodeOverridesTool from './tools/CodeOverridesTool';
+import LinkTool from './tools/LinkTool';
+import ExportTool from './tools/ExportTool';
+import SvgShapeTool from './tools/SvgShapeTool';
+import PathTool from './tools/PathTool';
+import SketchTool from './tools/SketchTool';
+import AnimationTool from './tools/AnimationTool';
+import ImageTool from './tools/ImageTool';
+import VideoTool from './tools/VideoTool';
+import AudioTool from './tools/AudioTool';
+import OverlayTool from './tools/OverlayTool';
+import { overlayCallsAtom } from '@/code/stores/overlay-store';
+import CollectionListTool from './tools/CollectionListTool';
+import FormTool from './tools/FormTool';
+import FormStateTool from './tools/FormStateTool';
+import InputTool from './tools/InputTool';
+import InteractionsTool from './tools/InteractionsTool';
+import SelectionTool from './tools/SelectionTool';
+import VectorContainerTool from './tools/VectorContainerTool';
+import { isTextTag, isFrameTag, canAcceptChildren, isLinkTag } from '@/shared/constants';
+import { shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
+import type { CanvasNode } from '@/code/parsing/parser';
+import TemplatePicker from './TemplatePicker';
+import { VariableModalHost } from './ui/VariableModalHost';
+import PageSettingsTool from './tools/PageSettingsTool';
+import ScaleTool from './tools/ScaleTool';
+import { toolModeAtom } from '@/code/stores/tool-store';
+
+// React.memo: Canvas re-renders at every drag transition (drag-state,
+// interacting-viewport, highlight state) and each one cascaded through this
+// whole panel (~110ms with every tool atom, traced mid-drag on big pages).
+// The panel has NO props — parent re-renders never need to propagate; its
+// own atoms still re-render it when actual values change.
+export default React.memo(function PropertiesPanel({ mobileTask, categorySource = false }: { mobileTask?: InspectorTask; categorySource?: boolean } = {}) {
+  const selectedId = useAtomValue(selectedNodeAtom);
+  const selectedIds = useAtomValue(selectedIdsAtom);
+  const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
+  const activeFile = useAtomValue(activeFilePathAtom);
+
+  // TRANSLATION MODE (non-default locale active): the whole right panel
+  // becomes per-locale text areas for translatable content — and nothing
+  // else (localization overhaul Phase 2).
+  if (!isDefaultLocale) {
+    return <TranslationPanel />;
+  }
+
+  if (!selectedId) {
+    // No object selected = page-level context. Real page files surface the
+    // contextual Page Settings inspector (route, Template, canvas appearance,
+    // metadata, social cards, crawler controls). Component/template masters
+    // keep the neutral empty inspector shell rather than pretending they own
+    // page metadata.
+    const isPageContext = isPageClientFile(activeFile) || isPageServerFile(activeFile);
+    return (
+      <div
+        data-properties-panel
+        data-tutorial="right-toolbar"
+        className="w-full h-full overflow-y-auto scrollbar-hide relative z-[5000]"
+        style={{ willChange: 'transform', isolation: 'isolate' }}
+      >
+        <InspectorModeTabs />
+        {isPageContext ? <PageSettingsTool /> : null}
+      </div>
+    );
+  }
+
+  // Multi-select: ControlProvider operates on the first selected node
+  // (passes useControl() its styles for the standard tools); the
+  // additional SelectionTool aggregates across ALL selected nodes for
+  // batch fill editing; LayoutTool + PositionTool are hidden inside
+  // PropertiesPanelInner via the isMultiSelect branch — they don't
+  // generalize across heterogeneous nodes.
+  const isMultiSelect = selectedIds.length > 1;
+
+  return (
+    <ControlProvider>
+      <PropertiesPanelInner isMultiSelect={isMultiSelect} mobileTask={mobileTask} categorySource={categorySource} />
+      {/* Single, stable mount for the variable manage modal — see VariableModalHost for why it lives
+          here rather than inside each ControlLabel. */}
+      <VariableModalHost />
+    </ControlProvider>
+  );
+})
+
+// ─── Helper: Find the parent collection context for a template node ────────
+function findCollectionContext(node: CanvasNode, nodes: Map<string, CanvasNode>): { slug: string; itemVar: string } | null {
+  // Walk up the tree to find the parent with collectionList
+  let current: CanvasNode | undefined = node;
+  while (current) {
+    if (current.collectionList) {
+      return { slug: current.collectionList.source, itemVar: current.collectionList.itemVar };
+    }
+    current = current.parentId ? nodes.get(current.parentId) : undefined;
+  }
+  return null;
+}
+
+// The CMS detail-page item navigator ("ITEM 1 / 4") used to live here as a
+// sticky bar at the top of this panel. It moved to the canvas-top
+// `SlugPageBreadcrumb` (standard breadcrumb + searchable item dropdown)
+// so the previewed-record switcher reads as page-level chrome, not a property.
+// See canvas/ui/SlugPageBreadcrumb.tsx.
+
+// Inner component — has access to useControl()
+function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySource = false }: { isMultiSelect?: boolean; mobileTask?: InspectorTask; categorySource?: boolean }) {
+  const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
+  const activeEditor = useAtomValue(activeEditorAtom);
+  const toolMode = useAtomValue(toolModeAtom);
+  const shapeEditingId = useAtomValue(shapeEditingIdAtom);
+  const filePath = useAtomValue(activeFilePathAtom);
+  const allOverlayCalls = useAtomValue(overlayCallsAtom);
+
+  // Live-map lookups — the panel must reflect the current parent immediately
+  // when a reparent commits mid-drag (parent-layout indicator, child controls
+  // for new flex/grid context, etc.). Fine-grained subscription: everything
+  // that needs OTHER nodes than the selected one (FIT-wrapper child
+  // resolution, svg-group child check, ancestor walks for collection/form/
+  // overlay context) is grouped into ONE computed read that only re-renders
+  // the panel when a RESULT actually changes — not on every map commit.
+  const mapDerived = useNodesComputed((nodes) => {
+    if (!node) return null;
+
+    // FIT SVG wrapper: resolve to inner text element for tool display.
+    // The SVG wrapper should show text controls (not SVG shape controls).
+    const isFitSvgWrapper = node.type === 'svg' && node.id.endsWith('-svg');
+    let displayNode = node;
+    if (isFitSvgWrapper) {
+      // Walk through foreignObject to find the inner text element
+      for (const childId of node.children) {
+        const child = nodes.get(childId);
+        if (child?.type === 'foreignObject') {
+          for (const innerId of child.children) {
+            const inner = nodes.get(innerId);
+            if (inner) { displayNode = inner; break; }
+          }
+          break;
+        }
+      }
+    }
+
+    // SVG group — a <svg> wrapper whose children are themselves <svg> shape
+    // wrappers (see `isSvgGroup` usage below for why it swaps the tool set).
+    const isSvgGroup = node.type === 'svg' && !isFitSvgWrapper && Array.isArray(node.children)
+      && node.children.some((cid) => nodes.get(cid)?.type === 'svg');
+
+    // True when this node lives inside a collection-list container (an ancestor has a
+    // `collectionList`) — covers BOTH `.map()` template nodes AND siblings of the map
+    // like the pagination Load More instance.
+    const isInsideCollectionList = (() => {
+      let cur = node.parentId ? nodes.get(node.parentId) : undefined;
+      for (let depth = 0; cur && depth < 50; depth++) {
+        if (cur.collectionList) return true;
+        cur = cur.parentId ? nodes.get(cur.parentId) : undefined;
+      }
+      return false;
+    })();
+
+    // True when an ancestor is a <form>.
+    const isInsideForm = (() => {
+      let cur = node.parentId ? nodes.get(node.parentId) : undefined;
+      for (let depth = 0; cur && depth < 50; depth++) {
+        if (cur.type === 'form') return true;
+        cur = cur.parentId ? nodes.get(cur.parentId) : undefined;
+      }
+      return false;
+    })();
+
+    // True when an ANCESTOR is an overlay (this node lives inside one).
+    const isInsideOverlay = (() => {
+      const overlayIds = new Set(allOverlayCalls.map((c) => c.overlayId));
+      let cur = node.parentId ? nodes.get(node.parentId) : undefined;
+      for (let depth = 0; cur && depth < 50; depth++) {
+        if (overlayIds.has(cur.id)) return true;
+        cur = cur.parentId ? nodes.get(cur.parentId) : undefined;
+      }
+      return false;
+    })();
+
+    const collectionCtx = node.isCollectionTemplate ? findCollectionContext(node, nodes) : null;
+
+    return { isFitSvgWrapper, displayNode, isSvgGroup, isInsideCollectionList, isInsideForm, isInsideOverlay, collectionCtx };
+  }, [node, allOverlayCalls]);
+
+  // MULTI-SELECT Layout tool. Shows when the whole selection shares a layout type
+  // (all flex OR all grid) so gap / align / padding edits fan out at once — AND
+  // when NO node has a layout but every one of them is a frame that could take
+  // one, in which case the tool appears in its ADD (`+`) state so a single click
+  // gives them all a layout. It used to disappear entirely for plain frames,
+  // which is the case where bulk-adding is most useful (user request 2026-07-25).
+  // Base `display` mirrors what LayoutTool itself reads.
+  const multiSelectSelIds = useAtomValue(selectedIdsAtom);
+  const multiSelectLayoutType = useNodesComputed((nodes) =>
+    isMultiSelect
+      ? resolveMultiSelectLayoutType(
+        multiSelectSelIds,
+        (id) => nodes.get(id)?.styles?.display ?? '',
+        // `motion.div` → `div`: component files wrap every element in motion.*,
+        // and FRAME_TAGS holds plain tag names.
+        (id) => {
+          const t = nodes.get(id)?.type ?? '';
+          return canAcceptChildren(t.startsWith('motion.') ? t.slice(7) : t);
+        },
+      )
+      : null,
+    [isMultiSelect, multiSelectSelIds],
+  );
+
+  // Unresolvable selection (id not in the nodes map — e.g. a stale/foreign
+  // id selected during cross-file navigation, or a `'root'` fallback on a
+  // component master, which has no `root` node): render the same EMPTY SHELL
+  // as the no-selection state instead of returning null. A null here
+  // unmounted the ENTIRE right sidebar ("properties panel completely
+  // disappears" — user report 2026-07-29, MotionLink-root master).
+  if (!node || !mapDerived) {
+    trace.action('properties-panel:unresolvable-selection-shell', {});
+    return (
+      <div
+        data-properties-panel
+        data-tutorial="right-toolbar"
+        className="w-full h-full overflow-y-auto scrollbar-hide relative z-[5000]"
+        style={{ willChange: 'transform', isolation: 'isolate' }}
+      />
+    );
+  }
+
+  const { isFitSvgWrapper, displayNode, isSvgGroup, isInsideCollectionList, isInsideForm, isInsideOverlay, collectionCtx } = mapDerived;
+  void collectionCtx;
+
+  const s = styles;
+  // Link is mapped to <a> by Renderer but parser keeps type='Link'.
+  // Always treat Link as text — it always has text styling (font, color).
+  // If Link also wraps children, it can be both text and frame.
+  // MotionLink (motion.create(Link)) ALSO renders as an <a> and carries the
+  // same text styling on its own style (fontSize/color/textDecoration), so a
+  // MotionLink wrapping text must get the typography controls too — even though
+  // it's classified as a FRAME tag (it can wrap children). Same dual nature.
+  const rawType = displayNode.type;
+  const isLink = isLinkTag(rawType);
+  // A link that WRAPS element children is a flex container (e.g. a detached CMS card
+  // link: <Link><div/><h3/></Link>), NOT a text element — text lives in `textContent`,
+  // so any element child means "container". Such a link must NOT get the typography
+  // tool, even though `a` is a TEXT tag. A bare text link (`<a>click</a>`, no children)
+  // keeps its text controls.
+  const linkIsContainer = isLink && Array.isArray(displayNode.children) && displayNode.children.length > 0;
+  const isLinkType = isLink && !linkIsContainer;
+  const isText = !linkIsContainer && (isTextTag(rawType) || isLinkType);
+  // Native field Groups use a div wrapper for source/runtime identity, but they
+  // are NOT Frames. Keep that semantic distinction explicit at the inspector
+  // boundary so generic container paint/layout controls cannot mutate a Group
+  // into an accidental Frame.
+  const isNativeGroup = node.isGroup === true;
+  const isFrame = !isNativeGroup && (isFrameTag(rawType) || linkIsContainer);
+  const isSvg = node.type === 'svg' && !isFitSvgWrapper;
+  // Sketch wrappers are SVGs marked with `data-sketch="true"` by the
+  // SketchCreator. They share the SVG selection branch (Position +
+  // Size at top) but swap SvgShapeTool's fill/stroke controls for the
+  // brush/taper/easing tool tailored to perfect-freehand parameters.
+  // Also match `data-name="Sketch"`: grouping a sketch strips the
+  // data-sketch attr but keeps the name, so a sketch selected INSIDE a
+  // group would otherwise wrongly get the SVG shape tool.
+  const isSketch = isSvg && (node.attrs?.['data-sketch'] === 'true' || node.name === 'Sketch');
+  // SVG group — a <svg> wrapper whose children are themselves <svg> shape
+  // wrappers. Gets the focused StylesTool group panel (Opacity / Fill
+  // fanned to all children / Hide / Rotate) instead of SvgShapeTool, which
+  // targets a single polygon's fill+stroke and is meaningless for a group.
+  // (`isSvgGroup` is computed in the map-derived subscription above.)
+  const isImageElement = node.type === 'img' || node.type === 'Image' || node.type === 'motion.img';
+  const isVideoElement = node.type === 'video' || node.type === 'motion.video';
+  const isAudioElement = node.type === 'audio' || node.type === 'motion.audio';
+  const isShapeEditing = !!shapeEditingId;
+  const hasCollectionList = !!node.collectionList;
+  const isCollectionTemplate = !!node.isCollectionTemplate;
+  // Form tooling: the Form tool on a <form>; the Input tool on form controls.
+  const isFormElement = node.type === 'form';
+  const isInputElement = node.type === 'input' || node.type === 'textarea' || node.type === 'select';
+  // `isInsideCollectionList` (ancestor has a `collectionList` — drives showing
+  // the InteractionsTool on a component instance inside a list) and
+  // `isInsideForm` (ancestor is a <form> — drives the Form State tool) are
+  // computed in the map-derived subscription above.
+  // The viewport frame: page root on bare pages, the layout-merged root on
+  // pages with a Template. Per-element tools (Interactions, Link,
+  // Animation, Cursor, Accessibility) hide here because the viewport is a
+  // container — those tools target child elements.
+  const isViewportFrame = node.id === 'root' || node.id === 'layout::root';
+  // Templated viewport: with the template merged ONTO the page root, the
+  // viewport root IS `root` but carries `fromLayout` (the template's flex
+  // column). Its layout belongs to the TEMPLATE, so the Layout/Styles/Overlays
+  // tools are hidden here (edit them via Template → Edit). A NON-templated
+  // page's `root` has no `fromLayout`, so its tools still show.
+  const isTemplatedViewport = node.id === 'root' && !!node.fromLayout;
+  // Editing a Template itself (its `LayoutClient.tsx` is the active file) and
+  // the template ROOT is selected → the Layout tool renders its simplified,
+  // flex-column-locked form (Align / Gap / Padding). See LayoutTool.
+  const isTemplateRootEdit = isTemplateFilePath(filePath) && node.id === 'root';
+  // Overlay node — positioned by its trigger (side/align/offset in the Overlay
+  // tool), so Position and Dimensions don't apply: the portal placement would
+  // fight any manual coords, standard the panel leads with Show On/Overlay.
+  const isOverlayNode = allOverlayCalls.some((c) => c.overlayId === node.id);
+  // `isInsideOverlay` (an ANCESTOR is an overlay — drives showing the
+  // InteractionsTool on a component INSTANCE inside a fixed/relative overlay
+  // so its event props can be wired to "Close Overlay" (Increment D), e.g. a
+  // design component's internal X firing `event1` to dismiss the modal) is
+  // computed in the map-derived subscription above.
+  // A FIXED overlay (modal) is just a full-viewport backdrop + behaviour config —
+  // it has no box to size/style/lay-out/animate from the generic panels. So when
+  // one is selected we collapse the ENTIRE panel to ONLY the Overlay tool (Show On
+  // + Overlay), hiding Position/Dimensions/Animation/Layout/Styles/Cursor/Anchor/
+  // Accessibility. (Relative overlays keep the fuller panel — their box is real.)
+  const isFixedOverlay = allOverlayCalls.some((c) => c.overlayId === node.id && c.config?.type === 'fixed');
+  // Icon-set instance — `node.componentFile` points at
+  // `icons/X.tsx`. The instance is a leaf reference
+  // to a master file; it has no DOM children of its own to lay out, no
+  // animatable properties beyond what the master defines, and no
+  // separate accessibility surface. Layout / Animation / Accessibility
+  // panels would target the wrapper element (which the master replaces
+  // via cloneElement at runtime), so anything the user set there would
+  // either be discarded or fight the master's own values.
+  const cf = node.componentFile;
+  // Container-set instance flag covers BOTH local masters (under
+  // `icons/` in projectFS) AND CDN-linked masters
+  // (URLs containing `/vectors/`). The runtime
+  // semantics are identical — both render via the master-component
+  // cloneElement branch — so the same Layout / Animation /
+  // Accessibility suppression applies to both. Without the URL check
+  // a freshly-pasted CDN vector would still see Layout / Animation
+  // panels even though they'd target a wrapper that gets replaced
+  // at runtime.
+  const isContainerSetInstance = !!cf && (
+    cf.startsWith('icons/') ||
+    (cf.startsWith('http') && cf.includes('/vectors/'))
+  );
+  // Regular component instance — `node.isComponentInstance` is set by
+  // the parser on the wrapper tag itself (see `project-parser`). The
+  // wrapper renders as `display: contents` at runtime so it has NO box
+  // of its own (see CLAUDE.md > "Component Variant System"). Any layout
+  // the user sets here would target a contents-display element — the
+  // panel would offer flex/grid knobs that paint onto a non-existent
+  // box. Suppress the panel so the user edits layout on the component
+  // master file instead, where the layout actually has somewhere to land.
+  const isComponentInstance = !!node.isComponentInstance;
+  // A CODE-component instance — its `componentFile` is under `components/` but the
+  // file is NOT a design component (no `variantConfig`/`@name`). Code components are
+  // arbitrary user React: they don't reliably forward `data-overlay-trigger`/`{...rest}`
+  // onto a DOM root, so an overlay attached here won't resolve. Hide the Overlay tool
+  // for them (design-component instances keep it — they forward props to the root).
+  const isCodeComponentInstance = !!cf && cf.startsWith('components/') && !isDesignComponentFile(cf);
+  // A VECTOR VARIANT CARD — a direct child of `root` in an icon-set
+  // master (e.g. `icon-1`). Its position/size live in iconConfig and it's a
+  // pure vector container: pins/inset/alignment, Interactions, Navigation,
+  // Animation, Styles etc. don't apply. Show ONLY Position (X/Y) + Size, like a
+  // vector primitive but even more minimal.
+  const isVectorVariantCard = isIconSetFilePath(filePath)
+    && node.parentId === 'root' && isFrameTag(rawType);
+  // (`collectionCtx` — the parent collection context for a template node — is
+  // computed in the map-derived subscription above.)
+
+  // Position (single-select) / MultiAlignment (multi-select) + Size cluster —
+  // shared verbatim by the vector-variant-card and SVG branches below, which
+  // differ only in the PositionTool's `isTopLevel` value. Plain function (not
+  // a component) so the rendered element tree is unchanged.
+  const positionAndSizeTools = (isTopLevel: boolean) => (
+    <>
+      {!isMultiSelect ? (
+        <PositionTool
+          nodeId={node.id}
+          styles={s}
+          vpId={vpId}
+          isReplica={isReplica}
+          vpWidth={vpWidth}
+          isTopLevel={isTopLevel}
+        />
+      ) : (
+        <MultiAlignmentControl vpId={vpId} />
+      )}
+      <SizeTool
+        styles={s}
+        nodeId={node.id}
+        vpId={vpId}
+        onUpdate={updateStyle}
+        onUpdateMultiple={updateMultipleStyles}
+      />
+    </>
+  );
+
+  // Figma's Design inspector leads with the selected object KIND, not a
+  // two-line builder breadcrumb. Preserve the source/name as a tooltip while
+  // the visible header stays compact and stable across selections.
+  const canShowContainerLayout = !isNativeGroup
+    && !isText
+    && !isContainerSetInstance
+    && !isComponentInstance
+    && !isCodeComponentInstance
+    && !isTemplatedViewport
+    && !isInputElement
+    && (!isMultiSelect || multiSelectLayoutType !== null);
+  const inspectorContextTitle = isMultiSelect
+    ? `${multiSelectSelIds.length} selected`
+    : isImageElement
+      ? 'Image'
+      : isVideoElement
+        ? 'Video'
+        : isAudioElement
+          ? 'Audio'
+          : isInputElement
+            ? 'Input'
+            : isNativeGroup
+              ? 'Group'
+              : isSvg
+                ? 'Vector'
+                : isText
+                  ? 'Text'
+                  : isFrame
+                    ? 'Frame'
+                    : rawType.replace(/^motion\./, '');
+
+  // Portrait uses one task at a time. The shared ControlProvider keeps every
+  // edit on the existing source/undo/replica path; desktop composition stays intact.
+  if (mobileTask) {
+    const gallery = !isMultiSelect && isGalleryNode(node);
+    const geometry = <>{!isOverlayNode && positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
+      {isOverlayNode && <OverlayTool />}
+      {parentLayout === 'grid' && <GridChildControls />}
+      {canShowContainerLayout && !gallery && <LayoutTool styles={s} nodeId={node.id}
+        onUpdate={updateStyle} onUpdateMultiple={updateMultipleStyles} templateRoot={isTemplateRootEdit} />}
+      {(isFrame || isViewportFrame) && !isNativeGroup && <LayoutPaddingControl styles={s} onUpdateMultiple={updateMultipleStyles} />}
+    </>;
+    const content = <>
+      {hasCollectionList && <CollectionListTool />}
+      {isFormElement && <FormTool />}{isInputElement && <InputTool />}
+      {isComponentInstance && isInsideForm && <FormStateTool />}
+      <ComponentPropsTool /><IconSetTool />
+      {isImageElement && <ImageTool />}{isVideoElement && <VideoTool />}{isAudioElement && <AudioTool />}
+      {isText ? <TextStyleTool /> : null}
+    </>;
+    let task: React.ReactNode;
+    switch (mobileTask) {
+      case 'geometry': task = gallery ? <GalleryTool focus="layout" /> : geometry; break;
+      case 'content': task = gallery ? <GalleryTool focus="content" /> : content; break;
+      case 'appearance': task = gallery ? <GalleryTool focus="image" /> : <><SelectionTool />
+        {!isTemplatedViewport && (isSvg ? isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool /> : <StylesTool scope="appearance" />)}
+      </>; break;
+      case 'advanced': task = <>
+        {!isTemplatedViewport && <StylesTool scope="advanced" advancedExtras={!isViewportFrame ? <>
+          {!isInputElement && <CursorTool />}
+          {!isComponentFilePath(filePath) && !isContainerSetInstance && !isInputElement && <ScrollSectionTool />}
+          {!isContainerSetInstance && !isComponentInstance && <AccessibilityTool />}
+          {!isContainerSetInstance && <CodeOverridesTool />}
+        </> : undefined} />}
+      </>; break;
+      case 'export': task = <ExportTool />; break;
+      case 'prototype': task = <>            {isVectorVariantCard ? null : isSvg ? (
+              isSketch ? (
+                <AnimationTool styles={s} onUpdate={updateStyle} />
+              ) : null
+            ) : isFixedOverlay ? (
+              <OverlayTool />
+            ) : (
+              <>
+                {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
+                  && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
+                  <>
+                    <InteractionsTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
+                  <>
+                    <LinkTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {isOverlayNode ? (
+                  <>
+                    <OverlayTool />
+                    {!isFixedOverlay && <ToolDivider />}
+                  </>
+                ) : (!isCodeComponentInstance && !isViewportFrame && !isInputElement ? (
+                  <>
+                    <OverlayTool />
+                    <ToolDivider />
+                  </>
+                ) : null)}
+
+                {!isFixedOverlay && (
+                  <AnimationTool
+                    styles={s}
+                    onUpdate={updateStyle}
+                    glideOnly={isViewportFrame}
+                  />
+                )}
+              </>
+            )}</>; break;
+      default: task = gallery ? <GalleryTool focus="content" /> : isText ? <TextStyleTool />
+        : isImageElement ? <ImageTool /> : isVideoElement ? <VideoTool /> : isAudioElement ? <AudioTool />
+        : isInputElement ? <InputTool /> : isComponentInstance || isCodeComponentInstance ? <ComponentPropsTool />
+        : isSvg ? isSketch ? <SketchTool /> : <SvgShapeTool /> : geometry;
+    }
+    return <div data-portrait-inspector-task={mobileTask} data-properties-panel>
+      <PanelErrorBoundary name="portrait-properties" resetKey={node.id}>{task}</PanelErrorBoundary>
+    </div>;
+  }
+
+  return (
+    <div
+      data-properties-panel
+      data-tutorial="right-toolbar"
+      className="w-full h-full flex flex-col relative z-[5000]"
+      style={{ boxSizing: 'border-box', willChange: 'transform', isolation: 'isolate' }}
+      onMouseDown={(e) => {
+        if (activeEditor && !(e.target instanceof HTMLSelectElement)) {
+          e.preventDefault();
+        }
+      }}
+    >
+      {/* Containment: a crashing tool (update-depth loops et al) must never
+          unmount the whole app — the boundary drops the panel CONTENT only
+          (the shell div stays, so layout holds) and re-arms when the
+          selection changes. */}
+      <PanelErrorBoundary name="properties-panel" resetKey={node.id}>
+      {!categorySource && <InspectorModeTabs />}
+
+      {!categorySource && <InspectorObjectHeader
+        title={isMultiSelect
+          ? inspectorContextTitle
+          : (isComponentInstance || isContainerSetInstance)
+            ? (node.name || inspectorContextTitle)
+            : inspectorContextTitle}
+        kind={inspectorContextTitle}
+        isMultiSelect={isMultiSelect}
+        componentFile={!isMultiSelect && (isComponentInstance || isContainerSetInstance) ? cf : null}
+        canGoToMainComponent={!isMultiSelect && !!cf && !isCodeComponentInstance && !cf.startsWith('http')}
+        sourceTitle={isMultiSelect ? inspectorContextTitle : `${node.name || rawType} · ${rawType.replace(/^motion\./, '')}`}
+      />}
+
+      {/* (The CMS detail-page "ITEM 1 / 4" item switcher moved OUT of the
+          panel to the canvas-top SlugPageBreadcrumb — standard, with a
+          searchable item dropdown. See canvas/ui/SlugPageBreadcrumb.tsx.) */}
+
+      {/* ─── Scrollable content ─── */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
+        {/* Figma UI3 prioritizes instance-specific controls before generic
+            geometry. Keep the component engine unchanged; only move its
+            inspector surface to the top of the Design stack. */}
+        {(isComponentInstance || isCodeComponentInstance) && (
+          <div data-inspector-instance-priority>
+            <ComponentPropsTool />
+          </div>
+        )}
+
+        {/* Small breathing room above the first section so the header divider
+            doesn't kiss the topmost tool's title. Using `mb-1.5` on a spacer
+            (rather than `pt-2` on the scroll container) keeps the spacing
+            outside the scrollable area — it stays put even when the panel
+            scrolls. */}
+        <div className="mb-0.5" />
+
+      {toolMode === 'scale' && (
+        <>
+          <ScaleTool vpId={vpId} />
+          <ToolDivider />
+        </>
+      )}
+
+      {/* ─── Template picker — viewport selection on page files ────────────
+          Shows when the user has the page's viewport-frame selected. The
+          frame is ALWAYS `'root'` now: with no Template it's the bare page
+          root; WITH a Template the template root is merged ONTO `'root'`
+          (no separate `layout::root` layer). Hidden for child-element
+          selection or empty selection so it doesn't compete with the
+          per-element tools. See `TemplatePicker.tsx` + `template-ops.ts`. */}
+      {(node.id === 'root' || node.id === 'layout::root')
+        && (isPageClientFile(filePath) || isPageServerFile(filePath) || isVariantFile(filePath)) && (
+        <>
+          {/* pt-1 so the Template title sits at the same vertical offset
+              from the header that the rest of the tools do — without it
+              the row reads as glued to the header buttons. */}
+          <div className="pt-1">
+            <TemplatePicker />
+          </div>
+          {/* Divider matches the inter-tool spacing further down so the
+              Template section reads as part of the same tool stack — not
+              a floating header above it. */}
+          <ToolDivider />
+        </>
+      )}
+
+      {/* ─── Tools — field semantic inspector hierarchy ─── */}
+      {/* pb-8 leaves breathing room after the Export tool so the last
+          control isn't flush with the panel's bottom edge — scroll-to-end
+          previously left the Export Frame button kissing the viewport
+          bottom which felt cramped. */}
+      <div className="flex-1 pt-0 pb-3 flex flex-col">
+        <>
+
+        {/* Shape edit mode: PathTool (Position + Curve for the selected
+            anchor) appears above the rest of the SvgShapeTool, mirroring
+            the reference's shape-edit panel order. PathTool auto-hides when no
+            anchor is selected — ToolDivider lives inside PathTool so it
+            only renders alongside the Path section, no leftover line. */}
+        {isShapeEditing && (
+          <>
+            <PathTool />
+            <SvgShapeTool />
+            <ToolDivider />
+          </>
+        )}
+
+        {!isShapeEditing && <>
+        {/* VECTOR VARIANT CARD (icon-set card): ONLY Position
+            (X/Y) + Size. `isTopLevel` renders the bare X/Y SpaceControl — no
+            pins, no inset, no alignment icons, no Type dropdown — and nothing
+            else (no Interactions / Navigation / Animation / Styles). It's a
+            pure vector container; everything else would target a wrapper or a
+            property it doesn't have. */}
+        {isNativeGroup ? (
+          /* Native Group: geometry-only semantic collection. Its DOM wrapper is
+             an implementation detail, not a Frame surface. Keep the inspector
+             deliberately small: placement + derived dimensions + Export. */
+          <LocalizeGate hidden>
+            {positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
+            <ToolDivider />
+            <ExportTool />
+          </LocalizeGate>
+        ) : isVectorVariantCard ? (
+          /* Vector cards are shape containers — same no-localize rule as the
+             SVG branch below. */
+          <LocalizeGate hidden>
+            {positionAndSizeTools(true)}
+            {/* Fill = the card's OWN background (full-width). Selection →
+                Colors = the inner SVG shapes' fills, aggregated in the
+                SelectionTool list format. */}
+            {!isMultiSelect && (
+              <>
+                <ToolDivider />
+                <VectorContainerTool />
+              </>
+            )}
+          </LocalizeGate>
+        ) : isSvg ? (
+          /* Shapes can't be localized — SVG presentation attrs and the
+             wrapper's box have no per-locale story, so the Localize menu item
+             is suppressed on EVERY control shown for a shape selection:
+             Position/Dimensions, the shape Styles/Stroke sections, sketches,
+             AND the group-selection StylesTool (which is only gated HERE so
+             frames elsewhere keep their Localize). SvgShapeTool also gates
+             internally for its shape-edit-mode render above (user request
+             2026-07-24). */
+          <LocalizeGate hidden>
+            {positionAndSizeTools(!!node.isCanvasNode || !node.parentId)}
+            <ToolDivider />
+            {isSketch ? <SketchTool /> : isSvgGroup ? <StylesTool /> : <SvgShapeTool />}
+            <ToolDivider />
+            <ExportTool />
+          </LocalizeGate>
+        ) : isFixedOverlay ? (
+          <>
+            <StylesTool scope="appearance" />
+            <ToolDivider />
+            <StylesTool scope="advanced" />
+            <ToolDivider />
+            <ExportTool />
+          </>
+        ) : <>
+        {/* When the viewport-frame itself is selected (`root` on a bare
+            page, `layout::root` on a templated one), several tools don't
+            apply: Interactions/Link/Animation/Cursor/Accessibility all
+            target a specific element. The viewport is a layout container,
+            not a styled element. Hiding them at this scope keeps the
+            page-level affordance focused (Template + Position + Layout +
+            Styles) and matches the reference's site-frame behaviour.
+
+            Component instances also hide both: Interactions live in the
+            master's variant graph (the instance is just a reference, not
+            a place to author new transitions), and Link / Anchor target
+            an element with a real box — the instance wrapper is
+            `display: contents` so an `<a>` attached here doesn't wrap
+            anything visible in the live DOM. Same rule for icon-set
+            instances: their wrappers get cloneElement-replaced at
+            runtime so an attached link / handler is dropped. */}
+        {/* Overlay nodes also hide both: an overlay opens/closes via its
+            trigger (Show On), so variant interactions and a nav link on the
+            floating panel itself don't apply. */}
+        {/* field semantic inspector order.
+            These wrappers are intentionally display:contents: they define stable
+            information architecture without changing panel geometry or density.
+            Density/pixel tuning can target these groups later without having to
+            rediscover the inspector semantics from one legacy tool stream. */}
+        <div data-inspector-group="geometry" className="contents">
+        {/* Position — the single-node tool (type / pins / coords) can't
+            generalize across a heterogeneous group, so on multi-select we
+            swap it for the alignment-only control: the same Position header
+            with just the 6 align icons, wired to group-bbox math so the user
+            can line the selection up. */}
+        {/* Overlay selected — lead with Show On + Overlay (the reference order). Skip
+            POSITION (placement is trigger-driven via Position/Align/Offset —
+            manual coords would fight it), but DO show DIMENSIONS: the overlay's
+            width/height are real fixed values the user edits (same as its resize
+            handles; routes inline on primary / @container on a replica). */}
+        {isOverlayNode && (
+          <>
+            <SizeTool
+              styles={s}
+              nodeId={node.id}
+              vpId={vpId}
+              onUpdate={updateStyle}
+              onUpdateMultiple={updateMultipleStyles}
+              pxOnly
+            />
+            <ToolDivider />
+          </>
+        )}
+        {!isOverlayNode && (!isMultiSelect ? (
+          <PositionTool
+            nodeId={node.id}
+            styles={s}
+            vpId={vpId}
+            isReplica={isReplica}
+            vpWidth={vpWidth}
+            isTopLevel={!!node.isCanvasNode || !node.parentId}
+          />
+        ) : (
+          <MultiAlignmentControl vpId={vpId} />
+        ))}
+
+        {/* Layout — the selected object's own box. This section is permanent:
+            Auto layout may change how children flow, but it never absorbs W/H,
+            sizing modes, padding, or Clip content. */}
+        {!isOverlayNode && (
+          <>
+            <SizeTool
+              styles={s}
+              nodeId={node.id}
+              vpId={vpId}
+              onUpdate={updateStyle}
+              onUpdateMultiple={updateMultipleStyles}
+              paddingContent={(isFrame || isViewportFrame) ? (
+                <LayoutPaddingControl styles={s} onUpdateMultiple={updateMultipleStyles} />
+              ) : undefined}
+            />
+            <ToolDivider />
+          </>
+        )}
+
+        {/* Grid Child (only when parent is grid) */}
+        {parentLayout === 'grid' && (
+          <>
+            <GridChildControls />
+            <ToolDivider />
+          </>
+        )}
+        {/* Layout (all elements — text nodes get Block-only mode).
+            Container-set instances (icon sets) hide it: the
+            instance is a leaf reference, not a layout container — the
+            master defines the inner layout and the wrapper itself is
+            replaced via cloneElement at runtime. Anything the user set
+            here would target a wrapper that doesn't exist after render.
+            Regular component instances also hide it: the parser-emitted
+            wrapper renders as `display: contents` so it has no box for
+            flex/grid to operate on — layout edits belong on the master
+            file (`Edit Component` button in the right panel jumps there). */}
+        {/* Layout tool: single-select as before, OR multi-select when every
+            selected node shares the same layout type (multiSelectLayoutType) —
+            edits fan out to all via ControlProvider.
+
+            NEVER for text elements: layout is a frame concept. The text
+            multi-column "Block" mode was removed (2026-08-12) — see
+            detectLayoutFlags in LayoutTool for the full rationale — so a
+            text node has no layout to show, and the Adjust control's
+            display:flex plumbing must not surface the frame controls. */}
+        {/* NEVER for form controls (input/textarea/select): they're leaf
+            elements — flex/grid child layout is meaningless on them, and the
+            Input tool owns their padding. */}
+        {canShowContainerLayout && (
+          <LayoutTool
+            styles={s}
+            nodeId={node.id}
+            onUpdate={updateStyle}
+            onUpdateMultiple={updateMultipleStyles}
+            templateRoot={isTemplateRootEdit}
+          />
+        )}
+        </div>
+
+        <div data-inspector-group="content" className="contents">
+        {/* Collection List (nodes with collectionList) — placed ABOVE Animation
+            so the CMS source/filter/sort/pagination controls sit near the top of
+            the panel (design-tool parity), not buried below Layout/Overlays. */}
+        {hasCollectionList && (
+          <>
+            <CollectionListTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Form (the <form> element) — Send To / Redirect / Antispam / Tracking. */}
+        {isFormElement && (
+          <>
+            <FormTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Input (input / textarea / select) — Type / Name / Placeholder / Required / + props. */}
+        {isInputElement && (
+          <>
+            <InputTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* The standalone "Template bindings" row was here — removed once the
+            per-property menu (Bind to Field / Unbind Field) covered every
+            bindable property in the panel. The dedicated row was confusing:
+            it duplicated the menu's affordance and only handled text/src/href. */}
+        {/* Form State — maps the enclosing form's lifecycle (loading/
+            success/error/disabled) to this instance's variants. Self-gates
+            to a multi-variant component instance inside a <form>. */}
+        {isComponentInstance && isInsideForm && <FormStateTool />}
+        {/* Component Props: instances are prioritized directly below the object
+            header; non-instance component surfaces retain the legacy location. */}
+        {!isComponentInstance && !isCodeComponentInstance && <ComponentPropsTool />}
+
+        {/* Icon Set (only for icon-set instances — IconSetTool returns
+            null when the selected node isn't pointing at an icons/*.tsx file). */}
+        <IconSetTool />
+        <ToolDivider />
+        {/* Image source/alt (only for image elements) */}
+        {isImageElement && (
+          <>
+            <ImageTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Video controls (only for video elements) */}
+        {isVideoElement && (
+          <>
+            <VideoTool />
+            <ToolDivider />
+          </>
+        )}
+        {/* Audio controls (only for audio elements) */}
+        {isAudioElement && (
+          <>
+            <AudioTool />
+            <ToolDivider />
+          </>
+        )}
+        </div>
+
+        <div data-inspector-group="appearance" className="contents">
+        {/* Selection colors — selected-scope aggregate visual paints. The
+            tool decides when the aggregate is useful (multi-select, or a
+            selected design subtree / multi-color selection) and stays hidden
+            for a simple single-color leaf so it does not duplicate Fill. */}
+        <SelectionTool />
+        {/* Styles: Fill, Radius, Padding, Margin, Overflow, Opacity.
+            Hidden on a templated viewport — those styles belong to the
+            Template's root, not the page (edit via Template → Edit). */}
+        {!isTemplatedViewport && (
+          <>
+            <StylesTool scope="appearance" />
+            <ToolDivider />
+          </>
+        )}
+        {/* Figma text order: Appearance → Typography → Fill → Stroke → Effects. */}
+        {isText && <TextStyleTool />}
+        </div>
+
+        <div data-inspector-group="advanced" className="contents">
+        {/* field-specific web capabilities live INSIDE one Advanced disclosure,
+            rather than competing with Fill / Stroke / Effects as peer sections. */}
+        {!isTemplatedViewport && (
+          <>
+            <StylesTool
+              scope="advanced"
+              advancedExtras={!isViewportFrame ? (
+                <div data-advanced-subtools className="flex flex-col gap-0">
+                  {!isInputElement && <CursorTool />}
+                  {!isComponentFilePath(filePath) && !isContainerSetInstance && !isInputElement && <ScrollSectionTool />}
+                  {!isContainerSetInstance && !isComponentInstance && <AccessibilityTool />}
+                  {!isContainerSetInstance && <CodeOverridesTool />}
+                </div>
+              ) : undefined}
+            />
+            <ToolDivider />
+          </>
+        )}
+        </div>
+        </>}
+        </>}
+        </>
+        <>
+          <div data-inspector-group="behavior" className="contents">
+            {isVectorVariantCard ? null : isSvg ? (
+              isSketch ? (
+                <AnimationTool styles={s} onUpdate={updateStyle} />
+              ) : null
+            ) : isFixedOverlay ? (
+              <OverlayTool />
+            ) : (
+              <>
+                {!isViewportFrame && !isContainerSetInstance && !isMultiSelect && !isOverlayNode
+                  && (!isComponentInstance || isInsideCollectionList || isInsideOverlay || isDesignComponentFile(filePath)) && !isCodeComponentInstance && (
+                  <>
+                    <InteractionsTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {!isViewportFrame && !isComponentInstance && !isCodeComponentInstance && !isContainerSetInstance && !isMultiSelect && !isOverlayNode && !isInputElement && (
+                  <>
+                    <LinkTool />
+                    <ToolDivider />
+                  </>
+                )}
+
+                {isOverlayNode ? (
+                  <>
+                    <OverlayTool />
+                    {!isFixedOverlay && <ToolDivider />}
+                  </>
+                ) : (!isCodeComponentInstance && !isViewportFrame && !isInputElement ? (
+                  <>
+                    <OverlayTool />
+                    <ToolDivider />
+                  </>
+                ) : null)}
+
+                {!isFixedOverlay && (
+                  <AnimationTool
+                    styles={s}
+                    onUpdate={updateStyle}
+                    glideOnly={isViewportFrame}
+                  />
+                )}
+              </>
+            )}
+          </div>
+          {!isShapeEditing && !isNativeGroup && !isVectorVariantCard && !isSvg && !isFixedOverlay && (
+            <div data-inspector-group="export" className="contents"><ExportTool /></div>
+          )}
+        </>
+      </div>
+      </div>{/* end scrollable content */}
+      </PanelErrorBoundary>
+    </div>
+  );
+}
+

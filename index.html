@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <!-- field identity — updated at runtime with the selected editor theme -->
+  <link
+    data-field-favicon
+    rel="icon"
+    type="image/png"
+    href="/field-brand/monochrome/favicon-dark.png?v=11"
+  />
+  <link
+    data-field-apple-icon
+    rel="apple-touch-icon"
+    href="/field-brand/monochrome/apple-touch-icon.png?v=11"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Private app shell (the editor) — keep every route out of search. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>field</title>
+  <style>
+    #root { height: 100vh; }
+    .selected-node-highlight { background: rgba(99, 102, 241, 0.12) !important; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

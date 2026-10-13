@@ -1,0 +1,115 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const read = (path: string) => readFileSync(path, 'utf8');
+
+describe('toolbar Media launcher contract', () => {
+  it('uses a single Media button and an anchored launcher instead of the legacy dropdown', () => {
+    const toolbar = read('src/editor/BottomToolbar.tsx');
+    expect(toolbar).toContain('function MediaButton()');
+    expect(toolbar).toContain('dataTool="media"');
+    expect(toolbar).toContain("setPanel({ kind: 'media' })");
+    expect(toolbar).not.toContain('function MediaDropdown(');
+    const glyph = read('src/editor/media/MediaGlyph.tsx');
+    expect(glyph).toContain('data-media-glyph="library"');
+    expect(glyph).not.toContain('<circle');
+    expect(glyph).not.toContain('m3.5 9.25');
+  });
+
+  it('keeps compact Media chrome anchored, expandable, and close-button free', () => {
+    const popover = read('src/editor/media/MediaToolbarPopover.tsx');
+    expect(popover).toContain('data-toolbar-tool="media"');
+    expect(popover).toContain('requestedWidth = expanded ? 840 : compact ? TOOLBAR_MENU_WIDTH : 560');
+    expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
+    expect(popover).toContain("height: expanded ? 'min(720px, calc(100vh - 112px))'");
+    expect(popover).toContain("expanded ? 'Collapse' : 'Expand'");
+    expect(popover).not.toContain('ModalCloseButton');
+    expect(popover).not.toContain('>Expand</button>');
+    const launcher = read('src/editor/media/MediaLauncher.tsx');
+    expect(launcher).toContain('data-media-launcher-featured');
+    expect(launcher).toContain('Browse media');
+    expect(launcher).toContain('grid grid-cols-2 gap-1.5');
+    expect(launcher).toContain('<MediaActionCard');
+    const card = read('src/editor/media/MediaActionCard.tsx');
+    expect(card).toContain('data-media-launcher-card');
+    expect(card).toContain('flex h-9 min-w-0 items-center gap-1.5');
+    expect(launcher).not.toContain('description:');
+    expect(launcher).not.toContain('card.description');
+    expect(card).toContain('h-6 w-6');
+    expect(launcher).not.toContain('mt-1.5 text-[10px] font-medium');
+  });
+
+  it('locks the user-verified compact PaintPicker geometry without touching nested launcher behavior', () => {
+    const shell = read('src/editor/ui/PaintPickerShell.tsx');
+    const colorInput = read('src/editor/controls/ColorInput.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(shell).toContain('data-paint-picker-density="compact"');
+    expect(colorInput).toContain('width={304}');
+    expect(read('src/editor/ui/ColorPicker.tsx')).toContain('w-full h-[176px]');
+    expect(css).not.toContain('!important');
+    expect(colorInput).toContain('nested={!!popupCtx}');
+    expect(colorInput).not.toContain("popupCtx.pushPanel('Color'");
+  });
+
+  it('locks the avatar-to-Publish row to the Inspector shell surface', () => {
+    const rightHeader = read('src/editor/header/RightHeader.tsx');
+    const css = read('src/editor/bottom-toolbar-glyphs.css');
+    expect(rightHeader).toContain('data-workspace-right-header');
+    expect(rightHeader).toContain('<InspectorCollaborators');
+    expect(rightHeader).toContain('data-tutorial="header-publish-button"');
+    expect(rightHeader).toContain('var(--field-chrome-shell-header-bg)');
+    expect(css).not.toContain('[data-workspace-right-header]');
+  });
+
+  it('expands the same Media shell without swapping to a second modal', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain('expanded={expanded}');
+    expect(controller).toContain('onExpand={() => setExpanded((value) => !value)}');
+    expect(controller).toContain('embedded');
+    expect(controller).not.toContain("import Modal from '@/design-system/Modal'");
+    expect(controller).not.toContain('if (expanded) {');
+  });
+
+  it('keeps Media toolbar-only instead of duplicating it inside Insert', () => {
+    const toolbar = read('src/editor/BottomToolbar.tsx');
+    const insert = read('src/editor/left-toolbar/panels/insert/index.tsx');
+    const insertData = read('src/shared/insert-items/element-data.ts');
+    expect(toolbar).toContain('function MediaButton()');
+    expect(toolbar).toContain('<MediaButton />');
+    expect(toolbar).toContain('dataTool="media"');
+    expect(insert).toContain('const FIELD_INSERT_CATEGORIES: InsertCategory[] = CATEGORIES;');
+    expect(insert).not.toContain("if (category.id === 'media')");
+    expect(insert).not.toContain('MediaGalleryPanel');
+    expect(insert).not.toContain('MediaGlyph');
+    expect(insertData).not.toContain('const MEDIA_ITEMS');
+    expect(insertData).not.toContain("id: 'media'");
+    expect(insertData).not.toContain("id: 'media-library'");
+  });
+
+  it('keeps Gallery an image composition intent instead of a media kind', () => {
+    const system = read('src/editor/media/media-system.ts');
+    expect(system).toContain("return { view: 'create', kind: 'image', provider: 'gallery' }");
+    expect(system).toContain("action === 'gallery' ? 'gallery'");
+  });
+
+  it('routes typed launcher actions through the canonical Media browser before secondary sources', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain('data-media-type-browser={session.route.kind}');
+    expect(controller).toContain('initialTab={browserTab}');
+    expect(controller).toContain('onPick={pickFromProjectMedia}');
+    expect(controller).toContain("{ value: 'media', label: 'Media', glyph: 'media' }");
+    expect(controller).toContain("{ value: 'sources', label: 'Find & create', glyph: 'search' }");
+    expect(controller).toContain("{ value: 'url', label: 'URL', glyph: 'behavior' }");
+    expect(controller).toContain("typeSource !== 'media' ? () => setTypeSource('media') : goHome");
+  });
+
+  it('keeps existing polished search/create pickers subordinate to the same toolbar shell', () => {
+    const controller = read('src/editor/media/MediaPanelController.tsx');
+    expect(controller).toContain("typeSource === 'sources'");
+    expect(controller).toContain("typeSource === 'url'");
+    expect(controller).toContain("onClose={() => setTypeSource('media')}");
+    expect(controller).not.toContain("content = imagePicker;");
+    expect(controller).not.toContain("content = videoPicker;");
+  });
+
+});
