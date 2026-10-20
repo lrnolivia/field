@@ -53,8 +53,8 @@ function currentUserInfo(
 // from `transformManager` so bubbles re-render on pan/zoom without
 // going through the slower `displayTransformAtom` path.
 function useTransform() {
-  const [t, setT] = useState(transformManager.getTransform());
-  useEffect(() => transformManager.subscribe(() => setT(transformManager.getTransform())), []);
+  const [t, setT] = useState(transformManager.getAppliedTransform());
+  useEffect(() => transformManager.subscribe(() => setT(transformManager.getAppliedTransform())), []);
   return t;
 }
 
@@ -169,7 +169,7 @@ const CommentBubble: React.FC<CommentBubbleProps> = ({
         isDraggingRef.current = true;
       }
       if (isDraggingRef.current) {
-        const t = transformManager.getTransform();
+        const t = transformManager.getAppliedTransform();
         const newX = dragStartRef.current.commentX + dx / t.scale;
         const newY = dragStartRef.current.commentY + dy / t.scale;
         commentOps.updateCommentPosition(comment.id, newX, newY, true);
@@ -395,7 +395,7 @@ export default function Comments() {
       }
 
       // Convert window cursor → canvas-space.
-      const t = transformManager.getTransform();
+      const t = transformManager.getAppliedTransform();
       const off = getIframeOffset();
       const x = (e.clientX - off.x - t.x) / t.scale;
       const y = (e.clientY - off.y - t.y) / t.scale;

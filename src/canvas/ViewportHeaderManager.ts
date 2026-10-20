@@ -95,7 +95,7 @@ function getViewportFrameNodeId(_vpId: string): string {
 function getViewportPositionData(vpId: string, _vpEl: HTMLElement | null): { left: number; top: number; width: number; height: number } | null {
   // Identical math to canvas-math's shared helper: screen rect via the bridge,
   // converted to canvas-space against the container rect.
-  return getCanvasRectById(getViewportFrameNodeId(vpId), getViewportPrefix(vpId), transformManager.getTransform());
+  return getCanvasRectById(getViewportFrameNodeId(vpId), getViewportPrefix(vpId), transformManager.getAppliedTransform());
 }
 
 export interface ViewportHeaderCallbacks {
@@ -192,7 +192,7 @@ export function startViewportHeaderTracking(container: HTMLElement): () => void 
 const _lastHeaderKey = new WeakMap<HTMLElement, string>();
 
 export function updateViewportHeaderPositions(container: HTMLElement): void {
-  const scale = transformManager.getTransform().scale;
+  const scale = transformManager.getAppliedTransform().scale;
   const scaledH = HEADER_HEIGHT / scale;
   const scaledM = HEADER_MARGIN / scale;
 
@@ -262,7 +262,7 @@ function createHeader(
   allViewports: ViewportConfig[],
   callbacks: ViewportHeaderCallbacks,
 ): HTMLElement {
-  const scale = transformManager.getTransform().scale;
+  const scale = transformManager.getAppliedTransform().scale;
   const scaledH = HEADER_HEIGHT / scale;
   const scaledM = HEADER_MARGIN / scale;
 
@@ -462,7 +462,7 @@ function createHeader(
     const startTop = currentPosData?.top ?? 0;
     const vpWidth = currentPosData?.width ?? 0;
     const vpHeight = currentPosData?.height ?? 0;
-    const dragScale = transformManager.getTransform().scale;
+    const dragScale = transformManager.getAppliedTransform().scale;
     let started = false;
     let prevMouse = { x: startX, y: startY };
     let lastGuideCount = 0;
@@ -518,7 +518,7 @@ function createHeader(
       // Snap
       const draggedRect: Rect = { left: newLeft, top: newTop, width: vpWidth, height: vpHeight };
       const velocity = getMouseVelocity(prevMouse, { x: me.clientX, y: me.clientY });
-      const currentScale = transformManager.getTransform().scale;
+      const currentScale = transformManager.getAppliedTransform().scale;
       const snap = calculateSnap(
         draggedRect,
         siblingRects,

@@ -234,7 +234,7 @@ function NameDisplay({ nodeId, vpId }: LabelProps) {
   // so each label re-renders 1× per pan-frame instead of 60× per second.
   useSyncExternalStore(
     transformManager.subscribe.bind(transformManager),
-    () => transformManager.getTransform().scale + ',' + transformManager.getTransform().x + ',' + transformManager.getTransform().y,
+    () => transformManager.getAppliedTransform().scale + ',' + transformManager.getAppliedTransform().x + ',' + transformManager.getAppliedTransform().y,
     () => '0,0,0',
   );
 
@@ -255,7 +255,7 @@ function NameDisplay({ nodeId, vpId }: LabelProps) {
     return null;
   }
 
-  const scale = transformManager.getTransform().scale;
+  const scale = transformManager.getAppliedTransform().scale;
   if (scale < MIN_VISIBLE_SCALE) return null;
 
   // For SVG nodes the visual bounds = painted bbox (the strokes /
@@ -576,7 +576,7 @@ export default function CanvasNodeNameDisplay() {
   const cameraKey = useSyncExternalStore(
     transformManager.subscribe.bind(transformManager),
     () => {
-      const t = transformManager.getTransform();
+      const t = transformManager.getAppliedTransform();
       return `${Math.round(t.x / 8)}:${Math.round(t.y / 8)}:${t.scale.toFixed(3)}`;
     },
     () => '1',

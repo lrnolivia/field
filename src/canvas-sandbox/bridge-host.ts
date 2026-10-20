@@ -359,12 +359,24 @@ export class PostMessageBridge implements CanvasBridge {
    * narrow pre-iframe/compatibility case. */
   setViewportTransform(x: number, y: number, scale: number): void {
     this.currentTransform = { x, y, scale };
+    this.postViewportTransform(x, y, scale);
+  }
+
+  /** Staged camera (TransformManager): send without moving the projection
+   *  camera — cached rects keep projecting with what is on screen until
+   *  `setAppliedTransform` lands this camera next frame. */
+  postViewportTransform(x: number, y: number, scale: number): void {
     const target = this.iframe?.contentWindow;
     if (target) {
       target.postMessage(wrapCanvasHostViewportTransform(x, y, scale), SANDBOX_ORIGIN);
       return;
     }
     this.remote?.setViewportTransform(x, y, scale);
+  }
+
+  /** The camera now painted by the sandbox — projects cached rects. */
+  setAppliedTransform(x: number, y: number, scale: number): void {
+    this.currentTransform = { x, y, scale };
   }
 
   /** Fire-and-forget CSS injection. Cross-origin iframe — sync access to

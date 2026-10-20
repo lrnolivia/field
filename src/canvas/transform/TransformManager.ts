@@ -4,6 +4,16 @@
 //
 // Uses requestAnimationFrame batching so multiple pan+zoom calls in one frame
 // only trigger one DOM update.
+//
+// STAGED CAMERA. Canvas content lives in a cross-origin sandbox iframe that is
+// reached by postMessage and applies each camera on ITS next frame. The
+// editor's own camera-tracked layers (viewport headers, Frame labels,
+// selection chrome) used to apply the same camera one frame EARLIER, so they
+// slid ahead of the content by one pan step on every moving frame. With a
+// forwarder attached, a frame now (1) lands the camera forwarded last frame —
+// the one the sandbox paints this frame — on elements + subscribers, then
+// (2) forwards the newest input camera. `getTransform()` stays the newest
+// input camera (gesture math); `getAppliedTransform()` is what is on screen.
 
 import { MIN_SCALE, MAX_SCALE } from './constants';
 import { clamp } from '@/shared/math-utils';
@@ -19,8 +29,22 @@ export type { Transform };
  */
 const ZOOM_END_DEBOUNCE_MS = 180;
 
-class TransformManager {
+export interface CameraForwarder {
+  /** Send a camera to the sandbox; false when it can't be reached (the editor
+   *  then applies immediately — there is nothing to stay in step with). */
+  send(t: Transform): boolean;
+  /** A camera landed on screen — runs before subscribers are notified. */
+  land?(t: Transform): void;
+}
+
+export class TransformManager {
   private transform: Transform = { x: 200, y: 100, scale: 0.5 };
+  /** The camera currently painted (elements + subscribers). */
+  private applied: Transform = { ...this.transform };
+  /** Forwarded to the sandbox last frame; lands on the editor this frame. */
+  private staged: Transform | null = null;
+  private dirty = false;
+  private forwarder: CameraForwarder | null = null;
   private listeners: Set<() => void> = new Set();
   private elements: HTMLElement[] = [];
   private rafId: number | null = null;
@@ -29,8 +53,25 @@ class TransformManager {
 
   // ─── Read ───────────────────────────────────────────────────────────
 
+  /** Newest input camera — use for gesture / input math. */
   getTransform(): Transform {
     return { ...this.transform };
+  }
+
+  /** Camera currently on screen — use when PAINTING editor layers that must
+   *  stay locked to the sandbox content. */
+  getAppliedTransform(): Transform {
+    return { ...this.applied };
+  }
+
+  /** Attach the sandbox forwarder (null detaches). */
+  setForwarder(fn: CameraForwarder | null): void {
+    this.forwarder = fn;
+    if (!fn && this.staged) {
+      this.staged = null;
+      this.dirty = true;
+      this.scheduleFlush();
+    }
   }
 
   subscribe(fn: () => void): () => void {
@@ -55,7 +96,7 @@ class TransformManager {
 
   /** Apply current transform to a single element */
   applyToElement(el: HTMLElement): void {
-    const { x, y, scale } = this.transform;
+    const { x, y, scale } = this.applied;
     el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
     el.style.transformOrigin = '0 0';
   }
@@ -163,14 +204,43 @@ class TransformManager {
   }
 
   private scheduleFlush(): void {
+    this.dirty = true;
+    this.requestTick();
+  }
+
+  private requestTick(): void {
     if (this.rafId !== null) return;
     this.rafId = requestAnimationFrame(() => {
       this.rafId = null;
-      for (const el of this.elements) {
-        this.applyToElement(el);
-      }
-      this.notify();
+      this.tick();
     });
+  }
+
+  private tick(): void {
+    // 1. Land last frame's forwarded camera — the sandbox paints it now.
+    if (this.staged) {
+      this.land(this.staged);
+      this.staged = null;
+    }
+    if (!this.dirty) return;
+    this.dirty = false;
+    // 2. Forward the newest input camera; it lands here next frame.
+    const next = { ...this.transform };
+    if (this.forwarder?.send(next)) {
+      this.staged = next;
+      this.requestTick();
+    } else {
+      this.land(next);
+    }
+  }
+
+  private land(t: Transform): void {
+    this.applied = t;
+    this.forwarder?.land?.(t);
+    for (const el of this.elements) {
+      this.applyToElement(el);
+    }
+    this.notify();
   }
 
   private notify(): void {

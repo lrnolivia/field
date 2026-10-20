@@ -134,7 +134,6 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
     // 1. Update viewport header positions continuously — the viewport header is
     //    persistent canvas chrome and must remain visible while panning/zooming.
     // 2. Mark camera interaction so node-scoped helpers can suppress themselves.
-    // 3. Forward transform to sandbox iframe.
     let interactTimeout: ReturnType<typeof setTimeout> | null = null;
     const unsub = transformManager.subscribe(() => {
       if (vpOverlay) {
@@ -144,19 +143,6 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       // …and specifically that the CAMERA is what's moving, so node-scoped
       // overlays can hide (SelectionOverlay's InteractionOutline).
       cameraMoveOps.set(true);
-
-      if (postMessageBridgeRef.current?.isReady) {
-        const t = transformManager.getTransform();
-        trace.action('canvas-transform:bridge-forward', { x: t.x, y: t.y, scale: t.scale });
-        // Per-tick live forwarding for BOTH pan and zoom. A surface-freeze
-        // experiment (compositing zoom gestures on the iframe element,
-        // 2026-07-19) was REMOVED: any freeze window shows partially-
-        // revealed content during a zoom-out, which reads as nodes
-        // appearing "bit by bit" — user-rejected. Live forwarding keeps the
-        // canvas complete at every tick; culled tiles show their grey
-        // placeholders and materialise via the staggered idle restore.
-        postMessageBridgeRef.current.setViewportTransform(t.x, t.y, t.scale);
-      }
 
       if (interactTimeout) clearTimeout(interactTimeout);
       interactTimeout = setTimeout(() => {
@@ -182,6 +168,28 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       }, 100);
     });
 
+    // 3. Forward to the sandbox — STAGED (see TransformManager): the newest
+    // camera is sent this frame and lands on the editor's layers next frame,
+    // the frame the sandbox paints it. Per-tick live forwarding for BOTH pan
+    // and zoom. A surface-freeze experiment (compositing zoom gestures on the
+    // iframe element, 2026-07-19) was REMOVED: any freeze window shows
+    // partially-revealed content during a zoom-out, which reads as nodes
+    // appearing "bit by bit" — user-rejected. Live forwarding keeps the
+    // canvas complete at every tick; culled tiles show their grey
+    // placeholders and materialise via the staggered idle restore.
+    transformManager.setForwarder({
+      send: (t) => {
+        const bridge = postMessageBridgeRef.current;
+        if (!bridge?.isReady) return false;
+        trace.action('canvas-transform:bridge-forward', { x: t.x, y: t.y, scale: t.scale });
+        bridge.postViewportTransform(t.x, t.y, t.scale);
+        return true;
+      },
+      land: (t) => {
+        postMessageBridgeRef.current?.setAppliedTransform(t.x, t.y, t.scale);
+      },
+    });
+
     // Send initial transform to sandbox
     if (postMessageBridgeRef.current?.isReady) {
       const t = transformManager.getTransform();
@@ -196,6 +204,7 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
       });
       if (content) transformManager.removeElement(content);
       if (vpOverlay) transformManager.removeElement(vpOverlay);
+      transformManager.setForwarder(null);
       unsub();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
