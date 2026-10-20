@@ -75,6 +75,19 @@ function Separator() {
   return <div className="w-px h-[20px] bg-[var(--border-light)] mx-0.5 shrink-0" />;
 }
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/** The Text tool's fixed-size modifier (TextCreator's TEXT_FIXED_SIZE_MODIFIER). */
+const TEXT_FIXED_SIZE_KEY = IS_MAC ? '⌥' : 'Alt';
+
+/** Shown above the bar while the Text tool is active: text is auto-sized by
+ *  default; the modifier draws a fixed-size box. */
+function TextToolHint() {
+  return <div data-tool-hint="text" role="status"
+    className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-panel)] px-2.5 py-1 text-[10px] text-[var(--text-secondary)] shadow-[var(--field-menu-depth)]">
+    Click to type · hold <kbd className="font-sans font-semibold text-[var(--text-primary)]">{TEXT_FIXED_SIZE_KEY}</kbd> and drag to draw a fixed-size box
+  </div>;
+}
+
 function ShortcutHint({ text }: { text: string }) {
   return <span className="text-[9px] text-[var(--text-tertiary)] ml-auto pl-2">{text}</span>;
 }
@@ -436,7 +449,7 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
   const selectText = () => { onSelect(); setOpen(false); };
   const insert = (id: string) => { insertToolbarItemAtVisibleCenter(id); setOpen(false); };
   return <div className="relative" ref={ref} data-tutorial="text-tool">
-    <SplitButton active={toolMode === 'text'} open={open} icon={<TextToolbarIcon className="w-4 h-4" />} onClick={selectText} onChevronClick={() => setOpen(!open)} title="Draw Text (T)" dataTool="text" />
+    <SplitButton active={toolMode === 'text'} open={open} icon={<TextToolbarIcon className="w-4 h-4" />} onClick={selectText} onChevronClick={() => setOpen(!open)} title={`Text (T) — hold ${TEXT_FIXED_SIZE_KEY} and drag for a fixed-size box`} dataTool="text" />
     {open && <DropdownContainer wide title="Text" glyph={<TextToolbarIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'typography' }} onClose={() => setOpen(false)}>
       <MenuItem label="Text" shortcut="T" icon={<TextToolbarIcon className="w-4 h-4" />} active={toolMode === 'text'} onClick={selectText} />
       {items.length > 0 && <>
@@ -750,6 +763,7 @@ export default function BottomToolbar() {
       // CommandPalette measures the live bar rect, so anchored UI tracks it.
       style={{ bottom: isNarrowToolbar ? 'calc(12px + env(safe-area-inset-bottom, 0px) + var(--field-visible-bottom, 0px))' : 18, maxWidth: 'calc(100vw - 24px)', willChange: 'transform', isolation: 'isolate' }}
     >
+      {toolMode === 'text' && !isNarrowToolbar && <TextToolHint />}
       <div
         data-field-selection-shell
         id="bottom-toolbar-container"

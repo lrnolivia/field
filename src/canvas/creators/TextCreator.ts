@@ -56,6 +56,13 @@ let previewEl: HTMLElement | null = null;
 let cleanupFn: (() => void) | null = null;
 let autoPanCleanup: (() => void) | null = null;
 
+/** Hold this while drawing with the Text tool to keep the drawn size; without
+ *  it a text layer is auto-sized (width and height hug the text). */
+export const TEXT_FIXED_SIZE_MODIFIER = 'altKey' as const;
+export function isTextFixedSizeModifier(e: { altKey: boolean }): boolean {
+  return !!e[TEXT_FIXED_SIZE_MODIFIER];
+}
+
 /**
  * Default style map for a new text element. Single source of truth for
  * the typography defaults the click-create flow uses; also called from
@@ -65,8 +72,8 @@ let autoPanCleanup: (() => void) | null = null;
  * Modes:
  *   - 'click'      → typography defaults + width:max-content / height:auto
  *                    (plus whiteSpace:nowrap when on canvas, set by caller)
- *   - 'draw'       → typography defaults only — caller sets the width from
- *                    the drawn rect; height stays auto (hugs the text)
+ *   - 'draw'       → typography defaults only — caller sets width/height
+ *                    from the drawn rect (fixed-size modifier held)
  *   - 'frame-fill' → typography defaults + position:relative + flex:0 0 auto
  *                    so the text sits inside a centered flex parent
  *                    without stretching it
@@ -153,12 +160,27 @@ export function startTextCreation(
 
   let drawnWidth = 0;
   let drawnHeight = 0;
+  // Text defaults to AUTO size (width and height hug the text) even when the
+  // user drags. Holding the fixed-size modifier while drawing keeps the drawn
+  // width AND height instead (see TEXT_FIXED_SIZE_MODIFIER).
+  let fixedSize = isTextFixedSizeModifier(e);
+
+  // The size readout appears only when the drawn size will be kept.
+  const showDrawReadout = (clientX: number, clientY: number) => {
+    if (!fixedSize) { styleHelperOps.hide(); return; }
+    styleHelperOps.show({
+      type: 'dimensions',
+      position: { x: clientX, y: clientY },
+      dimensions: { width: Math.round(drawnWidth), height: Math.round(drawnHeight), unit: 'px' },
+    });
+  };
 
   // Re-projects the preview rect from current cursor + live transform.
   // Called by both real mousemove and the auto-pan tick (cursor stationary
   // at edge while canvas slides beneath).
   const redraw = (clientX: number, clientY: number) => {
     const t = transformManager.getTransform();
+    if (previewEl) previewEl.style.borderStyle = fixedSize ? 'solid' : 'dashed';
 
     if (useLocalSpace && parentMap && parentMapInv) {
       // Local-space path — preview sits in parent-local coords;
@@ -185,11 +207,7 @@ export function startTextCreation(
         previewEl.style.transform = affineToCSSMatrix(composed);
       }
 
-      styleHelperOps.show({
-        type: 'dimensions',
-        position: { x: clientX, y: clientY },
-        dimensions: { width: Math.round(drawnWidth), height: Math.round(drawnHeight), unit: 'px' },
-      });
+      showDrawReadout(clientX, clientY);
       return;
     }
 
@@ -208,11 +226,7 @@ export function startTextCreation(
       previewEl.style.height = `${drawnHeight * t.scale}px`;
     }
 
-    styleHelperOps.show({
-      type: 'dimensions',
-      position: { x: clientX, y: clientY },
-      dimensions: { width: Math.round(drawnWidth), height: Math.round(drawnHeight), unit: 'px' },
-    });
+    showDrawReadout(clientX, clientY);
   };
 
   const autoPan = attachCreatorAutoPan('text-creator', redraw);
@@ -224,6 +238,7 @@ export function startTextCreation(
     threshold: 0,
 
     onMove: (_dx, _dy, moveEvent) => {
+      fixedSize = isTextFixedSizeModifier(moveEvent);
       autoPan.trackMouse(moveEvent.clientX, moveEvent.clientY);
       redraw(moveEvent.clientX, moveEvent.clientY);
     },
@@ -277,6 +292,9 @@ export function startTextCreation(
 
       const minSize = MIN_DRAW_SIZE / t.scale;
       const isClick = width < minSize && height < minSize;
+      // The modifier's state at RELEASE decides (press it mid-drag, or let go
+      // before releasing to fall back to auto size).
+      const fixed = !isClick && isTextFixedSizeModifier(upEvent);
 
       const nodeId = generateNodeId();
 
@@ -290,20 +308,17 @@ export function startTextCreation(
         overflowWrap: 'break-word',
       };
 
-      if (isClick) {
+      if (!fixed) {
         styles.width = 'max-content';
         styles.height = 'auto';
         if (isCanvasNode) {
           styles.whiteSpace = 'nowrap';
         }
-        trace.action('text-creator:click-mode', { nodeId, isCanvasNode });
+        trace.action('text-creator:auto-size', { nodeId, isCanvasNode, dragged: !isClick });
       } else {
-        // Drawn text keeps the drawn WIDTH (it wraps there) but hugs its text
-        // vertically — "auto height": a text layer is only as tall as its
-        // lines (line height included), so auto-layout alignment centres the
-        // text itself, not an empty drawn box.
+        // Fixed size (modifier held): exactly the drawn box.
         styles.width = `${Math.round(width)}px`;
-        styles.height = 'auto';
+        styles.height = `${Math.round(height)}px`;
         // Drawn text gets a flex column container layout so the AdjustControl
         // (vertical alignment) actually works. CSS `vertical-align` does
         // nothing on a block <p>; flex + justify-content is the only way to

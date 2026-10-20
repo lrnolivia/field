@@ -50,19 +50,21 @@ test('Layers lists an auto layout in the order the canvas lays it out', async ({
   expect(listed).toEqual(['pic', 'label']);
 });
 
-test('a text box drawn inside a centred auto layout hugs its text and is centred', async ({ page }) => {
-  const editor = await open(page);
+/** Drag a text box inside the row with the Text tool; returns the new text. */
+async function drawText(page: Page, editor: EditorPage, text: string, fixedSize: boolean) {
   const row = await editor.nodeBox('row');
   await page.locator('[data-toolbar-tool="text"]').first().click();
+  await expect(page.locator('[data-tool-hint="text"]')).toContainText('fixed-size box');
   const from = { x: row.x + 20, y: row.y + 10 };
   await page.mouse.move(from.x, from.y);
+  if (fixedSize) await page.keyboard.down('Alt');
   await page.mouse.down();
   await page.mouse.move(from.x + 160, from.y + 150, { steps: 8 });
   await page.mouse.up();
-  await page.keyboard.type('Hug me');
+  if (fixedSize) await page.keyboard.up('Alt');
+  await page.keyboard.type(text);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-
   // The snapshot is keyed by id: the new text is the row's <p> that isn't Label.
   const findCreated = () => page.evaluate(() => {
     const snap = (window as any).__e2e.nodesSnapshot() as Record<string, any>;
@@ -70,8 +72,14 @@ test('a text box drawn inside a centred auto layout hugs its text and is centred
     return hit ? { id: hit[0], styles: hit[1].styles } : null;
   });
   await expect.poll(findCreated, { timeout: 15_000 }).not.toBeNull();
-  const created = (await findCreated())!;
+  return (await findCreated())!;
+}
+
+test('a plain drag with the Text tool makes an auto-size text that centres in auto layout', async ({ page }) => {
+  const editor = await open(page);
+  const created = await drawText(page, editor, 'Hug me', false);
   expect(created.styles.height ?? 'auto').toBe('auto');
+  expect(created.styles.width ?? 'auto').toMatch(/^(auto|max-content)$/);
 
   const box = await editor.waitForStableGeometry(created.id).then(() => editor.nodeBox(created.id));
   const rowNow = await editor.nodeBox('row');
@@ -80,4 +88,12 @@ test('a text box drawn inside a centred auto layout hugs its text and is centred
   expect(box.height).toBeLessThan(16 * 1.2 * scale * 1.6);
   const rowMid = rowNow.y + rowNow.height / 2;
   expect(Math.abs(box.y + box.height / 2 - rowMid)).toBeLessThan(2);
+});
+
+test('holding the modifier while dragging draws a fixed-size text box', async ({ page }) => {
+  const editor = await open(page);
+  const created = await drawText(page, editor, 'Fixed', true);
+  expect(created.styles.width).toMatch(/^\d+px$/);
+  expect(created.styles.height).toMatch(/^\d+px$/);
+  expect(parseInt(created.styles.height, 10)).toBeGreaterThan(100);
 });
