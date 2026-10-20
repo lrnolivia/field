@@ -36,6 +36,8 @@ import SelectionFade from './SelectionFade';
 import RotateHandle from './RotateHandle';
 import BorderRadiusHandle from './BorderRadiusHandle';
 import ObjectPositionHandle from './ObjectPositionHandle';
+import ImagePositionOverlay, { endImagePositionSession } from './ImagePositionOverlay';
+import { imagePositionTargetAtom } from '@/code/stores/image-position-store';
 import PaddingHandles from './PaddingHandles';
 import { resolveOverlaySize, resolveOverlayInsets } from './overlay-size';
 import GapHandles from './GapHandles';
@@ -106,6 +108,17 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
   const isInteracting = useAtomValue(canvasInteractingAtom);
   const toolMode = useAtomValue(toolModeAtom);
+  const imagePositionTarget = useAtomValue(imagePositionTargetAtom);
+  const setImagePositionTarget = useSetAtom(imagePositionTargetAtom);
+  // Selection left the Position-mode target (deselect, other object): commit,
+  // like leaving Figma's crop mode. Lives here, not in the overlay, because
+  // the overlay unmounts with the selection before its own effect could run.
+  useEffect(() => {
+    if (!imagePositionTarget) return;
+    if (selectedIds.length === 1 && selectedIds[0] === imagePositionTarget.nodeId) return;
+    endImagePositionSession('commit');
+    setImagePositionTarget(null);
+  }, [imagePositionTarget, selectedIds, setImagePositionTarget]);
   const setInteracting = useSetAtom(canvasInteractingAtom);
   const setRotating = useSetAtom(isRotatingAtom);
   // DELIBERATELY whole-map (category B-adjacent): this overlay is keyed to
@@ -809,7 +822,18 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
               gap/grip) are edit affordances — hidden for viewers AND in
               TRANSLATION MODE (non-default locale: selection border only,
               geometry is not editable — localization overhaul Phase 2). */}
-          {!shapeEditingId && !activeFancyRadius && !isViewer && isDefaultLocale && !colorPickerOpen && (
+          {/* Image Position mode: the image moves inside the fixed Frame, so
+              the Frame's own handles step aside until Done / Cancel. */}
+          {selectedId && !isViewer && isDefaultLocale && (
+            <ImagePositionOverlay
+              corners={corners}
+              nodeId={selectedId}
+              vpId={vpId}
+              color={selectionColor}
+              onInteracting={setInteracting}
+            />
+          )}
+          {!shapeEditingId && !activeFancyRadius && !isViewer && isDefaultLocale && !colorPickerOpen && imagePositionTarget?.nodeId !== selectedId && (
             toolMode === 'scale' ? (
               <ScaleHandles
                 corners={corners}
