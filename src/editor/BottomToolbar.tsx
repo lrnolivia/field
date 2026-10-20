@@ -75,7 +75,7 @@ function Separator() {
   return <div className="w-px h-[20px] bg-[var(--border-light)] mx-0.5 shrink-0" />;
 }
 
-const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent);
 /** The Text tool's fixed-size modifier (TextCreator's TEXT_FIXED_SIZE_MODIFIER). */
 const TEXT_FIXED_SIZE_KEY = IS_MAC ? '⌥' : 'Alt';
 
