@@ -43,8 +43,12 @@ function readFieldBuildAsset(): FieldBuildAsset {
   };
 }
 
+// Read ONCE so build.json, the dev /api/build route and the bundle's own
+// compiled-in identity (`__FIELD_LOADED_BUILD__`) always agree.
+const FIELD_BUILD_METADATA = readFieldBuildAsset();
+
 function fieldBuildMetadataPlugin(): Plugin {
-  const metadata = readFieldBuildAsset();
+  const metadata = FIELD_BUILD_METADATA;
   const source = JSON.stringify(metadata);
 
   return {
@@ -497,6 +501,9 @@ export default defineConfig(({ mode }) => {
   },
   define: {
     'process.env': {},
+    // The build THIS bundle is — compared against the deployed /api/build to
+    // detect a stale tab (BFCache restore, long-lived Safari tab).
+    __FIELD_LOADED_BUILD__: JSON.stringify(FIELD_BUILD_METADATA),
   },
   };
 });

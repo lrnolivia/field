@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Modal from '@/design-system/Modal';
-import { fetchFieldBuildInfo, type FieldBuildInfo } from '@/backend/build-info';
+import { fetchFieldBuildInfo, loadedFieldBuild, type FieldBuildInfo } from '@/backend/build-info';
 
 function formatTimestamp(value: string | null | undefined): string {
   if (!value) return '—';
@@ -62,6 +62,7 @@ export default function AboutFieldModal({
       'field diagnostics',
       'Version: ' + build.version,
       'Commit: ' + build.commitSha,
+      'Running: ' + loadedFieldBuild.commitSha,
       'Environment: ' + build.environment,
       'Built: ' + (build.builtAt ?? 'unknown'),
       'Deployed: ' + (build.deployedAt ?? 'unknown'),
@@ -98,6 +99,9 @@ export default function AboutFieldModal({
             <>
               <AboutRow label="Version" value={build.version} />
               <AboutRow label="Build" value={build.shortSha} title={build.commitSha} />
+              {loadedFieldBuild.commitSha !== 'unknown' && loadedFieldBuild.commitSha !== build.commitSha && (
+                <AboutRow label="Running" value={loadedFieldBuild.shortSha + ' · reload to update'} title={loadedFieldBuild.commitSha} />
+              )}
               <AboutRow label="Environment" value={build.environment} />
               <AboutRow label="Deployed" value={formatTimestamp(build.deployedAt)} title={build.deployedAt ?? undefined} />
               <AboutRow label="Cloudflare" value={build.deploymentId ?? '—'} />

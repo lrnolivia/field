@@ -36,3 +36,28 @@ export async function fetchFieldBuildInfo(fetchImpl: typeof fetch = fetch): Prom
     deploymentId: asNullableString(value.deploymentId),
   };
 }
+
+/** Build identity compiled into this bundle by vite.config.ts `define`. */
+declare const __FIELD_LOADED_BUILD__: { version?: string; commitSha?: string; shortSha?: string; builtAt?: string } | undefined;
+
+export type LoadedFieldBuild = { version: string; commitSha: string; shortSha: string; builtAt: string | null };
+
+/** The build this running bundle was compiled from. `unknown` in tests and in
+ *  bundles built without the define (e.g. sandbox configs). */
+export const loadedFieldBuild: LoadedFieldBuild = (() => {
+  const raw = typeof __FIELD_LOADED_BUILD__ !== 'undefined' ? __FIELD_LOADED_BUILD__ : undefined;
+  const commitSha = asNullableString(raw?.commitSha) ?? 'unknown';
+  return {
+    version: asNullableString(raw?.version) ?? 'unknown',
+    commitSha,
+    shortSha: asNullableString(raw?.shortSha) ?? (commitSha === 'unknown' ? commitSha : commitSha.slice(0, 8)),
+    builtAt: asNullableString(raw?.builtAt),
+  };
+})();
+
+/** True only when BOTH identities are known and differ — an unknown side never
+ *  claims an update (no false "new version" prompts in dev/tests). */
+export function deployedBuildDiffers(loaded: Pick<LoadedFieldBuild, 'commitSha'>, deployed: Pick<FieldBuildInfo, 'commitSha'>): boolean {
+  if (loaded.commitSha === 'unknown' || deployed.commitSha === 'unknown') return false;
+  return loaded.commitSha !== deployed.commitSha;
+}

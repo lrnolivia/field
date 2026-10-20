@@ -58,6 +58,7 @@ import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
 import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
+import UpdateAvailableNotice from '@/editor/ui/UpdateAvailableNotice';
 import { transformManager } from '@/canvas/transform/TransformManager';
 import { animateCanvasTo } from '@/canvas/transform/CameraAnimator';
 import { floatingInspectorVisibleAtom, leftRailVisibleAtom, workspaceModeAtom } from '@/editor/workspace-mode-store';
@@ -484,6 +485,9 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           `position="bottom-center"` + `offset` lifts toasts above the
           48px bottom toolbar so they don't hide behind it. Calls to
           `toast(...)` from anywhere in the app render here via portal. */}
+      {/* Stale-tab detection (BFCache / long-lived tab vs deployed build). */}
+      <UpdateAvailableNotice />
+
       <Toaster
         position="bottom-center"
         offset={64}
