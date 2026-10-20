@@ -189,7 +189,17 @@
 .field-mobile-text-toolbar { position:fixed; inset:auto 8px calc(8px + var(--field-visible-bottom,0px)); z-index:11000; border-radius:var(--radius-xl); padding:4px 8px 8px; background:var(--field-chrome-pane-bg); color:var(--text-primary); box-shadow:var(--field-menu-depth); }
 .field-mobile-text-toolbar-header { display:flex; align-items:center; justify-content:space-between; font-size:12px; }
 .field-mobile-text-toolbar-header button { min-width:44px; min-height:44px; }
-[data-mobile-text-controls] { display:flex; align-items:center; gap:8px; overflow-x:auto; overscroll-behavior-x:contain; padding:2px 2px 6px; scrollbar-width:thin; }
-[data-mobile-text-controls] > div { flex:0 0 144px; min-width:0; }
+[data-mobile-text-controls] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-items:start; max-height:min(40dvh,calc(var(--field-visible-height,100dvh) * .4)); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:2px 2px 6px; scrollbar-width:thin; }
+[data-mobile-text-controls] > div { min-width:0; }
+[data-mobile-text-controls] > [data-span=full] { grid-column:1 / -1; }
+[data-mobile-text-controls] > div:not(:has(*)) { display:none; }
 [data-mobile-text-controls] :is(input,select) { min-height:44px; font-size:16px; }
 [data-mobile-text-controls] button { min-height:44px; }
+/* iOS Safari zooms the whole page when an input under 16px takes focus. In the
+ * landscape overlay that zoom slid the right-anchored Inspector past the screen
+ * edge. Touch WebKit only — desktop keeps the dense 11–12px controls. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width:950px) and (max-height:600px) and (orientation:landscape) {
+    [data-editor-interactive] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea) { font-size:16px; }
+  }
+}
