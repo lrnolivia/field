@@ -494,6 +494,23 @@ export class CanvasMouseController {
     };
   }
 
+  /** The single selected object that is `nodeId` itself or one of its
+   *  ancestors, if any. Only a SINGLE selection is kept — multi-selections have
+   *  their own ancestor redirect in the mouse-down path. */
+  private selectedAncestorOrSelf(nodeId: string): string | null {
+    const selected = this.store.get(selectedIdsAtom);
+    if (selected.length !== 1) return null;
+    const [sel] = selected;
+    if (!sel || sel === 'root') return null;
+    const nodes = this.store.get(nodesAtom);
+    let cursor: string | null | undefined = nodeId;
+    for (let hops = 0; cursor && hops < 100; hops++) {
+      if (cursor === sel) return sel;
+      cursor = nodes.get(cursor)?.parentId;
+    }
+    return null;
+  }
+
   /** Hover hit-test + redirect chain, parameterized so it can be re-run on a
    *  Ctrl/Cmd key change at the LAST mouse position (not just on mousemove) —
    *  so pressing Cmd while stationary over a child immediately previews the
@@ -1677,7 +1694,17 @@ export class CanvasMouseController {
     // Hierarchy selection is canonical. Ctrl/Cmd is a temporary direct-select
     // bypass; it never toggles or persists a second selection model.
     const ctrlBypass = e.ctrlKey || e.metaKey;
-    if (!ctrlBypass) {
+    // Pressing on (or inside) an object that is ALREADY selected keeps that
+    // object, however deep it is — e.g. a nested child picked in Layers.
+    // Re-resolving through the hierarchy here retargeted the gesture to its
+    // top-level ancestor, so dragging the selected child moved its parent.
+    const keptSelection = ctrlBypass || e.shiftKey ? null : this.selectedAncestorOrSelf(redirected);
+    if (keptSelection) {
+      if (keptSelection !== redirected) {
+        trace.action('canvas:hierarchy-keep-selection', { from: redirected, to: keptSelection });
+      }
+      redirected = keptSelection;
+    } else if (!ctrlBypass) {
       const hierarchy = this.resolveHierarchyTarget(redirected);
       if (hierarchy.escaped) {
         this.store.set(activeContainerIdAtom, null);
