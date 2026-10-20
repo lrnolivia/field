@@ -788,3 +788,46 @@ describe('fixupPositionForParent — a parent hidden at the base', () => {
     expect(out.position).toBe('relative');
   });
 });
+
+// ─── Paste into the selected regular Frame (Figma audit 2026-10-04) ─────────
+
+describe('paste-into-selected-frame', () => {
+  const nodes = () => new Map<string, CanvasNode>([
+    ['root', makeCanvasNode('root', { children: ['outer'], styles: { position: 'relative' } })],
+    ['outer', makeCanvasNode('outer', { parentId: 'root', children: ['rect', 'inner'], styles: { position: 'absolute' } })],
+    ['rect', makeCanvasNode('rect', { parentId: 'outer', styles: { position: 'absolute', left: '48px', top: '128px' } })],
+    ['inner', makeCanvasNode('inner', { parentId: 'outer', children: [], styles: { position: 'absolute', left: '400px', top: '300px' } })],
+    ['flexy', makeCanvasNode('flexy', { parentId: 'outer', styles: { position: 'absolute', display: 'flex' } })],
+    ['grp', makeCanvasNode('grp', { parentId: 'outer', isGroup: true, styles: { position: 'absolute' } } as Partial<CanvasNode>)],
+  ]);
+  const clip = (id = 'rect') => [makeClipboardNode(id, { styles: { position: 'absolute', left: '48px', top: '128px' } })];
+
+  test('a copied object pastes INTO a selected regular Frame, keeping its local position', () => {
+    const ctx = makeContext({ selectedIds: ['inner'], clipboardNodes: clip(), nodes: nodes() });
+    const rule = findMatchingRule(ctx);
+    expect(rule?.id).toBe('paste-into-selected-frame');
+    expect(resolveTargets(ctx, rule!.config.targetMode)[0].parentId).toBe('inner');
+    expect(rule!.config.positioning).toBe('preserve');
+  });
+
+  test('copy/duplicate of the Frame itself still pastes as a sibling', () => {
+    const ctx = makeContext({ selectedIds: ['inner'], clipboardNodes: clip('inner'), nodes: nodes() });
+    expect(findMatchingRule(ctx)?.id).not.toBe('paste-into-selected-frame');
+  });
+
+  test('layout frames, native Groups and multi-selections keep their existing rules', () => {
+    for (const selectedIds of [['flexy'], ['grp'], ['inner', 'rect']]) {
+      const ctx = makeContext({ selectedIds, clipboardNodes: clip(), nodes: nodes() });
+      expect(findMatchingRule(ctx)?.id, selectedIds.join()).not.toBe('paste-into-selected-frame');
+    }
+  });
+
+  test('text keeps its dedicated frame rule', () => {
+    const ctx = makeContext({
+      selectedIds: ['inner'],
+      clipboardNodes: [makeClipboardNode('t', { type: 'p' })],
+      nodes: nodes(),
+    });
+    expect(findMatchingRule(ctx)?.id).toBe('paste-text-into-frame');
+  });
+});

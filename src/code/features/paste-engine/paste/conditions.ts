@@ -14,6 +14,7 @@ import { isPageRoot, isCanvasNode, hasLayout } from '../core/target-resolver';
 import { findRootNodes } from '../core/position';
 import type { ConditionChecker, ConditionCheckers, PasteContext } from '../types';
 import type { CanvasNode } from '@/code/parsing/parser';
+import { nodeAcceptsChildren } from '@/shared/constants';
 
 /**
  * Canonical "absolute-in-frame" test from the node cache — mirrors
@@ -81,6 +82,30 @@ const FRAME_SELECTED: ConditionChecker = ctx => {
   if (!node) return false;
   const TEXT_TAGS = ['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'strong', 'em'];
   if (TEXT_TAGS.includes(node.type)) return false;
+  return true;
+};
+
+/**
+ * Figma "paste into selected Frame": the selection is ONE regular container
+ * Frame — a positioned, child-accepting element with no flex/grid layout (a
+ * layout frame orders its children itself) that is not a component instance,
+ * native Group, svg, canvas node or the page root — and the clipboard does not
+ * hold that same Frame. Copy/duplicate of the Frame itself still pastes as a
+ * sibling; anything else lands inside it.
+ */
+const PASTE_INTO_SELECTED_FRAME: ConditionChecker = ctx => {
+  if (ctx.selectedIds.length !== 1) return false;
+  const node = ctx.nodes.get(ctx.selectedIds[0]);
+  if (!node || !node.parentId || isPageRoot(node) || isCanvasNode(node)) return false;
+  if (node.isGroup || node.componentFile || node.componentInstanceId) return false;
+  if (node.type === 'svg' || !nodeAcceptsChildren(node)) return false;
+  const TEXT_TAGS = ['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'strong', 'em'];
+  if (TEXT_TAGS.includes(node.type)) return false;
+  const pos = node.styles.position;
+  if (pos !== 'absolute' && pos !== 'relative' && pos !== 'fixed') return false;
+  if (hasLayout(node)) return false;
+  const roots = findRootNodes(ctx.clipboardNodes);
+  if (roots.length === 0 || roots.some(r => r.id === node.id)) return false;
   return true;
 };
 
@@ -187,6 +212,7 @@ export const conditionCheckers: ConditionCheckers = {
   PAGE_ROOT_HAS_LAYOUT,
   CHILD_NODE_SELECTED,
   FRAME_SELECTED,
+  PASTE_INTO_SELECTED_FRAME,
   ABSOLUTE_FRAME_SELECTED,
   ABSOLUTE_IN_FRAME_SELECTED,
   ABSOLUTE_IN_CANVAS_FRAME_SELECTED,
