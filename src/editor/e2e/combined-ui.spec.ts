@@ -54,7 +54,7 @@ for (const theme of ['light', 'dark']) {
     await page.screenshot({ path: `../screenshots/field-gold-expanded-${theme}.png` });
   });
 }
-test('phone first text tap edits in place with shared horizontally scrollable controls and real top-bar menus', async ({ page }) => {
+test('phone first text tap edits in place with a compact, vertically scrolling control grid and real top-bar menus', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const editor = new EditorPage(page); await editor.gotoWithSeed('LOCALE_TEXT');
   await expect(page.locator('[data-editor-interactive]')).toHaveAttribute('data-editor-interactive', 'true');
@@ -77,7 +77,9 @@ test('phone first text tap edits in place with shared horizontally scrollable co
   const editable = editor.sandbox().locator('.ProseMirror[contenteditable="true"]');
   await expect(editable).toBeVisible(); await expect(editable).toBeFocused();
   const strip = toolbar.locator('[data-mobile-text-controls]');
-  expect(await strip.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  // Two visible rows; the rest scroll vertically — nothing hides off to the side.
+  expect(await strip.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await strip.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   expect((await toolbar.boundingBox())!.height).toBeLessThan(150);
   // The first tap selects the text. ArrowRight collapses to its end on both
   // macOS and Linux; macOS End scrolls without collapsing that selection.

@@ -115,7 +115,7 @@ test('portrait: the text bar fits the phone while editing text', async ({ browse
   expect(grid.sideways).toBeLessThanOrEqual(1);
   for (const cell of grid.cells) expect(cell.h, JSON.stringify(cell)).toBeGreaterThan(0);
   const barBox = (await bar.boundingBox())!;
-  expect(barBox.height).toBeLessThan(844 * 0.55);
+  expect(barBox.height).toBeLessThan(150);
   expect(await outside(page, '[data-field-mobile-text-toolbar]')).toEqual([]);
   await context.close();
 });

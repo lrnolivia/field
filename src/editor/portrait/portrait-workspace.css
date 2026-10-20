@@ -189,7 +189,7 @@
 .field-mobile-text-toolbar { position:fixed; inset:auto 8px calc(8px + var(--field-visible-bottom,0px)); z-index:11000; border-radius:var(--radius-xl); padding:4px 8px 8px; background:var(--field-chrome-pane-bg); color:var(--text-primary); box-shadow:var(--field-menu-depth); }
 .field-mobile-text-toolbar-header { display:flex; align-items:center; justify-content:space-between; font-size:12px; }
 .field-mobile-text-toolbar-header button { min-width:44px; min-height:44px; }
-[data-mobile-text-controls] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-items:start; max-height:min(40dvh,calc(var(--field-visible-height,100dvh) * .4)); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:2px 2px 6px; scrollbar-width:thin; }
+[data-mobile-text-controls] { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-items:start; max-height:90px; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:2px 2px 6px; scrollbar-width:thin; }
 [data-mobile-text-controls] > div { min-width:0; }
 [data-mobile-text-controls] > [data-span=full] { grid-column:1 / -1; }
 [data-mobile-text-controls] > div:not(:has(*)) { display:none; }

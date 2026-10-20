@@ -199,16 +199,18 @@ function ChangingToolIcon({ iconKey, children }: { iconKey: string; children: Re
   );
 }
 
-function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronClick, title, dataTool }: {
+function SplitButton({ active, open = false, icon, iconKey, onClick, onChevronClick, title, tooltip, dataTool }: {
   active: boolean; icon: React.ReactNode; onClick: () => void;
-  onChevronClick: () => void; title: string; dataTool?: string; open?: boolean; iconKey?: string;
+  /** `title` names the tool (and its chevron's accessible name); `tooltip`
+   *  overrides only the hover text. */
+  onChevronClick: () => void; title: string; tooltip?: string; dataTool?: string; open?: boolean; iconKey?: string;
 }) {
   const uiCase = useUiChromeCase();
   return (
     <div className="flex items-center gap-px">
       <button
         onClick={onClick}
-        title={uiCase(title) ?? undefined}
+        title={uiCase(tooltip ?? title) ?? undefined}
         data-toolbar-tool={dataTool}
         aria-pressed={active || undefined}
         className={`flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors ${
@@ -449,7 +451,7 @@ function TextDropdown({ toolMode, onSelect, open, setOpen }: {
   const selectText = () => { onSelect(); setOpen(false); };
   const insert = (id: string) => { insertToolbarItemAtVisibleCenter(id); setOpen(false); };
   return <div className="relative" ref={ref} data-tutorial="text-tool">
-    <SplitButton active={toolMode === 'text'} open={open} icon={<TextToolbarIcon className="w-4 h-4" />} onClick={selectText} onChevronClick={() => setOpen(!open)} title={`Text (T) — hold ${TEXT_FIXED_SIZE_KEY} and drag for a fixed-size box`} dataTool="text" />
+    <SplitButton active={toolMode === 'text'} open={open} icon={<TextToolbarIcon className="w-4 h-4" />} onClick={selectText} onChevronClick={() => setOpen(!open)} title="Draw Text (T)" tooltip={`Draw Text (T) — hold ${TEXT_FIXED_SIZE_KEY} and drag for a fixed-size box`} dataTool="text" />
     {open && <DropdownContainer wide title="Text" glyph={<TextToolbarIcon size={14} />} expandTo={{ kind: 'insert', category: 'elements', section: 'typography' }} onClose={() => setOpen(false)}>
       <MenuItem label="Text" shortcut="T" icon={<TextToolbarIcon className="w-4 h-4" />} active={toolMode === 'text'} onClick={selectText} />
       {items.length > 0 && <>
