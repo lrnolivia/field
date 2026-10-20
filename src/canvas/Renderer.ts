@@ -2526,11 +2526,22 @@ export function patchElement(
   // overrides) over the base attr — otherwise a per-variant geometry edit (e.g.
   // a reshaped `d`) is overwritten by the base `d` here and the canvas tile snaps
   // back to the primary shape. See GEOMETRY_VARIANT_ATTRS for why this is gated.
-  if (isSvgTag(node.type) && node.attrs) {
+  if (isSvgTag(node.type)) {
+    const svgModelAttrs = node.attrs ?? {};
     for (const attr of SVG_ATTRS) {
       const variantGeom = GEOMETRY_VARIANT_ATTRS.has(attr) ? baseStyles[attr] : undefined;
-      const val = variantGeom ?? node.attrs[attr];
-      if (val !== undefined && val !== '') {
+      const val = variantGeom ?? svgModelAttrs[attr];
+      if (val === undefined || val === '') {
+        // The model no longer carries this attribute (undo of a rotation,
+        // rotation reset to 0, a removed stroke…) — drop the stale DOM copy,
+        // or the canvas keeps painting the previous value.
+        if (isFitEditing && attr === 'viewBox') continue;
+        const svgAttr = attr.replace(/([A-Z])/g, '-$1').toLowerCase();
+        if (el.hasAttribute(svgAttr)) el.removeAttribute(svgAttr);
+        if (svgAttr !== attr && el.hasAttribute(attr)) el.removeAttribute(attr);
+        continue;
+      }
+      {
         const svgAttr = attr.replace(/([A-Z])/g, '-$1').toLowerCase();
         if (el.getAttribute(svgAttr) !== val) {
           el.setAttribute(svgAttr, val);
@@ -2547,7 +2558,7 @@ export function patchElement(
     }
     // After geometry attrs land — interpret data-stroke-align (Inside /
     // Outside fake alignment) so the clip path matches the latest shape.
-    applyStrokeAlignment(el, node.type, node.attrs, node.id);
+    if (node.attrs) applyStrokeAlignment(el, node.type, node.attrs, node.id);
   }
 
   // Opaque imported graphic (data-graphic svg): the parser kept the svg's

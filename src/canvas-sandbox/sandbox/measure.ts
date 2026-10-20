@@ -143,6 +143,31 @@ function shiftProjected(
  *  Normal element: data-node-id = vpPrefix + data-id (endsWith data-id).
  *  Ghost copy:     data-node-id = vpPrefix + data-id + '__N' — the suffix is
  *  kept in the key so each ghost gets its own entry. */
+// Attributes that change an <svg>'s PAINTED quad without touching the wrapper's
+// inline style or CSS box: the inner shape's rotation lives in its `transform`
+// ATTRIBUTE, reshapes rewrite geometry attributes, and group children move via
+// x/y/width/height. Folded into the reuse-gate key so those edits re-derive
+// corners (the outline otherwise kept the previous rotation until reselection).
+const SVG_PAINT_ATTRS = [
+  'transform', 'viewBox', 'preserveAspectRatio', 'x', 'y', 'width', 'height',
+  'd', 'points', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2',
+];
+
+/** Cheap signature of everything that feeds `cornersForElement` for an <svg>. */
+export function svgPaintSignature(svg: Element): string {
+  let sig = '';
+  const add = (node: Element) => {
+    sig += '<' + node.tagName;
+    for (const name of SVG_PAINT_ATTRS) {
+      const v = node.getAttribute(name);
+      if (v !== null) sig += ' ' + name + '=' + v;
+    }
+  };
+  add(svg);
+  svg.querySelectorAll('*').forEach(add);
+  return sig;
+}
+
 function elCacheParts(el: Element): { nodeId: string; vpPrefix: string } {
   const fullId = el.getAttribute('data-node-id') || '';
   const dataId = el.getAttribute('data-id') || '';
@@ -332,7 +357,8 @@ export function emitAllMeasures(opts?: EmitAllMeasuresOptions): void {
     // Any transform change arrives via inline style (framer-motion, drag) or the
     // stylesheet — both already force a real read — and any geometry change
     // moves the rect, so a reused quad is provably the current one.
-    const styleAttr = el.getAttribute('style') ?? '';
+    const styleAttr = (el.getAttribute('style') ?? '')
+      + (el.tagName === 'svg' ? '\u0000' + svgPaintSignature(el) : '');
     const prev = lastEmittedMeasure.get(cacheKey);
     if (!_forceFullComputed && prev && prev.styleAttr === styleAttr
         && prev.rect.rect.left === rectPayload.rect.left
