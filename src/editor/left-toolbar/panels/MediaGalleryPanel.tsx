@@ -917,7 +917,9 @@ export default function MediaGalleryPanel({
 
       </div>
 
-      {chrome === 'full' && <div className="px-3 mt-2">
+      {/* Full chrome: rows below the Media card share its inset and the left
+          panel's section rhythm (the card's own margin is the gap above). */}
+      {chrome === 'full' && <div className="px-2 mb-[var(--field-panel-section-gap)]">
         <button type="button" data-media-gallery-entry onClick={openGallery}
           className="flex w-full items-center gap-2 rounded-[6px] bg-[var(--control-bg)] px-2.5 py-2 text-[11px] text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)]">
           <GalleryGlyph /><span>Gallery</span><svg aria-hidden className="ml-auto" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="m6 4 4 4-4 4" /></svg>
@@ -926,7 +928,7 @@ export default function MediaGalleryPanel({
       {galleryOpen && <MediaPanelController onClose={closeGallery} onBackToMedia={closeGallery} />}
 
       {/* One ingest action, below the search and browse controls. */}
-      <div className="px-3 mt-2">
+      <div className={chrome === 'full' ? 'px-2' : 'px-3 mt-2'}>
         <div
           data-media-browser-commandbar
           data-media-browser-layout={chrome === 'full' ? 'vertical' : 'inline'}

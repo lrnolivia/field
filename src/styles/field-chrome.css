@@ -231,6 +231,20 @@
   pointer-events: none;
 }
 
+/* ONE vertical rhythm in every left panel: search row → first section and
+ * section → section are the same gap (they had drifted to 4/6/8px under the
+ * search while sections sat 10px apart). Pages ↔ Layers keeps its splitter,
+ * which is already this gap. */
+[data-editor-panel^="left"] div:has(> div > input[data-field-searchbar]) {
+  padding-bottom: var(--field-panel-section-gap);
+}
+[data-editor-panel^="left"] :is([data-document-pages], [data-document-layers], [data-library-section], [data-field-task-panel], [data-field-panel-section]) {
+  margin-top: 0;
+  margin-bottom: var(--field-panel-section-gap);
+}
+[data-editor-panel^="left"] [data-field-document-panel] { gap: 0; }
+[data-editor-panel^="left"] [data-document-pages] { margin-bottom: 0; }
+
 /* Controls and popup shells share the faint directional edge primitive.
  * Rail icons and toolbar items deliberately retain their flat treatment. */
 :root {
