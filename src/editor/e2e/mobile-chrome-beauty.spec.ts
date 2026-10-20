@@ -13,7 +13,11 @@ test('phone main pill, sheets, Library and Settings share Field chrome at narrow
   await capture(page,'canvas');
   await page.getByRole('button',{name:'Open browse',exact:true}).tap();
   const browse=page.locator('[data-portrait-surface="browse"]');
-  await expect(browse.locator('.field-mobile-menu-glyph [data-field-mobile-glyph]')).toHaveCount(11);
+  // Every browse destination shows an icon. Shared Field glyphs (Layers,
+  // Media, Library…) don't carry the phone-only data-field-mobile-glyph attr.
+  const destinations = browse.locator('.field-portrait-destination');
+  await expect(destinations).toHaveCount(10);
+  await expect(browse.locator('.field-portrait-destination .field-mobile-menu-glyph svg')).toHaveCount(10);
   await capture(page,'browse');
   await browse.getByRole('button',{name:/Pages Choose/}).tap();
   await capture(page,'pages');
@@ -21,7 +25,11 @@ test('phone main pill, sheets, Library and Settings share Field chrome at narrow
   await browse.getByRole('button',{name:/Layers Find/}).tap();
   await capture(page,'layers');
   await page.getByRole('button',{name:'Back',exact:true}).tap();
-  for (const name of ['Project','Presets','Insert','CMS','Languages','Comments','Branches']) {
+  // Project actions live in the top-bar project menu, not in Browse.
+  await page.getByRole('button',{name:/^Project menu for /}).tap();
+  await expect(page.getByRole('menuitem',{name:/project settings/i})).toBeVisible();
+  await page.keyboard.press('Escape');
+  for (const name of ['Presets','Insert','CMS','Languages','Comments','Branches']) {
     await browse.getByRole('button',{name:new RegExp('^'+name+' ')}).tap();
     await capture(page,name.toLowerCase());
     await page.locator('[data-portrait-surface]>header').getByRole('button',{name:'Back',exact:true}).tap();
