@@ -61,6 +61,7 @@ export default function HoverHighlight({ nodeId, color: colorOverride }: Props) 
 
   return (
     <svg
+      data-hover-highlight={nodeId}
       style={{
         position: 'fixed',
         left: 0, top: 0,

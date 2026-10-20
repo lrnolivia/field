@@ -4,6 +4,7 @@
 // This modal owns only settings that persist with or describe the current
 // project/site source.
 
+import { PROJECT_SETTINGS_URL_FLAG } from '@/backend/field-navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import Modal from '@/design-system/Modal';
@@ -80,6 +81,17 @@ function SiteThemePreview({ theme }: { theme: 'light' | 'dark' | 'system' }) {
 
 export default function ProjectSettingsModal() {
   const [isOpen, setIsOpen] = useAtom(projectSettingsModalOpenAtom);
+
+  // Opened from the Dashboard card menu: `?project-settings=1`. Consume the
+  // flag once so a reload or back navigation doesn't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has(PROJECT_SETTINGS_URL_FLAG)) return;
+    params.delete(PROJECT_SETTINGS_URL_FLAG);
+    const search = params.toString();
+    window.history.replaceState(window.history.state, '', window.location.pathname + (search ? `?${search}` : '') + window.location.hash);
+    setIsOpen(true);
+  }, [setIsOpen]);
   const [settings, setSettings] = useAtom(websiteSettingsAtom);
   const [section, setSection] = useState<ProjectSettingsSection>('metadata');
   const [confirmDiscard, setConfirmDiscard] = useState(false);

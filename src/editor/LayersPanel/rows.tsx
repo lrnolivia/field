@@ -16,7 +16,26 @@ import { deriveLayerPreview } from './LayerPreview';
 import { FigmaColumnsIcon, FigmaGridIcon, FigmaPathIcon, FigmaRowsIcon, FigmaTextIcon } from '@/shared/loew-figma-icons';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import { getDefaultStore } from 'jotai';
+import { hoveredIdAtom, hoveredNodeIdAtom, hoveredViewportIdAtom } from '@/code/stores/store';
 import { getLayerDisplayName } from './layer-name';
+
+/** Hovering a Layers row outlines that object on the canvas (Figma parity):
+ *  drive the same hover atoms the canvas pointer uses. Row ids are
+ *  `<vpId>:<nodeId>`, so the row also names the viewport tile to outline. */
+function hoverLayerOnCanvas(rowId: string, nodeId: string | null | undefined, on: boolean): void {
+  if (!nodeId) return;
+  const store = getDefaultStore();
+  if (on) {
+    const vpId = rowId.includes(':') ? rowId.slice(0, rowId.indexOf(':')) : 'desktop';
+    store.set(hoveredViewportIdAtom, vpId);
+    store.set(hoveredIdAtom, nodeId);
+    store.set(hoveredNodeIdAtom, nodeId);
+  } else if (store.get(hoveredNodeIdAtom) === nodeId) {
+    store.set(hoveredIdAtom, null);
+    store.set(hoveredNodeIdAtom, null);
+  }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -778,6 +797,8 @@ export const LayerRow = React.memo(function LayerRow({
         data-layer-node-id={layer.nodeId || ''}
         data-layer-depth={depth}
         data-layer-is-frame={layerAcceptsInsideDrop(node.type, { isCmsRowTemplate: layer.isCmsItem, isGroup: !!node.isGroup }) ? 'true' : ''}
+        onMouseEnter={() => hoverLayerOnCanvas(id, layer.nodeId, true)}
+        onMouseLeave={() => hoverLayerOnCanvas(id, layer.nodeId, false)}
         onMouseDown={(e) => { if (!isViewer && !isVpHeader && layer.nodeId && e.button === 0) onDragStart(e, layer.id, layer.nodeId); }}
         onContextMenu={(e) => { e.preventDefault(); if (!isViewer && layer.nodeId) onContextMenu(e, layer.nodeId); }}
         onClick={(e) => {
