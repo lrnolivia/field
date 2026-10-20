@@ -27,6 +27,7 @@ const project = {
 
 const actions = {
   onOpen: vi.fn(),
+  onOpenSettings: vi.fn(),
   onRename: vi.fn(),
   onDuplicate: vi.fn(),
   onToggleStar: vi.fn(),

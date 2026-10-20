@@ -4,6 +4,9 @@ export interface FieldProjectNavigationOptions {
   holdReveal?: boolean;
   replace?: boolean;
   origin?: { x: number; y: number; width: number; height: number; thumbnail: string | null };
+  /** Open the project with its Project settings already showing (Dashboard
+   *  card menu → "Project settings…"). */
+  openSettings?: boolean;
 }
 
 export interface FieldDashboardNavigationOptions {

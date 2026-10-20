@@ -15,6 +15,7 @@ const project: FieldProjectMeta = {
 
 function renderOpenMenu() {
   const onOpenChange = vi.fn();
+  const onOpenSettings = vi.fn();
 
   render(
     <article className="field-project-card">
@@ -24,6 +25,7 @@ function renderOpenMenu() {
         open
         onOpenChange={onOpenChange}
         onOpenProject={vi.fn()}
+        onOpenSettings={onOpenSettings}
         onRename={vi.fn()}
         onDuplicate={vi.fn()}
         onToggleStar={vi.fn()}
@@ -36,10 +38,20 @@ function renderOpenMenu() {
 
   return {
     onOpenChange,
+    onOpenSettings,
     trigger: screen.getByRole('button', { name: 'More' }),
     menu: screen.getByRole('menu'),
   };
 }
+
+describe('ProjectCardMenu project settings', () => {
+  it('offers Project settings for a live project and closes the menu before opening it', () => {
+    const { onOpenChange, onOpenSettings } = renderOpenMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Project settings…' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('ProjectCardMenu dismissal', () => {
   it('focuses the first action on open and restores the trigger before launching a dialog', () => {

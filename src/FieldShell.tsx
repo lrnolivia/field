@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultStore } from 'jotai';
+import { projectSettingsModalOpenAtom } from '@/code/stores/website-settings-store';
 import Dashboard from './Dashboard';
 import ProjectLoader from './ProjectLoader';
 import { flushNow } from '@/code/mutation/mutation-queue';
@@ -302,6 +303,10 @@ export default function FieldShell() {
     } else if (window.location.pathname !== nextUrl) {
       window.history.pushState({ fieldSurface: 'builder', projectId }, '', nextUrl);
     }
+
+    // Dashboard → "Project settings…": open the project with its settings
+    // showing. The modal reads the active project, so set it once mounted.
+    if (options.openSettings) getDefaultStore().set(projectSettingsModalOpenAtom, true);
 
     if (current === projectId) maybeRevealProject(projectId);
   }, [maybeRevealProject, showDashboardLayer]);
