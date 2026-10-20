@@ -499,9 +499,27 @@ export function sortChildrenByVisualOrder(
   return indexed.map(o => o.id);
 }
 
-/** Layers use a front-to-back stack. CSS paints later siblings over earlier
- *  siblings, including equal-order flex/grid items, so reverse the resolved
- *  paint order at the tree boundary. Keep source order everywhere else. */
+/** True when `parent` lays its children out in a FLOW (flex / grid auto
+ *  layout) for this viewport/variant — the same display resolution the visual
+ *  sort uses. */
+export function isFlowLayoutParent(
+  parent: CanvasNode | null | undefined,
+  layerVpId: string | null,
+  vpConfigs: Array<{ id: string; width: number; isPrimary: boolean }>,
+  containerOverrides: Map<string, Map<number, Map<string, string>>>,
+  isComponentFile: boolean,
+): boolean {
+  if (!parent) return false;
+  const display = getEffectiveLayerStyle(parent, 'display', layerVpId, vpConfigs, containerOverrides, isComponentFile)
+    || parent.styles?.display || '';
+  return display === 'flex' || display === 'inline-flex' || display === 'grid' || display === 'inline-grid';
+}
+
+/** Rows for a parent's children in the Layers tree.
+ *  - Auto layout (flex / grid): FLOW order, top row = first item, so the list
+ *    reads in the same sequence the frame lays its items out.
+ *  - Free-positioned frames: a front-to-back stack — CSS paints later siblings
+ *    over earlier ones, so the top row is the frontmost (last) sibling. */
 export function childrenInLayerStack(
   parent: CanvasNode | null | undefined,
   childIds: readonly string[],
@@ -511,7 +529,8 @@ export function childrenInLayerStack(
   containerOverrides: Map<string, Map<number, Map<string, string>>>,
   isComponentFile: boolean,
 ): string[] {
-  return sortChildrenByVisualOrder(parent, childIds, layerVpId, nodes, vpConfigs, containerOverrides, isComponentFile).reverse();
+  const ordered = sortChildrenByVisualOrder(parent, childIds, layerVpId, nodes, vpConfigs, containerOverrides, isComponentFile);
+  return isFlowLayoutParent(parent, layerVpId, vpConfigs, containerOverrides, isComponentFile) ? ordered : ordered.reverse();
 }
 
 // ─── Pure helpers (exported for testing) ────────────────────────────────────
