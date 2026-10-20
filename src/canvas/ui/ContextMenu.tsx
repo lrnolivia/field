@@ -35,6 +35,7 @@ import NameInputModal from '@/editor/ui/NameInputModal';
 import { useSuppressCanvasHover, stopHoverProbe } from './useSuppressCanvasHover';
 import ReplaceWithMenu from './ReplaceWithMenu';
 import { canGroupSelection, canUngroupNode } from '@/code/groups/group-semantics';
+import { primeMobileSoftwareKeyboard } from '../hooks/useCanvasTouchInteraction';
 
 // ─── Menu Item Components ───────────────────────────────────────────────────
 
@@ -459,6 +460,10 @@ export default function ContextMenu() {
   // (Make Component, Make into Map, Unfold Children) are meaningless — it's already a component
   // whose children come from the master — so we hide them and offer "Detach Instance" instead.
   const isInstance = !!node?.componentFile;
+  // Same rule as the canvas double-click / touch text-edit entry: a text leaf
+  // that isn't an instance.
+  const isEditableText = !!node && node.children.length === 0 && !node.componentInstanceId
+    && !!(node.textContent?.trim() || node.hasMixedContent || isTextTag(node.type));
   // "Detach Instance" inlines the master's JSX as plain nodes — only meaningful for a
   // DESIGN component (visually authored, has variantConfig/@name). A CODE component is
   // arbitrary user React with no inlineable node tree, so Detach is hidden for it.
@@ -716,6 +721,15 @@ export default function ContextMenu() {
     close();
   };
 
+  const handleEditText = () => {
+    if (!nodeId) return;
+    // A menu tap is a trusted gesture: open the phone keyboard now — the
+    // sandbox-hosted editor's own autofocus arrives after activation expires.
+    if (window.matchMedia?.('(pointer: coarse)').matches) primeMobileSoftwareKeyboard(document);
+    window.dispatchEvent(new CustomEvent('field:start-text-edit', { detail: { nodeId, vpId: interactingVp || 'desktop' } }));
+    close();
+  };
+
   const handleRename = () => {
     if (!nodeId) return;
     setRenamingId(nodeId);
@@ -924,6 +938,12 @@ export default function ContextMenu() {
           aria-hidden
           className="absolute inset-0 -z-10 bg-[var(--dropdown-bg)] border border-[var(--border-light)] cut-corners cut-lg cut-border [--cut-border-color:var(--border-light)]"
         />
+        {isEditableText && (
+          <>
+            <MenuItem label="Edit Text" onClick={handleEditText} />
+            <Separator />
+          </>
+        )}
         {/* Component construction/navigation stays at the very top. */}
         {showComponentOrMap && (
           <MenuItem tone="component" label="Make Component" shortcut="Ctrl+Alt+K" onClick={handleMakeComponent} disabled={!nodeId} />

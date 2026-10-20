@@ -17,7 +17,7 @@ import { getNodeHitsAtPoint } from '../node-ops';
 import type { CanvasMouseController } from '../mouse/CanvasMouseController';
 import type { DragCoordinator } from '../drag/DragCoordinator';
 import { trace } from '@/shared/debug-trace';
-import { PORTRAIT_EDIT_EVENT, movedPastTapSlop, shouldOpenTapEditor } from '@/editor/portrait/interaction';
+import { PORTRAIT_EDIT_EVENT, movedPastTouchTapSlop, isTouchDoubleTap, shouldOpenTapEditor } from '@/editor/portrait/interaction';
 
 export const SINGLE_TOUCH_PAN_THRESHOLD_PX = 4;
 export const TOUCH_MARQUEE_HOLD_MS = 420;
@@ -193,6 +193,8 @@ export function useCanvasTouchInteraction({
 
     let gesture: GestureState | null = null;
     let releaseKeyboardPrimer: (() => void) | null = null;
+    // Previous stationary object tap — a second one close by is a double-tap.
+    let lastTap: { x: number; y: number; time: number } | null = null;
     let longPressTimer: number | null = null;
 
     const clearLongPressTimer = () => {
@@ -339,7 +341,14 @@ export function useCanvasTouchInteraction({
       if (gesture.kind === 'object') {
         const totalX = touch.clientX - gesture.startX;
         const totalY = touch.clientY - gesture.startY;
-        if (movedPastTapSlop(totalX, totalY)) { gesture.objectMoved = true; clearLongPressTimer(); }
+        // Finger wobble inside the touch slop stays a tap: don't feed it to
+        // the drag coordinator (its mouse threshold is a few px), or a tap
+        // nudges the object and never selects / edits.
+        if (!gesture.objectMoved) {
+          if (!movedPastTouchTapSlop(totalX, totalY)) return;
+          gesture.objectMoved = true;
+          clearLongPressTimer();
+        }
         dragCoordinatorRef.current?.handleMouseMove(
           mouseLike(touch.clientX, touch.clientY, gesture.target, 'mousemove'),
         );
@@ -404,15 +413,28 @@ export function useCanvasTouchInteraction({
 
       if (finished.kind === 'object') {
         const editOnRelease = window.innerWidth <= 600 && shouldOpenTapEditor({
-          kind: finished.kind, moved: finished.objectMoved || movedPastTapSlop(x - finished.startX, y - finished.startY),
+          kind: finished.kind, moved: finished.objectMoved || movedPastTouchTapSlop(x - finished.startX, y - finished.startY),
           dragging: !!coordinator?.isDragging, textEditing: isTextEditing(),
         });
         // MouseController must observe pending/active drag state BEFORE the
         // coordinator resets so deferred click-vs-drag selection semantics
         // remain correct. Its normal mouse path skips coordinator mouseup while
         // pending window listeners exist; touch then commits explicitly.
+        const stationary = !finished.objectMoved && !coordinator?.isDragging;
         controller?.handleMouseUp(up);
         coordinator?.handleMouseUp();
+        const now = Date.now();
+        if (!editOnRelease && stationary && !isTextEditing() && isTouchDoubleTap(lastTap, x, y, now)) {
+          // Double-tap on text: straight into editing with the keyboard, at
+          // any screen size (phones also edit on a single tap below).
+          lastTap = null;
+          controller?.startTouchTextEditAtPoint(x, y, () => {
+            releaseKeyboardPrimer?.();
+            releaseKeyboardPrimer = primeMobileSoftwareKeyboard(container.ownerDocument);
+          });
+        } else {
+          lastTap = stationary ? { x, y, time: now } : null;
+        }
         if (editOnRelease) {
           const textStarted = controller?.startTouchTextEditAtPoint(x, y, () => {
             releaseKeyboardPrimer?.();
