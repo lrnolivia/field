@@ -65,8 +65,8 @@ let autoPanCleanup: (() => void) | null = null;
  * Modes:
  *   - 'click'      → typography defaults + width:max-content / height:auto
  *                    (plus whiteSpace:nowrap when on canvas, set by caller)
- *   - 'draw'       → typography defaults only — caller sets width/height
- *                    from the drawn rect
+ *   - 'draw'       → typography defaults only — caller sets the width from
+ *                    the drawn rect; height stays auto (hugs the text)
  *   - 'frame-fill' → typography defaults + position:relative + flex:0 0 auto
  *                    so the text sits inside a centered flex parent
  *                    without stretching it
@@ -298,8 +298,12 @@ export function startTextCreation(
         }
         trace.action('text-creator:click-mode', { nodeId, isCanvasNode });
       } else {
+        // Drawn text keeps the drawn WIDTH (it wraps there) but hugs its text
+        // vertically — "auto height": a text layer is only as tall as its
+        // lines (line height included), so auto-layout alignment centres the
+        // text itself, not an empty drawn box.
         styles.width = `${Math.round(width)}px`;
-        styles.height = `${Math.round(height)}px`;
+        styles.height = 'auto';
         // Drawn text gets a flex column container layout so the AdjustControl
         // (vertical alignment) actually works. CSS `vertical-align` does
         // nothing on a block <p>; flex + justify-content is the only way to
