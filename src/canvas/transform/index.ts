@@ -4,7 +4,7 @@
 export { transformManager } from './TransformManager';
 export {
   zoomIn, zoomOut, zoomTo100, zoomToScale,
-  zoomToFit, zoomToFitNodes, zoomToFitSelection, zoomToFitCanvasBounds,
+  zoomToFit, zoomToFitNodes, zoomToFitSelection, fitSelectionCommand, zoomToFitCanvasBounds,
   fitAllOnNextRender,
   panToNode, panToCanvasPoint,
 } from './CameraCommands';

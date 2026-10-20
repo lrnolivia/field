@@ -13,7 +13,7 @@ import {
   zoomOut,
   zoomTo100,
   zoomToFit,
-  zoomToFitSelection,
+  fitSelectionCommand,
 } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
@@ -113,11 +113,11 @@ export default function InspectorZoomControl() {
             style={{ zIndex: fieldSurfaceZ('menu', ref.current) }}
           >
             <MenuRow label="Fit canvas" shortcut="⇧1" onClick={() => withCanvas('inspector:fit-canvas', root => zoomToFit(root))} />
-            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas('inspector:fit-selection', root => zoomToFitSelection(root, selectedId ? [selectedId] : []))} />
+            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas('inspector:fit-selection', root => fitSelectionCommand(root, selectedId ? [selectedId] : []))} />
             <MenuRow label="Zoom to 100%" shortcut="⇧3" onClick={() => runCameraCommand('inspector:zoom-100', zoomTo100)} />
             <div className="h-px bg-[var(--border-light)] my-1" />
-            <MenuRow label="Zoom in" onClick={() => runCameraCommand('inspector:zoom-in', zoomIn)} />
-            <MenuRow label="Zoom out" onClick={() => runCameraCommand('inspector:zoom-out', zoomOut)} />
+            <MenuRow label="Zoom in" onClick={() => runCameraCommand('inspector:zoom-in', () => zoomIn('center'))} />
+            <MenuRow label="Zoom out" onClick={() => runCameraCommand('inspector:zoom-out', () => zoomOut('center'))} />
           </div>
         )}
       </div>

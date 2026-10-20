@@ -24,7 +24,7 @@ describe('FigUI3 Library, Media, and view controls', () => {
 
   it('uses deterministic smart zoom: selection when selected, canvas otherwise', () => {
     const toolbar = read('src/editor/BottomToolbar.tsx');
-    expect(toolbar).toContain("zoomToFitSelection(root, [selectedId])");
+    expect(toolbar).toContain("fitSelectionCommand(root, [selectedId])");
     expect(toolbar).toContain("zoomToFit(root)");
   });
 

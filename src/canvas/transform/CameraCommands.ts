@@ -83,21 +83,35 @@ export function getPaddedCanvasFocusArea() {
 
 // ─── Zoom Commands ──────────────────────────────────────────────────────────
 
-/** Zoom in by ZOOM_STEP (10%) towards mouse cursor. Animated. */
-export function zoomIn(): void {
+/** Where a stepped zoom pivots: the last canvas pointer position (keyboard
+ *  shortcuts) or the visible canvas centre (menus and the command palette,
+ *  where the pointer is on the menu, not on the canvas — Figma audit
+ *  2026-10-04: menu zoom pivoted on the last double-click point). */
+export type ZoomAnchor = 'pointer' | 'center';
+
+function zoomAnchorPoint(anchor: ZoomAnchor): { x: number; y: number } {
+  if (anchor === 'pointer') return { x: lastMouseX, y: lastMouseY };
+  const { centerX, centerY } = getAvailableArea();
+  return { x: centerX, y: centerY };
+}
+
+/** Zoom in by ZOOM_STEP (10%) towards the anchor. Animated. */
+export function zoomIn(anchor: ZoomAnchor = 'pointer'): void {
   const t = transformManager.getTransform();
   const newScale = Math.min(t.scale + ZOOM_STEP, MAX_SCALE);
-  const target = computeZoomTransform(t, newScale, lastMouseX, lastMouseY);
-  trace.fn('camera.zoomIn', { from: t.scale, to: newScale });
+  const at = zoomAnchorPoint(anchor);
+  const target = computeZoomTransform(t, newScale, at.x, at.y);
+  trace.fn('camera.zoomIn', { from: t.scale, to: newScale, anchor });
   animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_STEP);
 }
 
-/** Zoom out by ZOOM_STEP (10%) towards mouse cursor. Animated. */
-export function zoomOut(): void {
+/** Zoom out by ZOOM_STEP (10%) towards the anchor. Animated. */
+export function zoomOut(anchor: ZoomAnchor = 'pointer'): void {
   const t = transformManager.getTransform();
   const newScale = Math.max(t.scale - ZOOM_STEP, MIN_SCALE);
-  const target = computeZoomTransform(t, newScale, lastMouseX, lastMouseY);
-  trace.fn('camera.zoomOut', { from: t.scale, to: newScale });
+  const at = zoomAnchorPoint(anchor);
+  const target = computeZoomTransform(t, newScale, at.x, at.y);
+  trace.fn('camera.zoomOut', { from: t.scale, to: newScale, anchor });
   animateCanvasTo(target.x, target.y, target.scale, ANIM_ZOOM_STEP);
 }
 
@@ -256,6 +270,23 @@ export function zoomToFitSelection(
   const bounds = getNodeBounds(contentEl, selectedIds);
   if (!bounds) return;
   fitBoundsInView(bounds, FIT_PADDING, instant ? 0 : ANIM_ZOOM_TO_FIT);
+}
+
+/**
+ * The user's "Fit selection" command (⇧2, Inspector/bottom-toolbar menus).
+ * Like Figma it frames a small selection as tightly as the canvas allows —
+ * the 200% fit ceiling is for whole-canvas fits and programmatic framing
+ * (component entry, search, agent reveal), which keep `zoomToFitSelection`.
+ */
+export function fitSelectionCommand(contentEl: HTMLElement, selectedIds: string[]): void {
+  trace.fn('camera.fitSelectionCommand', { selectedIds });
+  if (selectedIds.length === 0) {
+    zoomToFit(contentEl);
+    return;
+  }
+  const bounds = getNodeBounds(contentEl, selectedIds);
+  if (!bounds) return;
+  fitBoundsInView(bounds, FIT_PADDING, ANIM_ZOOM_TO_FIT, 1, MAX_SCALE);
 }
 
 // ─── Focus Commands ─────────────────────────────────────────────────────────
@@ -675,6 +706,7 @@ function fitBoundsInView(
   padding: number,
   duration: number,
   scaleMultiplier: number = 1,
+  maxScale: number = FIT_MAX_SCALE,
 ): void {
   const { width: availW, height: availH, centerX, centerY } = getAvailableArea();
 
@@ -686,7 +718,7 @@ function fitBoundsInView(
   const scaleForW = (availW - padding * 2) / contentW;
   const scaleForH = (availH - padding * 2) / contentH;
   let targetScale = Math.min(scaleForW, scaleForH) * scaleMultiplier;
-  targetScale = clamp(targetScale, FIT_MIN_SCALE, FIT_MAX_SCALE);
+  targetScale = clamp(targetScale, FIT_MIN_SCALE, maxScale);
 
   const x = centerX - contentCenterX * targetScale;
   const y = centerY - contentCenterY * targetScale;

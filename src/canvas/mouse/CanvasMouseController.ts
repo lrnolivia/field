@@ -136,7 +136,7 @@ import { enterComponentFile } from '../component-navigation';
 import { getPageTemplate, listTemplates } from '@/code/project/template-ops';
 import { generateNodeId } from '@/shared/id-utils';
 import { createNode, getContentRoot, findNodeRect, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
-import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, panToNode, transformManager, cameraStash } from '@/canvas/transform';
+import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, transformManager, cameraStash } from '@/canvas/transform';
 import { parseCanvasConfig } from '@/code/project/canvas-config';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { isFrameTag } from '@/shared/constants';
@@ -1096,8 +1096,9 @@ export class CanvasMouseController {
         this.store.set(activeContainerIdAtom, currentSelectedId);
         const innerHit = redirectToTopLevelChild(nodeId, currentSelectedId, this.store.get(nodesAtom));
         this.store.set(selectedIdsAtom, [innerHit]);
-        const content = getContentRoot();
-        if (content) panToNode(content, `${getViewportPrefix(vpId)}${innerHit}`, true);
+        // Drill-in changes SELECTION only — like Figma, the camera stays put
+        // (focusing here zoomed 72% → 112%). Framing is the explicit
+        // Center / Fit Selection commands.
         trace.action('canvas:hierarchy-drill-in', {
           container: currentSelectedId, selected: innerHit, deepHit: nodeId,
         });
@@ -1676,8 +1677,7 @@ export class CanvasMouseController {
         return;
       }
 
-      const content = getContentRoot();
-      if (content) panToNode(content, `${getViewportPrefix(vpId)}${nodeId}`, true);
+      // No camera move on double-click (see the drill-in note above).
       this.lastClick = null;
     } else if (isLeftButton && noMod) {
       // Only remember PLAIN LEFT clicks for the next-click double-click test.
