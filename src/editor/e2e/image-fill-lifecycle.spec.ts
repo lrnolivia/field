@@ -78,3 +78,24 @@ test('one undo removes the applied image fill and restores the colour', async ({
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
   await expect.poll(() => editor.getPageCode()).toBe(before);
 });
+
+test('a pattern chosen from the catalog persists across reload', async ({ page }) => {
+  test.setTimeout(120_000);
+  const editor = await open(page);
+  await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
+  const picker = page.getByRole('dialog', { name: 'Paint picker' });
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await picker.getByRole('button', { name: /select (?:pattern )?source/i }).click();
+  const catalog = page.locator('[data-pattern-source-catalog]');
+  await catalog.getByRole('textbox', { name: 'Search pattern library' }).fill('waves');
+  await catalog.getByRole('button', { name: 'Waves - 1', exact: true }).click();
+  await expect.poll(() => editor.getPageCode()).toContain('waves-1');
+  await expect.poll(
+    () => page.evaluate(() => localStorage.getItem('revyme-project-local') ?? ''),
+    { timeout: 15_000 },
+  ).toContain('waves-1');
+  await page.reload();
+  await editor.node('abs-child').waitFor({ state: 'visible', timeout: 60_000 });
+  await expect.poll(() => editor.getPageCode()).toContain('waves-1');
+  await expect.poll(() => editor.node('abs-child').evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('url(');
+});
