@@ -77,9 +77,12 @@ describe('TransformManager staged camera', () => {
     const tm = new TransformManager();
     tm.setTransform({ x: 0, y: 0, scale: 1 });
     runFrame();
-    tm.setForwarder({ send: () => false });
+    const landed: number[] = [];
+    tm.setForwarder({ send: () => false, land: (t) => landed.push(t.x) });
     tm.pan(3, 0);
     runFrame();
     expect(tm.getAppliedTransform().x).toBe(3);
+    // Never sent → the bridge must keep projecting with what the sandbox shows.
+    expect(landed).toEqual([]);
   });
 });
