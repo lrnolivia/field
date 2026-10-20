@@ -13,6 +13,7 @@ type Props = {
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
   onOpen: () => void;
+  onOpenSettings: () => void;
   onRename: () => void;
   onDuplicate: () => void;
   onToggleStar: () => void;
@@ -209,6 +210,7 @@ export default function ProjectCard(props: Props) {
           open={props.menuOpen}
           onOpenChange={props.onMenuOpenChange}
           onOpenProject={props.onOpen}
+          onOpenSettings={props.onOpenSettings}
           onRename={props.onRename}
           onDuplicate={props.onDuplicate}
           onToggleStar={props.onToggleStar}

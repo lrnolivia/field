@@ -8,6 +8,7 @@ type Props = {
   openingProjectId: string | null;
   onOpenMenuId: (id: string | null) => void;
   onOpen: (project: FieldProjectMeta) => void;
+  onOpenSettings: (project: FieldProjectMeta) => void;
   onRename: (project: FieldProjectMeta) => void;
   onDuplicate: (project: FieldProjectMeta) => void;
   onToggleStar: (project: FieldProjectMeta) => void;
@@ -28,6 +29,7 @@ export default function ProjectGrid({ projects, refreshingProjectIds, openMenuId
           menuOpen={openMenuId === project.id}
           onMenuOpenChange={(open) => onOpenMenuId(open ? project.id : null)}
           onOpen={() => actions.onOpen(project)}
+          onOpenSettings={() => actions.onOpenSettings(project)}
           onRename={() => actions.onRename(project)}
           onDuplicate={() => actions.onDuplicate(project)}
           onToggleStar={() => actions.onToggleStar(project)}

@@ -16,7 +16,26 @@ import { deriveLayerPreview } from './LayerPreview';
 import { FigmaColumnsIcon, FigmaGridIcon, FigmaPathIcon, FigmaRowsIcon, FigmaTextIcon } from '@/shared/loew-figma-icons';
 import type { PresetToken } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import { getDefaultStore } from 'jotai';
+import { hoveredIdAtom, hoveredNodeIdAtom, hoveredViewportIdAtom } from '@/code/stores/store';
 import { getLayerDisplayName } from './layer-name';
+
+/** Hovering a Layers row outlines that object on the canvas (Figma parity):
+ *  drive the same hover atoms the canvas pointer uses. Row ids are
+ *  `<vpId>:<nodeId>`, so the row also names the viewport tile to outline. */
+function hoverLayerOnCanvas(rowId: string, nodeId: string | null | undefined, on: boolean): void {
+  if (!nodeId) return;
+  const store = getDefaultStore();
+  if (on) {
+    const vpId = rowId.includes(':') ? rowId.slice(0, rowId.indexOf(':')) : 'desktop';
+    store.set(hoveredViewportIdAtom, vpId);
+    store.set(hoveredIdAtom, nodeId);
+    store.set(hoveredNodeIdAtom, nodeId);
+  } else if (store.get(hoveredNodeIdAtom) === nodeId) {
+    store.set(hoveredIdAtom, null);
+    store.set(hoveredNodeIdAtom, null);
+  }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -480,9 +499,27 @@ export function sortChildrenByVisualOrder(
   return indexed.map(o => o.id);
 }
 
-/** Layers use a front-to-back stack. CSS paints later siblings over earlier
- *  siblings, including equal-order flex/grid items, so reverse the resolved
- *  paint order at the tree boundary. Keep source order everywhere else. */
+/** True when `parent` lays its children out in a FLOW (flex / grid auto
+ *  layout) for this viewport/variant — the same display resolution the visual
+ *  sort uses. */
+export function isFlowLayoutParent(
+  parent: CanvasNode | null | undefined,
+  layerVpId: string | null,
+  vpConfigs: Array<{ id: string; width: number; isPrimary: boolean }>,
+  containerOverrides: Map<string, Map<number, Map<string, string>>>,
+  isComponentFile: boolean,
+): boolean {
+  if (!parent) return false;
+  const display = getEffectiveLayerStyle(parent, 'display', layerVpId, vpConfigs, containerOverrides, isComponentFile)
+    || parent.styles?.display || '';
+  return display === 'flex' || display === 'inline-flex' || display === 'grid' || display === 'inline-grid';
+}
+
+/** Rows for a parent's children in the Layers tree.
+ *  - Auto layout (flex / grid): FLOW order, top row = first item, so the list
+ *    reads in the same sequence the frame lays its items out.
+ *  - Free-positioned frames: a front-to-back stack — CSS paints later siblings
+ *    over earlier ones, so the top row is the frontmost (last) sibling. */
 export function childrenInLayerStack(
   parent: CanvasNode | null | undefined,
   childIds: readonly string[],
@@ -492,7 +529,8 @@ export function childrenInLayerStack(
   containerOverrides: Map<string, Map<number, Map<string, string>>>,
   isComponentFile: boolean,
 ): string[] {
-  return sortChildrenByVisualOrder(parent, childIds, layerVpId, nodes, vpConfigs, containerOverrides, isComponentFile).reverse();
+  const ordered = sortChildrenByVisualOrder(parent, childIds, layerVpId, nodes, vpConfigs, containerOverrides, isComponentFile);
+  return isFlowLayoutParent(parent, layerVpId, vpConfigs, containerOverrides, isComponentFile) ? ordered : ordered.reverse();
 }
 
 // ─── Pure helpers (exported for testing) ────────────────────────────────────
@@ -778,6 +816,8 @@ export const LayerRow = React.memo(function LayerRow({
         data-layer-node-id={layer.nodeId || ''}
         data-layer-depth={depth}
         data-layer-is-frame={layerAcceptsInsideDrop(node.type, { isCmsRowTemplate: layer.isCmsItem, isGroup: !!node.isGroup }) ? 'true' : ''}
+        onMouseEnter={() => hoverLayerOnCanvas(id, layer.nodeId, true)}
+        onMouseLeave={() => hoverLayerOnCanvas(id, layer.nodeId, false)}
         onMouseDown={(e) => { if (!isViewer && !isVpHeader && layer.nodeId && e.button === 0) onDragStart(e, layer.id, layer.nodeId); }}
         onContextMenu={(e) => { e.preventDefault(); if (!isViewer && layer.nodeId) onContextMenu(e, layer.nodeId); }}
         onClick={(e) => {

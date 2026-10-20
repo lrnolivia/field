@@ -1230,6 +1230,38 @@ export class LayoutLiftedStrategy implements DragStrategy {
     });
   }
 
+  /** A child-accepting container under the cursor that is neither the source
+   *  layout parent, one of its ancestors, nor inside it (so not a sibling the
+   *  lifted node is merely passing over). */
+  private foreignContainerAt(
+    mouseScreen: Point,
+    context: DragContext,
+    draggedIds: Set<string>,
+  ): string | null {
+    if (!this.parentNodeId) return null;
+    const sourceParent = this.parentNodeId;
+    const isWithin = (id: string, ancestorId: string): boolean => {
+      let cursor: string | null | undefined = id;
+      for (let hops = 0; cursor && hops < 200; hops++) {
+        if (cursor === ancestorId) return true;
+        cursor = context.nodes.get(cursor)?.parentId ?? null;
+      }
+      return false;
+    };
+    for (const hit of getNodeHitsAtPoint(mouseScreen.x, mouseScreen.y)) {
+      if (draggedIds.has(hit.id)) continue;
+      if (hit.id === 'root' || hit.id.startsWith('layout::') || hit.id === 'children-slot') continue;
+      const node = context.nodes.get(hit.id);
+      if (!node) continue;
+      // The source parent, its ancestors, and anything inside the source.
+      if (isWithin(hit.id, sourceParent) || isWithin(sourceParent, hit.id)) continue;
+      if (isInstanceOwnedNode(hit.id, node as any)) continue;
+      if (!nodeAcceptsChildren(node)) continue;
+      return hit.id;
+    }
+    return null;
+  }
+
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
     const { draggedNodes, startMouse, transform } = context;
     const vpId = vpIdFromPrefix(context.viewportPrefix);
@@ -1399,7 +1431,15 @@ export class LayoutLiftedStrategy implements DragStrategy {
         return { snap: null, dropTarget: null, highlightParentId: null, axisLock: null };
       }
 
-      const isNowOverParent = isInsideRect(mouseScreen, viewportScreenRect);
+      // Inside the viewport but over a DIFFERENT layout container that is
+      // outside the source layout's subtree (Figma: drag a child into another
+      // auto-layout frame). Count that as leaving the source so the handoff
+      // below enters the new container. Anything inside the source layout —
+      // siblings, nested cards — keeps the lifted reorder behaviour, and
+      // moving back over the source still re-enters it.
+      const overForeignContainer = isInsideRect(mouseScreen, viewportScreenRect)
+        && this.foreignContainerAt(mouseScreen, context, new Set(draggedNodes.map(n => n.id)));
+      const isNowOverParent = isInsideRect(mouseScreen, viewportScreenRect) && !overForeignContainer;
 
       // Handle parent exit / re-entry. Stay in layout-lifted mode while
       // off-parent so re-entering the original parent's hierarchy during

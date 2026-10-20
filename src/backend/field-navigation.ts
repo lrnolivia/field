@@ -4,7 +4,13 @@ export interface FieldProjectNavigationOptions {
   holdReveal?: boolean;
   replace?: boolean;
   origin?: { x: number; y: number; width: number; height: number; thumbnail: string | null };
+  /** Open the project with its Project settings already showing (Dashboard
+   *  card menu → "Project settings…"). */
+  openSettings?: boolean;
 }
+
+/** `/work/<id>?project-settings=1` opens that project with Project settings showing. */
+export const PROJECT_SETTINGS_URL_FLAG = 'project-settings';
 
 export interface FieldDashboardNavigationOptions {
   replace?: boolean;
@@ -36,7 +42,7 @@ export async function openFieldProject(
     return;
   }
   if (typeof window !== 'undefined') {
-    const url = fieldProjectUrl(projectId);
+    const url = fieldProjectUrl(projectId) + (options.openSettings ? `?${PROJECT_SETTINGS_URL_FLAG}=1` : '');
     if (options.replace) window.location.replace(url);
     else window.location.assign(url);
   }

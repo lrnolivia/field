@@ -20,7 +20,7 @@ import { detectParentLayoutById, getFlexDirectionById } from '@/canvas/drag/type
 import { queuePendingUpdates } from '@/canvas/arrow-nudge';
 import { trace } from '@/shared/debug-trace';
 import { isFrameTag } from '@/shared/constants';
-import { sortChildrenByVisualOrder } from './rows';
+import { sortChildrenByVisualOrder, isFlowLayoutParent } from './rows';
 
 export type DropIndicator = { layerId: string; nodeId: string; position: 'before' | 'after' | 'inside'; depth: number };
 
@@ -156,6 +156,9 @@ export function resolveLayerDropStructure(
   nodes: Map<string, CanvasNode>,
   indicator: { nodeId: string; position: 'before' | 'after' | 'inside' },
   draggedId: string,
+  /** True when the tree lists this parent's children in flow order (auto
+   *  layout); otherwise the rows are a front-to-back stack. */
+  isFlowRows: (parent: CanvasNode) => boolean = () => false,
 ): { finalParentId: string; structuralInsertIndex: number; insertBeforeId?: string } | null {
   const fileSiblingsOf = (parent: CanvasNode): string[] =>
     parent.children.filter((id) => !id.startsWith('layout::') && id !== draggedId);
@@ -179,8 +182,10 @@ export function resolveLayerDropStructure(
   const fileSiblings = fileSiblingsOf(parent);
   const siblingIndex = fileSiblings.indexOf(targetId);
   if (siblingIndex === -1) return null;
-  // A row ABOVE its target is painted AFTER it in source order.
-  const structuralInsertIndex = indicator.position === 'before' ? siblingIndex + 1 : siblingIndex;
+  // Flow rows: a row ABOVE its target comes BEFORE it in source order.
+  // Stack rows: a row ABOVE its target is painted AFTER it in source order.
+  const above = indicator.position === 'before';
+  const structuralInsertIndex = isFlowRows(parent) === above ? siblingIndex : siblingIndex + 1;
   const anchor = fileSiblings[structuralInsertIndex];
   return {
     finalParentId,
@@ -351,8 +356,14 @@ export function startLayerDrag(ctx: LayerDragContext, e: ReactMouseEvent, layerI
             getDefaultStore().get(containerOverridesAtom), isCompMode,
           ).filter(id => !id.startsWith('layout::'))
         : [];
-      // The bottom row is the earliest painted sibling.
-      const isLastChild = ordered.length > 0 && ordered[0] === targetNodeId;
+      // The bottom row: the LAST flow item in an auto layout (the tree lists
+      // flow order), the earliest painted sibling in a free stack.
+      const flowRows = isFlowLayoutParent(
+        parent, vpIdFromLayerId(targetLayerId), vpConfigs,
+        getDefaultStore().get(containerOverridesAtom), isCompMode,
+      );
+      const isLastChild = ordered.length > 0
+        && (flowRows ? ordered[ordered.length - 1] : ordered[0]) === targetNodeId;
       const isComponentInstance = !!targetNode.componentFile;
 
       let position: 'before' | 'after' | 'inside';
@@ -490,7 +501,13 @@ export function commitLayerDrop(
       // explicit `order` styles those two diverge — we renumber based on what
       // the user SAW, and anchor the JSX splice by sibling id so both truths
       // encode the same slot.
-      const resolved = resolveLayerDropStructure(nodes, { nodeId: indicator.nodeId, position: indicator.position }, draggedId);
+      const rowVpId = indicator.layerId.startsWith('__vp_')
+        ? indicator.layerId.replace('__vp_', '')
+        : (indicator.layerId.split(':')[0] || 'desktop');
+      const resolved = resolveLayerDropStructure(
+        nodes, { nodeId: indicator.nodeId, position: indicator.position }, draggedId,
+        (parent) => isFlowLayoutParent(parent, rowVpId, vpConfigs, getDefaultStore().get(containerOverridesAtom), isCompMode),
+      );
       if (!resolved) return;
       const { finalParentId, structuralInsertIndex, insertBeforeId } = resolved;
 
@@ -842,8 +859,13 @@ export function commitLayerDrop(
 
         const withoutDragged = currentVisualIds.filter(id => id !== draggedId);
 
-        // The tree is front-to-back, while this CSS-order list is back-to-front.
-        // A drop above a row inserts AFTER it in paint/source order.
+        // An auto-layout tree lists this CSS-order sequence as-is (a drop above
+        // a row inserts BEFORE it); a free stack lists it reversed, front-to-
+        // back (a drop above a row inserts AFTER it in paint/source order).
+        const flowRows = isFlowLayoutParent(
+          parentNode, dropVpId, vpConfigs,
+          getDefaultStore().get(containerOverridesAtom), isCompMode,
+        );
         let visualInsertIndex: number;
         if (indicator.position === 'inside') {
           visualInsertIndex = withoutDragged.length;
@@ -855,7 +877,8 @@ export function commitLayerDrop(
             // structural index — at least the JSX reorder lands somewhere.
             visualInsertIndex = withoutDragged.length;
           } else {
-            visualInsertIndex = indicator.position === 'before' ? targetVisualIndex + 1 : targetVisualIndex;
+            const above = indicator.position === 'before';
+            visualInsertIndex = flowRows === above ? targetVisualIndex : targetVisualIndex + 1;
           }
         }
 

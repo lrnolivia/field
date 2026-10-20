@@ -289,7 +289,8 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       {/* Debug toolbar — floating at top center, above everything */}
       <DebugToolbar />
       <MobileFocusCoordinator />
-      {mobilePanelPresentation && isTextEditing && <button type="button" data-mobile-text-done
+      {/* Landscape only: the portrait text bar carries its own Done. */}
+      {mobilePanelPresentation && !mobilePortraitSheet && isTextEditing && <button type="button" data-mobile-text-done
         onPointerDown={(event) => event.preventDefault()}
         onClick={() => { void commitActiveTextEdit(); }}
         className="fixed right-3 z-[16000] flex h-11 items-center rounded-md border border-[var(--border-light)] bg-[var(--bg-panel)] px-4 text-xs"

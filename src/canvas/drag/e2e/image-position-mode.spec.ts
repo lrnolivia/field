@@ -42,6 +42,8 @@ async function seed(p: Page, editor: EditorPage) {
   await p.goto('/work/local');
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('pic').waitFor({ state: 'attached', timeout: 60_000 });
+  // Fit reads the bridge rect cache: let the first-load measure settle first.
+  await editor.waitForStableGeometry('pic');
   await editor.fitCamera();
   await p.evaluate(() => (window as any).__e2e.zoomTo(0.9));
   await expect.poll(() => p.evaluate(() => (window as any).__e2e.cameraScale())).toBeCloseTo(0.9, 3);

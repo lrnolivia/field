@@ -13,7 +13,7 @@ import { showPixelGridAtom } from '@/code/stores/user-preferences-store';
  * Ported from old builder's Canvas.tsx PixelGrid component.
  */
 export default function PixelGrid() {
-  const [transform, setTransform] = useState(transformManager.getTransform());
+  const [transform, setTransform] = useState(transformManager.getAppliedTransform());
   // Show-pixel-grid pref. When OFF, we skip the grid entirely regardless
   // of zoom — no DOM at all, no transform subscription work to speak of
   // (the subscriber still runs but the early-return short-circuits the
@@ -23,7 +23,7 @@ export default function PixelGrid() {
 
   useEffect(() => {
     return transformManager.subscribe(() => {
-      const t = transformManager.getTransform();
+      const t = transformManager.getAppliedTransform();
       // Only update state if scale crossed the 5x threshold or position changed while visible
       setTransform(prev => {
         const wasVisible = prev.scale >= 5;

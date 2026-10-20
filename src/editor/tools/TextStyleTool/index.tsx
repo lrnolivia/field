@@ -38,18 +38,22 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
 
   trace.fn('TextStyleTool:render', { nodeId: node.id, nodeType: node.type, hasPreset });
 
+  // Phone text bar: a two-column grid that scrolls vertically inside a
+  // height cap (a sideways strip of fixed cells hid most controls off-screen).
+  // `data-span="full"` rows need the whole width to stay legible.
   if (inline) return <div data-mobile-text-controls>
-    <div><FontFamilyControl compact /></div>
-    <div><TypographyPresetControl compact /></div>
+    <div data-span="full"><FontFamilyControl compact /></div>
+    <div data-span="full"><TypographyPresetControl compact /></div>
     <div><TextPropertyControl compact property="fontWeight" label="Weight" /></div>
     <div><TextPropertyControl compact property="fontSize" label="Font Size" /></div>
     <div><TextPropertyControl compact property="lineHeight" label="Line Height" /></div>
     <div><TextPropertyControl compact property="letterSpacing" label="Spacing" /></div>
-    <div><AlignControl /></div><div><AdjustControl /></div>
-    <div><TypographyAdvancedPopover /></div>
-    <div><TextColorControl compactSection /></div>
-    <div><StrokeControl compactSection /></div>
-    <div><ShadowControl compactSection /></div>
+    <div data-span="full"><AlignControl /></div>
+    <div data-span="full"><AdjustControl /></div>
+    <div data-span="full"><TextColorControl compactSection /></div>
+    <div data-span="full"><StrokeControl compactSection /></div>
+    <div data-span="full"><ShadowControl compactSection /></div>
+    <div data-span="full"><TypographyAdvancedPopover /></div>
   </div>;
 
   return (

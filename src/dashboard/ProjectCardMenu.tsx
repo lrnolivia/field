@@ -6,6 +6,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenProject: () => void;
+  onOpenSettings: () => void;
   onRename: () => void;
   onDuplicate: () => void;
   onToggleStar: () => void;
@@ -19,6 +20,7 @@ export default function ProjectCardMenu({
   open,
   onOpenChange,
   onOpenProject,
+  onOpenSettings,
   onRename,
   onDuplicate,
   onToggleStar,
@@ -104,6 +106,7 @@ export default function ProjectCardMenu({
       {!trashed ? (
         <>
           <button role="menuitem" type="button" onClick={() => run(onOpenProject)}>Open</button>
+          <button role="menuitem" type="button" onClick={() => run(onOpenSettings)}>Project settings…</button>
           <button role="menuitem" type="button" onClick={() => run(onRename)}>Rename</button>
           <button role="menuitem" type="button" onClick={() => run(onDuplicate)}>Duplicate</button>
           <button role="menuitem" type="button" onClick={() => run(onToggleStar)}>

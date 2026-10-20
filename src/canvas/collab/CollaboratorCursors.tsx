@@ -60,7 +60,7 @@ export default function CollaboratorCursors() {
   const activePage = useAtomValue(activeFilePathAtom);
   const isInteracting = useAtomValue(canvasInteractingAtom);
   const isPreviewing = useAtomValue(previewModeAtom);
-  const [transform, setTransform] = useState<Transform>(() => transformManager.getTransform());
+  const [transform, setTransform] = useState<Transform>(() => transformManager.getAppliedTransform());
   const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
 
   // Track the local pan/zoom so re-renders happen the instant the
@@ -68,7 +68,7 @@ export default function CollaboratorCursors() {
   // only how we map them to screen.
   useEffect(() => {
     return transformManager.subscribe(() => {
-      setTransform({ ...transformManager.getTransform() });
+      setTransform({ ...transformManager.getAppliedTransform() });
     });
   }, []);
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultStore } from 'jotai';
+import { PROJECT_SETTINGS_URL_FLAG } from '@/backend/field-navigation';
 import Dashboard from './Dashboard';
 import ProjectLoader from './ProjectLoader';
 import { flushNow } from '@/code/mutation/mutation-queue';
@@ -296,7 +297,9 @@ export default function FieldShell() {
       getDefaultStore().set(setMediaProjectIdAtom, projectId);
     }
 
-    const nextUrl = fieldProjectUrl(projectId);
+    // Dashboard → "Project settings…": the editor opens its Project settings
+    // from this URL flag once mounted (it runs in its own store).
+    const nextUrl = fieldProjectUrl(projectId) + (options.openSettings ? `?${PROJECT_SETTINGS_URL_FLAG}=1` : '');
     if (options.replace) {
       window.history.replaceState({ fieldSurface: 'builder', projectId }, '', nextUrl);
     } else if (window.location.pathname !== nextUrl) {

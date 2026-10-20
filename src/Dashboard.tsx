@@ -162,7 +162,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
     }
   };
 
-  const openProject = (project: FieldProjectMeta) => {
+  const openProject = (project: FieldProjectMeta, options: { openSettings?: boolean } = {}) => {
     setError(null);
     setOpenMenuId(null);
     setOpeningProjectId(project.id);
@@ -174,6 +174,7 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
       setOpeningProjectId((current) => current === project.id ? null : current);
     }, 8000);
     void openFieldProject(project.id, {
+      openSettings: options.openSettings,
       origin: rect ? {
         x: rect.x, y: rect.y, width: rect.width, height: rect.height,
         thumbnail: image?.complete && image.naturalWidth ? image.currentSrc : null,
@@ -288,7 +289,8 @@ export default function Dashboard({ active = true }: { active?: boolean }) {
               openMenuId={openMenuId}
               openingProjectId={openingProjectId}
               onOpenMenuId={setOpenMenuId}
-              onOpen={openProject}
+              onOpen={(project) => openProject(project)}
+              onOpenSettings={(project) => openProject(project, { openSettings: true })}
               onRename={(project) => {
                 setError(null);
                 setOpenMenuId(null);

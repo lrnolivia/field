@@ -196,8 +196,8 @@ const GuideContextMenu: React.FC<GuideContextMenuProps> = ({ x, y, guideId, file
 // ─── Hook: subscribe to transform manager (same pattern CanvasRulers uses) ─
 
 function useTransform() {
-  const [t, setT] = useState(transformManager.getTransform());
-  useEffect(() => transformManager.subscribe(() => setT(transformManager.getTransform())), []);
+  const [t, setT] = useState(transformManager.getAppliedTransform());
+  useEffect(() => transformManager.subscribe(() => setT(transformManager.getAppliedTransform())), []);
   return t;
 }
 

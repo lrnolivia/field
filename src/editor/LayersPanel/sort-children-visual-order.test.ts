@@ -115,7 +115,7 @@ describe('childrenInLayerStack', () => {
       .toEqual(['text', 'ellipse']);
   });
 
-  test('flex order and source tie breaks map to front-to-back rows', () => {
+  test('auto layout lists rows in flow order (first item on top), honouring order and source tie breaks', () => {
     const parent = flexParent(['a', 'b', 'c']);
     const nodes = new Map([
       ['a', node('a', { order: '1' })],
@@ -123,7 +123,14 @@ describe('childrenInLayerStack', () => {
       ['c', node('c', { order: '2' })],
     ]);
     expect(childrenInLayerStack(parent, parent.children, 'desktop', nodes, VPS, new Map(), false))
-      .toEqual(['c', 'b', 'a']);
+      .toEqual(['a', 'b', 'c']);
+  });
+
+  test('a flex frame whose CSS order puts the second child first lists it first', () => {
+    const parent = flexParent(['text', 'img']);
+    const nodes = new Map([['text', node('text', { order: '1' })], ['img', node('img', { order: '0' })]]);
+    expect(childrenInLayerStack(parent, parent.children, 'desktop', nodes, VPS, new Map(), false))
+      .toEqual(['img', 'text']);
   });
 });
 

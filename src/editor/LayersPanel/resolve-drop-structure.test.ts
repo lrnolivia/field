@@ -72,6 +72,17 @@ describe('resolveLayerDropStructure — dragged node excluded from the index spa
     const r = resolveLayerDropStructure(PLAIN, { nodeId: 'b', position: 'before' }, 'c');
     expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 2, insertBeforeId: undefined });
   });
+
+  // Auto layout lists rows in flow order: above a row = before it in source.
+  const flow = () => true;
+  it("auto layout: dragging 'c' above 'b' lands before 'b'", () => {
+    const r = resolveLayerDropStructure(PLAIN, { nodeId: 'b', position: 'before' }, 'c', flow);
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: 'b' });
+  });
+  it("auto layout: dragging 'a' below 'b' lands after 'b'", () => {
+    const r = resolveLayerDropStructure(PLAIN, { nodeId: 'b', position: 'after' }, 'a', flow);
+    expect(r).toEqual({ finalParentId: 'root', structuralInsertIndex: 1, insertBeforeId: 'c' });
+  });
 });
 
 describe('resolveLayerDropStructure — {children} slot on a template master', () => {

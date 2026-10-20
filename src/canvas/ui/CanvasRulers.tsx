@@ -235,8 +235,8 @@ const RulerTicks: React.FC<RulerTicksProps> = ({ start, end, scale, isHorizontal
  *  pan/zoom. Mirrors the `useDisplayTransform` pattern from the builder
  *  but tied to Revyme's transformManager. */
 function useTransform() {
-  const [transform, setTransform] = useState(transformManager.getTransform());
-  useEffect(() => transformManager.subscribe(() => setTransform(transformManager.getTransform())), []);
+  const [transform, setTransform] = useState(transformManager.getAppliedTransform());
+  useEffect(() => transformManager.subscribe(() => setTransform(transformManager.getAppliedTransform())), []);
   return transform;
 }
 
