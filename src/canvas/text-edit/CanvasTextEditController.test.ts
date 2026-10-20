@@ -98,6 +98,7 @@ import { isTextEditingAtom } from '@/code/stores/editor-store';
 import { activeLocaleAtom, isDefaultLocaleAtom, i18nConfigAtom } from '@/code/stores/locale-store';
 import { viewportsConfigAtom } from '@/code/stores/viewport-store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
+import { trace as traceMock } from '@/shared/debug-trace';
 
 // ─── Store factory ────────────────────────────────────────────────────────────
 
@@ -316,13 +317,76 @@ describe('CanvasTextEditController', () => {
     expect(controller.isEditing()).toBe(false);
   });
 
-  // ─── Branch 4: i18n non-default locale → modifyProjectFile ───────────────
+  // ─── Branch 4: i18n non-default locale → blocked ─────────────────────────
 
-  test.todo('non-default locale commit calls modifyProjectFile for JSX rewrite');
+  // Translation mode (non-default locale) edits copy through the translation
+  // surfaces; canvas text editing is blocked so it can never write base source.
+  test('non-default locale blocks canvas text editing and writes nothing', () => {
+    const nodes = new Map([['node1', makeNode({ id: 'node1', textContent: 'Hello' })]]);
+    const store = makeStore([
+      [nodesAtom, nodes],
+      [isDefaultLocaleAtom, false],
+      [activeLocaleAtom, 'fr'],
+      [viewportsConfigAtom, [{ id: 'desktop', width: 1440, isPrimary: true }]],
+      [mapItemIndexAtom, null],
+      [activeFilePathAtom, 'app/page.tsx'],
+      [i18nConfigAtom, { defaultLocale: 'en' }],
+    ]);
+    const bridge = makeBridge();
+    const controller = new CanvasTextEditController({
+      jotaiStore: store as ReturnType<typeof import('jotai').useStore>,
+      bridge: bridge as unknown as import('@/canvas-sandbox/bridge-host').PostMessageBridge,
+      iframeRef: makeIframeRef(),
+      renderer: makeRenderer() as unknown as import('../CanvasRenderer').CanvasRenderer,
+      getInteractingVpId: () => 'desktop',
+    });
+
+    controller.startEdit('node1', 'Hello');
+    controller.commitEditWithHtml('<p>Bonjour</p>');
+
+    expect(controller.isEditing()).toBe(false);
+    expect(bridge.startTextEdit).not.toHaveBeenCalled();
+    expect(mockQueueMutation).not.toHaveBeenCalled();
+    expect(mockModifyProjectFile).not.toHaveBeenCalled();
+    expect((traceMock.action as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(c => c[0]))
+      .toContain('text-edit:blocked-translation-mode');
+  });
 
   // ─── Branch 5: FIT text → viewBox recalculation ──────────────────────────
 
-  test.todo('fit-text commit recalculates viewBox and queues updateHtmlAttrs');
+  test('fit-text commit persists the sandbox re-fit before the text', () => {
+    const nodes = new Map([
+      ['node1', makeNode({ id: 'node1', parentId: 'node1-svg' })],
+      ['node1-svg', makeNode({ id: 'node1-svg', attrs: { viewBox: '0 0 80 20' } })],
+    ]);
+    const store = makeStore([
+      [nodesAtom, nodes],
+      [isDefaultLocaleAtom, true],
+      [activeLocaleAtom, 'en'],
+      [viewportsConfigAtom, [{ id: 'desktop', width: 1440, isPrimary: true }]],
+      [mapItemIndexAtom, null],
+      [activeFilePathAtom, 'app/page.tsx'],
+      [i18nConfigAtom, { defaultLocale: 'en' }],
+    ]);
+    const controller = new CanvasTextEditController({
+      jotaiStore: store as ReturnType<typeof import('jotai').useStore>,
+      bridge: makeBridge() as unknown as import('@/canvas-sandbox/bridge-host').PostMessageBridge,
+      iframeRef: makeIframeRef(),
+      renderer: makeRenderer() as unknown as import('../CanvasRenderer').CanvasRenderer,
+      getInteractingVpId: () => 'desktop',
+    });
+
+    controller.startEdit('node1', 'Hi');
+    controller.commitEditWithHtml('<p>Hi there</p>', { svgNodeId: 'node1-svg', viewBox: '0 0 120 20', fontSize: 18, marginTop: 1.5 });
+
+    const types = mockQueueMutation.mock.calls.map(c => c[0]?.type);
+    const viewBox = mockQueueMutation.mock.calls.find(c => c[0]?.type === 'setResponsiveAttrBase');
+    expect(viewBox?.[0]).toMatchObject({ nodeId: 'node1-svg', attr: 'viewBox', value: '0 0 120 20' });
+    const fitStyles = mockQueueMutation.mock.calls.find(c => c[0]?.type === 'updateStyles');
+    expect(fitStyles?.[0]).toMatchObject({ nodeId: 'node1', styles: { fontSize: '18px', marginTop: '1.5px' } });
+    // The re-fit lands BEFORE the text mutation so the rebuild reads it.
+    expect(types.indexOf('setResponsiveAttrBase')).toBeLessThan(types.indexOf('updateChildrenHTML'));
+  });
 
   // ─── cancelEdit ───────────────────────────────────────────────────────────
 
