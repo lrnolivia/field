@@ -14,6 +14,9 @@
 // the one the sandbox paints this frame — on elements + subscribers, then
 // (2) forwards the newest input camera. `getTransform()` stays the newest
 // input camera (gesture math); `getAppliedTransform()` is what is on screen.
+// The bridge's cached-rect projection deliberately stays on the INPUT camera:
+// hit-testing, snapping and resize read it in the same tick as the gesture
+// math, and splitting those cameras broke them (2026-10-20).
 
 import { MIN_SCALE, MAX_SCALE } from './constants';
 import { clamp } from '@/shared/math-utils';
@@ -33,10 +36,6 @@ export interface CameraForwarder {
   /** Send a camera to the sandbox; false when it can't be reached (the editor
    *  then applies immediately — there is nothing to stay in step with). */
   send(t: Transform): boolean;
-  /** A FORWARDED camera landed on screen — runs before subscribers are
-   *  notified. Not called for cameras applied while the sandbox was
-   *  unreachable. */
-  land?(t: Transform): void;
 }
 
 export class TransformManager {
@@ -221,7 +220,7 @@ export class TransformManager {
   private tick(): void {
     // 1. Land last frame's forwarded camera — the sandbox paints it now.
     if (this.staged) {
-      this.land(this.staged, true);
+      this.land(this.staged);
       this.staged = null;
     }
     if (!this.dirty) return;
@@ -232,16 +231,12 @@ export class TransformManager {
       this.staged = next;
       this.requestTick();
     } else {
-      this.land(next, false);
+      this.land(next);
     }
   }
 
-  /** `forwarded`: the sandbox was sent this camera. Only then may the bridge
-   *  project with it — an unsent camera is NOT what the sandbox shows, and
-   *  claiming it skews every cached rect until the next full re-measure. */
-  private land(t: Transform, forwarded: boolean): void {
+  private land(t: Transform): void {
     this.applied = t;
-    if (forwarded) this.forwarder?.land?.(t);
     for (const el of this.elements) {
       this.applyToElement(el);
     }

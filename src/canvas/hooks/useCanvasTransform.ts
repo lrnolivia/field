@@ -182,11 +182,8 @@ export function useCanvasTransform(opts: UseCanvasTransformOptions) {
         const bridge = postMessageBridgeRef.current;
         if (!bridge?.isReady) return false;
         trace.action('canvas-transform:bridge-forward', { x: t.x, y: t.y, scale: t.scale });
-        bridge.postViewportTransform(t.x, t.y, t.scale);
+        bridge.setViewportTransform(t.x, t.y, t.scale);
         return true;
-      },
-      land: (t) => {
-        postMessageBridgeRef.current?.setAppliedTransform(t.x, t.y, t.scale);
       },
     });
 

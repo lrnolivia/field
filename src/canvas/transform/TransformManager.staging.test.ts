@@ -64,25 +64,22 @@ describe('TransformManager staged camera', () => {
     tm.setTransform({ x: 0, y: 0, scale: 1 });
     runFrame();
     const order: string[] = [];
-    tm.setForwarder({ send: (t) => { order.push(`send ${t.x}`); return true; }, land: (t) => order.push(`land ${t.x}`) });
+    tm.setForwarder({ send: (t) => { order.push(`send ${t.x}`); return true; } });
     tm.subscribe(() => order.push(`apply ${tm.getAppliedTransform().x}`));
     tm.pan(1, 0);
     runFrame();
     tm.pan(1, 0);
     runFrame();
-    expect(order).toEqual(['send 1', 'land 1', 'apply 1', 'send 2']);
+    expect(order).toEqual(['send 1', 'apply 1', 'send 2']);
   });
 
   it('applies immediately while the forwarder cannot reach the sandbox', () => {
     const tm = new TransformManager();
     tm.setTransform({ x: 0, y: 0, scale: 1 });
     runFrame();
-    const landed: number[] = [];
-    tm.setForwarder({ send: () => false, land: (t) => landed.push(t.x) });
+    tm.setForwarder({ send: () => false });
     tm.pan(3, 0);
     runFrame();
     expect(tm.getAppliedTransform().x).toBe(3);
-    // Never sent → the bridge must keep projecting with what the sandbox shows.
-    expect(landed).toEqual([]);
   });
 });
