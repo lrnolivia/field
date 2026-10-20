@@ -11,7 +11,7 @@
 
 import type { Transform, NodeMap, DraggedNode, PendingUpdate, Point, SnapGuide, SpacingGuide } from '@/shared/types';
 import type { DragContext, DragStrategy } from './types';
-import { MIN_DRAG_DISTANCE } from '@/shared/constants';
+import { MIN_DRAG_DISTANCE, SNAP_BREAKOUT_SPEED } from '@/shared/constants';
 import { trace } from '@/shared/debug-trace';
 import { isComponentFilePath } from '@/code/project/active-file-store';
 import { isViewerMode } from '@/code/stores/viewer-mode-store';
@@ -182,6 +182,12 @@ export class DragCoordinator {
   // physically moves the mouse, and the dragged element would lag the
   // cursor while panning.
   private lastMouseScreen: Point = { x: 0, y: 0 };
+  /** Pointer position of the move BEFORE `lastMouseScreen` — the last step's
+   *  speed decides whether snapping was suppressed by its breakout gate. */
+  private prevMoveScreen: Point | null = null;
+  /** Pending "pointer settled" re-evaluation (see `armSettle`). */
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
+  private settling = false;
 
   // Alt-duplicate state. While ALT is held during a drag, a "ghost"
   // copy of every dragged node is committed in real time at its drag-
@@ -409,6 +415,7 @@ export class DragCoordinator {
     if (!this.activeStrategy || !this.context) return;
 
     const mouseScreen: Point = { x: event.clientX, y: event.clientY };
+    if (!this.settling) this.prevMoveScreen = this.lastMouseScreen;
     this.lastMouseScreen = mouseScreen;
     const mouseDelta: Point = {
       x: event.clientX - this.context.startMouse.x,
@@ -567,7 +574,54 @@ export class DragCoordinator {
     );
 
     trace.fn('drag:move-result', { strategy: this.activeStrategy.name, snap: !!result.snap, switchRequest: result.switchRequest?.toStrategy });
+    if (!this.settling) this.armSettle();
   }
+
+  /**
+   * Snapping ignores a pointer moving faster than SNAP_BREAKOUT_SPEED, so a
+   * quick final step that stops 2px short of a guide never snapped: nothing
+   * re-evaluated once the pointer came to rest, and the drop committed the
+   * unsnapped position (Figma audit 2026-10-04: 422/426 instead of 424). When
+   * the last step was that fast, re-run the move at the SAME position after a
+   * short rest — zero velocity, so the snap and its guides engage — and on
+   * release run it synchronously before committing if it has not run yet.
+   */
+  private armSettle(): void {
+    this.clearSettle();
+    const prev = this.prevMoveScreen;
+    const last = this.lastMouseScreen;
+    if (!prev) return;
+    if (Math.hypot(last.x - prev.x, last.y - prev.y) <= SNAP_BREAKOUT_SPEED) return;
+    this.settleTimer = setTimeout(() => {
+      this.settleTimer = null;
+      this.settle();
+    }, DragCoordinator.SETTLE_MS);
+  }
+
+  private clearSettle(): void {
+    if (this.settleTimer) clearTimeout(this.settleTimer);
+    this.settleTimer = null;
+  }
+
+  private settle(): void {
+    if (!this.isDragStarted || !this.activeStrategy || !this.context) return;
+    trace.action('drag:pointer-settled', { x: this.lastMouseScreen.x, y: this.lastMouseScreen.y });
+    this.settling = true;
+    try {
+      this.handleMouseMove({
+        clientX: this.lastMouseScreen.x,
+        clientY: this.lastMouseScreen.y,
+        shiftKey: this.context.modifiers.shift,
+        altKey: this.context.modifiers.alt,
+      } as MouseEvent);
+    } finally {
+      this.settling = false;
+      // Settled: the next real move starts a fresh speed sample.
+      this.prevMoveScreen = this.lastMouseScreen;
+    }
+  }
+
+  private static readonly SETTLE_MS = 50;
 
   /**
    * Called on mouseup. Commits the drag result to code.
@@ -587,6 +641,14 @@ export class DragCoordinator {
       return;
     }
 
+    if (this.settleTimer) {
+      this.clearSettle();
+      this.settle();
+      if (!this.activeStrategy || !this.context) {
+        this.reset();
+        return;
+      }
+    }
     trace.action('drag:end', { strategy: this.activeStrategy.name, nodeIds: this.context.selectedIds });
     const endingStrategyName = this.activeStrategy.name;
 
@@ -1509,6 +1571,8 @@ export class DragCoordinator {
   }
 
   private reset(): void {
+    this.clearSettle();
+    this.prevMoveScreen = null;
     // Reset snap hysteresis state so next drag starts fresh
     resetSnapHysteresis();
 

@@ -363,8 +363,8 @@ function executeCommand(commandId: string): void {
     case 'group-svgs': dispatchGroupSvgs(); break;
 
     // Zoom
-    case 'zoom-in': zoomIn(); break;
-    case 'zoom-out': zoomOut(); break;
+    case 'zoom-in': zoomIn('center'); break;
+    case 'zoom-out': zoomOut('center'); break;
     case 'zoom-to-fit': {
       const root = contentEl;
       if (root) zoomToFit(root, true);

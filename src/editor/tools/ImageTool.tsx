@@ -18,6 +18,7 @@ import { getViewportPrefix } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import ImageSearchModal from '../ui/ImageSearchModal';
 import GalleryImageCropTool from '../gallery/GalleryImageCropTool';
+import { ImagePositionModeButton } from './StylesTool/atoms/FillControl';
 import { trace } from '@/shared/debug-trace';
 
 // ─── Options ────────────────────────────────────────────────────────────────
@@ -214,11 +215,14 @@ function ImageToolInner({
         {/* Object Position */}
         <div className="flex items-center justify-between w-full">
           <ControlLabel label="Position" property="objectPosition" />
-          <ToolSelect
-            value={objectPosition}
-            onChange={handlePositionChange}
-            options={OBJECT_POSITION_OPTIONS}
-          />
+          <div className="flex items-center gap-2 min-w-0">
+            <ToolSelect
+              value={objectPosition}
+              onChange={handlePositionChange}
+              options={OBJECT_POSITION_OPTIONS}
+            />
+            {objectFit !== 'fill' && <ImagePositionModeButton />}
+          </div>
         </div>
       </ToolSection>
 

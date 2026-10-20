@@ -119,6 +119,10 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
 
   private parentId: string | null = null;
   private prevMouse: Point = { x: 0, y: 0 };
+  /** CSS delta (incl. snap) written for the dragged nodes THIS frame. The
+   *  bridge rect cache trails that write by a postMessage round-trip, so a
+   *  mid-drag reparent corrects the cached rect by the difference. */
+  private frameDelta: Point = { x: 0, y: 0 };
   private framesOutsideParent = 0;
   /** Whether the element ALREADY overflowed its parent at gesture start
    *  (e.g. a group whose rotated variant child bleeds past the clipped frame
@@ -758,6 +762,39 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     }
   }
 
+  /** True when `currentDragRect` is exact for this node: neither it nor its
+   *  parent chain is transformed, so its AABB centre is its CSS-box centre and
+   *  the stale corners cache must not override it. */
+  private rectIsMouseSynchronous(nodeId: string): boolean {
+    return !this.parentHasTransform
+      && this.liftCorners.has(nodeId)
+      && !isNonIdentityTransform(this.originalTransforms.get(nodeId));
+  }
+
+  /** The dragged node's screen rect as of THIS frame's write. `findNodeRect`
+   *  reads the bridge cache, which still holds an earlier frame's position;
+   *  using it raw for a mid-drag reparent (then rebasing the drag on the
+   *  current mouse) dropped that frame's movement, so the child fell behind
+   *  the cursor by up to one pointer step. Corrected only for an untransformed
+   *  parent chain, where canvas delta == CSS delta (as the snap path assumes). */
+  private currentDragRect(
+    nodeId: string,
+    transform: { x: number; y: number; scale: number },
+  ): DOMRect | null {
+    const nr = findNodeRect(nodeId, this.vpId);
+    const lift = this.liftCorners.get(nodeId);
+    if (!nr || !lift || this.parentHasTransform) return nr;
+    const at = screenPointToCanvas({ x: nr.left, y: nr.top }, transform, getIframeOffset());
+    const liftLeft = Math.min(lift.TL.x, lift.TR.x, lift.BR.x, lift.BL.x);
+    const liftTop = Math.min(lift.TL.y, lift.TR.y, lift.BR.y, lift.BL.y);
+    const lagX = this.frameDelta.x - (at.x - liftLeft);
+    const lagY = this.frameDelta.y - (at.y - liftTop);
+    if (!Number.isFinite(lagX) || !Number.isFinite(lagY)) return nr;
+    if (Math.abs(lagX) < 1e-3 && Math.abs(lagY) < 1e-3) return nr;
+    trace.action('abs-in-frame:reparent-rect-lag', { nodeId, lagX, lagY });
+    return new DOMRect(nr.left + lagX * transform.scale, nr.top + lagY * transform.scale, nr.width, nr.height);
+  }
+
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
     const { draggedNodes, startMouse, transform, contentEl } = context;
     const screenDx = mouseScreen.x - startMouse.x;
@@ -1039,6 +1076,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const snapOffsetX = snapCorrection(rawLeft, finalAbsLeft, parentOffset.x, snap.snappedX);
     const snapOffsetY = snapCorrection(rawTop, finalAbsTop, parentOffset.y, snap.snappedY);
 
+    this.frameDelta = { x: delta.x + snapOffsetX, y: delta.y + snapOffsetY };
     for (const node of draggedNodes) {
       const dx = delta.x + snapOffsetX;
       const dy = delta.y + snapOffsetY;
@@ -1576,7 +1614,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
               // which mouseup would commit and re-introduce the inset.
               const insetClearedIds = new Set<string>();
               for (const node of draggedNodes) {
-                const nr = findNodeRect(node.id, this.vpId);
+                const nr = this.currentDragRect(node.id, context.transform);
                 // Transform-aware entry math. `(nr.left - newParentRect.left)`
                 // subtracts the grandparent's post-transform AABB origin,
                 // which is NOT its CSS-local (0,0) once the grandparent is
@@ -1588,6 +1626,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
                 if (nr) {
                   const entry = computeEntryParentLocalPosition(
                     node.id, newParentId, nr, this.vpId, scale,
+                    undefined, this.rectIsMouseSynchronous(node.id),
                   );
                   if (entry) { rl = entry.parentRelLeft; rt = entry.parentRelTop; }
                 }
@@ -1703,6 +1742,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
               for (const node of draggedNodes) {
                 const ep = ggEntryLocalPos.get(node.id);
                 if (ep) { node.startLeft = ep.l; node.startTop = ep.t; }
+                this.frameDelta = { x: 0, y: 0 };
                 node.startParentId = newParentId;
               }
               context.startMouse = { x: mouseScreen.x, y: mouseScreen.y };
@@ -1856,7 +1896,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
             // Convert the live screen rect → canvas-space CSS pixels.
             const iframeOffset = getIframeOffset();
             for (const node of draggedNodes) {
-              const dim = findNodeRect(node.id, this.vpId);
+              const dim = this.currentDragRect(node.id, context.transform);
               const nodeSrcStyles = context.nodes.get(node.id)?.styles ?? {};
               // For elements with BOTH left+right (or top+bottom) set,
               // the visible size is parent-constrained — the computed
@@ -2879,7 +2919,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
             || candidateParentDisplay === 'flex' || candidateParentDisplay === 'inline-flex';
 
           for (const node of context.draggedNodes) {
-            const nr = findNodeRect(node.id, this.vpId);
+            const nr = this.currentDragRect(node.id, context.transform);
             let rl = 0, rt = 0;
             if (isLayoutChildTarget) {
               // Cursor-anchored entry — map cursor to the target's
@@ -2926,6 +2966,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
               // Direct-sibling path: existing transform-aware helper.
               const entry = computeEntryParentLocalPosition(
                 node.id, this.candidateSiblingId!, nr, this.vpId, transform.scale,
+                undefined, this.rectIsMouseSynchronous(node.id),
               );
               if (entry) { rl = entry.parentRelLeft; rt = entry.parentRelTop; }
             }
@@ -3084,6 +3125,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           for (const node of context.draggedNodes) {
             const ep = entryLocalPos.get(node.id);
             if (ep) { node.startLeft = ep.l; node.startTop = ep.t; }
+            this.frameDelta = { x: 0, y: 0 };
             node.startParentId = this.parentId!;
           }
           context.startMouse = { x: mouseScreen.x, y: mouseScreen.y };

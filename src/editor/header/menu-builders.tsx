@@ -525,8 +525,8 @@ export function buildTabs(preferencesSubmenu: DropdownMenuEntry[]): TabSpec[] {
     items: [
       // Zoom — direct calls into `canvas/transform`, same module the
       // Ctrl+= / Ctrl+- / Shift+1 / Shift+3 keyboard shortcuts use.
-      { id: 'view-zoom-in', label: 'Zoom in', shortcut: 'Ctrl++', onClick: () => { trace.action('menu:view-zoom-in'); zoomIn(); } },
-      { id: 'view-zoom-out', label: 'Zoom out', shortcut: 'Ctrl+-', onClick: () => { trace.action('menu:view-zoom-out'); zoomOut(); } },
+      { id: 'view-zoom-in', label: 'Zoom in', shortcut: 'Ctrl++', onClick: () => { trace.action('menu:view-zoom-in'); zoomIn('center'); } },
+      { id: 'view-zoom-out', label: 'Zoom out', shortcut: 'Ctrl+-', onClick: () => { trace.action('menu:view-zoom-out'); zoomOut('center'); } },
       { id: 'view-zoom-reset', label: 'Zoom to 100%', shortcut: 'Ctrl+0', onClick: () => { trace.action('menu:view-zoom-reset'); zoomTo100(); } },
       { id: 'view-fit', label: 'Zoom to fit', shortcut: 'Shift+1', onClick: menuZoomFit },
       { type: 'separator' },

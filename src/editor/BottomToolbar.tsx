@@ -15,7 +15,7 @@ import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { settingsOverlayOpenAtom, settingsSectionAtom, hasActiveSubscriptionAtom } from '@/code/stores/website-settings-store';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toolModeAtom, panHighlightAtom, type ToolMode } from '@/code/stores/tool-store';
-import { zoomToFit, zoomToFitSelection } from '@/canvas/transform';
+import { zoomToFit, fitSelectionCommand } from '@/canvas/transform';
 import { signalUserCameraIntent } from '@/canvas/transform/camera-intent';
 import { getContentRoot } from '@/canvas/node-ops';
 import { selectedNodeAtom } from '@/code/stores/store';
@@ -531,7 +531,7 @@ function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
     if (!root) return;
     signalUserCameraIntent(selectedId ? 'toolbar:fit-selection' : 'toolbar:fit-canvas');
     if (selectedId) {
-      zoomToFitSelection(root, [selectedId]);
+      fitSelectionCommand(root, [selectedId]);
       trace.action('toolbar:smart-zoom', { target: 'selection', selectedId });
     } else {
       zoomToFit(root);

@@ -20,11 +20,11 @@ import { makeGhostId } from '@/shared/ghost-id';
 import { updateVariantPosition } from '@/code/variants/variant-ops';
 import { projectFS } from '@/code/project/project-fs';
 import { syncQueueCode } from '@/code/mutation/mutation-queue';
-import { getScreenCornersById, getElementRotationById, cornersEqual, getHandlesFromDirection, cornersFromRect, getOppositeCorner, processZeroCrossing, updateDirectionAfterCrossing, nodeOrAncestorHasRotationOrSkewById, type ScreenCorners, type Direction } from '@/canvas/resize/geometry-utils';
-import { getTransformedPoint } from '@/canvas/canvas-math';
-import { startResize, applyAspectRatioLock, parseAspectRatioValue } from '@/canvas/resize/ResizeManager';
+import { getScreenCornersById, getElementRotationById, cornersEqual, cornersFromRect, nodeOrAncestorHasRotationOrSkewById, type ScreenCorners, type Direction } from '@/canvas/resize/geometry-utils';
+import { startResize, parseAspectRatioValue } from '@/canvas/resize/ResizeManager';
 import { startRotate, parseRotationFromMatrix, mergeRotation } from '@/canvas/resize/RotateManager';
 import { transformManager } from '@/canvas/transform';
+import { planSelectionResize, type SelectionResizeMember } from '@/canvas/resize/selection-resize';
 import type { SnapGuide } from '@/shared/types';
 import { styleHelperOps } from './style-helper-store';
 import { trace } from '@/shared/debug-trace';
@@ -36,6 +36,8 @@ import SelectionFade from './SelectionFade';
 import RotateHandle from './RotateHandle';
 import BorderRadiusHandle from './BorderRadiusHandle';
 import ObjectPositionHandle from './ObjectPositionHandle';
+import ImagePositionOverlay, { endImagePositionSession } from './ImagePositionOverlay';
+import { imagePositionTargetAtom } from '@/code/stores/image-position-store';
 import PaddingHandles from './PaddingHandles';
 import { resolveOverlaySize, resolveOverlayInsets } from './overlay-size';
 import GapHandles from './GapHandles';
@@ -106,6 +108,17 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
   const isDefaultLocale = useAtomValue(isDefaultLocaleAtom);
   const isInteracting = useAtomValue(canvasInteractingAtom);
   const toolMode = useAtomValue(toolModeAtom);
+  const imagePositionTarget = useAtomValue(imagePositionTargetAtom);
+  const setImagePositionTarget = useSetAtom(imagePositionTargetAtom);
+  // Selection left the Position-mode target (deselect, other object): commit,
+  // like leaving Figma's crop mode. Lives here, not in the overlay, because
+  // the overlay unmounts with the selection before its own effect could run.
+  useEffect(() => {
+    if (!imagePositionTarget) return;
+    if (selectedIds.length === 1 && selectedIds[0] === imagePositionTarget.nodeId) return;
+    endImagePositionSession('commit');
+    setImagePositionTarget(null);
+  }, [imagePositionTarget, selectedIds, setImagePositionTarget]);
   const setInteracting = useSetAtom(canvasInteractingAtom);
   const setRotating = useSetAtom(isRotatingAtom);
   // DELIBERATELY whole-map (category B-adjacent): this overlay is keyed to
@@ -809,7 +822,18 @@ export default function SelectionOverlay({ onGripDragStart, onSnapGuidesChange }
               gap/grip) are edit affordances — hidden for viewers AND in
               TRANSLATION MODE (non-default locale: selection border only,
               geometry is not editable — localization overhaul Phase 2). */}
-          {!shapeEditingId && !activeFancyRadius && !isViewer && isDefaultLocale && !colorPickerOpen && (
+          {/* Image Position mode: the image moves inside the fixed Frame, so
+              the Frame's own handles step aside until Done / Cancel. */}
+          {selectedId && !isViewer && isDefaultLocale && (
+            <ImagePositionOverlay
+              corners={corners}
+              nodeId={selectedId}
+              vpId={vpId}
+              color={selectionColor}
+              onInteracting={setInteracting}
+            />
+          )}
+          {!shapeEditingId && !activeFancyRadius && !isViewer && isDefaultLocale && !colorPickerOpen && imagePositionTarget?.nodeId !== selectedId && (
             toolMode === 'scale' ? (
               <ScaleHandles
                 corners={corners}
@@ -1142,231 +1166,100 @@ function GroupBoundingBox({ pairs, color, scaleMode }: { pairs: Array<{ id: stri
     if (!result.ok) trace.action('group-scale:blocked', { reason: result.reason, count: pairs.length });
   }, [pairs, setInteracting]);
 
-  // Group resize: proportional scaling per node, ported from old builder
-  // `create-resize-handler.tsx`. Each node gets a delta scaled by its size
-  // ratio to the LARGEST initial node — so small selected items move less
-  // than big ones, keeping their relative shapes during the resize. Smooth
-  // zero-crossing (width/height going negative → handle flips, no jump).
-  //
-  // Per-element transform compensation: when a selected element has a
-  // rotation or skew, its CSS transform rotates around the element center.
-  // Changing width/height moves the center, so the rotated element drifts
-  // visually unless we shift left/top to keep one corner pinned. We pin the
-  // handle-opposite corner: at start, capture its on-screen position after
-  // running it through the matrix; each frame, recompute the same corner
-  // through the matrix with the new rect and offset newLeft/newTop by the
-  // delta. Same trick the single-element ResizeManager uses.
+  // Multi-selection resize: ONE shared affine. The selection box scales about
+  // the edge/corner opposite the dragged handle, and every member's centre and
+  // box go through that same map (`planSelectionResize`), so positions scale
+  // across the common bounds instead of each member growing by a fraction of
+  // the largest member. Every frame derives from the lift-time snapshot, so
+  // scaling never compounds and mouse-up commits exactly what was previewed.
   //
   // All DOM access goes through the bridge (`findNodeComputedStyles`,
-  // `findNodeRect`, `patchNodeStyles`) so this works in iframe mode.
+  // `getScreenCornersById`, `patchNodeStyles`) so this works in iframe mode.
   const handleGroupResizeStart = useCallback((direction: Direction, e: React.PointerEvent) => {
     interface NodeState {
       id: string;
       vpId: string;
       vpPrefix: string;
-      width: number;
-      height: number;
-      left: number;
-      top: number;
-      xHandle: 'left' | 'right' | null;
-      yHandle: 'top' | 'bottom' | null;
-      direction: Direction;
-      matrixStr: string;
-      hasTransform: boolean;
-      // Screen-space pin: the handle-opposite corner of the initial rect,
-      // run through the element's own matrix. Each frame after computing
-      // the new rect, we shift left/top so this point stays fixed.
-      fixedPoint: { x: number; y: number } | null;
+      member: SelectionResizeMember;
+      next: { left: number; top: number; width: number; height: number };
     }
     const states: NodeState[] = [];
-    const { xHandle: initXH, yHandle: initYH } = getHandlesFromDirection(direction);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     for (const { id, vpId } of pairs) {
-      const computed = findNodeComputedStyles(id, vpId, ['width', 'height', 'left', 'top', 'transform']);
+      const computed = findNodeComputedStyles(id, vpId, ['width', 'height', 'left', 'top']);
       const w = parseFloat(computed.width);
       const h = parseFloat(computed.height);
       // `left`/`top` from getComputedStyle resolve percent / inset values to
       // px. Skip if missing — node isn't ready in the rect cache yet.
       const l = parseFloat(computed.left);
       const t = parseFloat(computed.top);
-      if (![w, h, l, t].every((n) => Number.isFinite(n))) continue;
-
-      // Per-element transform: matrix(...) form from getComputedStyle.
-      // `none` and empty string both mean "no transform" — skip pinning.
-      const matrixStr = computed.transform || '';
-      const hasTransform = !!matrixStr && matrixStr !== 'none';
-      let fixedPoint: { x: number; y: number } | null = null;
-      if (hasTransform) {
-        const oppCorner = getOppositeCorner(direction, { left: l, top: t, width: w, height: h });
-        fixedPoint = getTransformedPoint(
-          oppCorner.x, oppCorner.y,
-          { x: l, y: t, width: w, height: h },
-          matrixStr,
-        );
+      const corners = getScreenCornersById(id, vpId);
+      if (![w, h, l, t].every((n) => Number.isFinite(n)) || !corners) continue;
+      const pts = [corners.TL, corners.TR, corners.BR, corners.BL];
+      for (const pt of pts) {
+        minX = Math.min(minX, pt.x);
+        minY = Math.min(minY, pt.y);
+        maxX = Math.max(maxX, pt.x);
+        maxY = Math.max(maxY, pt.y);
       }
-
-      states.push({
-        id,
-        vpId,
-        vpPrefix: getViewportPrefix(vpId),
-        width: w,
-        height: h,
+      const member: SelectionResizeMember = {
         left: l,
         top: t,
-        xHandle: initXH,
-        yHandle: initYH,
-        direction,
-        matrixStr,
-        hasTransform,
-        fixedPoint,
-      });
+        width: w,
+        height: h,
+        screenCenter: {
+          x: pts.reduce((sum, pt) => sum + pt.x, 0) / 4,
+          y: pts.reduce((sum, pt) => sum + pt.y, 0) / 4,
+        },
+      };
+      states.push({ id, vpId, vpPrefix: getViewportPrefix(vpId), member, next: { left: l, top: t, width: w, height: h } });
     }
     if (states.length === 0) return;
+    const startBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 
-    // Stable scale factors per node — computed once at lift, never updated.
-    // The largest node moves at the full mouse delta; smaller ones get a
-    // fraction so the GROUP scales proportionally instead of every node
-    // changing by the same px amount.
-    const origMaxW = Math.max(...states.map((n) => n.width));
-    const origMaxH = Math.max(...states.map((n) => n.height));
-    // Keyed per PAIR — the same node can appear once per swept viewport.
-    const origSizes = new Map(states.map((n) => [`${n.vpPrefix}:${n.id}`, { w: n.width, h: n.height }]));
-
-    let prevMouseX = e.clientX;
-    let prevMouseY = e.clientY;
+    const startX = e.clientX;
+    const startY = e.clientY;
     const scale = transformManager.getTransform().scale || 1;
     const contentEl = getContentRoot();
+    const fmt = (n: number) => `${Math.round(n)}px`;
 
     setInteracting(true);
-    trace.action('group-resize:start', {
-      count: states.length,
-      direction,
-      origMaxW,
-      origMaxH,
-      transformedCount: states.filter((n) => n.hasTransform).length,
-    });
+    trace.action('group-resize:start', { count: states.length, direction, startBox });
 
     const onMove = (me: PointerEvent) => {
-      // Incremental delta from the LAST frame, not from start — prevents
-      // jumps after a zero-crossing handle flip.
-      const frameDx = (me.clientX - prevMouseX) / scale;
-      const frameDy = (me.clientY - prevMouseY) / scale;
-      prevMouseX = me.clientX;
-      prevMouseY = me.clientY;
-
-      for (const n of states) {
-        const orig = origSizes.get(`${n.vpPrefix}:${n.id}`)!;
-        const wFactor = origMaxW > 0 ? orig.w / origMaxW : 1;
-        const hFactor = origMaxH > 0 ? orig.h / origMaxH : 1;
-        const dx = frameDx * wFactor;
-        const dy = frameDy * hFactor;
-
-        let newW = n.width + (n.xHandle === 'left' ? -dx : n.xHandle === 'right' ? dx : 0);
-        let newH = n.height + (n.yHandle === 'top' ? -dy : n.yHandle === 'bottom' ? dy : 0);
-        let newL = n.xHandle === 'left' ? n.left + dx : n.left;
-        let newT = n.yHandle === 'top' ? n.top + dy : n.top;
-
-        // Shift on a corner — per-element aspect lock, same rule (and same
-        // helper) as the single-element ResizeManager: EACH node keeps ITS
-        // OWN start ratio, so a group of circles stays circular while a
-        // wide card in the same selection stays wide. Ratio comes from the
-        // lift-time sizes (origSizes), not the mutating frame state, so
-        // the lock can't drift across frames. Runs before zero-crossing,
-        // matching the single-element order.
-        if (me.shiftKey && n.xHandle && n.yHandle && orig.h > 0) {
-          const locked = applyAspectRatioLock(
-            newW, newH, n.height, n.top, orig.w / orig.h, n.yHandle, false,
-          );
-          newH = locked.height;
-          newT = locked.top;
-        }
-
-        // Zero-crossing — width/height went negative → flip handle,
-        // adjust position, update the per-node Direction so the next
-        // compensation step pins the correct corner.
-        let crossed = false;
-        if (n.xHandle || n.yHandle) {
-          const hadX = n.xHandle !== null;
-          const hadY = n.yHandle !== null;
-          const zc = processZeroCrossing(
-            newW, newH, newL, newT,
-            n.xHandle ?? 'right', n.yHandle ?? 'bottom',
-          );
-          newW = zc.width;
-          newH = zc.height;
-          newL = zc.left;
-          newT = zc.top;
-          if (zc.crossed) {
-            crossed = true;
-            if (hadX) n.xHandle = zc.xHandle;
-            if (hadY) n.yHandle = zc.yHandle;
-            n.direction = updateDirectionAfterCrossing(
-              n.xHandle ?? zc.xHandle,
-              n.yHandle ?? zc.yHandle,
-              n.direction,
-            );
-          }
-        }
-
-        newW = Math.max(1, newW);
-        newH = Math.max(1, newH);
-
-        // Transform compensation — pin the handle-opposite corner through
-        // the element's matrix. Without this, rotating an element and
-        // resizing the group would slide it diagonally because the matrix
-        // pivots around the new (shifted) center.
-        if (n.hasTransform && n.fixedPoint) {
-          const newRect = { x: newL, y: newT, width: newW, height: newH };
-          const newOpp = getOppositeCorner(n.direction, {
-            left: newL, top: newT, width: newW, height: newH,
-          });
-          const newFP = getTransformedPoint(newOpp.x, newOpp.y, newRect, n.matrixStr);
-          newL += n.fixedPoint.x - newFP.x;
-          newT += n.fixedPoint.y - newFP.y;
-        }
-
-        n.width = newW;
-        n.height = newH;
-        n.left = newL;
-        n.top = newT;
-
-        // After a crossing, rebase fixedPoint to the new direction's
-        // opposite corner so the next frame pins the side we're now
-        // dragging away from. Matches single-element ResizeManager.
-        if (crossed && n.hasTransform) {
-          const oppCorner = getOppositeCorner(n.direction, {
-            left: newL, top: newT, width: newW, height: newH,
-          });
-          n.fixedPoint = getTransformedPoint(
-            oppCorner.x, oppCorner.y,
-            { x: newL, y: newT, width: newW, height: newH },
-            n.matrixStr,
-          );
-        }
-
+      const plan = planSelectionResize({
+        startBox,
+        direction,
+        dx: me.clientX - startX,
+        dy: me.clientY - startY,
+        keepRatio: me.shiftKey,
+        scale,
+        members: states.map((n) => n.member),
+      });
+      if (!plan) return;
+      plan.members.forEach((next, i) => {
+        const n = states[i];
+        n.next = next;
         if (contentEl) {
           patchNodeStyles(contentEl, n.id, n.vpPrefix, {
-            width: `${Math.round(newW)}px`,
-            height: `${Math.round(newH)}px`,
-            left: `${Math.round(newL)}px`,
-            top: `${Math.round(newT)}px`,
+            width: fmt(next.width),
+            height: fmt(next.height),
+            left: fmt(next.left),
+            top: fmt(next.top),
           });
         }
-      }
+      });
 
-      // Tooltip on the first selected node (matches single-resize UX).
-      const primary = states[0];
-      if (primary) {
-        styleHelperOps.show({
-          type: 'dimensions',
-          position: { x: me.clientX + 16, y: me.clientY + 16 },
-          dimensions: {
-            width: Math.round(primary.width),
-            height: Math.round(primary.height),
-            unit: 'px',
-          },
-        });
-      }
+      styleHelperOps.show({
+        type: 'dimensions',
+        position: { x: me.clientX + 16, y: me.clientY + 16 },
+        dimensions: {
+          width: Math.round(plan.box.width / scale),
+          height: Math.round(plan.box.height / scale),
+          unit: 'px',
+        },
+      });
     };
 
     const onUp = () => {
@@ -1384,10 +1277,10 @@ function GroupBoundingBox({ pairs, color, scaleMode }: { pairs: Array<{ id: stri
           updateNodeStyles({
             id: n.id,
             styles: {
-              width: `${Math.round(n.width)}px`,
-              height: `${Math.round(n.height)}px`,
-              left: `${Math.round(n.left)}px`,
-              top: `${Math.round(n.top)}px`,
+              width: fmt(n.next.width),
+              height: fmt(n.next.height),
+              left: fmt(n.next.left),
+              top: fmt(n.next.top),
             },
             contentEl: finalContentEl,
             // Commit against the PAIR's viewport: primary write for '' —

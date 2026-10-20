@@ -9,7 +9,7 @@ import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { useIsViewer } from '@/code/stores/viewer-mode-store';
 import { sortChildrenByVisualOrder } from '../LayersPanel/rows';
 import { commitLayerDrop } from '../LayersPanel/drag';
-import { zoomToFitSelection } from '@/canvas/transform';
+import { fitSelectionCommand } from '@/canvas/transform';
 import { getContentRoot } from '@/canvas/node-ops';
 import FileExplorer from '../FileExplorer';
 import { PageDocumentIcon } from '@/shared/icons';
@@ -88,7 +88,7 @@ export function PortraitLayers({ onEdit }: { onEdit: () => void }) {
       </div>}
     </div>)}</div>
     {!rows.length && <p>No layers match in this group.</p>}
-    {!!selected.length && <div className="field-portrait-split-row"><button type="button" onClick={() => { const root = getContentRoot(); if (root) zoomToFitSelection(root, selected); }}>Zoom to selection</button>
+    {!!selected.length && <div className="field-portrait-split-row"><button type="button" onClick={() => { const root = getContentRoot(); if (root) fitSelectionCommand(root, selected); }}>Zoom to selection</button>
       <button type="button" onClick={onEdit}>Properties · {selected.length}</button></div>}
   </div>;
 }

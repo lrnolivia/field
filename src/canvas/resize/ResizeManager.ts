@@ -761,6 +761,8 @@ interface RotatedSvgResizeArgs {
    *  rotated group. The inner-shape `transform` write still uses the inner
    *  angle only. 0 for a standalone shape / un-rotated group. */
   groupAngleDeg: number;
+  /** Persistent Inspector aspect lock (CSS aspect-ratio), or null. */
+  lockedAspectRatio?: number | null;
 }
 
 /**
@@ -948,9 +950,13 @@ function startRotatedSvgShapeResize(args: RotatedSvgResizeArgs): void {
 
     let W = Math.max(MIN_SIZE, w);
     let H = Math.max(MIN_SIZE, h);
-    if (e.shiftKey && shiftRatio > 0) {
-      if (curYHandle && !curXHandle) W = H * shiftRatio;
-      else H = W / shiftRatio;
+    // A persistent Inspector lock holds without Shift, like the main path.
+    const lockRatio = (args.lockedAspectRatio ?? 0) > 0
+      ? args.lockedAspectRatio!
+      : (e.shiftKey ? shiftRatio : 0);
+    if (lockRatio > 0) {
+      if (curYHandle && !curXHandle) W = H * lockRatio;
+      else H = W / lockRatio;
     }
 
     // Geometry scale: original viewBox space → the new W×H box. viewBox is
@@ -1221,6 +1227,8 @@ interface RotatedGroupResizeArgs {
   ownAngleDeg: number;
   /** Cumulative ancestor-group rotation (deg) — rigid during this resize. */
   ancestorAngleDeg: number;
+  /** Persistent Inspector aspect lock (CSS aspect-ratio), or null. */
+  lockedAspectRatio?: number | null;
 }
 
 /**
@@ -1287,9 +1295,13 @@ function startRotatedSvgGroupResize(args: RotatedGroupResizeArgs): void {
     }
     let W = Math.max(MIN_SIZE, w);
     let H = Math.max(MIN_SIZE, h);
-    if (e.shiftKey && shiftRatio > 0) {
-      if (curYHandle && !curXHandle) W = H * shiftRatio;
-      else H = W / shiftRatio;
+    // A persistent Inspector lock holds without Shift, like the main path.
+    const lockRatio = (args.lockedAspectRatio ?? 0) > 0
+      ? args.lockedAspectRatio!
+      : (e.shiftKey ? shiftRatio : 0);
+    if (lockRatio > 0) {
+      if (curYHandle && !curXHandle) W = H * lockRatio;
+      else H = W / lockRatio;
     }
 
     // Pin the opposite corner about the box CENTRE (the group rotates about its
@@ -1685,6 +1697,7 @@ export function startResize(
       svgRotate: effectiveRotate,
       viewBoxAttr: vbAttr,
       groupAngleDeg,
+      lockedAspectRatio,
     });
     return;
   }
@@ -1704,6 +1717,7 @@ export function startResize(
         nodeId, vpId, vpPrefix, direction, startEvent, contentEl, onInteracting,
         startWidth, startHeight, startLeft, startTop,
         xHandle, yHandle, canvasScale, ownAngleDeg, ancestorAngleDeg,
+        lockedAspectRatio,
       });
       return;
     }

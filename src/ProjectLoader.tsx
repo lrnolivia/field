@@ -14,7 +14,7 @@ import { userAtom } from './backend/user-store';
 import { projectFS, syncBuiltInCodeComponents, createEmptyProject } from './code/project/project-fs';
 import { resetProjectSession } from './code/project/project-session';
 import { clearBridgeReadCaches } from '@/canvas/canvas-bridge';
-import { hydrateCameras } from './canvas/transform';
+import { hydrateCameras, zoomToScale, transformManager } from './canvas/transform';
 import { activeFilePathAtom, getPageFromUrl, getCmsFromUrl } from './code/project/active-file-store';
 import { healMissingInstanceDataIds } from './code/parsing/heal-data-ids';
 import { openCmsEditorAtom } from '@/code/stores/cms-editor-store';
@@ -445,6 +445,9 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
           },
           // Enter/exit overlay-edit mode (mirrors the noauth hook).
           openOverlay: (id: string | null) => { store.set(overlayEditingIdAtom, id); },
+          // Exact camera zoom (e.g. 0.9) for zoom-dependent interaction tests.
+          zoomTo: (scale: number) => { zoomToScale(scale); },
+          cameraScale: () => transformManager.getTransform().scale,
           // Switch the active file (e.g. open a component master `components/X.tsx`
           // so the viewport list becomes its variants). Mirrors the noauth hook.
           openFile: (path: string) => { store.set(activeFilePathAtom, path); },

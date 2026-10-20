@@ -109,8 +109,13 @@ test('shader gallery installs a visible shader fill and retains its editor', asy
   await expect(picker).toBeVisible();
   await page.screenshot({ path: '/tmp/field-shader-fill-after.png' });
   await page.keyboard.press('Escape');
+  // History groups edits made within 300ms into one step; a person can't
+  // install and remove a shader that fast, so step past the window before
+  // removing — otherwise one undo reverts both and lands on the solid fill.
+  await page.waitForTimeout(400);
   await page.locator('[data-inspector-section="fill"]').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-layer');
+  await page.waitForTimeout(400);
   await expect(editor.node('abs-child').locator('canvas')).toHaveCount(0);
   await page.keyboard.press('Meta+z');
   await expect.poll(() => editor.getPageCode()).toContain('data-field-shader-layer');

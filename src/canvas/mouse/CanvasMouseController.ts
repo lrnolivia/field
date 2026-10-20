@@ -136,7 +136,7 @@ import { enterComponentFile } from '../component-navigation';
 import { getPageTemplate, listTemplates } from '@/code/project/template-ops';
 import { generateNodeId } from '@/shared/id-utils';
 import { createNode, getContentRoot, findNodeRect, clearBridgeReadCaches, findFitInnerTextId } from '../node-ops';
-import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, panToNode, transformManager, cameraStash } from '@/canvas/transform';
+import { zoomToFit, zoomToFitSelection, zoomToFitCanvasBounds, transformManager, cameraStash } from '@/canvas/transform';
 import { parseCanvasConfig } from '@/code/project/canvas-config';
 import { queueMutation, flushNow } from '@/code/mutation/mutation-queue';
 import { isFrameTag } from '@/shared/constants';
@@ -492,6 +492,23 @@ export class CanvasMouseController {
       activeContainer,
       escaped: activeContainer !== null && effectiveContainer !== activeContainer,
     };
+  }
+
+  /** The single selected object that is `nodeId` itself or one of its
+   *  ancestors, if any. Only a SINGLE selection is kept — multi-selections have
+   *  their own ancestor redirect in the mouse-down path. */
+  private selectedAncestorOrSelf(nodeId: string): string | null {
+    const selected = this.store.get(selectedIdsAtom);
+    if (selected.length !== 1) return null;
+    const [sel] = selected;
+    if (!sel || sel === 'root') return null;
+    const nodes = this.store.get(nodesAtom);
+    let cursor: string | null | undefined = nodeId;
+    for (let hops = 0; cursor && hops < 100; hops++) {
+      if (cursor === sel) return sel;
+      cursor = nodes.get(cursor)?.parentId;
+    }
+    return null;
   }
 
   /** Hover hit-test + redirect chain, parameterized so it can be re-run on a
@@ -1079,8 +1096,9 @@ export class CanvasMouseController {
         this.store.set(activeContainerIdAtom, currentSelectedId);
         const innerHit = redirectToTopLevelChild(nodeId, currentSelectedId, this.store.get(nodesAtom));
         this.store.set(selectedIdsAtom, [innerHit]);
-        const content = getContentRoot();
-        if (content) panToNode(content, `${getViewportPrefix(vpId)}${innerHit}`, true);
+        // Drill-in changes SELECTION only — like Figma, the camera stays put
+        // (focusing here zoomed 72% → 112%). Framing is the explicit
+        // Center / Fit Selection commands.
         trace.action('canvas:hierarchy-drill-in', {
           container: currentSelectedId, selected: innerHit, deepHit: nodeId,
         });
@@ -1659,8 +1677,7 @@ export class CanvasMouseController {
         return;
       }
 
-      const content = getContentRoot();
-      if (content) panToNode(content, `${getViewportPrefix(vpId)}${nodeId}`, true);
+      // No camera move on double-click (see the drill-in note above).
       this.lastClick = null;
     } else if (isLeftButton && noMod) {
       // Only remember PLAIN LEFT clicks for the next-click double-click test.
@@ -1677,7 +1694,17 @@ export class CanvasMouseController {
     // Hierarchy selection is canonical. Ctrl/Cmd is a temporary direct-select
     // bypass; it never toggles or persists a second selection model.
     const ctrlBypass = e.ctrlKey || e.metaKey;
-    if (!ctrlBypass) {
+    // Pressing on (or inside) an object that is ALREADY selected keeps that
+    // object, however deep it is — e.g. a nested child picked in Layers.
+    // Re-resolving through the hierarchy here retargeted the gesture to its
+    // top-level ancestor, so dragging the selected child moved its parent.
+    const keptSelection = ctrlBypass || e.shiftKey ? null : this.selectedAncestorOrSelf(redirected);
+    if (keptSelection) {
+      if (keptSelection !== redirected) {
+        trace.action('canvas:hierarchy-keep-selection', { from: redirected, to: keptSelection });
+      }
+      redirected = keptSelection;
+    } else if (!ctrlBypass) {
       const hierarchy = this.resolveHierarchyTarget(redirected);
       if (hierarchy.escaped) {
         this.store.set(activeContainerIdAtom, null);

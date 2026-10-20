@@ -37,7 +37,8 @@ import { isComponentFileAtom, selectedIdsAtom, getNodeFromCache } from '@/code/s
 import { useNodesComputed } from '@/code/stores/node-family';
 import { aggregateSelectionColors } from '@/editor/selection-colors';
 import { forSelectionTargets } from '../../../controls/multi-select-targets';
-import { isComponentVariantViewportAtom, activeComponentVariantAtom } from '@/code/stores/viewport-store';
+import { isComponentVariantViewportAtom, activeComponentVariantAtom, interactingViewportIdAtom } from '@/code/stores/viewport-store';
+import { imagePositionTargetAtom } from '@/code/stores/image-position-store';
 import { fillClearStyles, isTransparentColor } from './fill-clear';
 import { getContentRoot, updateNodeStyles } from '@/canvas/node-ops';
 import { activeCodeAtom } from '@/code/project/active-file-store';
@@ -121,6 +122,30 @@ const BLEND_MODE_OPTIONS = [
 ];
 
 // ─── Image Fill Tab (shared between Single and Multiple) ────────────────────
+
+/** Enters the canvas Position mode: drag the image inside the fixed Frame. */
+export function ImagePositionModeButton() {
+  const selectedIds = useAtomValue(selectedIdsAtom);
+  const vpId = useAtomValue(interactingViewportIdAtom);
+  const setTarget = useSetAtom(imagePositionTargetAtom);
+  const nodeId = selectedIds.length === 1 ? selectedIds[0] : null;
+  return (
+    <button
+      type="button"
+      data-image-position-adjust=""
+      disabled={!nodeId}
+      onClick={() => {
+        if (!nodeId) return;
+        setTarget({ nodeId, vpId });
+        trace.action('image-position:enter', { nodeId, vpId });
+      }}
+      title="Drag the image inside the frame on the canvas"
+      className="h-[var(--control-height)] px-2.5 shrink-0 rounded-[6px] border border-[var(--control-border)] text-[12px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
+    >
+      Adjust
+    </button>
+  );
+}
 
 function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Record<string, string>; onUpdate: (k: string, v: string) => void; libraryOnly?: boolean }) {
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -236,7 +261,12 @@ function ImageFillTab({ styles, onUpdate, libraryOnly = false }: { styles: Recor
             <div className="border-t border-[var(--border-light)] pt-4 flex flex-col gap-3">
               <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
                 <span className="text-[12px] text-[var(--text-secondary)]">Position</span>
-                <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(value) => onUpdate('backgroundPosition', value)} options={POSITION_OPTIONS} />
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <ToolSelect value={styles.backgroundPosition || 'center'} onChange={(value) => onUpdate('backgroundPosition', value)} options={POSITION_OPTIONS} />
+                  </div>
+                  <ImagePositionModeButton />
+                </div>
               </div>
               <div className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3">
                 <span className="text-[12px] text-[var(--text-secondary)]">Repeat</span>
