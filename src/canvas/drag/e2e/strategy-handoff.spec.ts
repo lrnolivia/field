@@ -29,6 +29,9 @@ test.describe('mid-drag strategy handoff', () => {
 
     // The twin is visible before anything starts.
     await expect(await editor.nodeIn('desktop', 'chip-b')).toBeVisible();
+    // Pick chip-b itself (a plain press selects its top-level container).
+    await editor.select(['chip-b'], 'tablet');
+    await editor.waitForStableGeometry('chip-b');
 
     // Drag chip-b OUT of the tablet tile's source box and onto the
     // desktop tile's target frame — a different parent, so the handoff
@@ -68,10 +71,15 @@ test.describe('mid-drag strategy handoff', () => {
   // fires in production traces. Left as fixme so the suite never claims
   // coverage it doesn't have. Resolve by watching a real drag with the
   // trace open, then either fix the product or write this test to match.
-  test.fixme('dropping on a sibling container reparents into it', async ({ page }) => {
+  test('dropping on a sibling container reparents into it', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('HANDOFF_TWO_VP');
     await editor.fitCamera();
+    // A plain press on chip-b selects its top-level container (Figma's
+    // hierarchy model), so the old version of this test dragged the whole
+    // Source box. Pick chip-b explicitly, as a user would in Layers.
+    await editor.select(['chip-b'], 'desktop');
+    await editor.waitForStableGeometry('chip-b');
 
     const target = await editor.nodeBoxIn('desktop', 'chip-c');
     await editor.dragNodeAsserted(
@@ -97,6 +105,8 @@ test.describe('mid-drag strategy handoff', () => {
     await editor.gotoWithSeed('HANDOFF_TWO_VP');
     await editor.fitCamera();
 
+    await editor.select(['chip-b'], 'desktop');
+    await editor.waitForStableGeometry('chip-b');
     const chipA = await editor.nodeBoxIn('desktop', 'chip-a');
     const chipB = await editor.nodeBoxIn('desktop', 'chip-b');
     const from = { x: chipB.x + chipB.width / 2, y: chipB.y + chipB.height / 2 };
