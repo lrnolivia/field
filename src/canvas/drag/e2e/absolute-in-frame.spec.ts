@@ -18,6 +18,9 @@ test.describe('AbsoluteInFrameStrategy', () => {
   test('drag within parent updates left/top, no reparent', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+    await editor.fitCamera();
+    await editor.primeNode('abs-child');
+    await editor.select(['abs-child'], 'desktop');
 
     // Verify abs-child starts as a child of hero.
     let nodes = await page.evaluate(() => (window as any).__e2e.nodesSnapshot());

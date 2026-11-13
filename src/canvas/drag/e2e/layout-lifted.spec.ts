@@ -65,6 +65,9 @@ test.describe('LayoutLiftedStrategy', () => {
     // compare equal to its start slot and silently revert on mouseup.
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('GHOST_SIBLING_COLUMN');
+    await editor.fitCamera();
+    await editor.primeNode('footer');
+    await editor.select(['footer'], 'desktop');
 
     const visibleOrder = async () =>
       (await editor.getRootChildrenVisualOrder()).filter((id) => id !== 'ghost');

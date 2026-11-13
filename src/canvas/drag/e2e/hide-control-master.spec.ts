@@ -27,10 +27,7 @@ test('Styles Hide control hides a node in a component master without a page swit
   // Select the badge → the Styles tool (with the Hide control) renders in the panel.
   await page.evaluate(() => (window as any).__e2e.select(['card-badge']));
 
-  // Click the Hide control's "Yes" button (parent-frame panel UI).
-  const hideRow = page.locator('[data-tool-row]', { has: page.getByText('Hide', { exact: true }) }).first();
-  await hideRow.waitFor({ state: 'visible', timeout: 10_000 });
-  await hideRow.locator('[data-tool-row-value] button', { hasText: 'Yes' }).click();
+  await page.locator('[data-properties-panel]').getByRole('button', { name: 'Hide', exact: true }).click();
 
   // The badge must hide in the canvas immediately (the bug: it stayed visible
   // until a page switch). Poll — the structural rebuild lands a frame after the
