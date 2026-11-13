@@ -15,7 +15,7 @@ test('open Localize popup reseeds Set when the artboard switches', async ({ page
   const hexInput = page.getByRole('dialog', { name: 'Paint picker', exact: true }).locator('input').first();
   await hexInput.fill('FF0044');
   await hexInput.press('Enter');
-  await page.getByRole('dialog', { name: 'Paint picker', exact: true }).getByRole('button', { name: 'Close Paint picker', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Paint picker', exact: true }).getByRole('button', { name: /^close paint picker$/i }).click();
   await expect(page.locator('[data-locale-style-popup]')).toBeVisible();
   await page.waitForTimeout(300);
   // Give the TABLET its own band value, then desktop again with popup open.
@@ -27,7 +27,7 @@ test('open Localize popup reseeds Set when the artboard switches', async ({ page
   const hex2 = page.getByRole('dialog', { name: 'Paint picker', exact: true }).locator('input').first();
   await hex2.fill('00AA55');
   await hex2.press('Enter');
-  await page.getByRole('dialog', { name: 'Paint picker', exact: true }).getByRole('button', { name: 'Close Paint picker', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Paint picker', exact: true }).getByRole('button', { name: /^close paint picker$/i }).click();
   await page.waitForTimeout(400);
   // Switch back to desktop with the popup still open → Set reseeds to FF0044.
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));

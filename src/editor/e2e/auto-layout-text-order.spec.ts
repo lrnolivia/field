@@ -32,7 +32,10 @@ async function open(page: Page) {
   const editor = new EditorPage(page);
   await page.goto('/work/local');
   await editor.node('pic').waitFor({ state: 'visible', timeout: 60_000 });
-  await editor.fitCamera();
+  await page.locator('[data-editor-interactive="true"]').waitFor({ state: 'attached' });
+  await page.waitForFunction(() => Boolean((window as any).__e2e?.nodesSnapshot));
+  await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+  await editor.waitForStableGeometry('row');
   return editor;
 }
 
@@ -52,16 +55,19 @@ test('Layers lists an auto layout in the order the canvas lays it out', async ({
 
 /** Drag a text box inside the row with the Text tool; returns the new text. */
 async function drawText(page: Page, editor: EditorPage, text: string, fixedSize: boolean) {
-  const row = await editor.nodeBox('row');
   await page.locator('[data-toolbar-tool="text"]').first().click();
   await expect(page.locator('[data-tool-hint="text"]')).toContainText('fixed-size box');
-  const from = { x: row.x + 20, y: row.y + 10 };
+  const row = await editor.nodeBox('row');
+  const from = { x: row.x + row.width * 0.06, y: row.y + row.height * 0.12 };
+  const to = { x: row.x + row.width * 0.26, y: row.y + row.height * 0.75 };
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.hasAttribute('data-canvas-input-surface'), from)).toBe(true);
   await page.mouse.move(from.x, from.y);
   if (fixedSize) await page.keyboard.down('Alt');
   await page.mouse.down();
-  await page.mouse.move(from.x + 160, from.y + 150, { steps: 8 });
+  await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();
   if (fixedSize) await page.keyboard.up('Alt');
+  await expect(editor.sandbox().locator('[data-editing="true"] [contenteditable="true"]')).toBeVisible();
   await page.keyboard.type(text);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
