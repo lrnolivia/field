@@ -87,7 +87,7 @@ test('typing a viewport width re-buckets @media overrides like drag does', async
   // Find the input currently displaying 375 (the breakpoint). If the tile
   // click didn't select the root, fall back to the parent-frame tile label.
   const findInput375 = async () => {
-    for (const c of await page.locator('input').all()) {
+    for (const c of await page.getByRole('textbox', { name: 'Width', exact: true }).all()) {
       if ((await c.inputValue().catch(() => '')) === '375') return c;
     }
     return null;
@@ -95,15 +95,16 @@ test('typing a viewport width re-buckets @media overrides like drag does', async
   let target = await findInput375();
   if (!target) {
     console.log('E2E-REPORT tile-click inputs:', JSON.stringify(
-      await Promise.all((await page.locator('input').all()).map(c => c.inputValue().catch(() => '?')))));
+      await Promise.all((await page.getByRole('textbox', { name: 'Width', exact: true }).all()).map(c => c.inputValue().catch(() => '?')))));
     await page.getByText('Mobile', { exact: true }).first().click();
     await page.waitForTimeout(300);
     target = await findInput375();
   }
   expect(target, 'panel input showing 375 (viewport width row)').toBeTruthy();
 
-  await target!.click({ clickCount: 3 });
-  await target!.fill('400');
+  await target!.click({ position: { x: 5, y: 5 } });
+  await target!.press('ControlOrMeta+a');
+  await page.keyboard.type('400');
   await target!.press('Enter');
   await page.waitForTimeout(800);
 
@@ -207,12 +208,13 @@ test('templated page: typing a width leaves the LayoutClient untouched', async (
   await page.waitForTimeout(300);
 
   let target = null as any;
-  for (const c of await page.locator('input').all()) {
+  for (const c of await page.getByRole('textbox', { name: 'Width', exact: true }).all()) {
     if ((await c.inputValue().catch(() => '')) === '375') { target = c; break; }
   }
   expect(target, 'panel input showing 375').toBeTruthy();
-  await target.click({ clickCount: 3 });
-  await target.fill('400');
+  await target.click({ position: { x: 5, y: 5 } });
+  await target.press('ControlOrMeta+a');
+  await page.keyboard.type('400');
   await target.press('Enter');
   await page.waitForTimeout(1200);
 
@@ -250,7 +252,7 @@ test('SECOND width change in a session keeps overrides (523 then 524)', async ({
   await page.waitForTimeout(300);
 
   const findInput = async (val: string) => {
-    for (const c of await page.locator('input').all()) {
+    for (const c of await page.getByRole('textbox', { name: 'Width', exact: true }).all()) {
       if ((await c.inputValue().catch(() => '')) === val) return c;
     }
     return null;
@@ -259,8 +261,9 @@ test('SECOND width change in a session keeps overrides (523 then 524)', async ({
   // Change 1: 375 → 523 (typed).
   let target = await findInput('375');
   expect(target, 'input showing 375').toBeTruthy();
-  await target!.click({ clickCount: 3 });
-  await target!.fill('523');
+  await target!.click({ position: { x: 5, y: 5 } });
+  await target!.press('ControlOrMeta+a');
+  await page.keyboard.type('523');
   await target!.press('Enter');
   await page.waitForTimeout(1000);
   const mid = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));
@@ -271,8 +274,9 @@ test('SECOND width change in a session keeps overrides (523 then 524)', async ({
   target = await findInput('523');
   console.log('E2E-REPORT input-after-step1:', target ? '523 shown' : 'NOT FOUND');
   expect(target, 'input showing 523 after first change').toBeTruthy();
-  await target!.click({ clickCount: 3 });
-  await target!.fill('524');
+  await target!.click({ position: { x: 5, y: 5 } });
+  await target!.press('ControlOrMeta+a');
+  await page.keyboard.type('524');
   await target!.press('Enter');
   await page.waitForTimeout(1200);
 
@@ -303,7 +307,7 @@ test('chevron hold-scrub commits ONCE and keeps overrides', async ({ page }) => 
   await page.waitForTimeout(300);
 
   let input = null as any;
-  for (const c of await page.locator('input').all()) {
+  for (const c of await page.getByRole('textbox', { name: 'Width', exact: true }).all()) {
     if ((await c.inputValue().catch(() => '')) === '375') { input = c; break; }
   }
   expect(input, 'input showing 375').toBeTruthy();
@@ -317,8 +321,8 @@ test('chevron hold-scrub commits ONCE and keeps overrides', async ({ page }) => 
 
   // Hover the row so the chevrons render, then press-and-HOLD the up chevron
   // (fires the initial +1, then the 200ms hold-repeat at 50ms per tick).
-  await input.hover();
-  const up = input.locator('xpath=..').locator('button').first();
+  await input.hover({ position: { x: 5, y: 5 } });
+  const up = page.getByRole('button', { name: 'Increase Width', exact: true });
   await up.waitFor({ state: 'visible' });
   const b = await up.boundingBox();
   await page.mouse.move(b!.x + b!.width / 2, b!.y + b!.height / 2);
@@ -389,12 +393,13 @@ test('DRIFTED widths: page mobile 298 → 500 re-keys the page; template untouch
   await page.waitForTimeout(300);
 
   let target = null as any;
-  for (const c of await page.locator('input').all()) {
+  for (const c of await page.getByRole('textbox', { name: 'Width', exact: true }).all()) {
     if ((await c.inputValue().catch(() => '')) === '298') { target = c; break; }
   }
   expect(target, 'input showing 298').toBeTruthy();
-  await target.click({ clickCount: 3 });
-  await target.fill('500');
+  await target.click({ position: { x: 5, y: 5 } });
+  await target.press('ControlOrMeta+a');
+  await page.keyboard.type('500');
   await target.press('Enter');
   await page.waitForTimeout(1200);
 
