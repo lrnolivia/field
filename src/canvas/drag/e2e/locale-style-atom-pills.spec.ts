@@ -7,8 +7,8 @@ test('Localize opacity: injected base, slider control, pill on row', async ({ pa
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Opacity', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="opacity"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   // Convert-on-open injected the CSS-initial base (opacity: 1) as :lang(fr).
   const code = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));

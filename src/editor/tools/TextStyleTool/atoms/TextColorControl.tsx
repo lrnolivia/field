@@ -612,8 +612,8 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   // Locale-localized color → blue Locale pill (reopens the Localize popup).
   if (colorLocaleOverrides.length > 0 && node?.id) {
     return (
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-        <ControlLabel label="Color" property="color" cell />
+      <div className={compactSection ? "w-full" : "grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"}>
+        {!compactSection && <ControlLabel label="Color" property="color" cell />}
         <LocaleBoundPill
           property="color"
           propertyLabel="Color"

@@ -5,7 +5,7 @@
 // under), so every rect/layout lookup in ToolbarDragStrategy's canvas-node
 // branch silently missed; the drop-position branch also required a truthy
 // currentVpId, which canvas-node drops never have.
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
 
 const PAGE = `/** @canvas { "viewports": [{"id":"desktop","width":1440,"label":"Desktop","isPrimary":true,"order":0,"height":"auto"}], "positions": {"desktop":{"x":0,"y":0}} } */
@@ -32,7 +32,7 @@ test('insert drag over a canvas-node layout resolves the drop target and inserts
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/work/local');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await page.waitForTimeout(2500);
@@ -49,11 +49,11 @@ test('insert drag over a canvas-node layout resolves the drop target and inserts
   await page.waitForTimeout(200);
   await page.getByText('Elements', { exact: true }).first().click();
   await page.waitForTimeout(600);
-  const frameTile = page.getByText('Frame', { exact: true }).first();
+  const frameTile = page.getByText(/^frame$/i).first();
   await frameTile.waitFor({ state: 'visible', timeout: 10_000 });
   const ft = await frameTile.boundingBox();
   console.log('frame tile', JSON.stringify(ft));
-  if (!ft) return;
+  if (!ft) throw new Error('Insert Frame tile has no bounding box');
 
   const target = await editor.node('cn-layout').boundingBox();
   console.log('canvas node rect', JSON.stringify(target));
@@ -86,7 +86,6 @@ test('insert drag over a canvas-node layout resolves the drop target and inserts
   console.log('inserted inside canvas node?', cnBlock.includes(m?.[1] ?? '@@'));
   const dropT: Array<{ parentId?: string }> = await page.evaluate(() =>
     ((window as any).__e2e.traceEntries('toolbar-drag:drop') ?? []).slice(-1).map((e: any) => e.data ?? {}));
-  const { expect } = await import('@playwright/test');
   expect(m?.[1], 'a new frame was inserted').toBeTruthy();
   expect(cnBlock.includes(m![1]), 'inserted INSIDE the canvas-node layout').toBe(true);
   expect(dropT[0]?.parentId, 'drop routed to the canvas-node parent').toBe('cn-layout');

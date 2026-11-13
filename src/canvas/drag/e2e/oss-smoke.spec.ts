@@ -35,6 +35,8 @@ test.describe('OSS covenant smoke', () => {
   test('1+2: boot, render, select, panel', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('OSS_SMOKE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('hero');
 
     for (const id of ['hero', 'headline', 'cards', 'card-a', 'card-b']) {
       await expect(editor.node(id)).toBeAttached();
@@ -44,67 +46,70 @@ test.describe('OSS covenant smoke', () => {
     // Click-select the hero frame (pointer events go through the parent frame).
     const c = await editor.nodeCenter('hero');
     await page.mouse.click(c.x, c.y);
-    // Properties panel should now show the Styles section for the selection.
-    await expect(page.getByText('Styles', { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+    await expect.poll(() => page.evaluate(() => (window as any).__e2e.selection())).toEqual(['hero']);
+    await expect(page.locator('[data-properties-panel] [data-inspector-section="appearance"]')).toBeVisible();
     await page.screenshot({ path: shotPath('02-selected-panel.png'), fullPage: false });
   });
 
   test('3+4: draw frame with F tool, then undo restores code byte-identical', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('OSS_SMOKE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('hero');
 
     const before = await editor.getPageCode();
 
-    // Frame tool + draw a ~120x90 rect inside the hero frame.
+    // Draw entirely inside the hero frame at the fitted zoom.
     await page.keyboard.press('f');
+    await expect(page.locator('[data-toolbar-tool="frame"]')).toHaveAttribute('aria-pressed', 'true');
     const hero = await editor.nodeBox('hero');
-    const from = { x: hero.x + 60, y: hero.y + 60 };
-    const to = { x: hero.x + 180, y: hero.y + 150 };
+    const from = { x: hero.x + hero.width * 0.3, y: hero.y + hero.height * 0.3 };
+    const to = { x: hero.x + hero.width * 0.47, y: hero.y + hero.height * 0.6 };
     await editor.dragFromTo(from, to);
     // Creator commit is deferred a couple frames + queue flush.
     await page.waitForTimeout(600);
 
+    await expect.poll(() => editor.getPageCode()).not.toEqual(before);
     const after = await editor.getPageCode();
-    expect(after).not.toEqual(before);
     const countIds = (s: string) => (s.match(/data-id="/g) ?? []).length;
     expect(countIds(after)).toBeGreaterThan(countIds(before));
     await page.screenshot({ path: shotPath('03-frame-drawn.png'), fullPage: false });
 
     // Undo → byte-identical restore.
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
-    await page.waitForTimeout(500);
-    const undone = await editor.getPageCode();
-    expect(undone).toEqual(before);
+    await expect.poll(() => editor.getPageCode()).toEqual(before);
     await page.screenshot({ path: shotPath('04-after-undo.png'), fullPage: false });
   });
 
   test('5: resize via bottom-right handle commits new size', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('OSS_SMOKE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('hero');
 
     // Select card-a, then grab its bottom-right corner handle.
-    const center = await editor.nodeCenter('card-a');
-    await page.mouse.click(center.x, center.y);
-    await page.waitForTimeout(300);
-    const box = await editor.nodeBox('card-a');
-    const corner = { x: box.x + box.width, y: box.y + box.height };
+    await editor.select(['card-a'], 'desktop');
+    const handle = page.locator('[data-resize-dir="bottomRight"]');
+    await expect(handle).toBeVisible();
+    const box = (await handle.boundingBox())!;
+    const corner = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     await editor.dragFromTo(corner, { x: corner.x + 60, y: corner.y + 40 });
     await page.waitForTimeout(500);
 
-    const code = await editor.getPageCode();
-    // card-a started at width 300 / height 200 — the committed style must differ.
-    const cardTag = /data-id="card-a"[^>]*style=\{\{([^}]*)\}\}/.exec(code)?.[1] ?? '';
-    expect(cardTag).not.toContain("width: '300px'");
+    await expect.poll(async () => Number.parseFloat(await editor.getInlineStyleProp('card-a', 'width') ?? '0')).toBeGreaterThan(300);
     await page.screenshot({ path: shotPath('05-resized.png'), fullPage: false });
   });
 
   test('6: double-click text, type, Escape commits', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('OSS_SMOKE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('hero');
 
+    await editor.waitForStableGeometry('headline');
     const c = await editor.nodeCenter('headline');
-    await page.mouse.dblclick(c.x, c.y);
-    await page.waitForTimeout(600); // TipTap mounts inside the iframe
+    await page.mouse.dblclick(c.x, c.y, { delay: 80 });
+    await expect(editor.sandbox().locator('[data-id="headline"][data-editing="true"] [contenteditable="true"]')).toBeVisible();
     await page.keyboard.type(' EDITED', { delay: 20 });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(600);

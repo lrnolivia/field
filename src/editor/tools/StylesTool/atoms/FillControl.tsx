@@ -1968,8 +1968,8 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   })();
   if (fillLocaleOverrides.length > 0 && node?.id) {
     return (
-      <div className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-        <ControlLabel label="Fill" property="backgroundColor" cell />
+      <div className={compactSection ? "w-full" : "grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full"}>
+        {!compactSection && <ControlLabel label="Fill" property="backgroundColor" cell />}
         <LocaleBoundPill
           property="backgroundColor"
           propertyLabel="Fill"

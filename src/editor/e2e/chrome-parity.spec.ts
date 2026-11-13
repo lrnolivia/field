@@ -99,7 +99,7 @@ test('toolbar menus identify their content and expand to the corresponding Inser
   expect(await editor.getPageCode()).toBe(source);
 });
 
-test('floating sections share a continuous surface and docked compact Inspector has no top outline', async ({ page }) => {
+test('floating sections have individual card edges and docked compact Inspector has no top outline', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('floating')));
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
@@ -107,26 +107,41 @@ test('floating sections share a continuous surface and docked compact Inspector 
   const pages = page.locator('[data-floating-left-panel] [data-document-pages]');
   await expect(pages).toBeVisible();
   for (const selector of ['[data-document-pages]', '[data-document-layers]']) {
-    const style = await page.locator(`[data-floating-left-panel] ${selector}`).evaluate(el => ({ edge:getComputedStyle(el, '::after').content, shadow:getComputedStyle(el).boxShadow }));
-    expect(style).toEqual({ edge:'none', shadow:'none' });
+    // The workspace gives Pages and Layers individual section cards.
+    const style = await page.locator(`[data-floating-left-panel] ${selector}`).evaluate(el => ({
+      edge: getComputedStyle(el, '::after').borderTopWidth,
+      shadow: getComputedStyle(el).boxShadow,
+    }));
+    expect(style.edge).toBe('1px');
+    expect(style.shadow).not.toBe('none');
   }
   const outline = page.locator('[data-field-floating-outline]').first();
   expect(await outline.evaluate(el => getComputedStyle(el, '::after').borderTopWidth)).toBe('1px');
   await editor.select(['hero']);
   await page.waitForTimeout(350);
   await page.screenshot({ path: '/tmp/field-floating-continuous-review.png' });
-  await page.evaluate(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
-  await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
-  // Reload reads the preference into the workspace store.
-  await page.reload();
+  const chooser = page.locator('[data-workspace-layout-control]:visible').first();
+  await chooser.locator('[data-workspace-mode-trigger]').hover();
+  await chooser.getByRole('button', { name: /^full layout:/i }).click();
   await editor.node('hero').waitFor({ state:'visible' });
-  await page.locator('[data-workspace-collapse][data-side="right"]').first().click();
+  await page.locator('[data-workspace-collapse][data-side="right"][aria-pressed="false"]:visible').first().click();
   const compact = page.locator('[data-workspace-right-toggle]');
   await expect(compact).toHaveAttribute('data-detached', 'false');
   expect(await compact.evaluate(el => getComputedStyle(el, '::after').content)).toBe('none');
 });
 
 test('Insert glyphs use bright accents and animated previews fill their pills', async ({ page }) => {
+  // Keep the icon thumbnail check independent of the third-party catalog.
+  await page.route('https://api.iconify.design/collections', route => route.fulfill({
+    json: { 'material-symbols': { name: 'Material Symbols', total: 1 } },
+  }));
+  await page.route(url => url.hostname === 'api.iconify.design' && url.pathname === '/collection', route => route.fulfill({
+    json: { uncategorized: ['add'] },
+  }));
+  await page.route(url => url.hostname === 'api.iconify.design' && url.pathname === '/material-symbols.json', route => route.fulfill({
+    json: { prefix: 'material-symbols', width: 24, height: 24, icons: { add: { body: '<path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z" fill="currentColor"/>' } } },
+  }));
+
   await page.addInitScript(() => {
     localStorage.setItem('revyme:prefs:builderTheme', JSON.stringify('pink'));
     localStorage.setItem('revyme:prefs:themeMode', JSON.stringify('dark'));
@@ -154,8 +169,8 @@ test('Insert glyphs use bright accents and animated previews fill their pills', 
   const before = await illustration.evaluate(el => getComputedStyle(el).transform);
   await expect.poll(() => illustration.evaluate(el => getComputedStyle(el).transform)).not.toBe(before);
   await page.screenshot({ path: '/tmp/field-animated-preview-pills.png' });
-  await page.getByRole('button', { name: 'Icons', exact: true }).hover();
-  const pack = page.locator('[data-card-tone="neutral"]').first();
+  await page.getByRole('button', { name: 'Icons', exact: true }).click();
+  const pack = page.getByRole('button', { name: 'Material Symbols, 1 icons', exact: true });
   await expect(pack.locator('img')).toBeVisible();
   await expect.poll(() => pack.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await page.waitForTimeout(350);

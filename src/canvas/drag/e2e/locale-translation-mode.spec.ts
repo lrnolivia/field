@@ -4,6 +4,7 @@
 // hidden, and input placeholders are localizable per locale.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
+import { switchCanvasLanguage } from './helpers/localization';
 
 test.describe('translation mode', () => {
   test('panel swap, empty state, placeholder localization, Done pill', async ({ page }) => {
@@ -13,8 +14,7 @@ test.describe('translation mode', () => {
     await page.waitForTimeout(500);
 
     // ── Activate French ────────────────────────────────────────────────
-    await page.locator('[data-tutorial="locale-button"]').click();
-    await page.getByText('French', { exact: true }).click();
+    await switchCanvasLanguage(page, 'French');
     await page.waitForTimeout(400);
 
     // ── Text node: panel becomes per-locale text areas ─────────────────

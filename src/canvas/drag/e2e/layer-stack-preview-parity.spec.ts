@@ -135,15 +135,18 @@ test('canvas roots appear above viewport rows in the layer stack', async ({ page
 test('dragging a lower layer above another writes the frontmost source slot', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('LAYER_PREVIEW_PARITY');
+  await editor.waitForStableGeometry('root');
   const ellipse = page.locator('[data-layer-id="desktop:ellipse"]');
   const headline = page.locator('[data-layer-id="desktop:headline"]');
   await expect(ellipse).toBeVisible();
   await expect(headline).toBeVisible();
+  await ellipse.scrollIntoViewIfNeeded();
   const from = (await ellipse.boundingBox())!;
   const to = (await headline.boundingBox())!;
-  await page.mouse.move(from.x + 70, from.y + from.height / 2);
+  await page.mouse.move(from.x + 30, from.y + from.height / 2);
   await page.mouse.down();
-  await page.mouse.move(to.x + 70, to.y + 3, { steps: 8 });
+  await page.mouse.move(to.x + 30, to.y + 3, { steps: 8 });
+  await page.waitForTimeout(80);
   await page.mouse.up();
   await expect.poll(async () => {
     const code = await editor.getPageCode();
@@ -154,49 +157,66 @@ test('dragging a lower layer above another writes the frontmost source slot', as
   expect(rows.indexOf('desktop:ellipse')).toBeLessThan(rows.indexOf('desktop:headline'));
 });
 
-test('a flex child dragged to the top row receives the frontmost CSS order', async ({ page }) => {
+test('a flex child dragged to the top row becomes the first flow child', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('REORDERED_FLEX_COLUMN');
+  await editor.waitForStableGeometry('root');
   const hero = page.locator('[data-layer-id="desktop:hero"]');
   const how = page.locator('[data-layer-id="desktop:how"]');
   const rowsBefore = await page.locator('[data-layers-scroll] [data-layer-id]')
     .evaluateAll(elements => elements.map(el => el.getAttribute('data-layer-id')));
-  expect(rowsBefore.indexOf('desktop:how')).toBeLessThan(rowsBefore.indexOf('desktop:hero'));
-  const from = (await hero.boundingBox())!;
-  const to = (await how.boundingBox())!;
-  await page.mouse.move(from.x + 70, from.y + from.height / 2);
+  expect(rowsBefore.indexOf('desktop:hero')).toBeLessThan(rowsBefore.indexOf('desktop:how'));
+  const from = (await how.boundingBox())!;
+  const to = (await hero.boundingBox())!;
+  await page.mouse.move(from.x + 30, from.y + from.height / 2);
   await page.mouse.down();
-  await page.mouse.move(to.x + 70, to.y + 3, { steps: 8 });
+  await page.mouse.move(to.x + 30, to.y + 3, { steps: 8 });
+  await page.waitForTimeout(80);
   await page.mouse.up();
   await expect.poll(async () => {
     const rows = await page.locator('[data-layers-scroll] [data-layer-id]')
       .evaluateAll(elements => elements.map(el => el.getAttribute('data-layer-id')));
-    return rows.indexOf('desktop:hero') < rows.indexOf('desktop:how');
+    return rows.indexOf('desktop:how') < rows.indexOf('desktop:hero');
   }).toBe(true);
-  await expect.poll(async () => editor.node('hero').evaluate(el => getComputedStyle(el).order)).toBe('2');
+  await expect.poll(async () => editor.node('how').evaluate(el => getComputedStyle(el).order)).toBe('0');
+  await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['how', 'hero', 'features']);
 });
 
 test('workspace panes collapse independently, persist, and rail clicks reopen content', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('LAYER_PREVIEW_PARITY');
+  await editor.waitForStableGeometry('root');
   const viewport = editor.sandbox().locator('[data-viewport]').first();
+  const left = page.locator('[data-workspace-collapse][data-side="left"]:visible');
+  const right = page.locator('[data-workspace-collapse][data-side="right"]:visible');
+  const leftPane = page.locator('[data-editor-panel="left-primary"]');
+  const inspector = page.locator('[data-workspace-right-header]');
+  await expect(inspector).toBeVisible();
   const initialX = (await viewport.boundingBox())!.x;
-  await page.getByRole('button', { name: 'Collapse left pane' }).click();
-  await expect(page.locator('[data-editor-panel="left-primary"]')).toHaveCount(0);
+  const leftWidth = (await leftPane.boundingBox())!.width;
+  const rightWidth = (await inspector.boundingBox())!.width;
+  await left.click();
+  await expect(leftPane).toHaveAttribute('data-visible', 'false');
+  await expect(leftPane).toHaveAttribute('inert', '');
   await expect(page.locator('[data-left-menu-rail]')).toBeVisible();
   await expect(page.locator('[data-properties-panel]')).toBeVisible();
-  await expect.poll(async () => (await viewport.boundingBox())!.x - initialX).toBeCloseTo(-128, 0);
+  await expect.poll(async () => (await viewport.boundingBox())!.x - initialX).toBeCloseTo(-leftWidth / 2, 0);
 
+  await editor.waitForStableGeometry('root');
   const leftCollapsedX = (await viewport.boundingBox())!.x;
-  await page.getByRole('button', { name: 'Collapse properties pane' }).click();
+  await right.click();
   await expect(page.locator('[data-properties-panel]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Expand properties pane' })).toBeVisible();
-  await expect.poll(async () => (await viewport.boundingBox())!.x - leftCollapsedX).toBeCloseTo(130, 0);
+  const compactInspector = page.locator('[data-workspace-right-toggle]');
+  await expect(compactInspector).toBeVisible();
+  const collapsedReserve = await page.evaluate(() =>
+    Number(JSON.parse(localStorage.getItem('field:prefs:rightCollapsedWidth') ?? '60')),
+  );
+  await expect.poll(async () => (await viewport.boundingBox())!.x - leftCollapsedX).toBeCloseTo((rightWidth - collapsedReserve) / 2, 0);
 
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Expand left pane' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Expand properties pane' })).toBeVisible();
+  await expect(left).toHaveAttribute('aria-pressed', 'true');
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-tutorial="layers-button"]').click();
-  await expect(page.locator('[data-editor-panel="left-primary"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Expand properties pane' })).toBeVisible();
+  await expect(leftPane).toHaveAttribute('data-visible', 'true');
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
 });

@@ -942,6 +942,8 @@ export default function FileExplorer({ showSearch = true, searchQuery }: { showS
       counter++;
     }
 
+    // Keep any pending edit separate from the new page's two files.
+    sealPendingHistory();
     // Write both halves of the new page pair — client gets the
     // copied body, server is a fresh wrapper that renders it.
     projectFS.writeFile(newPath, clientCode);
@@ -959,6 +961,7 @@ export default function Page() {
       { setActiveFile, setSelectedIds, setUpdatingFromCanvas },
       { syncQueueCode, flushNow },
     );
+    pushHistoryFileOp(activeFile);
     trace.action('FileExplorer.duplicatePage', { from: filePath, to: newPath });
   }, [activeFile, setActiveFile, setSelectedIds, setUpdatingFromCanvas, setVersion]);
 

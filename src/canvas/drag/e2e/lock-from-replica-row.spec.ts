@@ -21,9 +21,13 @@ test('locking from a replica row locks the node everywhere and shows as locked',
   await editor.select(['card-inner'], 'mobile');
   await page.waitForTimeout(500);
 
-  await page.locator('[data-tutorial="layers-button"]').click();
+  const documentPanel = page.locator('[data-document-layers]:visible');
+  if (await documentPanel.count() === 0) {
+    await page.locator('[data-tutorial="layers-button"]').click();
+  }
+  await expect(documentPanel).toBeVisible();
   await page.waitForTimeout(500);
-  const row = page.locator('[data-layer-id$="card-inner"]').first();
+  const row = documentPanel.locator('[data-layer-id="mobile:card-inner"]');
   await expect(row).toBeVisible({ timeout: 10_000 });
   await row.hover();
   const padlock = row.locator('[title="Lock layer"]');

@@ -16,39 +16,28 @@
 import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
 
-async function openInsertAndDrag(
-  editor: EditorPage,
-  opts: { categoryLabel: string; itemId: string },
-  to: { x: number; y: number },
-) {
-  // 1. Click the Insert toggle in the LeftMenu — opens the primary
-  //    panel listing categories (Elements, Creative, …).
+async function openInsert(editor: EditorPage) {
   await editor.page().locator('[data-left-menu-item="insert"]').click();
-  // 2. Hover the requested category. The secondary panel is portal'd
-  //    into <body> on hover, so it doesn't appear inside the primary
-  //    panel's DOM tree.
-  await editor.page().locator(`text="${opts.categoryLabel}"`).first().hover();
-  // 3. Wait for the toolbar item to render inside the secondary panel.
-  const item = editor.page().locator(`[data-toolbar-item="${opts.itemId}"]`).first();
-  await item.waitFor({ state: 'visible' });
-  const box = await item.boundingBox();
-  if (!box) throw new Error(`toolbar item ${opts.itemId} has no boundingBox`);
-  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await editor.page().getByText('Elements', { exact: true }).click();
+  const frameTile = editor.page().locator('[data-toolbar-item="frame"]').first();
+  await frameTile.waitFor({ state: 'visible' });
+  await editor.waitForStableGeometry('hero');
+  return frameTile;
+}
 
-  // ToolbarDragStrategy fires from pointerdown without a threshold —
-  // a single down + move sequence is enough. Still emit several
-  // intermediate moves so RAF can settle each frame.
-  await editor.page().mouse.move(from.x, from.y);
-  await editor.page().mouse.down();
-  for (let i = 1; i <= 18; i++) {
-    const t = i / 18;
-    await editor.page().mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, { steps: 1 });
-    await editor.page().evaluate(() => new Promise(r => requestAnimationFrame(() => r(null))));
+async function dragFrameTile(editor: EditorPage, item: ReturnType<EditorPage['node']>, to: { x: number; y: number }) {
+  const page = editor.page();
+  const tile = await item.boundingBox();
+  if (!tile) throw new Error('Insert Frame tile has no bounding box');
+  const from = { x: tile.x + tile.width / 2, y: tile.y + tile.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 18; step++) {
+    const progress = step / 18;
+    await page.mouse.move(from.x + (to.x - from.x) * progress, from.y + (to.y - from.y) * progress);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
   }
-  // Strategy doesn't have grace, but pumping a few extra frames lets
-  // the drop-line settle on its final target so a follow-up assertion
-  // can read it before mouseup.
-  await editor.pumpDrag(to, 4);
+  await editor.pumpDrag(to);
 }
 
 test.describe('ToolbarDragStrategy', () => {
@@ -56,12 +45,13 @@ test.describe('ToolbarDragStrategy', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_COLUMN_GAP');
 
+    const frameTile = await openInsert(editor);
     const heroBox = await editor.nodeBox('hero');
     const featuresBox = await editor.nodeBox('features');
     const dropX = heroBox.x + heroBox.width / 2;
     const dropY = (heroBox.y + heroBox.height + featuresBox.y) / 2;
 
-    await openInsertAndDrag(editor, { categoryLabel: 'Elements', itemId: 'frame' }, { x: dropX, y: dropY });
+    await dragFrameTile(editor, frameTile, { x: dropX, y: dropY });
 
     // Drop-line should be on root, between hero (idx 0) and features (idx 1).
     const line = editor.dropLine();
@@ -86,11 +76,12 @@ test.describe('ToolbarDragStrategy', () => {
     // FLEX_COLUMN: hero / features / how all touch (gap=0). Cursor near
     // hero's bottom edge → magnet promotes to root, drop-line shows
     // between hero and features.
+    const frameTile = await openInsert(editor);
     const heroBox = await editor.nodeBox('hero');
     const dropX = heroBox.x + heroBox.width / 2;
     const dropY = heroBox.y + heroBox.height - 6; // 6px above hero/features boundary
 
-    await openInsertAndDrag(editor, { categoryLabel: 'Elements', itemId: 'frame' }, { x: dropX, y: dropY });
+    await dragFrameTile(editor, frameTile, { x: dropX, y: dropY });
 
     const line = editor.dropLine();
     await expect(line).toHaveAttribute('data-parent-id', 'root');
@@ -112,11 +103,12 @@ test.describe('ToolbarDragStrategy', () => {
     // Drop in the gap (none — touching), via magnet near hero's bottom
     // edge. Without the renumber-orders fix, the new node would land
     // visually at the top (default order:0).
+    const frameTile = await openInsert(editor);
     const heroBox = await editor.nodeBox('hero');
     const dropX = heroBox.x + heroBox.width / 2;
     const dropY = heroBox.y + heroBox.height - 6;
 
-    await openInsertAndDrag(editor, { categoryLabel: 'Elements', itemId: 'frame' }, { x: dropX, y: dropY });
+    await dragFrameTile(editor, frameTile, { x: dropX, y: dropY });
 
     // Drop-line between hero (visual 0) and features (visual 1).
     const line = editor.dropLine();

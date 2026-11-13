@@ -8,8 +8,8 @@ test('panel pill × closes an open Localize popup', async ({ page }) => {
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
   // Localize Fill via the menu — popup stays open (owned by the label).
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   await expect(page.locator('[data-locale-style-popup]')).toBeVisible();
   // × the pill on the ROW (properties panel) → popup must close too.

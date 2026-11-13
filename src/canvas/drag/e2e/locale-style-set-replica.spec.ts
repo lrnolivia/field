@@ -9,8 +9,8 @@ test('popup Set on replica scopes to band', async ({ page }) => {
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
   // Mobile replica: open the popup from the pill, change Set via the picker.
@@ -19,8 +19,8 @@ test('popup Set on replica scopes to band', async ({ page }) => {
   await expect(pill).toBeVisible({ timeout: 5000 });
   await pill.click();
   await page.waitForTimeout(400);
-  await page.locator('[data-locale-condition] button').first().click();
-  const hexInput = page.locator('[data-tool-popup] input').first();
+  await page.locator('[data-locale-condition] [data-field-motion="color-input"]').first().click();
+  const hexInput = page.getByRole('dialog', { name: 'Paint picker', exact: true }).locator('input').first();
   await hexInput.fill('00FF00');
   await hexInput.press('Enter');
   await page.waitForTimeout(700);

@@ -359,7 +359,7 @@ export default function StylesTool({ scope = 'all', advancedExtras }: { scope?: 
           {!isText && !isWrapper && (
             <>
               <ToolDivider />
-              <ToolSection title="Fill" action={<StyleSectionActions property="backgroundColor" onAdd={addFill} addTitle="Add fill" />}>
+              <ToolSection title="Fill" action={<StyleSectionActions property="backgroundColor" localizableLabel="Fill" onAdd={addFill} addTitle="Add fill" />}>
                 <FillControl compactSection />
               </ToolSection>
               <ToolDivider />

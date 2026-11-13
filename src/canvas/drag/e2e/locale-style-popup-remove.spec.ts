@@ -7,8 +7,8 @@ test('popup Variable × on replica removes only that replica', async ({ page }) 
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
   // Tablet: open the popup from the pill, × the Variable pill inside it.

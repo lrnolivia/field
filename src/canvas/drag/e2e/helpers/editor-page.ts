@@ -25,6 +25,8 @@ async function waitForCanvasReady(page: Page): Promise<void> {
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   // Also wait for at least one viewport to be rendered.
   await sandbox.locator('[data-viewport]').first().waitFor({ state: 'attached' });
+  await page.locator('[data-editor-interactive="true"]').waitFor({ state: 'attached' });
+  await page.waitForFunction(() => Boolean((window as any).__e2e?.readFile));
 }
 
 export class EditorPage {

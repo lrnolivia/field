@@ -1,7 +1,7 @@
 // Localization Phase 1 regression — the "Peintre stays in English / empty
 // after page switch" report (2026-07-21).
 //
-// Flow: activate French → edit "Painter" → "Peintre" on canvas → switch back
+// Flow: activate French → translate "Painter" → "Peintre" in the Inspector → switch back
 // to English → the ORIGINAL text must return (the JSX is now `{t('intro')}`
 // and the default text lives in messages/en.json, seeded at transform time).
 // A full reload (fresh parse of the transformed JSX) must still show the
@@ -9,6 +9,7 @@
 // never reliably seeded and the canvas resolution silently dropped entries.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
+import { switchCanvasLanguage } from './helpers/localization';
 
 test.describe('locale text roundtrip', () => {
   test('French edit, English restore, reload persistence', async ({ page }) => {
@@ -22,28 +23,15 @@ test.describe('locale text roundtrip', () => {
     await expect(intro).toHaveText('Painter');
 
     // ── Activate French via the Localization panel ─────────────────────
-    await page.locator('[data-tutorial="locale-button"]').click();
-    await page.getByText('French', { exact: true }).click();
+    await switchCanvasLanguage(page, 'French');
     await page.waitForTimeout(400);
 
-    // ── Edit the text on canvas: dblclick → TipTap overlay (parent frame) ──
-    const box = await intro.boundingBox();
-    if (!box) throw new Error('no intro box');
-    // Two spaced clicks, not mouse.dblclick — playwright fires the pair <50ms
-  // apart and the controller's duplicate-event guard (timeDiff > 50) drops it.
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(120);
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    const editorEl = sandbox.locator('[contenteditable="true"]').first();
-    await expect(editorEl).toBeVisible({ timeout: 5_000 });
-    // VISIBLE ≠ FOCUSED. TipTap mounts, then takes a frame to place the
-    // caret; typing into that gap loses the first keystroke and the
-    // select-all replacement eats the second instead ("Peintre" → "eintre",
-    // reproduced ~1 run in 3). Let focus settle before driving the keyboard.
-    await page.waitForTimeout(250);
-    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
-    await page.keyboard.type('Peintre');
-    await page.keyboard.press('Escape');
+    // A non-default locale uses the Translation Inspector. Editing directly
+    // on the canvas is intentionally disabled so an edit cannot change the base.
+    await editor.select(['intro'], 'desktop');
+    const translation = page.locator('[data-translation-panel] [data-locale-field="French"] textarea');
+    await translation.fill('Peintre');
+    await translation.press('Enter');
     await expect(intro).toHaveText('Peintre', { timeout: 5_000 });
 
     // The JSX must now carry the translation call and messages seeded.
@@ -63,14 +51,15 @@ test.describe('locale text roundtrip', () => {
     expect(frNs?.[Object.keys(frNs)[0]]?.intro).toBe('Peintre');
 
     // ── Switch back to English: the original text must return ──────────
-    await page.getByText('English', { exact: true }).first().click();
+    await switchCanvasLanguage(page, 'English');
     await expect(intro).toHaveText('Painter', { timeout: 5_000 });
 
     // ── Full reload: fresh parse of the transformed JSX must still show
     //    the default text (pre-fix: EMPTY). ─────────────────────────────
     await page.waitForTimeout(2500); // autosave debounce → localStorage
-    await page.reload();
-    const introAfter = editor.sandbox().locator('[data-viewport="desktop"] [data-id="intro"]').first();
+    const reopened = await page.context().newPage();
+    await reopened.goto('/work/local');
+    const introAfter = new EditorPage(reopened).sandbox().locator('[data-viewport="desktop"] [data-id="intro"]').first();
     await expect(introAfter).toHaveText('Painter', { timeout: 30_000 });
   });
 });

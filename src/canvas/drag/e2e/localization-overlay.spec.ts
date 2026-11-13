@@ -2,12 +2,13 @@
 // page sections with source→target rows, live commit, URL param mirror.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
+import { openLocalizationSettings } from './helpers/localization';
 
 test('localization overlay lists pages and commits translations', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('LOCALE_TEXT');
-  await page.locator('[data-tutorial="locale-button"]').click();
-  await page.getByText('Manage Translations').click();
+  const settings = await openLocalizationSettings(page);
+  await settings.getByRole('button', { name: /^manage translations$/i }).click();
 
   // (The portal wrapper is zero-size — assert on the fixed panes inside.)
   await expect(page.locator('[data-localization-section]').first()).toBeVisible();

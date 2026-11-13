@@ -32,7 +32,7 @@ async function seed(page: import('@playwright/test').Page): Promise<EditorPage> 
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/work/local');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('spin-1').waitFor({ state: 'visible', timeout: 60_000 });
@@ -54,10 +54,14 @@ async function dragBy(page: import('@playwright/test').Page, from: { x: number; 
 test('dragging a rotated node OUT of a frame onto the canvas keeps its rotation on commit', async ({ page }) => {
   test.setTimeout(120_000);
   const editor = await seed(page);
-  const b = (await editor.node('spin-1').boundingBox())!;
-  // Drag from the node's center far left — well past the frame's edge onto
-  // empty canvas.
-  await dragBy(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, -(b.x + b.width / 2) + 60, 40);
+  await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+  await editor.select(['spin-1'], 'desktop');
+  await editor.waitForStableGeometry('spin-1');
+  const from = await editor.nodeCenter('spin-1');
+  const root = await editor.nodeBox('root');
+  const target = { x: root.x + root.width + 32, y: from.y };
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.hasAttribute('data-canvas-input-surface'), target)).toBe(true);
+  await dragBy(page, from, target.x - from.x, target.y - from.y);
 
   const code: string = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));
   const seg = code.slice(code.indexOf('spin-1'), code.indexOf('spin-1') + 500);

@@ -27,6 +27,7 @@ import { resolveMultiSelectLayoutType } from './multi-select-layout';
 import ComponentPropsTool from './tools/ComponentPropsTool';
 import IconSetTool from './tools/IconSetTool';
 import TextStyleTool from './tools/TextStyleTool';
+import { ContentControl } from './tools/TextStyleTool/atoms/ContentControl';
 import StylesTool from './tools/StylesTool';
 import CursorTool from './tools/CursorTool';
 import AccessibilityTool from './tools/AccessibilityTool';
@@ -136,7 +137,7 @@ function findCollectionContext(node: CanvasNode, nodes: Map<string, CanvasNode>)
 
 // Inner component — has access to useControl()
 function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySource = false }: { isMultiSelect?: boolean; mobileTask?: InspectorTask; categorySource?: boolean }) {
-  const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles } = useControl();
+  const { node, styles, vpId, isReplica, vpWidth, parentLayout, updateStyle, updateMultipleStyles, cmsBinding } = useControl();
   const activeEditor = useAtomValue(activeEditorAtom);
   const toolMode = useAtomValue(toolModeAtom);
   const shapeEditingId = useAtomValue(shapeEditingIdAtom);
@@ -284,6 +285,9 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySourc
   const isNativeGroup = node.isGroup === true;
   const isFrame = !isNativeGroup && (isFrameTag(rawType) || linkIsContainer);
   const isSvg = node.type === 'svg' && !isFitSvgWrapper;
+  const hasCmsTextBinding = !isMultiSelect && (isText || isFitSvgWrapper)
+    && (!!cmsBinding?.getBindingForProperty('textContent') || node.orphanBindings?.some(binding => binding.prop === '__text'));
+
   // Sketch wrappers are SVGs marked with `data-sketch="true"` by the
   // SketchCreator. They share the SVG selection branch (Position +
   // Size at top) but swap SvgShapeTool's fill/stroke controls for the
@@ -463,6 +467,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySourc
       {isComponentInstance && isInsideForm && <FormStateTool />}
       <ComponentPropsTool /><IconSetTool />
       {isImageElement && <ImageTool />}{isVideoElement && <VideoTool />}{isAudioElement && <AudioTool />}
+      {hasCmsTextBinding && <ContentControl />}
       {isText ? <TextStyleTool /> : null}
     </>;
     let task: React.ReactNode;
@@ -840,10 +845,7 @@ function PropertiesPanelInner({ isMultiSelect = false, mobileTask, categorySourc
             <ToolDivider />
           </>
         )}
-        {/* The standalone "Template bindings" row was here — removed once the
-            per-property menu (Bind to Field / Unbind Field) covered every
-            bindable property in the panel. The dedicated row was confusing:
-            it duplicated the menu's affordance and only handled text/src/href. */}
+        {hasCmsTextBinding && <ContentControl />}
         {/* Form State — maps the enclosing form's lifecycle (loading/
             success/error/disabled) to this instance's variants. Self-gates
             to a multi-variant component instance inside a <form>. */}

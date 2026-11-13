@@ -19,6 +19,9 @@ test.describe('LayoutLiftedStrategy', () => {
   test('reorder within parent: drag features above hero updates visual order', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_COLUMN');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['features'], 'desktop');
+    await editor.waitForStableGeometry('features');
 
     // Initial visual order: hero, features, how.
     expect(await editor.getRootChildrenVisualOrder()).toEqual(['hero', 'features', 'how']);
@@ -31,13 +34,15 @@ test.describe('LayoutLiftedStrategy', () => {
 
     await editor.dragFromTo(from, to);
 
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['features', 'hero', 'how']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['features', 'hero', 'how']);
   });
 
   test('reorder works after a previous reorder (visual sort, not JSX sort)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('REORDERED_FLEX_COLUMN');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['how'], 'desktop');
+    await editor.waitForStableGeometry('how');
 
     // Initial visual order via explicit `order` styles: hero, features, how.
     // JSX order is: how, hero, features.
@@ -53,8 +58,7 @@ test.describe('LayoutLiftedStrategy', () => {
 
     await editor.dragFromTo(from, to);
 
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['how', 'hero', 'features']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['how', 'hero', 'features']);
   });
 
   test('drop at END commits with an invisible zero-size flow sibling present', async ({ page }) => {
@@ -65,20 +69,24 @@ test.describe('LayoutLiftedStrategy', () => {
     // compare equal to its start slot and silently revert on mouseup.
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('GHOST_SIBLING_COLUMN');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['footer'], 'desktop');
+    await editor.waitForStableGeometry('footer');
 
     const visibleOrder = async () =>
       (await editor.getRootChildrenVisualOrder()).filter((id) => id !== 'ghost');
     expect(await visibleOrder()).toEqual(['nav', 'hero', 'footer', 'cta']);
 
     // Drag footer DOWN past the CTA's bottom edge → footer becomes last.
-    const footerBox = await editor.nodeBox('footer');
     const ctaBox = await editor.nodeBox('cta');
-    const from = { x: footerBox.x + footerBox.width / 2, y: footerBox.y + footerBox.height / 2 };
-    const to = { x: ctaBox.x + ctaBox.width / 2, y: ctaBox.y + ctaBox.height - 4 };
+    const rootBox = await editor.nodeBox('root');
+    const ctaEnd = ctaBox.y + ctaBox.height;
+    const emptySpace = rootBox.y + rootBox.height - ctaEnd;
+    expect(emptySpace).toBeGreaterThan(16);
+    const to = { x: ctaBox.x + ctaBox.width / 2, y: ctaEnd + emptySpace / 2 };
 
-    await editor.dragFromTo(from, to);
-
-    expect(await visibleOrder()).toEqual(['nav', 'hero', 'cta', 'footer']);
+    await editor.dragNodeAsserted('footer', to, { steps: 24, releaseDelayMs: 100 });
+    await expect.poll(visibleOrder).toEqual(['nav', 'hero', 'cta', 'footer']);
 
     // The bordered footer keeps its border AND carries a real `order` —
     // the generator's order/border key-collision regression.
@@ -98,6 +106,9 @@ test.describe('LayoutLiftedStrategy', () => {
   test('row-flex reorder works the same as column', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_ROW');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['col-c'], 'desktop');
+    await editor.waitForStableGeometry('col-c');
 
     expect(await editor.getRootChildrenVisualOrder()).toEqual(['col-a', 'col-b', 'col-c']);
 
@@ -110,7 +121,6 @@ test.describe('LayoutLiftedStrategy', () => {
     const to = { x: colA.x + colA.width + 4, y: colC.y + colC.height / 2 };
 
     await editor.dragFromTo(from, to, { steps: 24, releaseDelayMs: 100 });
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['col-a', 'col-c', 'col-b']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['col-a', 'col-c', 'col-b']);
   });
 });

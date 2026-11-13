@@ -4,6 +4,7 @@
 // (/api/translate[/estimate]) with the freeform-turn credit pattern.
 import { test, expect } from '@playwright/test';
 import { EditorPage } from './helpers/editor-page';
+import { openLocalizationSettings } from './helpers/localization';
 
 test('AI Translate estimates, confirms and fills missing translations', async ({ page }) => {
   await page.route('**/api/translate/estimate', async route => {
@@ -19,8 +20,8 @@ test('AI Translate estimates, confirms and fills missing translations', async ({
 
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('LOCALE_TEXT');
-  await page.locator('[data-tutorial="locale-button"]').click();
-  await page.getByText('Manage Translations').click();
+  const settings = await openLocalizationSettings(page);
+  await settings.getByRole('button', { name: /^manage translations$/i }).click();
   await expect(page.locator('[data-localization-section]').first()).toBeVisible();
 
   const btn = page.locator('[data-ai-translate]');

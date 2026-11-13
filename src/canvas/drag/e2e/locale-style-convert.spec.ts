@@ -13,21 +13,21 @@ test('Localize popup writes :lang rule and control shows the Locale pill', async
   // Select the intro text node (default mode) and open the Color label menu.
   await page.evaluate(() => (window as any).__e2e.select(['intro']));
   await page.waitForTimeout(400);
-  const colorLabel = page.locator('[data-properties-panel]').getByText('Color', { exact: true }).first();
+  const colorLabel = page.locator('[data-properties-panel] [data-property-menu="color"]').first();
   await colorLabel.click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
 
   // The convert popup: Variable pill, Convert, When select, Set control.
   await expect(page.locator('[data-locale-style-popup]')).toBeVisible();
   await expect(page.locator('[data-locale-variable-pill]')).toBeVisible();
-  const whenSelect = page.locator('[data-locale-condition] select').first();
+  const whenSelect = page.locator('[data-locale-condition] [data-field-select-trigger]').first();
   await expect(whenSelect).toBeVisible();
 
   // Set a French color via the REAL ColorInput: click the swatch → the
   // color picker slides in within the ToolPopup → type a hex.
-  await page.locator('[data-locale-condition] button').first().click();
+  await page.locator('[data-locale-condition] [data-field-motion="color-input"]').first().click();
   await page.waitForTimeout(400);
-  const hexInput = page.locator('[data-tool-popup] input').first();
+  const hexInput = page.getByRole('dialog', { name: 'Paint picker', exact: true }).locator('input').first();
   await expect(hexInput).toBeVisible();
   await hexInput.fill('FF0044');
   await hexInput.press('Enter');

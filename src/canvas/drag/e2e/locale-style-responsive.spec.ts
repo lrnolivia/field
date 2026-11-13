@@ -14,11 +14,11 @@ test('locale pill is per-replica removable and re-settable', async ({ page }) =>
   // Localize the card's color on the PRIMARY: menu → Localize → set French.
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  const fillLabel = page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first();
+  const fillLabel = page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first();
   await fillLabel.click();
-  await page.getByText('Localize', { exact: true }).click();
-  await page.locator('[data-locale-condition] button').first().click();
-  const hexInput = page.locator('[data-tool-popup] input').first();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
+  await page.locator('[data-locale-condition] [data-field-motion="color-input"]').first().click();
+  const hexInput = page.getByRole('dialog', { name: 'Paint picker', exact: true }).locator('input').first();
   await hexInput.fill('FF0044');
   await hexInput.press('Enter');
   await page.keyboard.press('Escape');

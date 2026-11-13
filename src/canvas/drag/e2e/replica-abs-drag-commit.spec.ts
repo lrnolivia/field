@@ -16,15 +16,16 @@ test.describe('replica absolute drag commit', () => {
   test('mouseup keeps the dragged position on the mobile replica', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('REPLICA_ABS_DRAG');
-    await page.keyboard.press('Shift+1');
-    await page.waitForTimeout(600);
+    await editor.fitCamera();
+    await editor.primeNode('card', 'mobile');
+    await editor.select(['abs'], 'mobile');
 
     const sandbox = editor.sandbox();
     const mobileAbs = sandbox.locator('[data-viewport="mobile"] [data-id="abs"]').first();
     const before = await mobileAbs.boundingBox();
     if (!before) throw new Error('no mobile abs box');
 
-    const from = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    const from = { x: before.x + before.width / 2 + 4, y: before.y + before.height / 2 + 3 };
     await editor.dragFromTo(from, { x: from.x + 25, y: from.y + 20 }, { steps: 14 });
     await page.waitForTimeout(150);
     const atMouseup = await mobileAbs.boundingBox();
