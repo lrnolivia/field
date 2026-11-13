@@ -12,8 +12,8 @@ test('Gap localize does not crash; Padding gets pill + wide control', async ({ p
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
   // GAP — used to crash StyleField with "Rendered fewer hooks".
-  await page.locator('[data-properties-panel]').getByText('Gap', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="gap"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   expect(errs.filter(e => e.includes('fewer hooks'))).toHaveLength(0);
   // The seeded gap value is a real length (CSS initial 0px), never the
@@ -24,8 +24,8 @@ test('Gap localize does not crash; Padding gets pill + wide control', async ({ p
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-locale-pill="gap"]')).toBeVisible({ timeout: 5000 });
   // PADDING — pill on the row + rule written.
-  await page.locator('[data-properties-panel]').getByText('Padding', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="padding"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   const dbg = await page.evaluate(() => {
     const cond = document.querySelector('[data-locale-condition]');

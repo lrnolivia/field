@@ -166,6 +166,16 @@ export function LocaleValueEditor({ property, value, onChange, onChangeLive, fle
   return <ToolInput value={value} onChange={onChange} text />;
 }
 
+function LocaleStyleValueRow({ label, fullWidth, children }: { label: string; fullWidth: boolean; children: React.ReactNode }) {
+  if (!fullWidth) return <ToolRow label={label}>{children}</ToolRow>;
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-[var(--text-secondary)]">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 // ─── The popup ─────────────────────────────────────────────────────────────
 
 export default function LocaleStylePopup({ property, propertyLabel, nodeId, baseValue, isOpen, onClose, anchorRef, onChangeBase, onChangeBaseLive }: {
@@ -376,11 +386,12 @@ export default function LocaleStylePopup({ property, propertyLabel, nodeId, base
   };
 
   const usedLocales = new Set(conds.map(c => c.locale));
+  const needsFullWidth = property === 'padding' || property === 'margin';
   const nextFree = locales.find(l => !usedLocales.has(l.code));
 
   if (!isOpen) return null;
   return (
-    <ToolPopup isOpen onClose={onClose} title={propertyLabel ?? property} anchorRef={anchorRef} width={260}>
+    <ToolPopup isOpen onClose={onClose} title={propertyLabel ?? property} anchorRef={anchorRef} width={needsFullWidth ? 304 : 260}>
       <div className="flex flex-col gap-2.5 p-0.5" data-locale-style-popup>
         {/* Variable row — blue Locale pill: BODY opens the Localization
             view, only the × removes the localization. */}
@@ -430,7 +441,7 @@ export default function LocaleStylePopup({ property, propertyLabel, nodeId, base
                   {conds.length > 1 && <RemoveButton onClick={() => removeCond(idx)} />}
                 </div>
               </ToolRow>
-              <ToolRow label="Set">
+              <LocaleStyleValueRow label="Set" fullWidth={needsFullWidth}>
                 <LocaleValueEditor
                   property={property}
                   value={c.value || effectiveBase}
@@ -438,20 +449,20 @@ export default function LocaleStylePopup({ property, propertyLabel, nodeId, base
                   onChangeLive={(v) => setConds(prev => prev.map((cc, i) => (i === idx ? { ...cc, value: v } : cc)))}
                   flexDirection={nodes.get(nodeId)?.styles?.flexDirection}
                 />
-              </ToolRow>
+              </LocaleStyleValueRow>
             </div>
           </React.Fragment>
         ))}
 
         {/* Fallback — the default-locale (base) value, real control */}
         <div className="border-t border-[var(--border-light)] mt-0.5 pt-2.5 flex flex-col gap-2.5">
-          <ToolRow label="Fallback">
+          <LocaleStyleValueRow label="Fallback" fullWidth={needsFullWidth}>
             {onChangeBase ? (
               <LocaleValueEditor property={property} value={effectiveBase} onChange={onChangeBase} onChangeLive={onChangeBaseLive} flexDirection={nodes.get(nodeId)?.styles?.flexDirection} />
             ) : (
               <span className="text-xs text-[var(--text-disabled)] truncate" title={effectiveBase}>{effectiveBase || '—'}</span>
             )}
-          </ToolRow>
+          </LocaleStyleValueRow>
           {nextFree && (
             <button
               onClick={() => {

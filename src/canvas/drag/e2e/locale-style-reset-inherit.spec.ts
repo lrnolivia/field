@@ -11,8 +11,8 @@ test('reset override on replica re-inherits, desktop untouched', async ({ page }
   // Localize Fill on desktop (auto-converts with base).
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
   // Mobile: × the pill (band removal).
@@ -23,7 +23,7 @@ test('reset override on replica re-inherits, desktop untouched', async ({ page }
   await page.waitForTimeout(600);
   await expect(page.locator('[data-locale-pill="backgroundColor"]')).toHaveCount(0);
   // Reset Override on the Fill label (mobile interacting).
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
   await page.getByText('Reset Override', { exact: true }).click();
   await page.waitForTimeout(800);
   const codeAfter = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));

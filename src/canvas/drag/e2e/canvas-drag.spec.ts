@@ -21,6 +21,9 @@ test.describe('CanvasDragStrategy', () => {
   test('drag canvas node into a layout viewport (drop in gap)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('CANVAS_NODE_WITH_GAP');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['floater'], 'desktop');
+    await editor.waitForStableGeometry('floater');
 
     // The seeded gap is 60px between hero and features. Drop the
     // floater into the middle of that gap so the cursor is inside
@@ -35,13 +38,14 @@ test.describe('CanvasDragStrategy', () => {
 
     // The floater should now be a layout child of root, between hero
     // and features in visual order.
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['hero', 'floater', 'features', 'how']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['hero', 'floater', 'features', 'how']);
   });
 
   test('edge-magnet promotes when cursor sits near a touching sibling boundary', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('CANVAS_NODE_SMALL');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('floater');
 
     // FLEX_COLUMN-style: hero / features / how all touch (gap=0).
     // Aim cursor 8px below hero's top edge: still inside hero, AND
@@ -60,7 +64,7 @@ test.describe('CanvasDragStrategy', () => {
     //     cursor.y >= hero.top + floater.height / 2
     //   - Within edgePx (12) of hero's top edge → cursor.y <= hero.top + 12
     // cursor.y = hero.top + 10 satisfies both (10 in [floater_h/2=10, edgePx=12]).
-    const dropY = heroBox.y + floaterBox.height / 2;
+    const dropY = heroBox.y + floaterBox.height / 2 + 2;
 
     const from = await editor.nodeCenter('floater');
     await page.mouse.move(from.x, from.y);
@@ -86,6 +90,8 @@ test.describe('CanvasDragStrategy', () => {
   test('no parent-highlight flash on ROOT during entry-grace when magnet promotes', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('CANVAS_NODE_SMALL');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('floater');
 
     // Reproduce the user-reported flash: cursor sweeps into hero's top
     // edge zone, magnet promotes to root, drop-line confirms after the
@@ -99,7 +105,7 @@ test.describe('CanvasDragStrategy', () => {
     const heroBox = await editor.nodeBox('hero');
     const floaterBox = await editor.nodeBox('floater');
     const dropX = heroBox.x + heroBox.width / 2;
-    const dropY = heroBox.y + floaterBox.height / 2;
+    const dropY = heroBox.y + floaterBox.height / 2 + 2;
     const from = await editor.nodeCenter('floater');
 
     await page.mouse.move(from.x, from.y);
@@ -133,6 +139,7 @@ test.describe('CanvasDragStrategy', () => {
       await checkOverlays();
     }
 
+    await expect(editor.dropLine()).toHaveAttribute('data-parent-id', 'root');
     await page.mouse.up();
     expect(sawRootHighlight).toBe(false);
   });

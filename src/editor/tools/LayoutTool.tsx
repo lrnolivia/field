@@ -1,3 +1,5 @@
+import { LocalePillOrLegacy } from '../controls/LocaleBoundPill';
+import { i18nConfigAtom } from '@/code/stores/locale-store';
 // LayoutTool.tsx — Flex/grid layout controls ported from old builder design.
 // Uses icon-based direction toggle, direction-aware align/justify labels,
 // human-readable wrap toggle, and grid column/row +/- controls.
@@ -1283,6 +1285,7 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
   const gapMenuRef = useRef<HTMLButtonElement>(null);
   const [distributionAnchor, setDistributionAnchor] = useState<'button' | 'gap'>('button');
   const gapValue = String(parseFloat(styles.gap || '0') || 0);
+  const hasMultipleLocales = useAtomValue(i18nConfigAtom).locales.length > 1;
 
   const alignmentMatrix = !hasGrid ? (
     <div data-auto-layout-alignment className="field-inspector-pair !items-start">
@@ -1315,15 +1318,20 @@ function StandardLayoutTool({ styles, nodeId, onUpdate, onUpdateMultiple, templa
 
       <div className="flex flex-col gap-2 min-w-0">
         <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center rounded-[var(--control-radius)] bg-[var(--control-bg)] border border-[var(--control-border)] overflow-hidden">
-          <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Gap">
-            <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M3 3h10M3 13h10M8 5v6m-2-2 2 2 2-2" /></svg>
-          </span>
-          <ToolInput
-            value={gapValue}
-            onChange={(v) => onUpdate('gap', `${Math.max(0, parseFloat(v) || 0)}px`)}
-            min={0}
-            className="border-0"
-          />
+          {hasMultipleLocales ? (
+            <ControlLabel label="Gap" property="gap" menuIcon={
+              <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M3 3h10M3 13h10M8 5v6m-2-2 2 2 2-2" /></svg>
+            } />
+          ) : (
+            <span className="h-full flex items-center justify-center text-[var(--text-secondary)] border-r border-[var(--control-border)]" title="Gap">
+              <svg aria-hidden width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M3 3h10M3 13h10M8 5v6m-2-2 2 2 2-2" /></svg>
+            </span>
+          )}
+          <LocalePillOrLegacy property="gap" label="Gap" nodeId={nodeId ?? null}
+            baseValue={styles.gap || '0px'} onChangeBase={(value) => onUpdate('gap', value)}>
+            <ToolInput value={gapValue} onChange={(v) => onUpdate('gap', `${Math.max(0, parseFloat(v) || 0)}px`)}
+              min={0} className="border-0" />
+          </LocalePillOrLegacy>
           <button ref={gapMenuRef} type="button" aria-label="Gap distribution options" title="Gap distribution options"
             onClick={() => { setDistributionAnchor('gap'); setDistributionOpen(true); }}
             className="h-[var(--control-height)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">⌄</button>

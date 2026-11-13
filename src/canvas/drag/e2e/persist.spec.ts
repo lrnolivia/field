@@ -13,12 +13,15 @@ test('P0.1: local-mode edit survives a reload', async ({ page }) => {
 
   const before = await editor.getPageCode();
 
+  await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+  await editor.waitForStableGeometry('hero');
+
   // Draw a frame inside hero (same gesture as the covenant smoke).
-  await page.keyboard.press('f');
+  await page.locator('[data-toolbar-tool="frame"]').click();
   const hero = await editor.nodeBox('hero');
   await editor.dragFromTo(
-    { x: hero.x + 60, y: hero.y + 60 },
-    { x: hero.x + 180, y: hero.y + 150 },
+    { x: hero.x + hero.width * 0.3, y: hero.y + hero.height * 0.3 },
+    { x: hero.x + hero.width * 0.47, y: hero.y + hero.height * 0.6 },
   );
   await page.waitForTimeout(600);
   const after = await editor.getPageCode();

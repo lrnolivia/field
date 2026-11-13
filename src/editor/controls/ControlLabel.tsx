@@ -12,7 +12,7 @@
 // Left chevron arrow on hover, shifts 2px left.
 // Dropdown menu portal'd to document.body with backdrop.
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { isComponentFileAtom, variableModalRequestAtom, canvasInteractingAtom } from '@/code/stores/store';
@@ -58,6 +58,8 @@ interface ControlLabelProps {
    *  so the legacy flex geometry (w-3/4 + mr-[2px] shim) must not apply.
    *  Legacy hand-rolled flex rows omit this until they migrate (12.3). */
   cell?: boolean;
+  /** Reuse the property menu in compact rows that show an icon instead of a label. */
+  menuIcon?: ReactNode;
   /** Render as a plain non-interactive label (no menu, no chevron, no variable). Use inside popups for sub-labels. */
   plain?: boolean;
   /** Render even when the unified context sets `hideLabel`. `hideLabel` hides the atom's redundant OUTER row
@@ -178,7 +180,7 @@ function PlainOverrideLabel({ label, subLabel, onReset, cell }: { label: string;
   );
 }
 
-export default function ControlLabel({ label, property, plain, forceShow, hideCreateVariable, hideResetStyle, hideCmsBinding, hideVariableMenu, hideCopyPasteStyle, hideLocalize, extraMenuItems, overridden, onResetOverride, subLabel, cell }: ControlLabelProps) {
+export default function ControlLabel({ label, property, plain, forceShow, hideCreateVariable, hideResetStyle, hideCmsBinding, hideVariableMenu, hideCopyPasteStyle, hideLocalize, extraMenuItems, overridden, onResetOverride, subLabel, cell, menuIcon }: ControlLabelProps) {
   // Hidden entirely when the unified context requests it (Variable modal's Default row — the FieldRow
   // already labels it; the atom's own "Background"/"Border" label would be redundant). Hook is called
   // unconditionally (Rules of Hooks); the optional variant returns null outside a unified provider.
@@ -393,6 +395,12 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
   // style override entry.
   // Replica-band locale state — hoisted above isOverride (used there).
   const localeBandState = useLocaleStyleState(property, nodeId ?? null);
+  const hasEffectiveLocaleStyles = localeBandState.locales.length > 0;
+  const wasLocalized = useRef(false);
+  useEffect(() => {
+    if (wasLocalized.current && !hasEffectiveLocaleStyles) setLocalizeOpen(false);
+    wasLocalized.current = hasEffectiveLocaleStyles;
+  }, [hasEffectiveLocaleStyles]);
   const isOverride = hasOverride(property) || !!overridden
     // Replica :lang band rules (per-replica locale value or removal) are a
     // normal override: same blue label, same Reset Override affordance.
@@ -854,7 +862,10 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
     <>
       <button
         ref={buttonRef}
-        title={provenanceTooltip}
+        type="button"
+        title={menuIcon ? `${label} options` : provenanceTooltip}
+        aria-label={menuIcon ? `${label} options` : undefined}
+        data-property-menu={property}
         data-inspector-source={propertyResolution.read.source.kind}
         data-inspector-write-target={propertyResolution.write.target.kind}
         onClick={openMenu}
@@ -872,14 +883,14 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
         // span actually clips overflow. Without it the button keeps
         // growing past `w-3/4` to fit a long label and pushes the
         // row's value column to the right.
-        className={`group relative min-w-0 select-none text-left pl-[18px] -ml-[18px]${cell ? '' : ' w-3/4'} ${hasDropdownContent ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`group relative min-w-0 select-none text-left ${menuIcon ? 'h-[var(--control-height)] w-6 shrink-0 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]' : `pl-[18px] -ml-[18px]${cell ? '' : ' w-3/4'}`} ${hasDropdownContent ? 'cursor-pointer' : 'cursor-default'}`}
       >
         {/* Left chevron arrow — always visible, translates left on hover.
             When `menuOpen` is true we apply the translated/coloured state
             directly so the chevron stays "active" while the dropdown is up
             (otherwise moving the cursor onto the menu drops the :hover and
             the chevron snaps back to neutral). */}
-        {hasDropdownContent && (
+        {hasDropdownContent && !menuIcon && (
           // The chevron is absolute-positioned relative to the button. The
           // button gained `-ml-[18px]` (to extend its hit-area left), which
           // also shifted the chevron's reference point 18px left — leaving
@@ -904,7 +915,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
             the binding state — duplicating it on the label was noisy. So
             CMS-bound rows fall through to the plain label. Component
             variables still show their two-line "varRef above label" form. */}
-        {hasVar && varRef ? (
+        {menuIcon ?? (hasVar && varRef ? (
           <span className="flex flex-col min-w-0">
             <span className={`text-xs font-medium ${effectiveLabelColor} ${effectiveLabelHover} truncate max-w-20 transition-colors`} title={varDisplayName ?? undefined}>
               {varDisplayName}
@@ -932,7 +943,7 @@ export default function ControlLabel({ label, property, plain, forceShow, hideCr
           <span className={`block truncate text-xs font-medium ${effectiveLabelColor} ${effectiveLabelHover} transition-colors`} title={label}>
             {label}
           </span>
-        )}
+        ))}
       </button>
 
       {/* Preset picker */}

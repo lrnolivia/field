@@ -7,21 +7,27 @@ test('picker drag in Localize popup commits ONCE, not per frame', async ({ page 
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'tablet'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(600);
-  await page.locator('[data-locale-condition] button').first().click();
+  await page.locator('[data-locale-condition] [data-field-motion="color-input"]').first().click();
   await page.waitForTimeout(400);
   // Drag across the saturation square (many pointer moves).
-  const square = page.locator('[data-tool-popup] canvas, [data-tool-popup] [class*="saturation"], [data-tool-popup] div').filter({ hasNot: page.locator('input') }).first();
-  const before = await page.evaluate(() => ((window as any).__e2e.traceEntries?.('locale-style-popup:write') ?? []).length);
-  const box = (await page.locator('[data-tool-popup]').boundingBox())!;
-  await page.mouse.move(box.x + 60, box.y + 120);
+  const paint = page.getByRole('dialog', { name: 'Paint picker', exact: true });
+  const square = paint.locator('.cursor-crosshair').first();
+  await expect(square).toBeVisible();
+  const countWrites = () => page.evaluate(() => (window as any).__e2e.traceEntries('locale-style-popup:write').length);
+  const before = await countWrites();
+  const box = (await square.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3);
   await page.mouse.down();
-  for (let i = 0; i < 20; i++) await page.mouse.move(box.x + 60 + i * 5, box.y + 120 + i, { steps: 1 });
+  for (let step = 0; step < 20; step++) {
+    await page.mouse.move(box.x + box.width * (0.2 + step * 0.03), box.y + box.height * 0.6);
+  }
+  expect(await countWrites()).toBe(before);
   await page.mouse.up();
   await page.waitForTimeout(500);
   const after = await page.evaluate(() => ((window as any).__e2e.traceEntries?.('locale-style-popup:write') ?? []).length);
   console.log('WRITES-DURING-DRAG', after - before);
-  expect(after - before).toBeLessThanOrEqual(2);
+  expect(after - before).toBe(1);
 });

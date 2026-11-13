@@ -25,15 +25,17 @@ test('draw a frame below the visually-last flex child → it renders LAST (order
   const bottom = aBox.y + aBox.height;
   const free = root.y + root.height - bottom;
   expect(free).toBeGreaterThan(30);
-  await page.keyboard.press('f');
+  const frameTool = page.locator('[data-toolbar-tool="frame"]');
+  await frameTool.click();
+  await expect(frameTool).toHaveAttribute('aria-pressed', 'true');
   await editor.dragFromTo({ x: cx - 60, y: bottom + free * 0.2 }, { x: cx + 60, y: bottom + free * 0.8 });
   await page.waitForTimeout(700);
 
   // Find the new frame id (the 4th root descendant).
   const code = await editor.getPageCode();
   const ids = (code.match(/data-id="([^"]+)"/g) ?? []).map(s => s.slice(9, -1));
-  const newId = ids.find(id => id.startsWith('frame-'))!;
-  expect(newId).toBeTruthy();
+  const newId = ids.find(id => id.startsWith('frame-'));
+  if (!newId) throw new Error('The Frame tool did not commit a frame');
 
   // Rendered vertical order must be b, c, a, NEW — the new frame is BELOW `a`
   // (the previously-last), NOT mid-stack.
@@ -48,8 +50,7 @@ test('draw a frame below the visually-last flex child → it renders LAST (order
 test('draw a frame between two ordered children lands between them visually', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('FLEX_COL_ORDERED'); // visual: b(top), c(mid), a(bottom)
-  await page.keyboard.press('Shift+Digit1');
-  await page.waitForTimeout(500);
+  await editor.fitCamera();
 
   // Draw a small frame whose CENTER sits in b's lower half (below b's midpoint,
   // above the b/c boundary) → unambiguously inserts BETWEEN b and c. gap:0 makes
@@ -59,13 +60,16 @@ test('draw a frame between two ordered children lands between them visually', as
   const yCenter = bBox.y + bBox.height * 0.75; // lower half of b
   const half = Math.min(18, bBox.height * 0.2);
 
-  await page.keyboard.press('f');
+  const frameTool = page.locator('[data-toolbar-tool="frame"]');
+  await frameTool.click();
+  await expect(frameTool).toHaveAttribute('aria-pressed', 'true');
   await editor.dragFromTo({ x: cx - 100, y: yCenter - half }, { x: cx + 100, y: yCenter + half });
   await page.waitForTimeout(700);
 
   const code = await editor.getPageCode();
   const ids = (code.match(/data-id="([^"]+)"/g) ?? []).map(s => s.slice(9, -1));
-  const newId = ids.find(id => id.startsWith('frame-'))!;
+  const newId = ids.find(id => id.startsWith('frame-'));
+  if (!newId) throw new Error('The Frame tool did not commit a frame');
 
   const [yB, yNew, yC, yA] = await Promise.all([
     topY(editor, 'b'), topY(editor, newId), topY(editor, 'c'), topY(editor, 'a'),

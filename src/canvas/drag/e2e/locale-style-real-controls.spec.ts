@@ -7,8 +7,8 @@ test('Localize padding mounts the real 4-side control with injected base', async
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Padding', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="padding"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   // Convert-on-open wrote the base padding as :lang(fr).
   const code = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));

@@ -90,8 +90,8 @@ test.describe('Figma selection parity — click and keyboard traversal', () => {
   test('parent-first click, deep select, drill-in, toggle, and sibling traversal match the documented model', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
-    await editor.fitCamera();
-    await page.waitForTimeout(300);
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('abs-child');
 
     const selection = async (): Promise<string[]> =>
       page.evaluate(() => (window as any).__e2e.selection?.() ?? []);
@@ -104,15 +104,20 @@ test.describe('Figma selection parity — click and keyboard traversal', () => {
     await expect.poll(selection).toEqual(['hero']);
 
     // Ctrl/Cmd deep-select bypasses the parent-first hierarchy rule.
-    await page.keyboard.down('Control');
+    const deepSelectModifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.down(deepSelectModifier);
     await page.mouse.click(childPoint.x, childPoint.y);
-    await page.keyboard.up('Control');
+    await page.keyboard.up(deepSelectModifier);
     await expect.poll(selection).toEqual(['abs-child']);
 
     // A native double-click is another one-level drill-in gesture.
     await page.evaluate(() => (window as any).__e2e.select([]));
-    await page.waitForTimeout(80);
-    await page.mouse.dblclick(childPoint.x, childPoint.y);
+    await editor.waitForStableGeometry('abs-child');
+    const drillPoint = await editor.nodeCenter('abs-child');
+    await page.mouse.click(drillPoint.x, drillPoint.y);
+    await expect.poll(selection).toEqual(['hero']);
+    await page.waitForTimeout(110);
+    await page.mouse.click(drillPoint.x, drillPoint.y);
     await expect.poll(selection).toEqual(['abs-child']);
 
     // Enter selects a child; Shift+Enter returns to the parent.

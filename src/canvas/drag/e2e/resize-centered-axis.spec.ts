@@ -317,7 +317,8 @@ test('180°-rotated canvas node: dragging the VISUAL top edge up grows the box u
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('cn-flip').waitFor({ state: 'visible', timeout: 60_000 });
   await page.waitForTimeout(1500);
-  await page.evaluate(() => (window as any).__e2e.select(['cn-flip']));
+  await page.waitForFunction(() => !!(window as any).__e2e?.select);
+  await editor.select(['cn-flip'], 'desktop');
   await page.waitForTimeout(800);
 
   const before = (await editor.node('cn-flip').boundingBox())!;

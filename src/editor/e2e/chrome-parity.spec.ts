@@ -99,7 +99,7 @@ test('toolbar menus identify their content and expand to the corresponding Inser
   expect(await editor.getPageCode()).toBe(source);
 });
 
-test('floating sections share a continuous surface and docked compact Inspector has no top outline', async ({ page }) => {
+test('floating sections have individual card edges and docked compact Inspector has no top outline', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('floating')));
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
@@ -107,20 +107,24 @@ test('floating sections share a continuous surface and docked compact Inspector 
   const pages = page.locator('[data-floating-left-panel] [data-document-pages]');
   await expect(pages).toBeVisible();
   for (const selector of ['[data-document-pages]', '[data-document-layers]']) {
-    const style = await page.locator(`[data-floating-left-panel] ${selector}`).evaluate(el => ({ edge:getComputedStyle(el, '::after').content, shadow:getComputedStyle(el).boxShadow }));
-    expect(style).toEqual({ edge:'none', shadow:'none' });
+    // The workspace gives Pages and Layers individual section cards.
+    const style = await page.locator(`[data-floating-left-panel] ${selector}`).evaluate(el => ({
+      edge: getComputedStyle(el, '::after').borderTopWidth,
+      shadow: getComputedStyle(el).boxShadow,
+    }));
+    expect(style.edge).toBe('1px');
+    expect(style.shadow).not.toBe('none');
   }
   const outline = page.locator('[data-field-floating-outline]').first();
   expect(await outline.evaluate(el => getComputedStyle(el, '::after').borderTopWidth)).toBe('1px');
   await editor.select(['hero']);
   await page.waitForTimeout(350);
   await page.screenshot({ path: '/tmp/field-floating-continuous-review.png' });
-  await page.evaluate(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
-  await page.addInitScript(() => localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked')));
-  // Reload reads the preference into the workspace store.
-  await page.reload();
+  const chooser = page.locator('[data-workspace-layout-control]:visible').first();
+  await chooser.locator('[data-workspace-mode-trigger]').hover();
+  await chooser.getByRole('button', { name: /^full layout:/i }).click();
   await editor.node('hero').waitFor({ state:'visible' });
-  await page.locator('[data-workspace-collapse][data-side="right"]').first().click();
+  await page.locator('[data-workspace-collapse][data-side="right"][aria-pressed="false"]:visible').first().click();
   const compact = page.locator('[data-workspace-right-toggle]');
   await expect(compact).toHaveAttribute('data-detached', 'false');
   expect(await compact.evaluate(el => getComputedStyle(el, '::after').content)).toBe('none');

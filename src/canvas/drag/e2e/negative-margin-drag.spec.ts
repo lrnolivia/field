@@ -56,6 +56,9 @@ test.describe('negative margins survive a flow drag', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('NEGATIVE_MARGIN_ROW');
 
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['pill-c'], 'desktop');
+    await editor.waitForStableGeometry('pill-c');
     const before = await editor.nodeBox('pill-c');
     const from = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
     const DX = 40;
@@ -68,6 +71,7 @@ test.describe('negative margins survive a flow drag', () => {
       await mouse.move(from.x + (DX * i) / 10, from.y + (DY * i) / 10, { steps: 1 });
       await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r(null))));
     }
+    await editor.pumpDrag({ x: from.x + DX, y: from.y + DY });
     const during = await editor.nodeBox('pill-c');
     await mouse.up();
     await page.waitForTimeout(120);

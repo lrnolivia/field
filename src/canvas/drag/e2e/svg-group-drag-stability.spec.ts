@@ -90,7 +90,7 @@ async function dragChild(
     ([g, c]) => (window as any).__e2e.isolateGroupChild(g, c),
     [GROUP, CHILD] as const,
   );
-  await page.waitForTimeout(120);
+  await editor.waitForStableGeometry(CHILD);
   const box = await editor.node(CHILD).boundingBox();
   expect(box, 'child bbox before drag').toBeTruthy();
   const sx = box!.x + box!.width / 2;
@@ -119,8 +119,8 @@ test('group-child drag commits leave DOM == source; second drag tracks the mouse
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('SVG_GROUP_LETTERS');
   // Canvas nodes boot off-camera — fit first, then settle.
-  await page.keyboard.press('Shift+1');
-  await page.waitForTimeout(700);
+  await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+  await editor.waitForStableGeometry(CHILD);
 
   const group = editor.node(GROUP);
   await expect(group).toBeVisible();
@@ -130,7 +130,7 @@ test('group-child drag commits leave DOM == source; second drag tracks the mouse
 
   // ── Drag 1 ── move the middle letter up-right so the refit rewrites the
   // group box AND re-bases siblings (dy motion guarantees a origin shift).
-  await dragChild(editor, 90, -55);
+  await dragChild(editor, 90, -28);
   await page.waitForTimeout(900); // commit + forced render + fan-out settle
 
   const src1 = await sourceWrapperState(page);

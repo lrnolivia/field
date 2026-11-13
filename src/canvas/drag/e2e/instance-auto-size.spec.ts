@@ -72,14 +72,11 @@ test('W/H → auto on an instance resolves to the MASTER base size, no collapse'
   const before = (await editor.node('card-1').boundingBox())!;
   const scale = before.width / 546; // instance rendered at its px override
 
-  // The Dimensions section's W and H unit selects are the first two selects
-  // offering an `auto` option.
-  const autoSelects = page.locator('select:has(option[value="auto"])');
-  await autoSelects.first().waitFor({ state: 'visible', timeout: 10_000 });
-  await autoSelects.nth(0).selectOption('auto'); // Width → auto
-  await page.waitForTimeout(900);
-  await autoSelects.nth(1).selectOption('auto'); // Height → auto
-  await page.waitForTimeout(1800);
+  for (const axis of ['width', 'height']) {
+    await page.locator(`[data-dimension-sizing-menu="${axis}"]`).click();
+    await page.getByRole('menuitem', { name: /hug contents/i }).click();
+    await expect.poll(() => editor.getInlineStyleProp('card-1', axis)).toBeNull();
+  }
 
   const syncTr: string[] = await page.evaluate(() =>
     ((window as any).__e2e.traceEntries('renderer:instance-wrapper-size-sync') ?? []).slice(-4).map((e: any) => JSON.stringify(e.data ?? e).slice(0, 220)));

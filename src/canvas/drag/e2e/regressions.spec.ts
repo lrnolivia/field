@@ -21,6 +21,10 @@ test.describe('Drag/drop regressions', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('REORDERED_FLEX_COLUMN');
 
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['features'], 'desktop');
+    await editor.waitForStableGeometry('features');
+
     // Visual order: hero (order:0), features (order:1), how (order:2).
     // JSX order: how, hero, features.
     expect(await editor.getRootChildrenVisualOrder()).toEqual(['hero', 'features', 'how']);
@@ -35,7 +39,7 @@ test.describe('Drag/drop regressions', () => {
     const to = { x: heroBox.x + heroBox.width / 2, y: heroBox.y + 4 };
 
     await editor.dragFromTo(from, to);
-    expect(await editor.getRootChildrenVisualOrder()).toEqual(['features', 'hero', 'how']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['features', 'hero', 'how']);
   });
 
   test('toolbar drop into a parent with explicit `order: N` siblings respects insertIndex', async ({ page }) => {
@@ -46,17 +50,17 @@ test.describe('Drag/drop regressions', () => {
     // gets default `order: 0` and lands at the top regardless of where
     // the drop-line shows. With the fix, all siblings + the new node
     // are renumbered 0..N to match desired visual order.
+    await page.locator('[data-left-menu-item="insert"]').click();
+    await page.getByText('Elements', { exact: true }).click();
+    const item = page.locator('[data-toolbar-item="frame"]').first();
+    await item.waitFor({ state: 'visible' });
+    await editor.waitForStableGeometry('hero');
     const heroBox = await editor.nodeBox('hero');
     // Cursor near hero's bottom edge → magnet promotes to root, drop-
     // line shows between hero and features.
     const dropX = heroBox.x + heroBox.width / 2;
     const dropY = heroBox.y + heroBox.height - 6;
 
-    // Reuse the toolbar drag flow inline (avoids cross-spec helpers).
-    await page.locator('[data-left-menu-item="insert"]').click();
-    await page.locator('text="Elements"').first().hover();
-    const item = page.locator('[data-toolbar-item="frame"]').first();
-    await item.waitFor({ state: 'visible' });
     const itemBox = await item.boundingBox();
     if (!itemBox) throw new Error('toolbar item missing');
     const itemFrom = { x: itemBox.x + itemBox.width / 2, y: itemBox.y + itemBox.height / 2 };
@@ -69,7 +73,7 @@ test.describe('Drag/drop regressions', () => {
     }
     await editor.pumpDrag({ x: dropX, y: dropY }, 6);
     await page.mouse.up();
-    await page.waitForTimeout(120);
+    await editor.waitForRootChildren(4);
 
     // Visual order MUST be: hero, NEW, features, how. NOT NEW, hero, …
     const visual = await editor.getRootChildrenVisualOrder();
@@ -88,14 +92,15 @@ test.describe('Drag/drop regressions', () => {
     // would slot inside hero (or block entirely). With the magnet, it
     // promotes to root and shows insertIndex 1 (between hero and
     // features in visual order).
+    await page.locator('[data-left-menu-item="insert"]').click();
+    await page.getByText('Elements', { exact: true }).click();
+    const item = page.locator('[data-toolbar-item="frame"]').first();
+    await item.waitFor({ state: 'visible' });
+    await editor.waitForStableGeometry('hero');
     const heroBox = await editor.nodeBox('hero');
     const dropX = heroBox.x + heroBox.width / 2;
     const dropY = heroBox.y + heroBox.height - 6;
 
-    await page.locator('[data-left-menu-item="insert"]').click();
-    await page.locator('text="Elements"').first().hover();
-    const item = page.locator('[data-toolbar-item="frame"]').first();
-    await item.waitFor({ state: 'visible' });
     const itemBox = await item.boundingBox();
     if (!itemBox) throw new Error('toolbar item missing');
     const itemFrom = { x: itemBox.x + itemBox.width / 2, y: itemBox.y + itemBox.height / 2 };
@@ -123,15 +128,16 @@ test.describe('Drag/drop regressions', () => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_COLUMN_GAP');
 
+    await page.locator('[data-left-menu-item="insert"]').click();
+    await page.getByText('Elements', { exact: true }).click();
+    const item = page.locator('[data-toolbar-item="frame"]').first();
+    await item.waitFor({ state: 'visible' });
+    await editor.waitForStableGeometry('hero');
     const hero = await editor.nodeBox('hero');
     const features = await editor.nodeBox('features');
     const dropX = hero.x + hero.width / 2;
     const dropY = (hero.y + hero.height + features.y) / 2;
 
-    await page.locator('[data-left-menu-item="insert"]').click();
-    await page.locator('text="Elements"').first().hover();
-    const item = page.locator('[data-toolbar-item="frame"]').first();
-    await item.waitFor({ state: 'visible' });
     const itemBox = await item.boundingBox();
     if (!itemBox) throw new Error('toolbar item missing');
     const itemFrom = { x: itemBox.x + itemBox.width / 2, y: itemBox.y + itemBox.height / 2 };

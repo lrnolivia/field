@@ -82,10 +82,12 @@ async function reshapeByAnchorDrag(
   pick: (box: { x: number; y: number }) => number,
   delta: { dx: number; dy: number },
 ): Promise<{ from: { x: number; y: number }; scale: number }> {
+  const before = await readSvgState(page, nodeId);
+  await editor.select([nodeId], 'desktop');
   await page.evaluate((id) => (window as any).__e2e.setShapeEditing(id), nodeId);
-  await page.waitForTimeout(500);
 
   const anchors = editor.sandbox().locator('[data-svg-editor-overlay] ellipse');
+  await expect(anchors).toHaveCount(3);
   const count = await anchors.count();
   if (count === 0) throw new Error('shape editor exposed no anchors — did the overlay mount?');
 
@@ -118,7 +120,7 @@ async function reshapeByAnchorDrag(
   await page.waitForTimeout(400);
 
   await page.evaluate(() => (window as any).__e2e.setShapeEditing(null));
-  await page.waitForTimeout(900);
+  await expect.poll(async () => (await readSvgState(page, nodeId))?.attrs.viewBox).not.toBe(before?.attrs.viewBox);
   return { from, scale };
 }
 
@@ -137,6 +139,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('right/bottom extension: wrapper grows, position unchanged', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     const before = await readSvgState(page, 'my-svg');
     expect(before?.styles.width).toBe('200px');
@@ -167,11 +171,13 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('left/top extension: wrapper grows AND moves up-left, painted shape stays put', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     // Drag the TOP vertex up and to the left, so the painted bbox starts
     // at negative user-space coords — the case that used to leave the
     // shape visually jumping on exit.
-    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -(b.x + b.y), { dx: -60, dy: -40 });
+    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -b.y, { dx: -60, dy: -40 });
 
     const after = await readSvgState(page, 'my-svg');
     expect(parseFloat(after!.styles.width || '0')).toBeGreaterThan(200);
@@ -188,6 +194,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('left/top offset matches the viewBox shift exactly (wrapper math is self-consistent)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     // Exact user-space targets aren't reachable through a real pointer
     // drag (sub-pixel rounding), so assert the CONTRACT instead: after
@@ -195,7 +203,7 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
     // the original units-per-pixel, and its offset must equal the
     // viewBox origin shift. That relationship is what actually keeps the
     // painted shape from jumping — magic constants only proved one case.
-    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -(b.x + b.y), { dx: -60, dy: -40 });
+    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -b.y, { dx: -60, dy: -40 });
 
     const after = await readSvgState(page, 'my-svg');
     const [vbX, vbY, vbW, vbH] = (after!.attrs.viewBox || '').split(/\s+/).map(Number);
@@ -214,10 +222,12 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('all-directions extension: wrapper covers full painted geometry', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     // Push one vertex up-left and another down-right, so the painted
     // geometry escapes the wrapper on every side in one session.
-    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -(b.x + b.y), { dx: -50, dy: -35 });
+    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -b.y, { dx: -50, dy: -35 });
     await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => b.x + b.y, { dx: 55, dy: 45 });
 
     const after = await readSvgState(page, 'my-svg');
@@ -234,6 +244,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('no reshape: wrapper bounds unchanged on exit (already-fits early-out)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     // Enter and exit shape edit without changing geometry. The
     // already-fits tolerance check should skip normalization, leaving
@@ -259,6 +271,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
     // that the source-only test above can't see.
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     const reshapes = [
       '<path d="M -50 -30 L 220 200 L 0 200 Z" fill="#3b82f6" />',
@@ -295,6 +309,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('multiple reshape cycles: no drift across enter/edit/exit iterations', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     // Drift trap: any FP-vs-rounded mismatch between `viewBox` and
     // `wrapper width/height` makes `scaleX = wrapperW / vbW` deviate from
@@ -338,6 +354,8 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('mimics real drag flow: imperative iframe write then commit (left/top)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     const before = await readSvgState(page, 'my-svg');
     expect(before?.styles.left).toBe('500px');
@@ -350,7 +368,7 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
     // still holds the pre-drag wrapper bounds. Exiting is the moment
     // normalization has to reconcile the two — the divergence window the
     // original synthetic version was written to cover.
-    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -(b.x + b.y), { dx: -55, dy: -20 });
+    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -b.y, { dx: -55, dy: -20 });
 
     const after = await readSvgState(page, 'my-svg');
     expect(parseFloat(after!.styles.left || '0')).toBeLessThan(500);
@@ -362,10 +380,12 @@ test.describe('Shape edit — wrapper normalize on exit', () => {
   test('painted shape stays visually in place after left/top extension', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('SHAPE_EDIT_TRIANGLE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('my-svg');
 
     const beforeBox = await editor.nodeBox('my-svg');
 
-    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -(b.x + b.y), { dx: -60, dy: -40 });
+    await reshapeByAnchorDrag(page, editor, 'my-svg', (b) => -b.y, { dx: -60, dy: -40 });
 
     // The wrapper grew up-left to encompass the new painted bbox: it now
     // starts higher and further left, and covers more area. (If the

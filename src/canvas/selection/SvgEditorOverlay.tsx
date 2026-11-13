@@ -67,7 +67,7 @@ export default function SvgEditorOverlay({ nodeId, vpId }: SvgEditorOverlayProps
     // editor is mounted, clicks must reach inside the iframe so
     // SvgPathEditor can drive its anchor / handle interactions. Flip
     // to 'auto' for the duration — same pattern as text-edit.
-    const iframe = document.querySelector('iframe[src*="5174"]') as HTMLIFrameElement | null;
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe[data-canvas-iframe]');
     if (iframe) iframe.style.pointerEvents = 'auto';
 
     // Pen mode = the PATH TOOL opened this to draw a NEW shape, so the editor

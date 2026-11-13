@@ -8,13 +8,14 @@ import { EditorPage } from './helpers/editor-page';
 test('off-centre grab into a layout child: painted box tracks the pointer with the original offset', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('CANVAS_NODE_WITH_GAP');
-  await editor.primeNode('floater');
-  await editor.select(['floater']);
-  await page.waitForTimeout(200);
+  await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+  await editor.select(['floater'], 'desktop');
+  await editor.waitForStableGeometry('floater');
 
   const box = await editor.nodeBox('floater');
-  // Grab near the top-left corner (not the centre).
-  const grab = { x: box.x + box.width * 0.15, y: box.y + box.height * 0.2 };
+  // Grab off-center, beyond the corner and edge handles on the selected node.
+  const grab = { x: box.x + Math.max(10, box.width * 0.32), y: box.y + Math.max(10, box.height * 0.35) };
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.hasAttribute('data-canvas-input-surface'), grab)).toBe(true);
   const offset = { x: grab.x - box.x, y: grab.y - box.y };
   const hero = await editor.nodeBox('hero');
   const to = { x: hero.x + hero.width / 2, y: hero.y + hero.height / 2 };
@@ -22,7 +23,7 @@ test('off-centre grab into a layout child: painted box tracks the pointer with t
   const mouse = page.mouse;
   await mouse.move(grab.x, grab.y);
   await mouse.down();
-  const steps = 30;
+  const steps = 40;
   let maxErr = 0;
   let entered = false;
   try {

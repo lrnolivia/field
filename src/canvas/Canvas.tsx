@@ -337,6 +337,7 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
   // While editing a text node, hide the variant-connection handle — it overlaps the text caret/selection and
   // a drag-to-connect would fight the text selection. Mirrors SelectionOverlay, which also bails on text edit.
   const isTextEditing = useAtomValue(isTextEditingAtom);
+  const shapeEditingId = useAtomValue(shapeEditingIdAtom);
   const setMapItemIndex = useSetAtom(mapItemIndexAtom);
   const mapItemIndexVal = useAtomValue(mapItemIndexAtom);
   // mapItemIndexRef removed — controllers read jotaiStore.get(atom) directly.
@@ -1502,7 +1503,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
           position: 'absolute',
           inset: 0,
           zIndex: 0,
-          pointerEvents: 'auto',
+          // Embedded text and path editors receive their own pointer events.
+          pointerEvents: isTextEditing || shapeEditingId ? 'none' : 'auto',
           background: 'transparent',
         }}
       />

@@ -8,9 +8,11 @@ test('PaintPicker and Inspector own their rendered compact surfaces', async ({ p
   await page.getByRole('button', { name: 'Add fill', exact: true }).click();
   const header = page.locator('[data-workspace-right-header]').first();
   await expect(header).toBeVisible();
-  const chrome = await header.evaluate(el => ({ background: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderBottomWidth }));
-  expect(chrome.background).not.toBe('rgba(0, 0, 0, 0)');
-  expect(chrome.border).toBe('1px');
+  expect(await header.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  // The Inspector's mode tabs own the divider below the shell header.
+  const tabs = page.locator('[data-inspector-mode-tabs]').first();
+  await expect(tabs).toBeVisible();
+  expect(await tabs.evaluate(el => getComputedStyle(el).borderBottomWidth)).toBe('1px');
   await page.locator('[data-properties-panel] [data-inspector-paint-value] button').first().click();
   const picker = page.getByRole('dialog', { name: 'Paint picker', exact: true });
   await expect(picker).toBeVisible();

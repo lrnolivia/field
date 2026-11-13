@@ -3,6 +3,8 @@ import { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { FieldGlyph, FieldMorphGlyph, glyphIcons } from '@/editor/glyph';
 import { useAtomValue } from 'jotai';
+import ControlLabel from '../../controls/ControlLabel';
+import { i18nConfigAtom } from '@/code/stores/locale-store';
 import { useControl } from '../../controls/ControlProvider';
 import PresetPicker from '../../ui/PresetPicker';
 import { presetTokensAtom } from '@/code/stores/preset-store';
@@ -143,6 +145,7 @@ export function StyleSectionActions({
   onApplyToken,
   addDisabled = false,
   showStyle = true,
+  localizableLabel,
   addTitle = 'Add',
 }: {
   property: string;
@@ -151,32 +154,43 @@ export function StyleSectionActions({
   onApplyToken?: (tokenName: string) => void;
   addDisabled?: boolean;
   showStyle?: boolean;
+  localizableLabel?: string;
   addTitle?: string;
 }) {
   const { updateStyle } = useControl();
   const tokens = useAtomValue(presetTokensAtom);
+  const hasMultipleLocales = useAtomValue(i18nConfigAtom).locales.length > 1;
+  const usePropertyMenu = Boolean(localizableLabel && hasMultipleLocales);
   const [styleOpen, setStyleOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const styleRef = useRef<HTMLButtonElement>(null);
+  const styleRef = useRef<HTMLSpanElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex items-center gap-0.5">
-      {showStyle && (
-        <>
-          <motion.button
-            ref={styleRef}
-            type="button"
-            initial="rest"
-            whileHover="hover"
-            whileTap="tap"
-            data-inspector-style-action={property}
-            onClick={() => setStyleOpen(true)}
-            className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            title="Style"
-          >
-            <FieldGlyph behavior="ellipsis"><DotsIcon /></FieldGlyph>
-          </motion.button>
+      {(showStyle || usePropertyMenu) && (
+        <span ref={styleRef} className="inline-flex">
+          {usePropertyMenu && localizableLabel ? (
+            <ControlLabel
+              label={localizableLabel}
+              property={property}
+              menuIcon={<DotsIcon />}
+              extraMenuItems={showStyle ? [{ label: 'Style', show: true, onClick: () => setStyleOpen(true) }] : undefined}
+            />
+          ) : (
+            <motion.button
+              type="button"
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
+              data-inspector-style-action={property}
+              onClick={() => setStyleOpen(true)}
+              className="h-[var(--control-height)] w-[var(--control-height)] flex items-center justify-center rounded-[var(--control-radius)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+              title="Style"
+            >
+              <FieldGlyph behavior="ellipsis"><DotsIcon /></FieldGlyph>
+            </motion.button>
+          )}
           <PresetPicker
             property={property}
             tokens={tokens}
@@ -185,7 +199,7 @@ export function StyleSectionActions({
             anchorRef={styleRef}
             onSelect={(tokenName) => onApplyToken ? onApplyToken(tokenName) : updateStyle(property, `var(--${tokenName})`)}
           />
-        </>
+        </span>
       )}
 
       {(onAdd || addOptions?.length) && (

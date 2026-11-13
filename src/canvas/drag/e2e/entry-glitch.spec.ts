@@ -11,6 +11,9 @@ test.describe('canvas → frame entry (mid-drag)', () => {
   test('chip enters big-frame without jumps, lands under cursor, single element', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('CANVAS_ENTRY');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['chip'], 'desktop');
+    await editor.waitForStableGeometry('chip');
 
     const chip = await editor.nodeBox('chip');
     const frame = await editor.nodeBox('big-frame');
@@ -33,7 +36,7 @@ test.describe('canvas → frame entry (mid-drag)', () => {
       requestAnimationFrame(tick);
     });
 
-    await editor.dragFromTo(from, to, { steps: 24 });
+    await editor.duringDrag('chip', to, async () => {}, { steps: 36, pumpFrames: 10 });
 
     const samples: Array<{ x: number; y: number; n: number }> =
       await sandboxFrame.evaluate(() => (window as any).__samples);

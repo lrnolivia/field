@@ -8,8 +8,8 @@ test('Localize converts instantly', async ({ page }) => {
   await page.waitForTimeout(500);
   await page.evaluate(() => (window as any).__e2e.select(['card'], 'desktop'));
   await page.waitForTimeout(400);
-  await page.locator('[data-properties-panel]').getByText('Fill', { exact: true }).first().click();
-  await page.getByText('Localize', { exact: true }).click();
+  await page.locator('[data-properties-panel] [data-property-menu="backgroundColor"]').first().click();
+  await page.getByRole('button', { name: /^Localize(?: …)?$/ }).click();
   await page.waitForTimeout(700);
   // No tweak — the rule is already written and the pill already shows.
   const code = await page.evaluate(() => (window as any).__e2e.readFile('app/page.client.tsx'));

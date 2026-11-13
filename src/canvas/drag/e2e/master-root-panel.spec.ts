@@ -82,7 +82,7 @@ test('master root selection paths keep the Properties panel alive', async ({ pag
   await page.waitForTimeout(700);
   let panel = page.locator('[data-properties-panel]');
   await expect(panel, 'panel for MotionLink master root').toBeVisible();
-  await expect(panel, 'root panel has content (Navigation section)').toContainText('Navigation');
+  await expect(panel, 'root panel has content (Navigation section)').toContainText(/navigation/i);
 
   // 2. An unresolvable id (the 'root' fallback on a master) keeps the shell.
   await page.evaluate(() => (window as any).__e2e.select(['root']));
@@ -92,11 +92,14 @@ test('master root selection paths keep the Properties panel alive', async ({ pag
 
   // 1. Layers variant-header click selects the master root and shows the panel.
   await page.evaluate(() => (window as any).__e2e.select([]));
-  await page.locator('[data-tutorial="layers-button"]').click();
+  const documentPanel = page.locator('[data-document-layers]:visible');
+  if (await documentPanel.count() === 0) {
+    await page.locator('[data-tutorial="layers-button"]').click();
+  }
+  await expect(documentPanel).toBeVisible();
   await page.waitForTimeout(500);
   await page.locator('[data-layer-id="__vp_desktop"]').click({ timeout: 10_000 });
   await page.waitForTimeout(700);
-  const selection: string[] = await page.evaluate(() => (window as any).__e2e.selection?.() ?? []);
-  expect(selection, 'variant header selects the master root').toEqual(['link-signup']);
-  await expect(page.locator('[data-properties-panel]'), 'panel after variant-header click').toContainText('Navigation');
+  await expect.poll(() => page.evaluate(() => (window as any).__e2e.selection?.() ?? []), { message: 'variant header selects the master root' }).toEqual(['link-signup']);
+  await expect(page.locator('[data-properties-panel]'), 'panel after variant-header click').toContainText(/navigation/i);
 });

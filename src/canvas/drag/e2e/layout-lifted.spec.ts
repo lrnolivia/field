@@ -19,6 +19,9 @@ test.describe('LayoutLiftedStrategy', () => {
   test('reorder within parent: drag features above hero updates visual order', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_COLUMN');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['features'], 'desktop');
+    await editor.waitForStableGeometry('features');
 
     // Initial visual order: hero, features, how.
     expect(await editor.getRootChildrenVisualOrder()).toEqual(['hero', 'features', 'how']);
@@ -31,13 +34,15 @@ test.describe('LayoutLiftedStrategy', () => {
 
     await editor.dragFromTo(from, to);
 
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['features', 'hero', 'how']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['features', 'hero', 'how']);
   });
 
   test('reorder works after a previous reorder (visual sort, not JSX sort)', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('REORDERED_FLEX_COLUMN');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['how'], 'desktop');
+    await editor.waitForStableGeometry('how');
 
     // Initial visual order via explicit `order` styles: hero, features, how.
     // JSX order is: how, hero, features.
@@ -53,8 +58,7 @@ test.describe('LayoutLiftedStrategy', () => {
 
     await editor.dragFromTo(from, to);
 
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['how', 'hero', 'features']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['how', 'hero', 'features']);
   });
 
   test('drop at END commits with an invisible zero-size flow sibling present', async ({ page }) => {
@@ -101,6 +105,9 @@ test.describe('LayoutLiftedStrategy', () => {
   test('row-flex reorder works the same as column', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('FLEX_ROW');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['col-c'], 'desktop');
+    await editor.waitForStableGeometry('col-c');
 
     expect(await editor.getRootChildrenVisualOrder()).toEqual(['col-a', 'col-b', 'col-c']);
 
@@ -113,7 +120,6 @@ test.describe('LayoutLiftedStrategy', () => {
     const to = { x: colA.x + colA.width + 4, y: colC.y + colC.height / 2 };
 
     await editor.dragFromTo(from, to, { steps: 24, releaseDelayMs: 100 });
-    const visual = await editor.getRootChildrenVisualOrder();
-    expect(visual).toEqual(['col-a', 'col-c', 'col-b']);
+    await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['col-a', 'col-c', 'col-b']);
   });
 });

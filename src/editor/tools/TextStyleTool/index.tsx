@@ -58,8 +58,8 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
 
   return (
     <>
-      <LocalizeGate hidden>
       <CreateVariableGate hidden>
+      <LocalizeGate hidden>
         <ToolSection
           title="Typography"
           collapsible
@@ -89,6 +89,7 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
             <TypographyAdvancedPopover />
           </div>
         </ToolSection>
+      </LocalizeGate>
         <ToolDivider />
 
         <ToolSection
@@ -97,6 +98,7 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
           action={
             <StyleSectionActions
               property="color"
+              localizableLabel="Color"
               onAdd={addGlyphFill}
               addDisabled={!!styles.color}
               addTitle="Add fill"
@@ -107,6 +109,7 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
         </ToolSection>
         <ToolDivider />
 
+        <LocalizeGate hidden>
         <ToolSection
           title="Stroke"
           collapsible
@@ -139,8 +142,8 @@ export default function TextStyleTool({ inline = false }: { inline?: boolean } =
           <ShadowControl compactSection />
         </ToolSection>
         <ToolDivider />
+        </LocalizeGate>
       </CreateVariableGate>
-      </LocalizeGate>
     </>
   );
 }

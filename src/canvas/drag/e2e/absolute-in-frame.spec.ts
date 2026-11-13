@@ -18,9 +18,9 @@ test.describe('AbsoluteInFrameStrategy', () => {
   test('drag within parent updates left/top, no reparent', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
-    await editor.fitCamera();
-    await editor.primeNode('abs-child');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
     await editor.select(['abs-child'], 'desktop');
+    await editor.waitForStableGeometry('abs-child');
 
     // Verify abs-child starts as a child of hero.
     let nodes = await page.evaluate(() => (window as any).__e2e.nodesSnapshot());
@@ -41,6 +41,7 @@ test.describe('AbsoluteInFrameStrategy', () => {
     expect(nodes['abs-child'].parentId).toBe('hero');
 
     // Position moved by ~ dragBy (canvas zoom 0.5 means screen → 2× CSS).
+    await expect.poll(async () => (await editor.nodeBox('abs-child')).x).toBeGreaterThanOrEqual(before.x + dragBy.dx - 2);
     const after = await editor.nodeBox('abs-child');
     expect(after.x).toBeGreaterThanOrEqual(before.x + dragBy.dx - 2);
     expect(after.x).toBeLessThanOrEqual(before.x + dragBy.dx + 2);
@@ -78,6 +79,9 @@ test.describe('AbsoluteInFrameStrategy', () => {
   test('sibling layout entry: cursor over flex sibling shows drop-line', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.select(['abs-child'], 'desktop');
+    await editor.waitForStableGeometry('abs-child');
 
     // Drag abs-child DOWN into the features section (a flex-row layout
     // sibling). Strategy detects layout-sibling-under-cursor and shows

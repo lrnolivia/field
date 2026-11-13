@@ -1,3 +1,7 @@
+import { useAtomValue } from 'jotai';
+import { i18nConfigAtom } from '@/code/stores/locale-store';
+import { useControl } from '../controls/ControlProvider';
+import { LocalePillOrLegacy } from '../controls/LocaleBoundPill';
 import { useState } from 'react';
 import { ControlLabel, ToolInput } from '../controls';
 import { flushNow } from '@/code/mutation/mutation-queue';
@@ -46,6 +50,8 @@ function IndividualSidesIcon() {
 }
 
 export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props) {
+  const { nodeId, updateStyle } = useControl();
+  const hasMultipleLocales = useAtomValue(i18nConfigAtom).locales.length > 1;
   const sides = readPaddingSides(styles);
   const allEqual = paddingAllEqual(sides);
   const axisCompatible = paddingAxisCompatible(sides);
@@ -74,7 +80,7 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
   return (
     <div data-layout-padding data-layout-padding-view={resolvedView} className="flex flex-col gap-2 w-full">
       <div data-layout-padding-toolbar className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
-        <ControlLabel label="Padding" property="padding" plain cell />
+        <ControlLabel label="Padding" property="padding" plain={!hasMultipleLocales} cell />
         <div className="flex min-w-0 justify-end">
           <div data-field-control-shell className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
             <button
@@ -115,28 +121,31 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
       </div>
 
       <div data-layout-padding-editor className="w-full">
-        <div className="min-w-0">
-          {resolvedView === 'equal' ? (
-            <ToolInput
-              value={allEqual ? display(sides[0]) : ''}
-              placeholder={allEqual ? undefined : 'Mixed'}
-              onChange={(value) => apply(setPaddingAll(value))}
-              min={0}
-              ariaLabel="Equal padding"
-            />
-          ) : resolvedView === 'axes' ? (
-            <div data-layout-padding-axes className="grid grid-cols-2 gap-2">
-              <ToolInput value={horizontalEqual ? display(sides[1]) : ''} placeholder={horizontalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} leadingLabel="H" ariaLabel="Horizontal padding" />
-              <ToolInput value={verticalEqual ? display(sides[0]) : ''} placeholder={verticalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} leadingLabel="V" ariaLabel="Vertical padding" />
-            </div>
-          ) : (
-            <div data-layout-padding-sides className="grid grid-cols-4 gap-2">
-              {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
-                <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} leadingLabel={label} ariaLabel={`Padding ${label}`} />
-              ))}
-            </div>
-          )}
-        </div>
+        <LocalePillOrLegacy property="padding" label="Padding" nodeId={nodeId ?? null}
+          baseValue={sides.join(' ')} onChangeBase={(value) => updateStyle('padding', value)}>
+          <div className="min-w-0">
+            {resolvedView === 'equal' ? (
+              <ToolInput
+                value={allEqual ? display(sides[0]) : ''}
+                placeholder={allEqual ? undefined : 'Mixed'}
+                onChange={(value) => apply(setPaddingAll(value))}
+                min={0}
+                ariaLabel="Equal padding"
+              />
+            ) : resolvedView === 'axes' ? (
+              <div data-layout-padding-axes className="grid grid-cols-2 gap-2">
+                <ToolInput value={horizontalEqual ? display(sides[1]) : ''} placeholder={horizontalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'horizontal', v))} min={0} leadingLabel="H" ariaLabel="Horizontal padding" />
+                <ToolInput value={verticalEqual ? display(sides[0]) : ''} placeholder={verticalEqual ? undefined : 'Mixed'} onChange={(v) => apply(setPaddingAxis(sides, 'vertical', v))} min={0} leadingLabel="V" ariaLabel="Vertical padding" />
+              </div>
+            ) : (
+              <div data-layout-padding-sides className="grid grid-cols-4 gap-2">
+                {(['T', 'R', 'B', 'L'] as const).map((label, index) => (
+                  <ToolInput key={label} value={display(sides[index])} onChange={(v) => apply(setPaddingSide(sides, index, v))} min={0} leadingLabel={label} ariaLabel={`Padding ${label}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        </LocalePillOrLegacy>
       </div>
     </div>
   );

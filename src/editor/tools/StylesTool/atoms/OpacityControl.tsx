@@ -2,6 +2,9 @@
 // Template for all simple slider-based atoms.
 
 import { useLivePreview } from '../../../hooks/useLivePreview';
+import { useAtomValue } from 'jotai';
+import { i18nConfigAtom } from '@/code/stores/locale-store';
+import ControlLabel from '../../../controls/ControlLabel';
 import { ToolSlider, ToolInput } from '../../../controls';
 import { UnifiedControlProvider, ControlRow, useControlContext } from '../../../controls/unified';
 import { LocalePillOr } from '@/editor/controls/LocaleBoundPill';
@@ -22,8 +25,7 @@ function OpacityAtom({ compact = false }: { compact?: boolean }) {
 
   if (compact) {
     return (
-      <div data-appearance-opacity className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-hidden">
-        <span className="w-6 shrink-0 text-center text-[10px] text-[var(--text-secondary)]">◩</span>
+      <div className="min-w-0 flex items-center flex-1">
         <ToolInput
           value={String(Math.round(num * 100))}
           onChange={(v) => {
@@ -52,10 +54,18 @@ function OpacityAtom({ compact = false }: { compact?: boolean }) {
 }
 
 export function OpacityControl({ mode = 'direct', compact = false, ...modeProps }: AtomProps & { compact?: boolean }) {
+  const hasMultipleLocales = useAtomValue(i18nConfigAtom).locales.length > 1;
   return (
     <UnifiedControlProvider property="opacity" defaultValue="1" mode={mode} {...modeProps}>
       {compact ? (
-        <LocalePillOr property="opacity" label="Opacity"><OpacityAtom compact /></LocalePillOr>
+        <div className="min-w-0 flex items-center rounded-[var(--control-radius)] border border-[var(--control-border)] bg-[var(--control-bg)] overflow-hidden" data-appearance-opacity>
+          {hasMultipleLocales ? (
+            <ControlLabel label="Opacity" property="opacity" menuIcon={<span aria-hidden>◩</span>} />
+          ) : (
+            <span className="w-6 shrink-0 text-center text-[10px] text-[var(--text-secondary)]">◩</span>
+          )}
+          <LocalePillOr property="opacity" label="Opacity"><OpacityAtom compact /></LocalePillOr>
+        </div>
       ) : (
         <ControlRow label="Opacity">
           <LocalePillOr property="opacity" label="Opacity"><OpacityAtom /></LocalePillOr>
