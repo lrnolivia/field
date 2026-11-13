@@ -17,15 +17,16 @@ test('draw a frame below the visually-last flex child → it renders LAST (order
   const editor = new EditorPage(page);
   // FLEX_COL_ORDERED: DOM a,b,c but order 2/0/1 → visual top-to-bottom b, c, a.
   await editor.gotoWithSeed('FLEX_COL_ORDERED');
-  await page.keyboard.press('Shift+Digit1');
-  await page.waitForTimeout(500);
+  await editor.fitCamera();
 
   const aBox = await editor.nodeBox('a'); // visually LAST (order 2)
   const cx = aBox.x + aBox.width / 2;
-  const y0 = aBox.y + aBox.height + 40; // clearly BELOW the visually-last child
-
+  const root = await editor.nodeBox('root');
+  const bottom = aBox.y + aBox.height;
+  const free = root.y + root.height - bottom;
+  expect(free).toBeGreaterThan(30);
   await page.keyboard.press('f');
-  await editor.dragFromTo({ x: cx - 150, y: y0 }, { x: cx + 150, y: y0 + 120 });
+  await editor.dragFromTo({ x: cx - 60, y: bottom + free * 0.2 }, { x: cx + 60, y: bottom + free * 0.8 });
   await page.waitForTimeout(700);
 
   // Find the new frame id (the 4th root descendant).
