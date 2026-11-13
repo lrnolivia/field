@@ -40,7 +40,7 @@ export { default } from '@/app/page';
 
 test('preview renders /fr wrapper route with French text', async ({ page }) => {
   await page.addInitScript(() => { window.localStorage.setItem('revyme-onboarding-completed', 'true'); });
-  await page.goto('/noauth');
+  await page.goto('/builder/noauth');
   await page.frameLocator('iframe[src*="5174"]').locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30000 });
   await page.waitForTimeout(800);
   await page.evaluate(({ providers, wrapper }) => {

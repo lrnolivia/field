@@ -462,6 +462,22 @@ describe('history — discrete FS operations', () => {
     expect(projectFS.exists('app/(Body)/page.tsx')).toBe(false);
   });
 
+  test('a file operation still restores the previous page when history is full', () => {
+    for (let i = 0; i < 100; i++) {
+      const code = `page revision ${i}`;
+      projectFS.writeFile('app/page.tsx', code);
+      pushHistoryImmediate(code);
+    }
+    sealPendingHistory();
+    createTemplateOnDisk();
+    pushHistoryFileOp('app/page.tsx');
+
+    expect(getHistoryState().undoSize).toBe(100);
+    expect(undoNow()).toBe(true);
+    expect(projectFS.readFile('app/page.tsx')).toBe('page revision 99');
+    expect(navigatedTo).toEqual(['app/page.tsx']);
+  });
+
   test('pending edits seal SEPARATELY — undo peels the op first, then the edit', () => {
     // An ordinary debounced edit, still pending…
     projectFS.writeFile('app/page.tsx', 'edited code');

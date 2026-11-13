@@ -37,7 +37,7 @@ async function runGesture(editor: EditorPage, vpId: 'desktop' | 'tablet' | 'mobi
   const inner = await editor.nodeBoxIn(vpId, dragId);
   const frame = await editor.nodeBox('drop-frame');
   // Off-center press so the press point differs from the prime click.
-  const from = { x: inner.x + inner.width / 2 + 8, y: inner.y + inner.height / 2 + 6 };
+  const from = { x: inner.x + inner.width / 2 + 4, y: inner.y + inner.height / 2 + 3 };
   const to = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 };
   // Stage 1 — straight down out of the tile onto open canvas (LayoutLifted
   // lifts, goes off-parent). Stage 2 — across into the frame (mid-drag exit
@@ -344,12 +344,13 @@ test('canvas node → REPLICA layout frame: outline and element keep tracking', 
   await editor.fitCamera();
 
   await editor.primeNode('card', 'tablet'); // start the tablet tile's rect stream
-  await editor.select(['canvas-chip']);
+  await editor.primeNode('canvas-chip');
+  await editor.select(['canvas-chip'], 'desktop');
   await page.waitForTimeout(600);
 
   const chip = await editor.nodeBox('canvas-chip');
   const card = await editor.nodeBoxIn('tablet', 'card');
-  const from = { x: chip.x + chip.width / 2 + 5, y: chip.y + chip.height / 2 + 4 };
+  const from = { x: chip.x + chip.width / 2, y: chip.y + chip.height / 2 };
   const to = { x: card.x + card.width / 2, y: card.y + card.height / 2 };
 
   const mouse = page.mouse;

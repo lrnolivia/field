@@ -408,13 +408,15 @@ export function sealPendingHistory(): void {
  * active file at push time, which exists in the post-op state.
  */
 export function pushHistoryFileOp(activeFileBefore: string): void {
-  const sizeBefore = undoStack.length;
+  const previous = undoStack[undoStack.length - 1];
   pushHistoryImmediate('');
   // Only stamp when a new entry actually landed (no-diff push is a no-op —
   // stamping the PRIOR entry would corrupt an unrelated edit's undo target).
-  if (undoStack.length > sizeBefore) {
-    undoStack[undoStack.length - 1].activeFileBefore = activeFileBefore;
-    trace.action('history:push-file-op', { activeFileBefore, activeFile: undoStack[undoStack.length - 1].activeFile });
+  // At capacity a new entry evicts the oldest without changing the length.
+  const entry = undoStack[undoStack.length - 1];
+  if (entry && entry !== previous) {
+    entry.activeFileBefore = activeFileBefore;
+    trace.action('history:push-file-op', { activeFileBefore, activeFile: entry.activeFile });
   }
 }
 

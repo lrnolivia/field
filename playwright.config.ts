@@ -4,8 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // real renderer, real ProjectFS commits.
 //
 // DEDICATED PORT (4333, not the dev server's 3333). The daily dev stack runs
-// in CLOUD mode, where `/` redirects to /auth and every spec dies at
-// waitForCanvasReady — and killing it to run tests is not an option. So
+// in CLOUD mode and cannot load the seeded local project at `/work/local`. So
 // Playwright boots its OWN parent in LOCAL mode on 4333 (process env beats
 // .env in Vite's loadEnv, and local mode also skips the cloud-only
 // hmr:{port:3333} override + the '/builder/' base). Run the suite any time,
@@ -15,6 +14,7 @@ import { defineConfig, devices } from '@playwright/test';
 // canvas-sandbox/protocol.ts, so both stacks necessarily share it. That's
 // fine — the sandbox is stateless per iframe and serves from the same disk —
 // so we reuse a running one and only boot our own when nothing is there.
+// The preview iframe uses a third server on 5175.
 //
 // Any `e2e/` folder anywhere under src/ is picked up (testDir + testMatch),
 // so a new area only needs its own folder — no config edit, and no suite
@@ -22,6 +22,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT ?? 4333);
 const SANDBOX_PORT = Number(process.env.E2E_SANDBOX_PORT ?? 5174);
+const PREVIEW_PORT = 5175;
 
 export default defineConfig({
   testDir: './src',
@@ -71,6 +72,14 @@ export default defineConfig({
       command: 'npx vite --config vite.sandbox.config.ts',
       url: `http://localhost:${SANDBOX_PORT}`,
       reuseExistingServer: true,
+      timeout: 120_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npx vite --config vite.preview.config.ts --strictPort',
+      url: `http://localhost:${PREVIEW_PORT}`,
+      reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       stdout: 'ignore',
       stderr: 'pipe',

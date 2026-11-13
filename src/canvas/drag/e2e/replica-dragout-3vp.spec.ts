@@ -19,8 +19,9 @@ test.describe('replica drag-out (3 viewports)', () => {
   test('tablet drag-out hides tablet only; undo restores the tablet copy', async ({ page }) => {
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('LOCALE_3VP');
-    await page.keyboard.press('Shift+1');
-    await page.waitForTimeout(600);
+    await editor.fitCamera();
+    await editor.primeNode('card', 'tablet');
+    await editor.select(['card-inner'], 'tablet');
 
     const sandbox = editor.sandbox();
     const tabletInner = sandbox.locator('[data-viewport="tablet"] [data-id="card-inner"]').first();
@@ -32,8 +33,8 @@ test.describe('replica drag-out (3 viewports)', () => {
     if (!tabletBox || !tabletVp) throw new Error('tablet boxes missing');
 
     // Drag the tablet card-inner to empty canvas below the tablet tile.
-    const from = { x: tabletBox.x + tabletBox.width / 2, y: tabletBox.y + tabletBox.height / 2 };
-    const to = { x: tabletVp.x + tabletVp.width / 2, y: tabletVp.y + tabletVp.height + 80 };
+    const from = { x: tabletBox.x + tabletBox.width / 2 + 6, y: tabletBox.y + tabletBox.height / 2 + 4 };
+    const to = { x: from.x, y: tabletVp.y + tabletVp.height + 80 };
     await editor.dragFromTo(from, to, { steps: 16 });
     await page.waitForTimeout(400);
 
