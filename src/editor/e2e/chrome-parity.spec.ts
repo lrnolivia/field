@@ -131,6 +131,17 @@ test('floating sections have individual card edges and docked compact Inspector 
 });
 
 test('Insert glyphs use bright accents and animated previews fill their pills', async ({ page }) => {
+  // Keep the icon thumbnail check independent of the third-party catalog.
+  await page.route('https://api.iconify.design/collections', route => route.fulfill({
+    json: { 'material-symbols': { name: 'Material Symbols', total: 1 } },
+  }));
+  await page.route(url => url.hostname === 'api.iconify.design' && url.pathname === '/collection', route => route.fulfill({
+    json: { uncategorized: ['add'] },
+  }));
+  await page.route(url => url.hostname === 'api.iconify.design' && url.pathname === '/material-symbols.json', route => route.fulfill({
+    json: { prefix: 'material-symbols', width: 24, height: 24, icons: { add: { body: '<path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z" fill="currentColor"/>' } } },
+  }));
+
   await page.addInitScript(() => {
     localStorage.setItem('revyme:prefs:builderTheme', JSON.stringify('pink'));
     localStorage.setItem('revyme:prefs:themeMode', JSON.stringify('dark'));
@@ -158,8 +169,8 @@ test('Insert glyphs use bright accents and animated previews fill their pills', 
   const before = await illustration.evaluate(el => getComputedStyle(el).transform);
   await expect.poll(() => illustration.evaluate(el => getComputedStyle(el).transform)).not.toBe(before);
   await page.screenshot({ path: '/tmp/field-animated-preview-pills.png' });
-  await page.getByRole('button', { name: 'Icons', exact: true }).hover();
-  const pack = page.locator('[data-card-tone="neutral"]').first();
+  await page.getByRole('button', { name: 'Icons', exact: true }).click();
+  const pack = page.getByRole('button', { name: 'Material Symbols, 1 icons', exact: true });
   await expect(pack.locator('img')).toBeVisible();
   await expect.poll(() => pack.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await page.waitForTimeout(350);

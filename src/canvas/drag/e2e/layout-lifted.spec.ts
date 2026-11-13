@@ -69,23 +69,24 @@ test.describe('LayoutLiftedStrategy', () => {
     // compare equal to its start slot and silently revert on mouseup.
     const editor = new EditorPage(page);
     await editor.gotoWithSeed('GHOST_SIBLING_COLUMN');
-    await editor.fitCamera();
-    await editor.primeNode('footer');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
     await editor.select(['footer'], 'desktop');
+    await editor.waitForStableGeometry('footer');
 
     const visibleOrder = async () =>
       (await editor.getRootChildrenVisualOrder()).filter((id) => id !== 'ghost');
     expect(await visibleOrder()).toEqual(['nav', 'hero', 'footer', 'cta']);
 
     // Drag footer DOWN past the CTA's bottom edge → footer becomes last.
-    const footerBox = await editor.nodeBox('footer');
     const ctaBox = await editor.nodeBox('cta');
-    const from = { x: footerBox.x + footerBox.width / 2, y: footerBox.y + footerBox.height / 2 };
-    const to = { x: ctaBox.x + ctaBox.width / 2, y: ctaBox.y + ctaBox.height - 4 };
+    const rootBox = await editor.nodeBox('root');
+    const ctaEnd = ctaBox.y + ctaBox.height;
+    const emptySpace = rootBox.y + rootBox.height - ctaEnd;
+    expect(emptySpace).toBeGreaterThan(16);
+    const to = { x: ctaBox.x + ctaBox.width / 2, y: ctaEnd + emptySpace / 2 };
 
-    await editor.dragFromTo(from, to);
-
-    expect(await visibleOrder()).toEqual(['nav', 'hero', 'cta', 'footer']);
+    await editor.dragNodeAsserted('footer', to, { steps: 24, releaseDelayMs: 100 });
+    await expect.poll(visibleOrder).toEqual(['nav', 'hero', 'cta', 'footer']);
 
     // The bordered footer keeps its border AND carries a real `order` —
     // the generator's order/border key-collision regression.

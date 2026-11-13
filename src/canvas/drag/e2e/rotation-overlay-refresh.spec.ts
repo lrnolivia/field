@@ -171,7 +171,10 @@ test('svg Rectangle: Inspector rotation, undo and redo refresh the outline witho
   await expect.poll(() => svgAngle(page)).toBe(30);
   await expect.poll(() => svgOverlayError(page), { message: 'after Inspector rotation', timeout: 3_000 }).toBeLessThan(2.5);
 
-  await page.evaluate(() => (window as any).__e2e.select(['shape']));
+  // The input may keep focus after committing and intercept the Undo shortcut.
+  await input.blur();
+  await expect(input).not.toBeFocused();
+  await expect.poll(() => page.evaluate(() => (window as any).__e2e.selection())).toEqual(['shape']);
   await page.keyboard.press(`${mod}+z`);
   await expect.poll(() => svgAngle(page)).toBe(0);
   await expect.poll(() => svgOverlayError(page), { message: 'after undo', timeout: 3_000 }).toBeLessThan(2.5);
