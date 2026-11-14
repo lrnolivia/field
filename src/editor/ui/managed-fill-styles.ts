@@ -5,11 +5,14 @@ import {
   buildPatternFillStyles,
   parsePatternFillConfig,
   serializePatternFillConfig,
+  decodePatternStyleBackup,
+  isLegacyGridMask,
+  LEGACY_GRID_MASK,
+  PATTERN_STYLE_BACKUP,
   type PatternFillConfig,
   type PatternMonsterDefinition,
 } from './pattern-fill-utils';
 
-const PATTERN_STYLE_BACKUP = 'data-field-pattern-style-backup';
 const SHADER_STYLE_BACKUP = 'data-field-shader-style-backup';
 
 const MASK_PROPERTIES = ['maskImage', 'WebkitMaskImage'] as const;
@@ -47,12 +50,15 @@ function patternMaskRestore(node: CanvasNode | undefined | null): Record<string,
   const raw = node?.attrs?.['data-field-pattern'];
   if (!raw) return {};
   const config = parsePatternFillConfig(raw);
-  if (config.source !== 'field' || config.kind !== 'gridMask') return {};
-  const { maskImage, WebkitMaskImage } = buildPatternFillStyles(config);
-  // Older documents didn't save displaced values. Remove only the exact
-  // gradient that Grid + Mask previously emitted.
-  const backup = readBackup(node, PATTERN_STYLE_BACKUP) ?? { maskImage: '', WebkitMaskImage: '' };
-  return restoreOwnedStyles(node, { maskImage, WebkitMaskImage }, backup);
+  if (!isLegacyGridMask(config, node?.styles.backgroundImage)) return {};
+  const backup = decodePatternStyleBackup(node?.attrs?.[PATTERN_STYLE_BACKUP]);
+  const restore: Record<string, string> = {};
+  for (const property of MASK_PROPERTIES) {
+    if (node?.styles[property] !== LEGACY_GRID_MASK) continue;
+    const prior = backup[property];
+    restore[property] = typeof prior === 'string' ? prior : '';
+  }
+  return restore;
 }
 
 export function patternFillMutations(
@@ -61,12 +67,7 @@ export function patternFillMutations(
   config: PatternFillConfig,
   definition?: PatternMonsterDefinition | null,
 ): Mutation[] {
-  const { maskImage, WebkitMaskImage, ...background } = buildPatternFillStyles(config, definition);
-  const restore = patternMaskRestore(node);
-  const backup: Record<string, string> = {};
-  if (maskImage) {
-    for (const prop of MASK_PROPERTIES) backup[prop] = restore[prop] ?? node?.styles[prop] ?? '';
-  }
+  const background = buildPatternFillStyles(config, definition);
   return [
     {
       type: 'updateStyles',
@@ -75,7 +76,7 @@ export function patternFillMutations(
         background: '',
         ...background,
         backgroundAttachment: '',
-        ...(maskImage ? { maskImage, WebkitMaskImage } : restore),
+        ...patternMaskRestore(node),
       },
     },
     {
@@ -83,7 +84,7 @@ export function patternFillMutations(
       nodeId,
       attrs: {
         'data-field-pattern': serializePatternFillConfig(config),
-        [PATTERN_STYLE_BACKUP]: encodeBackup(backup),
+        [PATTERN_STYLE_BACKUP]: '',
       },
     },
   ];

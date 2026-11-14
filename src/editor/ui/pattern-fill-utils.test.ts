@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PATTERN_FILL,
+  GRID_MASK_SVG,
   buildPatternFillStyles,
   defaultAssetPatternFill,
   defaultPatternMonsterFill,
   parsePatternFillConfig,
   serializePatternFillConfig,
 } from './pattern-fill-utils';
+import { PATTERN_COMPONENT } from '@/code/project/default-code-components/Pattern';
+import { parseJSX } from '@/code/parsing/ast-utils';
 import { PATTERN_MONSTER_CATALOG } from './patterns/pattern-monster-catalog';
 
 describe('native pattern fill compiler', () => {
@@ -20,6 +23,21 @@ describe('native pattern fill compiler', () => {
     expect(buildPatternFillStyles({ ...DEFAULT_PATTERN_FILL, kind: 'crosses' }).backgroundImage).toContain('data:image/svg+xml');
     expect(buildPatternFillStyles({ ...DEFAULT_PATTERN_FILL, kind: 'honeycomb' }).backgroundImage).toContain('data:image/svg+xml');
     expect(buildPatternFillStyles({ ...DEFAULT_PATTERN_FILL, kind: 'checkerboard' }).backgroundPosition).toContain('10px 10px');
+  });
+
+  it('uses an SVG-local fade for Grid + Mask in Fill and Insert', () => {
+    const paint = buildPatternFillStyles({
+      ...DEFAULT_PATTERN_FILL, kind: 'gridMask', tileSize: 24, thickness: 2, background: '#fff', opacity: 0.6,
+    });
+    expect(paint).toMatchObject({ backgroundColor: 'transparent', backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' });
+    const svg = decodeURIComponent(paint.backgroundImage.split(',')[1].slice(0, -2));
+    expect(svg).toContain('width="24" height="24" patternUnits="userSpaceOnUse"');
+    expect(svg).toContain('fill-opacity="0.6"');
+    expect(svg).toContain('fill="#fff"');
+    expect(svg).toContain('mask="url(#mask)"');
+    expect(PATTERN_COMPONENT).toContain(JSON.stringify(GRID_MASK_SVG));
+    expect(PATTERN_COMPONENT).not.toContain('maskImage');
+    expect(parseJSX(PATTERN_COMPONENT)).not.toBeNull();
   });
 
   it('clamps hostile or stale field metadata rather than emitting invalid geometry', () => {

@@ -13,6 +13,24 @@ export type PatternKind =
   | 'honeycomb'
   | 'checkerboard';
 
+export const LEGACY_GRID_MASK = 'radial-gradient(ellipse at center, black 30%, transparent 75%)';
+export const PATTERN_STYLE_BACKUP = 'data-field-pattern-style-backup';
+
+export function decodePatternStyleBackup(raw?: string | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const value: unknown = JSON.parse(decodeURIComponent(raw));
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+export function isLegacyGridMask(config: PatternFillConfig, backgroundImage?: string): config is FieldPatternFillConfig {
+  return config.source === 'field' && config.kind === 'gridMask'
+    && backgroundImage === buildFieldPatternFillStyles({ ...config, kind: 'grid' }).backgroundImage;
+}
+
 export interface FieldPatternFillConfig {
   v: 1;
   source: 'field';
@@ -189,8 +207,6 @@ export interface PatternFillStyles {
   backgroundSize: string;
   backgroundPosition: string;
   backgroundRepeat: string;
-  WebkitMaskImage: string;
-  maskImage: string;
 }
 
 export const EMPTY_PATTERN_STYLES: PatternFillStyles = {
@@ -199,8 +215,6 @@ export const EMPTY_PATTERN_STYLES: PatternFillStyles = {
   backgroundSize: '',
   backgroundPosition: '',
   backgroundRepeat: '',
-  WebkitMaskImage: '',
-  maskImage: '',
 };
 
 export function buildPatternFillStyles(
@@ -237,8 +251,6 @@ function buildAssetPatternFillStyles(config: AssetPatternFillConfig): PatternFil
     backgroundSize: `${config.tileSize}px auto`,
     backgroundPosition: config.position,
     backgroundRepeat: config.repeat,
-    WebkitMaskImage: '',
-    maskImage: '',
   };
 }
 
@@ -250,7 +262,6 @@ function buildFieldPatternFillStyles(config: FieldPatternFillConfig): PatternFil
   let backgroundImage = '';
   let backgroundSize = '';
   let backgroundPosition = '';
-  let mask = '';
 
   switch (config.kind) {
     case 'grid':
@@ -273,10 +284,13 @@ function buildFieldPatternFillStyles(config: FieldPatternFillConfig): PatternFil
       backgroundImage = `repeating-linear-gradient(45deg, ${fill} 0, ${fill} ${t}px, transparent ${t}px, transparent ${tile}px)`;
       break;
     case 'gridMask':
-      backgroundImage = `linear-gradient(${fill} ${t}px, transparent ${t}px), linear-gradient(90deg, ${fill} ${t}px, transparent ${t}px)`;
-      backgroundSize = `${tile}px ${tile}px`;
-      mask = 'radial-gradient(ellipse at center, black 30%, transparent 75%)';
-      break;
+      return {
+        backgroundColor: 'transparent',
+        backgroundImage: gridMaskImage(config, tile, t),
+        backgroundSize: '100% 100%',
+        backgroundPosition: '0 0',
+        backgroundRepeat: 'no-repeat',
+      };
     case 'honeycomb': {
       const w = tile * 2;
       const h = Math.round(tile * 1.732);
@@ -298,8 +312,6 @@ function buildFieldPatternFillStyles(config: FieldPatternFillConfig): PatternFil
     backgroundSize,
     backgroundPosition,
     backgroundRepeat: 'repeat',
-    WebkitMaskImage: mask,
-    maskImage: mask,
   };
 }
 
@@ -367,8 +379,6 @@ export function buildPatternMonsterFillStyles(
     backgroundSize: '',
     backgroundPosition: '',
     backgroundRepeat: 'repeat',
-    WebkitMaskImage: '',
-    maskImage: '',
   };
 }
 
@@ -385,6 +395,30 @@ function normalizedMonsterColors(colors: string[], maxColors: number): string[] 
 function alphaColor(color: string, opacity: number): string {
   const pct = Math.round(Math.max(0, Math.min(1, opacity)) * 10000) / 100;
   return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+}
+
+// No viewBox: the SVG viewport follows the frame while grid cells stay in
+// CSS pixels. The path excludes the intersection so opacity is applied once.
+// The built-in Pattern component embeds this same template in project source.
+export const GRID_MASK_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg"><defs>' +
+  '<pattern id="grid" width="{tile}" height="{tile}" patternUnits="userSpaceOnUse">' +
+  '<rect width="{tile}" height="{tile}" fill="{background}"/>' +
+  '<path d="M0 0H{tile}V{line}H{line}V{tile}H0Z" fill="{foreground}" fill-opacity="{opacity}"/>' +
+  '</pattern><radialGradient id="fade" r="70.710678%">' +
+  '<stop offset="30%" stop-color="white"/><stop offset="75%" stop-color="white" stop-opacity="0"/>' +
+  '</radialGradient><mask id="mask" x="0" y="0" width="100%" height="100%">' +
+  '<rect width="100%" height="100%" fill="url(#fade)"/></mask></defs>' +
+  '<rect width="100%" height="100%" fill="url(#grid)" mask="url(#mask)"/></svg>';
+
+function gridMaskImage(config: FieldPatternFillConfig, tile: number, thickness: number): string {
+  const values: Record<string, string | number> = {
+    tile, line: Math.min(thickness, tile), opacity: config.opacity,
+    foreground: config.color, background: config.background,
+  };
+  return svgDataUrl(GRID_MASK_SVG.replace(/\{(\w+)\}/g, (_, key: string) =>
+    String(values[key]).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'),
+  ));
 }
 
 function svgDataUrl(svg: string): string {
