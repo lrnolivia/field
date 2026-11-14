@@ -28,6 +28,7 @@ import {
   dashboardPanelOffscreenX,
   readTransformTranslateX,
   waitForAnimationFrames,
+  waitForShellMotion,
   type DashboardMotionDirection,
 } from './field-shell-motion';
 
@@ -117,7 +118,7 @@ export default function FieldShell() {
     openingOriginRef.current = undefined;
     openingOverlayRef.current?.remove();
     openingOverlayRef.current = null;
-    if (!origin || !origin.thumbnail || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (!origin || !origin.thumbnail || document.hidden || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     const overlay = document.createElement('div');
     overlay.className = 'field-project-opening-overlay';
@@ -137,7 +138,8 @@ export default function FieldShell() {
       { offset: .48, transform: `translate3d(${dx * .55}px,${dy * .55}px,0) scale(${1 + (scaleX - 1) * .55},${1 + (scaleY - 1) * .55})`, opacity: .94, filter: 'blur(9px)' },
       { offset: 1, transform: `translate3d(${dx}px,${dy}px,0) scale(${scaleX},${scaleY})`, opacity: 0, filter: 'blur(22px)' },
     ], { duration: 480, easing: 'cubic-bezier(.22,.68,.22,1)', fill: 'forwards' });
-    void animation.finished.catch(() => undefined).then(() => {
+    void waitForShellMotion(animation.finished, 800).then(() => {
+      animation.cancel();
       overlay.remove();
       if (openingOverlayRef.current === overlay) openingOverlayRef.current = null;
     });
@@ -189,7 +191,7 @@ export default function FieldShell() {
     const canAnimate = targets.length > 0
       && targets.every(({ element }) => typeof element.animate === 'function');
 
-    if (reducedMotion || !canAnimate) {
+    if (document.hidden || reducedMotion || !canAnimate) {
       clearDashboardInlineTransforms(layer);
       setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
       return;
@@ -201,7 +203,7 @@ export default function FieldShell() {
         { opacity: 0, filter: 'blur(14px)' },
       ], { duration: 340, easing: 'cubic-bezier(.32,0,.6,1)', fill: 'both' });
       dashboardLayerAnimationRef.current = animation;
-      await animation.finished.catch(() => undefined);
+      await waitForShellMotion(animation.finished, 650);
       if (dashboardMotionEpochRef.current !== epoch) return;
       setDashboardLayerState('hidden');
       animation.cancel();
@@ -214,8 +216,13 @@ export default function FieldShell() {
     // offscreen before Dashboard exposes a single pixel of Canvas. On show it
     // guarantees both Dashboard slabs are already offscreen before the layer
     // becomes visually active. This is a compositor handoff fence, not delay.
-    await waitForAnimationFrames(1);
+    await waitForShellMotion(waitForAnimationFrames(1), 100);
     if (dashboardMotionEpochRef.current !== epoch) return;
+    if (document.hidden) {
+      clearDashboardInlineTransforms(layer);
+      setDashboardLayerState(direction === 'show' ? 'visible' : 'hidden');
+      return;
+    }
 
     const handles = targets.map(({ element, role }) => {
       const fromX = readTransformTranslateX(window.getComputedStyle(element).transform);
@@ -239,7 +246,7 @@ export default function FieldShell() {
     });
     dashboardAnimationsRef.current = handles;
 
-    await Promise.all(handles.map(({ animation }) => animation.finished.catch(() => undefined)));
+    await waitForShellMotion(Promise.all(handles.map(({ animation }) => animation.finished)), 750);
     if (dashboardMotionEpochRef.current !== epoch) return;
 
     // Keep the exact final transform in inline style after WAAPI completes.
@@ -319,13 +326,13 @@ export default function FieldShell() {
     openingOverlayRef.current = null;
 
     let editorExitPromise: Promise<void> | null = null;
-    if (dashboardStateRef.current === 'hidden' && builderIdRef.current) {
+    if (!document.hidden && dashboardStateRef.current === 'hidden' && builderIdRef.current) {
       // The outgoing editor chrome now hands the edges directly to Dashboard.
       // Start that exit first, give it a tiny painted lead, then overlap the
       // incoming Dashboard slabs. This removes the bare, camera-composed Canvas
       // state that read as a shifted/broken duplicate during the handoff.
       trace.action('field-shell:editor-exit-start', { projectId: builderIdRef.current });
-      editorExitPromise = requestEditorChromeExit(document);
+      editorExitPromise = waitForShellMotion(requestEditorChromeExit(document), 750);
       void editorExitPromise.then(() => {
         trace.action('field-shell:editor-exit-complete', { projectId: builderIdRef.current });
       });
@@ -334,7 +341,7 @@ export default function FieldShell() {
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     if (editorExitPromise && !reducedMotion) {
       trace.action('field-shell:editor-dashboard-overlap', { projectId: builderIdRef.current });
-      await waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES);
+      await waitForShellMotion(waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES), 100);
     }
 
     const revealPromise = showDashboardLayer();

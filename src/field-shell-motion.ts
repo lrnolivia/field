@@ -137,3 +137,23 @@ export function waitForAnimationFrames(
     step(frames);
   });
 }
+
+/** A browser can suspend frames and animation completion in a hidden tab.
+ * Navigation still has to release the outgoing surface and its input mask.
+ */
+export function waitForShellMotion(completion: Promise<unknown>, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      resolve();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) finish();
+    };
+    const timeout = window.setTimeout(finish, timeoutMs);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    void completion.then(finish, finish);
+    if (document.hidden) finish();
+  });
+}

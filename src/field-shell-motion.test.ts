@@ -92,13 +92,13 @@ describe('field shell seamless Dashboard/Canvas motion contract', () => {
     expect(css).not.toContain('cubic-bezier(.2, 1.12, .3, 1)');
     expect(css).toContain(".field-dashboard-layer[data-state='hidden'] .field-dashboard-sidebar");
     expect(css).toContain(".field-dashboard-layer[data-state='hidden'] .field-dashboard-main");
-    expect(shell).toContain('animation.finished.catch');
+    expect(shell).toContain('waitForShellMotion(animation.finished');
     expect(shell).not.toContain('}, 480);');
   });
 
   it('overlaps editor exit with Dashboard return instead of showing a shifted bare Canvas state', () => {
-    const exitIndex = shell.indexOf('editorExitPromise = requestEditorChromeExit(document);');
-    const leadIndex = shell.indexOf('await waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES);', exitIndex);
+    const exitIndex = shell.indexOf('editorExitPromise = waitForShellMotion(requestEditorChromeExit(document), 750);');
+    const leadIndex = shell.indexOf('await waitForShellMotion(waitForAnimationFrames(DASHBOARD_EDITOR_HANDOFF_FRAMES), 100);', exitIndex);
     const showIndex = shell.indexOf('const revealPromise = showDashboardLayer();', leadIndex);
     const joinIndex = shell.indexOf('await Promise.all([editorExitPromise, revealPromise]);', showIndex);
 
