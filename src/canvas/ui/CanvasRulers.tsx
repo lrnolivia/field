@@ -1,19 +1,4 @@
-// CanvasRulers.tsx — Top + left rulers with px ticks.
-// Ported from `builder/src/builder/view/canvas/CanvasRulers.tsx` and
-// trimmed to Revyme's setup:
-//   - LEFT_MENU_WIDTH (52) + LEFT_PANEL_WIDTH (256) is the fixed left
-//     chrome width. The left panel is always open in Revyme (default
-//     `pages-layers`), so we don't bother with the panel-open detection
-//     the builder version did.
-//   - No DYNAMIC_TOOLBAR_HEIGHT — Revyme's header sits above the
-//     canvas at y=0..52 already; rulers start under it.
-//   - Selection-bounds rendering on rulers (the highlighted spans showing
-//     the current selection's extent) is dropped from this v1; can be
-//     added back if useful.
-//
-// Drag from a ruler → creates a new guide via `rulerGuideOps.addGuide`
-// (live preview line follows the cursor while dragging; commits on
-// mouseup ≥ 10px below the ruler edge).
+// Canvas rulers and the live preview when pulling a guide from either ruler.
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useAtomValue, useStore } from 'jotai';
@@ -28,25 +13,14 @@ import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
 import { findNodeRect } from '@/canvas/node-ops';
 import { trace } from '@/shared/debug-trace';
 
-const RULER_SIZE = 28;
-const LEFT_MENU_WIDTH = 52;
-const LEFT_PANEL_WIDTH = 256;
-const RIGHT_PANEL_WIDTH = 260;
-const LEFT_OFFSET = LEFT_MENU_WIDTH + LEFT_PANEL_WIDTH; // 308 — left edge of canvas area
-// Right offset stops the top ruler before it reaches the right panel /
-// RightHeader. Both share the same 260 px width, so a single value
-// keeps the ruler clear of both the panel and the header chrome and
-// makes the visible ruler region == the visible canvas region.
-const RIGHT_OFFSET = RIGHT_PANEL_WIDTH;
-// The chrome's cut-corner notches (left panel bottom-right, right header
-// top-left) look through onto the canvas via a 12px underlap on each side
-// (App.tsx marginLeft 296 + the right sidebar's marginLeft -12). The ruler
-// strips extend INTO those underlaps so a notch reveals continuing ruler
-// chrome instead of a raw canvas wedge squeezed against the ruler's end.
-// Chrome sits at z-5000+/9999 and the rulers at 4900, so everything but
-// the notch triangles stays covered. Keep in sync with the underlaps.
+export const RULER_SIZE = 28;
+export const GUIDE_RULER_THRESHOLD = 10;
 const CUT_UNDERLAP = 12;
-// Top offset is MEASURED at the component level — see use-top-chrome-height.ts.
+
+export interface RulerInsets {
+  left: number;
+  right: number;
+}
 
 // Color tokens — pixel-match the builder repo's `CanvasRulers.tsx`:
 //   bg     = `--bg-canvas` (lighter than `--bg-surface`, reads as a
@@ -76,9 +50,10 @@ interface PositionIndicatorProps {
   isHorizontal: boolean; // true → top ruler (X coord); false → left ruler (Y coord)
   transform: { x: number; y: number; scale: number };
   topOffset: number;
+  left: number;
 }
 
-function PositionIndicator({ position, isHorizontal, transform, topOffset }: PositionIndicatorProps) {
+function PositionIndicator({ position, isHorizontal, transform, topOffset, left }: PositionIndicatorProps) {
   if (isHorizontal) {
     const screenX = position * transform.scale + transform.x;
     return (
@@ -114,7 +89,7 @@ function PositionIndicator({ position, isHorizontal, transform, topOffset }: Pos
     <div
       style={{
         position: 'fixed',
-        left: LEFT_OFFSET,
+        left,
         top: screenY,
         transform: 'translateY(-50%)',
         width: RULER_SIZE,
@@ -141,11 +116,6 @@ function PositionIndicator({ position, isHorizontal, transform, topOffset }: Pos
     </div>
   );
 }
-
-// Minimum cursor distance from the ruler edge (in screen px) before a
-// drag commits a new guide. Below this, the user dragged from the ruler
-// but never crossed the threshold, so we treat it as a no-op.
-const MIN_CREATE_DISTANCE = 10;
 
 // ─── Tick interval (zoom-aware) ────────────────────────────────────────────
 
@@ -240,7 +210,9 @@ function useTransform() {
   return transform;
 }
 
-export default function CanvasRulers() {
+export default function CanvasRulers({ left, right }: RulerInsets) {
+  const leftUnderlap = Math.min(left, CUT_UNDERLAP);
+  const rightUnderlap = Math.min(right, CUT_UNDERLAP);
   const showRulers = useAtomValue(showRulersAtom);
   const transform = useTransform();
   const activeFilePath = useAtomValue(activeFilePathAtom);
@@ -266,80 +238,68 @@ export default function CanvasRulers() {
   }, []);
 
   // ─── Drag from ruler → create guide ───────────────────────────────────
-  const isDraggingRef = useRef(false);
-  const dragTypeRef = useRef<'horizontal' | 'vertical' | null>(null);
   const transformRef = useRef(transform);
-  const filePathRef = useRef(activeFilePath);
-  // topOffset can change mid-drag (rare: user navigates to/from a master
-  // file via breadcrumb while still holding the cursor). Keep it in a
-  // ref so the window-level mouseup handler reads the live value.
-  const topOffsetRef = useRef(topOffset);
   useEffect(() => { transformRef.current = transform; }, [transform]);
-  useEffect(() => { filePathRef.current = activeFilePath; }, [activeFilePath]);
-  useEffect(() => { topOffsetRef.current = topOffset; }, [topOffset]);
+  const dragRef = useRef<{ type: 'horizontal' | 'vertical'; filePath: string } | null>(null);
+  const rulerEdgesRef = useRef({ left, topOffset });
+  useEffect(() => { rulerEdgesRef.current = { left, topOffset }; }, [left, topOffset]);
 
-  const handleHorizontalRulerMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    isDraggingRef.current = true;
-    dragTypeRef.current = 'horizontal';
-    store.set(draggingGuidePreviewAtom, { type: 'horizontal', screenPosition: e.clientY });
-    document.body.style.cursor = 'row-resize';
+  const cancelDrag = useCallback(() => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    store.set(draggingGuidePreviewAtom, null);
+    document.body.style.cursor = '';
   }, [store]);
 
-  const handleVerticalRulerMouseDown = useCallback((e: React.MouseEvent) => {
+  const startDrag = (e: React.MouseEvent, type: 'horizontal' | 'vertical') => {
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    isDraggingRef.current = true;
-    dragTypeRef.current = 'vertical';
-    store.set(draggingGuidePreviewAtom, { type: 'vertical', screenPosition: e.clientX });
-    document.body.style.cursor = 'col-resize';
-  }, [store]);
+    dragRef.current = { type, filePath: activeFilePath };
+    const screenPosition = type === 'horizontal' ? e.clientY : e.clientX;
+    store.set(draggingGuidePreviewAtom, { type, screenPosition });
+    document.body.style.cursor = type === 'horizontal' ? 'row-resize' : 'col-resize';
+  };
 
-  // Window-level mousemove + mouseup so the drag continues even when
-  // the cursor leaves the ruler's tiny strip.
   useEffect(() => {
+    if (!showRulers) return;
     const onMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !dragTypeRef.current) return;
-      const screenPos = dragTypeRef.current === 'horizontal' ? e.clientY : e.clientX;
-      store.set(draggingGuidePreviewAtom, { type: dragTypeRef.current, screenPosition: screenPos });
+      const drag = dragRef.current;
+      if (!drag) return;
+      const screenPosition = drag.type === 'horizontal' ? e.clientY : e.clientX;
+      store.set(draggingGuidePreviewAtom, { type: drag.type, screenPosition });
     };
     const onUp = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !dragTypeRef.current) return;
-      const t = transformRef.current;
-      const type = dragTypeRef.current;
-      const tOff = topOffsetRef.current;
-      // Convert screen → canvas-space using the canvas transform.
-      // Same math the click handler in Canvas.tsx uses.
-      const cursorScreenPos = type === 'horizontal' ? e.clientY : e.clientX;
-      // Inverse of `RulerGuides.tsx` `GuideLine.screenPos`. Must NOT add
-      // `tOff + RULER_SIZE` / `LEFT_OFFSET + RULER_SIZE` to compensate
-      // for the cursor crossing the ruler edge — those would store a
-      // shifted canvas-x and break snap alignment.
-      const offset = type === 'horizontal' ? t.y : t.x + LEFT_OFFSET;
-      const canvasPos = (cursorScreenPos - offset) / t.scale;
-
-      // Distance check — only commit if the user pulled the cursor
-      // past `MIN_CREATE_DISTANCE` past the ruler. Otherwise treat
-      // it as a misclick and bail.
-      const distance = type === 'horizontal'
-        ? e.clientY - tOff - RULER_SIZE
-        : e.clientX - LEFT_OFFSET - RULER_SIZE;
-      if (distance > MIN_CREATE_DISTANCE) {
-        rulerGuideOps.addGuide(filePathRef.current, type, canvasPos);
-      }
-      isDraggingRef.current = false;
-      dragTypeRef.current = null;
-      store.set(draggingGuidePreviewAtom, null);
-      document.body.style.cursor = '';
+      const drag = dragRef.current;
+      if (!drag || e.button !== 0) return;
+      cancelDrag();
+      if (drag.filePath !== store.get(activeFilePathAtom)) return;
+      const t = transformManager.getAppliedTransform();
+      const edges = rulerEdgesRef.current;
+      const horizontal = drag.type === 'horizontal';
+      const cursor = horizontal ? e.clientY : e.clientX;
+      const rulerEdge = (horizontal ? edges.topOffset : edges.left) + RULER_SIZE;
+      if (cursor - rulerEdge < GUIDE_RULER_THRESHOLD) return;
+      // The full-bleed Canvas starts at (0, 0). The chrome moves the ruler
+      // strip, while guide positions share the camera origin with snap lines.
+      const position = (cursor - (horizontal ? t.y : t.x)) / t.scale;
+      rulerGuideOps.addGuide(drag.filePath, drag.type, position);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancelDrag();
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('blur', cancelDrag);
     return () => {
+      cancelDrag();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('blur', cancelDrag);
     };
-  }, [store]);
+  }, [activeFilePath, cancelDrag, showRulers, store]);
 
   // ─── Selection bounds (highlight bands on rulers) ─────────────────
   // For each selected node, read its viewport-space rect from the
@@ -429,8 +389,8 @@ export default function CanvasRulers() {
   if (!showRulers) return null;
 
   // Visible canvas-coord range for tick generation.
-  const visibleStartX = (LEFT_OFFSET - transform.x) / transform.scale;
-  const visibleEndX = (viewport.w - RIGHT_OFFSET + CUT_UNDERLAP - transform.x) / transform.scale;
+  const visibleStartX = (left - transform.x) / transform.scale;
+  const visibleEndX = (viewport.w - right + rightUnderlap - transform.x) / transform.scale;
   const visibleStartY = (topOffset - transform.y) / transform.scale;
   const visibleEndY = (viewport.h - transform.y) / transform.scale;
 
@@ -441,22 +401,16 @@ export default function CanvasRulers() {
 
   return (
     <>
-      {/* Top ruler — right edge stops at the right panel boundary
-          (`right: RIGHT_OFFSET`) so the ruler never reaches the panel
-          chrome. No z-index dance needed: the ruler simply doesn't
-          extend into the panel's region.
-          z-index 4900 sits BELOW the right panel (z-5000) and above
-          canvas content; in practice the geometry already keeps them
-          apart, but the lower z keeps RightHeader (z-9999) on top
-          when the ruler is visible at y=0 on a non-master file. */}
+      {/* Rulers extend under the docked panels' cut corners. Floating
+          panels paint above the rulers without changing Canvas coordinates. */}
       <div
         data-ruler
-        onMouseDown={handleHorizontalRulerMouseDown}
+        onMouseDown={(event) => startDrag(event, 'horizontal')}
         style={{
           position: 'fixed',
           top: topOffset,
-          left: LEFT_OFFSET + RULER_SIZE,
-          right: RIGHT_OFFSET - CUT_UNDERLAP,
+          left: left + RULER_SIZE,
+          right: right - rightUnderlap,
           height: RULER_SIZE,
           backgroundColor: RULER_BG,
           borderBottom: `1px solid ${RULER_BORDER}`,
@@ -467,7 +421,7 @@ export default function CanvasRulers() {
         }}
       >
         <svg width="100%" height={RULER_SIZE} style={{ position: 'absolute', left: 0, top: 0 }}>
-          <g transform={`translate(${transform.x - LEFT_OFFSET - RULER_SIZE}, 0)`}>
+          <g transform={`translate(${transform.x - left - RULER_SIZE}, 0)`}>
             <RulerTicks start={visibleStartX} end={visibleEndX} scale={transform.scale} isHorizontal />
           </g>
         </svg>
@@ -476,13 +430,13 @@ export default function CanvasRulers() {
       {/* Left ruler */}
       <div
         data-ruler
-        onMouseDown={handleVerticalRulerMouseDown}
+        onMouseDown={(event) => startDrag(event, 'vertical')}
         style={{
           position: 'fixed',
           top: topOffset + RULER_SIZE,
-          left: LEFT_OFFSET - CUT_UNDERLAP,
+          left: left - leftUnderlap,
           bottom: 0,
-          width: RULER_SIZE + CUT_UNDERLAP,
+          width: RULER_SIZE + leftUnderlap,
           backgroundColor: RULER_BG,
           borderRight: `1px solid ${RULER_BORDER}`,
           zIndex: 4900,
@@ -491,10 +445,8 @@ export default function CanvasRulers() {
           overflow: 'hidden',
         }}
       >
-        {/* Ticks keep hugging the ORIGINAL 28px column — the 12px extension
-            to the left is blank chrome that only shows through the panel's
-            bottom notch. */}
-        <svg width={RULER_SIZE} height="100%" style={{ position: 'absolute', left: CUT_UNDERLAP, top: 0 }}>
+        {/* The underlap is blank behind the docked panel's cut corner. */}
+        <svg width={RULER_SIZE} height="100%" style={{ position: 'absolute', left: leftUnderlap, top: 0 }}>
           <g transform={`translate(0, ${transform.y - topOffset - RULER_SIZE})`}>
             <RulerTicks start={visibleStartY} end={visibleEndY} scale={transform.scale} isHorizontal={false} />
           </g>
@@ -515,7 +467,7 @@ export default function CanvasRulers() {
         style={{
           position: 'fixed',
           top: topOffset,
-          left: LEFT_OFFSET,
+          left,
           width: RULER_SIZE,
           height: RULER_SIZE,
           backgroundColor: 'color-mix(in srgb, var(--bg-canvas) 70%, transparent)',
@@ -574,47 +526,45 @@ export default function CanvasRulers() {
             {/* Left ruler — accent band (spans the underlap extension too so
                 the band reads as continuing behind the panel's bottom notch) */}
             <div style={{
-              position: 'fixed', left: LEFT_OFFSET - CUT_UNDERLAP, top: screenTop,
-              width: RULER_SIZE + CUT_UNDERLAP, height: heightScreen,
+              position: 'fixed', left: left - leftUnderlap, top: screenTop,
+              width: RULER_SIZE + leftUnderlap, height: heightScreen,
               backgroundColor: SELECTION_ACCENT, opacity: 0.12,
               pointerEvents: 'none', zIndex: 4901,
             }} />
             {/* Left ruler — 1 px edge line at the right (against canvas) */}
             <div style={{
-              position: 'fixed', left: LEFT_OFFSET + RULER_SIZE - 1, top: screenTop,
+              position: 'fixed', left: left + RULER_SIZE - 1, top: screenTop,
               width: 1, height: heightScreen,
               backgroundColor: SELECTION_ACCENT,
               pointerEvents: 'none', zIndex: 4903,
             }} />
             {/* Left ruler — 8 px tick marks at each edge */}
             <div style={{
-              position: 'fixed', left: LEFT_OFFSET + RULER_SIZE - 8, top: screenTop,
+              position: 'fixed', left: left + RULER_SIZE - 8, top: screenTop,
               width: 8, height: 1, backgroundColor: SELECTION_ACCENT,
               pointerEvents: 'none', zIndex: 4903,
             }} />
             <div style={{
-              position: 'fixed', left: LEFT_OFFSET + RULER_SIZE - 8, top: screenBottom,
+              position: 'fixed', left: left + RULER_SIZE - 8, top: screenBottom,
               width: 8, height: 1, backgroundColor: SELECTION_ACCENT,
               pointerEvents: 'none', zIndex: 4903,
             }} />
             {/* Position-indicator labels at each edge — canvas-space coords */}
-            <PositionIndicator position={sb.left}   isHorizontal transform={transform} topOffset={topOffset} />
-            <PositionIndicator position={sb.right}  isHorizontal transform={transform} topOffset={topOffset} />
-            <PositionIndicator position={sb.top}    isHorizontal={false} transform={transform} topOffset={topOffset} />
-            <PositionIndicator position={sb.bottom} isHorizontal={false} transform={transform} topOffset={topOffset} />
+            <PositionIndicator position={sb.left}   isHorizontal transform={transform} topOffset={topOffset} left={left} />
+            <PositionIndicator position={sb.right}  isHorizontal transform={transform} topOffset={topOffset} left={left} />
+            <PositionIndicator position={sb.top}    isHorizontal={false} transform={transform} topOffset={topOffset} left={left} />
+            <PositionIndicator position={sb.bottom} isHorizontal={false} transform={transform} topOffset={topOffset} left={left} />
           </>
         );
       })()}
 
-      {/* Drag preview line — follows cursor while dragging from ruler.
-          Right edge also stops at RIGHT_OFFSET so the preview doesn't
-          paint over the right panel. */}
+      {/* Drag preview follows the pointer while a new guide is being placed. */}
       {draggingPreview && draggingPreview.type === 'horizontal' && (
         <div
           style={{
             position: 'fixed',
-            left: LEFT_OFFSET + RULER_SIZE,
-            right: RIGHT_OFFSET,
+            left: left + RULER_SIZE,
+            right,
             top: draggingPreview.screenPosition,
             height: 1,
             backgroundColor: GUIDE_COLOR,

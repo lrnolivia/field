@@ -11,10 +11,11 @@
 // guides because they live in that file's source).
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { transformManager } from '@/canvas/transform';
 import { showRulersAtom } from '@/code/stores/user-preferences-store';
 import { useTopChromeHeight } from './use-top-chrome-height';
+import { GUIDE_RULER_THRESHOLD, RULER_SIZE, type RulerInsets } from './CanvasRulers';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import {
   activeRulerGuidesAtom,
@@ -24,72 +25,32 @@ import {
   type RulerGuide,
 } from '@/code/stores/ruler-guides-store';
 import { selectedIdsAtom } from '@/code/stores/store';
-import { trace } from '@/shared/debug-trace';
-
-const RULER_SIZE = 28;
-const LEFT_MENU_WIDTH = 52;
-const LEFT_PANEL_WIDTH = 256;
-const RIGHT_PANEL_WIDTH = 260;
-const LEFT_OFFSET = LEFT_MENU_WIDTH + LEFT_PANEL_WIDTH;
-const RIGHT_OFFSET = RIGHT_PANEL_WIDTH;
-// `topOffset` is measured at the component level via useTopChromeHeight().
-// Both this and CanvasRulers MUST use the same source or guides won't line up
-// with ruler ticks — which is exactly why it's one shared hook, not two checks.
 
 const GUIDE_COLOR = '#0d9488';
 const GUIDE_COLOR_SELECTED = 'var(--selection)';
 const GUIDE_HIT_AREA = 8;
 
-// Drop a guide back ONTO the ruler (within this many screen px) →
-// delete it. Same gesture Figma uses for "drag guide back to ruler
-// to remove". Mirrors `MIN_CREATE_DISTANCE` from CanvasRulers.tsx.
-const RULER_DROP_DELETE_THRESHOLD = 10;
-
 // ─── Single guide line ────────────────────────────────────────────────────
 
-interface GuideLineProps {
+interface GuideLineProps extends RulerInsets {
   guide: RulerGuide;
   isSelected: boolean;
-  transform: { x: number; y: number; scale: number };
+  screenPosition: number;
   topOffset: number;
   onSelect: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onStartDrag: (id: string, type: 'horizontal' | 'vertical') => void;
+  onStartDrag: (event: React.MouseEvent, guide: RulerGuide, screenPosition: number) => void;
 }
 
 const GuideLine: React.FC<GuideLineProps> = ({
-  guide, isSelected, transform, topOffset, onSelect, onContextMenu, onStartDrag,
+  guide, isSelected, screenPosition, topOffset, left, right, onSelect, onContextMenu, onStartDrag,
 }) => {
-  // Convert canvas position → window position (these guides are
-  // `position: fixed`, so we need window coords). MUST match the formula
-  // the snap-line overlay uses, since users put a guide down expecting
-  // elements to snap onto it pixel-perfectly.
-  //
-  // Snap-line SVG sits at `position: absolute, left: 0, top: 0` inside the
-  // canvas container — the container starts at window-x = `LEFT_OFFSET` and
-  // window-y = 0. A snap line at canvas-coord `c` is drawn at SVG-x =
-  // `c * scale + transform.x`, which lands at:
-  //   - vertical:   window-x = `LEFT_OFFSET + c * scale + transform.x`
-  //   - horizontal: window-y = `c * scale + transform.y`
-  // We mirror that here so the guide tracks the snap line exactly.
-  //
-  // Earlier this formula added `+ RULER_SIZE` (and `+ topOffset` on Y).
-  // Together with the matching addition in the create/drag math, that
-  // visually dropped the guide at the cursor — but stored a canvas-coord
-  // shifted by `RULER_SIZE / scale`. Snap fired at the TRUE canvas-coord,
-  // so the snap line sat `RULER_SIZE` pixels off the guide. Removing the
-  // additions in both places makes the stored canvas-coord = the cursor's
-  // actual canvas position (and aligns the visible guide with the snap).
-  const screenPos = guide.type === 'horizontal'
-    ? guide.position * transform.scale + transform.y
-    : guide.position * transform.scale + transform.x + LEFT_OFFSET;
-
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // left-click only; right-click → context menu
     e.preventDefault();
     e.stopPropagation();
     onSelect(guide.id);
-    onStartDrag(guide.id, guide.type);
+    onStartDrag(e, guide, screenPosition);
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -106,9 +67,9 @@ const GuideLine: React.FC<GuideLineProps> = ({
         onContextMenu={handleContextMenu}
         style={{
           position: 'fixed',
-          left: LEFT_OFFSET + RULER_SIZE,
-          right: RIGHT_OFFSET,
-          top: screenPos,
+          left: left + RULER_SIZE,
+          right,
+          top: screenPosition,
           height: 1,
           backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
           pointerEvents: 'auto',
@@ -134,7 +95,7 @@ const GuideLine: React.FC<GuideLineProps> = ({
         position: 'fixed',
         top: topOffset + RULER_SIZE,
         bottom: 0,
-        left: screenPos,
+        left: screenPosition,
         width: 1,
         backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
         pointerEvents: 'auto',
@@ -203,7 +164,8 @@ function useTransform() {
 
 // ─── Component ────────────────────────────────────────────────────────────
 
-export default function RulerGuides() {
+export default function RulerGuides({ left, right }: RulerInsets) {
+  const store = useStore();
   const showRulers = useAtomValue(showRulersAtom);
   const guides = useAtomValue(activeRulerGuidesAtom);
   const selectedId = useAtomValue(selectedGuideIdAtom);
@@ -220,14 +182,15 @@ export default function RulerGuides() {
   // Measured — see use-top-chrome-height.ts for why a path check isn't enough.
   const topOffset = useTopChromeHeight();
 
-  // Refs so the window-level mousemove/up handlers always read the
-  // latest values without re-binding the listeners on every render.
-  const transformRef = useRef(transform);
-  const filePathRef = useRef(activeFilePath);
-  const topOffsetRef = useRef(topOffset);
-  useEffect(() => { transformRef.current = transform; }, [transform]);
-  useEffect(() => { filePathRef.current = activeFilePath; }, [activeFilePath]);
-  useEffect(() => { topOffsetRef.current = topOffset; }, [topOffset]);
+  const rulerEdgesRef = useRef({ left, topOffset });
+  useEffect(() => { rulerEdgesRef.current = { left, topOffset }; }, [left, topOffset]);
+  const dragRef = useRef<{
+    guide: RulerGuide;
+    filePath: string;
+    startCursor: number;
+    grabOffset: number;
+  } | null>(null);
+  const [preview, setPreview] = useState<{ id: string; screenPosition: number } | null>(null);
 
   // ─── Right-click context menu ──────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<
@@ -251,49 +214,68 @@ export default function RulerGuides() {
     setContextMenu({ x: e.clientX, y: e.clientY, guideId });
   }, [setSelectedId]);
 
-  // ─── Drag existing guide ───────────────────────────────────────────
-  const handleStartDrag = useCallback((guideId: string, type: 'horizontal' | 'vertical') => {
-    rulerGuideOps.beginDragExisting(guideId, type);
-    document.body.style.cursor = type === 'horizontal' ? 'row-resize' : 'col-resize';
+  const handleStartDrag = (e: React.MouseEvent, guide: RulerGuide, screenPosition: number) => {
+    const horizontal = guide.type === 'horizontal';
+    const startCursor = horizontal ? e.clientY : e.clientX;
+    dragRef.current = { guide, filePath: activeFilePath, startCursor, grabOffset: screenPosition - startCursor };
+    document.body.style.cursor = horizontal ? 'row-resize' : 'col-resize';
+  };
+
+  const cancelDrag = useCallback(() => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setPreview(null);
+    document.body.style.cursor = '';
   }, []);
 
   useEffect(() => {
+    if (!showRulers) return;
     const onMove = (e: MouseEvent) => {
-      const drag = rulerGuideOps.getActiveDrag();
+      const drag = dragRef.current;
       if (!drag) return;
-      const t = transformRef.current;
-      // Inverse of the GuideLine render formula above — keep these two in
-      // lock-step. Canvas-x = (cursor_window_x - LEFT_OFFSET - transform.x) / scale,
-      // canvas-y = (cursor_window_y - transform.y) / scale.
-      const cursorScreen = drag.type === 'horizontal' ? e.clientY : e.clientX;
-      const offset = drag.type === 'horizontal' ? t.y : t.x + LEFT_OFFSET;
-      const canvasPos = (cursorScreen - offset) / t.scale;
-      rulerGuideOps.updateGuidePosition(filePathRef.current, drag.guideId, canvasPos, true);
+      const cursor = drag.guide.type === 'horizontal' ? e.clientY : e.clientX;
+      setPreview({ id: drag.guide.id, screenPosition: cursor + drag.grabOffset });
     };
     const onUp = (e: MouseEvent) => {
-      const drag = rulerGuideOps.getActiveDrag();
-      if (!drag) return;
-      const tOff = topOffsetRef.current;
-      // Drop back onto the ruler → delete (Figma gesture). Distance
-      // matches CanvasRulers' MIN_CREATE_DISTANCE so the two gestures
-      // (create from ruler / drop back to ruler) feel symmetric.
-      const dist = drag.type === 'horizontal'
-        ? e.clientY - tOff - RULER_SIZE
-        : e.clientX - LEFT_OFFSET - RULER_SIZE;
-      if (dist < RULER_DROP_DELETE_THRESHOLD) {
-        rulerGuideOps.removeGuide(filePathRef.current, drag.guideId);
-        trace.action('ruler-guide:drop-delete', { guideId: drag.guideId });
+      const drag = dragRef.current;
+      if (!drag || e.button !== 0) return;
+      cancelDrag();
+      if (drag.filePath !== store.get(activeFilePathAtom)) return;
+      const horizontal = drag.guide.type === 'horizontal';
+      const cursor = horizontal ? e.clientY : e.clientX;
+      if (Math.abs(cursor - drag.startCursor) < 2) return;
+
+      const edges = rulerEdgesRef.current;
+      const rulerEdge = (horizontal ? edges.topOffset : edges.left) + RULER_SIZE;
+      if (cursor - rulerEdge < GUIDE_RULER_THRESHOLD) {
+        rulerGuideOps.removeGuide(drag.filePath, drag.guide.id);
+        setSelectedId(null);
+        return;
       }
-      rulerGuideOps.endDragExisting();
-      document.body.style.cursor = '';
+      const t = transformManager.getAppliedTransform();
+      const position = (cursor + drag.grabOffset - (horizontal ? t.y : t.x)) / t.scale;
+      rulerGuideOps.updateGuidePosition(drag.filePath, drag.guide.id, position);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancelDrag();
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('blur', cancelDrag);
     return () => {
+      cancelDrag();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('blur', cancelDrag);
     };
-  }, []);
+  }, [activeFilePath, cancelDrag, setSelectedId, showRulers, store]);
+
+  useEffect(() => {
+    setSelectedId(null);
+    setContextMenu(null);
+  }, [activeFilePath, setSelectedId, showRulers]);
 
   // ─── Click-elsewhere to deselect ───────────────────────────────────
   useEffect(() => {
@@ -313,13 +295,13 @@ export default function RulerGuides() {
   // ─── Keyboard: Backspace/Delete removes, Esc deselects ─────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!selectedId) return;
+      if (!showRulers || !selectedId) return;
       // Skip when typing in an input / contenteditable / TipTap editor.
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
-        rulerGuideOps.removeGuide(filePathRef.current, selectedId);
+        rulerGuideOps.removeGuide(activeFilePath, selectedId);
         setSelectedId(null);
       } else if (e.key === 'Escape') {
         setSelectedId(null);
@@ -327,7 +309,7 @@ export default function RulerGuides() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedId, setSelectedId]);
+  }, [activeFilePath, selectedId, setSelectedId, showRulers]);
 
   if (!showRulers) return null;
 
@@ -339,12 +321,17 @@ export default function RulerGuides() {
         // the user can't tell whether the snap fired). See
         // `snappedRulerGuideIdsAtom` in `ruler-guides-store.ts`.
         if (snappedIds.has(g.id)) return null;
+        const screenPosition = preview?.id === g.id
+          ? preview.screenPosition
+          : g.position * transform.scale + (g.type === 'horizontal' ? transform.y : transform.x);
         return (
           <GuideLine
             key={g.id}
             guide={g}
             isSelected={selectedId === g.id}
-            transform={transform}
+            screenPosition={screenPosition}
+            left={left}
+            right={right}
             topOffset={topOffset}
             onSelect={handleSelect}
             onContextMenu={handleContextMenu}

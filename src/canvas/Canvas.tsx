@@ -120,9 +120,10 @@ import { addViewport } from './helpers/addViewport';
 
 interface CanvasProps {
   onFirstCanvasPaint?: () => void;
+  rulerInsets?: { left: number; right: number };
 }
 
-export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
+export default function Canvas({ onFirstCanvasPaint, rulerInsets = { left: 0, right: 0 } }: CanvasProps = {}) {
   const firstPaintReportedRef = useRef(false);
   // Read the store this component subscribes to. main.tsx wraps the app in
   // <Provider> with no store prop, which creates an isolated store — distinct
@@ -1526,8 +1527,8 @@ export default function Canvas({ onFirstCanvasPaint }: CanvasProps = {}) {
           handles drag/select/delete/context-menu for each. Both gate
           internally on `showRulersAtom`, so flipping the pref hides
           everything in one shot. */}
-      <CanvasRulers />
-      <RulerGuides />
+      <CanvasRulers {...rulerInsets} />
+      <RulerGuides {...rulerInsets} />
 
       {/* Comment markers — bubbles + edit popup + chat popup. Renders
           only when `commentModeActiveAtom` is true; otherwise null

@@ -366,7 +366,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
           restore marginLeft 296 here and -12 on the right-sidebar shells
           (the 12px = the cut-notch underlap). */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative', marginLeft: 0 }}>
-        <Canvas onFirstCanvasPaint={onCanvasFirstPaint} />
+        <Canvas onFirstCanvasPaint={onCanvasFirstPaint} rulerInsets={cameraInsets} />
         {/* Right panel: PropertiesPanel by default, swap for the
             project-wide comments list while comment mode is active.
             Both panel modes follow the persisted inspector width. Viewer read-only handling lives inside

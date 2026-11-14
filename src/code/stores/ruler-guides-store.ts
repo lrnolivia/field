@@ -7,10 +7,7 @@
 // across reloads + per-file scoping (each page / component / icon-set
 // master gets its own list) comes for free.
 //
-// Writes go through the operations object: each op calls
-// `modifyProjectFile` to update the annotation in place. Drag updates
-// use a `skipHistory` flag so the source isn't rewritten 60 times per
-// second during a guide drag — only the final position commits.
+// The UI previews a guide drag locally and writes only the committed edit.
 
 import { atom, getDefaultStore } from 'jotai';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
@@ -18,7 +15,8 @@ import { projectVersionAtom, projectFS } from '@/code/project/project-fs';
 import { modifyProjectFile } from '@/code/project/modify-file';
 import { parseRulerGuides, updateRulerGuidesInCode, type RulerGuide } from '@/code/project/ruler-guides-config';
 import type { RulerGuideSnapLine } from '@/canvas/drag/handlers/snap-handler';
-import { trace } from '@/shared/debug-trace';
+import { flushNow } from '@/code/mutation/mutation-queue';
+import { pushHistoryImmediate, sealPendingHistory } from '@/code/mutation/history';
 
 export type { RulerGuide };
 
@@ -75,66 +73,40 @@ export const snappedRulerGuideIdsAtom = atom<Set<string>>(new Set<string>());
 
 // ─── Write ops ─────────────────────────────────────────────────────────────
 
-/** Shape of the in-progress drag of an EXISTING guide. Stored in a
- *  module-level ref (not atom) so the mousemove handler can read/write
- *  without React renders 60 times per second. */
-let activeDrag: { guideId: string; type: 'horizontal' | 'vertical' } | null = null;
-
 const generateGuideId = () =>
   `guide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+function editGuides(filePath: string, edit: (guides: RulerGuide[]) => RulerGuide[]): void {
+  flushNow();
+  sealPendingHistory();
+  const result = modifyProjectFile(filePath, (code) => {
+    const guides = parseRulerGuides(code);
+    const next = edit(guides);
+    return next === guides ? code : updateRulerGuidesInCode(code, next);
+  });
+  if (result !== null) pushHistoryImmediate('');
+}
+
 export const rulerGuideOps = {
-  /** Add a guide at `position` to the active file. Returns the new id. */
-  addGuide(filePath: string, type: 'horizontal' | 'vertical', position: number): string {
+  addGuide(filePath: string, type: 'horizontal' | 'vertical', position: number): void {
     const id = generateGuideId();
-    modifyProjectFile(filePath, (code) => {
-      const existing = parseRulerGuides(code);
-      const next = [...existing, { id, type, position }];
-      return updateRulerGuidesInCode(code, next);
-    });
-    trace.action('ruler-guide:add', { filePath, id, type, position });
-    return id;
+    editGuides(filePath, (guides) => [...guides, { id, type, position }]);
   },
 
-  /** Remove a guide by id from the active file. */
   removeGuide(filePath: string, guideId: string): void {
-    modifyProjectFile(filePath, (code) => {
-      const existing = parseRulerGuides(code);
-      const next = existing.filter((g) => g.id !== guideId);
-      return updateRulerGuidesInCode(code, next);
+    editGuides(filePath, (guides) => {
+      if (!guides.some((guide) => guide.id === guideId)) return guides;
+      return guides.filter((guide) => guide.id !== guideId);
     });
-    trace.action('ruler-guide:remove', { filePath, guideId });
   },
 
-  /** Update a guide's position. `skipHistory: true` means we're mid-
-   *  drag and don't want every frame to land in the undo stack — the
-   *  drop handler should call `commitGuidePosition` to add the final
-   *  position as a single history entry. */
-  updateGuidePosition(filePath: string, guideId: string, position: number, _skipHistory = false): void {
-    modifyProjectFile(filePath, (code) => {
-      const existing = parseRulerGuides(code);
-      const next = existing.map((g) => g.id === guideId ? { ...g, position } : g);
-      return updateRulerGuidesInCode(code, next);
+  updateGuidePosition(filePath: string, guideId: string, position: number): void {
+    editGuides(filePath, (guides) => {
+      const index = guides.findIndex((guide) => guide.id === guideId);
+      if (index === -1) return guides;
+      const next = [...guides];
+      next[index] = { ...next[index], position };
+      return next;
     });
-    // History batching is handled by the mutation queue's debounce so
-    // we don't need to gate writes on `skipHistory` ourselves; the flag
-    // is kept for API parity with the builder repo's signature.
-  },
-
-  /** Set the selected guide id. Pass `null` to deselect. */
-  selectGuide(_filePath: string, guideId: string | null, store: { set: (a: any, v: any) => void }): void {
-    store.set(selectedGuideIdAtom, guideId);
-  },
-
-  /** Track the in-flight drag of an existing guide (for the
-   *  mousemove/up listeners in `RulerGuides`). */
-  beginDragExisting(guideId: string, type: 'horizontal' | 'vertical'): void {
-    activeDrag = { guideId, type };
-  },
-  getActiveDrag(): typeof activeDrag {
-    return activeDrag;
-  },
-  endDragExisting(): void {
-    activeDrag = null;
   },
 };
