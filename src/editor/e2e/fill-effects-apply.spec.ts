@@ -8,11 +8,11 @@ async function styleValue(editor: EditorPage, prop: string) {
   return new RegExp(prop + ":\\s*(['\"])" + "(.*?)\\1").exec(tag)?.[2] ?? null;
 }
 
-async function openPaintFixture(page: Page, extraStyles = '') {
+async function openPaintFixture(page: Page, extraStyles = '', foreground = '') {
   const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
   seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
     .replace(/background:/g, 'backgroundColor:')
-    .replace("backgroundColor: '#66ccff'", "backgroundColor: '#66ccff'" + extraStyles);
+    .replace("backgroundColor: '#66ccff',\n        }}></div>", "backgroundColor: '#66ccff'" + extraStyles + ',\n        }}>' + foreground + '</div>');
   await page.addInitScript(data => {
     if (!localStorage.getItem('revyme-project-local')) {
       localStorage.setItem('revyme-project-local', JSON.stringify(data));
@@ -64,7 +64,7 @@ test('pattern fill applies to source and canvas and keeps an independent mask', 
   await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
 });
 
-test('removing Grid + Mask after reload restores the original mask', async ({ page }) => {
+test('Grid + Mask leaves an independent mask alone through apply, reload and removal', async ({ page }) => {
   const editor = await openPaintFixture(page, ", maskImage: 'linear-gradient(black, transparent)'");
   const layer = editor.node('abs-child');
   const originalMask = await layer.evaluate(el => getComputedStyle(el).maskImage);
@@ -73,14 +73,62 @@ test('removing Grid + Mask after reload restores the original mask', async ({ pa
   await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
   await picker.getByRole('button', { name: 'Pattern kind' }).click();
   await page.getByText('Grid + Mask', { exact: true }).click();
-  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toContain('radial-gradient');
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('data-field-pattern-style-backup');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).backgroundImage)).toContain('data:image/svg+xml');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('gridMask');
   await page.reload();
-  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toContain('radial-gradient');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).backgroundImage)).toContain('data:image/svg+xml');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
   await editor.select(['abs-child']);
   await page.locator('[data-inspector-section="fill"]').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-pattern');
+});
+
+test('Grid + Mask paints a fading background in Canvas and Preview while foreground stays opaque', async ({ page }) => {
+  const editor = await openPaintFixture(page, '', '<div data-id="foreground" style={{position:"absolute", left:"2px", top:"2px", width:"10px", height:"10px", backgroundColor:"#ff00ff"}} />');
+  const layer = editor.node('abs-child');
+  await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
+  const picker = page.getByRole('dialog', { name: 'Paint picker' });
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await picker.getByRole('button', { name: 'Pattern kind' }).click();
+  await page.getByText('Grid + Mask', { exact: true }).click();
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).backgroundImage)).toContain('data:image/svg+xml');
+  await expect(layer).toHaveCSS('mask-image', 'none');
+
+  // Decode the same CSS image the renderer paints and sample points with the
+  // identical offset into a grid tile, one at the center and one at an edge.
+  const alpha = await layer.evaluate(async el => {
+    const css = getComputedStyle(el).backgroundImage;
+    const image = new Image();
+    const source = decodeURIComponent(css.slice(css.indexOf(',') + 1, -2));
+    image.src = 'data:image/svg+xml,' + encodeURIComponent(source.replace('<svg ', '<svg width="120" height="120" '));
+    await image.decode();
+    const raster = document.createElement('canvas');
+    raster.width = raster.height = 120;
+    const ctx = raster.getContext('2d')!;
+    ctx.drawImage(image, 0, 0, 120, 120);
+    return { center: ctx.getImageData(60, 60, 1, 1).data[3], edge: ctx.getImageData(0, 0, 1, 1).data[3] };
+  });
+  expect(alpha.center).toBeGreaterThan(100);
+  expect(alpha.edge).toBe(0);
+
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'preview', exact: true }).click();
+  const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
+  const previewLayer = preview.locator('[data-id="abs-child"]');
+  await expect(previewLayer).toHaveCSS('mask-image', 'none');
+  await expect(previewLayer).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  const screenshot = await preview.locator('[data-id="foreground"]').screenshot();
+  const pixel = await page.evaluate(async base64 => {
+    const image = new Image();
+    image.src = 'data:image/png;base64,' + base64;
+    await image.decode();
+    const ctx = document.createElement('canvas').getContext('2d')!;
+    ctx.drawImage(image, 0, 0);
+    return Array.from(ctx.getImageData(4, 4, 1, 1).data);
+  }, screenshot.toString('base64'));
+  expect(pixel).toEqual([255, 0, 255, 255]);
 });
 
 test('shadow, inner shadow, layer blur and background blur write the selected object', async ({ page }) => {

@@ -11,6 +11,8 @@
 // no canvas / WebGL runtime to manage. Native to React, native to
 // Next.js production build, no special handling on canvas.
 
+import { GRID_MASK_SVG } from '@/editor/ui/pattern-fill-utils';
+
 export const PATTERN_COMPONENT = `'use client';
 
 /** @label "Pattern" */
@@ -63,7 +65,7 @@ function Pattern({
   let backgroundImage = '';
   let backgroundSize = '';
   let backgroundPosition = '';
-  let mask = '';
+  let backgroundRepeat = '';
 
   switch (kind) {
     case 'grid': {
@@ -89,9 +91,14 @@ function Pattern({
       break;
     }
     case 'gridMask': {
-      backgroundImage = \`linear-gradient(\${fill} \${t}px, transparent \${t}px), linear-gradient(90deg, \${fill} \${t}px, transparent \${t}px)\`;
-      backgroundSize = \`\${tile}px \${tile}px\`;
-      mask = 'radial-gradient(ellipse at center, black 30%, transparent 75%)';
+      const values = { tile, line: Math.min(t, tile), foreground: color, background, opacity };
+      const svg = ${JSON.stringify(GRID_MASK_SVG)}.replace(/\\{(\\w+)\\}/g, (_, key) =>
+        String(values[key]).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'),
+      );
+      backgroundImage = \`url("data:image/svg+xml;utf8,\${encodeURIComponent(svg)}")\`;
+      backgroundSize = '100% 100%';
+      backgroundPosition = '0 0';
+      backgroundRepeat = 'no-repeat';
       break;
     }
     case 'honeycomb': {
@@ -115,11 +122,11 @@ function Pattern({
 
   const style = {
     
-    backgroundColor: background,
+    backgroundColor: kind === 'gridMask' ? 'transparent' : background,
     backgroundImage,
     backgroundSize,
     ...(backgroundPosition ? { backgroundPosition } : {}),
-    ...(mask ? { WebkitMaskImage: mask, maskImage: mask } : {}), ...(props.style || {}) };
+    ...(backgroundRepeat ? { backgroundRepeat } : {}), ...(props.style || {}) };
 
   return (
     <div data-id={props['data-id']} data-name={props['data-name']} style={style} />

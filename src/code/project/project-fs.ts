@@ -19,6 +19,7 @@ import { ensureLayoutFile } from '@/code/generation/metadata-gen';
 import { healSectionOffsets } from '@/code/generation/generator-motion-scroll';
 import { healEventOverlayToggle } from '@/code/generation/event-overlay-heal';
 import { formatOverrideSource } from '@/code/generation/format-override-source';
+import { migrateGridMaskFiles } from './grid-mask-migration';
 import { OVERRIDES_DIR } from '@/code/generation/code-override-gen';
 import { ensureSmoothScrollInLayout, SMOOTH_SCROLL_DATA_PATH, SMOOTH_SCROLL_CONTROLLER_PATH } from '@/code/generation/smooth-scroll-layout';
 import {
@@ -246,6 +247,8 @@ function parseBranchRecords(rawBranches: unknown): Map<string, BranchData> {
     const order = typeof rec.order === 'number' && Number.isFinite(rec.order) ? rec.order : 0;
     const createdAt = typeof rec.createdAt === 'number' && Number.isFinite(rec.createdAt) ? rec.createdAt : Date.now();
     const lastEditedAt = typeof rec.lastEditedAt === 'number' && Number.isFinite(rec.lastEditedAt) ? rec.lastEditedAt : null;
+    migrateGridMaskFiles(bFiles);
+    migrateGridMaskFiles(base);
     branches.set(id, { files: withoutShared(bFiles), baseSnapshot: withoutShared(base), status, createdAt, parentId, order, lastEditedAt });
   }
   return branches;
@@ -462,6 +465,7 @@ export class InMemoryProjectFS implements ProjectFS {
       const b = this.branches.get(this.activeBranchId);
       if (b) b.files = withoutShared(files); else this.files = new Map(files);
     }
+    migrateGridMaskFiles(this.activeFiles());
     // One-time NATIVE migration: upgrade the old seed reset (box-sizing only +
     // html/body margins) to the universal margin/padding reset the editor
     // sandboxes apply. Older projects kept the weak seed, so a <p> without an
@@ -714,6 +718,7 @@ export class InMemoryProjectFS implements ProjectFS {
     const b = this.branches.get(branchId);
     if (!b) return `Unknown branch "${branchId}".`;
     b.files = withoutShared(files);
+    migrateGridMaskFiles(b.files);
     const globals = b.files.get('app/globals.css');
     if (globals && globals.includes(LEGACY_SEED_RESET)) {
       b.files.set('app/globals.css', globals.replace(LEGACY_SEED_RESET, UNIVERSAL_SEED_RESET));
