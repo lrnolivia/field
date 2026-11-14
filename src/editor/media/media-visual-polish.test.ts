@@ -11,7 +11,7 @@ describe('Media visual polish architecture', () => {
     expect(popover).toContain("data-media-popover-density={expanded ? 'expanded'");
     expect(controller).toContain('expanded={expanded}');
     expect(controller).toContain('onExpand={() => setExpanded((value) => !value)}');
-    expect(controller).not.toContain("import Modal from '@/design-system/Modal'");
+    expect(controller).toContain("presentation === 'regular' && session.surface === 'sidebar' && isGallery");
   });
 
   it('keeps one canonical Media browser while toolbar Media owns discovery', () => {

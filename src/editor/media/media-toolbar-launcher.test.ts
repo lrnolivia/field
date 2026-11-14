@@ -66,7 +66,7 @@ describe('toolbar Media launcher contract', () => {
     expect(controller).toContain('expanded={expanded}');
     expect(controller).toContain('onExpand={() => setExpanded((value) => !value)}');
     expect(controller).toContain('embedded');
-    expect(controller).not.toContain("import Modal from '@/design-system/Modal'");
+    expect(controller).toContain("session.surface === 'sidebar' && isGallery");
     expect(controller).not.toContain('if (expanded) {');
   });
 
