@@ -162,3 +162,31 @@ test.describe('Figma selection parity — click and keyboard traversal', () => {
     await expect.poll(selection).toEqual([]);
   });
 });
+
+test('a read-only desktop session can marquee-select without moving a layer', async ({ page, context }) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await editor.fitCamera();
+  await editor.waitForStableGeometry('abs-child');
+  const surface = (await page.locator('[data-canvas-input-surface]').boundingBox())!;
+  const root = await editor.nodeBox('root');
+  const child = await editor.nodeBox('abs-child');
+  const center = { x: child.x + child.width / 2, y: child.y + child.height / 2 };
+  const start = emptyCanvasPoint(surface, root, center);
+  const before = await editor.getPageCode();
+
+  await context.setOffline(true);
+  await expect(page.getByText(/reconnect/i).last()).toBeVisible();
+  await marquee(page, start, { x: child.x + child.width + 12, y: child.y + child.height + 12 }, 'Control');
+  await expect.poll(() => page.evaluate(() => (window as any).__e2e.selection())).toEqual(['abs-child']);
+
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 48, center.y + 32, { steps: 8 });
+  await page.mouse.up();
+  await editor.waitForStableGeometry('abs-child');
+  const after = await editor.nodeBox('abs-child');
+  expect(after.x).toBeCloseTo(child.x, 0);
+  expect(after.y).toBeCloseTo(child.y, 0);
+  expect(await editor.getPageCode()).toBe(before);
+});

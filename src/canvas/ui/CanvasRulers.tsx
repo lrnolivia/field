@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useAtomValue, useStore } from 'jotai';
 import { transformManager } from '@/canvas/transform';
+import { isViewerMode, useIsViewer } from '@/code/stores/viewer-mode-store';
 import { showRulersAtom } from '@/code/stores/user-preferences-store';
 import { useTopChromeHeight } from './use-top-chrome-height';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
@@ -214,6 +215,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
   const leftUnderlap = Math.min(left, CUT_UNDERLAP);
   const rightUnderlap = Math.min(right, CUT_UNDERLAP);
   const showRulers = useAtomValue(showRulersAtom);
+  const readOnly = useIsViewer();
   const transform = useTransform();
   const activeFilePath = useAtomValue(activeFilePathAtom);
   const draggingPreview = useAtomValue(draggingGuidePreviewAtom);
@@ -252,7 +254,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
   }, [store]);
 
   const startDrag = (e: React.MouseEvent, type: 'horizontal' | 'vertical') => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || isViewerMode()) return;
     e.preventDefault();
     e.stopPropagation();
     dragRef.current = { type, filePath: activeFilePath };
@@ -262,7 +264,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
   };
 
   useEffect(() => {
-    if (!showRulers) return;
+    if (!showRulers || readOnly) return;
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -299,7 +301,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('blur', cancelDrag);
     };
-  }, [activeFilePath, cancelDrag, showRulers, store]);
+  }, [activeFilePath, cancelDrag, readOnly, showRulers, store]);
 
   // ─── Selection bounds (highlight bands on rulers) ─────────────────
   // For each selected node, read its viewport-space rect from the
@@ -415,7 +417,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
           backgroundColor: RULER_BG,
           borderBottom: `1px solid ${RULER_BORDER}`,
           zIndex: 4900,
-          cursor: 'row-resize',
+          cursor: readOnly ? 'default' : 'row-resize',
           userSelect: 'none',
           overflow: 'hidden',
         }}
@@ -440,7 +442,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
           backgroundColor: RULER_BG,
           borderRight: `1px solid ${RULER_BORDER}`,
           zIndex: 4900,
-          cursor: 'col-resize',
+          cursor: readOnly ? 'default' : 'col-resize',
           userSelect: 'none',
           overflow: 'hidden',
         }}

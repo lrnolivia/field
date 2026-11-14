@@ -13,7 +13,7 @@ export default function Page() {
 }
 `;
 
-type Workspace = 'docked' | 'floating' | 'compact';
+type Workspace = 'docked' | 'floating' | 'compact-docked';
 declare global {
   interface Window {
     __e2e: {
@@ -32,6 +32,8 @@ async function openEditor(page: Page, mode: Workspace) {
     localStorage.setItem('revyme-onboarding-completed', 'true');
     localStorage.setItem('revyme:prefs:showRulers', 'true');
     localStorage.setItem('field:prefs:workspaceMode', JSON.stringify(mode));
+    localStorage.setItem('field:prefs:dockedLeftOpen:v1', String(mode !== 'compact-docked'));
+    localStorage.setItem('field:prefs:dockedInspectorOpen:v1', String(mode !== 'compact-docked'));
     localStorage.setItem('field:prefs:leftContentWidth', '360');
     localStorage.setItem('field:prefs:rightPaneWidth:v2', '390');
     localStorage.setItem('revyme-project-local', JSON.stringify({
@@ -46,6 +48,7 @@ async function openEditor(page: Page, mode: Workspace) {
   await page.goto('/work/local');
   await page.locator('[data-editor-interactive="true"]').waitFor();
   await editor.node('rect').waitFor();
+  await page.waitForFunction(() => Boolean(window.__e2e?.zoomTo));
   await editor.fitCamera();
   await page.evaluate(() => window.__e2e.zoomTo(1));
   await expect.poll(() => page.evaluate(() => window.__e2e.cameraScale())).toBe(1);
@@ -63,11 +66,11 @@ async function placeVerticalGuide(page: Page, x: number, y: number) {
   await page.mouse.up();
 }
 
-for (const mode of ['docked', 'floating', 'compact'] as const) {
+for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
     const editor = await openEditor(page, mode);
     const ruler = await page.locator('[data-ruler]').nth(1).boundingBox();
-    expect(ruler?.x).toBe(mode === 'docked' ? 400 : 0);
+    expect(ruler?.x).toBe({ docked: 400, floating: 0, 'compact-docked': 40 }[mode]);
     const rect = await editor.nodeBox('rect');
     const y = rect.y + rect.height / 2;
     await placeVerticalGuide(page, Math.round(rect.x), y);
@@ -191,4 +194,29 @@ test('switching pages cancels a guide drag, and a horizontal guide can be create
 
   await page.keyboard.press(`${mod}+z`);
   await expect(guide).toHaveCount(0);
+});
+
+test('read-only Canvas keeps existing guides and refuses guide edits', async ({ page, context }) => {
+  const editor = await openEditor(page, 'docked');
+  const rect = await editor.nodeBox('rect');
+  const x = Math.round(rect.x);
+  const y = Math.round(rect.y + rect.height / 2);
+  await placeVerticalGuide(page, x, y);
+  const guide = page.locator('[data-ruler-guide]');
+  await expect(guide).toHaveCount(1);
+  const before = await editor.getPageCode();
+
+  await context.setOffline(true);
+  await expect(page.getByText(/reconnect/i).last()).toBeVisible();
+  await placeVerticalGuide(page, x + 100, y);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y, { steps: 12 });
+  await page.mouse.up();
+  await page.mouse.click(x, y, { button: 'right' });
+  await expect(page.locator('[data-ruler-guide-menu]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Delete');
+  await expect(guide).toHaveCount(1);
+  expect(await editor.getPageCode()).toBe(before);
 });

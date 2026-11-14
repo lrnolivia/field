@@ -10,6 +10,7 @@
 // The UI previews a guide drag locally and writes only the committed edit.
 
 import { atom, getDefaultStore } from 'jotai';
+import { isViewerMode } from './viewer-mode-store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { projectVersionAtom, projectFS } from '@/code/project/project-fs';
 import { modifyProjectFile } from '@/code/project/modify-file';
@@ -77,6 +78,7 @@ const generateGuideId = () =>
   `guide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 function editGuides(filePath: string, edit: (guides: RulerGuide[]) => RulerGuide[]): void {
+  if (isViewerMode()) return;
   flushNow();
   sealPendingHistory();
   const result = modifyProjectFile(filePath, (code) => {
