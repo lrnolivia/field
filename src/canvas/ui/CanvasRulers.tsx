@@ -7,7 +7,8 @@ import { isViewerMode, useIsViewer } from '@/code/stores/viewer-mode-store';
 import { showRulersAtom } from '@/code/stores/user-preferences-store';
 import { useTopChromeHeight } from './use-top-chrome-height';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
-import { rulerGuideOps, draggingGuidePreviewAtom } from '@/code/stores/ruler-guides-store';
+import { rulerGuideOps, draggingGuidePreviewAtom, type RulerGuide } from '@/code/stores/ruler-guides-store';
+import { guideDropFrame, selectedGuideFrame } from './frame-ruler-guides';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
@@ -242,7 +243,7 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
   // ─── Drag from ruler → create guide ───────────────────────────────────
   const transformRef = useRef(transform);
   useEffect(() => { transformRef.current = transform; }, [transform]);
-  const dragRef = useRef<{ type: 'horizontal' | 'vertical'; filePath: string } | null>(null);
+  const dragRef = useRef<{ type: 'horizontal' | 'vertical'; filePath: string; frame?: RulerGuide['frame'] } | null>(null);
   const rulerEdgesRef = useRef({ left, topOffset });
   useEffect(() => { rulerEdgesRef.current = { left, topOffset }; }, [left, topOffset]);
 
@@ -257,7 +258,8 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
     if (e.button !== 0 || isViewerMode()) return;
     e.preventDefault();
     e.stopPropagation();
-    dragRef.current = { type, filePath: activeFilePath };
+    const frame = selectedGuideFrame(store.get(selectedIdsAtom), store.get(interactingViewportIdAtom));
+    dragRef.current = { type, filePath: activeFilePath, frame };
     const screenPosition = type === 'horizontal' ? e.clientY : e.clientX;
     store.set(draggingGuidePreviewAtom, { type, screenPosition });
     document.body.style.cursor = type === 'horizontal' ? 'row-resize' : 'col-resize';
@@ -269,7 +271,8 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       const drag = dragRef.current;
       if (!drag) return;
       const screenPosition = drag.type === 'horizontal' ? e.clientY : e.clientX;
-      store.set(draggingGuidePreviewAtom, { type: drag.type, screenPosition });
+      const frame = guideDropFrame(drag.frame, e.clientX, e.clientY);
+      store.set(draggingGuidePreviewAtom, { type: drag.type, screenPosition, frame });
     };
     const onUp = (e: MouseEvent) => {
       const drag = dragRef.current;
@@ -284,8 +287,10 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       if (cursor - rulerEdge < GUIDE_RULER_THRESHOLD) return;
       // The full-bleed Canvas starts at (0, 0). The chrome moves the ruler
       // strip, while guide positions share the camera origin with snap lines.
-      const position = (cursor - (horizontal ? t.y : t.x)) / t.scale;
-      rulerGuideOps.addGuide(drag.filePath, drag.type, position);
+      const frame = guideDropFrame(drag.frame, e.clientX, e.clientY);
+      const origin = frame ? (horizontal ? frame.top : frame.left) : (horizontal ? t.y : t.x);
+      const position = (cursor - origin) / t.scale;
+      rulerGuideOps.addGuide(drag.filePath, drag.type, position, frame ? drag.frame : undefined);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cancelDrag();
@@ -565,8 +570,8 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
         <div
           style={{
             position: 'fixed',
-            left: left + RULER_SIZE,
-            right,
+            left: Math.max(left + RULER_SIZE, draggingPreview.frame?.left ?? -Infinity),
+            right: draggingPreview.frame ? Math.max(right, viewport.w - draggingPreview.frame.right) : right,
             top: draggingPreview.screenPosition,
             height: 1,
             backgroundColor: GUIDE_COLOR,
@@ -579,8 +584,8 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
         <div
           style={{
             position: 'fixed',
-            top: topOffset + RULER_SIZE,
-            bottom: 0,
+            top: Math.max(topOffset + RULER_SIZE, draggingPreview.frame?.top ?? -Infinity),
+            bottom: draggingPreview.frame ? Math.max(0, viewport.h - draggingPreview.frame.bottom) : 0,
             left: draggingPreview.screenPosition,
             width: 1,
             backgroundColor: GUIDE_COLOR,

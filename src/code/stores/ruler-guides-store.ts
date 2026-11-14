@@ -18,6 +18,9 @@ import { parseRulerGuides, updateRulerGuidesInCode, type RulerGuide } from '@/co
 import type { RulerGuideSnapLine } from '@/canvas/drag/handlers/snap-handler';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { pushHistoryImmediate, sealPendingHistory } from '@/code/mutation/history';
+import { frameGuideRect, isInsideGuideFrame } from '@/canvas/ui/frame-ruler-guides';
+import { transformManager } from '@/canvas/transform';
+import { screenRectToCanvas } from '@/canvas/drag/helpers/coords';
 
 export type { RulerGuide };
 
@@ -27,14 +30,25 @@ export type { RulerGuide };
  *  RAF loop, where reading via `useAtomValue` would force a hook
  *  context. The atom subscription path (`activeRulerGuidesAtom`) stays
  *  the source of truth — this helper just snapshots its current value. */
-export function getActiveRulerGuideSnapLines(): RulerGuideSnapLine[] {
+export function getActiveRulerGuideSnapLines(nodeId?: string, viewportId?: string): RulerGuideSnapLine[] {
   const guides = getDefaultStore().get(activeRulerGuidesAtom);
   if (guides.length === 0) return [];
-  return guides.map((g) => ({
-    id: g.id,
-    axis: g.type === 'vertical' ? 'x' : 'y',
-    position: g.position,
-  }));
+  const transform = transformManager.getAppliedTransform();
+  const lines: RulerGuideSnapLine[] = [];
+  for (const guide of guides) {
+    const axis = guide.type === 'vertical' ? 'x' : 'y';
+    let position = guide.position;
+    if (guide.frame) {
+      if (!nodeId || guide.frame.viewportId !== viewportId || !isInsideGuideFrame(nodeId, guide.frame.id)) continue;
+      const bounds = frameGuideRect(guide.frame);
+      if (!bounds) continue;
+      const rect = screenRectToCanvas(bounds, transform);
+      if (position < 0 || position > (axis === 'x' ? rect.width : rect.height)) continue;
+      position += axis === 'x' ? rect.left : rect.top;
+    }
+    lines.push({ id: guide.id, axis, position });
+  }
+  return lines;
 }
 
 // ─── Read atoms ────────────────────────────────────────────────────────────
@@ -60,7 +74,7 @@ export const selectedGuideIdAtom = atom<string | null>(null);
  *  current screen-space position so `CanvasRulers` can render a 1-px
  *  preview line that follows the cursor before the drop commits. */
 export const draggingGuidePreviewAtom = atom<
-  | { type: 'horizontal' | 'vertical'; screenPosition: number }
+  | { type: 'horizontal' | 'vertical'; screenPosition: number; frame?: DOMRect }
   | null
 >(null);
 
@@ -90,9 +104,9 @@ function editGuides(filePath: string, edit: (guides: RulerGuide[]) => RulerGuide
 }
 
 export const rulerGuideOps = {
-  addGuide(filePath: string, type: 'horizontal' | 'vertical', position: number): void {
+  addGuide(filePath: string, type: 'horizontal' | 'vertical', position: number, frame?: RulerGuide['frame']): void {
     const id = generateGuideId();
-    editGuides(filePath, (guides) => [...guides, { id, type, position }]);
+    editGuides(filePath, (guides) => [...guides, { id, type, position, ...(frame ? { frame } : {}) }]);
   },
 
   removeGuide(filePath: string, guideId: string): void {

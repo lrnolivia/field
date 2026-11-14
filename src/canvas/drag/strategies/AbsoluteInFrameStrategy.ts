@@ -1062,7 +1062,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           SNAP_THRESHOLD / transform.scale,
           aifDragCorners,
           aifSiblingCorners,
-          getActiveRulerGuideSnapLines(),
+          getActiveRulerGuideSnapLines(primary.id, this.vpId),
         );
     this.prevMouse = mouseScreen;
 

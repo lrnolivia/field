@@ -204,7 +204,7 @@ function snapResizeRotated(
   const vMy = fyC + mat.b * layoutDx + mat.d * layoutDy;
 
   const siblings = collectResizeSiblings(parentId, nodeId, vpId, transform);
-  const rulerGuides = getActiveRulerGuideSnapLines();
+  const rulerGuides = getActiveRulerGuideSnapLines(nodeId, vpId);
   if (siblings.length === 0 && rulerGuides.length === 0) {
     return { width: newW, height: newH, guides };
   }
@@ -320,7 +320,7 @@ function snapResizeEdges(
   // guide is a single line on its axis; for resize we treat it like a
   // sibling edge (no center/secondary positions). Read once per resize
   // cycle so the cost is constant in the number of guides.
-  const rulerGuides = getActiveRulerGuideSnapLines();
+  const rulerGuides = getActiveRulerGuideSnapLines(nodeId, vpId);
 
   if (siblings.length === 0 && rulerGuides.length === 0) {
     return { left: snapLeft, top: snapTop, width: snapWidth, height: snapHeight, guides };

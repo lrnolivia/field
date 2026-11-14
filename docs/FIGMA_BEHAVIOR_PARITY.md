@@ -75,7 +75,7 @@ Official references:
 | Resize a group or multiselection as one transformation and undo it in one step | Verified for native groups with rotated and nested descendants | `group-resize-affine` |
 | Update the selection outline after an Inspector rotation and history navigation | Verified for frames and SVG rectangles | `rotation-overlay-refresh` |
 | Snap near an object edge at different zooms and from either direction | Verified at 90% and 100%, including immediate release | `object-snap-approach` |
-| Place Canvas ruler guides at the visible snap position and undo guide edits | Verified in Full, Float, and Focus. Option/Alt-drag duplicates a guide. Frame-scoped guides remain a separate feature gap. | `ruler-guides` |
+| Place ruler guides at the visible snap position and undo guide edits | Verified in Full, Float, and Focus. Option/Alt-drag duplicates a guide. Drop onto a selected axis-aligned frame to make a frame-local guide for that tile. It moves with the frame and snaps positioned descendants. | `ruler-guides` |
 | Duplicate a pinned object in its own parent and paste a copied object into a different regular frame | Verified. A pasted object keeps each source coordinate when it fits and centers on an axis that overflows the destination. | `duplicate-pinned`, `frame-hierarchy-drag` |
 
 ## Batch 4 — Auto Layout and constraints
