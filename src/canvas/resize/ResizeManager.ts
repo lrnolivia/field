@@ -58,7 +58,7 @@ import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/c
 import type { SnapGuide, Transform } from '@/shared/types';
 import { SNAP_THRESHOLD } from '@/shared/constants';
 import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
-import { frameGuideGeometry, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
+import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { nodesAtom } from '@/code/stores/store';
 import { viewportsConfigAtom, viewportWidthsAtom } from '@/code/stores/viewport-store';
 import { getAllCachedNodes } from '@/code/stores/store';
@@ -288,7 +288,7 @@ type ResizeX = 'left' | 'right' | null;
 type ResizeY = 'top' | 'bottom' | null;
 type ResizeGuideFrame = {
   geometry: NonNullable<ReturnType<typeof frameGuideGeometry>>;
-  lines: ReturnType<typeof getFrameRulerGuideSnapLines>;
+  lines: Array<ReturnType<typeof getFrameRulerGuideSnapLines>[number] & { tilted: boolean }>;
   x: number;
   y: number;
   scaleX: number;
@@ -303,7 +303,10 @@ function captureResizeGuideFrames(nodeId: string, viewportId: string, start: Res
   return frames.flatMap(id => {
     const geometry = frameGuideGeometry({ id, viewportId });
     if (!geometry) return [];
-    const lines = getFrameRulerGuideSnapLines(id, viewportId, geometry);
+    const lines = getFrameRulerGuideSnapLines(id, viewportId, geometry).flatMap(line => {
+      const segment = frameGuideSegment(geometry, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
+      return segment ? [{ ...line, tilted: Math.abs(segment.end[line.axis] - segment.start[line.axis]) > 0.01 }] : [];
+    });
     if (!lines.length) return [];
     const [tl, tr, br, bl] = [corners.TL, corners.TR, corners.BR, corners.BL].map(p => geometry.toLocal(p.x, p.y));
     const scaleX = (tr.x - tl.x) / (start.width + border.width);
@@ -334,7 +337,7 @@ function snapResizeToFrameGuides(
       const axis = line.axis;
       const isX = axis === 'x';
       const handle = isX ? xHandle : yHandle;
-      if (!handle) continue;
+      if (!handle || (!line.tilted && !aspectRatio)) continue;
       const fromStart = handle === 'left' || handle === 'top';
       const scale = isX ? frame.scaleX : frame.scaleY;
       const halfEdge = isX ? (proposed.width + border.width) / 2 : (proposed.height + border.height) / 2;
@@ -2008,7 +2011,8 @@ export function startResize(
     && !isSvgGroupChild && !hasIndividualTransform && !isVectorSet
     ? captureResizeGuideFrames(nodeId, vpId, { left: startLeft, top: startTop, width: startWidth, height: startHeight }, guideBorder)
     : [];
-  const handledGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.map(line => line.id)));
+  const tiltedGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.filter(line => line.tilted).map(line => line.id)));
+  const allGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.map(line => line.id)));
   trace.action('resize:transform-check', {
     computedTransform: computedStyles.transform || '(empty)',
     nodeStylesTransform: nodeStyles.transform || '(empty)',
@@ -2343,6 +2347,7 @@ export function startResize(
   // Track axes actually patched, including dimensions derived from a ratio.
   let wroteWidth = false;
   let wroteHeight = false;
+  let lockedDimensions = false;
   const onMove = (e: PointerEvent) => {
     // Mouse delta in screen pixels. The FROZEN lift basis converts
     // it directly into local CSS units (the basis already includes
@@ -2380,6 +2385,7 @@ export function startResize(
     // Shift preserves the starting ratio from every handle, including edges.
     // Vector sets and explicitly locked objects preserve it without Shift.
     const aspectLocked = isVectorSet || hasPersistentAspectLock || e.shiftKey;
+    lockedDimensions = !isVpNode && aspectLocked;
     if (aspectLocked) {
       const locked = applyVectorAspectLock(newWidth, newHeight, curWidth, curHeight, curLeft, curTop, aspectRatio, xHandle, yHandle, isInLayout);
       newWidth = locked.width;
@@ -2475,7 +2481,7 @@ export function startResize(
         );
         const snapped = snapResizeEdges(
           local.box.left, local.box.top, local.box.width, local.box.height,
-          xHandle, yHandle, nodeId, vpId, parentId, txform, local.axes, handledGuideIds,
+          xHandle, yHandle, nodeId, vpId, parentId, txform, local.axes, aspectLocked ? allGuideIds : tiltedGuideIds,
         );
         newLeft = snapped.left;
         newTop = snapped.top;
@@ -2572,21 +2578,23 @@ export function startResize(
 
     // Locked resize may change both dimensions from an edge handle. If
     // Shift comes up mid-gesture, restore the derived axis on the next move.
-    const handleAffectsX = xHandle !== null || aspectLocked || wroteWidth;
-    const handleAffectsY = yHandle !== null || aspectLocked || wroteHeight;
+    const handleAffectsX = xHandle !== null || lockedDimensions;
+    const handleAffectsY = yHandle !== null || lockedDimensions;
+    const restoreWidth = !handleAffectsX && wroteWidth;
+    const restoreHeight = !handleAffectsY && wroteHeight;
 
     const prevW = parseFloat(liveStyles.width) || startWidth;
     const prevH = parseFloat(liveStyles.height) || startHeight;
     // Preserve original unit during resize (% stays as %, px stays as px).
     // In inset mode, don't set width/height — CSS derives size from insets.
-    if (handleAffectsX && !inset.horizontalInset) {
-      const w = formatResizeDimension(newWidth, origWidthUnit, widthPxPerUnit, parentCssWidth, posPx);
+    if ((handleAffectsX || restoreWidth) && !inset.horizontalInset) {
+      const w = restoreWidth ? (effWidthSrc ?? '') : formatResizeDimension(newWidth, origWidthUnit, widthPxPerUnit, parentCssWidth, posPx);
       // Baked group: the sandbox sets the group width atomically with viewBox +
       // children (below), so skip the standalone DOM patch (avoids a 1-frame
       // width/viewBox mismatch = shear). liveStyles still feeds the commit.
       if (!isBakedGroup) patchNodeStyles(contentEl, nodeId, vpPrefix, { width: w });
       liveStyles.width = w;
-      wroteWidth = true;
+      wroteWidth = handleAffectsX;
 
       // LIVE band crossing (see setup above): the width just moved across a
       // responsiveVariantMap / responsivePropStyles boundary — re-render at
@@ -2632,11 +2640,11 @@ export function startResize(
         liveStyles.left = leftVal;
       }
     }
-    if (handleAffectsY && !inset.verticalInset) {
-      const h = formatResizeDimension(newHeight, origHeightUnit, heightPxPerUnit, parentCssHeight, posPx);
+    if ((handleAffectsY || restoreHeight) && !inset.verticalInset) {
+      const h = restoreHeight ? (effHeightSrc ?? '') : formatResizeDimension(newHeight, origHeightUnit, heightPxPerUnit, parentCssHeight, posPx);
       if (!isBakedGroup) patchNodeStyles(contentEl, nodeId, vpPrefix, { height: h });
       liveStyles.height = h;
-      wroteHeight = true;
+      wroteHeight = handleAffectsY;
 
       // Live-mirror primary viewport height to every replica during drag.
       // The mouseup commit eventually re-renders all viewports from the
@@ -2820,8 +2828,8 @@ export function startResize(
       } else {
         // Only sync dimensions that are ACTUALLY being resized — liveStyles for
         // the non-resized axis contains stale NodeMap values that would revert changes.
-        if (handleAffectsX && !inset.horizontalInset && liveStyles.width) syncStyles.width = liveStyles.width;
-        if (handleAffectsY && !inset.verticalInset && liveStyles.height) syncStyles.height = liveStyles.height;
+        if ((handleAffectsX || restoreWidth) && !inset.horizontalInset) syncStyles.width = liveStyles.width || '';
+        if ((handleAffectsY || restoreHeight) && !inset.verticalInset) syncStyles.height = liveStyles.height || '';
       }
     }
     if (Object.keys(syncStyles).length > 0) {
@@ -2929,9 +2937,9 @@ export function startResize(
           wrotePctTop,
         );
 
-    // Keep a derived dimension only if this gesture actually wrote it.
-    if (wroteWidth) finalStyles.width = liveStyles.width;
-    if (wroteHeight) finalStyles.height = liveStyles.height;
+    // Take the derived dimension only if the final resize still has a lock.
+    if (lockedDimensions && wroteWidth) finalStyles.width = liveStyles.width;
+    if (lockedDimensions && wroteHeight) finalStyles.height = liveStyles.height;
     if (isVectorSet) {
       // "Both rows on Fit" means the variant's NATURAL size — a hand resize just
       // left it, so the panel would go on showing auto / auto over a size that

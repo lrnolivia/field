@@ -264,6 +264,26 @@ for (const scenario of [
   });
 }
 
+test('releasing Shift before an edge drop leaves the authored auto height intact', async ({ page }) => {
+  const variedSource = source.replace("height:'120px', background:'#ef4444'}} />",
+    "height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>");
+  const editor = await openEditor(page, 'docked', variedSource);
+  await editor.select(['rect']);
+  const box = (await page.locator('[data-resize-edge="right"]').boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.keyboard.down('Shift');
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 30, y, { steps: 12 });
+  await expect(editor.node('rect')).not.toHaveCSS('height', '64px');
+  await page.keyboard.up('Shift');
+  await page.mouse.move(x + 42, y, { steps: 6 });
+  await expect(editor.node('rect')).toHaveCSS('height', '64px');
+  await page.mouse.up();
+  await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*height:\s*'auto'/);
+});
+
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
     const editor = await openEditor(page, mode);
