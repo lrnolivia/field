@@ -70,6 +70,7 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
           : axisCompatible
             ? 'axes'
             : 'sides';
+  const individual = resolvedView === 'sides';
 
   const display = (value: string) => String(Number.parseFloat(value) || 0);
   const apply = (next: Record<string, string>) => {
@@ -78,10 +79,13 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
   };
 
   return (
-    <div data-layout-padding data-layout-padding-view={resolvedView} className="flex flex-col gap-2 w-full">
-      <div data-layout-padding-toolbar className="grid grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center w-full">
+    <div data-layout-padding data-layout-padding-view={resolvedView}
+      className={individual
+        ? 'grid w-full grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center gap-y-2'
+        : 'grid w-full grid-cols-[minmax(52px,1fr)_minmax(0,2fr)_auto] items-center gap-x-2'}>
+      <div data-layout-padding-toolbar className="contents">
         <ControlLabel label="Padding" property="padding" plain={!hasMultipleLocales} cell />
-        <div className="flex min-w-0 justify-end">
+        <div className={individual ? 'col-start-2 row-start-1 flex justify-end' : 'col-start-3 row-start-1 flex justify-end'}>
           <div data-field-control-shell className="flex shrink-0 overflow-hidden rounded-[var(--control-radius)] border border-[var(--control-border)]">
             <button
               type="button"
@@ -120,7 +124,7 @@ export default function LayoutPaddingControl({ styles, onUpdateMultiple }: Props
         </div>
       </div>
 
-      <div data-layout-padding-editor className="w-full">
+      <div data-layout-padding-editor className={individual ? 'col-span-2 row-start-2 min-w-0 w-full' : 'col-start-2 row-start-1 min-w-0 w-full'}>
         <LocalePillOrLegacy property="padding" label="Padding" nodeId={nodeId ?? null}
           baseValue={sides.join(' ')} onChangeBase={(value) => updateStyle('padding', value)}>
           <div className="min-w-0">

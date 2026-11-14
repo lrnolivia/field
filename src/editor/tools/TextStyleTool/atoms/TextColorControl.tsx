@@ -198,7 +198,8 @@ function TextColorPopupContent({ styles, isEditing, onColorChange, onColorCommit
     return r.isMixed ? '' : (r.value || '');
   };
   const selGradient = selMark('backgroundGradient');
-  const selColorRaw = selMark('color');
+  const selFill = selMark('textFillColor');
+  const selColorRaw = !isFullyTransparentColor(selFill) ? selFill : selMark('color');
   const selColorPaint = splitPaintOpacity(selColorRaw);
   const selColor = selColorPaint.base;
   const fallbackTab: ColorTab = gradientContext ? 'gradient' : detectTab(styles);
@@ -350,7 +351,11 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   const popupCtx = useToolPopupOptional();
   const rowRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const colorResult = text.get('color');
+  const cssColorResult = text.get('color');
+  const glyphFill = text.get(text.isEditing ? 'textFillColor' : 'WebkitTextFillColor');
+  const hasSolidGlyphFill = !!glyphFill.value && !isFullyTransparentColor(glyphFill.value)
+    && glyphFill.value.trim().toLowerCase() !== 'currentcolor';
+  const colorResult = glyphFill.isMixed || hasSolidGlyphFill ? glyphFill : cssColorResult;
   const solidPaint = splitPaintOpacity(colorResult.value || styles.color || '');
   const allTokens = useAtomValue(presetTokensAtom);
   const livePreset = useAtomValue(livePresetTokenAtom);
@@ -424,9 +429,10 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
       // (fill-color paints glyphs), so the mark alone was invisible. Carry the
       // fill-color on the run so it renders solid; scoped to gradient context
       // so plain solid text never accumulates fill-color spans.
-      if (nodeHasGradientText) text.set('textFillColor', painted);
+      if (nodeHasGradientText || hasSolidGlyphFill || glyphFill.isMixed) text.set('textFillColor', painted);
     } else {
       updateStyleLive('color', painted);
+      if (hasSolidGlyphFill || glyphFill.isMixed) updateStyleLive('WebkitTextFillColor', painted);
       // Rich node: also override the per-portion span paint live so the WHOLE
       // node previews `c` while dragging (the bare `<p>` patch above is hidden
       // behind the spans' inline color). Content probe, not hasMixedContent —
@@ -439,7 +445,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
         injectCanvasCSS(sel, `color: ${painted} !important; -webkit-text-fill-color: ${painted} !important;`);
       }
     }
-  }, [text, updateStyleLive, node, nodeHasGradientText, setLivePreviewColor, solidPaint.opacity]);
+  }, [text, updateStyleLive, node, nodeHasGradientText, hasSolidGlyphFill, glyphFill.isMixed, setLivePreviewColor, solidPaint.opacity]);
 
   /** Solid color — COMMIT (drag release + one-shot edits: hex, preset, clear).
    *  Writes to code. Routes through `text.set` so a rich node's per-portion span
@@ -449,7 +455,10 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
   const commitPaintedColor = useCallback((painted: string) => {
     trace.action('text-color:solid-commit', { color: painted, gradientContext: nodeHasGradientText });
     text.set('color', painted);
-    if (text.isEditing && nodeHasGradientText) {
+    if (!text.isEditing && !nodeHasGradientText && (hasSolidGlyphFill || glyphFill.isMixed)) {
+      text.set('WebkitTextFillColor', '');
+    }
+    if (text.isEditing && (nodeHasGradientText || hasSolidGlyphFill || glyphFill.isMixed)) {
       // Selection inside gradient text: drop any gradient MARK on the run
       // (mixed selections) and pin the fill-color so the run paints solid.
       // The NODE-level gradient is untouched — the rest of the text keeps it.
@@ -457,7 +466,7 @@ export function TextColorControl({ compactSection = false }: { compactSection?: 
       text.set('textFillColor', painted);
     }
     clearLiveSpanRule();
-  }, [text, clearLiveSpanRule, nodeHasGradientText]);
+  }, [text, clearLiveSpanRule, nodeHasGradientText, hasSolidGlyphFill, glyphFill.isMixed]);
 
   const handleColorCommit = useCallback((c: string) => {
     commitPaintedColor(serializePaintOpacity(c, solidPaint.opacity));

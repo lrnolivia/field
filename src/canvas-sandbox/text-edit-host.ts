@@ -53,6 +53,7 @@ const MARK_PROPS = [
   'fontStyle',
   'fontFamily',
   'color',
+  'textFillColor',
   'letterSpacing',
   'backgroundGradient',
   'textDecorationLine',

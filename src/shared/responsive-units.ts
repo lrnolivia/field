@@ -26,8 +26,9 @@
 
 import { trace } from './debug-trace';
 
-const VW_INNER_RE = /([\d.]+)vw/g;
-const VH_INNER_RE = /([\d.]+)vh/g;
+// Preserve URL payloads and quoted strings, including embedded media whose
+// encoded bytes can coincidentally contain a dimension such as "8vw".
+const VIEWPORT_UNIT_RE = /url\(\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?:\\.|[^)\\])*)\s*\)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?<![\w.])((?:\d+(?:\.\d*)?|\.\d+))(vw|vh)\b/gi;
 
 /** Simulated viewport height for a given width — the canvas has no real
  *  viewport, so vh resolves via a per-device-class ratio:
@@ -91,28 +92,22 @@ export const FALLBACK_VP_WIDTH = 1440;
  *   - `clamp(16px, 4vw, 48px)` → inner regex replace of every `Nvw`
  *   - `9vh` → width-based height ratio (no real vh container) */
 export function resolveResponsiveUnits(value: string, vpWidthPx: number): string {
-  if (typeof value !== 'string' || value === '') return value;
-  let v = value;
-  if (v.includes('vw')) {
-    if (v.endsWith('vw')) {
-      const num = parseFloat(v);
-      if (!isNaN(num)) v = `${(num / 100) * vpWidthPx}px`;
-    } else {
-      v = v.replace(VW_INNER_RE, (_, n) => `${(parseFloat(n) / 100) * vpWidthPx}px`);
-    }
-  }
-  if (v.endsWith('vh')) {
-    const num = parseFloat(v);
-    if (!isNaN(num)) {
-      v = `${(num / 100) * simulatedVpHeight(vpWidthPx)}px`;
-    }
-  }
+  if (typeof value !== 'string' || !/[\d.](vw|vh)/i.test(value)) return value;
+  const v = replaceViewportUnits(value, vpWidthPx);
   if (v !== value) {
     trace.action('responsive-units:resolved', { from: value, to: v, vpWidthPx });
   }
   return v;
 }
 
+function replaceViewportUnits(value: string, width: number, round = false): string {
+  return value.replace(VIEWPORT_UNIT_RE, (match, number, unit) => {
+    if (!unit) return match;
+    const basis = unit.toLowerCase() === 'vw' ? width : simulatedVpHeight(width);
+    const px = (Number(number) / 100) * basis;
+    return `${round ? Math.round(px * 100) / 100 : px}px`;
+  });
+}
 /** Resolve the viewport width that responsive units should resolve
  *  against for a given canvas element. Reads `data-viewport-width`
  *  from the closest `[data-viewport]` ancestor; falls back to
@@ -174,11 +169,8 @@ export function resolveContainerQueryUnits(css: string, viewportWidthsAsc: numbe
     }
     const matching = viewportWidthsAsc.filter(w => w >= min && w <= max);
     if (matching.length === 0) { out += css.slice(at, j); i = j; continue; }
-    const toPx = (px: number): string => `${Math.round(px * 100) / 100}px`;
     for (const w of matching) {
-      const resolvedBody = body
-        .replace(VW_INNER_RE, (_, n) => toPx((parseFloat(n) / 100) * w))
-        .replace(VH_INNER_RE, (_, n) => toPx((parseFloat(n) / 100) * simulatedVpHeight(w)));
+      const resolvedBody = replaceViewportUnits(body, w, true);
       out += `@container (min-width: ${w}px) and (max-width: ${w}px) {${resolvedBody}}\n`;
     }
     trace.action('responsive-units:container-block-resolved', { query: query.trim(), widths: matching });

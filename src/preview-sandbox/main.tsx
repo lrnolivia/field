@@ -44,6 +44,7 @@ import { buildRouteTable, resolveRoute, type Route } from './router';
 import { templatePreviewPages } from '@/preview/template-preview';
 import { LinkShim, ImageShim, useRouter as useRouterShim, usePathname, useSearchParams, useParams as useParamsShim, setCurrentParams } from './next-shims';
 import Lenis from 'lenis';
+import { listenForPreviewZoom } from '@/preview/preview-zoom';
 
 // ─── Project files (mirror of parent ProjectFS) ────────────────────────────
 
@@ -801,11 +802,17 @@ function rerender(): void {
   });
 }
 
+let removePreviewZoom: (() => void) | undefined;
 window.addEventListener('message', (e) => {
   const msg = e.data;
   if (!msg || typeof msg !== 'object') return;
 
-  if (msg.type === 'preview:thumbnail-session') {
+  if (msg.type === 'preview:zoom-enabled' && e.source === window.parent && window.parent !== window) {
+    removePreviewZoom?.();
+    removePreviewZoom = msg.enabled === true
+      ? listenForPreviewZoom(action => window.parent.postMessage({ type: 'preview:zoom', action }, e.origin))
+      : undefined;
+  } else if (msg.type === 'preview:thumbnail-session') {
     thumbnailSessionRequestId = typeof msg.requestId === 'string' && msg.requestId
       ? msg.requestId
       : null;

@@ -65,8 +65,8 @@ describe('toolbar Media contextual placement', () => {
     expect(placeIndex).toBeGreaterThan(ingestIndex);
     expect(controller).toContain("type: 'updateHtmlAttrs'");
     expect(controller).toContain("bridge.setAttribute(placement.nodeId, vpPrefix, 'src', url)");
-    expect(controller).toContain("insertToolbarItemAtSelection(kind, placement.nodeId, { src: url })");
-    expect(controller).toContain("insertToolbarItemAtVisibleCenter(kind, undefined, { src: url })");
+    expect(controller).toContain("insertToolbarItemAtSelection(kind, placement.nodeId, { src: url }, imageItem)");
+    expect(controller).toContain("insertToolbarItemAtVisibleCenter(kind, undefined, { src: url }, imageItem)");
   });
 
   it('preserves the captured container target through the shared insertion engine', () => {

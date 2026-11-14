@@ -52,6 +52,15 @@ describe('resolveResponsiveUnits', () => {
     expect(resolveResponsiveUnits('vw', 1440)).toBe('vw');
     expect(resolveResponsiveUnits('abcvw', 1440)).toBe('abcvw');
   });
+
+  it('does not rewrite encoded images or quoted text containing viewport units', () => {
+    const image = 'url("data:image/jpeg;base64,AA4vwB23vhC")';
+    expect(resolveResponsiveUnits(image, 1200)).toBe(image);
+    expect(resolveResponsiveUnits(`${image} 5vw 10vh`, 1200)).toBe(`${image} 60px 75px`);
+    expect(resolveResponsiveUnits('"10vw" calc(5vw - 2vh)', 1200)).toBe('"10vw" calc(60px - 15px)');
+    const css = `@container (min-width: 1200px) {div {background: ${image}; width: 5vw}}`;
+    expect(resolveContainerQueryUnits(css, [1200])).toContain(`background: ${image}; width: 60px`);
+  });
 });
 
 describe('getResponsiveVpWidth', () => {

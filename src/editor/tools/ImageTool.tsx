@@ -55,6 +55,17 @@ const ALPHA_CHECKER_STYLE: React.CSSProperties = {
   backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0',
 };
 
+function ImagePropertyRow({ label, property, children }: { label: string; property: string; children: React.ReactNode }) {
+  return (
+    <div data-tool-row className="grid w-full grid-cols-[var(--tool-label-col)_minmax(0,1fr)] items-center">
+      <ControlLabel label={label} property={property} cell />
+      <div data-tool-row-value className="flex w-full min-w-0 items-center gap-[var(--control-gap)]">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── ImageTool ──────────────────────────────────────────────────────────────
 
 export default function ImageTool() {
@@ -157,8 +168,7 @@ function ImageToolInner({
         {/* Source row — ControlLabel handles the binding menu (CMS, variable,
             override) automatically. When CMS-bound, the value column swaps
             to the CmsBoundPill — same convention as Fill's bound state. */}
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Source" property="src" />
+        <ImagePropertyRow label="Source" property="src">
           {isSrcCmsBound ? (
             <CmsBoundPill property="src" fallbackValue={src} />
           ) : (
@@ -169,7 +179,7 @@ function ImageToolInner({
               </span>
             </ControlActionRow>
           )}
-        </div>
+        </ImagePropertyRow>
 
         {mediaOpen && !isSrcCmsBound && (
           <div
@@ -188,42 +198,40 @@ function ImageToolInner({
 
         {/* Alt text — full ControlLabel (not plain) so users can bind alt
             text to a CMS field via the menu, same way Source binds. */}
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Alt Text" property="alt" />
-          <div className="flex items-center gap-2 w-full">
-            <ToolInput
-              value={localAlt}
-              onChange={(val) => {
-                setLocalAlt(val);
-                commitAlt(val);
-              }}
-              text
-            />
-          </div>
-        </div>
+        <ImagePropertyRow label="Alt Text" property="alt">
+          <ToolInput
+            value={localAlt}
+            onChange={(val) => {
+              setLocalAlt(val);
+              commitAlt(val);
+            }}
+            text
+            ariaLabel="Alt Text"
+          />
+        </ImagePropertyRow>
 
         {/* Object Fit */}
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Fit" property="objectFit" />
+        <ImagePropertyRow label="Fit" property="objectFit">
           <ToolSelect
+            ariaLabel="Image fit"
+            className="min-w-0 flex-1"
             value={objectFit}
             onChange={handleFitChange}
             options={OBJECT_FIT_OPTIONS}
           />
-        </div>
+        </ImagePropertyRow>
 
         {/* Object Position */}
-        <div className="flex items-center justify-between w-full">
-          <ControlLabel label="Position" property="objectPosition" />
-          <div className="flex items-center gap-2 min-w-0">
-            <ToolSelect
-              value={objectPosition}
-              onChange={handlePositionChange}
-              options={OBJECT_POSITION_OPTIONS}
-            />
-            {objectFit !== 'fill' && <ImagePositionModeButton />}
-          </div>
-        </div>
+        <ImagePropertyRow label="Position" property="objectPosition">
+          <ToolSelect
+            ariaLabel="Image position"
+            className="min-w-0 flex-1"
+            value={objectPosition}
+            onChange={handlePositionChange}
+            options={OBJECT_POSITION_OPTIONS}
+          />
+          {objectFit !== 'fill' && <ImagePositionModeButton />}
+        </ImagePropertyRow>
       </ToolSection>
 
       {/* A normal image keeps the exact existing Image tool. When this image is

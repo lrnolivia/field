@@ -338,16 +338,21 @@ export class DragCoordinator {
     // Window-level pointer listeners (same pattern as startPending)
     this.cleanupPendingWindowListeners();
     const onMove = (e: PointerEvent) => {
-      this.handleMouseMove(e as any);
+      if (e.pointerId === event.pointerId) this.handleMouseMove(e);
     };
-    const onUp = () => {
-      this.handleMouseUp();
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId === event.pointerId) this.handleMouseUp();
+    };
+    const onCancel = (e: PointerEvent) => {
+      if (e.pointerId === event.pointerId) this.cancel();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
     this.pendingWindowListeners = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
     };
 
     // Synthetic onMove with the triggering event's coords so the strategy

@@ -320,6 +320,10 @@ function SelectionColorRow({
 
 export default function SelectionTool() {
   const selectedIds = useAtomValue(selectedIdsAtom);
+  const setSelectedIds = useSetAtom(selectedIdsAtom);
+  const [editingSwatch, setEditingSwatch] = useState<SelectionColorGroup | null>(null);
+  const swatchAnchor = useRef<HTMLButtonElement | null>(null);
+  const tokens = useAtomValue(presetTokensAtom);
   const [showAll, setShowAll] = useState(false);
 
   const selectionData = useNodesComputed(
@@ -337,20 +341,30 @@ export default function SelectionTool() {
   // subtree, has multiple visual colors/effects, or when the user multi-selects.
   // Match Figma's Selection colors behavior: the aggregate appears for a mixed-color
   // selection/scope, not for every ordinary single-color selection.
-  if (groups.length <= 1) return null;
-
   const visibleGroups = showAll ? groups : groups.slice(0, SELECTION_COLOR_VISIBLE_LIMIT);
   const hasOverflow = groups.length > SELECTION_COLOR_VISIBLE_LIMIT;
 
   return (
     <>
+      {groups.length > 1 && <>
       <ToolSection
         title="Selection colors"
         defaultOpen={false}
         action={(
-          <span data-selection-colors-preview className="flex shrink-0 items-center gap-1.5" aria-hidden>
-            {groups.slice(0, 3).map(group => <span key={group.value}
-              className="h-4 w-4 rounded-[4px] border border-[var(--border-light)]" style={{ background: group.value }} />)}
+          <span data-selection-colors-preview className="flex shrink-0 items-center gap-1.5">
+            {groups.slice(0, 3).map(group => <button
+              key={group.value}
+              type="button"
+              aria-label={`Select layers and edit fill ${group.value}`}
+              title={`Select layers and edit ${group.value}`}
+              className="h-4 w-4 cursor-pointer rounded-[4px] border border-[var(--border-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+              style={{ background: group.value }}
+              onClick={(event) => {
+                swatchAnchor.current = event.currentTarget;
+                setEditingSwatch(group);
+                setSelectedIds(group.nodeIds);
+              }}
+            />)}
             {groups.length > 3 && <span className="text-xs font-normal text-[var(--text-secondary)]">+{groups.length - 3}</span>}
           </span>
         )}
@@ -376,6 +390,27 @@ export default function SelectionTool() {
         </div>
       </ToolSection>
       <ToolDivider />
+      </>}
+      {editingSwatch && (
+        <ToolPopup
+          isOpen
+          onClose={() => setEditingSwatch(null)}
+          title="Fill"
+          ariaLabel="Edit selected fill"
+          anchorRef={swatchAnchor}
+          width={360}
+          hideHeader
+        >
+          <ColorPicker
+            onClose={() => setEditingSwatch(null)}
+            capabilityLabel="selection color"
+            value={tokens.find(token => token.name === parseVarRef(editingSwatch.value))?.value ?? editingSwatch.value}
+            onChange={value => livePatchReplacementStyles(buildColorReplacementStyles(editingSwatch.targets, value))}
+            onChangeEnd={value => writeReplacementStyles(buildColorReplacementStyles(editingSwatch.targets, value))}
+            showAlpha
+          />
+        </ToolPopup>
+      )}
     </>
   );
 }

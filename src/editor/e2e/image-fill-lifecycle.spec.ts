@@ -66,6 +66,24 @@ test('uploaded frame image decodes, renders, saves, survives reload', async ({ p
   await expect.poll(async () => (await decodedSize(editor)).w).toBeGreaterThan(0);
 });
 
+test('Canvas preserves an embedded fill URL containing viewport-unit text', async ({ page }) => {
+  const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
+  const image = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2230%22%20height=%2250%22%3E%3Cdesc%3E8vw%3C/desc%3E%3Crect%20width=%2230%22%20height=%2250%22%20fill=%22blue%22/%3E%3C/svg%3E';
+  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx'].replace(
+    /background:\s*['"]#66ccff['"]/i,
+    `backgroundImage: 'url("${image}")'`,
+  );
+  expect(seed.files['app/page.client.tsx']).toContain(image);
+  await page.addInitScript(data => {
+    localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    localStorage.setItem('revyme-onboarding-completed', 'true');
+  }, seed);
+  await page.goto('/work/local');
+  const editor = new EditorPage(page);
+  await expect(editor.node('abs-child')).toHaveCSS('background-image', `url("${image}")`);
+  await expect.poll(() => decodedSize(editor)).toEqual({ w: 30, h: 50 });
+});
+
 test('one undo removes the applied image fill and restores the colour', async ({ page }) => {
   test.setTimeout(120_000);
   const editor = await open(page);

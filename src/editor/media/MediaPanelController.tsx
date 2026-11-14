@@ -27,6 +27,8 @@ import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { viewportPrefixesForNode } from '@/canvas/node-ops';
 import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
+import { mediaImageToolbarItem, type MediaImageDimensions } from './media-canvas-placement';
+import { getImageDimensions } from '@/canvas/image-dims';
 import { getProjectId } from '@/backend/project-id';
 import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
 import { mediaNodeAcceptsChild, resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
@@ -108,6 +110,7 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
     kind: 'image' | 'video' | 'audio',
     url: string,
     placement: ToolbarMediaPlacement = resolvePlacement(kind),
+    dimensions?: MediaImageDimensions | null,
   ) => {
     if (viewer || (portrait && !alive.current)) return;
     if (placement.type === 'replace') {
@@ -122,17 +125,14 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
         bridge.setAttribute(placement.nodeId, vpPrefix, 'src', url);
       }
       flushNow();
-    } else if (placement.type === 'inside') {
-      const created = getNodeFromCache(placement.nodeId)
-        ? insertToolbarItemAtSelection(kind, placement.nodeId, { src: url })
-        : [];
-      // If the remembered container disappeared during async work, degrade to
-      // ordinary insertion rather than losing the Media action.
-      if (created.length === 0) {
-        insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
-      }
     } else {
-      insertToolbarItemAtVisibleCenter(kind, undefined, { src: url });
+      const imageItem = dimensions !== undefined ? mediaImageToolbarItem(url, dimensions) : undefined;
+      const created = placement.type === 'inside' && getNodeFromCache(placement.nodeId)
+        ? insertToolbarItemAtSelection(kind, placement.nodeId, { src: url }, imageItem)
+        : [];
+      if (created.length === 0) {
+        insertToolbarItemAtVisibleCenter(kind, undefined, { src: url }, imageItem);
+      }
     }
     onClose();
   };
@@ -389,8 +389,16 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
           ? 'audio'
           : 'all';
 
-  const pickFromProjectMedia = (asset: { url: string; kind: 'image' | 'video' | 'audio' | 'vector' }) => {
-    if (asset.kind === 'image' || asset.kind === 'vector') insertUrl('image', asset.url);
+  const pickFromProjectMedia = async (asset: { url: string; kind: 'image' | 'video' | 'audio' | 'vector'; dimensions?: MediaImageDimensions }) => {
+    if (asset.kind === 'image' || asset.kind === 'vector') {
+      if (portrait) {
+        insertUrl('image', asset.url);
+        return;
+      }
+      const placement = resolvePlacement('image');
+      const dimensions = placement.type === 'replace' ? undefined : asset.dimensions ?? await getImageDimensions(asset.url);
+      if (alive.current) placeUrl('image', asset.url, placement, dimensions);
+    }
     else if (asset.kind === 'video') insertUrl('video', asset.url);
     else if (asset.kind === 'audio') insertUrl('audio', asset.url);
   };
@@ -412,6 +420,7 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
       workspace={expanded}
       initialTab={browserTab}
       onPick={pickFromProjectMedia}
+      allowDrag={!portrait && !viewer}
     />
   );
 
@@ -455,7 +464,7 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
   } else if (isTypedBrowser) {
     content = typedBrowserContent;
   } else {
-    content = <MediaGalleryPanel chrome="embedded" workspace={expanded} onPick={pickFromProjectMedia} />;
+    content = <MediaGalleryPanel chrome="embedded" workspace={expanded} onPick={pickFromProjectMedia} allowDrag={!portrait && !viewer} />;
   }
 
   const title = routeTitle(session.route, session.intent);
