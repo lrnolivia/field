@@ -21,6 +21,7 @@ export const workspaceModeAtom = atom(
 );
 export const dockedLeftOpenAtom = atomWithStorage('field:prefs:dockedLeftOpen:v1', true, undefined, { getOnInit: true });
 export const dockedInspectorOpenAtom = atomWithStorage('field:prefs:dockedInspectorOpen:v1', true, undefined, { getOnInit: true });
+export const canvasFollowsPanelsAtom = atomWithStorage('field:prefs:canvasFollowsPanels', false, undefined, { getOnInit: true });
 /** Auto-hide is independent of the left rail and of the layout preset. */
 export const rightInspectorAutoHideAtom = atomWithStorage('field:prefs:rightInspectorAutoHide:v1', false, undefined, { getOnInit: true });
 export const rightInspectorTemporaryRevealAtom = atom(false);

@@ -34,6 +34,7 @@ import { ingestMediaFile, isMediaUploadCancelled } from '@/editor/media/media-in
 import MediaPanelController from '@/editor/media/MediaPanelController';
 import GalleryGlyph from '@/editor/media/GalleryGlyph';
 import { createMediaSession } from '@/editor/media/media-system';
+import { mediaImageToolbarItem, type MediaImageDimensions } from '@/editor/media/media-canvas-placement';
 
 type MediaGalleryTab = 'all' | 'images' | 'videos' | 'audio';
 
@@ -80,11 +81,11 @@ interface UploadedFile {
  *  Same value LibraryPanel uses (`LIBRARY_DRAG_THRESHOLD_PX`). */
 const MEDIA_DRAG_THRESHOLD_PX = 5;
 
-const mediaImageRatioCache = new Map<string, number>();
+const mediaImageDimensions = new Map<string, MediaImageDimensions>();
 
 function rememberMediaImageRatio(url: string, image: HTMLImageElement): void {
   if (image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
-  mediaImageRatioCache.set(url, image.naturalWidth / image.naturalHeight);
+  mediaImageDimensions.set(url, { w: image.naturalWidth, h: image.naturalHeight });
 }
 
 /** Shared drag logic for media tiles. Mirrors LibraryPanel's
@@ -94,33 +95,22 @@ function rememberMediaImageRatio(url: string, image: HTMLImageElement): void {
  *  video to drop. Drop targeting (drop-line indicator, parent-
  *  highlight, layout-vs-canvas insertion) is handled by
  *  `ToolbarDragStrategy` downstream — same path Insert panel cards use. */
-function useMediaDrag(url: string, kind: BrowserMediaKind) {
+function useMediaDrag(url: string, kind: BrowserMediaKind, canDrag: boolean, dragged: React.RefObject<boolean>) {
   return useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    dragged.current = false;
+    if (!canDrag) return;
     e.preventDefault();
     const startX = e.clientX;
     const startY = e.clientY;
-    const startEvent = e.nativeEvent;
     const tile = e.currentTarget as HTMLElement;
     const rect = tile.getBoundingClientRect();
     const ghostW = Math.round(rect.width) || 200;
     const ghostH = Math.round(rect.height) || 150;
 
-    const item: ToolbarItem = kind === 'image' || kind === 'vector' ? {
-      id: 'media-' + kind + ':' + url,
-      name: kind === 'vector' ? 'Vector' : 'Image',
-      elementType: 'div',
-      defaultStyles: {
-        width: '200px',
-        height: '150px',
-        backgroundImage: 'url("' + url + '")',
-        backgroundSize: kind === 'vector' ? 'contain' : 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      },
-      ghostSize: { width: ghostW, height: ghostH },
-      galleryMedia: [{ url, sourceRatio: mediaImageRatioCache.get(url) ?? null }],
-    } : kind === 'audio' ? {
+    const item: ToolbarItem = kind === 'image' || kind === 'vector'
+      ? mediaImageToolbarItem(url, mediaImageDimensions.get(url) ?? null, kind)
+      : kind === 'audio' ? {
       id: 'media-audio:' + url,
       name: 'Audio',
       elementType: 'audio',
@@ -147,27 +137,28 @@ function useMediaDrag(url: string, kind: BrowserMediaKind) {
       ghostSize: { width: ghostW, height: ghostH },
     };
 
-    let dragStarted = false;
     const cleanup = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
     const onMove = (moveEvent: PointerEvent) => {
-      if (dragStarted) return;
+      if (moveEvent.pointerId !== e.pointerId) return;
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
       if (dx * dx + dy * dy < MEDIA_DRAG_THRESHOLD_PX * MEDIA_DRAG_THRESHOLD_PX) return;
-      dragStarted = true;
+      dragged.current = true;
       cleanup();
       trace.action('media-panel:drag-start', { kind, url });
-      startToolbarDrag(item, startEvent);
+      startToolbarDrag(item, moveEvent);
     };
-    const onUp = () => cleanup();
+    const onUp = (event: PointerEvent) => {
+      if (event.pointerId === e.pointerId) cleanup();
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
-  }, [url, kind]);
+  }, [url, kind, canDrag, dragged]);
 }
 
 /**
@@ -197,9 +188,10 @@ function useGallerySelectionDrag(urls: readonly string[]) {
       if (dx * dx + dy * dy < MEDIA_DRAG_THRESHOLD_PX * MEDIA_DRAG_THRESHOLD_PX) return;
       dragStarted = true;
       cleanup();
-      const item = buildGalleryMediaToolbarItem(
-        snapshot.map((url) => ({ url, sourceRatio: mediaImageRatioCache.get(url) ?? null })),
-      );
+      const item = buildGalleryMediaToolbarItem(snapshot.map((url) => {
+        const dimensions = mediaImageDimensions.get(url);
+        return { url, sourceRatio: dimensions ? dimensions.w / dimensions.h : null };
+      }));
       trace.action('media-panel:gallery-drag-start', { count: snapshot.length });
       startToolbarDrag(item, startEvent);
     };
@@ -216,20 +208,23 @@ function useGallerySelectionDrag(urls: readonly string[]) {
  *  React listener tree and the DOM target (those layers caused
  *  drop-line indicator dropouts in earlier wiring; see LibraryPanel
  *  lines 406-415 for the rationale). */
-const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelected, canDelete, onShiftPointerDown, onPlainPointerDown, onRequestDelete }: {
+const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelected, canDelete, canDrag, onPick, onShiftPointerDown, onPlainPointerDown, onRequestDelete }: {
   url: string;
   kind: BrowserMediaKind;
   /** R2 object key — the deletable identity. Null → standalone blob URL. */
   mediaKey: string | null;
   isSelected: boolean;
   canDelete: boolean;
+  canDrag: boolean;
+  onPick?: () => void;
   /** Shift held on pointerdown → the panel's sweep/toggle machinery. */
   onShiftPointerDown: (key: string, e: React.PointerEvent) => void;
   /** Plain pointerdown (drag intent) — panel clears multi-selection and may inspect. */
   onPlainPointerDown: () => void;
   onRequestDelete: (key: string) => void;
 }) {
-  const handleDrag = useMediaDrag(url, kind);
+  const dragged = useRef(false);
+  const handleDrag = useMediaDrag(url, kind, canDrag, dragged);
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.shiftKey && mediaKey) {
       // Selection gesture — never arms the canvas drag. stopPropagation is
@@ -248,6 +243,10 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
     <div
       data-media-key={mediaKey ?? undefined}
       onPointerDown={onPointerDown}
+      onClick={onPick ? (event) => {
+        if (event.shiftKey || dragged.current) return;
+        onPick();
+      } : undefined}
       // Selected: border snaps to accent with NO transition — with the base
       // white border + `transition-colors`, every tile joining the selection
       // flashed white→blue under the instant outline (the reported fringe).
@@ -257,7 +256,7 @@ const MediaTile = React.memo(function MediaTile({ url, kind, mediaKey, isSelecte
           : 'border-[var(--border-light)] transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-[var(--control-border-hover)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.09)]'
       }`}
       style={isSelected ? MULTI_SELECT_OUTLINE : undefined}
-      title="Drag to canvas"
+      title={canDrag ? 'Drag to canvas' : undefined}
     >
       {kind === 'image' || kind === 'vector' ? (
         <img
@@ -351,11 +350,13 @@ export default function MediaGalleryPanel({
   initialTab = 'all',
   workspace = false,
   onPick,
+  allowDrag = !onPick,
 }: {
   chrome?: 'full' | 'embedded';
   initialTab?: MediaGalleryTab;
   workspace?: boolean;
-  onPick?: (asset: { url: string; kind: BrowserMediaKind }) => void;
+  onPick?: (asset: { url: string; kind: BrowserMediaKind; dimensions?: MediaImageDimensions }) => void;
+  allowDrag?: boolean;
 } = {}) {
   const session = useAtomValue(mediaSessionAtom);
   const setSession = useSetAtom(mediaSessionAtom);
@@ -1064,12 +1065,10 @@ export default function MediaGalleryPanel({
                 tabIndex={onPick ? 0 : undefined}
                 aria-label={onPick ? 'Use ' + mediaDisplayName(item) : undefined}
                 className={onPick ? 'rounded-[7px] outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]' : undefined}
-                onPointerDownCapture={onPick ? (event) => event.stopPropagation() : undefined}
-                onClick={onPick ? () => onPick({ url: item.url, kind: item.kind }) : undefined}
                 onKeyDown={onPick ? (event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
+                  if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault();
-                    onPick({ url: item.url, kind: item.kind });
+                    onPick({ url: item.url, kind: item.kind, dimensions: mediaImageDimensions.get(item.url) });
                   }
                 } : undefined}
               >
@@ -1079,6 +1078,10 @@ export default function MediaGalleryPanel({
                   mediaKey={deriveUploadKey(item)}
                   isSelected={(() => { const k = deriveUploadKey(item); return !!k && selectedKeys.has(k); })()}
                   canDelete={durableInventory === true && !!item.key}
+                  canDrag={allowDrag}
+                  onPick={onPick ? () => onPick({
+                    url: item.url, kind: item.kind, dimensions: mediaImageDimensions.get(item.url),
+                  }) : undefined}
                   onShiftPointerDown={beginShiftGesture}
                   onPlainPointerDown={() => {
                     if (selectedKeys.size) setSelectedKeys(new Set());

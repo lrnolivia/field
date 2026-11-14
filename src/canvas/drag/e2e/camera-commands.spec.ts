@@ -91,15 +91,14 @@ test('menu zoom pivots on the visible canvas centre, not the last pointer', asyn
   test.setTimeout(120_000);
   const editor = new EditorPage(p);
   await seed(p, editor);
-  // Park the pointer far off-centre on the canvas, as the audit's double-click did.
-  const outer = await editor.nodeBox('outer');
-  await p.mouse.move(outer.x + 10, outer.y + 10);
-  await p.waitForTimeout(200);
-
   const area = await p.evaluate(() => {
     const el = document.querySelector('iframe[src*="5174"]')!.getBoundingClientRect();
     return { x: el.x, y: el.y, w: el.width, h: el.height };
   });
+  // Pick an off-center screen point independent of where the initial fit
+  // put the object. The zoom target and the pointer must be distinct.
+  const pointer = { x: area.x + area.w * 0.3, y: area.y + area.h * 0.75 };
+  await p.mouse.move(pointer.x, pointer.y);
   const before = await editor.nodeBox('outer');
   const s0 = await settledScale(p);
 
@@ -114,7 +113,7 @@ test('menu zoom pivots on the visible canvas centre, not the last pointer', asyn
   const ax = (after.x - k * before.x) / (1 - k);
   const ay = (after.y - k * before.y) / (1 - k);
   // Pivot is far from the parked pointer…
-  expect(Math.hypot(ax - (outer.x + 10), ay - (outer.y + 10))).toBeGreaterThan(150);
+  expect(Math.hypot(ax - pointer.x, ay - pointer.y)).toBeGreaterThan(150);
   // …and inside the central part of the canvas.
   expect(ax).toBeGreaterThan(area.x + area.w * 0.2);
   expect(ax).toBeLessThan(area.x + area.w * 0.8);

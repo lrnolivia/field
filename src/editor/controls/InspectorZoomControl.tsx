@@ -6,7 +6,8 @@
 
 import { useAtomValue } from 'jotai';
 import { useEffect, useRef, useState } from 'react';
-import { selectedNodeAtom } from '@/code/stores/store';
+import { createPortal } from 'react-dom';
+import { selectedIdsAtom } from '@/code/stores/store';
 import {
   transformManager,
   zoomIn,
@@ -39,10 +40,12 @@ function MenuRow({ label, shortcut, onClick }: {
 
 /** Compact zoom readout. */
 export default function InspectorZoomControl() {
-  const selectedId = useAtomValue(selectedNodeAtom);
+  const selectedIds = useAtomValue(selectedIdsAtom);
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(() => Math.round(transformManager.getTransform().scale * 100));
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState({ right: 8, top: 0 });
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -63,10 +66,27 @@ export default function InspectorZoomControl() {
   useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!ref.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setOpen(false);
+      ref.current?.querySelector('button')?.focus();
+    };
+    const reposition = () => {
+      const rect = ref.current?.getBoundingClientRect();
+      if (rect) setAnchor({ right: Math.max(8, window.innerWidth - rect.right), top: rect.bottom + 4 });
     };
     window.addEventListener('pointerdown', close, true);
-    return () => window.removeEventListener('pointerdown', close, true);
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('pointerdown', close, true);
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('resize', reposition);
+    };
   }, [open]);
 
   const withCanvas = (source: string, fn: (root: HTMLElement) => void) => {
@@ -91,7 +111,11 @@ export default function InspectorZoomControl() {
           type="button"
           data-inspector-zoom
           aria-expanded={open}
-          onClick={() => setOpen(v => !v)}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setAnchor({ right: Math.max(8, window.innerWidth - rect.right), top: rect.bottom + 4 });
+            setOpen(v => !v);
+          }}
           className={`flex h-6 min-w-[46px] items-center justify-center gap-1 rounded-[4px] px-1.5 text-[11px] font-medium tabular-nums transition-colors ${
             open
               ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
@@ -105,20 +129,22 @@ export default function InspectorZoomControl() {
           </svg>
         </button>
 
-        {open && (
+        {open && createPortal(
           <div
+            ref={menuRef}
+            data-inspector-zoom-menu
             data-field-floating-surface
             data-field-no-canvas-input
-            className="absolute right-0 top-full mt-1 min-w-[190px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] p-1 shadow-[var(--shadow-lg)]"
-            style={{ zIndex: fieldSurfaceZ('menu', ref.current) }}
+            className="fixed min-w-[190px] rounded-[8px] border border-[var(--border-light)] bg-[var(--dropdown-bg)] p-1 shadow-[var(--shadow-lg)]"
+            style={{ ...anchor, zIndex: fieldSurfaceZ('menu', ref.current) }}
           >
             <MenuRow label="Fit canvas" shortcut="⇧1" onClick={() => withCanvas('inspector:fit-canvas', root => zoomToFit(root))} />
-            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas('inspector:fit-selection', root => fitSelectionCommand(root, selectedId ? [selectedId] : []))} />
+            <MenuRow label="Fit selection" shortcut="⇧2" onClick={() => withCanvas('inspector:fit-selection', root => fitSelectionCommand(root, selectedIds))} />
             <MenuRow label="Zoom to 100%" shortcut="⇧3" onClick={() => runCameraCommand('inspector:zoom-100', zoomTo100)} />
             <div className="h-px bg-[var(--border-light)] my-1" />
             <MenuRow label="Zoom in" onClick={() => runCameraCommand('inspector:zoom-in', () => zoomIn('center'))} />
             <MenuRow label="Zoom out" onClick={() => runCameraCommand('inspector:zoom-out', () => zoomOut('center'))} />
-          </div>
+          </div>, document.body
         )}
       </div>
     </div>

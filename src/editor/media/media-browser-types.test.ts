@@ -15,10 +15,11 @@ describe('canonical Media type coverage', () => {
 
   it('renders Audio and Vector distinctly while preserving drag semantics', () => {
     const media = read('src/editor/left-toolbar/panels/MediaGalleryPanel.tsx');
+    const placement = read('src/editor/media/media-canvas-placement.ts');
     expect(media).toContain("name: 'Audio'");
     expect(media).toContain("elementType: 'audio'");
-    expect(media).toContain("name: kind === 'vector' ? 'Vector' : 'Image'");
-    expect(media).toContain("backgroundSize: kind === 'vector' ? 'contain' : 'cover'");
+    expect(placement).toContain("name: kind === 'vector' ? 'Vector' : 'Image'");
+    expect(placement).toContain("elementType: 'img'");
     expect(media).toContain('♫');
   });
 

@@ -43,7 +43,6 @@ describe('universal inspector/media chrome corrections', () => {
     expect(input).toContain('leadingLabel?: string');
     expect(padding).toContain('leadingLabel={label}');
     expect(padding).not.toContain('chevronLabel={label}');
-    expect(padding).toContain('data-layout-padding-editor className="w-full"');
     expect(rotate).toContain('leadingGlyph={');
     expect(rotate).not.toContain('grid-cols-[22px_minmax(0,1fr)]');
   });

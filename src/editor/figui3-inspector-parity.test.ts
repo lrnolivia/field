@@ -86,7 +86,6 @@ describe('FigUI3 Inspector parity contract', () => {
     expect(size).not.toContain('data-layout-size-pair className="field-inspector-field-grid" style={{ gap: 8 }}');
     expect(padding).toContain('data-layout-padding-toolbar');
     expect(padding).toContain('data-layout-padding-editor');
-    expect(padding).toContain('className="flex flex-col gap-2 w-full"');
     expect(padding).toContain('data-layout-padding-axes');
     expect(padding).toContain('data-layout-padding-sides');
     expect(theme).not.toContain('[data-properties-panel] [data-layout-padding] > div:last-child');

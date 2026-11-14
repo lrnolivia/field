@@ -62,6 +62,41 @@ export function getAvailableCanvasArea() {
 
 const getAvailableArea = getAvailableCanvasArea;
 
+function getFitArea() {
+  const base = getAvailableArea();
+  if (typeof document === 'undefined' || !document.querySelector('[data-floating-camera-fit]')) return base;
+  const start = base.centerX - base.width / 2;
+  const end = base.centerX + base.width / 2;
+  const panels = Array.from(document.querySelectorAll<HTMLElement>(
+    '[data-workspace-island][data-visible="true"], [data-workspace-right-toggle][data-visible="true"]',
+  ), panel => panel.getBoundingClientRect()).filter(rect => rect.width > 0 && rect.height > 0);
+  panels.sort((a, b) => a.left - b.left);
+  let cursor = start;
+  let left = start;
+  let right = start;
+  for (const panel of panels) {
+    const gapEnd = Math.min(panel.left, end);
+    if (gapEnd - cursor > right - left) {
+      left = cursor;
+      right = gapEnd;
+    }
+    cursor = Math.max(cursor, Math.min(panel.right, end));
+  }
+  if (end - cursor > right - left) {
+    left = cursor;
+    right = end;
+  }
+  if (right <= left) return base;
+  const top = Math.max(base.centerY - base.height / 2, document.querySelector('[data-workspace-left-header]')?.getBoundingClientRect().bottom ?? 0);
+  const bottom = base.centerY + base.height / 2;
+  return {
+    width: right - left,
+    height: Math.max(1, bottom - top),
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
+  };
+}
+
 /** Camera-safe rectangle for a focused item, including floating chrome. */
 export function getPaddedCanvasFocusArea() {
   const available = getAvailableCanvasArea();
@@ -708,7 +743,7 @@ function fitBoundsInView(
   scaleMultiplier: number = 1,
   maxScale: number = FIT_MAX_SCALE,
 ): void {
-  const { width: availW, height: availH, centerX, centerY } = getAvailableArea();
+  const { width: availW, height: availH, centerX, centerY } = getFitArea();
 
   const contentW = bounds.maxX - bounds.minX;
   const contentH = bounds.maxY - bounds.minY;

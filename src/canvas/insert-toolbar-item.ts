@@ -92,13 +92,14 @@ function insertToolbarItem(
   sectionBlueprintId: string | undefined,
   attrs: Record<string, string> | undefined,
   insertion: { ignoreSelection?: boolean; selectionOverride?: readonly string[] },
+  customItem?: ToolbarItem,
 ): string[] {
   if (sectionBlueprintId) {
     const created = insertSectionBlueprint(sectionBlueprintId);
     playInsertionPop(created);
     return created;
   }
-  const item = getToolbarItemConfig(itemId);
+  const item = customItem ?? getToolbarItemConfig(itemId);
   if (!item) {
     toast.error('This item is unavailable right now.');
     return [];
@@ -126,8 +127,9 @@ export function insertToolbarItemAtVisibleCenter(
   itemId: string,
   sectionBlueprintId?: string,
   attrs?: Record<string, string>,
+  item?: ToolbarItem,
 ): string[] {
-  return insertToolbarItem(itemId, sectionBlueprintId, attrs, { ignoreSelection: true });
+  return insertToolbarItem(itemId, sectionBlueprintId, attrs, { ignoreSelection: true }, item);
 }
 
 /**
@@ -138,6 +140,7 @@ export function insertToolbarItemAtSelection(
   itemId: string,
   nodeId: string,
   attrs?: Record<string, string>,
+  item?: ToolbarItem,
 ): string[] {
-  return insertToolbarItem(itemId, undefined, attrs, { selectionOverride: [nodeId] });
+  return insertToolbarItem(itemId, undefined, attrs, { selectionOverride: [nodeId] }, item);
 }

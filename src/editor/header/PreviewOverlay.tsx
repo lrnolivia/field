@@ -37,6 +37,8 @@ import { collectPreviewProjectPayload, postPreviewProjectPayload } from '@/previ
 import ToolInput from '@/editor/controls/ToolInput';
 import Button from '@/design-system/Button';
 import { previewFrameUrl } from '@/preview/preview-frame-url';
+import { listenForPreviewZoom, type PreviewZoomAction } from '@/preview/preview-zoom';
+import { resolveMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 
 /** Final URL the Preview iframe loads.
  *
@@ -88,6 +90,7 @@ interface Props {
 
 export default function PreviewOverlay({ open, onClose }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewAreaRef = useRef<HTMLDivElement>(null);
   const [iframeReady, setIframeReady] = useState(false);
   // Bumped on EVERY `preview:ready` — an in-iframe navigation (the locale
   // switcher's location.assign to /fr) fully reloads the iframe, which posts
@@ -158,6 +161,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   const [previewHeight, setPreviewHeight] = useState(PRESETS.desktop.height);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [zoom, setZoom] = useState<number | null>(null);
 
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1440);
   const [windowHeight, setWindowHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 900);
@@ -205,8 +209,40 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   // iframe (the user's page), not on the parent backdrop.
   // 32px = top padding (16) + bottom padding (16) on the dark backdrop.
   const maxIframeHeight = Math.max(200, windowHeight - HEADER_H - 32);
-  const renderedWidth = isFullScreen ? '100%' : Math.min(currentWidth, windowWidth - 64);
-  const renderedHeight = isFullScreen ? '100%' : Math.min(currentHeight, maxIframeHeight);
+  const desktopZoom = resolveMobileWorkspacePresentation(windowWidth, windowHeight) === 'regular';
+  const renderedWidth = desktopZoom ? currentWidth : isFullScreen ? '100%' : Math.min(currentWidth, windowWidth - 64);
+  const renderedHeight = desktopZoom ? currentHeight : isFullScreen ? '100%' : Math.min(currentHeight, maxIframeHeight);
+  const fitZoom = Math.min(1, (windowWidth - 48) / currentWidth, maxIframeHeight / currentHeight);
+  const scale = desktopZoom ? zoom ?? fitZoom : 1;
+  const applyZoom = useCallback((action: PreviewZoomAction) => {
+    if (action === 'reset') {
+      setZoom(1);
+      return;
+    }
+    const factor = action === 'in' ? 1.25 : action === 'out' ? 0.8 : action.factor;
+    setZoom(value => Math.min(4, Math.max(0.1, (value ?? fitZoom) * factor)));
+  }, [fitZoom]);
+
+  useEffect(() => {
+    if (!open || !desktopZoom) return;
+    return listenForPreviewZoom(applyZoom, previewAreaRef.current ?? undefined);
+  }, [open, desktopZoom, applyZoom]);
+
+  useEffect(() => {
+    if (!open || !iframeReady) return;
+    const frame = iframeRef.current?.contentWindow;
+    const origin = new URL(PREVIEW_URL, window.location.href).origin;
+    frame?.postMessage({ type: 'preview:zoom-enabled', enabled: desktopZoom }, origin);
+    if (!desktopZoom) return;
+    const handleZoom = (event: MessageEvent) => {
+      if (event.source !== frame || event.origin !== origin || event.data?.type !== 'preview:zoom') return;
+      const action = event.data.action;
+      if (action === 'in' || action === 'out' || action === 'reset') applyZoom(action);
+      else if (Number.isFinite(action?.factor) && action.factor > 0) applyZoom({ factor: action.factor });
+    };
+    window.addEventListener('message', handleZoom);
+    return () => window.removeEventListener('message', handleZoom);
+  }, [open, desktopZoom, iframeReady, readyTick, applyZoom]);
 
   const activeViewport = currentWidth <= PRESETS.mobile.width ? 'mobile'
     : currentWidth <= PRESETS.tablet.width ? 'tablet' : 'desktop';
@@ -242,11 +278,11 @@ export default function PreviewOverlay({ open, onClose }: Props) {
       const s = dragStateRef.current;
       if (!s) return;
       if (s.axis === 'h') {
-        const dx = e.clientX - s.startX;
+        const dx = (e.clientX - s.startX) / scale;
         const next = Math.max(320, Math.min(s.startW + dx * 2, windowWidth - 100));
         setPreviewWidth(Math.round(next));
       } else {
-        const dy = e.clientY - s.startY;
+        const dy = (e.clientY - s.startY) / scale;
         const delta = s.fromTop ? -dy : dy;
         const next = Math.max(200, Math.min(s.startH + delta * (s.fromTop ? 2 : 1), windowHeight - 100));
         setPreviewHeight(Math.round(next));
@@ -263,7 +299,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [isDragging, windowWidth, windowHeight, previewWidth, previewHeight]);
+  }, [isDragging, windowWidth, windowHeight, previewWidth, previewHeight, scale]);
 
   const handleViewportSelect = useCallback((vp: keyof typeof PRESETS) => {
     const preset = PRESETS[vp];
@@ -623,6 +659,16 @@ export default function PreviewOverlay({ open, onClose }: Props) {
             className="!px-0 !w-[30px] cut-corners"
             icon={<ReloadIcon className="w-[14px] h-[14px]" />}
           />
+          {desktopZoom && (
+            <div className="flex items-center gap-1" role="group" aria-label="Preview zoom">
+              <Button variant="secondary" size="sm" aria-label="Zoom out" onClick={() => applyZoom('out')}>−</Button>
+              <Button variant="secondary" size="sm" aria-label="Reset zoom to 100%" onClick={() => applyZoom('reset')}>
+                <span data-preview-zoom>{Math.round(scale * 100)}%</span>
+              </Button>
+              <Button variant="secondary" size="sm" aria-label="Zoom in" onClick={() => applyZoom('in')}>+</Button>
+              <Button variant="secondary" size="sm" aria-label="Fit preview" onClick={() => setZoom(null)}>Fit</Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -631,16 +677,16 @@ export default function PreviewOverlay({ open, onClose }: Props) {
           NEVER scrolls — scroll only happens inside the iframe (the user's
           page). The iframe rendered height is clamped to `maxIframeHeight`
           so the bottom grip handle is always visible. */}
-      <div className="flex-1 bg-[var(--bg-canvas)] flex items-start justify-center relative overflow-hidden pt-4 pb-4">
+      <div ref={previewAreaRef} className={`flex-1 min-h-0 bg-[var(--bg-canvas)] relative py-4 ${desktopZoom ? 'overflow-auto px-6' : 'flex items-start justify-center overflow-hidden'}`}>
         {/* Iframe wrapper — grip handles position relative to THIS wrapper
             (not the dark backdrop's center) so resize handles stay attached
             to the iframe regardless of where the wrapper ends up in the
             scrollable area. */}
         <div
-          className="relative shrink-0"
+          className="relative mx-auto shrink-0"
           style={{
-            width: renderedWidth,
-            height: renderedHeight,
+            width: desktopZoom ? currentWidth * scale : renderedWidth,
+            height: desktopZoom ? currentHeight * scale : renderedHeight,
           }}
         >
           {/* Left grip */}
@@ -694,7 +740,12 @@ export default function PreviewOverlay({ open, onClose }: Props) {
               ref={iframeRef}
               src={PREVIEW_URL}
               className="w-full h-full"
-              style={{ border: 'none', display: 'block' }}
+              style={{
+                border: 'none', display: 'block',
+                width: renderedWidth, height: renderedHeight,
+                transform: desktopZoom ? `scale(${scale})` : undefined,
+                transformOrigin: 'top left',
+              }}
               // No `sandbox` attribute on purpose. The preview lives at
               // localhost:5175 — a different origin from the parent (3333) —
               // so origin isolation already prevents user code from touching

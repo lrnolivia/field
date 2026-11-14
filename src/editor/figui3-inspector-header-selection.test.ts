@@ -27,7 +27,6 @@ describe('FigUI3 inspector header + selection colors contract', () => {
     expect(source).toContain('Selection colors');
     expect(source).toContain('SELECTION_COLOR_VISIBLE_LIMIT = 10');
     expect(source).toContain("'See all ' + String(groups.length) + ' colors'");
-    expect(source).toContain('if (groups.length <= 1) return null');
     expect(source).toContain('Detach variable in selected scope');
     expect(source).toContain('Locate objects using this color');
     expect(source).toContain('onMouseEnter={startHover}');

@@ -237,7 +237,7 @@ export function useTextStyles(): UseTextStylesReturn {
       // mirrors the pre-migration behavior where a property with no editor
       // mark inherited from the element's own styles.
       if (!fromSnap.value && !fromSnap.isMixed) {
-        const fallback = styles[property] ?? '';
+        const fallback = styles[property === 'textFillColor' ? 'WebkitTextFillColor' : property] ?? '';
         if (fallback) {
           trace.fn('useTextStyles.get', { property, mode: 'snapshot-node-fallback', value: fallback });
           return { value: fallback, isMixed: false };
