@@ -26,6 +26,7 @@ import {
 } from '@/code/stores/ruler-guides-store';
 import { isViewerMode, useIsViewer } from '@/code/stores/viewer-mode-store';
 import { selectedIdsAtom } from '@/code/stores/store';
+import { frameGuideRect } from './frame-ruler-guides';
 
 const GUIDE_COLOR = '#0d9488';
 const GUIDE_COLOR_SELECTED = 'var(--selection)';
@@ -39,13 +40,14 @@ interface GuideLineProps extends RulerInsets {
   readOnly: boolean;
   screenPosition: number;
   topOffset: number;
+  frame?: DOMRect;
   onSelect: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onStartDrag: (event: React.MouseEvent, guide: RulerGuide, screenPosition: number) => void;
 }
 
 const GuideLine: React.FC<GuideLineProps> = ({
-  guide, isSelected, readOnly, screenPosition, topOffset, left, right, onSelect, onContextMenu, onStartDrag,
+  guide, isSelected, readOnly, screenPosition, topOffset, frame, left, right, onSelect, onContextMenu, onStartDrag,
 }) => {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0 || isViewerMode()) return; // left-click only; right-click → context menu
@@ -66,12 +68,13 @@ const GuideLine: React.FC<GuideLineProps> = ({
     return (
       <div
         data-ruler-guide
+        data-ruler-guide-frame={guide.frame?.id}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
         style={{
           position: 'fixed',
-          left: left + RULER_SIZE,
-          right,
+          left: Math.max(left + RULER_SIZE, frame?.left ?? -Infinity),
+          right: frame ? Math.max(right, window.innerWidth - frame.right) : right,
           top: screenPosition,
           height: 1,
           backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
@@ -92,12 +95,13 @@ const GuideLine: React.FC<GuideLineProps> = ({
   return (
     <div
       data-ruler-guide
+      data-ruler-guide-frame={guide.frame?.id}
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       style={{
         position: 'fixed',
-        top: topOffset + RULER_SIZE,
-        bottom: 0,
+        top: Math.max(topOffset + RULER_SIZE, frame?.top ?? -Infinity),
+        bottom: frame ? Math.max(0, window.innerHeight - frame.bottom) : 0,
         left: screenPosition,
         width: 1,
         backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
@@ -196,6 +200,30 @@ export default function RulerGuides({ left, right }: RulerInsets) {
     duplicate: boolean;
   } | null>(null);
   const [preview, setPreview] = useState<{ id: string; screenPosition: number; duplicate: boolean } | null>(null);
+  const [frameRects, setFrameRects] = useState<Map<string, DOMRect>>(() => new Map());
+  useEffect(() => {
+    const scopedGuides = showRulers ? guides.filter(guide => guide.frame) : [];
+    if (!scopedGuides.length) return;
+    let raf = 0;
+    const measure = () => {
+      const next = new Map<string, DOMRect>();
+      for (const guide of scopedGuides) {
+        const rect = frameGuideRect(guide.frame!);
+        if (rect) next.set(guide.id, rect);
+      }
+      setFrameRects(previous => {
+        if (previous.size !== next.size) return next;
+        for (const [id, rect] of next) {
+          const prior = previous.get(id);
+          if (!prior || prior.left !== rect.left || prior.top !== rect.top || prior.width !== rect.width || prior.height !== rect.height) return next;
+        }
+        return previous;
+      });
+      raf = requestAnimationFrame(measure);
+    };
+    measure();
+    return () => cancelAnimationFrame(raf);
+  }, [guides, showRulers]);
 
   // ─── Right-click context menu ──────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<
@@ -268,9 +296,13 @@ export default function RulerGuides({ left, right }: RulerInsets) {
         return;
       }
       const t = transformManager.getAppliedTransform();
-      const position = (cursor + drag.grabOffset - (horizontal ? t.y : t.x)) / t.scale;
+      const bounds = drag.guide.frame ? frameGuideRect(drag.guide.frame) : null;
+      if (drag.guide.frame && !bounds) return;
+      const origin = bounds ? (horizontal ? bounds.top : bounds.left) : (horizontal ? t.y : t.x);
+      const position = (cursor + drag.grabOffset - origin) / t.scale;
+      if (bounds && (position < 0 || position > (horizontal ? bounds.height : bounds.width) / t.scale)) return;
       if (drag.duplicate) {
-        rulerGuideOps.addGuide(drag.filePath, drag.guide.type, position);
+        rulerGuideOps.addGuide(drag.filePath, drag.guide.type, position, drag.guide.frame);
       } else {
         rulerGuideOps.updateGuidePosition(drag.filePath, drag.guide.id, position);
       }
@@ -334,6 +366,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
 
   const duplicatedGuide = preview?.duplicate ? guides.find(guide => guide.id === preview.id) : undefined;
   const duplicateVertical = duplicatedGuide?.type === 'vertical';
+  const duplicateFrame = duplicatedGuide?.frame ? frameRects.get(duplicatedGuide.id) : undefined;
   return (
     <>
       {guides.map((g) => {
@@ -342,9 +375,14 @@ export default function RulerGuides({ left, right }: RulerInsets) {
         // the user can't tell whether the snap fired). See
         // `snappedRulerGuideIdsAtom` in `ruler-guides-store.ts`.
         if (snappedIds.has(g.id)) return null;
+        const frame = g.frame ? frameRects.get(g.id) : undefined;
+        if (g.frame && !frame) return null;
+        const horizontal = g.type === 'horizontal';
+        const origin = frame ? (horizontal ? frame.top : frame.left) : (horizontal ? transform.y : transform.x);
         const screenPosition = preview?.id === g.id && !preview.duplicate
           ? preview.screenPosition
-          : g.position * transform.scale + (g.type === 'horizontal' ? transform.y : transform.x);
+          : g.position * transform.scale + origin;
+        if (frame && (screenPosition < origin || screenPosition > (horizontal ? frame.bottom : frame.right))) return null;
         return (
           <GuideLine
             key={g.id}
@@ -355,6 +393,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
             left={left}
             right={right}
             topOffset={topOffset}
+            frame={frame}
             onSelect={handleSelect}
             onContextMenu={handleContextMenu}
             onStartDrag={handleStartDrag}
@@ -369,8 +408,8 @@ export default function RulerGuides({ left, right }: RulerInsets) {
             position: 'fixed', pointerEvents: 'none', zIndex: 4895,
             backgroundColor: GUIDE_COLOR_SELECTED,
             ...(duplicateVertical
-              ? { top: topOffset + RULER_SIZE, bottom: 0, left: preview.screenPosition, width: 1 }
-              : { left: left + RULER_SIZE, right, top: preview.screenPosition, height: 1 }),
+              ? { top: Math.max(topOffset + RULER_SIZE, duplicateFrame?.top ?? -Infinity), bottom: duplicateFrame ? Math.max(0, window.innerHeight - duplicateFrame.bottom) : 0, left: preview.screenPosition, width: 1 }
+              : { left: Math.max(left + RULER_SIZE, duplicateFrame?.left ?? -Infinity), right: duplicateFrame ? Math.max(right, window.innerWidth - duplicateFrame.right) : right, top: preview.screenPosition, height: 1 }),
           }}
         />
       )}

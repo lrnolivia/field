@@ -14,6 +14,8 @@ export interface RulerGuide {
   /** Canvas-space coordinate (CSS px relative to the page root, NOT
    *  screen px — survives canvas pan/zoom). */
   position: number;
+  /** When present, position is relative to this frame's top or left edge. */
+  frame?: { id: string; viewportId: string };
 }
 
 const ANNOTATION_RE = /\/\*\*\s*@rulerGuides\s*(\[[\s\S]*?\])\s*\*\//;
@@ -33,7 +35,15 @@ export function parseRulerGuides(code: string): RulerGuide[] {
       && (g.type === 'horizontal' || g.type === 'vertical')
       && typeof g.position === 'number'
       && Number.isFinite(g.position),
-    );
+    ).map(g => {
+      const frame = g.frame;
+      return {
+        id: g.id, type: g.type, position: g.position,
+        ...(frame && typeof frame.id === 'string' && frame.id && typeof frame.viewportId === 'string' && frame.viewportId
+          ? { frame: { id: frame.id, viewportId: frame.viewportId } }
+          : {}),
+      };
+    });
   } catch {
     return [];
   }
@@ -42,9 +52,10 @@ export function parseRulerGuides(code: string): RulerGuide[] {
 /** Format a guides array as the JSON body of an annotation block. */
 function serializeRulerGuides(guides: RulerGuide[]): string {
   if (guides.length === 0) return '';
-  const lines = guides.map(g =>
-    `  { "id": "${g.id}", "type": "${g.type}", "position": ${Math.round(g.position * 100) / 100} }`,
-  );
+  const lines = guides.map(g => '  ' + JSON.stringify({
+    id: g.id, type: g.type, position: Math.round(g.position * 100) / 100,
+    ...(g.frame ? { frame: g.frame } : {}),
+  }).replace(/\*\//g, '*\\u002f'));
   return `/** @rulerGuides [\n${lines.join(',\n')}\n] */`;
 }
 
@@ -63,7 +74,7 @@ export function updateRulerGuidesInCode(code: string, guides: RulerGuide[]): str
 
   // Replace an existing block in place.
   if (ANNOTATION_RE.test(code)) {
-    return code.replace(ANNOTATION_RE, serialized);
+    return code.replace(ANNOTATION_RE, () => serialized);
   }
 
   // Insert after the `@canvas` block (`/** @canvas { ... } */`) so all
@@ -71,12 +82,12 @@ export function updateRulerGuidesInCode(code: string, guides: RulerGuide[]): str
   // injecting after the file's first JSDoc / `'use client'` line.
   const canvasRe = /(\/\*\*\s*@canvas\s*\{[\s\S]*?\}\s*\*\/)/;
   if (canvasRe.test(code)) {
-    return code.replace(canvasRe, `$1\n\n${serialized}`);
+    return code.replace(canvasRe, match => `${match}\n\n${serialized}`);
   }
   // Last resort: prepend (after `'use client'` if present).
   const useClientRe = /^('use client';\s*\n)/;
   if (useClientRe.test(code)) {
-    return code.replace(useClientRe, `$1\n${serialized}\n`);
+    return code.replace(useClientRe, match => `${match}${serialized}\n`);
   }
   return `${serialized}\n\n${code}`;
 }

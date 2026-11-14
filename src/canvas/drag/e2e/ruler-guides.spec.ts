@@ -26,7 +26,7 @@ declare global {
   }
 }
 
-async function openEditor(page: Page, mode: Workspace) {
+async function openEditor(page: Page, mode: Workspace, pageSource = source) {
   const editor = new EditorPage(page);
   await page.addInitScript(({ mode, source }) => {
     localStorage.setItem('revyme-onboarding-completed', 'true');
@@ -36,7 +36,7 @@ async function openEditor(page: Page, mode: Workspace) {
     localStorage.setItem('field:prefs:dockedInspectorOpen:v1', String(mode !== 'compact-docked'));
     localStorage.setItem('field:prefs:leftContentWidth', '360');
     localStorage.setItem('field:prefs:rightPaneWidth:v2', '390');
-    localStorage.setItem('revyme-project-local', JSON.stringify({
+    if (!localStorage.getItem('revyme-project-local')) localStorage.setItem('revyme-project-local', JSON.stringify({
       format: 'revyme-v1',
       files: {
         'app/page.tsx': "import Client from './page.client'; export const metadata = {}; export default function Page() { return <Client />; }",
@@ -44,7 +44,7 @@ async function openEditor(page: Page, mode: Workspace) {
         'app/other/page.client.tsx': source.replace('data-id="rect"', 'data-id="other-rect"'),
       },
     }));
-  }, { mode, source });
+  }, { mode, source: pageSource });
   await page.goto('/work/local');
   await page.locator('[data-editor-interactive="true"]').waitFor();
   await editor.node('rect').waitFor();
@@ -65,6 +65,74 @@ async function placeVerticalGuide(page: Page, x: number, y: number) {
   await page.mouse.move(x, y, { steps: 12 });
   await page.mouse.up();
 }
+
+test('a guide dropped on the selected frame is local to the frame and survives reload', async ({ page }) => {
+  const editor = await openEditor(page, 'docked');
+  const originalFrame = await editor.nodeBox('rect');
+  await page.evaluate(() => window.__e2e.select(['rect']));
+  await placeVerticalGuide(page, Math.round(originalFrame.x + 48), Math.round(originalFrame.y + 60));
+  const guide = page.locator('[data-ruler-guide-frame="rect"]');
+  await expect(guide).toHaveCount(1);
+  const initial = parseRulerGuides(await editor.getPageCode())[0];
+  expect(initial.frame).toEqual({ id: 'rect', viewportId: 'desktop' });
+  expect(initial.position).toBeCloseTo(48, 0);
+  const guideBox = (await guide.boundingBox())!;
+  expect(guideBox.y).toBeCloseTo(originalFrame.y, 0);
+  expect(guideBox.height).toBeCloseTo(originalFrame.height, 0);
+
+  await page.evaluate(() => window.__e2e.select(['rect']));
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await editor.nodeBox('rect')).x).toBeGreaterThan(originalFrame.x);
+  await expect.poll(async () => (await guide.boundingBox())!.x - (await editor.nodeBox('rect')).x).toBeCloseTo(initial.position, 0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain(initial.id);
+  await page.reload();
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  await editor.fitCamera();
+  await page.evaluate(() => window.__e2e.zoomTo(1));
+  await expect(guide).toHaveCount(1);
+  expect(parseRulerGuides(await editor.getPageCode())[0]).toEqual(initial);
+
+  const box = (await guide.boundingBox())!;
+  await page.mouse.move(Math.round(box.x), Math.round(box.y + box.height / 2));
+  await page.keyboard.down('Alt');
+  await page.mouse.down();
+  await page.mouse.move(Math.round(box.x) + 20, Math.round(box.y + box.height / 2), { steps: 8 });
+  await expect(page.locator('[data-ruler-guide-preview]')).toBeVisible();
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  await expect(guide).toHaveCount(2);
+  expect(parseRulerGuides(await editor.getPageCode()).map(item => item.frame)).toEqual([initial.frame, initial.frame]);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect(guide).toHaveCount(1);
+});
+
+test('a frame guide snaps its positioned child at the visible guide', async ({ page }) => {
+  const frameSource = source.replace("background:'#ef4444'}} />", "background:'#ef4444'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>");
+  const editor = await openEditor(page, 'docked', frameSource);
+  const frame = await editor.nodeBox('rect');
+  const targetX = Math.round(frame.x + 85);
+  const rulerY = Math.round(frame.y + 80);
+  await page.evaluate(() => window.__e2e.select(['rect']));
+  await placeVerticalGuide(page, targetX, rulerY);
+  await expect(page.locator('[data-ruler-guide-frame="rect"]')).toHaveCount(1);
+
+  await page.evaluate(() => window.__e2e.select(['child']));
+  const child = await editor.nodeBox('child');
+  const x = Math.round(child.x + child.width / 2);
+  const y = Math.round(child.y + child.height / 2);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  const nearGuide = x + targetX - Math.round(child.x) - 2;
+  await page.mouse.move(nearGuide, y, { steps: 28 });
+  await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, expected) =>
+    lines.some(line => {
+      const box = line.getBoundingClientRect();
+      return Math.abs(box.x - expected.x) < 1 && Math.abs(box.height - expected.height) < 2;
+    }), { x: targetX, height: frame.height }),
+  ).toBe(true);
+  await page.mouse.up();
+  await expect.poll(async () => (await editor.nodeBox('child')).x).toBeCloseTo(targetX, 0);
+});
 
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
