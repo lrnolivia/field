@@ -87,6 +87,7 @@ test('a guide dropped on the selected frame is local to the frame and survives r
   await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain(initial.id);
   await page.reload();
   await page.locator('[data-editor-interactive="true"]').waitFor();
+  await page.waitForFunction(() => Boolean(window.__e2e?.zoomTo));
   await editor.fitCamera();
   await page.evaluate(() => window.__e2e.zoomTo(1));
   await expect(guide).toHaveCount(1);
@@ -142,6 +143,7 @@ test('a guide stays attached to a rotated frame through drag, reload and Undo', 
 
   await page.reload();
   await page.locator('[data-editor-interactive="true"]').waitFor();
+  await page.waitForFunction(() => Boolean(window.__e2e?.zoomTo));
   await editor.fitCamera();
   await page.evaluate(() => window.__e2e.zoomTo(1));
   await expect(guide).toHaveCount(1);
@@ -214,41 +216,85 @@ test('a frame guide snaps its positioned child at the visible guide', async ({ p
   await expect.poll(async () => (await editor.nodeBox('child')).x).toBeCloseTo(targetX, 0);
 });
 
-test('a positioned child resizes to its rotated frame guide and Undo restores its width', async ({ page }) => {
-  const rotatedSource = source.replace(
-    "background:'#ef4444'}} />",
-    "background:'#ef4444', transform:'rotate(30deg)'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>",
-  );
-  const editor = await openEditor(page, 'docked', rotatedSource);
-  const frame = await editor.nodeBox('rect');
-  await editor.select(['rect']);
-  await placeVerticalGuide(page, frame.x + frame.width / 2, frame.y + frame.height / 2);
-  const guide = page.locator('[data-ruler-guide-frame="rect"]');
-  await expect(guide).toHaveCount(1);
-  const line = (await guide.boundingBox())!;
-  await editor.select(['child']);
-  const edge = page.locator('[data-resize-edge="right"]');
-  const box = (await edge.boundingBox())!;
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  const angle = Math.PI / 6;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x + 40 * Math.cos(angle), y + 40 * Math.sin(angle), { steps: 30 });
-  await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, expected) =>
-    lines.some(candidate => {
-      const bounds = candidate.getBoundingClientRect();
-      return Math.abs(bounds.x - expected.x) < 2 && Math.abs(bounds.width - expected.width) < 2;
-    }), line),
-  ).toBe(true);
-  await page.mouse.up();
-  const child = editor.node('child');
-  await expect(child).toHaveCSS('width', '60px');
-  await expect(child).toHaveCSS('left', '20px');
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
-  await expect(child).toHaveCSS('width', '18px');
-  await expect(guide).toHaveCount(1);
-});
+for (const scenario of [
+  { name: 'direct child', nested: false, shift: false, angle: 30, travel: 40, width: '60px', height: '24px', top: '42px' },
+  { name: 'nested child in a scaled frame', nested: true, shift: false, angle: 30, travel: 13, width: '28px', height: '24px', top: '42px' },
+  { name: 'nested child with scale but no rotation', nested: true, shift: false, angle: 0, travel: 13, width: '28px', height: '24px', top: '42px' },
+  { name: 'nested child with Shift held', nested: true, shift: true, angle: 30, travel: 13, width: '28px', height: '37px', top: '35px' },
+] as const) {
+  test(`a ${scenario.name} resizes to its ancestor guide and undoes cleanly`, async ({ page }) => {
+    const childSource = `<div data-id="child" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'24px', background:'#000'}} />`;
+    const content = scenario.nested
+      ? `<div data-id="inner" style={{position:'absolute', left:'8px', top:'10px', width:'80px', height:'70px', transform:'scale(1.5)', transformOrigin:'0 0'}}>${childSource}</div>`
+      : childSource;
+    const rotatedSource = source.replace(
+      "background:'#ef4444'}} />",
+      `background:'#ef4444', transform:'rotate(${scenario.angle}deg)'}}>${content}</div>`,
+    );
+    const editor = await openEditor(page, 'docked', rotatedSource);
+    const frame = await editor.nodeBox('rect');
+    await editor.select(['rect']);
+    await placeVerticalGuide(page, frame.x + frame.width / 2, frame.y + frame.height / 2);
+    const guide = page.locator('[data-ruler-guide-frame="rect"]');
+    await expect(guide).toHaveCount(1);
+    const line = (await guide.boundingBox())!;
+    await editor.select(['child']);
+    const edge = page.locator('[data-resize-edge="right"]');
+    const box = (await edge.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const angle = scenario.angle * Math.PI / 180;
+    if (scenario.shift) await page.keyboard.down('Shift');
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + scenario.travel * Math.cos(angle), y + scenario.travel * Math.sin(angle), { steps: 30 });
+    await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, expected) =>
+      lines.some(candidate => {
+        const bounds = candidate.getBoundingClientRect();
+        return Math.abs(bounds.x - expected.x) < 2 && Math.abs(bounds.width - expected.width) < 2;
+      }), line), { timeout: 2500 }).toBe(true);
+    await page.mouse.up();
+    if (scenario.shift) await page.keyboard.up('Shift');
+    const child = editor.node('child');
+    await expect(child).toHaveCSS('width', scenario.width);
+    await expect(child).toHaveCSS('height', scenario.height);
+    await expect(child).toHaveCSS('left', '20px');
+    await expect(child).toHaveCSS('top', scenario.top);
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await expect(child).toHaveCSS('width', '18px');
+    await expect(child).toHaveCSS('height', '24px');
+    await expect(guide).toHaveCount(1);
+  });
+}
+
+for (const { travel, top, placement } of [
+  { travel: 30, top: '25.12345%', placement: 'after growing the box' },
+  { travel: -176, top: '128px', placement: 'after crossing the opposite edge' },
+]) {
+  test(`releasing Shift before drop preserves Auto height and top ${placement}`, async ({ page }) => {
+    const variedSource = source.replace("top:'128px', width:'160px', height:'120px', background:'#ef4444'}} />",
+      `top:'${top}', width:'160px', height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>`);
+    const editor = await openEditor(page, 'docked', variedSource);
+    await editor.select(['rect']);
+    const box = (await page.locator('[data-resize-edge="right"]').boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const child = editor.node('rect');
+    const initialTop = await child.evaluate(element => getComputedStyle(element).top);
+    await page.keyboard.down('Shift');
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + travel, y, { steps: 12 });
+    await expect(child).not.toHaveCSS('height', '64px');
+    await page.keyboard.up('Shift');
+    await page.mouse.up();
+    await expect(child).toHaveCSS('height', '64px');
+    await expect(child).toHaveCSS('top', initialTop);
+    const readTop = (code: string) => code.match(/data-id="rect"[^>]*top:\s*'([^']+)'/)?.[1];
+    await expect.poll(async () => readTop(await editor.getPageCode())).toBe(top);
+    await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*height:\s*'auto'/);
+  });
+}
 
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {

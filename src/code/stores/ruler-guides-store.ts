@@ -11,6 +11,7 @@
 
 import { atom, getDefaultStore } from 'jotai';
 import { isViewerMode } from './viewer-mode-store';
+import { getNodeFromCache } from './store';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { projectVersionAtom, projectFS } from '@/code/project/project-fs';
 import { modifyProjectFile } from '@/code/project/modify-file';
@@ -48,6 +49,22 @@ export function getActiveRulerGuideSnapLines(nodeId?: string, viewportId?: strin
     lines.push({ id: guide.id, axis, position });
   }
   return lines;
+}
+
+/** Snapshot only guide-bearing ancestors of the resized node, closest first. */
+export function getAncestorRulerGuideFrameIds(nodeId: string, viewportId: string): string[] {
+  const guideFrames = new Set(getDefaultStore().get(activeRulerGuidesAtom).flatMap(guide =>
+    guide.frame?.viewportId === viewportId ? [guide.frame.id] : []));
+  if (guideFrames.size === 0) return [];
+  const frames: string[] = [];
+  const seen = new Set<string>();
+  let parentId = getNodeFromCache(nodeId)?.parentId;
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
+    if (guideFrames.has(parentId)) frames.push(parentId);
+    parentId = getNodeFromCache(parentId)?.parentId;
+  }
+  return frames;
 }
 
 export function getFrameRulerGuideSnapLines(frameId: string, viewportId: string, geometry: FrameGuideGeometry): RulerGuideSnapLine[] {
