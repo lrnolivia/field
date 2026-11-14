@@ -116,12 +116,15 @@ export function EntryList<T extends { id: string }>({
         {hasAccessory ? (
           headerAccessory
         ) : entries.length > 0 ? (
-          <ControlActionRow onClick={() => onEdit(0)} className={rowClassName}>
+          <ControlActionRow
+            onClick={() => onEdit(0)}
+            className={rowClassName}
+            trailingAction={<RemoveButton onClick={() => onRemove(0)} />}
+          >
             {renderIcon ? renderIcon(entries[0]) : <ColorSwatch style={renderSwatch(entries[0])} />}
             <span className="flex-1 text-xs text-[var(--text-primary)] truncate text-left">
               {renderLabel(entries[0])}
             </span>
-            <RemoveButton onClick={() => onRemove(0)} />
           </ControlActionRow>
         ) : (
           <ControlActionRow onClick={onAdd} className={rowClassName}>
@@ -153,12 +156,15 @@ export function EntryList<T extends { id: string }>({
               {label}
             </span>
           )}
-          <ControlActionRow onClick={() => onEdit(idx)} className={rowClassName}>
+          <ControlActionRow
+            onClick={() => onEdit(idx)}
+            className={rowClassName}
+            trailingAction={<RemoveButton onClick={() => onRemove(idx)} />}
+          >
             {renderIcon ? renderIcon(entry) : <ColorSwatch style={renderSwatch(entry)} />}
             <span className="flex-1 text-xs text-[var(--text-primary)] truncate text-left">
               {renderLabel(entry)}
             </span>
-            <RemoveButton onClick={() => onRemove(idx)} />
           </ControlActionRow>
         </div>
       ))}

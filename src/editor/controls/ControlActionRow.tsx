@@ -8,6 +8,8 @@ import { fieldMotion, fieldSpatialTransition, useFieldReducedMotion } from '@/ed
 interface ControlActionRowProps {
   onClick?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
+  /** An independent action at the end of the same field. */
+  trailingAction?: React.ReactNode;
   /** Use centered h-8 px-3 text-center variant (e.g. TextStyleTool rows) */
   center?: boolean;
   /** Render inside a compound Inspector field (PaintRow owns the shell/border). */
@@ -25,7 +27,7 @@ const BASE =
   // and the pills come out ragged. With it, a `w-full` button shrinks to fill its column AND truncates.
   'w-full min-w-0 h-[var(--control-height)] flex items-center gap-1.5 bg-[var(--grid-line)] border border-[var(--control-border)] hover:border-[var(--control-border-hover)] cut-corners cut-border hover:[--cut-border-color:var(--control-border-hover)] cursor-pointer transition-colors text-xs text-[var(--text-primary)]';
 
-export function ControlActionRow({ onClick, children, center, embedded = false, className, ...rest }: ControlActionRowProps) {
+export function ControlActionRow({ onClick, children, center, embedded = false, className, trailingAction, ...rest }: ControlActionRowProps) {
   const reducedMotion = useFieldReducedMotion();
   // Extract only data-* attributes from rest
   const dataAttrs: Record<string, string | undefined> = {};
@@ -40,18 +42,35 @@ export function ControlActionRow({ onClick, children, center, embedded = false, 
     ? 'w-full min-w-0 h-[var(--control-height)] flex items-center gap-1.5 bg-transparent border-0 cursor-pointer transition-colors text-xs text-[var(--text-primary)]'
     : BASE;
 
-  return (
+  const hasTrailingAction = trailingAction != null;
+  const fieldClass = `${baseClass} ${paddingClass}${className ? ' ' + className : ''}`;
+  const button = (
     <motion.button
       type="button"
       onClick={onClick}
       whileTap={!reducedMotion ? { scale: fieldMotion.actionTapScale } : undefined}
       transition={fieldSpatialTransition(reducedMotion, fieldMotion.response)}
       data-field-motion="action-press"
-      className={`${baseClass} ${paddingClass}${className ? ' ' + className : ''}`}
+      className={hasTrailingAction
+        ? 'flex flex-1 h-full min-w-0 items-center gap-1.5 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--selection)]'
+        : fieldClass}
       {...dataAttrs}
     >
       {children}
     </motion.button>
+  );
+  if (!hasTrailingAction) return button;
+  return (
+    <div
+      className={fieldClass}
+      onKeyDown={event => {
+        // Keep native focus traversal and button activation in this field.
+        if (event.key === 'Tab' || event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+      }}
+    >
+      {button}
+      {trailingAction}
+    </div>
   );
 }
 

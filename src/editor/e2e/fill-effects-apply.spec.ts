@@ -64,6 +64,31 @@ test('pattern fill applies to source and canvas and keeps an independent mask', 
   await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
 });
 
+test('Mask edit and removal are independent keyboard controls', async ({ page, browserName }) => {
+  const editor = await openPaintFixture(page, ", maskImage: 'linear-gradient(black, transparent)'");
+  const effects = page.locator('[data-inspector-section="effects"]');
+  const edit = effects.getByRole('button', { name: 'Linear', exact: true });
+  const remove = effects.getByRole('button', { name: 'Remove', exact: true });
+  await expect(edit).toBeVisible();
+  await expect(remove).toBeVisible();
+  await expect(edit.locator('button')).toHaveCount(0);
+
+  await expect(async () => {
+    await edit.focus();
+    await expect(edit).toBeFocused({ timeout: 250 });
+    if (browserName === 'webkit') {
+      await remove.focus();
+    } else {
+      await page.keyboard.press('Tab');
+    }
+    await expect(remove).toBeFocused({ timeout: 250 });
+  }).toPass({ timeout: 5000 });
+  await remove.press('Enter');
+  await expect(edit).toHaveCount(0);
+  await expect(editor.node('abs-child')).toHaveCSS('mask-image', 'none');
+  await expect.poll(() => editor.getPageCode()).not.toContain('linear-gradient(black, transparent)');
+});
+
 test('Grid + Mask leaves an independent mask alone through apply, reload and removal', async ({ page }) => {
   const editor = await openPaintFixture(page, ", maskImage: 'linear-gradient(black, transparent)'");
   const layer = editor.node('abs-child');
