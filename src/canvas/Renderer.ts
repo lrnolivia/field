@@ -1967,6 +1967,7 @@ function syncBgVideoChild(hostEl: HTMLElement, bgVideo: CanvasNode['bgVideo']): 
     v.style.inset = '0';
     v.style.width = '100%';
     v.style.height = '100%';
+    v.style.borderRadius = 'inherit';
     v.style.zIndex = '-1';
   }
   // src — only swap if changed (changing src restarts playback).
