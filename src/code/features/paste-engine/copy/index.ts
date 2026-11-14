@@ -173,6 +173,7 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
     attrs: dormant.attrs,
     name: node.name,
     textContent: dormant.textContent,
+    bgVideo: node.bgVideo,
     // Component-prop binding of the text — honoured only on a same-master paste.
     textVariable: node.textVariable,
     hasMixedContent: node.hasMixedContent,

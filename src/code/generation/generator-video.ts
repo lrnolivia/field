@@ -1,9 +1,8 @@
 // generator-video.ts — Background-video JSX child injection.
 //
 // A "video fill" on a host element is implemented as a real `<video data-bg-video>`
-// JSX element inserted as the host's first child, plus auto-applied styles on the
-// host (position/overflow/isolation) so the video stays scoped behind sibling
-// content via z-index: -1.
+// JSX element inserted as the host's first child. It inherits the host's
+// corner radius and stays behind sibling content within an isolated host.
 //
 // Why a real child (not a CSS prop): `backgroundVideo` doesn't exist in CSS, so
 // the browser can't render anything from it. A real <video> element is the only
@@ -20,12 +19,14 @@
 // as a normal selectable node.
 
 import * as t from '@babel/types';
+import type { CanvasNode } from '../parsing/parser';
 import { parseJSX, findFirstElementByDataId } from '../parsing/ast-utils';
 import { trace } from '@/shared/debug-trace';
 import { generate } from './generator-utils';
 
 /** Marker attribute on the injected <video> child. Parser uses this to detect it. */
 const BG_VIDEO_ATTR = 'data-bg-video';
+const OWNED_HOST_STYLES_ATTR = 'data-bg-video-host-styles';
 
 /** Boolean HTML attributes the user can toggle on the bg-video element.
  *  In JSX these are written as bare names (e.g. `<video autoPlay muted />`),
@@ -71,6 +72,7 @@ const VIDEO_INLINE_STYLES_FIXED: Record<string, string> = {
   inset: '0',
   width: '100%',
   height: '100%',
+  borderRadius: 'inherit',
   // pointerEvents is conditional — set when controls are off (so clicks pass
   // through to the host); cleared when controls are on (so the user can
   // actually interact with the native player UI).
@@ -80,7 +82,6 @@ const VIDEO_INLINE_STYLES_FIXED: Record<string, string> = {
 /** Host styles auto-applied so z-index: -1 stays scoped inside the host. */
 const HOST_STYLES: Record<string, string> = {
   position: 'relative',
-  overflow: 'hidden',
   isolation: 'isolate',
 };
 
@@ -91,8 +92,8 @@ const HOST_STYLES: Record<string, string> = {
  *   - bg-video missing + no src             → no-op (need a URL to create)
  *   - bg-video present                      → patch each provided field
  *
- * Also applies position/overflow/isolation to the host (only when missing —
- * does NOT clobber explicit user values).
+ * On insertion, records any missing positioning styles it adds to the host
+ * so removal can restore the frame without disturbing newer edits.
  */
 export function setVideoFillInCode(code: string, nodeId: string, opts: BgVideoOpts): string {
   trace.fn('generator.setVideoFillInCode', { nodeId, opts: summarizeOpts(opts) });
@@ -108,8 +109,6 @@ export function setVideoFillInCode(code: string, nodeId: string, opts: BgVideoOp
   findFirstElementByDataId(ast, nodeId, (path) => {
     const element = path.node as t.JSXElement;
     const opening = element.openingElement;
-
-    applyHostStylesIfMissing(opening, HOST_STYLES);
 
     const existing = findExistingBgVideo(element);
 
@@ -128,6 +127,8 @@ export function setVideoFillInCode(code: string, nodeId: string, opts: BgVideoOp
         ...opts,
       };
       const videoEl = buildBgVideoElement(merged);
+      const ownedStyles = applyHostStylesIfMissing(opening, HOST_STYLES);
+      setStringAttr(videoEl.openingElement, OWNED_HOST_STYLES_ATTR, ownedStyles.join(' '));
 
       // Self-closing host needs to become open/close so we can add children.
       if (element.closingElement === null) {
@@ -153,7 +154,7 @@ export function setVideoFillInCode(code: string, nodeId: string, opts: BgVideoOp
   }
 }
 
-/** Remove the bg-video first child. Host styles are intentionally left alone. */
+/** Remove the bg-video child and the host styles this fill added. */
 export function removeVideoFillInCode(code: string, nodeId: string): string {
   trace.fn('generator.removeVideoFillInCode', { nodeId });
 
@@ -164,11 +165,15 @@ export function removeVideoFillInCode(code: string, nodeId: string): string {
 
   findFirstElementByDataId(ast, nodeId, (path) => {
     const element = path.node as t.JSXElement;
-    const idx = element.children.findIndex(child =>
+    const video = element.children.find((child): child is t.JSXElement =>
       child.type === 'JSXElement' && hasBgVideoMarker(child)
     );
-    if (idx !== -1) {
-      element.children.splice(idx, 1);
+    if (video) {
+      const attr = video.openingElement.attributes[findAttrIndex(video.openingElement, OWNED_HOST_STYLES_ATTR)];
+      if (attr?.type === 'JSXAttribute' && attr.value?.type === 'StringLiteral') {
+        removeOwnedHostStyles(element.openingElement, attr.value.value.split(' '));
+      }
+      element.children.splice(element.children.indexOf(video), 1);
       touched = true;
       trace.action('generator.removeVideoFillInCode:removed', { nodeId });
     }
@@ -210,14 +215,7 @@ function hasBgVideoMarker(el: t.JSXElement): boolean {
 }
 
 function findExistingBgVideo(host: t.JSXElement): t.JSXElement | null {
-  for (const child of host.children) {
-    if (child.type === 'JSXText' && /^\s*$/.test(child.value)) continue;
-    if (child.type === 'JSXElement') {
-      return hasBgVideoMarker(child) ? child : null;
-    }
-    return null;
-  }
-  return null;
+  return host.children.find((child): child is t.JSXElement => child.type === 'JSXElement' && hasBgVideoMarker(child)) ?? null;
 }
 
 function findAttrIndex(opening: t.JSXOpeningElement, name: string): number {
@@ -326,7 +324,7 @@ function setVideoStyleKey(opening: t.JSXOpeningElement, key: string, value: stri
   }
 }
 
-function applyHostStylesIfMissing(opening: t.JSXOpeningElement, styles: Record<string, string>): void {
+function applyHostStylesIfMissing(opening: t.JSXOpeningElement, styles: Record<string, string>): string[] {
   const styleAttrIdx = findAttrIndex(opening, 'style');
 
   if (styleAttrIdx === -1) {
@@ -338,13 +336,13 @@ function applyHostStylesIfMissing(opening: t.JSXOpeningElement, styles: Record<s
     opening.attributes.push(
       t.jsxAttribute(t.jsxIdentifier('style'), t.jsxExpressionContainer(obj))
     );
-    return;
+    return Object.keys(styles);
   }
 
   const styleAttr = opening.attributes[styleAttrIdx] as t.JSXAttribute;
-  if (styleAttr.value?.type !== 'JSXExpressionContainer') return;
+  if (styleAttr.value?.type !== 'JSXExpressionContainer') return [];
   const expr = styleAttr.value.expression;
-  if (expr.type !== 'ObjectExpression') return;
+  if (expr.type !== 'ObjectExpression') return [];
 
   const existingKeys = new Set<string>();
   for (const prop of expr.properties) {
@@ -354,13 +352,28 @@ function applyHostStylesIfMissing(opening: t.JSXOpeningElement, styles: Record<s
     }
   }
 
+  const added: string[] = [];
   for (const [k, v] of Object.entries(styles)) {
     if (existingKeys.has(k)) continue;
     expr.properties.push(t.objectProperty(t.identifier(k), t.stringLiteral(v)));
+    added.push(k);
   }
+  return added;
 }
 
-function buildBgVideoElement(opts: Required<Omit<BgVideoOpts, 'poster'>> & { poster?: string }): t.JSXElement {
+function removeOwnedHostStyles(opening: t.JSXOpeningElement, ownedStyles: string[]): void {
+  const attr = opening.attributes[findAttrIndex(opening, 'style')];
+  if (attr?.type !== 'JSXAttribute' || attr.value?.type !== 'JSXExpressionContainer') return;
+  const expr = attr.value.expression;
+  if (expr.type !== 'ObjectExpression') return;
+  expr.properties = expr.properties.filter(prop => {
+    if (prop.type !== 'ObjectProperty' || prop.computed || prop.value.type !== 'StringLiteral') return true;
+    const key = prop.key.type === 'Identifier' ? prop.key.name : prop.key.type === 'StringLiteral' ? prop.key.value : '';
+    return !ownedStyles.includes(key) || prop.value.value !== HOST_STYLES[key];
+  });
+}
+
+function buildBgVideoElement(opts: NonNullable<CanvasNode['bgVideo']>): t.JSXElement {
   // Compose inline style: fixed positioning + objectFit + pointerEvents (only
   // when controls are off — see patchBgVideo).
   const inlineStyle: Record<string, string> = {
@@ -393,4 +406,15 @@ function buildBgVideoElement(opts: Required<Omit<BgVideoOpts, 'poster'>> & { pos
     [],
     /* selfClosing */ true,
   );
+}
+
+/** Serialize a copied fill while retaining ownership only for the same host defaults. */
+export function buildVideoFillJSX(
+  fill: NonNullable<CanvasNode['bgVideo']>,
+  hostStyles: Record<string, string>,
+): string {
+  const video = buildBgVideoElement(fill);
+  const owned = fill.ownedHostStyles?.filter(key => HOST_STYLES[key] && hostStyles[key] === HOST_STYLES[key]);
+  setStringAttr(video.openingElement, OWNED_HOST_STYLES_ATTR, owned?.join(' ') ?? '');
+  return generate(video, { concise: true }).code;
 }

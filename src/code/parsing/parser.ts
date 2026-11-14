@@ -521,6 +521,8 @@ export interface CanvasNode {
     objectFit: string;
     /** Optional poster image URL — only present when set in source. */
     poster?: string;
+    /** Host styles supplied when the fill was inserted. Absent in legacy source. */
+    ownedHostStyles?: string[];
   };
 }
 
@@ -1956,53 +1958,9 @@ export function parseJSXToNodes(code: string, propOverrides?: Record<string, str
           return; // continue traversing children normally
         }
 
-        // Background-video child: a `<video data-bg-video src="...">` element is
-        // a managed background, not a regular canvas node. Peel its full config
-        // onto the parent's `bgVideo` field, then skip it from traversal so it
-        // doesn't get an auto-id'd CanvasNode entry of its own.
-        const hasBgVideoMarker = (opening.attributes as any[]).some(a =>
-          a.type === 'JSXAttribute' &&
-          a.name?.type === 'JSXIdentifier' &&
-          a.name.name === 'data-bg-video'
-        );
-        if (hasBgVideoMarker) {
-          const src = getAttr(opening.attributes, 'src');
-          const hostId = ctx.parentStack.length > 0 ? ctx.parentStack[ctx.parentStack.length - 1] : null;
-          if (hostId && nodes.has(hostId) && src) {
-            // Boolean attrs: present (with no value or any value) = true.
-            const hasAttr = (n: string) => (opening.attributes as any[]).some(a =>
-              a.type === 'JSXAttribute' && a.name?.type === 'JSXIdentifier' && a.name.name === n
-            );
-            // Inline style: pull objectFit if present, default 'cover'.
-            const styleObj = (opening.attributes as any[]).find(a =>
-              a.type === 'JSXAttribute' && a.name?.name === 'style'
-            );
-            let objectFit = 'cover';
-            if (styleObj?.value?.type === 'JSXExpressionContainer'
-                && styleObj.value.expression?.type === 'ObjectExpression') {
-              for (const p of styleObj.value.expression.properties) {
-                if (p.type !== 'ObjectProperty' || p.computed) continue;
-                const key = p.key.type === 'Identifier' ? p.key.name
-                          : p.key.type === 'StringLiteral' ? p.key.value : null;
-                if (key === 'objectFit' && p.value.type === 'StringLiteral') {
-                  objectFit = p.value.value;
-                  break;
-                }
-              }
-            }
-            const poster = getAttr(opening.attributes, 'poster');
-            nodes.get(hostId)!.bgVideo = {
-              src,
-              autoPlay: hasAttr('autoPlay'),
-              muted: hasAttr('muted'),
-              loop: hasAttr('loop'),
-              playsInline: hasAttr('playsInline'),
-              controls: hasAttr('controls'),
-              objectFit,
-              ...(poster ? { poster } : {}),
-            };
-            trace.action('parser:bg-video-attached', { hostId, srcLength: src.length });
-          }
+        // Managed video children supply the host's fill. They never get a Canvas layer.
+        const hostId = ctx.parentStack[ctx.parentStack.length - 1];
+        if (attachVideoFill(opening.attributes, nodes.get(hostId))) {
           path.skip();
           return;
         }
@@ -2859,6 +2817,9 @@ export function parseJSXToNodes(code: string, propOverrides?: Record<string, str
       const opening = el.openingElement;
 
       const tagName = resolveTagName(opening);
+      const hostId = canvasNodeParentStack[canvasNodeParentStack.length - 1];
+      if (attachVideoFill(opening.attributes, nodes.get(hostId))) return;
+
 
       // Skip non-visual wrappers.
       // PRESERVED walker difference: returning here drops the wrapper's whole
@@ -3887,6 +3848,36 @@ function extractMotionProps(attrs: (JSXAttribute | any)[], ctx: ParseCtx): Canva
     }
   }
   return motionProps;
+}
+
+function attachVideoFill(attrs: (JSXAttribute | any)[], host?: CanvasNode): boolean {
+  const hasAttr = (name: string) => attrs.some(attr =>
+    attr.type === 'JSXAttribute' && attr.name?.type === 'JSXIdentifier' && attr.name.name === name,
+  );
+  if (!hasAttr('data-bg-video')) return false;
+  const src = getAttr(attrs, 'src');
+  if (!host || !src) return true;
+
+  const style = attrs.find(attr => attr.type === 'JSXAttribute' && attr.name?.name === 'style');
+  const expression = style?.value?.expression;
+  const fit = expression?.type === 'ObjectExpression'
+    ? expression.properties.find((prop: any) => prop.type === 'ObjectProperty' && !prop.computed &&
+        (prop.key.name === 'objectFit' || prop.key.value === 'objectFit'))
+    : null;
+  const poster = getAttr(attrs, 'poster');
+  const owned = getAttr(attrs, 'data-bg-video-host-styles');
+  host.bgVideo = {
+    src,
+    autoPlay: hasAttr('autoPlay'),
+    muted: hasAttr('muted'),
+    loop: hasAttr('loop'),
+    playsInline: hasAttr('playsInline'),
+    controls: hasAttr('controls'),
+    objectFit: fit?.value?.type === 'StringLiteral' ? fit.value.value : 'cover',
+    ...(poster ? { poster } : {}),
+    ...(owned ? { ownedHostStyles: owned.split(' ') } : {}),
+  };
+  return true;
 }
 
 function getAttr(attrs: (JSXAttribute | any)[], name: string): string | null {

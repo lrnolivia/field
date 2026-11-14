@@ -21,6 +21,7 @@ export interface ClipboardNode {
   attrs?: Record<string, string>;
   name?: string;
   textContent?: string;
+  bgVideo?: CanvasNode['bgVideo'];
   /** Component prop the text is bound to (`{prop}`) — kept on a paste into
    *  the SAME master, baked to `textContent` elsewhere. */
   textVariable?: string;

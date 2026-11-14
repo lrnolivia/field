@@ -113,8 +113,11 @@ test('image source upload applies a real image to the selected object', async ({
   await expect.poll(() => editor.node('abs-child').evaluate(el => getComputedStyle(el).backgroundSize)).toBe('cover');
 });
 
-test('video source produces the selected object video fill', async ({ page }) => {
-  const editor = await openPaintFixture(page);
+test('video source applies and removes a fill without changing frame overflow', async ({ page }) => {
+  const editor = await openPaintFixture(page, ", borderRadius: '16px'");
+  const host = editor.node('abs-child');
+  const overflow = () => host.evaluate(el => getComputedStyle(el).overflow);
+  expect(await overflow()).toBe('visible');
   await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
   const picker = page.getByRole('dialog', { name: 'Paint picker' });
   await picker.getByRole('button', { name: 'Video', exact: true }).click();
@@ -124,7 +127,26 @@ test('video source produces the selected object video fill', async ({ page }) =>
   await media.getByPlaceholder('Or paste a video URL...').fill(url);
   await media.getByRole('button', { name: 'Use', exact: true }).click();
   await expect.poll(() => editor.getPageCode()).toContain(url);
-  await expect(editor.node('abs-child').locator('video')).toHaveAttribute('src', url);
+  const video = host.locator('video');
+  await expect(video).toHaveAttribute('src', url);
+  await expect(video).toHaveCSS('border-radius', '16px');
+  expect(await overflow()).toBe('visible');
+  await page.keyboard.press('Escape');
+  const section = page.locator('[data-inspector-section="fill"]');
+  await page.keyboard.press('Meta+d');
+  const videos = page.locator('iframe[data-canvas-iframe]').contentFrame().locator('video[data-bg-video]');
+  await expect(videos).toHaveCount(2);
+  await expect(videos.last()).toHaveAttribute('src', url);
+  await section.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(videos).toHaveCount(1);
+  await expect(video).toHaveCount(1);
+
+  await editor.select(['abs-child']);
+  await section.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(video).toHaveCount(0);
+  expect(await overflow()).toBe('visible');
+  expect(await styleValue(editor, 'isolation')).toBeNull();
+  expect(await styleValue(editor, 'position')).toBe('absolute');
 });
 
 test('shader gallery installs a visible shader fill and retains its editor', async ({ page }) => {

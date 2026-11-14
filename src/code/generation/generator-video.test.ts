@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest';
+import { parseJSXToNodes } from '../parsing/parser';
+import { addCanvasNodeInCode } from './generator-crud';
 import { setVideoFillInCode, removeVideoFillInCode } from './generator-video';
 
 const URL_A = 'https://cdn.example.com/a.mp4';
@@ -46,7 +48,9 @@ describe('setVideoFillInCode (insert)', () => {
     const videoIdx = out.indexOf('data-bg-video');
     const titleIdx = out.indexOf('data-id="title"');
     expect(videoIdx).toBeLessThan(titleIdx);
-    // Host got the position/overflow/isolation triplet.
+    // Only the video itself clips to the frame's rounded corners.
+    expect(out).not.toContain('overflow:');
+    expect(out).toContain('borderRadius: "inherit"');
     expect(out).toContain('isolation:');
   });
 
@@ -92,7 +96,7 @@ describe('setVideoFillInCode (patch)', () => {
     const second = setVideoFillInCode(first, 'hero', { src: URL_B });
     expect(second).toContain(`src="${URL_B}"`);
     expect(second).not.toContain(URL_A);
-    expect(second.match(/data-bg-video/g)?.length).toBe(1);
+    expect(second.match(/\bdata-bg-video(?=\s)/g)?.length).toBe(1);
   });
 
   test('toggles a boolean attribute off when explicitly set false', () => {
@@ -143,15 +147,56 @@ describe('removeVideoFillInCode', () => {
     expect(out).toContain('data-id="title"');
   });
 
-  test('leaves host position/overflow/isolation alone (cleanup is opt-in)', () => {
+  test('removes only the position and isolation it supplied', () => {
     const inserted = setVideoFillInCode(HOST_OPEN_CLOSE, 'hero', { src: URL_A });
     const out = removeVideoFillInCode(inserted, 'hero');
-    expect(out).toMatch(/position:\s*['"]relative['"]/);
-    expect(out).toContain('isolation:');
+    expect(out).not.toContain('position:');
+    expect(out).not.toContain('isolation:');
+    expect(out).toContain('padding:');
+  });
+
+  test('keeps authored overflow and newer style changes when the fill is removed', () => {
+    const code = HOST_OPEN_CLOSE.replace("padding: '40px'", "overflow: 'clip', padding: '40px'");
+    const inserted = setVideoFillInCode(code, 'hero', { src: URL_A }).replace('position: "relative"', 'position: "absolute"');
+    const out = removeVideoFillInCode(inserted, 'hero');
+    expect(out).toContain("overflow: 'clip'");
+    expect(out).toContain('position: "absolute"');
+    expect(out).not.toContain('isolation:');
+  });
+
+  test('preserves legacy host style values with unknown ownership', () => {
+    const code = HOST_OPEN_CLOSE.replace("padding: '40px'", "position: 'relative', isolation: 'isolate', overflow: 'hidden', padding: '40px'");
+    const inserted = setVideoFillInCode(code, 'hero', { src: URL_A });
+    const out = removeVideoFillInCode(inserted, 'hero');
+    expect(out).toContain("position: 'relative'");
+    expect(out).toContain("isolation: 'isolate'");
+    expect(out).toContain("overflow: 'hidden'");
   });
 
   test('no-op when there is no bg-video child', () => {
     const out = removeVideoFillInCode(HOST_OPEN_CLOSE, 'hero');
     expect(out).toBe(HOST_OPEN_CLOSE);
   });
+});
+
+test('copies a managed video to free Canvas with its options and without a child layer', () => {
+  const source = setVideoFillInCode(HOST_OPEN_CLOSE, 'hero', {
+    src: URL_A, poster: URL_B, objectFit: 'contain', controls: true, muted: false,
+  });
+  const original = parseJSXToNodes(source).get('hero')!;
+  const pasted = addCanvasNodeInCode(source, {
+    id: 'video-copy',
+    type: 'div',
+    styles: { ...original.styles, position: 'absolute' },
+    bgVideo: original.bgVideo,
+  });
+  const clone = parseJSXToNodes(pasted).get('video-copy')!;
+  expect(clone.bgVideo).toMatchObject({ src: URL_A, poster: URL_B, objectFit: 'contain', controls: true, muted: false });
+  expect(clone.children).toEqual([]);
+  expect(clone.bgVideo?.ownedHostStyles).toEqual(['isolation']);
+
+  const withoutFill = parseJSXToNodes(removeVideoFillInCode(pasted, clone.id)).get(clone.id)!;
+  expect(withoutFill.bgVideo).toBeUndefined();
+  expect(withoutFill.styles.position).toBe('absolute');
+  expect(withoutFill.styles.isolation).toBeUndefined();
 });

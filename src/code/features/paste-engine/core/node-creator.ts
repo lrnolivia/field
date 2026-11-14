@@ -21,6 +21,7 @@ import { buildIdRenamePairs, renameVarStyleValues } from './id-renames';
 import { stripDeadFxStyleRefs } from '@/code/generation/instance-fx-gen';
 import { stripTranslateTransforms } from '@/shared/position-utils';
 import { NATIVE_GROUP_FLOW_STATE_ATTR, remapNativeGroupFlowState } from '@/code/groups/group-semantics';
+import type { AddNodeDef } from '@/code/generation/generator-crud';
 
 const POSITION_KEYS = ['left', 'top', 'right', 'bottom'] as const;
 
@@ -195,16 +196,6 @@ function resolveCanvasDimensions(
 
 // ─── AddNodeDef construction ─────────────────────────────────────────────────
 
-interface AddNodeDef {
-  id: string;
-  type: string;
-  styles: Record<string, string>;
-  attrs?: Record<string, string>;
-  name?: string;
-  textContent?: string;
-  children?: AddNodeDef[];
-}
-
 /**
  * Build a recursive AddNodeDef tree from a clipboard root + descendants.
  * Children always get `preserve` style transform (the parent's transform is
@@ -243,6 +234,7 @@ export function buildAddNodeDef(
     attrs,
     name: root.name,
     textContent: root.textContent,
+    bgVideo: root.bgVideo,
     children: childrenDefs.length > 0 ? childrenDefs : undefined,
   };
 }

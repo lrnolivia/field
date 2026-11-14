@@ -1473,7 +1473,7 @@ export default function Page() {
   );
 }
 `;
-  const BG_VIDEO = `<video data-bg-video src="https://cdn.example.com/v.mp4" autoPlay muted loop playsInline style={{ position: "absolute", inset: "0", width: "100%", height: "100%", zIndex: "-1", objectFit: "cover" }} />`;
+  const BG_VIDEO = `<video data-bg-video src="https://cdn.example.com/v.mp4" autoPlay muted loop playsInline style={{ position: "absolute", inset: "0", width: "100%", height: "100%", zIndex: "-1", objectFit: "cover", borderRadius: "inherit" }} />`;
 
   it('does not demand a data-id on it', () => {
     const out = checkFile(page(BG_VIDEO), { kind: 'page' }).filter((x) => x.code === 'MISSING_DATA_ID');
@@ -1483,6 +1483,12 @@ export default function Page() {
   it('accepts its `inset` shorthand', () => {
     const out = checkFile(page(BG_VIDEO), { kind: 'page' }).filter((x) => x.code === 'INSET_SHORTHAND');
     expect(out).toEqual([]);
+  });
+
+  it('accepts the inherited corner radius on a managed video only', () => {
+    const spacing = (tag: string) => checkFile(page(tag), { kind: 'page' }).filter(x => x.code === 'SPACING_UNIT_NOT_PX');
+    expect(spacing(BG_VIDEO)).toEqual([]);
+    expect(spacing(BG_VIDEO.replace('data-bg-video ', 'data-id="video" '))).toHaveLength(1);
   });
 
   it('still demands both from an ORDINARY video', () => {

@@ -22,7 +22,8 @@ import { clearNodeScrollFx, ensureTransformTemplateInCode } from './generator-mo
 import { stripScrollTextHooks } from './text-anim-gen';
 import { parseVariantConfig } from '../variants/variant-config';
 import { removeSlotHoistedCanvasNodeInCode } from './slot-ops';
-import { extractComponentPropDefaults } from '../parsing/parser';
+import { extractComponentPropDefaults, type CanvasNode } from '../parsing/parser';
+import { buildVideoFillJSX } from './generator-video';
 
 /**
  * Update style properties of a node in JSX code.
@@ -3415,6 +3416,7 @@ export function moveNodeInCode(
  */
 /** Build a JSX string for a node, including children recursively. */
 export type AddNodeDef = { id: string; type: string; styles: Record<string, string>; attrs?: Record<string, string>; name?: string; textContent?: string; children?: AddNodeDef[];
+  bgVideo?: CanvasNode['bgVideo'];
   /** motion props to emit on the node (e.g. `{ whileHover: { scale: '1.05' } }`).
    *  Each value is a PLAIN object (already resolved — no responsive `__mqN` markers).
    *  A node with motionProps is emitted as `motion.<tag>` so the props take effect. */
@@ -3463,18 +3465,22 @@ export function buildNodeJSX(node: AddNodeDef, isComponentFile: boolean, indent:
   // string-attr shape) — so plain text and object-styled spans pass through
   // byte-identical.
   const textContent = node.textContent ? htmlToJSX(node.textContent) : '';
+  const video = node.bgVideo ? buildVideoFillJSX(node.bgVideo, node.styles) : '';
 
   // Has children — build nested JSX
   if (node.children && node.children.length > 0) {
     const childIndent = indent + '  ';
-    const childrenJSX = node.children
-      .map(child => childIndent + buildNodeJSX(child, isComponentFile, childIndent))
+    const childrenJSX = [
+      ...(video ? [childIndent + video] : []),
+      ...node.children.map(child => childIndent + buildNodeJSX(child, isComponentFile, childIndent)),
+    ]
       .join('\n');
     return `<${tag}${layoutAttr} data-id="${node.id}"${nameAttr}${attrsStr} style={{${styleEntries}}}>\n${childrenJSX}\n${indent}</${tag}>`;
   }
 
-  if (textContent) {
-    return `<${tag}${layoutAttr} data-id="${node.id}"${nameAttr}${attrsStr} style={{${styleEntries}}}>\n${indent}  ${textContent}\n${indent}</${tag}>`;
+  const content = [video, textContent].filter(Boolean).join(`\n${indent}  `);
+  if (content) {
+    return `<${tag}${layoutAttr} data-id="${node.id}"${nameAttr}${attrsStr} style={{${styleEntries}}}>\n${indent}  ${content}\n${indent}</${tag}>`;
   }
 
   return `<${tag}${layoutAttr} data-id="${node.id}"${nameAttr}${attrsStr} style={{${styleEntries}}}></${tag}>`;
@@ -3675,17 +3681,13 @@ export function addCanvasNodeInCode(
   let tag = node.type || 'div';
   if (motionPropsAttr && /^[a-z]/.test(tag) && !tag.startsWith('motion.')) tag = `motion.${tag}`;
 
-  let jsxStr: string;
-  if (node.children && node.children.length > 0) {
-    const childrenJSX = node.children
-      .map(child => '    ' + buildNodeJSX(child, false, '    '))
-      .join('\n');
-    jsxStr = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}>\n${childrenJSX}\n  </${tag}>`;
-  } else if (textContent) {
-    jsxStr = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}>\n    ${textContent}\n  </${tag}>`;
-  } else {
-    jsxStr = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}></${tag}>`;
-  }
+  const video = node.bgVideo ? buildVideoFillJSX(node.bgVideo, node.styles) : '';
+  const children = node.children?.length
+    ? node.children.map(child => buildNodeJSX(child, false, '    '))
+    : [textContent];
+  const content = [video, ...children].filter(Boolean).map(child => '    ' + child).join('\n');
+  const opening = `  <${tag} data-id="${node.id}"${nameAttr}${attrsStr}${motionPropsAttr} data-canvas-node="true" style={{${styleEntries}}}>`;
+  const jsxStr = opening + (content ? `\n${content}\n  ` : '') + `</${tag}>`;
 
   // Indexed canvas insertion preserves source/stack position for structural
   // wrappers such as native Groups. The common append path stays string-only.
