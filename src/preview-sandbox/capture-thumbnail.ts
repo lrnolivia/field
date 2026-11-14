@@ -44,6 +44,24 @@ export function captureViewportSize(width: number, height: number): { width: num
   };
 }
 
+export function canRasterizeBackgroundVideo(video: HTMLVideoElement): boolean {
+  // html-to-image draws a loaded video frame and reads it back. A
+  // cross-origin stream can play normally but still taint that canvas.
+  if (!video.currentSrc) return Boolean(video.poster);
+  if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
+  const probe = document.createElement('canvas');
+  probe.width = probe.height = 1;
+  const context = probe.getContext('2d');
+  if (!context) return false;
+  try {
+    context.drawImage(video, 0, 0, 1, 1);
+    context.getImageData(0, 0, 1, 1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function captureFilter(viewportWidth: number, viewportHeight: number): (node: HTMLElement) => boolean {
   return (node) => {
     if (!(node instanceof Element)) return true;
@@ -51,13 +69,18 @@ function captureFilter(viewportWidth: number, viewportHeight: number): (node: HT
     if (node.tagName === 'SCRIPT' || node.tagName === 'NOSCRIPT') return false;
 
     const rect = node.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return true;
-    return (
+    if (rect.width === 0 && rect.height === 0) return node.tagName !== 'VIDEO' || !node.hasAttribute('data-bg-video');
+    const inView = (
       rect.bottom >= -CAPTURE_MARGIN &&
       rect.top <= viewportHeight + CAPTURE_MARGIN &&
       rect.right >= -CAPTURE_MARGIN &&
       rect.left <= viewportWidth + CAPTURE_MARGIN
     );
+    if (!inView) return false;
+    // This managed video is absolute paint. Skipping unreadable frames
+    // keeps the authored layout, foreground and any host background.
+    return !(node instanceof HTMLVideoElement && node.hasAttribute('data-bg-video'))
+      || canRasterizeBackgroundVideo(node);
   };
 }
 
