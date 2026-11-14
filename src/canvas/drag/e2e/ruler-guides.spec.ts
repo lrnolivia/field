@@ -220,3 +220,51 @@ test('read-only Canvas keeps existing guides and refuses guide edits', async ({ 
   await expect(guide).toHaveCount(1);
   expect(await editor.getPageCode()).toBe(before);
 });
+
+test('Option-drag duplicates a guide in one undo step', async ({ page }) => {
+  const editor = await openEditor(page, 'docked');
+  const rect = await editor.nodeBox('rect');
+  const x = Math.round(rect.x);
+  const y = Math.round(rect.y + rect.height / 2);
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await placeVerticalGuide(page, x, y);
+  const guide = page.locator('[data-ruler-guide]');
+  await expect(guide).toHaveCount(1);
+  const original = parseRulerGuides(await editor.getPageCode());
+
+  await page.keyboard.down('Alt');
+  await page.mouse.click(x, y);
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual(original);
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y, { steps: 8 });
+  await expect(page.locator('[data-ruler-guide-preview]')).toBeVisible();
+  await expect(guide).toHaveCount(1);
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual(original);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(page.locator('[data-ruler-guide-preview]')).toHaveCount(0);
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual(original);
+
+  const ruler = (await page.locator('[data-ruler]').nth(1).boundingBox())!;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(ruler.x + ruler.width - 8, y, { steps: 12 });
+  await page.mouse.up();
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual(original);
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y, { steps: 8 });
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  await expect(guide).toHaveCount(2);
+  const [source, copy] = parseRulerGuides(await editor.getPageCode());
+  expect(source).toEqual(original[0]);
+  expect(copy.id).not.toBe(source.id);
+  expect(copy.position - source.position).toBeCloseTo(40, 0);
+  await page.keyboard.press(`${mod}+z`);
+  await expect(guide).toHaveCount(1);
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual(original);
+});

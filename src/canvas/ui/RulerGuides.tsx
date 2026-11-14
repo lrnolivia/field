@@ -193,8 +193,9 @@ export default function RulerGuides({ left, right }: RulerInsets) {
     filePath: string;
     startCursor: number;
     grabOffset: number;
+    duplicate: boolean;
   } | null>(null);
-  const [preview, setPreview] = useState<{ id: string; screenPosition: number } | null>(null);
+  const [preview, setPreview] = useState<{ id: string; screenPosition: number; duplicate: boolean } | null>(null);
 
   // ─── Right-click context menu ──────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<
@@ -221,7 +222,10 @@ export default function RulerGuides({ left, right }: RulerInsets) {
   const handleStartDrag = (e: React.MouseEvent, guide: RulerGuide, screenPosition: number) => {
     const horizontal = guide.type === 'horizontal';
     const startCursor = horizontal ? e.clientY : e.clientX;
-    dragRef.current = { guide, filePath: activeFilePath, startCursor, grabOffset: screenPosition - startCursor };
+    dragRef.current = {
+      guide, filePath: activeFilePath, startCursor,
+      grabOffset: screenPosition - startCursor, duplicate: e.altKey,
+    };
     document.body.style.cursor = horizontal ? 'row-resize' : 'col-resize';
   };
 
@@ -238,7 +242,13 @@ export default function RulerGuides({ left, right }: RulerInsets) {
       const drag = dragRef.current;
       if (!drag) return;
       const cursor = drag.guide.type === 'horizontal' ? e.clientY : e.clientX;
-      setPreview({ id: drag.guide.id, screenPosition: cursor + drag.grabOffset });
+      if (Math.abs(cursor - drag.startCursor) < 2) {
+        setPreview(null);
+        return;
+      }
+      setPreview({
+        id: drag.guide.id, screenPosition: cursor + drag.grabOffset, duplicate: drag.duplicate,
+      });
     };
     const onUp = (e: MouseEvent) => {
       const drag = dragRef.current;
@@ -252,13 +262,18 @@ export default function RulerGuides({ left, right }: RulerInsets) {
       const edges = rulerEdgesRef.current;
       const rulerEdge = (horizontal ? edges.topOffset : edges.left) + RULER_SIZE;
       if (cursor - rulerEdge < GUIDE_RULER_THRESHOLD) {
+        if (drag.duplicate) return;
         rulerGuideOps.removeGuide(drag.filePath, drag.guide.id);
         setSelectedId(null);
         return;
       }
       const t = transformManager.getAppliedTransform();
       const position = (cursor + drag.grabOffset - (horizontal ? t.y : t.x)) / t.scale;
-      rulerGuideOps.updateGuidePosition(drag.filePath, drag.guide.id, position);
+      if (drag.duplicate) {
+        rulerGuideOps.addGuide(drag.filePath, drag.guide.type, position);
+      } else {
+        rulerGuideOps.updateGuidePosition(drag.filePath, drag.guide.id, position);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cancelDrag();
@@ -317,6 +332,8 @@ export default function RulerGuides({ left, right }: RulerInsets) {
 
   if (!showRulers) return null;
 
+  const duplicatedGuide = preview?.duplicate ? guides.find(guide => guide.id === preview.id) : undefined;
+  const duplicateVertical = duplicatedGuide?.type === 'vertical';
   return (
     <>
       {guides.map((g) => {
@@ -325,7 +342,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
         // the user can't tell whether the snap fired). See
         // `snappedRulerGuideIdsAtom` in `ruler-guides-store.ts`.
         if (snappedIds.has(g.id)) return null;
-        const screenPosition = preview?.id === g.id
+        const screenPosition = preview?.id === g.id && !preview.duplicate
           ? preview.screenPosition
           : g.position * transform.scale + (g.type === 'horizontal' ? transform.y : transform.x);
         return (
@@ -344,6 +361,19 @@ export default function RulerGuides({ left, right }: RulerInsets) {
           />
         );
       })}
+      {!readOnly && preview && duplicatedGuide && (
+        <div
+          data-ruler-guide-preview
+          aria-hidden
+          style={{
+            position: 'fixed', pointerEvents: 'none', zIndex: 4895,
+            backgroundColor: GUIDE_COLOR_SELECTED,
+            ...(duplicateVertical
+              ? { top: topOffset + RULER_SIZE, bottom: 0, left: preview.screenPosition, width: 1 }
+              : { left: left + RULER_SIZE, right, top: preview.screenPosition, height: 1 }),
+          }}
+        />
+      )}
       {!readOnly && contextMenu && (
         <GuideContextMenu
           x={contextMenu.x}
