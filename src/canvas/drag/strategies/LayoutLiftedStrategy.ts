@@ -12,7 +12,7 @@
 // all DOM writes use patchNodeStyles/bridge commands. No getNodeEl() calls.
 // Placeholders created via bridge.createPlaceholder, nodes lifted via bridge.liftNode.
 
-import type { Point, PendingUpdate, Rect, NewNodeDescriptor } from '@/shared/types';
+import type { Point, PendingUpdate, Rect, NewNodeDescriptor, SnapGuide } from '@/shared/types';
 import { isInstanceOwnedNode } from '@/canvas/drag/instance-drop-guard';
 import { nextFrames } from '@/shared/dom-utils';
 import { buildCanvasCloneDescriptor } from '../clone-descriptor';
@@ -48,7 +48,8 @@ import { computeExitCanvasPosition } from '../transform-reparent';
 import { repositionSignalOps } from '../reposition-signal';
 import { forceCanvasRender, flushAndForceStructuralRender } from '@/canvas/node-ops';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
-import { getActiveRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideSegment } from '@/canvas/ui/frame-ruler-guides';
 import { SNAP_THRESHOLD } from '@/shared/constants';
 
 const PLACEHOLDER_BG = 'rgba(59, 130, 246, 0.15)';
@@ -181,6 +182,12 @@ export class LayoutLiftedStrategy implements DragStrategy {
   /** Fresh object per drag — async work (the live-size correction reads)
    *  captures it and no-ops if a resolve lands after the drag ended. */
   private dragSession: object = {};
+  private flowGuideFrames: string[] = [];
+  private flowGuideMeasure: { id: string; index: number } | null = null;
+  private flowSlotGuides: SnapGuide[] = [];
+
+  constructor(private readonly publishFlowGuides?: (guides: SnapGuide[]) => void) {}
+
 
   /** The min/max box-constraint props captured at lift and re-applied on every
    *  restore path. liftStyles neutralizes them because the lifted node lives
@@ -408,6 +415,8 @@ export class LayoutLiftedStrategy implements DragStrategy {
 
   onStart(context: DragContext): void {
     this.dragSession = {};
+    this.flowGuideMeasure = null;
+    this.flowSlotGuides = [];
     const { draggedNodes, transform } = context;
     const primary = draggedNodes[0];
     const parentId = primary.startParentId;
@@ -498,6 +507,8 @@ export class LayoutLiftedStrategy implements DragStrategy {
     this.flexDirection = getFlexDirectionById(parentId, startVpId);
     const parentDisplay = findNodeComputedStyle(parentId, startVpId, 'display') || '';
     this.isGridParent = parentDisplay === 'grid' || parentDisplay === 'inline-grid';
+    this.flowGuideFrames = draggedNodes.length === 1 && (parentDisplay === 'flex' || parentDisplay === 'inline-flex')
+      ? getAncestorRulerGuideFrameIds(primary.id, startVpId) : [];
     // Flex-wrap → 2D reorder (multi-line). Source style first (sync, reliable),
     // computed as fallback for containers nested in a code component.
     const parentNodeForWrap = getNodeFromCache(parentId);
@@ -1262,6 +1273,50 @@ export class LayoutLiftedStrategy implements DragStrategy {
     return null;
   }
 
+  private measureFlowGuideSlot(nodeId: string): void {
+    if (!this.publishFlowGuides || this.flowGuideFrames.length === 0) return;
+    const id = this.nodeToPlaceholderId.get(nodeId);
+    const bridge = getCanvasBridge();
+    if (!id || !('getPlaceholderCorners' in bridge)) return;
+    const index = this.currentInsertIndex;
+    if (this.flowGuideMeasure?.id === id && this.flowGuideMeasure.index === index) return;
+    const measurement = { id, index };
+    this.flowGuideMeasure = measurement;
+    this.flowSlotGuides = [];
+    const session = this.dragSession;
+    const viewportId = this.currentVpId;
+    const frames = this.flowGuideFrames;
+    const axis = this.flexDirection === 'column' ? 'y' : 'x';
+    void (bridge as PostMessageBridge).getPlaceholderCorners(id).then(quad => {
+      if (this.dragSession !== session || this.flowGuideMeasure !== measurement || !this.isOverParent
+        || this.currentInsertIndex !== index || this.currentVpId !== viewportId) return;
+      if (!quad) {
+        this.flowGuideMeasure = null;
+        return;
+      }
+      const points = [quad.TL, quad.TR, quad.BR, quad.BL];
+      const distanceToLine = (p: Point, start: Point, end: Point) =>
+        Math.abs((end.x - start.x) * (start.y - p.y) - (start.x - p.x) * (end.y - start.y))
+          / Math.hypot(end.x - start.x, end.y - start.y);
+      const pairs = axis === 'x' ? [[0, 3], [1, 2]] : [[0, 1], [3, 2]];
+      this.flowSlotGuides = frames.flatMap(frameId => {
+        const geometry = frameGuideGeometry({ id: frameId, viewportId });
+        if (!geometry) return [];
+        return getFrameRulerGuideSnapLines(frameId, viewportId, geometry).flatMap(line => {
+          if (line.axis !== axis) return [];
+          const segment = frameGuideSegment(geometry, axis === 'x' ? 'vertical' : 'horizontal', line.position);
+          // The slot is authoritative. Near misses get no cue, and a
+          // rotated edge must line up along its length, not just at a corner.
+          if (!segment || !pairs.some(pair => pair.every(point => distanceToLine(points[point], segment.start, segment.end) <= 1))) return [];
+          return [{ axis, position: line.position, type: 'edge' as const, referenceId: `ruler-guide:${line.id}` }];
+        });
+      });
+      this.publishFlowGuides?.(this.flowSlotGuides);
+    }).catch(() => {
+      if (this.flowGuideMeasure === measurement) this.flowGuideMeasure = null;
+    });
+  }
+
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
     const { draggedNodes, startMouse, transform } = context;
     const vpId = vpIdFromPrefix(context.viewportPrefix);
@@ -1453,6 +1508,8 @@ export class LayoutLiftedStrategy implements DragStrategy {
       if (this.isOverParent && !isNowOverParent) {
         // EXITING viewport → hide placeholders + drop line + parent highlight
         this.hidePlaceholders();
+        this.flowGuideMeasure = null;
+        this.flowSlotGuides = [];
         dropLineOps.hide();
         parentHighlightOps.hide();
         this.isOverParent = false;
@@ -1858,6 +1915,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
         }
       }
 
+      this.measureFlowGuideSlot(draggedNodes[0]?.id ?? '');
       dropTarget = {
         parentId: this.parentNodeId || '',
         index: this.currentInsertIndex,
@@ -1941,10 +1999,10 @@ export class LayoutLiftedStrategy implements DragStrategy {
     this.prevMouse = mouseScreen;
 
     return {
-      // Snap result for guide rendering + position lock during off-parent.
-      // In-parent reorder uses sibling midpoints, not snap. Grip mode
-      // uses clamping, not snap.
-      snap: canvasSnap,
+      // Flex placement is determined by the actual slot, independent of the cue.
+      snap: this.isOverParent && this.flowSlotGuides.length
+        ? { x: 0, y: 0, snappedX: false, snappedY: false, guides: this.flowSlotGuides, spacingGuides: [] }
+        : canvasSnap,
       dropTarget,
       highlightParentId: null,
       axisLock: gripAxis,
@@ -4034,6 +4092,9 @@ export class LayoutLiftedStrategy implements DragStrategy {
 
   private cleanup(): void {
     this.dragSession = {};
+    this.flowGuideFrames = [];
+    this.flowGuideMeasure = null;
+    this.flowSlotGuides = [];
     // Release the renderer drag-lock so subsequent source-triggered renders
     // (file switches, undo, etc.) patch styles on the formerly-lifted
     // nodes normally — without this they'd be permanently invisible to

@@ -332,6 +332,8 @@ export interface SandboxApi {
     placeholderId: string,
   ): { left: number; top: number; width: number; height: number } | null
     | Promise<{ left: number; top: number; width: number; height: number } | null>;
+  /** Read the painted border corners in iframe coordinates. */
+  getPlaceholderCorners(placeholderId: string): CornersLike | null | Promise<CornersLike | null>;
   /** Swap two children of a shared parent in DOM order. Either id may be
    *  a regular `data-id` or a `data-placeholder-id`. Used by
    *  GridDragStrategy for auto-flow grids to swap the lifted node's

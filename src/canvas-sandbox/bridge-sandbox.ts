@@ -67,7 +67,7 @@ import { findElByNodeId } from './sandbox-dom-utils';
 import { setSelectionColorLocateHighlight, clearSelectionColorLocateHighlights } from './sandbox/selection-color-locate';
 import {
   removeElement, reparentLive, createPlaceholder, movePlaceholder, patchPlaceholderStyles,
-  swapTwoElements, removePlaceholders, getPlaceholderRect, liftNode, restoreNode, commitMergedOrder,
+  swapTwoElements, removePlaceholders, getPlaceholderRect, getPlaceholderCorners, liftNode, restoreNode, commitMergedOrder,
 } from './sandbox/placeholders';
 import {
   startTextEdit, commitTextEdit, cancelTextEdit, editorCommand,
@@ -573,6 +573,7 @@ const api: SandboxApi = {
   swapTwoElements,
   removePlaceholders,
   getPlaceholderRect,
+  getPlaceholderCorners,
   liftNode,
   restoreNode,
   commitMergedOrder,

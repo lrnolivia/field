@@ -17,13 +17,13 @@ export default function SnapGuidesOverlay() {
   const spacingGuides = useSyncExternalStore(snapGuidesOps.subscribe, snapGuidesOps.getSpacing, snapGuidesOps.getSpacing);
   const dropLineActive = useDropLineActive();
   const rulerGuides = useAtomValue(activeRulerGuidesAtom);
-  if (dropLineActive) return null;
+  const visibleGuides = dropLineActive ? snapGuides.filter(guide => guide.referenceId.startsWith('ruler-guide:')) : snapGuides;
 
   return (
     <>
-      {snapGuides.length > 0 && (
+      {visibleGuides.length > 0 && (
         <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
-          {snapGuides.map((guide, i) => {
+          {visibleGuides.map((guide, i) => {
             const t = transformManager.getTransform();
             const prefix = 'ruler-guide:';
             const ruler = guide.referenceId.startsWith(prefix)
@@ -45,7 +45,7 @@ export default function SnapGuidesOverlay() {
           })}
         </svg>
       )}
-      {spacingGuides.length > 0 && (() => {
+      {!dropLineActive && spacingGuides.length > 0 && (() => {
         const t = transformManager.getTransform();
         return spacingGuides.map((sg, gi) =>
           sg.segments.map((seg, si) => {

@@ -8,7 +8,7 @@ import { findElByNodeId, findAllByNodeId } from '../sandbox-dom-utils';
 import { contentRoot, emit } from './sandbox-state';
 import { applyTwoPass } from './style-handlers';
 import { getTrackedStyleKeys, untrackImperativeStyleKeys } from '@/canvas/Renderer';
-import { emitRectAndCornersForElement, scheduleRemeasureAllRects, emitSubtreeRefresh } from './rect-emit';
+import { cornersForElement, emitRectAndCornersForElement, scheduleRemeasureAllRects, emitSubtreeRefresh } from './rect-emit';
 
   // Imperative-first delete — drop every copy of the node (all viewports, matched
   // by data-id) from the iframe DOM right now. The host calls this on the delete
@@ -245,6 +245,13 @@ export function getPlaceholderRect(
     if (!ph) return null;
     const r = ph.getBoundingClientRect();
     return { left: r.left, top: r.top, width: r.width, height: r.height };
+}
+
+/** Painted border corners, including ancestor transformations. */
+export function getPlaceholderCorners(placeholderId: string): ReturnType<typeof cornersForElement> | null {
+    const placeholder = contentRoot?.querySelector(`[data-placeholder-id="${placeholderId}"]`);
+    if (!placeholder || placeholder.getClientRects().length === 0) return null;
+    return cornersForElement(placeholder);
 }
 
 /** ATOMIC drop-endgame for a merged templated root — everything in ONE sandbox
