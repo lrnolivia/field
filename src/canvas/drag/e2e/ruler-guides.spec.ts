@@ -188,16 +188,19 @@ test('a rotated frame guide snaps its directly positioned child in frame coordin
   expect(Math.abs(actual.y - child.y - 60 * sin)).toBeLessThan(1.5);
 });
 
-for (const { degrees, axisLock } of [
-  { degrees: 0, axisLock: false }, { degrees: 30, axisLock: false }, { degrees: 30, axisLock: true },
+for (const { degrees, axisLock, guideOffset, finalLeft } of [
+  { degrees: 0, axisLock: false, guideOffset: 0, finalLeft: 48 },
+  { degrees: 30, axisLock: false, guideOffset: 0, finalLeft: 48 },
+  { degrees: 30, axisLock: true, guideOffset: 0, finalLeft: 48 },
+  { degrees: 0, axisLock: false, guideOffset: 1, finalLeft: 48 + 2 / 3 },
 ]) {
-  test(`move a nested positioned child to the outer guide at ${degrees} degrees${axisLock ? ' with Shift held' : ''}`, async ({ page }) => {
+  test(`move a nested positioned child to the outer guide at ${degrees} degrees${axisLock ? ' with Shift held' : guideOffset ? ' at a fractional inset' : ''}`, async ({ page }) => {
     const modified = source.replace("background:'#ef4444'}} />",
       `background:'#ef4444', transform:'rotate(${degrees}deg)'}}><div data-id="inner" style={{position:'absolute',left:'8px',top:'10px',width:'80px',height:'70px',transform:'scale(1.5)',transformOrigin:'0 0'}}><div data-id="child" style={{position:'absolute',left:'20px',top:'42px',width:'18px',height:'24px',background:'#000'}} /></div></div>`);
     const editor = await openEditor(page, 'docked', modified);
     await editor.select(['rect']);
     const frame = await editor.nodeBox('rect');
-    await placeVerticalGuide(page, frame.x + frame.width / 2, frame.y + frame.height / 2);
+    await placeVerticalGuide(page, frame.x + frame.width / 2 + guideOffset, frame.y + frame.height / 2);
     const guide = page.locator('[data-ruler-guide-frame="rect"]');
     await expect(guide).toHaveCount(1);
     const line = (await guide.boundingBox())!;
@@ -226,7 +229,7 @@ for (const { degrees, axisLock } of [
     // The parent may save a percentage inset: assert its resolved
     // position, and compare source before the drag and after Undo.
     const model = editor.node('child');
-    await expect(model).toHaveCSS('left', '48px');
+    await expect.poll(() => model.evaluate(node => parseFloat(getComputedStyle(node).left))).toBeCloseTo(finalLeft, 1);
     await expect(model).toHaveCSS('top', '42px');
     await expect.poll(() => editor.getPageCode()).not.toBe(beforeSource);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
