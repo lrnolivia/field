@@ -225,6 +225,8 @@ function checkStyleObject(
       continue;
     }
     if (SPACING_PX_KEYS.has(key)) {
+      // A managed background video takes its corner radius from the editable frame.
+      if (ctx.builderOwned && key === 'borderRadius' && t.isStringLiteral(prop.value, { value: 'inherit' })) continue;
       const bad = badSpacingUnit(prop.value, key.startsWith('margin'));
       if (bad) {
         v.push({
