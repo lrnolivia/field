@@ -951,7 +951,7 @@ export function buildParentSvgGroupMap(parentId: string, vpId: string): AffineMa
  * Geometry source: Paul Heckbert's classic derivation, used in every modern
  * image-warping / texture-mapping toolkit.
  */
-function solveHomography(
+export function solveHomography(
   width: number, height: number,
   p0: { x: number; y: number },
   p1: { x: number; y: number },

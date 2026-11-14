@@ -106,6 +106,86 @@ test('a guide dropped on the selected frame is local to the frame and survives r
   await expect(guide).toHaveCount(1);
 });
 
+test('a guide stays attached to a rotated frame through drag, reload and Undo', async ({ page }) => {
+  const rotatedSource = source.replace("background:'#ef4444'", "background:'#ef4444', transform:'rotate(30deg)'");
+  const editor = await openEditor(page, 'docked', rotatedSource);
+  const frame = await editor.nodeBox('rect');
+  const cx = frame.x + frame.width / 2;
+  const cy = frame.y + frame.height / 2;
+  await page.evaluate(() => window.__e2e.select(['rect']));
+  await placeVerticalGuide(page, cx, cy);
+  const guide = page.locator('[data-ruler-guide-frame="rect"]');
+  await expect(guide).toHaveCount(1);
+  const initial = parseRulerGuides(await editor.getPageCode())[0];
+  expect(initial.frame).toEqual({ id: 'rect', viewportId: 'desktop' });
+  expect(Math.abs(initial.position - 80)).toBeLessThan(1.2);
+  const firstLine = (await guide.boundingBox())!;
+  expect(firstLine.width).toBeGreaterThan(58);
+  expect(firstLine.height).toBeGreaterThan(100);
+
+  const x = firstLine.x + firstLine.width / 2;
+  const y = firstLine.y + firstLine.height / 2;
+  await page.mouse.move(x, y);
+  await page.keyboard.down('Alt');
+  await page.mouse.down();
+  await page.mouse.move(x + 24 * Math.cos(Math.PI / 6), y + 24 * Math.sin(Math.PI / 6), { steps: 10 });
+  await expect(page.locator('[data-ruler-guide-preview]')).toBeVisible();
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  await expect(guide).toHaveCount(2);
+  const copies = parseRulerGuides(await editor.getPageCode());
+  expect(copies[1].frame).toEqual(initial.frame);
+  expect(Math.abs(copies[1].position - initial.position - 24)).toBeLessThan(1.2);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect(guide).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain(initial.id);
+
+  await page.reload();
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  await editor.fitCamera();
+  await page.evaluate(() => window.__e2e.zoomTo(1));
+  await expect(guide).toHaveCount(1);
+  expect(parseRulerGuides(await editor.getPageCode())).toEqual([initial]);
+  await expect.poll(async () => (await guide.boundingBox())!.width).toBeGreaterThan(58);
+});
+
+test('a rotated frame guide snaps its directly positioned child in frame coordinates', async ({ page }) => {
+  const rotatedSource = source.replace(
+    "background:'#ef4444'}} />",
+    "background:'#ef4444', transform:'rotate(30deg)'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>",
+  );
+  const editor = await openEditor(page, 'docked', rotatedSource);
+  const frame = await editor.nodeBox('rect');
+  await page.evaluate(() => window.__e2e.select(['rect']));
+  await placeVerticalGuide(page, frame.x + frame.width / 2, frame.y + frame.height / 2);
+  const guide = page.locator('[data-ruler-guide-frame="rect"]');
+  await expect(guide).toHaveCount(1);
+  const line = (await guide.boundingBox())!;
+  await page.evaluate(() => window.__e2e.select(['child']));
+  const child = await editor.nodeBox('child');
+  const x = child.x + child.width / 2;
+  const y = child.y + child.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  const cos = Math.cos(Math.PI / 6);
+  const sin = Math.sin(Math.PI / 6);
+  for (let step = 1; step <= 28; step++) {
+    const distance = 58 * step / 28;
+    await page.mouse.move(x + distance * cos, y + distance * sin);
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+  }
+  await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, expected) =>
+    lines.some(line => {
+      const box = line.getBoundingClientRect();
+      return Math.abs(box.x - expected.x) < 2 && Math.abs(box.width - expected.width) < 2;
+    }), line),
+  ).toBe(true);
+  await page.mouse.up();
+  const actual = await editor.nodeBox('child');
+  expect(Math.abs(actual.x - child.x - 60 * cos)).toBeLessThan(1.5);
+  expect(Math.abs(actual.y - child.y - 60 * sin)).toBeLessThan(1.5);
+});
+
 test('a frame guide snaps its positioned child at the visible guide', async ({ page }) => {
   const frameSource = source.replace("background:'#ef4444'}} />", "background:'#ef4444'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>");
   const editor = await openEditor(page, 'docked', frameSource);

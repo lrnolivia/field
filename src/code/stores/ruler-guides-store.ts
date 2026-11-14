@@ -18,9 +18,9 @@ import { parseRulerGuides, updateRulerGuidesInCode, type RulerGuide } from '@/co
 import type { RulerGuideSnapLine } from '@/canvas/drag/handlers/snap-handler';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { pushHistoryImmediate, sealPendingHistory } from '@/code/mutation/history';
-import { frameGuideRect, isInsideGuideFrame } from '@/canvas/ui/frame-ruler-guides';
+import { frameGuideGeometry, frameGuideLimit, frameGuideSegment, isInsideGuideFrame, type FrameGuideGeometry, type FrameGuideSegment } from '@/canvas/ui/frame-ruler-guides';
 import { transformManager } from '@/canvas/transform';
-import { screenRectToCanvas } from '@/canvas/drag/helpers/coords';
+import { screenPointToCanvas } from '@/canvas/drag/helpers/coords';
 
 export type { RulerGuide };
 
@@ -40,15 +40,22 @@ export function getActiveRulerGuideSnapLines(nodeId?: string, viewportId?: strin
     let position = guide.position;
     if (guide.frame) {
       if (!nodeId || guide.frame.viewportId !== viewportId || !isInsideGuideFrame(nodeId, guide.frame.id)) continue;
-      const bounds = frameGuideRect(guide.frame);
-      if (!bounds) continue;
-      const rect = screenRectToCanvas(bounds, transform);
-      if (position < 0 || position > (axis === 'x' ? rect.width : rect.height)) continue;
-      position += axis === 'x' ? rect.left : rect.top;
+      const geometry = frameGuideGeometry(guide.frame);
+      const segment = geometry ? frameGuideSegment(geometry, guide.type, position) : null;
+      if (!segment || Math.abs(segment.start[axis] - segment.end[axis]) > 0.01) continue;
+      position = screenPointToCanvas(segment.start, transform)[axis];
     }
     lines.push({ id: guide.id, axis, position });
   }
   return lines;
+}
+
+export function getFrameRulerGuideSnapLines(frameId: string, viewportId: string, geometry: FrameGuideGeometry): RulerGuideSnapLine[] {
+  return getDefaultStore().get(activeRulerGuidesAtom).flatMap(guide => {
+    if (guide.frame?.id !== frameId || guide.frame.viewportId !== viewportId) return [];
+    if (guide.position < 0 || guide.position > frameGuideLimit(geometry, guide.type)) return [];
+    return [{ id: guide.id, axis: guide.type === 'vertical' ? 'x' as const : 'y' as const, position: guide.position }];
+  });
 }
 
 // ─── Read atoms ────────────────────────────────────────────────────────────
@@ -74,7 +81,7 @@ export const selectedGuideIdAtom = atom<string | null>(null);
  *  current screen-space position so `CanvasRulers` can render a 1-px
  *  preview line that follows the cursor before the drop commits. */
 export const draggingGuidePreviewAtom = atom<
-  | { type: 'horizontal' | 'vertical'; screenPosition: number; frame?: DOMRect }
+  | { type: 'horizontal' | 'vertical'; screenPosition: number; segment?: FrameGuideSegment }
   | null
 >(null);
 

@@ -9,7 +9,7 @@ import { transformManager } from '../transform';
 import { snapGuidesOps } from './snap-guides-store';
 import { useDropLineActive } from '../selection/drop-line-store';
 import { activeRulerGuidesAtom } from '@/code/stores/ruler-guides-store';
-import { frameGuideRect } from './frame-ruler-guides';
+import { frameGuideGeometry, frameGuideSegment } from './frame-ruler-guides';
 import { getIframeOffset } from '../drag/helpers/coords';
 
 export default function SnapGuidesOverlay() {
@@ -29,16 +29,19 @@ export default function SnapGuidesOverlay() {
             const ruler = guide.referenceId.startsWith(prefix)
               ? rulerGuides.find(item => item.id === guide.referenceId.slice(prefix.length))
               : undefined;
-            const rect = ruler?.frame ? frameGuideRect(ruler.frame) : null;
-            if (ruler?.frame && !rect) return null;
-            const offset = rect ? getIframeOffset() : { x: 0, y: 0 };
+            if (ruler?.frame) {
+              const frame = frameGuideGeometry(ruler.frame);
+              const segment = frame ? frameGuideSegment(frame, ruler.type, ruler.position) : null;
+              if (!segment) return null;
+              const offset = getIframeOffset();
+              return <line key={i} x1={segment.start.x - offset.x} y1={segment.start.y - offset.y} x2={segment.end.x - offset.x} y2={segment.end.y - offset.y} stroke="#f472b6" strokeWidth={1} opacity={0.6} />;
+            }
             if (guide.axis === 'x') {
               const screenX = guide.position * t.scale + t.x;
-              return <line key={i} x1={screenX} y1={rect ? rect.top - offset.y : -9999} x2={screenX} y2={rect ? rect.bottom - offset.y : 9999} stroke="#f472b6" strokeWidth={1} opacity={0.6} />;
-            } else {
-              const screenY = guide.position * t.scale + t.y;
-              return <line key={i} x1={rect ? rect.left - offset.x : -9999} y1={screenY} x2={rect ? rect.right - offset.x : 9999} y2={screenY} stroke="#f472b6" strokeWidth={1} opacity={0.6} />;
+              return <line key={i} x1={screenX} y1={-9999} x2={screenX} y2={9999} stroke="#f472b6" strokeWidth={1} opacity={0.6} />;
             }
+            const screenY = guide.position * t.scale + t.y;
+            return <line key={i} x1={-9999} y1={screenY} x2={9999} y2={screenY} stroke="#f472b6" strokeWidth={1} opacity={0.6} />;
           })}
         </svg>
       )}

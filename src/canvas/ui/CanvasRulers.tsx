@@ -8,6 +8,7 @@ import { showRulersAtom } from '@/code/stores/user-preferences-store';
 import { useTopChromeHeight } from './use-top-chrome-height';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { rulerGuideOps, draggingGuidePreviewAtom, type RulerGuide } from '@/code/stores/ruler-guides-store';
+import { FrameRulerGuideLine } from './FrameRulerGuideLine';
 import { guideDropFrame, selectedGuideFrame } from './frame-ruler-guides';
 import { selectedIdsAtom } from '@/code/stores/store';
 import { shapeEditingIdAtom } from '@/code/stores/shape-edit-store';
@@ -271,8 +272,8 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       const drag = dragRef.current;
       if (!drag) return;
       const screenPosition = drag.type === 'horizontal' ? e.clientY : e.clientX;
-      const frame = guideDropFrame(drag.frame, e.clientX, e.clientY);
-      store.set(draggingGuidePreviewAtom, { type: drag.type, screenPosition, frame });
+      const frame = guideDropFrame(drag.frame, drag.type, e.clientX, e.clientY);
+      store.set(draggingGuidePreviewAtom, { type: drag.type, screenPosition, segment: frame?.segment });
     };
     const onUp = (e: MouseEvent) => {
       const drag = dragRef.current;
@@ -287,9 +288,9 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       if (cursor - rulerEdge < GUIDE_RULER_THRESHOLD) return;
       // The full-bleed Canvas starts at (0, 0). The chrome moves the ruler
       // strip, while guide positions share the camera origin with snap lines.
-      const frame = guideDropFrame(drag.frame, e.clientX, e.clientY);
-      const origin = frame ? (horizontal ? frame.top : frame.left) : (horizontal ? t.y : t.x);
-      const position = (cursor - origin) / t.scale;
+      const frame = guideDropFrame(drag.frame, drag.type, e.clientX, e.clientY);
+      const origin = horizontal ? t.y : t.x;
+      const position = frame?.position ?? (cursor - origin) / t.scale;
       rulerGuideOps.addGuide(drag.filePath, drag.type, position, frame ? drag.frame : undefined);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -566,12 +567,15 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
       })()}
 
       {/* Drag preview follows the pointer while a new guide is being placed. */}
-      {draggingPreview && draggingPreview.type === 'horizontal' && (
+      {draggingPreview?.segment && (
+        <FrameRulerGuideLine segment={draggingPreview.segment} type={draggingPreview.type} color={GUIDE_COLOR} zIndex={4905} aria-hidden />
+      )}
+      {draggingPreview && !draggingPreview.segment && draggingPreview.type === 'horizontal' && (
         <div
           style={{
             position: 'fixed',
-            left: Math.max(left + RULER_SIZE, draggingPreview.frame?.left ?? -Infinity),
-            right: draggingPreview.frame ? Math.max(right, viewport.w - draggingPreview.frame.right) : right,
+            left: left + RULER_SIZE,
+            right: right,
             top: draggingPreview.screenPosition,
             height: 1,
             backgroundColor: GUIDE_COLOR,
@@ -580,12 +584,12 @@ export default function CanvasRulers({ left, right }: RulerInsets) {
           }}
         />
       )}
-      {draggingPreview && draggingPreview.type === 'vertical' && (
+      {draggingPreview && !draggingPreview.segment && draggingPreview.type === 'vertical' && (
         <div
           style={{
             position: 'fixed',
-            top: Math.max(topOffset + RULER_SIZE, draggingPreview.frame?.top ?? -Infinity),
-            bottom: draggingPreview.frame ? Math.max(0, viewport.h - draggingPreview.frame.bottom) : 0,
+            top: topOffset + RULER_SIZE,
+            bottom: 0,
             left: draggingPreview.screenPosition,
             width: 1,
             backgroundColor: GUIDE_COLOR,
