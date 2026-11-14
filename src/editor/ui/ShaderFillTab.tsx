@@ -16,6 +16,7 @@ import InsertItemPreview from '@/editor/media/InsertItemPreview';
 import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { trace } from '@/shared/debug-trace';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
+import { shaderFillHostMutations } from './managed-fill-styles';
 
 interface Props {
   node: CanvasNode | null;
@@ -109,23 +110,9 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
 
     const prior = managedShaderChild(node);
     const shaderId = `${node.id}__shader_fill`;
-    const hostPosition = (node.styles?.position || '').trim();
     const mutations: Parameters<typeof queueMutations>[0] = [];
     if (prior) mutations.push({ type: 'removeNode', nodeId: prior.id });
-    mutations.push({
-      type: 'updateStyles',
-      nodeId: node.id,
-      styles: {
-        ...(hostPosition === '' || hostPosition === 'static' ? { position: 'relative' } : {}),
-        overflow: 'hidden',
-        isolation: 'isolate',
-      },
-    });
-    mutations.push({
-      type: 'updateHtmlAttrs',
-      nodeId: node.id,
-      attrs: { 'data-field-shader-fill': tag },
-    });
+    mutations.push(...shaderFillHostMutations(node, tag));
     mutations.push({
       type: 'addNode',
       parentId: node.id,
@@ -140,6 +127,8 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
           inset: '0',
           width: '100%',
           height: '100%',
+          borderRadius: 'inherit',
+          overflow: 'hidden',
           zIndex: '-1',
           pointerEvents: 'none',
         },
