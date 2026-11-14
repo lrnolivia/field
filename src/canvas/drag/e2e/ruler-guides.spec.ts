@@ -87,6 +87,7 @@ test('a guide dropped on the selected frame is local to the frame and survives r
   await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain(initial.id);
   await page.reload();
   await page.locator('[data-editor-interactive="true"]').waitFor();
+  await page.waitForFunction(() => Boolean(window.__e2e?.zoomTo));
   await editor.fitCamera();
   await page.evaluate(() => window.__e2e.zoomTo(1));
   await expect(guide).toHaveCount(1);
@@ -142,6 +143,7 @@ test('a guide stays attached to a rotated frame through drag, reload and Undo', 
 
   await page.reload();
   await page.locator('[data-editor-interactive="true"]').waitFor();
+  await page.waitForFunction(() => Boolean(window.__e2e?.zoomTo));
   await editor.fitCamera();
   await page.evaluate(() => window.__e2e.zoomTo(1));
   await expect(guide).toHaveCount(1);
@@ -215,18 +217,19 @@ test('a frame guide snaps its positioned child at the visible guide', async ({ p
 });
 
 for (const scenario of [
-  { name: 'direct child', nested: false, shift: false, travel: 40, width: '60px', height: '24px', top: '42px' },
-  { name: 'nested child in a scaled frame', nested: true, shift: false, travel: 13, width: '28px', height: '24px', top: '42px' },
-  { name: 'nested child with Shift held', nested: true, shift: true, travel: 13, width: '28px', height: '37px', top: '35px' },
+  { name: 'direct child', nested: false, shift: false, angle: 30, travel: 40, width: '60px', height: '24px', top: '42px' },
+  { name: 'nested child in a scaled frame', nested: true, shift: false, angle: 30, travel: 13, width: '28px', height: '24px', top: '42px' },
+  { name: 'nested child with scale but no rotation', nested: true, shift: false, angle: 0, travel: 13, width: '28px', height: '24px', top: '42px' },
+  { name: 'nested child with Shift held', nested: true, shift: true, angle: 30, travel: 13, width: '28px', height: '37px', top: '35px' },
 ] as const) {
-  test(`a ${scenario.name} resizes to its rotated ancestor guide and undoes cleanly`, async ({ page }) => {
+  test(`a ${scenario.name} resizes to its ancestor guide and undoes cleanly`, async ({ page }) => {
     const childSource = `<div data-id="child" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'24px', background:'#000'}} />`;
     const content = scenario.nested
       ? `<div data-id="inner" style={{position:'absolute', left:'8px', top:'10px', width:'80px', height:'70px', transform:'scale(1.5)', transformOrigin:'0 0'}}>${childSource}</div>`
       : childSource;
     const rotatedSource = source.replace(
       "background:'#ef4444'}} />",
-      `background:'#ef4444', transform:'rotate(30deg)'}}>${content}</div>`,
+      `background:'#ef4444', transform:'rotate(${scenario.angle}deg)'}}>${content}</div>`,
     );
     const editor = await openEditor(page, 'docked', rotatedSource);
     const frame = await editor.nodeBox('rect');
@@ -240,7 +243,7 @@ for (const scenario of [
     const box = (await edge.boundingBox())!;
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
-    const angle = Math.PI / 6;
+    const angle = scenario.angle * Math.PI / 180;
     if (scenario.shift) await page.keyboard.down('Shift');
     await page.mouse.move(x, y);
     await page.mouse.down();
@@ -265,8 +268,8 @@ for (const scenario of [
 }
 
 test('releasing Shift before an edge drop leaves the authored auto height intact', async ({ page }) => {
-  const variedSource = source.replace("height:'120px', background:'#ef4444'}} />",
-    "height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>");
+  const variedSource = source.replace("top:'128px', width:'160px', height:'120px', background:'#ef4444'}} />",
+    "top:'25.12345%', width:'160px', height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>");
   const editor = await openEditor(page, 'docked', variedSource);
   await editor.select(['rect']);
   const box = (await page.locator('[data-resize-edge="right"]').boundingBox())!;
@@ -278,10 +281,10 @@ test('releasing Shift before an edge drop leaves the authored auto height intact
   await page.mouse.move(x + 30, y, { steps: 12 });
   await expect(editor.node('rect')).not.toHaveCSS('height', '64px');
   await page.keyboard.up('Shift');
-  await page.mouse.move(x + 42, y, { steps: 6 });
-  await expect(editor.node('rect')).toHaveCSS('height', '64px');
   await page.mouse.up();
+  await expect(editor.node('rect')).toHaveCSS('height', '64px');
   await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*height:\s*'auto'/);
+  await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*top:\s*'25\.12345%'/);
 });
 
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {

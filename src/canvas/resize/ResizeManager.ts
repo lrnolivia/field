@@ -288,7 +288,7 @@ type ResizeX = 'left' | 'right' | null;
 type ResizeY = 'top' | 'bottom' | null;
 type ResizeGuideFrame = {
   geometry: NonNullable<ReturnType<typeof frameGuideGeometry>>;
-  lines: Array<ReturnType<typeof getFrameRulerGuideSnapLines>[number] & { tilted: boolean }>;
+  lines: Array<ReturnType<typeof getFrameRulerGuideSnapLines>[number] & { projected: boolean }>;
   x: number;
   y: number;
   scaleX: number;
@@ -300,14 +300,12 @@ function captureResizeGuideFrames(nodeId: string, viewportId: string, start: Res
   if (!frames.length) return [];
   const corners = getScreenCornersById(nodeId, viewportId);
   if (!corners) return [];
+  const canvasScale = transformManager.getTransform().scale;
   return frames.flatMap(id => {
     const geometry = frameGuideGeometry({ id, viewportId });
     if (!geometry) return [];
-    const lines = getFrameRulerGuideSnapLines(id, viewportId, geometry).flatMap(line => {
-      const segment = frameGuideSegment(geometry, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
-      return segment ? [{ ...line, tilted: Math.abs(segment.end[line.axis] - segment.start[line.axis]) > 0.01 }] : [];
-    });
-    if (!lines.length) return [];
+    const frameLines = getFrameRulerGuideSnapLines(id, viewportId, geometry);
+    if (!frameLines.length) return [];
     const [tl, tr, br, bl] = [corners.TL, corners.TR, corners.BR, corners.BL].map(p => geometry.toLocal(p.x, p.y));
     const scaleX = (tr.x - tl.x) / (start.width + border.width);
     const scaleY = (bl.y - tl.y) / (start.height + border.height);
@@ -316,6 +314,17 @@ function captureResizeGuideFrames(nodeId: string, viewportId: string, start: Res
     // doesn't pretend that a tilted edge will align to a parallel ruler line.
     if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0
       || [tr.y - tl.y, bl.x - tl.x, br.x - tr.x, br.y - bl.y].some(d => !Number.isFinite(d) || Math.abs(d) > 0.1)) return [];
+    const screenScaleX = Math.hypot(corners.TR.x - corners.TL.x, corners.TR.y - corners.TL.y) / (start.width + border.width);
+    const screenScaleY = Math.hypot(corners.BL.x - corners.TL.x, corners.BL.y - corners.TL.y) / (start.height + border.height);
+    const lines = frameLines.flatMap(line => {
+      const segment = frameGuideSegment(geometry, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
+      if (!segment) return [];
+      const tilted = Math.abs(segment.end[line.axis] - segment.start[line.axis]) > 0.01;
+      const scale = line.axis === 'x' ? screenScaleX : screenScaleY;
+      // Only short-circuit the ordinary nearest-target comparison if
+      // its screen-axis/unit-scale assumptions do not match this edge.
+      return [{ ...line, projected: tilted || Math.abs(scale - canvasScale) > 0.01 }];
+    });
     return [{ geometry, lines, x: tl.x - start.left * scaleX, y: tl.y - start.top * scaleY, scaleX, scaleY }];
   });
 }
@@ -337,7 +346,7 @@ function snapResizeToFrameGuides(
       const axis = line.axis;
       const isX = axis === 'x';
       const handle = isX ? xHandle : yHandle;
-      if (!handle || (!line.tilted && !aspectRatio)) continue;
+      if (!handle || (!line.projected && !aspectRatio)) continue;
       const fromStart = handle === 'left' || handle === 'top';
       const scale = isX ? frame.scaleX : frame.scaleY;
       const halfEdge = isX ? (proposed.width + border.width) / 2 : (proposed.height + border.height) / 2;
@@ -1660,11 +1669,15 @@ export function startResize(
   // so the unit we preserve is exactly the unit the tile renders.
   let effWidthSrc = nodeStyles.width;
   let effHeightSrc = nodeStyles.height;
+  let effLeftSrc = nodeStyles.left;
+  let effTopSrc = nodeStyles.top;
   if (nodeData) {
     try {
       const effTile = bakeStylesForTile(nodeData, tileContextFor(vpId, getActiveFilePath(), getViewportWidths()));
       effWidthSrc = effTile.width ?? effWidthSrc;
       effHeightSrc = effTile.height ?? effHeightSrc;
+      effLeftSrc = effTile.left ?? effLeftSrc;
+      effTopSrc = effTile.top ?? effTopSrc;
     } catch { /* tile context unavailable — base units */ }
   }
   const origWidthUnit = parseDimUnit(effWidthSrc);
@@ -2011,7 +2024,7 @@ export function startResize(
     && !isSvgGroupChild && !hasIndividualTransform && !isVectorSet
     ? captureResizeGuideFrames(nodeId, vpId, { left: startLeft, top: startTop, width: startWidth, height: startHeight }, guideBorder)
     : [];
-  const tiltedGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.filter(line => line.tilted).map(line => line.id)));
+  const projectedGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.filter(line => line.projected).map(line => line.id)));
   const allGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.map(line => line.id)));
   trace.action('resize:transform-check', {
     computedTransform: computedStyles.transform || '(empty)',
@@ -2348,6 +2361,7 @@ export function startResize(
   let wroteWidth = false;
   let wroteHeight = false;
   let lockedDimensions = false;
+  let lastShift = false;
   const onMove = (e: PointerEvent) => {
     // Mouse delta in screen pixels. The FROZEN lift basis converts
     // it directly into local CSS units (the basis already includes
@@ -2384,6 +2398,7 @@ export function startResize(
 
     // Shift preserves the starting ratio from every handle, including edges.
     // Vector sets and explicitly locked objects preserve it without Shift.
+    lastShift = e.shiftKey;
     const aspectLocked = isVectorSet || hasPersistentAspectLock || e.shiftKey;
     lockedDimensions = !isVpNode && aspectLocked;
     if (aspectLocked) {
@@ -2481,7 +2496,7 @@ export function startResize(
         );
         const snapped = snapResizeEdges(
           local.box.left, local.box.top, local.box.width, local.box.height,
-          xHandle, yHandle, nodeId, vpId, parentId, txform, local.axes, aspectLocked ? allGuideIds : tiltedGuideIds,
+          xHandle, yHandle, nodeId, vpId, parentId, txform, local.axes, aspectLocked ? allGuideIds : projectedGuideIds,
         );
         newLeft = snapped.left;
         newTop = snapped.top;
@@ -2777,9 +2792,20 @@ export function startResize(
       const w = liveInsetWrites({
         pins: inset.pins, isFixedLeft: !!isFixedLeft, isFixedTop: !!isFixedTop,
         isCenteredX, isCenteredY, isPercentX, isPercentY,
-        handleAffectsX, handleAffectsY, hasTransform, symmetricResize,
+        handleAffectsX: handleAffectsX || restoreWidth, handleAffectsY: handleAffectsY || restoreHeight,
+        hasTransform, symmetricResize,
         pW, pH, newLeft, newTop, newWidth, newHeight, startWidth, startHeight, posPx,
       });
+      if (restoreWidth && isPercentX && !hasTransform) {
+        w.styles.left = effLeftSrc ?? '';
+        w.wrotePctLeft = false;
+        wrotePctLeft = false;
+      }
+      if (restoreHeight && isPercentY && !hasTransform) {
+        w.styles.top = effTopSrc ?? '';
+        w.wrotePctTop = false;
+        wrotePctTop = false;
+      }
       if (Object.keys(w.styles).length > 0) {
         patchNodeStyles(contentEl, nodeId, vpPrefix, w.styles);
         Object.assign(liveStyles, w.styles);
@@ -2823,8 +2849,8 @@ export function startResize(
       }
       if (isOverlayNode) {
         // Overlay nodes: sync width/height to replicas (position managed by portal system)
-        if (handleAffectsX && liveStyles.width) syncStyles.width = liveStyles.width;
-        if (handleAffectsY && liveStyles.height) syncStyles.height = liveStyles.height;
+        if (handleAffectsX || restoreWidth) syncStyles.width = liveStyles.width || '';
+        if (handleAffectsY || restoreHeight) syncStyles.height = liveStyles.height || '';
       } else {
         // Only sync dimensions that are ACTUALLY being resized — liveStyles for
         // the non-resized axis contains stale NodeMap values that would revert changes.
@@ -2877,7 +2903,10 @@ export function startResize(
     resizeLiveOps.set({ nodeId, width: liveStyles.width, height: liveStyles.height });
   };
 
-  const onUp = () => {
+  const onUp = (e: PointerEvent) => {
+    // Shift can change after the last move. Save the resize that matches
+    // the modifier at release, even when the pointer never moved again.
+    if (didMove && !isVpNode && !isVectorSet && !hasPersistentAspectLock && e.shiftKey !== lastShift) onMove(e);
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     cleanup = null;
