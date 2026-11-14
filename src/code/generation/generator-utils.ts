@@ -497,7 +497,8 @@ export function serializeJSXAttr(key: string, value: string): string {
     const ident = value.slice(4);
     if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(ident)) return ` ${key}={${ident}}`;
   }
-  if (value === '') return ` ${key}`;
+  // Decorative images need an explicit empty alt string in HTML.
+  if (value === '') return key === 'alt' ? ' alt=""' : ` ${key}`;
   // JSON-valued attrs (`data-instance-fx`, `data-scroll-variant`, `data-responsive`) embed
   // DOUBLE quotes; wrapping them in `"…"` produces `data-instance-fx="{"hover"…` which the JSX
   // parser chokes on at the first inner `"` ("Unexpected token"). Wrap any value that contains a

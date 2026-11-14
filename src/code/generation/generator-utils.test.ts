@@ -18,6 +18,7 @@ import {
   setJsonAttr,
   stripJsonAttr,
   scanGates,
+  serializeJSXAttr,
 } from './generator-utils';
 
 describe('findMatchingCloseTagIndex', () => {
@@ -254,5 +255,13 @@ describe('extractObjectEntryBalanced', () => {
   it('a brace inside a STRING value does not skew the walk', () => {
     expect(extractObjectEntryBalanced(`'variant-1': { content: 'a}b' }`, 'variant-1'))
       .toBe("{ content: 'a}b' }");
+  });
+});
+
+describe('serializeJSXAttr', () => {
+  it('writes decorative image alt as an empty string and keeps boolean controls bare', () => {
+    expect(serializeJSXAttr('alt', '')).toBe(' alt=""');
+    expect(serializeJSXAttr('alt', 'Gallery photograph')).toBe(' alt="Gallery photograph"');
+    expect(serializeJSXAttr('controls', '')).toBe(' controls');
   });
 });
