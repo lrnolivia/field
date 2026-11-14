@@ -106,6 +106,7 @@ const PASTE_INTO_SELECTED_FRAME: ConditionChecker = ctx => {
   if (hasLayout(node)) return false;
   const roots = findRootNodes(ctx.clipboardNodes);
   if (roots.length === 0 || roots.some(r => r.id === node.id)) return false;
+  if (TEXT_IN_CLIPBOARD(ctx) && !roots.every(r => r.styles.position === 'absolute')) return false;
   return true;
 };
 

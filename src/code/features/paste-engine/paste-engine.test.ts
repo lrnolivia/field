@@ -4,7 +4,7 @@
 
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { findMatchingRule, getRuleById, conditionCheckers } from './paste';
-import { calculatePosition, findRootNodes } from './core/position';
+import { calculatePosition, findRootNodes, fitClipboardNodeInFrame } from './core/position';
 import { resolveTargets } from './core/target-resolver';
 import { createIdMapper } from './core/id-mapper';
 import { buildAddNodeDef, ensureDefaultAnchors, fixupPositionForParent } from './core/node-creator';
@@ -807,7 +807,7 @@ describe('paste-into-selected-frame', () => {
     const rule = findMatchingRule(ctx);
     expect(rule?.id).toBe('paste-into-selected-frame');
     expect(resolveTargets(ctx, rule!.config.targetMode)[0].parentId).toBe('inner');
-    expect(rule!.config.positioning).toBe('preserve');
+    expect(rule!.config.positioning).toBe('fit-in-frame');
   });
 
   test('copy/duplicate of the Frame itself still pastes as a sibling', () => {
@@ -822,12 +822,63 @@ describe('paste-into-selected-frame', () => {
     }
   });
 
-  test('text keeps its dedicated frame rule', () => {
+  test('an absolutely positioned text layer uses the same frame coordinates', () => {
+    const clipboardNodes = [makeClipboardNode('t', { type: 'p', styles: { position: 'absolute' } })];
+    const ctx = makeContext({ selectedIds: ['inner'], clipboardNodes, nodes: nodes() });
+    expect(findMatchingRule(ctx)?.id).toBe('paste-into-selected-frame');
+  });
+
+  test('plain text keeps its dedicated frame rule', () => {
     const ctx = makeContext({
       selectedIds: ['inner'],
       clipboardNodes: [makeClipboardNode('t', { type: 'p' })],
       nodes: nodes(),
     });
     expect(findMatchingRule(ctx)?.id).toBe('paste-text-into-frame');
+  });
+});
+
+describe('fitClipboardNodeInFrame', () => {
+  const frame = makeCanvasNode('destination', { styles: { width: '320px', height: '260px' } });
+
+  test.each([
+    ['48px', '128px', '48px', '128px'],
+    ['48px', '230px', '48px', '85px'],
+    ['250px', '128px', '100px', '128px'],
+    ['250px', '230px', '100px', '85px'],
+    ['200px', '170px', '200px', '170px'],
+  ])('fits the two axes independently at %s, %s', (left, top, expectedLeft, expectedTop) => {
+    const clip = makeClipboardNode('box', { styles: { position: 'absolute', width: '120px', height: '90px', left, top } });
+    const fitted = fitClipboardNodeInFrame(clip, frame);
+    expect(fitted.styles).toMatchObject({ left: expectedLeft, top: expectedTop });
+    expect(clip.styles).toMatchObject({ left, top });
+  });
+
+  test('uses the original local position for percentage and trailing anchors', () => {
+    const clip = makeClipboardNode('box', {
+      sourceLayout: { width: 120, height: 90, parentWidth: 500, parentHeight: 400 },
+      styles: {
+        position: 'absolute', width: '120px', height: '90px',
+        left: '30%', bottom: '20px', transform: 'translateX(-50%) rotate(20deg)',
+      },
+    });
+    const fitted = fitClipboardNodeInFrame(clip, frame);
+    expect(fitted.styles).toMatchObject({ left: '90px', top: '85px', transform: 'rotate(20deg)' });
+    expect(fitted.styles).not.toHaveProperty('bottom');
+  });
+
+  test('retains intentional source overflow and uses rendered destination size', () => {
+    const clip = makeClipboardNode('box', {
+      sourceLayout: { width: 120, height: 90, parentWidth: 500, parentHeight: 400 },
+      styles: { position: 'absolute', width: '120px', height: '90px', left: '-20px', top: '128px' },
+    });
+    expect(fitClipboardNodeInFrame(clip, frame, { width: 200, height: 180 }).styles)
+      .toMatchObject({ left: '-20px', top: '45px' });
+  });
+
+  test('centers an object larger than the frame without resizing it', () => {
+    const clip = makeClipboardNode('box', { styles: { position: 'absolute', width: '400px', height: '90px', left: '0px', top: '10px' } });
+    expect(fitClipboardNodeInFrame(clip, frame).styles)
+      .toMatchObject({ left: '-40px', top: '10px', width: '400px', height: '90px' });
   });
 });

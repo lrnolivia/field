@@ -36,6 +36,14 @@ export interface ClipboardNode {
    */
   computedDimensions?: { width?: string; height?: string };
 
+  /** Layout box measured in the source tile before the original can be cut. */
+  sourceLayout?: {
+    width: number;
+    height: number;
+    parentWidth: number;
+    parentHeight: number;
+  };
+
   /**
    * Parsed from attrs.data-overlay-trigger — the targetId here points at
    * another clipboard node. Paste remaps it after creation.
@@ -229,6 +237,9 @@ export interface PasteContext {
    */
   parentHasLayout?: boolean;
 
+  /** Content area available to absolute children of the selected frame. */
+  selectedFrameSize?: { width: number; height: number };
+
   /**
    * Active file path — needed to decide whether the paste is happening in a
    * component file (replica = variant entry) vs page file (replica = @container).
@@ -236,6 +247,7 @@ export interface PasteContext {
   activeFilePath?: string;
   /** From ClipboardData.sourceFilePath (see textVariable). */
   sourceFilePath?: string | null;
+  sourceProjectId?: string | null;
 
   // Live nodes map — passed in by the call-site.
   nodes: Map<string, CanvasNode>;
@@ -256,6 +268,7 @@ export type PositioningMode =
   | 'last-child'              // append at end of parent.children
   | 'at-origin'               // (0,0) — used for text-into-absolute-frame
   | 'preserve'                // keep clipboard node's original position
+  | 'fit-in-frame'            // keep each local axis that fits in the destination
   | 'visible-center'          // center of visible canvas area (uses transform)
   | 'at-selected-position'    // copy left/top from selected (abs-in-frame siblings)
   | 'center-in-parent';       // center inside selected canvas frame

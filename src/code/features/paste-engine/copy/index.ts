@@ -11,7 +11,7 @@
 
 import { splitStyleProps, toCamel } from '@/shared/css-utils';
 import { trace } from '@/shared/debug-trace';
-import { findNodeRect, getActiveFilePath, getActiveTransform, getInteractingViewport } from '@/canvas/node-ops';
+import { findNodeComputedStyles, findNodeParentInnerSize, findNodeRect, getActiveFilePath, getActiveTransform, getInteractingViewport } from '@/canvas/node-ops';
 import { isComponentFilePath } from '@/code/project/active-file-store';
 import { getViewportWidths } from '@/code/stores/viewport-store';
 import { bakeNodeForTile, tileContextFor, type TileContext } from '@/canvas/replica-bake';
@@ -203,11 +203,22 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
 function captureComputedDimensions(
   clipboardNodes: ClipboardNode[],
   selectedRootIds: Set<string>,
+  vpId: string,
 ): void {
   const scale = getActiveTransform().scale || 1;
 
   for (const cn of clipboardNodes) {
     if (!selectedRootIds.has(cn.id)) continue;
+
+    if (cn.parentId && cn.styles.position === 'absolute') {
+      const size = findNodeComputedStyles(cn.id, vpId, ['__offsetWidth', '__offsetHeight']);
+      const parent = findNodeParentInnerSize(cn.id, vpId);
+      const width = Number.parseFloat(size.__offsetWidth);
+      const height = Number.parseFloat(size.__offsetHeight);
+      if (width > 0 && height > 0 && parent.width > 0 && parent.height > 0) {
+        cn.sourceLayout = { width, height, parentWidth: parent.width, parentHeight: parent.height };
+      }
+    }
 
     const w = cn.styles.width;
     const h = cn.styles.height;
@@ -215,7 +226,7 @@ function captureComputedDimensions(
     const needsH = !h || h === 'auto' || h.includes('%');
     if (!needsW && !needsH) continue;
 
-    const rect = findNodeRect(cn.id, 'desktop');
+    const rect = findNodeRect(cn.id, vpId);
     if (!rect) continue;
 
     const dims: { width?: string; height?: string } = {};
@@ -441,7 +452,7 @@ export function copyNodes(
 
   // 4. Capture computed dims for the user-selected ROOTS only (not descendants
   //    or overlays — they'll size against their pasted parents).
-  captureComputedDimensions(clipboardNodes, new Set(nodeIds));
+  captureComputedDimensions(clipboardNodes, new Set(nodeIds), vpId);
 
   // 4a. Capture TEXT EFFECTS. The wrapper `<RevymeSplitText>` + `data-text-anim`
   //     live in the JSX, not in the node model the clipboard is built from, so

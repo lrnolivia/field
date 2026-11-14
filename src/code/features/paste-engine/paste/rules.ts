@@ -42,6 +42,22 @@ const PASTE_RULES: PasteRule[] = [
     },
   },
 
+  // ─── Paste INTO the selected regular Frame (Figma parity) ─────────────────
+  // Placed layers follow frame coordinates. Raw clipboard text keeps the
+  // dedicated insertion rules below.
+  {
+    id: 'paste-into-selected-frame',
+    name: 'Paste into selected frame',
+    description: 'Paste into a regular Frame and center any axis that cannot fit.',
+    priority: 0.54,
+    conditions: ['PASTE_INTO_SELECTED_FRAME', 'NOT_CANVAS_NODE_SELECTED'],
+    config: {
+      targetMode: 'frame-children',
+      positioning: 'fit-in-frame',
+      styleTransform: 'to-absolute-in-frame',
+    },
+  },
+
   // ─── Text paste special-cases ─────────────────────────────────────────────
 
   {
@@ -68,26 +84,6 @@ const PASTE_RULES: PasteRule[] = [
       targetMode: 'frame-children',
       positioning: 'last-child',
       styleTransform: 'force-relative',
-    },
-  },
-
-  // ─── Paste INTO the selected regular Frame (Figma parity) ─────────────────
-  // Copy/cut something, select a regular Frame, paste: it lands INSIDE that
-  // Frame, keeping the clip's own local position (Figma's behaviour, audited
-  // 2026-10-04). Before this rule a selected nested Frame matched the
-  // abs-in-frame sibling rules below, so the paste landed next to it instead.
-  // Text keeps its dedicated rules above; the Frame's own copy/duplicate is
-  // excluded by the condition and still pastes as a sibling.
-  {
-    id: 'paste-into-selected-frame',
-    name: 'Paste into selected frame',
-    description: 'One regular no-layout Frame selected, clipboard is not that Frame → child at the clip position.',
-    priority: 0.61,
-    conditions: ['PASTE_INTO_SELECTED_FRAME', 'NOT_CANVAS_NODE_SELECTED'],
-    config: {
-      targetMode: 'frame-children',
-      positioning: 'preserve',
-      styleTransform: 'to-absolute-in-frame',
     },
   },
 
@@ -214,7 +210,7 @@ const PASTE_RULES: PasteRule[] = [
     conditions: ['PAGE_ROOT_NO_LAYOUT', 'NOT_CANVAS_NODE_SELECTED'],
     config: {
       targetMode: 'viewport-children',
-      positioning: 'last-child',
+      positioning: 'fit-in-frame',
       styleTransform: 'to-absolute-in-frame',
     },
   },
