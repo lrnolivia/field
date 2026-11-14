@@ -1,3 +1,5 @@
+import type { CanvasNode } from '@/code/parsing/parser';
+
 export type ToolbarMediaElementKind = 'image' | 'video' | 'audio';
 
 export type ToolbarMediaPlacement =
@@ -21,6 +23,22 @@ const MEDIA_CONTAINER_TYPES = new Set([
 
 export function mediaNodeAcceptsChild(nodeType: string | undefined): boolean {
   return Boolean(nodeType && MEDIA_CONTAINER_TYPES.has(nodeType));
+}
+
+type GalleryContainer = Pick<CanvasNode, 'id' | 'type' | 'isCanvasNode' | 'parentId' | 'fromLayout'>;
+
+export function resolveDesktopGalleryTarget<T extends GalleryContainer>(
+  selected: T | undefined,
+  nodes: Iterable<T>,
+): T | undefined {
+  if (selected && !selected.isCanvasNode && !selected.fromLayout && mediaNodeAcceptsChild(selected.type)) return selected;
+  let firstRoot: T | undefined;
+  for (const node of nodes) {
+    if (node.isCanvasNode || node.parentId || !mediaNodeAcceptsChild(node.type)) continue;
+    if (node.id === 'root') return node;
+    firstRoot ??= node;
+  }
+  return firstRoot;
 }
 
 export function mediaNodeAcceptsKind(

@@ -23,6 +23,7 @@ import SearchBar from '@/design-system/SearchBar';
 import Button from '@/design-system/Button';
 import Modal from '@/design-system/Modal';
 import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
+import { selectedIdsAtom } from '@/code/stores/store';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
@@ -364,6 +365,7 @@ export default function MediaGalleryPanel({
   const session = useAtomValue(mediaSessionAtom);
   const setSession = useSetAtom(mediaSessionAtom);
   const presentation = useMobileWorkspacePresentation();
+  const selectedIds = useAtomValue(selectedIdsAtom);
   const centeredUpload = chrome === 'full' && presentation === 'regular';
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [addMediaOpen, setAddMediaOpen] = useState(false);
@@ -373,7 +375,12 @@ export default function MediaGalleryPanel({
   const returnSession = useRef(session);
   const openGallery = () => {
     returnSession.current = session;
-    setSession(createMediaSession({ surface: 'sidebar', route: { view: 'create', kind: 'image', provider: 'gallery' }, intent: 'gallery' }));
+    setSession(createMediaSession({
+      surface: 'sidebar',
+      route: { view: 'create', kind: 'image', provider: 'gallery' },
+      intent: 'gallery',
+      targetId: presentation === 'regular' && selectedIds.length === 1 ? selectedIds[0] : undefined,
+    }));
     setGalleryOpen(true);
   };
   const closeGallery = () => {

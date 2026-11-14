@@ -32,12 +32,12 @@ describe('Gallery creation transaction', () => {
     expect(controller).toContain("intent === 'gallery'");
     expect(controller).toContain('targetId: galleryTargetId');
     expect(controller).toContain('const galleryTargetId = session.targetId');
-    expect(controller).toContain("insertToolbarItemAtSelection('gallery', galleryTargetId)");
-    expect(controller).toContain("insertToolbarItemAtVisibleCenter('gallery')");
+    expect(controller).toContain('resolveDesktopGalleryTarget(selected, getAllCachedNodes())');
+    expect(controller).toContain('selectionOverride: [target.id]');
 
     const capture = controller.indexOf('const galleryTargetId = session.targetId');
     const ratioProbe = controller.indexOf('await Promise.all(config.mediaUrls.map(measureGallerySourceRatio))');
-    const placement = controller.indexOf("insertToolbarItemAtSelection('gallery', galleryTargetId)");
+    const placement = controller.indexOf('resolveDesktopGalleryTarget(selected, getAllCachedNodes())');
     expect(capture).toBeGreaterThan(-1);
     expect(capture).toBeLessThan(ratioProbe);
     expect(placement).toBeGreaterThan(ratioProbe);

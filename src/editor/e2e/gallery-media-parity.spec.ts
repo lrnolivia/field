@@ -71,3 +71,31 @@ export default function Page(){return <div data-id="root" data-name="Page" style
   await gallery.locator(`[id="${targetId}"]`).getByRole('link', { name: 'Previous image', exact: true }).click();
   await expect.poll(() => gallery.evaluate(node => Math.abs(node.scrollLeft))).toBeLessThan(2);
 });
+
+test('sidebar Gallery creates a visible page child without a selection', async ({ page }) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  await editor.select([]);
+  await page.locator('[data-tutorial="media-button"]').click();
+  await page.locator('[data-media-gallery-entry]').click();
+  const wizard = page.getByRole('dialog', { name: /^gallery$/i });
+  await wizard.getByRole('button', { name: /^add media$/i }).click();
+  const picker = page.getByRole('dialog', { name: /^images$/i });
+  await picker.locator('input[type="file"]').setInputFiles({
+    name: 'gallery-grid.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180"><rect width="240" height="180" fill="teal"/></svg>'),
+  });
+  await picker.getByRole('button', { name: 'Add 1', exact: true }).click();
+  await wizard.getByRole('button', { name: 'Next', exact: true }).click();
+  await wizard.getByRole('button', { name: 'Next', exact: true }).click();
+  await wizard.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(wizard).not.toBeVisible();
+  const canvasGallery = editor.node('root').getByRole('region', { name: 'Gallery', exact: true });
+  await expect(canvasGallery).toBeVisible();
+  await expect(canvasGallery).toHaveCSS('left', '0px');
+  await expect.poll(() => canvasGallery.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'preview', exact: true }).click();
+  const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
+  await expect(preview.getByRole('region', { name: 'Gallery', exact: true }).locator('img')).toBeVisible();
+});
