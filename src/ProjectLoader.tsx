@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
+import { waitForAnimationFrames, waitForShellMotion } from './field-shell-motion';
 import RemixWorkspacePicker from './RemixWorkspacePicker';
 import { remixTemplate, remixTemplateShare } from '@/backend/revyme-backend';
 import { backend } from './backend';
@@ -597,23 +598,38 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       setEditorInteractive(true);
       return;
     }
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (document.hidden || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       setCanvasRevealPhase('settled');
       setEditorInteractive(true);
       return;
     }
-    const frame = requestAnimationFrame(() => setCanvasRevealPhase('entering'));
-    return () => cancelAnimationFrame(frame);
+    let cancelled = false;
+    void waitForShellMotion(waitForAnimationFrames(1), 100).then(() => {
+      if (cancelled) return;
+      if (document.hidden) {
+        setCanvasRevealPhase('settled');
+        setEditorInteractive(true);
+      } else {
+        setCanvasRevealPhase('entering');
+      }
+    });
+    return () => { cancelled = true; };
   }, [canvasPainted]);
 
   useEffect(() => {
     if (canvasRevealPhase !== 'entering') return;
     // animationend is authoritative; the timer covers interrupted animations.
-    const timeout = window.setTimeout(() => {
+    const settle = () => {
       setCanvasRevealPhase('settled');
       setEditorInteractive(true);
-    }, 900);
-    return () => window.clearTimeout(timeout);
+    };
+    const onVisibilityChange = () => { if (document.hidden) settle(); };
+    const timeout = window.setTimeout(settle, 900);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [canvasRevealPhase]);
 
   // The remix picker remains over the mounted editor once its project exists.
