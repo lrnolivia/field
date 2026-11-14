@@ -57,7 +57,8 @@ import { findChildRects, getContentRootRect } from '@/canvas/node-ops';
 import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/canvas-math';
 import type { SnapGuide, Transform } from '@/shared/types';
 import { SNAP_THRESHOLD } from '@/shared/constants';
-import { getActiveRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { getActiveRulerGuideSnapLines, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { nodesAtom } from '@/code/stores/store';
 import { viewportsConfigAtom, viewportWidthsAtom } from '@/code/stores/viewport-store';
 import { getAllCachedNodes } from '@/code/stores/store';
@@ -295,6 +296,11 @@ function snapResizeEdges(
   xHandle: 'left' | 'right' | null, yHandle: 'top' | 'bottom' | null,
   nodeId: string, vpId: string, parentId: string | null,
   transform: Transform,
+  frameGuides?: {
+    geometry: NonNullable<ReturnType<typeof frameGuideGeometry>>;
+    lines: ReturnType<typeof getFrameRulerGuideSnapLines>;
+    inset: { x: number; y: number; width: number; height: number };
+  },
 ): { left: number; top: number; width: number; height: number; guides: SnapGuide[] } {
   const guides: SnapGuide[] = [];
   let snapLeft = newLeft, snapTop = newTop, snapWidth = newWidth, snapHeight = newHeight;
@@ -322,7 +328,7 @@ function snapResizeEdges(
   // cycle so the cost is constant in the number of guides.
   const rulerGuides = getActiveRulerGuideSnapLines(nodeId, vpId);
 
-  if (siblings.length === 0 && rulerGuides.length === 0) {
+  if (siblings.length === 0 && rulerGuides.length === 0 && !frameGuides) {
     return { left: snapLeft, top: snapTop, width: snapWidth, height: snapHeight, guides };
   }
 
@@ -330,6 +336,36 @@ function snapResizeEdges(
   // on an axis. Ruler-guide refIds carry the `ruler-guide:` prefix so
   // overlay rendering can tell them apart from sibling-edge guides.
   const findSnap = (pos: number, axis: 'x' | 'y'): { snapped: number; guide: SnapGuide } | null => {
+    if (frameGuides) {
+      const { geometry, lines, inset } = frameGuides;
+      const isX = axis === 'x';
+      const fromStart = isX ? xHandle === 'left' : yHandle === 'top';
+      const size = isX ? newWidth : newHeight;
+      const moving = pos - parentOffset[axis] + inset[axis] + (fromStart ? 0 : isX ? inset.width : inset.height);
+      const center = isX
+        ? newTop + inset.y + (newHeight + inset.height) / 2
+        : newLeft + inset.x + (newWidth + inset.width) / 2;
+      const project = (p: number) => isX ? frameGuideToScreen(geometry, p, center) : frameGuideToScreen(geometry, center, p);
+      const point = project(moving);
+      let bestDistance = SNAP_THRESHOLD;
+      let best: (typeof lines)[number] | undefined;
+      for (const line of lines) {
+        if (line.axis !== axis) continue;
+        const target = project(line.position);
+        const distance = Math.hypot(point.x - target.x, point.y - target.y);
+        const delta = line.position - moving;
+        if (distance < bestDistance && size + (fromStart ? -delta : delta) >= MIN_SIZE) {
+          best = line;
+          bestDistance = distance;
+        }
+      }
+      if (best) {
+        return {
+          snapped: pos + best.position - moving,
+          guide: { axis, position: best.position, type: 'edge', referenceId: `ruler-guide:${best.id}` },
+        };
+      }
+    }
     let bestDist = threshold, bestPos = pos, bestRef = '', bestType: 'edge' | 'center' = 'edge';
     for (const sib of siblings) {
       const targets = axis === 'x'
@@ -1438,7 +1474,8 @@ export function startResize(
   // Read geometry from bridge computed cache — populated on every render with actual
   // getComputedStyle values. Works correctly for rotated elements (unlike BCR-derived values).
   // This is the iframe equivalent of the old `getComputedStyle(el).width` path.
-  const computedStyles = findNodeComputedStyles(nodeId, vpId, ['width', 'height', 'transform', 'display', 'left', 'top', 'right', 'bottom']);
+  const computedStyles = findNodeComputedStyles(nodeId, vpId, ['width', 'height', 'transform', 'display', 'left', 'top', 'right', 'bottom',
+    'rotate', 'scale', 'translate', '__offsetWidth', '__offsetHeight']);
   const nodeRect = findNodeRect(nodeId, vpId);
   const canvasScale = transformManager.getTransform().scale;
   // A NESTED svg group keeps its box in `width/height` ATTRIBUTES. For a ROTATED
@@ -1902,6 +1939,30 @@ export function startResize(
   }
   const hasTransform = !isInLayout && !!matrixStr && matrixStr !== 'none'
     && (!isNestedSvg || isVariantRotatedChild);
+  // The active edges of a directly positioned, untransformed child are
+  // parallel to its frame's local ruler guides, even when tilted on screen.
+  const hasIndividualTransform = ['rotate', 'scale', 'translate'].some(property => {
+    const value = computedStyles[property] || nodeStyles[property];
+    return value && value !== 'none';
+  });
+  const localGuideFrame = parentId && childPosition === 'absolute' && !hasTransform && !isNestedSvg
+    && !isSvgGroupChild && !hasIndividualTransform
+    ? frameGuideGeometry({ id: parentId, viewportId: vpId }) : null;
+  const localGuideLines = localGuideFrame && parentId
+    ? getFrameRulerGuideSnapLines(parentId, vpId, localGuideFrame).filter(line => {
+      // The existing screen-axis snap handles axis-aligned guides.
+      const segment = frameGuideSegment(localGuideFrame, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
+      return segment && Math.abs(segment.end[line.axis] - segment.start[line.axis]) > 0.01;
+    }) : [];
+  const startGuideCorner = localGuideLines.length ? getScreenCornersById(nodeId, vpId)?.TL : undefined;
+  const localGuideOrigin = localGuideFrame && startGuideCorner
+    ? localGuideFrame.toLocal(startGuideCorner.x, startGuideCorner.y) : null;
+  const guideBoxInset = localGuideOrigin ? {
+    x: localGuideOrigin.x - startLeft,
+    y: localGuideOrigin.y - startTop,
+    width: (Number.parseFloat(computedStyles.__offsetWidth) || startWidth) - startWidth,
+    height: (Number.parseFloat(computedStyles.__offsetHeight) || startHeight) - startHeight,
+  } : null;
   trace.action('resize:transform-check', {
     computedTransform: computedStyles.transform || '(empty)',
     nodeStylesTransform: nodeStyles.transform || '(empty)',
@@ -2358,9 +2419,12 @@ export function startResize(
         newHeight = snapped.height;
         callbacks.onSnapGuidesChange?.(snapped.guides);
       } else {
+        const frameGuides = localGuideFrame && guideBoxInset && !e.shiftKey && !hasPersistentAspectLock && !isVectorSet
+          ? { geometry: localGuideFrame, lines: localGuideLines, inset: guideBoxInset }
+          : undefined;
         const snapped = snapResizeEdges(
           newLeft, newTop, newWidth, newHeight,
-          xHandle, yHandle, nodeId, vpId, parentId, txform,
+          xHandle, yHandle, nodeId, vpId, parentId, txform, frameGuides,
         );
         newLeft = snapped.left;
         newTop = snapped.top;
