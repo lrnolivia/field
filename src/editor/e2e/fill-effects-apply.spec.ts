@@ -8,11 +8,15 @@ async function styleValue(editor: EditorPage, prop: string) {
   return new RegExp(prop + ":\\s*(['\"])" + "(.*?)\\1").exec(tag)?.[2] ?? null;
 }
 
-async function openPaintFixture(page: Page) {
+async function openPaintFixture(page: Page, extraStyles = '') {
   const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
-  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx'].split('background:').join('backgroundColor:');
+  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
+    .replace(/background:/g, 'backgroundColor:')
+    .replace("backgroundColor: '#66ccff'", "backgroundColor: '#66ccff'" + extraStyles);
   await page.addInitScript(data => {
-    localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    if (!localStorage.getItem('revyme-project-local')) {
+      localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    }
     localStorage.setItem('revyme-onboarding-completed', 'true');
   }, seed);
   const editor = new EditorPage(page);
@@ -39,8 +43,11 @@ test('changing to gradient applies a paint and keeps the picker available for ed
   await expect(picker.getByRole('button', { name: /select source/i })).toBeVisible();
 });
 
-test('pattern fill applies to source and canvas and remains editable', async ({ page }) => {
-  const editor = await openPaintFixture(page);
+test('pattern fill applies to source and canvas and keeps an independent mask', async ({ page }) => {
+  const editor = await openPaintFixture(page, ", maskImage: 'linear-gradient(black, transparent)'");
+  const layer = editor.node('abs-child');
+  const originalMask = await layer.evaluate(el => getComputedStyle(el).maskImage);
+  expect(originalMask).toContain('linear-gradient');
   await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
   const picker = page.getByRole('dialog', { name: 'Paint picker' });
   await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
@@ -50,7 +57,30 @@ test('pattern fill applies to source and canvas and remains editable', async ({ 
   const scale = picker.getByRole('textbox', { name: 'Pattern scale', exact: true });
   await scale.fill('24');
   await scale.press('Enter');
-  await expect.poll(() => editor.node('abs-child').evaluate(el => getComputedStyle(el).backgroundSize)).toContain('24px');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).backgroundSize)).toContain('24px');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
+  await picker.getByRole('button', { name: 'Solid', exact: true }).click();
+  await expect.poll(() => editor.getPageCode()).not.toContain('data-field-pattern');
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
+});
+
+test('removing Grid + Mask after reload restores the original mask', async ({ page }) => {
+  const editor = await openPaintFixture(page, ", maskImage: 'linear-gradient(black, transparent)'");
+  const layer = editor.node('abs-child');
+  const originalMask = await layer.evaluate(el => getComputedStyle(el).maskImage);
+  await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
+  const picker = page.getByRole('dialog', { name: 'Paint picker' });
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await picker.getByRole('button', { name: 'Pattern kind' }).click();
+  await page.getByText('Grid + Mask', { exact: true }).click();
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toContain('radial-gradient');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('data-field-pattern-style-backup');
+  await page.reload();
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toContain('radial-gradient');
+  await editor.select(['abs-child']);
+  await page.locator('[data-inspector-section="fill"]').getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
+  await expect.poll(() => editor.getPageCode()).not.toContain('data-field-pattern');
 });
 
 test('shadow, inner shadow, layer blur and background blur write the selected object', async ({ page }) => {
@@ -98,7 +128,7 @@ test('video source produces the selected object video fill', async ({ page }) =>
 });
 
 test('shader gallery installs a visible shader fill and retains its editor', async ({ page }) => {
-  const editor = await openPaintFixture(page);
+  const editor = await openPaintFixture(page, ", overflow: 'visible', isolation: 'auto'");
   await page.locator('[data-inspector-section="fill"] button').filter({ hasText: /^66CCFF$/i }).click();
   const picker = page.getByRole('dialog', { name: 'Paint picker' });
   await picker.getByRole('button', { name: 'Shader', exact: true }).click();
@@ -106,6 +136,8 @@ test('shader gallery installs a visible shader fill and retains its editor', asy
   await expect.poll(() => editor.getPageCode()).toContain('data-field-shader-fill');
   await expect.poll(() => editor.getPageCode()).toContain('data-field-shader-layer');
   await expect(editor.node('abs-child').locator('canvas')).toBeVisible();
+  expect(await styleValue(editor, 'overflow')).toBe('visible');
+  expect(await styleValue(editor, 'isolation')).toBe('isolate');
   await expect(picker).toBeVisible();
   await page.screenshot({ path: '/tmp/field-shader-fill-after.png' });
   await page.keyboard.press('Escape');
@@ -115,9 +147,38 @@ test('shader gallery installs a visible shader fill and retains its editor', asy
   await page.waitForTimeout(400);
   await page.locator('[data-inspector-section="fill"]').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-layer');
+  expect(await styleValue(editor, 'overflow')).toBe('visible');
+  expect(await styleValue(editor, 'isolation')).toBe('auto');
+  expect(await styleValue(editor, 'position')).toBe('absolute');
   await page.waitForTimeout(400);
   await expect(editor.node('abs-child').locator('canvas')).toHaveCount(0);
   await page.keyboard.press('Meta+z');
   await expect.poll(() => editor.getPageCode()).toContain('data-field-shader-layer');
   await expect(editor.node('abs-child').locator('canvas')).toBeVisible();
+});
+
+test('switching away from a saved Shader restores frame styling and keeps newer edits', async ({ page }) => {
+  const editor = await openPaintFixture(page, ", overflow: 'visible', isolation: 'auto'");
+  const section = page.locator('[data-inspector-section="fill"]');
+  const picker = page.getByRole('dialog', { name: 'Paint picker' });
+  const layer = editor.node('abs-child');
+  await section.getByRole('button', { name: /^66CCFF$/i }).click();
+  await picker.getByRole('button', { name: 'Shader', exact: true }).click();
+  await page.getByRole('button', { name: 'Mesh Gradient', exact: true }).click();
+  await expect(layer.locator('canvas')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Clip content', exact: true }).click();
+  await expect.poll(() => layer.evaluate(el => getComputedStyle(el).overflow)).toBe('hidden');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('data-field-shader-style-backup');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain("overflow: 'hidden'");
+  await page.reload();
+  await expect(layer.locator('canvas')).toBeVisible();
+  await editor.select(['abs-child']);
+  await section.getByRole('button', { name: /^Shader/i }).click();
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await expect(layer.locator('canvas')).toHaveCount(0);
+  await expect.poll(() => styleValue(editor, 'isolation')).toBe('auto');
+  expect(await styleValue(editor, 'overflow')).toBe('hidden');
+  await expect.poll(() => editor.getPageCode()).toContain('data-field-pattern');
+  await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-');
 });

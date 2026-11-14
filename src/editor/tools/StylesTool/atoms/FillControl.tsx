@@ -54,7 +54,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { presetTokensAtom, livePresetTokenAtom } from '@/code/stores/preset-store';
 import { resolveCssTokens } from '@/code/project/preset-ops';
-import { queueMutation } from '@/code/mutation/mutation-queue';
+import { queueMutation, queueMutations } from '@/code/mutation/mutation-queue';
 import { instantCreateAndEditVariable } from '../../../controls/instant-create-variable';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { pageVariablesAtom } from '@/code/stores/page-variables-store';
@@ -63,10 +63,11 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
 import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
 import PatternSourcePanel from '@/editor/ui/PatternSourcePanel';
 import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+import { patternFillMutations, removePatternFillMutations, removeShaderFillMutations } from '@/editor/ui/managed-fill-styles';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
 
@@ -405,28 +406,8 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
 
     setConfig(next);
     if (!nodeId) return;
-    const compiled = buildPatternFillStyles(next, resolvedDefinition);
     forSelectionTargets(nodeId, (tid) => {
-      queueMutation({
-        type: 'updateStyles',
-        nodeId: tid,
-        styles: {
-          background: '',
-          backgroundColor: compiled.backgroundColor,
-          backgroundImage: compiled.backgroundImage,
-          backgroundSize: compiled.backgroundSize,
-          backgroundPosition: compiled.backgroundPosition,
-          backgroundRepeat: compiled.backgroundRepeat,
-          backgroundAttachment: '',
-          WebkitMaskImage: compiled.WebkitMaskImage,
-          maskImage: compiled.maskImage,
-        },
-      });
-      queueMutation({
-        type: 'updateHtmlAttrs',
-        nodeId: tid,
-        attrs: { 'data-field-pattern': serializePatternFillConfig(next) },
-      });
+      queueMutations(patternFillMutations(tid, getNodeFromCache(tid), next, resolvedDefinition));
     });
     trace.action('fill:pattern-applied', {
       nodeId,
@@ -1022,10 +1003,11 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
         onUpdate('backgroundSize', '');
         onUpdate('backgroundPosition', '');
         onUpdate('backgroundRepeat', '');
-        onUpdate('WebkitMaskImage', '');
-        onUpdate('maskImage', '');
         if (nodeId) {
-          forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '' } }));
+          forSelectionTargets(nodeId, (tid) => {
+            const target = getNodeFromCache(tid);
+            if (target) queueMutations(removePatternFillMutations(target));
+          });
         }
       }
       if (tab === 'video' && nodeId) {
@@ -1033,10 +1015,8 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       }
       if (tab === 'shader' && nodeId) {
         forSelectionTargets(nodeId, (tid) => {
-          queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-shader-fill': '' } });
-          for (const id of getNodeFromCache(tid)?.children ?? []) {
-            if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
-          }
+          const target = getNodeFromCache(tid);
+          if (target) queueMutations(removeShaderFillMutations(target));
         });
       }
     }
@@ -1057,28 +1037,8 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
     }
 
     if (newTab === 'pattern' && nodeId) {
-      const compiled = buildPatternFillStyles(DEFAULT_PATTERN_FILL);
       forSelectionTargets(nodeId, (tid) => {
-        queueMutation({
-          type: 'updateStyles',
-          nodeId: tid,
-          styles: {
-            background: '',
-            backgroundColor: compiled.backgroundColor,
-            backgroundImage: compiled.backgroundImage,
-            backgroundSize: compiled.backgroundSize,
-            backgroundPosition: compiled.backgroundPosition,
-            backgroundRepeat: compiled.backgroundRepeat,
-            backgroundAttachment: '',
-            WebkitMaskImage: compiled.WebkitMaskImage,
-            maskImage: compiled.maskImage,
-          },
-        });
-        queueMutation({
-          type: 'updateHtmlAttrs',
-          nodeId: tid,
-          attrs: { 'data-field-pattern': serializePatternFillConfig(DEFAULT_PATTERN_FILL) },
-        });
+        queueMutations(patternFillMutations(tid, getNodeFromCache(tid), DEFAULT_PATTERN_FILL));
       });
     }
 
@@ -2078,12 +2038,7 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
     }
     if (node?.id) forSelectionTargets(node.id, (tid) => {
       const target = getNodeFromCache(tid);
-      if (target?.attrs?.['data-field-pattern'] || target?.attrs?.['data-field-shader-fill']) {
-        queueMutation({ type: 'updateHtmlAttrs', nodeId: tid, attrs: { 'data-field-pattern': '', 'data-field-shader-fill': '' } });
-      }
-      for (const id of target?.children ?? []) {
-        if (getNodeFromCache(id)?.attrs?.['data-field-shader-layer'] === 'true') queueMutation({ type: 'removeNode', nodeId: id });
-      }
+      if (target) queueMutations([...removePatternFillMutations(target), ...removeShaderFillMutations(target)]);
     });
     trace.action('fill:clear-all', { nodeId: node?.id, onNonDefaultVariant });
   };
