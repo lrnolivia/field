@@ -13,7 +13,7 @@ import type { Point, PendingUpdate, Rect, NodeMap } from '@/shared/types';
 import { buildCanvasCloneDescriptor, dropDynamicStyleBindings } from '../clone-descriptor';
 import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { getParentCanvasOffsetById, getAbsoluteCanvasRectById } from '@/canvas/canvas-math';
-import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
+import { calculateSnap, getMouseVelocity, type ScreenCorners } from '../handlers/snap-handler';
 import { snapCorrection } from '../snap-precision';
 import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
 import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
@@ -801,6 +801,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     parent: NonNullable<ReturnType<typeof frameGuideGeometry>>, frameIds: string[],
     canvasSiblings: Array<{ id: string; rect: Rect }> = [],
     canvasGuides: ReturnType<typeof getActiveRulerGuideSnapLines> = [],
+    canvasSiblingCorners?: ReadonlyMap<string, ScreenCorners>,
   ) {
     const lift = this.liftCorners.get(nodeId);
     if (!lift) return null;
@@ -864,9 +865,14 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       sourcePositions.set(`ruler-guide:${guide.id}`, guide.position);
       lines.push({ ...guide, position });
     }
+    const siblingCorners = new Map<string, ScreenCorners>();
+    for (const [id, quad] of canvasSiblingCorners ?? []) {
+      const project = (point: Point) => canvasToLocalSnap(point.x, point.y);
+      siblingCorners.set(id, { TL: project(quad.TL), TR: project(quad.TR), BR: project(quad.BR), BL: project(quad.BL) });
+    }
     const snap = calculateSnap(rect, siblings, velocity, SNAP_THRESHOLD, {
       TL: scalePoint(corners.TL), TR: scalePoint(corners.TR), BR: scalePoint(corners.BR), BL: scalePoint(corners.BL),
-    }, undefined, lines);
+    }, siblingCorners, lines);
     const toCanvas = (x: number, y: number) => screenPointToCanvas(frameGuideToScreen(parent, x / sx, y / sy), transform, offset);
     const dx = this.lockedAxis === 'y' ? 0 : (snap.x - rect.left) / sx;
     const dy = this.lockedAxis === 'x' ? 0 : (snap.y - rect.top) / sy;
@@ -1160,6 +1166,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           primary.id, delta, transform, velocity, parentGuideGeometry, guideFrameIds,
           insideTransformedAncestor ? [] : siblingRects,
           insideTransformedAncestor ? [] : getActiveRulerGuideSnapLines(),
+          insideTransformedAncestor ? undefined : aifSiblingCorners,
         )
       : null;
     const snap = useProjectedGuides
