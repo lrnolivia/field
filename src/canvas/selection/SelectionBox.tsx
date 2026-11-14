@@ -268,7 +268,7 @@ export default function SelectionBox({ containerEl, contentEl, onSelectionChange
     altKey?: boolean;
     pointerType?: string;
   }) => {
-    if (!isActive || isViewerMode()) return false;
+    if (!isActive) return false;
     // Raw touch pointer events never start marquee directly. Mobile routes a
     // deliberate empty-space long press through the explicit touch-marquee
     // events below, preserving ordinary one-finger empty drag as camera pan.

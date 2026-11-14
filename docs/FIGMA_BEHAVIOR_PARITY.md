@@ -34,7 +34,7 @@ Official reference: https://help.figma.com/hc/en-us/articles/360040449873-Select
 | Locked objects are not selectable through normal canvas left-click | canvas hit-testing excludes a locked node or locked ancestor; Layers remains an explicit selection surface | verified | none | node-ops / lock Playwright coverage |
 | Hidden objects are not canvas-selectable | rendered hidden nodes have no selectable painted target | pass / chromium pending | Select-layer-menu semantics are a separate future audit item | existing visibility coverage |
 | Hovering a Layers row highlights its canvas location | implementation exists through the Layers hover/highlight path | pending audit | confirm exact parity and preference behavior before claiming pass | pending |
-| View-only users can select objects for inspection | field supports viewer selection outlines/properties, but this audit has not yet verified the full Figma selection surface (including marquee) | pending audit | inspect viewer-mode selection paths | pending |
+| View-only users can select objects for inspection | Desktop clicks and marquee select layers while source writes stay gated | verified | none for desktop selection | `figma-selection-parity.spec.ts` and saved-project viewer smoke |
 
 ## Batch 2 — hierarchy, reparenting, frames, groups
 
@@ -50,12 +50,12 @@ Official references:
 | Hold Space while adding an object to prevent automatic reparenting | Creator tools contextually own Space, bypass the shared parent resolver, and do not advertise the Hand/pan highlight while that override is active | verified | fixed in Batch 2 | creator-utils + CanvasMouseController + shortcut unit + `figma-hierarchy-parity.spec.ts` Chromium |
 | Drag an ordinary child out of a frame to reparent it out; hold Space to keep it in the current parent | AbsoluteInFrameStrategy performs code-first exit/reparent normally; while Space is held it suppresses exit and sibling-entry state, and releasing Space restores normal live exit behavior | verified | fixed in Batch 2 | AbsoluteInFrameStrategy unit + `figma-hierarchy-parity.spec.ts` Chromium |
 | Space override for children participating in Auto Layout / grid flow | Field flow/grid dragging uses LayoutLiftedStrategy/GridDragStrategy and an explicit placeholder/detach model | pending audit — Batch 4 | do not fake this with snap-back; map it with Figma's Ignore auto layout semantics in the Auto Layout batch | pending |
-| Frames keep independent dimensions when children move beyond their bounds | field frames are explicit box nodes; ordinary absolute children can overflow and move without auto-resizing the frame | pending Chromium | verify with real drag/resize flow before claiming parity | existing drag/frame tests + Chromium pending |
-| Groups derive their bounds from their children | field native groups use group semantics and live refit paths (including SVG/vector groups) | pending audit | verify native HTML group + vector group bounds behavior against Figma's documented group contract | native-group / drag tests pending review |
+| Frames keep independent dimensions when children move beyond their bounds | Field frames are explicit boxes. Moving a child leaves the frame dimensions fixed. | verified | none | `figma-group-frame-parity.spec.ts` |
+| Groups derive their bounds from their children | Moving a child refits the native group bounds | verified for HTML groups | vector group behavior remains a separate check | `figma-group-frame-parity.spec.ts` |
 | Moving an object into another eligible frame reparents it; moving it out reparents upward/out | absolute, canvas, layout-lifted, and grid strategies already implement parent entry/exit with source mutations | pending Chromium | audit size/containment thresholds and transformed-parent cases against documented behavior | extensive strategy unit/E2E exists; focused parity coverage pending |
-| Frames can be nested | field parser/source model supports nested frame/container nodes | pending Chromium | verify draw/drag nesting semantics, not just data-model capability | pending |
-| Frame from selection creates a frame around the selected objects | field exposes wrap-in-frame / frame-from-selection command paths | pending audit | verify bounds, source order, parent choice, and selection result | pending |
-| Group / ungroup preserves child hierarchy while group bounds remain child-derived | field has native group/ungroup commands and group editing/isolation behavior | pending audit | compare source hierarchy and bounds update semantics | pending |
+| Frames can be nested | Creating a frame within a frame produces a nested frame | verified | none | `figma-frame-parity.spec.ts` |
+| Frame from selection creates a frame around the selected objects | The keyboard command frames the selection while preserving child geometry | verified for the covered selection | none for the covered case | `figma-group-frame-parity.spec.ts` |
+| Group / ungroup preserves child hierarchy while group bounds remain child-derived | Group and Ungroup preserve child world geometry | verified for the covered selection | none for the covered case | `figma-group-frame-parity.spec.ts` |
 
 ### Batch 2 boundary
 

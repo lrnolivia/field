@@ -24,6 +24,7 @@ import {
   rulerGuideOps,
   type RulerGuide,
 } from '@/code/stores/ruler-guides-store';
+import { isViewerMode, useIsViewer } from '@/code/stores/viewer-mode-store';
 import { selectedIdsAtom } from '@/code/stores/store';
 
 const GUIDE_COLOR = '#0d9488';
@@ -35,6 +36,7 @@ const GUIDE_HIT_AREA = 8;
 interface GuideLineProps extends RulerInsets {
   guide: RulerGuide;
   isSelected: boolean;
+  readOnly: boolean;
   screenPosition: number;
   topOffset: number;
   onSelect: (id: string) => void;
@@ -43,10 +45,10 @@ interface GuideLineProps extends RulerInsets {
 }
 
 const GuideLine: React.FC<GuideLineProps> = ({
-  guide, isSelected, screenPosition, topOffset, left, right, onSelect, onContextMenu, onStartDrag,
+  guide, isSelected, readOnly, screenPosition, topOffset, left, right, onSelect, onContextMenu, onStartDrag,
 }) => {
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // left-click only; right-click → context menu
+    if (e.button !== 0 || isViewerMode()) return; // left-click only; right-click → context menu
     e.preventDefault();
     e.stopPropagation();
     onSelect(guide.id);
@@ -54,6 +56,7 @@ const GuideLine: React.FC<GuideLineProps> = ({
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
+    if (isViewerMode()) return;
     e.preventDefault();
     e.stopPropagation();
     onContextMenu(e, guide.id);
@@ -72,8 +75,8 @@ const GuideLine: React.FC<GuideLineProps> = ({
           top: screenPosition,
           height: 1,
           backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
-          pointerEvents: 'auto',
-          cursor: 'row-resize',
+          pointerEvents: readOnly ? 'none' : 'auto',
+          cursor: readOnly ? 'default' : 'row-resize',
           zIndex: 4895,
         }}
       >
@@ -81,7 +84,7 @@ const GuideLine: React.FC<GuideLineProps> = ({
             without pixel-perfect aim. */}
         <div style={{
           position: 'absolute', left: 0, right: 0,
-          top: -GUIDE_HIT_AREA / 2, height: GUIDE_HIT_AREA, cursor: 'row-resize',
+          top: -GUIDE_HIT_AREA / 2, height: GUIDE_HIT_AREA, cursor: readOnly ? 'default' : 'row-resize',
         }} />
       </div>
     );
@@ -98,14 +101,14 @@ const GuideLine: React.FC<GuideLineProps> = ({
         left: screenPosition,
         width: 1,
         backgroundColor: isSelected ? GUIDE_COLOR_SELECTED : GUIDE_COLOR,
-        pointerEvents: 'auto',
-        cursor: 'col-resize',
+        pointerEvents: readOnly ? 'none' : 'auto',
+        cursor: readOnly ? 'default' : 'col-resize',
         zIndex: 4895,
       }}
     >
       <div style={{
         position: 'absolute', top: 0, bottom: 0,
-        left: -GUIDE_HIT_AREA / 2, width: GUIDE_HIT_AREA, cursor: 'col-resize',
+        left: -GUIDE_HIT_AREA / 2, width: GUIDE_HIT_AREA, cursor: readOnly ? 'default' : 'col-resize',
       }} />
     </div>
   );
@@ -167,6 +170,7 @@ function useTransform() {
 export default function RulerGuides({ left, right }: RulerInsets) {
   const store = useStore();
   const showRulers = useAtomValue(showRulersAtom);
+  const readOnly = useIsViewer();
   const guides = useAtomValue(activeRulerGuidesAtom);
   const selectedId = useAtomValue(selectedGuideIdAtom);
   // Guides whose id appears here are currently being snapped against —
@@ -229,7 +233,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
   }, []);
 
   useEffect(() => {
-    if (!showRulers) return;
+    if (!showRulers || readOnly) return;
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -270,12 +274,12 @@ export default function RulerGuides({ left, right }: RulerInsets) {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('blur', cancelDrag);
     };
-  }, [activeFilePath, cancelDrag, setSelectedId, showRulers, store]);
+  }, [activeFilePath, cancelDrag, readOnly, setSelectedId, showRulers, store]);
 
   useEffect(() => {
     setSelectedId(null);
     setContextMenu(null);
-  }, [activeFilePath, setSelectedId, showRulers]);
+  }, [activeFilePath, readOnly, setSelectedId, showRulers]);
 
   // ─── Click-elsewhere to deselect ───────────────────────────────────
   useEffect(() => {
@@ -295,7 +299,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
   // ─── Keyboard: Backspace/Delete removes, Esc deselects ─────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!showRulers || !selectedId) return;
+      if (!showRulers || !selectedId || isViewerMode()) return;
       // Skip when typing in an input / contenteditable / TipTap editor.
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
@@ -328,7 +332,8 @@ export default function RulerGuides({ left, right }: RulerInsets) {
           <GuideLine
             key={g.id}
             guide={g}
-            isSelected={selectedId === g.id}
+            isSelected={!readOnly && selectedId === g.id}
+            readOnly={readOnly}
             screenPosition={screenPosition}
             left={left}
             right={right}
@@ -339,7 +344,7 @@ export default function RulerGuides({ left, right }: RulerInsets) {
           />
         );
       })}
-      {contextMenu && (
+      {!readOnly && contextMenu && (
         <GuideContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
