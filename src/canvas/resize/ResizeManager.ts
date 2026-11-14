@@ -57,8 +57,8 @@ import { findChildRects, getContentRootRect } from '@/canvas/node-ops';
 import { getAbsoluteCanvasRectById, getParentCanvasOffsetById } from '@/canvas/canvas-math';
 import type { SnapGuide, Transform } from '@/shared/types';
 import { SNAP_THRESHOLD } from '@/shared/constants';
-import { getActiveRulerGuideSnapLines, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
-import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
+import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { nodesAtom } from '@/code/stores/store';
 import { viewportsConfigAtom, viewportWidthsAtom } from '@/code/stores/viewport-store';
 import { getAllCachedNodes } from '@/code/stores/store';
@@ -283,6 +283,93 @@ function snapResizeRotated(
   return { width: Math.max(1, snappedW), height: Math.max(1, snappedH), guides };
 }
 
+type ResizeBox = { left: number; top: number; width: number; height: number };
+type ResizeX = 'left' | 'right' | null;
+type ResizeY = 'top' | 'bottom' | null;
+type ResizeGuideFrame = {
+  geometry: NonNullable<ReturnType<typeof frameGuideGeometry>>;
+  lines: ReturnType<typeof getFrameRulerGuideSnapLines>;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+};
+
+function captureResizeGuideFrames(nodeId: string, viewportId: string, start: ResizeBox, border: { width: number; height: number }): ResizeGuideFrame[] {
+  const frames = getAncestorRulerGuideFrameIds(nodeId, viewportId);
+  if (!frames.length) return [];
+  const corners = getScreenCornersById(nodeId, viewportId);
+  if (!corners) return [];
+  return frames.flatMap(id => {
+    const geometry = frameGuideGeometry({ id, viewportId });
+    if (!geometry) return [];
+    const lines = getFrameRulerGuideSnapLines(id, viewportId, geometry);
+    if (!lines.length) return [];
+    const [tl, tr, br, bl] = [corners.TL, corners.TR, corners.BR, corners.BL].map(p => geometry.toLocal(p.x, p.y));
+    const scaleX = (tr.x - tl.x) / (start.width + border.width);
+    const scaleY = (bl.y - tl.y) / (start.height + border.height);
+    // In the guide frame's coordinates the child's edges must stay parallel.
+    // This permits inherited scale/translation and shared perspective, but
+    // doesn't pretend that a tilted edge will align to a parallel ruler line.
+    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0
+      || [tr.y - tl.y, bl.x - tl.x, br.x - tr.x, br.y - bl.y].some(d => !Number.isFinite(d) || Math.abs(d) > 0.1)) return [];
+    return [{ geometry, lines, x: tl.x - start.left * scaleX, y: tl.y - start.top * scaleY, scaleX, scaleY }];
+  });
+}
+
+function snapResizeToFrameGuides(
+  proposed: ResizeBox,
+  xHandle: ResizeX,
+  yHandle: ResizeY,
+  frames: ResizeGuideFrame[],
+  border: { width: number; height: number },
+  aspectRatio: number | undefined,
+): { box: ResizeBox; guides: SnapGuide[]; axes: Set<'x' | 'y'> } {
+  type Candidate = { box: ResizeBox; guide: SnapGuide; distance: number };
+  const best: Partial<Record<'x' | 'y', Candidate>> = {};
+  for (const frame of frames) {
+    const cx = frame.x + (proposed.left + (proposed.width + border.width) / 2) * frame.scaleX;
+    const cy = frame.y + (proposed.top + (proposed.height + border.height) / 2) * frame.scaleY;
+    for (const line of frame.lines) {
+      const axis = line.axis;
+      const isX = axis === 'x';
+      const handle = isX ? xHandle : yHandle;
+      if (!handle) continue;
+      const fromStart = handle === 'left' || handle === 'top';
+      const scale = isX ? frame.scaleX : frame.scaleY;
+      const halfEdge = isX ? (proposed.width + border.width) / 2 : (proposed.height + border.height) / 2;
+      const moving = (isX ? cx : cy) + (fromStart ? -1 : 1) * halfEdge * scale;
+      const project = (p: number) => isX
+        ? frameGuideToScreen(frame.geometry, p, cy) : frameGuideToScreen(frame.geometry, cx, p);
+      const current = project(moving);
+      const target = project(line.position);
+      const distance = Math.hypot(target.x - current.x, target.y - current.y);
+      if (!Number.isFinite(distance) || distance >= (best[axis]?.distance ?? SNAP_THRESHOLD)) continue;
+
+      const delta = (line.position - moving) / scale * (fromStart ? -1 : 1);
+      const width = isX ? proposed.width + delta : aspectRatio ? (proposed.height + delta) * aspectRatio : proposed.width;
+      const height = !isX ? proposed.height + delta : aspectRatio ? width / aspectRatio : proposed.height;
+      if (width < MIN_SIZE || height < MIN_SIZE) continue;
+      const left = proposed.left + (xHandle === 'left' ? 1 : xHandle === null ? 0.5 : 0) * (proposed.width - width);
+      const top = proposed.top + (yHandle === 'top' ? 1 : yHandle === null ? 0.5 : 0) * (proposed.height - height);
+      best[axis] = { box: { left, top, width, height }, distance, guide: { axis, position: line.position, type: 'edge', referenceId: `ruler-guide:${line.id}` } };
+    }
+  }
+  const { x, y } = best;
+  if (aspectRatio && (x || y)) {
+    // A locked resize has one degree of freedom. Use the closest guide and
+    // keep the other axis attached to the same corner or midpoint.
+    const snap = x && (!y || x.distance <= y.distance) ? x : y!;
+    return { box: snap.box, guides: [snap.guide], axes: new Set(['x', 'y']) };
+  }
+  const guides = [x, y].flatMap(candidate => candidate ? [candidate.guide] : []);
+  return {
+    box: { left: x?.box.left ?? proposed.left, top: y?.box.top ?? proposed.top,
+      width: x?.box.width ?? proposed.width, height: y?.box.height ?? proposed.height },
+    guides, axes: new Set(guides.map(guide => guide.axis)),
+  };
+}
+
 /** Snap resizing edges against sibling rects + parent inner walls.
  *  Operates entirely in canvas-space — same coordinate system the drag
  *  strategies use via `getAbsoluteCanvasRectById` / `getParentCanvasOffsetById`.
@@ -296,11 +383,8 @@ function snapResizeEdges(
   xHandle: 'left' | 'right' | null, yHandle: 'top' | 'bottom' | null,
   nodeId: string, vpId: string, parentId: string | null,
   transform: Transform,
-  frameGuides?: {
-    geometry: NonNullable<ReturnType<typeof frameGuideGeometry>>;
-    lines: ReturnType<typeof getFrameRulerGuideSnapLines>;
-    inset: { x: number; y: number; width: number; height: number };
-  },
+  skipAxes: ReadonlySet<'x' | 'y'>,
+  handledGuideIds: ReadonlySet<string>,
 ): { left: number; top: number; width: number; height: number; guides: SnapGuide[] } {
   const guides: SnapGuide[] = [];
   let snapLeft = newLeft, snapTop = newTop, snapWidth = newWidth, snapHeight = newHeight;
@@ -326,9 +410,9 @@ function snapResizeEdges(
   // guide is a single line on its axis; for resize we treat it like a
   // sibling edge (no center/secondary positions). Read once per resize
   // cycle so the cost is constant in the number of guides.
-  const rulerGuides = getActiveRulerGuideSnapLines(nodeId, vpId);
+  const rulerGuides = getActiveRulerGuideSnapLines(nodeId, vpId).filter(line => !handledGuideIds.has(line.id));
 
-  if (siblings.length === 0 && rulerGuides.length === 0 && !frameGuides) {
+  if (siblings.length === 0 && rulerGuides.length === 0) {
     return { left: snapLeft, top: snapTop, width: snapWidth, height: snapHeight, guides };
   }
 
@@ -336,36 +420,7 @@ function snapResizeEdges(
   // on an axis. Ruler-guide refIds carry the `ruler-guide:` prefix so
   // overlay rendering can tell them apart from sibling-edge guides.
   const findSnap = (pos: number, axis: 'x' | 'y'): { snapped: number; guide: SnapGuide } | null => {
-    if (frameGuides) {
-      const { geometry, lines, inset } = frameGuides;
-      const isX = axis === 'x';
-      const fromStart = isX ? xHandle === 'left' : yHandle === 'top';
-      const size = isX ? newWidth : newHeight;
-      const moving = pos - parentOffset[axis] + inset[axis] + (fromStart ? 0 : isX ? inset.width : inset.height);
-      const center = isX
-        ? newTop + inset.y + (newHeight + inset.height) / 2
-        : newLeft + inset.x + (newWidth + inset.width) / 2;
-      const project = (p: number) => isX ? frameGuideToScreen(geometry, p, center) : frameGuideToScreen(geometry, center, p);
-      const point = project(moving);
-      let bestDistance = SNAP_THRESHOLD;
-      let best: (typeof lines)[number] | undefined;
-      for (const line of lines) {
-        if (line.axis !== axis) continue;
-        const target = project(line.position);
-        const distance = Math.hypot(point.x - target.x, point.y - target.y);
-        const delta = line.position - moving;
-        if (distance < bestDistance && size + (fromStart ? -delta : delta) >= MIN_SIZE) {
-          best = line;
-          bestDistance = distance;
-        }
-      }
-      if (best) {
-        return {
-          snapped: pos + best.position - moving,
-          guide: { axis, position: best.position, type: 'edge', referenceId: `ruler-guide:${best.id}` },
-        };
-      }
-    }
+    if (skipAxes.has(axis)) return null;
     let bestDist = threshold, bestPos = pos, bestRef = '', bestType: 'edge' | 'center' = 'edge';
     for (const sib of siblings) {
       const targets = axis === 'x'
@@ -623,7 +678,8 @@ export function applyVectorAspectLock(
   if (yHandle && !xHandle) {
     const w = newHeight * aspectRatio;
     const left = isInLayout ? curLeft : curLeft - (w - curWidth) / 2;
-    return { width: w, height: newHeight, left, top: curTop };
+    const top = !isInLayout && yHandle === 'top' ? curTop + curHeight - newHeight : curTop;
+    return { width: w, height: newHeight, left, top };
   }
   // Corner OR horizontal edge → width drives height.
   const h = newWidth / aspectRatio;
@@ -633,7 +689,8 @@ export function applyVectorAspectLock(
   } else if (yHandle === 'top' && !isInLayout) {
     top = curTop + (curHeight - h);                              // corner, top handle: pin bottom
   }
-  return { width: newWidth, height: h, left: curLeft, top };
+  const left = !isInLayout && xHandle === 'left' ? curLeft + curWidth - newWidth : curLeft;
+  return { width: newWidth, height: h, left, top };
 }
 
 /**
@@ -1939,30 +1996,19 @@ export function startResize(
   }
   const hasTransform = !isInLayout && !!matrixStr && matrixStr !== 'none'
     && (!isNestedSvg || isVariantRotatedChild);
-  // The active edges of a directly positioned, untransformed child are
-  // parallel to its frame's local ruler guides, even when tilted on screen.
   const hasIndividualTransform = ['rotate', 'scale', 'translate'].some(property => {
     const value = computedStyles[property] || nodeStyles[property];
     return value && value !== 'none';
   });
-  const localGuideFrame = parentId && childPosition === 'absolute' && !hasTransform && !isNestedSvg
-    && !isSvgGroupChild && !hasIndividualTransform
-    ? frameGuideGeometry({ id: parentId, viewportId: vpId }) : null;
-  const localGuideLines = localGuideFrame && parentId
-    ? getFrameRulerGuideSnapLines(parentId, vpId, localGuideFrame).filter(line => {
-      // The existing screen-axis snap handles axis-aligned guides.
-      const segment = frameGuideSegment(localGuideFrame, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
-      return segment && Math.abs(segment.end[line.axis] - segment.start[line.axis]) > 0.01;
-    }) : [];
-  const startGuideCorner = localGuideLines.length ? getScreenCornersById(nodeId, vpId)?.TL : undefined;
-  const localGuideOrigin = localGuideFrame && startGuideCorner
-    ? localGuideFrame.toLocal(startGuideCorner.x, startGuideCorner.y) : null;
-  const guideBoxInset = localGuideOrigin ? {
-    x: localGuideOrigin.x - startLeft,
-    y: localGuideOrigin.y - startTop,
+  const guideBorder = {
     width: (Number.parseFloat(computedStyles.__offsetWidth) || startWidth) - startWidth,
     height: (Number.parseFloat(computedStyles.__offsetHeight) || startHeight) - startHeight,
-  } : null;
+  };
+  const guideFrames = parentId && childPosition === 'absolute' && !hasTransform && !isNestedSvg
+    && !isSvgGroupChild && !hasIndividualTransform && !isVectorSet
+    ? captureResizeGuideFrames(nodeId, vpId, { left: startLeft, top: startTop, width: startWidth, height: startHeight }, guideBorder)
+    : [];
+  const handledGuideIds = new Set(guideFrames.flatMap(frame => frame.lines.map(line => line.id)));
   trace.action('resize:transform-check', {
     computedTransform: computedStyles.transform || '(empty)',
     nodeStylesTransform: nodeStyles.transform || '(empty)',
@@ -2294,6 +2340,9 @@ export function startResize(
     }
   };
 
+  // Track axes actually patched, including dimensions derived from a ratio.
+  let wroteWidth = false;
+  let wroteHeight = false;
   const onMove = (e: PointerEvent) => {
     // Mouse delta in screen pixels. The FROZEN lift basis converts
     // it directly into local CSS units (the basis already includes
@@ -2330,7 +2379,8 @@ export function startResize(
 
     // Shift preserves the starting ratio from every handle, including edges.
     // Vector sets and explicitly locked objects preserve it without Shift.
-    if (isVectorSet || hasPersistentAspectLock || e.shiftKey) {
+    const aspectLocked = isVectorSet || hasPersistentAspectLock || e.shiftKey;
+    if (aspectLocked) {
       const locked = applyVectorAspectLock(newWidth, newHeight, curWidth, curHeight, curLeft, curTop, aspectRatio, xHandle, yHandle, isInLayout);
       newWidth = locked.width;
       newHeight = locked.height;
@@ -2419,18 +2469,19 @@ export function startResize(
         newHeight = snapped.height;
         callbacks.onSnapGuidesChange?.(snapped.guides);
       } else {
-        const frameGuides = localGuideFrame && guideBoxInset && !e.shiftKey && !hasPersistentAspectLock && !isVectorSet
-          ? { geometry: localGuideFrame, lines: localGuideLines, inset: guideBoxInset }
-          : undefined;
+        const local = snapResizeToFrameGuides(
+          { left: newLeft, top: newTop, width: newWidth, height: newHeight },
+          xHandle, yHandle, guideFrames, guideBorder, aspectLocked ? aspectRatio : undefined,
+        );
         const snapped = snapResizeEdges(
-          newLeft, newTop, newWidth, newHeight,
-          xHandle, yHandle, nodeId, vpId, parentId, txform, frameGuides,
+          local.box.left, local.box.top, local.box.width, local.box.height,
+          xHandle, yHandle, nodeId, vpId, parentId, txform, local.axes, handledGuideIds,
         );
         newLeft = snapped.left;
         newTop = snapped.top;
         newWidth = snapped.width;
         newHeight = snapped.height;
-        callbacks.onSnapGuidesChange?.(snapped.guides);
+        callbacks.onSnapGuidesChange?.([...local.guides, ...snapped.guides]);
       }
     } else {
       callbacks.onSnapGuidesChange?.([]);
@@ -2519,27 +2570,23 @@ export function startResize(
     }
 
 
-    // Update styles via bridge — pin-aware: update the correct CSS properties.
-    // CRITICAL: Only update an axis if the resize handle affects it.
-    // Transform compensation can shift newTop/newLeft even for single-axis
-    // handle drags — we must NOT propagate those shifts to pinned inset axes.
-    const handleAffectsX = xHandle !== null;
-    const handleAffectsY = yHandle !== null;
+    // Locked resize may change both dimensions from an edge handle. If
+    // Shift comes up mid-gesture, restore the derived axis on the next move.
+    const handleAffectsX = xHandle !== null || aspectLocked || wroteWidth;
+    const handleAffectsY = yHandle !== null || aspectLocked || wroteHeight;
 
     const prevW = parseFloat(liveStyles.width) || startWidth;
     const prevH = parseFloat(liveStyles.height) || startHeight;
     // Preserve original unit during resize (% stays as %, px stays as px).
     // In inset mode, don't set width/height — CSS derives size from insets.
-    // A vector set is aspect-locked, so BOTH axes change on any handle — patch
-    // both live (not just the handle's own axis) so it doesn't distort during the
-    // drag then snap proportional on mouseup.
-    if ((handleAffectsX || isVectorSet) && !inset.horizontalInset) {
+    if (handleAffectsX && !inset.horizontalInset) {
       const w = formatResizeDimension(newWidth, origWidthUnit, widthPxPerUnit, parentCssWidth, posPx);
       // Baked group: the sandbox sets the group width atomically with viewBox +
       // children (below), so skip the standalone DOM patch (avoids a 1-frame
       // width/viewBox mismatch = shear). liveStyles still feeds the commit.
       if (!isBakedGroup) patchNodeStyles(contentEl, nodeId, vpPrefix, { width: w });
       liveStyles.width = w;
+      wroteWidth = true;
 
       // LIVE band crossing (see setup above): the width just moved across a
       // responsiveVariantMap / responsivePropStyles boundary — re-render at
@@ -2585,10 +2632,11 @@ export function startResize(
         liveStyles.left = leftVal;
       }
     }
-    if ((handleAffectsY || isVectorSet) && !inset.verticalInset) {
+    if (handleAffectsY && !inset.verticalInset) {
       const h = formatResizeDimension(newHeight, origHeightUnit, heightPxPerUnit, parentCssHeight, posPx);
       if (!isBakedGroup) patchNodeStyles(contentEl, nodeId, vpPrefix, { height: h });
       liveStyles.height = h;
+      wroteHeight = true;
 
       // Live-mirror primary viewport height to every replica during drag.
       // The mouseup commit eventually re-renders all viewports from the
@@ -2881,16 +2929,9 @@ export function startResize(
           wrotePctTop,
         );
 
-    // A VECTOR SET stays aspect-locked, so even an EDGE drag changed BOTH width
-    // and height (`applyVectorAspectLock`). `getResizeCommitProperties` only keeps
-    // the handle's own axis, so force-commit the OTHER dimension too — else the
-    // locked dimension snaps back on mouseup.
-    if (isVectorSet || hasPersistentAspectLock) {
-      // Edge resize under a persistent lock changes BOTH axes. Commit both or
-      // the derived axis snaps back on mouseup. Keep aspectRatio untouched.
-      if (liveStyles.width) finalStyles.width = liveStyles.width;
-      if (liveStyles.height) finalStyles.height = liveStyles.height;
-    }
+    // Keep a derived dimension only if this gesture actually wrote it.
+    if (wroteWidth) finalStyles.width = liveStyles.width;
+    if (wroteHeight) finalStyles.height = liveStyles.height;
     if (isVectorSet) {
       // "Both rows on Fit" means the variant's NATURAL size — a hand resize just
       // left it, so the panel would go on showing auto / auto over a size that
