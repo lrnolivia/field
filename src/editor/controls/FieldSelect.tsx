@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -95,6 +96,7 @@ export default function FieldSelect({
   menuMaxHeight = DEFAULT_MAX_HEIGHT,
   onOpenChange,
 }: FieldSelectProps) {
+  const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -349,6 +351,7 @@ export default function FieldSelect({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
         disabled={disabled || options.length === 0}
         onClick={(event) => {
           if (suppressNextClickRef.current) { suppressNextClickRef.current = false; event.preventDefault(); return; }
@@ -400,6 +403,7 @@ export default function FieldSelect({
       {isOpen && position && createPortal(
         <div
           ref={menuRef}
+          id={menuId}
           role="listbox"
           aria-label={ariaLabel}
           data-field-menu-surface

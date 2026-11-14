@@ -38,8 +38,20 @@ export default function Page(){return <div data-id="root" data-name="Page" style
   await page.waitForTimeout(350);
   await wizard.screenshot({path:'/tmp/field-gallery-creation-review.png'});
   await wizard.getByRole('button', { name:'Next',exact:true }).click();
-  await expect(wizard.getByRole('img', { name:'Gallery grid preview',exact:true })).toBeVisible();
+  const layout = wizard.getByRole('button', { name: 'Initial Gallery view' });
+  await layout.click();
+  const layoutMenu = page.getByRole('listbox', { name: 'Initial Gallery view' });
+  await expect(layoutMenu).toBeVisible();
+  await layout.press('Escape');
+  await expect(layoutMenu).toHaveCount(0);
+  await expect(wizard).toBeVisible();
+  await layout.click();
+  await layoutMenu.getByRole('option', { name: 'Carousel', exact: true }).click();
+  await expect(wizard.getByRole('img', { name: 'Gallery carousel preview', exact: true })).toBeVisible();
   await wizard.getByRole('button', { name:'Next',exact:true }).click();
+  await wizard.getByRole('button', { name: 'Initial Gallery media fit' }).click();
+  await page.getByRole('listbox', { name: 'Initial Gallery media fit' })
+    .getByRole('option', { name: 'Contain', exact: true }).click();
   await wizard.getByRole('button', { name:'Finish',exact:true }).click();
   await expect(wizard).toHaveCount(0);
   await expect.poll(async()=> (await editor.getPageCode()).match(/--field-gallery-item/g)?.length).toBe(2);
@@ -49,4 +61,19 @@ export default function Page(){return <div data-id="root" data-name="Page" style
   await page.locator('[data-media-upload-tray="collapsed"]').getByRole('button', { name:'Clear', exact:true }).click();
   await page.waitForTimeout(350);
   await content.screenshot({path:'/tmp/field-gallery-desktop-review.png'});
+
+  await page.getByRole('button', { name: 'preview', exact: true }).click();
+  const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
+  const gallery = preview.getByRole('region', { name: 'Gallery', exact: true });
+  await expect(gallery).toBeVisible();
+  const firstImage = gallery.locator('img').first();
+  await expect(firstImage).toHaveAttribute('alt', '');
+  await expect(firstImage).toHaveCSS('object-fit', 'contain');
+  const next = gallery.getByRole('link', { name: 'Next image', exact: true }).first();
+  const targetId = (await next.getAttribute('href'))?.slice(1);
+  expect(targetId).toBeTruthy();
+  await next.click();
+  await expect.poll(() => gallery.evaluate(node => Math.abs(node.scrollWidth - node.clientWidth - node.scrollLeft))).toBeLessThan(2);
+  await gallery.locator(`[id="${targetId}"]`).getByRole('link', { name: 'Previous image', exact: true }).click();
+  await expect.poll(() => gallery.evaluate(node => Math.abs(node.scrollLeft))).toBeLessThan(2);
 });

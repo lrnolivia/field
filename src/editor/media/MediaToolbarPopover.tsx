@@ -76,11 +76,18 @@ export default function MediaToolbarPopover({
       // Gallery's image picker is portaled above this popover. Its controls
       // belong to the pending creation flow, rather than an outside click.
       if (target?.closest('[data-field-modal-window]')) return;
-      if (!ref.current?.contains(target)) onClose();
+      if (ref.current?.contains(target)) return;
+      const menuId = target?.closest('[data-field-menu-surface][role="listbox"]')?.id;
+      const triggers = ref.current?.querySelectorAll('[data-field-select-trigger][aria-expanded="true"]');
+      if (menuId && Array.from(triggers ?? []).some(trigger => trigger.getAttribute('aria-controls') === menuId)) return;
+      onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (document.querySelector('[data-field-modal-window]')) return;
+      const target = event.target;
+      if (target instanceof Element && ref.current?.contains(target)
+        && target.closest('[data-field-select-trigger][aria-expanded="true"]')) return;
       event.stopPropagation();
       onClose();
     };
