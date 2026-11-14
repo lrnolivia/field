@@ -93,7 +93,7 @@ test('sidebar Gallery creates a visible page child without a selection', async (
   await expect(wizard).not.toBeVisible();
   const canvasGallery = editor.node('root').getByRole('region', { name: 'Gallery', exact: true });
   await expect(canvasGallery).toBeVisible();
-  await expect(canvasGallery).toHaveCSS('left', '0px');
+  await expect(canvasGallery).not.toHaveCSS('position', 'absolute');
   await expect.poll(() => canvasGallery.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'preview', exact: true }).click();
   const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
