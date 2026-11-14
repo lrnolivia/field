@@ -2,10 +2,26 @@ import { describe, expect, it } from 'vitest';
 import {
   mediaNodeAcceptsChild,
   mediaNodeAcceptsKind,
+  resolveDesktopGalleryTarget,
   resolveToolbarMediaPlacement,
 } from './media-placement';
 
 describe('toolbar Media contextual placement', () => {
+  it('uses a selected page container or the page root for Gallery placement', () => {
+    const page = { id: 'root', type: 'main', parentId: null, isCanvasNode: false };
+    const frame = { id: 'frame', type: 'div', parentId: 'root', isCanvasNode: false };
+    const scratch = { id: 'scratch', type: 'div', parentId: null, isCanvasNode: true };
+    const image = { id: 'image', type: 'img', parentId: 'frame', isCanvasNode: false };
+    const nodes = [scratch, frame, image, page];
+    expect(resolveDesktopGalleryTarget(frame, nodes)).toBe(frame);
+    expect(resolveDesktopGalleryTarget(scratch, nodes)).toBe(page);
+    expect(resolveDesktopGalleryTarget(image, nodes)).toBe(page);
+    expect(resolveDesktopGalleryTarget(undefined, nodes)).toBe(page);
+    expect(resolveDesktopGalleryTarget(undefined, [scratch, frame])).toBeUndefined();
+    const importedPage = { ...page, id: 'imported-home' };
+    expect(resolveDesktopGalleryTarget(undefined, [scratch, importedPage])).toBe(importedPage);
+  });
+
   it('recognizes the existing media node types that can accept a source replacement', () => {
     expect(mediaNodeAcceptsKind('img', 'image')).toBe(true);
     expect(mediaNodeAcceptsKind('Image', 'image')).toBe(true);

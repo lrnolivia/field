@@ -24,15 +24,18 @@ import { measureGallerySourceRatio } from '@/code/gallery/gallery-source-ratio';
 import { buildGalleryCarouselSyncMutations } from '@/code/gallery/gallery-mutations';
 import { completeGalleryCreationSession } from '@/code/gallery/gallery-creation-session';
 import { queueMutations, flushNow, type Mutation } from '@/code/mutation/mutation-queue';
-import { selectedIdsAtom, getNodeFromCache } from '@/code/stores/store';
+import { selectedIdsAtom, getNodeFromCache, getAllCachedNodes } from '@/code/stores/store';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
-import { viewportPrefixesForNode } from '@/canvas/node-ops';
-import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter } from '@/canvas/insert-toolbar-item';
+import { getActiveFilePath, viewportPrefixesForNode } from '@/canvas/node-ops';
+import { insertToolbarItemAtSelection, insertToolbarItemAtVisibleCenter, toolbarItemToClipboardNodes } from '@/canvas/insert-toolbar-item';
+import { insertNodes } from '@/canvas/insertion-bridge';
+import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
+import { hasLayout } from '@/code/features/paste-engine/core/target-resolver';
 import { mediaImageToolbarItem, type MediaImageDimensions } from './media-canvas-placement';
 import { getImageDimensions } from '@/canvas/image-dims';
 import { getProjectId } from '@/backend/project-id';
 import { ingestMediaFile, isMediaUploadCancelled } from './media-ingest';
-import { mediaNodeAcceptsChild, resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
+import { mediaNodeAcceptsChild, resolveDesktopGalleryTarget, resolveToolbarMediaPlacement, type ToolbarMediaPlacement } from './media-placement';
 import { CATEGORIES } from '@/shared/insert-items/element-data';
 import { ELEMENT_ICON_MAP } from '@/shared/insert-items/element-icons';
 import MobileGlyph from '@/editor/portrait/MobileGlyph';
@@ -216,6 +219,7 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
     // container chosen when the wizard opened instead of consulting whatever
     // happens to be selected after that async work finishes.
     const galleryTargetId = session.targetId;
+    const activeFile = getActiveFilePath();
     let galleryId: string | null = null;
     let committed = false;
 
@@ -225,13 +229,28 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
         : undefined;
 
       if (portrait && !alive.current) return;
+      if (presentation === 'regular' && (!alive.current || getActiveFilePath() !== activeFile)) return;
       const plan = buildGalleryWizardSourcePlan({ ...config, sourceRatios: ratios });
-      const created =
-        galleryTargetId
-        && getNodeFromCache(galleryTargetId)
-        && mediaNodeAcceptsChild(getNodeFromCache(galleryTargetId)?.type)
-          ? insertToolbarItemAtSelection('gallery', galleryTargetId)
+      const selected = galleryTargetId ? getNodeFromCache(galleryTargetId) : undefined;
+      let created: string[];
+      if (presentation === 'regular') {
+        const target = resolveDesktopGalleryTarget(selected, getAllCachedNodes());
+        const item = getToolbarItemConfig('gallery');
+        if (!target || !item) throw new Error('Could not find a page container for the Gallery.');
+        // Gallery uses a percentage width. A page or frame provides a real
+        // width and includes the new Gallery in Preview.
+        created = insertNodes(toolbarItemToClipboardNodes(item), {
+          selectionOverride: [target.id],
+          forceInsertIndex: target.children.length,
+          // The paste engine normally centers fixed-size children in a
+          // freeform frame. A percentage-wide Gallery starts at the origin.
+          forceNoLayoutPosition: hasLayout(target) ? undefined : { x: 0, y: 0 },
+        });
+      } else {
+        created = selected && mediaNodeAcceptsChild(selected.type)
+          ? insertToolbarItemAtSelection('gallery', selected.id)
           : insertToolbarItemAtVisibleCenter('gallery');
+      }
       galleryId = created[0] ?? null;
       if (!galleryId) throw new Error('Could not place the Gallery on the canvas.');
 
