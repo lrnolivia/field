@@ -15,8 +15,8 @@ import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { getParentCanvasOffsetById, getAbsoluteCanvasRectById } from '@/canvas/canvas-math';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
 import { snapCorrection } from '../snap-precision';
-import { getActiveRulerGuideSnapLines, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
-import { frameGuideGeometry, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
+import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { viewportsConfigAtom } from '@/code/stores/viewport-store';
 import { overlayEditingIdAtom, overlayTriggerCallsAtom } from '@/code/stores/overlay-store';
@@ -31,7 +31,7 @@ import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 import { getIframeOffset, screenPointToCanvas } from '../helpers/coords';
 import { getScreenCornersById, pointInQuad, isFullyInsideQuad, isFullyOutsideQuad, nodeOrAncestorHasRotationOrSkewById, cornersAreAxisAligned , matrixHasRotationSkewOrFlip } from '@/canvas/resize/geometry-utils';
 import { isComponentFilePath, isIconSetFilePath } from '@/code/project/active-file-store';
-import { buildParentScreenMapProjective, invertProjective, buildParentSvgGroupMap, invertAffine, queueBorderOverlayDuplicates } from '@/canvas/creators/creator-utils';
+import { buildParentScreenMapProjective, invertProjective, type ProjectiveMap, buildParentSvgGroupMap, invertAffine, queueBorderOverlayDuplicates } from '@/canvas/creators/creator-utils';
 import { parseTranslateOffset, stripTranslateFunctions } from './transform-utils';
 import { computeAutoPins } from './dynamic-pin';
 import { getViewportWidths } from '@/code/stores/viewport-store';
@@ -796,19 +796,17 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     return new DOMRect(nr.left + lagX * transform.scale, nr.top + lagY * transform.scale, nr.width, nr.height);
   }
 
-  private snapToLocalGuides(nodeId: string, delta: Point, transform: DragContext['transform'], velocity: number) {
-    const parentId = this.parentId;
+  private snapToLocalGuides(
+    nodeId: string, delta: Point, transform: DragContext['transform'], velocity: number,
+    parent: NonNullable<ReturnType<typeof frameGuideGeometry>>, frameIds: string[],
+    canvasSiblings: Array<{ id: string; rect: Rect }> = [],
+    canvasGuides: ReturnType<typeof getActiveRulerGuideSnapLines> = [],
+  ) {
     const lift = this.liftCorners.get(nodeId);
-    if (!parentId || !lift) return null;
-    const geometry = frameGuideGeometry({ id: parentId, viewportId: this.vpId });
-    if (!geometry) return null;
-    const lines = getFrameRulerGuideSnapLines(parentId, this.vpId, geometry)
-      .filter(line => !this.lockedAxis || this.lockedAxis === line.axis);
-    if (lines.length === 0) return null;
-
+    if (!lift) return null;
     const offset = getIframeOffset();
     const moveLocal = (p: Point): Point => {
-      const local = geometry.toLocal(
+      const local = parent.toLocal(
         p.x * transform.scale + transform.x + offset.x,
         p.y * transform.scale + transform.y + offset.y,
       );
@@ -817,21 +815,86 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const corners = { TL: moveLocal(lift.TL), TR: moveLocal(lift.TR), BR: moveLocal(lift.BR), BL: moveLocal(lift.BL) };
     const xs = Object.values(corners).map(p => p.x);
     const ys = Object.values(corners).map(p => p.y);
-    const left = Math.min(...xs);
-    const top = Math.min(...ys);
-    const rect = { left, top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
+    const left = Math.min(...xs), right = Math.max(...xs);
+    const top = Math.min(...ys), bottom = Math.max(...ys);
+    const cx = (left + right) / 2, cy = (top + bottom) / 2;
+    const origin = frameGuideToScreen(parent, cx, cy);
+    const nextX = frameGuideToScreen(parent, cx + 1, cy);
+    const nextY = frameGuideToScreen(parent, cx, cy + 1);
+    const sx = Math.hypot(nextX.x - origin.x, nextX.y - origin.y);
+    const sy = Math.hypot(nextY.x - origin.x, nextY.y - origin.y);
+    if (![sx, sy].every(scale => Number.isFinite(scale) && scale > 0.001)) return null;
 
-    // The snap engine works in the candidate's coordinate space. Convert
-    // the screen tolerance using the projected scale at the dragged box.
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const origin = frameGuideToScreen(geometry, cx, cy);
-    const nextX = frameGuideToScreen(geometry, cx + 1, cy);
-    const nextY = frameGuideToScreen(geometry, cx, cy + 1);
-    const scale = Math.max(Math.hypot(nextX.x - origin.x, nextX.y - origin.y), Math.hypot(nextY.x - origin.x, nextY.y - origin.y));
-    if (!Number.isFinite(scale) || scale < 0.001) return null;
-    const snap = calculateSnap(rect, [], velocity, SNAP_THRESHOLD / scale, corners, undefined, lines);
-    return { ...snap, dx: snap.x - rect.left, dy: snap.y - rect.top };
+    const sourcePositions = new Map<string, number>();
+    const lines = frameIds.flatMap(id => {
+      const frame = id === this.parentId ? parent : frameGuideGeometry({ id, viewportId: this.vpId });
+      if (!frame) return [];
+      return getFrameRulerGuideSnapLines(id, this.vpId, frame).flatMap(line => {
+        if (this.lockedAxis && this.lockedAxis !== line.axis) return [];
+        const segment = frameGuideSegment(frame, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
+        if (!segment) return [];
+        const start = parent.toLocal(segment.start.x, segment.start.y);
+        const end = parent.toLocal(segment.end.x, segment.end.y);
+        const scale = line.axis === 'x' ? sx : sy;
+        // A guide parallel to this frame's movement axes is one coordinate
+        // throughout its length, even when the ancestor is tilted on screen.
+        if (!Number.isFinite(start[line.axis]) || !Number.isFinite(end[line.axis])
+          || Math.abs(start[line.axis] - end[line.axis]) * scale > 0.1) return [];
+        sourcePositions.set(`ruler-guide:${line.id}`, line.position);
+        return [{ ...line, position: (start[line.axis] + end[line.axis]) / 2 * scale }];
+      });
+    });
+
+    const rect = { left: left * sx, top: top * sy, width: (right - left) * sx, height: (bottom - top) * sy };
+    const scalePoint = (p: Point) => ({ x: p.x * sx, y: p.y * sy });
+    // A scaled but screen-aligned frame can still compare ordinary
+    // siblings and canvas guides in the same space as its local guides.
+    const canvasToLocalSnap = (x: number, y: number) => scalePoint(parent.toLocal(
+      x * transform.scale + transform.x + offset.x, y * transform.scale + transform.y + offset.y,
+    ));
+    const siblings = canvasSiblings.map(({ id, rect: other }) => {
+      const first = canvasToLocalSnap(other.left, other.top);
+      const last = canvasToLocalSnap(other.left + other.width, other.top + other.height);
+      return { id, rect: { left: Math.min(first.x, last.x), top: Math.min(first.y, last.y),
+        width: Math.abs(last.x - first.x), height: Math.abs(last.y - first.y) } };
+    });
+    for (const guide of canvasGuides) {
+      if (this.lockedAxis && this.lockedAxis !== guide.axis) continue;
+      const position = guide.axis === 'x' ? canvasToLocalSnap(guide.position, 0).x : canvasToLocalSnap(0, guide.position).y;
+      sourcePositions.set(`ruler-guide:${guide.id}`, guide.position);
+      lines.push({ ...guide, position });
+    }
+    const snap = calculateSnap(rect, siblings, velocity, SNAP_THRESHOLD, {
+      TL: scalePoint(corners.TL), TR: scalePoint(corners.TR), BR: scalePoint(corners.BR), BL: scalePoint(corners.BL),
+    }, undefined, lines);
+    const toCanvas = (x: number, y: number) => screenPointToCanvas(frameGuideToScreen(parent, x / sx, y / sy), transform, offset);
+    const dx = this.lockedAxis === 'y' ? 0 : (snap.x - rect.left) / sx;
+    const dy = this.lockedAxis === 'x' ? 0 : (snap.y - rect.top) / sy;
+    return {
+      ...snap, dx, dy,
+      snappedX: snap.snappedX && this.lockedAxis !== 'y',
+      snappedY: snap.snappedY && this.lockedAxis !== 'x',
+      guides: snap.guides.filter(guide => !this.lockedAxis || this.lockedAxis === guide.axis).map(guide => {
+        const sourcePosition = sourcePositions.get(guide.referenceId);
+        if (sourcePosition !== undefined) return { ...guide, position: sourcePosition };
+        const isX = guide.axis === 'x';
+        const point = toCanvas(isX ? guide.position : cx * sx, isX ? cy * sy : guide.position);
+        return { ...guide, position: point[guide.axis] };
+      }),
+      spacingGuides: snap.spacingGuides.filter(guide => !this.lockedAxis || guide.axis === (this.lockedAxis === 'x' ? 'h' : 'v'))
+        .map(guide => ({
+          axis: guide.axis,
+          distance: guide.distance / transform.scale,
+          segments: guide.segments.map(segment => {
+            const horizontal = guide.axis === 'h';
+            const start = horizontal ? toCanvas(segment.start, segment.crossMin) : toCanvas(segment.crossMin, segment.start);
+            const end = horizontal ? toCanvas(segment.end, segment.crossMax) : toCanvas(segment.crossMax, segment.end);
+            const axis = horizontal ? 'x' : 'y', cross = horizontal ? 'y' : 'x';
+            return { start: Math.min(start[axis], end[axis]), end: Math.max(start[axis], end[axis]),
+              crossMin: Math.min(start[cross], end[cross]), crossMax: Math.max(start[cross], end[cross]) };
+          }),
+        })),
+    };
   }
 
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
@@ -869,6 +932,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     //
     // No parent (canvas-level drag) falls back to plain scaled delta.
     let delta: Point;
+    let parentProjection: ProjectiveMap | null = null;
     if (this.parentId) {
       // SVG GROUP parent: invert the STABLE wrapper matrix (M_topSvg, from the
       // `__svgm*` keys). It maps the group's viewBox-user space (where the
@@ -884,8 +948,8 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       } else {
         // Non-SVG (or no matrix yet): the projective corner homography handles
         // rotated/perspective HTML parents.
-        const projMap = buildParentScreenMapProjective(this.parentId, this.vpId);
-        const inv = projMap ? invertProjective(projMap) : null;
+        parentProjection = buildParentScreenMapProjective(this.parentId, this.vpId);
+        const inv = parentProjection ? invertProjective(parentProjection) : null;
         if (inv) {
           const localStart = inv.invertScreen(startMouse.x, startMouse.y);
           const localCurrent = inv.invertScreen(mouseScreen.x, mouseScreen.y);
@@ -965,6 +1029,17 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const insideTransformedAncestor = (!!this.parentId
       && nodeOrAncestorHasRotationOrSkewById(this.parentId, this.vpId))
       || isSvgGroupChildDrag;
+    const guideFrameIds = this.parentId && !isSvgGroupChildDrag
+      ? getAncestorRulerGuideFrameIds(primary.id, this.vpId) : [];
+    const parentGuideGeometry = this.parentId && guideFrameIds.length
+      ? frameGuideGeometry({ id: this.parentId, viewportId: this.vpId }) : null;
+    const parentMatrix = parentProjection?.h;
+    const scaledGuideSpace = !!parentGuideGeometry && !!parentMatrix && (
+      Math.abs(Math.abs(parentMatrix[0]) - transform.scale) > 0.01
+      || Math.abs(Math.abs(parentMatrix[4]) - transform.scale) > 0.01
+    );
+    const useProjectedGuides = insideTransformedAncestor || scaledGuideSpace;
+
 
     const siblingRects: { id: string; rect: Rect }[] = [];
     if (this.parentId && !insideTransformedAncestor) {
@@ -1080,10 +1155,14 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
 
     // Transformed parents need frame-local candidates. Canvas-aligned
     // sibling bounds cannot describe the alignment in a rotated frame.
-    const localSnap = insideTransformedAncestor && !isSvgGroupChildDrag
-      ? this.snapToLocalGuides(primary.id, delta, transform, velocity)
+    const localSnap = useProjectedGuides && parentGuideGeometry
+      ? this.snapToLocalGuides(
+          primary.id, delta, transform, velocity, parentGuideGeometry, guideFrameIds,
+          insideTransformedAncestor ? [] : siblingRects,
+          insideTransformedAncestor ? [] : getActiveRulerGuideSnapLines(),
+        )
       : null;
-    const snap = insideTransformedAncestor
+    const snap = useProjectedGuides
       ? localSnap ?? {
           x: draggedRect.left,
           y: draggedRect.top,
