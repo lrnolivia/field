@@ -42,6 +42,8 @@ vi.mock('../handlers/snap-handler', () => ({
 // test's active-file-store mock.
 vi.mock('@/code/stores/ruler-guides-store', () => ({
   getActiveRulerGuideSnapLines: vi.fn(() => []),
+  getActiveRulerGuideOrder: vi.fn(() => new Map()),
+  getAncestorRulerGuideFrameIds: vi.fn(() => []),
 }));
 
 vi.mock('@/shared/constants', async (importOriginal) => {

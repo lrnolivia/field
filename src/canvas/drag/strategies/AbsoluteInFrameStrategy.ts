@@ -13,10 +13,10 @@ import type { Point, PendingUpdate, Rect, NodeMap } from '@/shared/types';
 import { buildCanvasCloneDescriptor, dropDynamicStyleBindings } from '../clone-descriptor';
 import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { getParentCanvasOffsetById, getAbsoluteCanvasRectById } from '@/canvas/canvas-math';
-import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
+import { calculateSnap, getMouseVelocity, type ScreenCorners } from '../handlers/snap-handler';
 import { snapCorrection } from '../snap-precision';
-import { getActiveRulerGuideSnapLines, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
-import { frameGuideGeometry, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
+import { getActiveRulerGuideOrder, getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideSegment, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { viewportsConfigAtom } from '@/code/stores/viewport-store';
 import { overlayEditingIdAtom, overlayTriggerCallsAtom } from '@/code/stores/overlay-store';
@@ -31,7 +31,7 @@ import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 import { getIframeOffset, screenPointToCanvas } from '../helpers/coords';
 import { getScreenCornersById, pointInQuad, isFullyInsideQuad, isFullyOutsideQuad, nodeOrAncestorHasRotationOrSkewById, cornersAreAxisAligned , matrixHasRotationSkewOrFlip } from '@/canvas/resize/geometry-utils';
 import { isComponentFilePath, isIconSetFilePath } from '@/code/project/active-file-store';
-import { buildParentScreenMapProjective, invertProjective, buildParentSvgGroupMap, invertAffine, queueBorderOverlayDuplicates } from '@/canvas/creators/creator-utils';
+import { buildParentScreenMapProjective, invertProjective, type ProjectiveMap, buildParentSvgGroupMap, invertAffine, queueBorderOverlayDuplicates } from '@/canvas/creators/creator-utils';
 import { parseTranslateOffset, stripTranslateFunctions } from './transform-utils';
 import { computeAutoPins } from './dynamic-pin';
 import { getViewportWidths } from '@/code/stores/viewport-store';
@@ -796,19 +796,18 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     return new DOMRect(nr.left + lagX * transform.scale, nr.top + lagY * transform.scale, nr.width, nr.height);
   }
 
-  private snapToLocalGuides(nodeId: string, delta: Point, transform: DragContext['transform'], velocity: number) {
-    const parentId = this.parentId;
+  private snapToLocalGuides(
+    nodeId: string, delta: Point, transform: DragContext['transform'], velocity: number,
+    parent: NonNullable<ReturnType<typeof frameGuideGeometry>>, frameIds: string[],
+    canvasSiblings: Array<{ id: string; rect: Rect }> = [],
+    canvasGuides: ReturnType<typeof getActiveRulerGuideSnapLines> = [],
+    canvasSiblingCorners?: ReadonlyMap<string, ScreenCorners>,
+  ) {
     const lift = this.liftCorners.get(nodeId);
-    if (!parentId || !lift) return null;
-    const geometry = frameGuideGeometry({ id: parentId, viewportId: this.vpId });
-    if (!geometry) return null;
-    const lines = getFrameRulerGuideSnapLines(parentId, this.vpId, geometry)
-      .filter(line => !this.lockedAxis || this.lockedAxis === line.axis);
-    if (lines.length === 0) return null;
-
+    if (!lift) return null;
     const offset = getIframeOffset();
     const moveLocal = (p: Point): Point => {
-      const local = geometry.toLocal(
+      const local = parent.toLocal(
         p.x * transform.scale + transform.x + offset.x,
         p.y * transform.scale + transform.y + offset.y,
       );
@@ -817,21 +816,93 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const corners = { TL: moveLocal(lift.TL), TR: moveLocal(lift.TR), BR: moveLocal(lift.BR), BL: moveLocal(lift.BL) };
     const xs = Object.values(corners).map(p => p.x);
     const ys = Object.values(corners).map(p => p.y);
-    const left = Math.min(...xs);
-    const top = Math.min(...ys);
-    const rect = { left, top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
+    const left = Math.min(...xs), right = Math.max(...xs);
+    const top = Math.min(...ys), bottom = Math.max(...ys);
+    const cx = (left + right) / 2, cy = (top + bottom) / 2;
+    const origin = frameGuideToScreen(parent, cx, cy);
+    const nextX = frameGuideToScreen(parent, cx + 1, cy);
+    const nextY = frameGuideToScreen(parent, cx, cy + 1);
+    const sx = Math.hypot(nextX.x - origin.x, nextX.y - origin.y) / transform.scale;
+    const sy = Math.hypot(nextY.x - origin.x, nextY.y - origin.y) / transform.scale;
+    if (![sx, sy].every(scale => Number.isFinite(scale) && scale > 0.001)) return null;
 
-    // The snap engine works in the candidate's coordinate space. Convert
-    // the screen tolerance using the projected scale at the dragged box.
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const origin = frameGuideToScreen(geometry, cx, cy);
-    const nextX = frameGuideToScreen(geometry, cx + 1, cy);
-    const nextY = frameGuideToScreen(geometry, cx, cy + 1);
-    const scale = Math.max(Math.hypot(nextX.x - origin.x, nextX.y - origin.y), Math.hypot(nextY.x - origin.x, nextY.y - origin.y));
-    if (!Number.isFinite(scale) || scale < 0.001) return null;
-    const snap = calculateSnap(rect, [], velocity, SNAP_THRESHOLD / scale, corners, undefined, lines);
-    return { ...snap, dx: snap.x - rect.left, dy: snap.y - rect.top };
+    const sourcePositions = new Map<string, number>();
+    const lines = frameIds.flatMap(id => {
+      const frame = id === this.parentId ? parent : frameGuideGeometry({ id, viewportId: this.vpId });
+      if (!frame) return [];
+      return getFrameRulerGuideSnapLines(id, this.vpId, frame).flatMap(line => {
+        if (this.lockedAxis && this.lockedAxis !== line.axis) return [];
+        const segment = frameGuideSegment(frame, line.axis === 'x' ? 'vertical' : 'horizontal', line.position);
+        if (!segment) return [];
+        const start = parent.toLocal(segment.start.x, segment.start.y);
+        const end = parent.toLocal(segment.end.x, segment.end.y);
+        const scale = line.axis === 'x' ? sx : sy;
+        // A guide parallel to this frame's movement axes is one coordinate
+        // throughout its length, even when the ancestor is tilted on screen.
+        if (!Number.isFinite(start[line.axis]) || !Number.isFinite(end[line.axis])
+          || Math.abs(start[line.axis] - end[line.axis]) * scale * transform.scale > 0.1) return [];
+        sourcePositions.set(`ruler-guide:${line.id}`, line.position);
+        return [{ ...line, position: (start[line.axis] + end[line.axis]) / 2 * scale }];
+      });
+    });
+
+    const rect = { left: left * sx, top: top * sy, width: (right - left) * sx, height: (bottom - top) * sy };
+    const scalePoint = (p: Point) => ({ x: p.x * sx, y: p.y * sy });
+    // A scaled but screen-aligned frame can still compare ordinary
+    // siblings and canvas guides in the same space as its local guides.
+    const canvasToLocalSnap = (x: number, y: number) => scalePoint(parent.toLocal(
+      x * transform.scale + transform.x + offset.x, y * transform.scale + transform.y + offset.y,
+    ));
+    const siblings = canvasSiblings.map(({ id, rect: other }) => {
+      const first = canvasToLocalSnap(other.left, other.top);
+      const last = canvasToLocalSnap(other.left + other.width, other.top + other.height);
+      return { id, rect: { left: Math.min(first.x, last.x), top: Math.min(first.y, last.y),
+        width: Math.abs(last.x - first.x), height: Math.abs(last.y - first.y) } };
+    });
+    for (const guide of canvasGuides) {
+      if (this.lockedAxis && this.lockedAxis !== guide.axis) continue;
+      const position = guide.axis === 'x' ? canvasToLocalSnap(guide.position, 0).x : canvasToLocalSnap(0, guide.position).y;
+      sourcePositions.set(`ruler-guide:${guide.id}`, guide.position);
+      lines.push({ ...guide, position });
+    }
+    const sourceOrder = getActiveRulerGuideOrder();
+    lines.sort((a, b) => (sourceOrder.get(a.id) ?? Infinity) - (sourceOrder.get(b.id) ?? Infinity));
+    const siblingCorners = new Map<string, ScreenCorners>();
+    for (const [id, quad] of canvasSiblingCorners ?? []) {
+      const project = (point: Point) => canvasToLocalSnap(point.x, point.y);
+      siblingCorners.set(id, { TL: project(quad.TL), TR: project(quad.TR), BR: project(quad.BR), BL: project(quad.BL) });
+    }
+    const snap = calculateSnap(rect, siblings, velocity, SNAP_THRESHOLD / transform.scale, {
+      TL: scalePoint(corners.TL), TR: scalePoint(corners.TR), BR: scalePoint(corners.BR), BL: scalePoint(corners.BL),
+    }, siblingCorners, lines);
+    const toCanvas = (x: number, y: number) => screenPointToCanvas(frameGuideToScreen(parent, x / sx, y / sy), transform, offset);
+    const dx = this.lockedAxis === 'y' ? 0 : (snap.x - rect.left) / sx;
+    const dy = this.lockedAxis === 'x' ? 0 : (snap.y - rect.top) / sy;
+    return {
+      ...snap, dx, dy,
+      snappedX: snap.snappedX && this.lockedAxis !== 'y',
+      snappedY: snap.snappedY && this.lockedAxis !== 'x',
+      guides: snap.guides.filter(guide => !this.lockedAxis || this.lockedAxis === guide.axis).map(guide => {
+        const sourcePosition = sourcePositions.get(guide.referenceId);
+        if (sourcePosition !== undefined) return { ...guide, position: sourcePosition };
+        const isX = guide.axis === 'x';
+        const point = toCanvas(isX ? guide.position : cx * sx, isX ? cy * sy : guide.position);
+        return { ...guide, position: point[guide.axis] };
+      }),
+      spacingGuides: snap.spacingGuides.filter(guide => !this.lockedAxis || guide.axis === (this.lockedAxis === 'x' ? 'h' : 'v'))
+        .map(guide => ({
+          axis: guide.axis,
+          distance: guide.distance,
+          segments: guide.segments.map(segment => {
+            const horizontal = guide.axis === 'h';
+            const start = horizontal ? toCanvas(segment.start, segment.crossMin) : toCanvas(segment.crossMin, segment.start);
+            const end = horizontal ? toCanvas(segment.end, segment.crossMax) : toCanvas(segment.crossMax, segment.end);
+            const axis = horizontal ? 'x' : 'y', cross = horizontal ? 'y' : 'x';
+            return { start: Math.min(start[axis], end[axis]), end: Math.max(start[axis], end[axis]),
+              crossMin: Math.min(start[cross], end[cross]), crossMax: Math.max(start[cross], end[cross]) };
+          }),
+        })),
+    };
   }
 
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
@@ -869,6 +940,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     //
     // No parent (canvas-level drag) falls back to plain scaled delta.
     let delta: Point;
+    let parentProjection: ProjectiveMap | null = null;
     if (this.parentId) {
       // SVG GROUP parent: invert the STABLE wrapper matrix (M_topSvg, from the
       // `__svgm*` keys). It maps the group's viewBox-user space (where the
@@ -884,8 +956,8 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       } else {
         // Non-SVG (or no matrix yet): the projective corner homography handles
         // rotated/perspective HTML parents.
-        const projMap = buildParentScreenMapProjective(this.parentId, this.vpId);
-        const inv = projMap ? invertProjective(projMap) : null;
+        parentProjection = buildParentScreenMapProjective(this.parentId, this.vpId);
+        const inv = parentProjection ? invertProjective(parentProjection) : null;
         if (inv) {
           const localStart = inv.invertScreen(startMouse.x, startMouse.y);
           const localCurrent = inv.invertScreen(mouseScreen.x, mouseScreen.y);
@@ -965,6 +1037,17 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const insideTransformedAncestor = (!!this.parentId
       && nodeOrAncestorHasRotationOrSkewById(this.parentId, this.vpId))
       || isSvgGroupChildDrag;
+    const guideFrameIds = this.parentId && !isSvgGroupChildDrag
+      ? getAncestorRulerGuideFrameIds(primary.id, this.vpId) : [];
+    const parentGuideGeometry = this.parentId && guideFrameIds.length
+      ? frameGuideGeometry({ id: this.parentId, viewportId: this.vpId }) : null;
+    const parentMatrix = parentProjection?.h;
+    const scaledGuideSpace = !!parentGuideGeometry && !!parentMatrix && (
+      Math.abs(Math.abs(parentMatrix[0]) / transform.scale - 1) > 0.0001
+      || Math.abs(Math.abs(parentMatrix[4]) / transform.scale - 1) > 0.0001
+    );
+    const useProjectedGuides = insideTransformedAncestor || scaledGuideSpace;
+
 
     const siblingRects: { id: string; rect: Rect }[] = [];
     if (this.parentId && !insideTransformedAncestor) {
@@ -1080,10 +1163,15 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
 
     // Transformed parents need frame-local candidates. Canvas-aligned
     // sibling bounds cannot describe the alignment in a rotated frame.
-    const localSnap = insideTransformedAncestor && !isSvgGroupChildDrag
-      ? this.snapToLocalGuides(primary.id, delta, transform, velocity)
+    const localSnap = useProjectedGuides && parentGuideGeometry
+      ? this.snapToLocalGuides(
+          primary.id, delta, transform, velocity, parentGuideGeometry, guideFrameIds,
+          insideTransformedAncestor ? [] : siblingRects,
+          insideTransformedAncestor ? [] : getActiveRulerGuideSnapLines(),
+          insideTransformedAncestor ? undefined : aifSiblingCorners,
+        )
       : null;
-    const snap = insideTransformedAncestor
+    const snap = useProjectedGuides
       ? localSnap ?? {
           x: draggedRect.left,
           y: draggedRect.top,
@@ -1114,6 +1202,10 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     const snapOffsetY = localSnap?.dy ?? snapCorrection(rawTop, finalAbsTop, parentOffset.y, snap.snappedY);
 
     this.frameDelta = { x: delta.x + snapOffsetX, y: delta.y + snapOffsetY };
+    const snapXToRuler = !!localSnap && snap.guides.some(guide => guide.axis === 'x' && guide.referenceId.startsWith('ruler-guide:'));
+    const snapYToRuler = !!localSnap && snap.guides.some(guide => guide.axis === 'y' && guide.referenceId.startsWith('ruler-guide:'));
+    const roundSnapX = (value: number) => snapXToRuler ? Math.round(value * 1000) / 1000 : Math.round(value);
+    const roundSnapY = (value: number) => snapYToRuler ? Math.round(value * 1000) / 1000 : Math.round(value);
     for (const node of draggedNodes) {
       const dx = delta.x + snapOffsetX;
       const dy = delta.y + snapOffsetY;
@@ -1179,7 +1271,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
 
         // X axis — left-px / left-percent / right-px.
         if (pins.x === 'right-px') {
-          cs.right = `${Math.round(sd.parentWidth - newLeftCss - elemCssW)}px`;
+          cs.right = `${roundSnapX(sd.parentWidth - newLeftCss - elemCssW)}px`;
           cs.left = '';
         } else if (pins.x === 'left-percent') {
           // Percent anchor matches the user's manual "LEFT %" pin.
@@ -1189,13 +1281,13 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           cs.right = '';
         } else {
           // 'left-px' (band 1 default, or band 3 without snap)
-          cs.left = `${Math.round(newLeftCss)}px`;
+          cs.left = `${roundSnapX(newLeftCss)}px`;
           cs.right = '';
         }
 
         // Y axis — top-px / top-percent / bottom-px.
         if (pins.y === 'bottom-px') {
-          cs.bottom = `${Math.round(sd.parentHeight - newTopCss - elemCssH)}px`;
+          cs.bottom = `${roundSnapY(sd.parentHeight - newTopCss - elemCssH)}px`;
           cs.top = '';
         } else if (pins.y === 'top-percent') {
           const pct = sd.parentHeight > 0 ? (newTopCss / sd.parentHeight) * 100 : 0;
@@ -1203,7 +1295,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
           cs.bottom = '';
         } else {
           // 'top-px' (viewport always, or frame band 1)
-          cs.top = `${Math.round(newTopCss)}px`;
+          cs.top = `${roundSnapY(newTopCss)}px`;
           cs.bottom = '';
         }
       } else {
@@ -1214,15 +1306,15 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
         // the visual offset (compositor-only, no layout pass per tick)
         // and lets these computed style values land in JSX only at
         // commit time.
-        if (inset?.pins.left && inset?.pins.right) { cs.left = `${Math.round(node.startLeft + dx)}px`; cs.right = `${Math.round(sd!.right - dx)}px`; }
-        else if (inset?.pins.right && !inset?.pins.left) { cs.right = `${Math.round(sd!.right - dx)}px`; }
+        if (inset?.pins.left && inset?.pins.right) { cs.left = `${roundSnapX(node.startLeft + dx)}px`; cs.right = `${roundSnapX(sd!.right - dx)}px`; }
+        else if (inset?.pins.right && !inset?.pins.left) { cs.right = `${roundSnapX(sd!.right - dx)}px`; }
         else if (sd?.isPercentMode && !inset?.pins.left) { cs.left = `${(sd.startLeftPercent + (dx / sd.parentWidth) * 100).toFixed(4)}%`; }
-        else { cs.left = `${Math.round(node.startLeft + dx)}px`; }
+        else { cs.left = `${roundSnapX(node.startLeft + dx)}px`; }
 
-        if (inset?.pins.top && inset?.pins.bottom) { cs.top = `${Math.round(node.startTop + dy)}px`; cs.bottom = `${Math.round(sd!.bottom - dy)}px`; }
-        else if (inset?.pins.bottom && !inset?.pins.top) { cs.bottom = `${Math.round(sd!.bottom - dy)}px`; }
+        if (inset?.pins.top && inset?.pins.bottom) { cs.top = `${roundSnapY(node.startTop + dy)}px`; cs.bottom = `${roundSnapY(sd!.bottom - dy)}px`; }
+        else if (inset?.pins.bottom && !inset?.pins.top) { cs.bottom = `${roundSnapY(sd!.bottom - dy)}px`; }
         else if (sd?.isPercentMode && !inset?.pins.top) { cs.top = `${(sd.startTopPercent + (dy / sd.parentHeight) * 100).toFixed(4)}%`; }
-        else { cs.top = `${Math.round(node.startTop + dy)}px`; }
+        else { cs.top = `${roundSnapY(node.startTop + dy)}px`; }
       }
 
       // Per-frame visual update.
@@ -1277,7 +1369,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
         });
         updateNodeStyles({
           id: node.id,
-          styles: { left: `${Math.round(node.startLeft + dx)}px`, top: `${Math.round(node.startTop + dy)}px` },
+          styles: { left: `${roundSnapX(node.startLeft + dx)}px`, top: `${roundSnapY(node.startTop + dy)}px` },
           contentEl,
           domOnly: true,
         });
@@ -1288,8 +1380,8 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
         // rotation is preserved live (the CSS `transform: translate` path would
         // clobber it). cs (left/top) still commits to x/y attrs on mouseup.
         const r = this.rotatedSvgGroupNodes.get(node.id)!;
-        const nx = Math.round(node.startLeft + dx);
-        const ny = Math.round(node.startTop + dy);
+        const nx = roundSnapX(node.startLeft + dx);
+        const ny = roundSnapY(node.startTop + dy);
         getCanvasBridge().patchAttrsAndStyles?.(node.id, context.viewportPrefix, {
           x: `${nx}`, y: `${ny}`,
           transform: `rotate(${r.angle} ${Math.round((r.cx0 + dx) * 1000) / 1000} ${Math.round((r.cy0 + dy) * 1000) / 1000})`,
@@ -1298,7 +1390,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
         const rp = getNodeFromCache(node.id)?.parentId;
         if (rp) getCanvasBridge().liveRefitGroup?.(rp, context.viewportPrefix);
       } else {
-        const transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px)${orig ? ' ' + orig : ''}`;
+        const transform = `translate(${roundSnapX(dx)}px, ${roundSnapY(dy)}px)${orig ? ' ' + orig : ''}`;
         patchNodeStyles(contentEl, node.id, context.viewportPrefix, { transform }, isRep);
       }
 
@@ -1306,7 +1398,7 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       // left/top actually take effect (cs → lastStyles → source on mouseup).
       if (this.svgNeedsAbsolute.has(node.id)) cs.position = 'absolute';
 
-      this.lastPositions.set(node.id, { left: Math.round(node.startLeft + dx), top: Math.round(node.startTop + dy) });
+      this.lastPositions.set(node.id, { left: roundSnapX(node.startLeft + dx), top: roundSnapY(node.startTop + dy) });
       this.lastStyles.set(node.id, cs);
     }
 

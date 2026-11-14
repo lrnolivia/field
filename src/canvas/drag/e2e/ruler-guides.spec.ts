@@ -188,6 +188,56 @@ test('a rotated frame guide snaps its directly positioned child in frame coordin
   expect(Math.abs(actual.y - child.y - 60 * sin)).toBeLessThan(1.5);
 });
 
+for (const { degrees, axisLock, guideOffset, finalLeft } of [
+  { degrees: 0, axisLock: false, guideOffset: 0, finalLeft: 48 },
+  { degrees: 30, axisLock: false, guideOffset: 0, finalLeft: 48 },
+  { degrees: 30, axisLock: true, guideOffset: 0, finalLeft: 48 },
+  { degrees: 0, axisLock: false, guideOffset: 1, finalLeft: 48 + 2 / 3 },
+]) {
+  test(`move a nested positioned child to the outer guide at ${degrees} degrees${axisLock ? ' with Shift held' : guideOffset ? ' at a fractional inset' : ''}`, async ({ page }) => {
+    const modified = source.replace("background:'#ef4444'}} />",
+      `background:'#ef4444', transform:'rotate(${degrees}deg)'}}><div data-id="inner" style={{position:'absolute',left:'8px',top:'10px',width:'80px',height:'70px',transform:'scale(1.5)',transformOrigin:'0 0'}}><div data-id="child" style={{position:'absolute',left:'20px',top:'42px',width:'18px',height:'24px',background:'#000'}} /></div></div>`);
+    const editor = await openEditor(page, 'docked', modified);
+    await editor.select(['rect']);
+    const frame = await editor.nodeBox('rect');
+    await placeVerticalGuide(page, frame.x + frame.width / 2 + guideOffset, frame.y + frame.height / 2);
+    const guide = page.locator('[data-ruler-guide-frame="rect"]');
+    await expect(guide).toHaveCount(1);
+    const line = (await guide.boundingBox())!;
+    const beforeSource = await editor.getPageCode();
+    await editor.select(['child']);
+    const child = await editor.nodeBox('child');
+    const x = child.x + child.width / 2;
+    const y = child.y + child.height / 2;
+    const angle = degrees * Math.PI / 180;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    for (let step = 1; step <= 21; step++) {
+      if (axisLock && step === 6) await page.keyboard.down('Shift');
+      const distance = 40 * step / 21;
+      const across = axisLock ? 13 * step / 21 : 0;
+      await page.mouse.move(x + distance * Math.cos(angle) - across * Math.sin(angle),
+        y + distance * Math.sin(angle) + across * Math.cos(angle));
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+    }
+    await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, target) => lines.some(candidate => {
+      const rect = candidate.getBoundingClientRect();
+      return Math.abs(rect.x - target.x) < 2 && Math.abs(rect.width - target.width) < 2 && Math.abs(rect.height - target.height) < 2;
+    }), line), { timeout: 2500 }).toBe(true);
+    await page.mouse.up();
+    if (axisLock) await page.keyboard.up('Shift');
+    // The parent may save a percentage inset: assert its resolved
+    // position, and compare source before the drag and after Undo.
+    const model = editor.node('child');
+    await expect.poll(() => model.evaluate(node => parseFloat(getComputedStyle(node).left))).toBeCloseTo(finalLeft, 1);
+    await expect(model).toHaveCSS('top', '42px');
+    await expect.poll(() => editor.getPageCode()).not.toBe(beforeSource);
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await expect(model).toHaveCSS('left', '20px');
+    await expect.poll(() => editor.getPageCode()).toBe(beforeSource);
+  });
+}
+
 test('a frame guide snaps its positioned child at the visible guide', async ({ page }) => {
   const frameSource = source.replace("background:'#ef4444'}} />", "background:'#ef4444'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>");
   const editor = await openEditor(page, 'docked', frameSource);

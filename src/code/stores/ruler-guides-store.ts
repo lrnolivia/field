@@ -51,6 +51,11 @@ export function getActiveRulerGuideSnapLines(nodeId?: string, viewportId?: strin
   return lines;
 }
 
+/** Source order breaks ties between equally close ruler guides. */
+export function getActiveRulerGuideOrder(): Map<string, number> {
+  return new Map(getDefaultStore().get(activeRulerGuidesAtom).map((guide, index) => [guide.id, index]));
+}
+
 /** Snapshot only guide-bearing ancestors of the resized node, closest first. */
 export function getAncestorRulerGuideFrameIds(nodeId: string, viewportId: string): string[] {
   const guideFrames = new Set(getDefaultStore().get(activeRulerGuidesAtom).flatMap(guide =>
