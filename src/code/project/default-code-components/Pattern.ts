@@ -13,7 +13,8 @@
 
 import { GRID_MASK_SVG } from '@/editor/ui/pattern-fill-utils';
 
-export const PATTERN_COMPONENT = `'use client';
+function patternComponent(legacyGridMask: boolean): string {
+  return `'use client';
 
 /** @label "Pattern" */
 /** @comment "CSS-only decorative pattern. Pick a kind, tune color, opacity, tile size and line thickness." */
@@ -65,7 +66,7 @@ function Pattern({
   let backgroundImage = '';
   let backgroundSize = '';
   let backgroundPosition = '';
-  let backgroundRepeat = '';
+  let ${legacyGridMask ? 'mask' : 'backgroundRepeat'} = '';
 
   switch (kind) {
     case 'grid': {
@@ -91,14 +92,16 @@ function Pattern({
       break;
     }
     case 'gridMask': {
-      const values = { tile, line: Math.min(t, tile), foreground: color, background, opacity };
+${legacyGridMask ? `      backgroundImage = \`linear-gradient(\${fill} \${t}px, transparent \${t}px), linear-gradient(90deg, \${fill} \${t}px, transparent \${t}px)\`;
+      backgroundSize = \`\${tile}px \${tile}px\`;
+      mask = 'radial-gradient(ellipse at center, black 30%, transparent 75%)';` : `      const values = { tile, line: Math.min(t, tile), foreground: color, background, opacity };
       const svg = ${JSON.stringify(GRID_MASK_SVG)}.replace(/\\{(\\w+)\\}/g, (_, key) =>
         String(values[key]).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'),
       );
       backgroundImage = \`url("data:image/svg+xml;utf8,\${encodeURIComponent(svg)}")\`;
       backgroundSize = '100% 100%';
       backgroundPosition = '0 0';
-      backgroundRepeat = 'no-repeat';
+      backgroundRepeat = 'no-repeat';`}
       break;
     }
     case 'honeycomb': {
@@ -122,11 +125,11 @@ function Pattern({
 
   const style = {
     
-    backgroundColor: kind === 'gridMask' ? 'transparent' : background,
+    backgroundColor: ${legacyGridMask ? 'background' : "kind === 'gridMask' ? 'transparent' : background"},
     backgroundImage,
     backgroundSize,
     ...(backgroundPosition ? { backgroundPosition } : {}),
-    ...(backgroundRepeat ? { backgroundRepeat } : {}), ...(props.style || {}) };
+    ${legacyGridMask ? '...(mask ? { WebkitMaskImage: mask, maskImage: mask } : {}),' : '...(backgroundRepeat ? { backgroundRepeat } : {}),'} ...(props.style || {}) };
 
   return (
     <div data-id={props['data-id']} data-name={props['data-name']} style={style} />
@@ -150,3 +153,8 @@ function withAlpha(color, alpha) {
 
 export default withResponsiveProps(Pattern);
 `;
+}
+
+// The snapshot migration compares the entire old stock file before upgrading.
+export const LEGACY_PATTERN_COMPONENT = patternComponent(true);
+export const PATTERN_COMPONENT = patternComponent(false);
