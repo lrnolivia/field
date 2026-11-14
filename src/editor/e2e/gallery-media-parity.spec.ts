@@ -35,8 +35,6 @@ export default function Page(){return <div data-id="root" data-name="Page" style
   await wizard.getByRole('button', { name:'Move image 3 up',exact:true }).click();
   await wizard.getByRole('button', { name:'Remove image 1',exact:true }).click();
   await expect(wizard.getByRole('listitem')).toHaveCount(2);
-  await page.waitForTimeout(350);
-  await wizard.screenshot({path:'/tmp/field-gallery-creation-review.png'});
   await wizard.getByRole('button', { name:'Next',exact:true }).click();
   const layout = wizard.getByRole('button', { name: 'Initial Gallery view' });
   await layout.click();
@@ -57,10 +55,6 @@ export default function Page(){return <div data-id="root" data-name="Page" style
   await expect.poll(async()=> (await editor.getPageCode()).match(/--field-gallery-item/g)?.length).toBe(2);
   const content=page.locator('[data-gallery-content]');
   await expect(content.getByRole('listitem')).toHaveCount(2);
-  await page.locator('[data-media-upload-tray="expanded"]').getByRole('button', { name:'Collapse', exact:true }).click();
-  await page.locator('[data-media-upload-tray="collapsed"]').getByRole('button', { name:'Clear', exact:true }).click();
-  await page.waitForTimeout(350);
-  await content.screenshot({path:'/tmp/field-gallery-desktop-review.png'});
 
   await page.getByRole('button', { name: 'preview', exact: true }).click();
   const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
