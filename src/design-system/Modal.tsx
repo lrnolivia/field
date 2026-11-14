@@ -3,7 +3,7 @@
 // Portal to body, animated backdrop + panel (framer-motion), close on Escape.
 // Design reference: builder/CollaboratorsModal.tsx
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { trace } from '@/shared/debug-trace';
@@ -33,6 +33,8 @@ interface ModalProps {
 
 export default function Modal({ isOpen, onClose, title, children, width = 384, mobileFullScreen = false, headerAction, hideClose, dismissible = true }: ModalProps) {
   const reducedMotion = Boolean(useReducedMotion());
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -40,9 +42,17 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, m
       // A non-dismissible modal still SWALLOWS Escape — letting it through
       // would run canvas shortcuts behind the modal.
       if (e.key === 'Escape') {
-        // A focused select popup owns the first Escape; keep its parent open.
-        if (e.target instanceof Element && e.target.closest('[role="listbox"]')) return;
-        e.stopPropagation(); if (dismissible) onClose();
+        // Centered dialogs can open another centered dialog through a portal.
+        // The last panel in the body is the one painted on top.
+        const panels = document.querySelectorAll('[data-field-modal-window]');
+        if (panels[panels.length - 1] !== panelRef.current) return;
+        // An open select can keep focus on its trigger or move it to the list.
+        if (e.target instanceof Element) {
+          const controls = e.target.closest('[aria-expanded="true"][aria-controls]')?.getAttribute('aria-controls');
+          if (e.target.closest('[role="listbox"]') || (controls && document.getElementById(controls)?.matches('[role="listbox"]'))) return;
+        }
+        e.stopImmediatePropagation();
+        if (dismissible) onClose();
       }
     };
     window.addEventListener('keydown', handleKey, true);
@@ -98,7 +108,11 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, m
 
           {/* Panel */}
           <motion.div
+            ref={panelRef}
             data-field-modal-window
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             data-mobile-full-screen={mobileFullScreen || undefined}
             initial={reducedMotion ? false : { opacity: 0, scale: 0.97, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -110,7 +124,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 384, m
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-light)] shrink-0">
-              <h3 className="text-xs font-bold text-[var(--text-primary)]"><UiHeadingText>{title}</UiHeadingText></h3>
+              <h3 id={titleId} className="text-xs font-bold text-[var(--text-primary)]"><UiHeadingText>{title}</UiHeadingText></h3>
               <div className="flex items-center gap-1">
                 {headerAction}
                 {!hideClose && dismissible && (

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
+import { LEGACY_PATTERN_COMPONENT } from '@/code/project/default-code-components/Pattern';
 
 async function styleValue(editor: EditorPage, prop: string) {
   const code = await editor.getPageCode();
@@ -108,6 +109,34 @@ test('Grid + Mask leaves an independent mask alone through apply, reload and rem
   await page.locator('[data-inspector-section="fill"]').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect.poll(() => layer.evaluate(el => getComputedStyle(el).maskImage)).toBe(originalMask);
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-pattern');
+});
+
+test('a saved stock Grid + Mask Pattern upgrades on project load', async ({ page }) => {
+  const seed = structuredClone(SEEDS.ABSOLUTE_IN_FRAME);
+  seed.files['components/Pattern.tsx'] = LEGACY_PATTERN_COMPONENT;
+  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
+    .replace("'use client';", "'use client';\nimport Pattern from '@/components/Pattern';")
+    .replace("background: '#66ccff',\n        }}></div>",
+      "background: '#66ccff',\n        }}><Pattern data-id=\"stock-pattern\" kind=\"gridMask\" style={{ width: '100px', height: '100px' }} /></div>");
+  await page.addInitScript(data => {
+    if (!localStorage.getItem('revyme-project-local')) {
+      localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    }
+    localStorage.setItem('revyme-onboarding-completed', 'true');
+  }, seed);
+  const editor = new EditorPage(page);
+  await page.goto('/work/local');
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  const painted = editor.node('stock-pattern').locator(':scope > div').first();
+  expect(await editor.readFile('components/Pattern.tsx')).not.toContain('maskImage');
+  await expect(painted).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(painted).toHaveCSS('mask-image', 'none');
+
+  await page.getByRole('button', { name: 'preview', exact: true }).click();
+  const preview = page.locator('[data-preview-overlay] iframe').contentFrame();
+  const previewPattern = preview.locator('[data-id="stock-pattern"]');
+  await expect(previewPattern).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(previewPattern).toHaveCSS('mask-image', 'none');
 });
 
 test('Grid + Mask paints a fading background in Canvas and Preview while foreground stays opaque', async ({ page }) => {

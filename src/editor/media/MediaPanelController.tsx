@@ -17,6 +17,7 @@ import MediaGalleryPanel from '@/editor/left-toolbar/panels/MediaGalleryPanel';
 import ImageSearchModal from '@/editor/ui/ImageSearchModal';
 import VideoSearchModal from '@/editor/ui/VideoSearchModal';
 import GalleryCreationWizard from '@/editor/gallery/GalleryCreationWizard';
+import Modal from '@/design-system/Modal';
 import type { GalleryWizardConfig } from '@/editor/gallery/gallery-wizard-model';
 import { buildGalleryWizardSourcePlan } from '@/code/gallery/gallery-wizard-plan';
 import { measureGallerySourceRatio } from '@/code/gallery/gallery-source-ratio';
@@ -378,6 +379,11 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
 
   const isLauncher = session.route.view === 'launcher';
   const isGallery = session.intent === 'gallery' || session.route.provider === 'gallery';
+  const centeredGallery = presentation === 'regular' && session.surface === 'sidebar' && isGallery;
+  const centeredGalleryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (centeredGallery) centeredGalleryRef.current?.querySelector('button')?.focus({ preventScroll: true });
+  }, [centeredGallery]);
   const isTypedBrowser = session.route.view === 'browser' && session.route.kind !== 'all';
 
   const browserTab =
@@ -469,6 +475,9 @@ export default function MediaPanelController({ onClose, onBackToMedia }: { onClo
 
   const title = routeTitle(session.route, session.intent);
 
+  if (centeredGallery) {
+    return <Modal isOpen title={title} onClose={onClose} width={520}><div ref={centeredGalleryRef}>{galleryContent}</div></Modal>;
+  }
 
   return (
     <>

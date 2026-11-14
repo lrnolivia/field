@@ -1,5 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
+
+async function expectCenteredModal(dialog: Locator) {
+  await expect(dialog).toHaveAttribute('data-field-modal-window', 'true');
+  await expect.poll(() => dialog.evaluate(panel => {
+    const { x, y, width, height } = panel.getBoundingClientRect();
+    return Math.max(Math.abs(x + width / 2 - innerWidth / 2), Math.abs(y + height / 2 - innerHeight / 2));
+  })).toBeLessThan(1);
+}
 
 for (const mode of ['dark', 'light'] as const) {
   test(`${mode}: rounded shells, composite pills and panel insets survive navigation`, async ({ page }) => {
@@ -119,10 +127,10 @@ for (const mode of ['dark', 'light'] as const) {
     await page.locator('[data-left-rail-settings] [data-field-mobile-glyph="settings"]').first().screenshot({ path: `../screenshots/field-global-${mode}-gear.png` });
     await media.getByPlaceholder('Search media…').fill('preserved search');
     await media.locator('[data-media-gallery-entry]').click();
-    const gallery = page.getByRole('dialog', { name: 'Gallery', exact: true });
+    const gallery = page.getByRole('dialog', { name: /^gallery$/i });
     await expect(gallery).toBeVisible();
-    await expect(gallery.locator('[data-gallery-glyph]').first()).toBeVisible();
-    await gallery.getByRole('button', { name: 'Back to Media', exact: true }).click();
+    await expect(gallery).toHaveAttribute('data-field-modal-window', 'true');
+    await gallery.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(gallery).not.toBeVisible();
     await expect(media.getByPlaceholder('Search media…')).toHaveValue('preserved search');
     await media.locator('[data-media-gallery-entry]').click();
@@ -171,17 +179,60 @@ for (const mode of ['dark', 'light'] as const) {
   });
 }
 
-test('one Media upload action remains usable in empty and populated inventory', async ({ page }) => {
+test('desktop Media opens centered upload and Gallery dialogs and returns to inventory', async ({ page }) => {
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
   await page.locator('[data-tutorial="media-button"]').click();
   const media = page.locator('[data-editor-panel="left-primary"]');
+  const uploadButton = media.getByRole('button', { name: 'Add media', exact: true });
+  await uploadButton.click();
+  const upload = page.getByRole('dialog', { name: /^add media$/i });
+  await expectCenteredModal(upload);
+  await page.keyboard.press('Escape');
+  await expect(upload).not.toBeVisible();
+  await expect(uploadButton).toBeFocused();
+  await uploadButton.click();
+  const chooseFiles = upload.getByRole('button', { name: /^choose files$/i });
+  await expect(chooseFiles).toBeFocused();
   const chooser = page.waitForEvent('filechooser');
-  await media.getByRole('button', { name: 'Add media', exact: true }).click();
+  await chooseFiles.click();
   await (await chooser).setFiles({ name: 'regression.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jOjQAAAAASUVORK5CYII=', 'base64') });
+  await expect(upload).not.toBeVisible();
   await expect(media.locator('[data-media-grid] img').first()).toBeVisible();
-  await expect(media.getByRole('button', { name: 'Add media', exact: true })).toHaveCount(1);
+  await expect(uploadButton).toHaveCount(1);
+
+  const galleryButton = media.locator('[data-media-gallery-entry]');
+  await galleryButton.click();
+  const gallery = page.getByRole('dialog', { name: /^gallery$/i });
+  await expectCenteredModal(gallery);
+  await gallery.getByRole('button', { name: /^add media$/i }).click();
+  const images = page.getByRole('dialog', { name: /^images$/i });
+  await expect(images).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(images).not.toBeVisible();
+  await expect(gallery).toBeVisible();
+  await gallery.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(gallery).not.toBeVisible();
+  await expect(galleryButton).toBeFocused();
+  await expect(media.locator('[data-media-grid] img').first()).toBeVisible();
+});
+
+test('floating Media opens the same centered dialogs', async ({ page }) => {
+  const editor = new EditorPage(page);
+  await editor.gotoWithSeed('ABSOLUTE_IN_FRAME');
+  const chooser = page.locator('[data-workspace-layout-control]:visible').first();
+  await chooser.locator('[data-workspace-mode-trigger]').click();
+  await chooser.getByRole('button', { name: /^float layout:/i }).click();
+  await page.locator('[data-tutorial="media-button"]').click();
+  const media = page.locator('[data-floating-left-panel="media"][data-visible="true"]');
+  const upload = page.getByRole('dialog', { name: /^add media$/i });
+  await media.getByRole('button', { name: 'Add media', exact: true }).click();
+  await expectCenteredModal(upload);
+  await upload.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(upload).not.toBeVisible();
+  const gallery = page.getByRole('dialog', { name: /^gallery$/i });
   await media.locator('[data-media-gallery-entry]').click();
-  await page.getByRole('button', { name: 'Back to Media', exact: true }).click();
-  await expect(media.locator('[data-media-grid] img').first()).toBeVisible();
+  await expectCenteredModal(gallery);
+  await page.mouse.click(2, 2);
+  await expect(gallery).not.toBeVisible();
 });

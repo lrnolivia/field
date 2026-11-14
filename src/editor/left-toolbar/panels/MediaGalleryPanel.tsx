@@ -20,6 +20,9 @@ import { ToolSegmentedControl } from '@/editor/controls';
 import { trace } from '@/shared/debug-trace';
 import SectionLabel from '@/design-system/SectionLabel';
 import SearchBar from '@/design-system/SearchBar';
+import Button from '@/design-system/Button';
+import Modal from '@/design-system/Modal';
+import { useMobileWorkspacePresentation } from '@/editor/mobile-workspace-presentation';
 import { backend } from '@/backend';
 import { getProjectId } from '@/backend/project-id';
 import { startToolbarDrag } from '@/canvas/drag/toolbar-drag-bridge';
@@ -360,7 +363,13 @@ export default function MediaGalleryPanel({
 } = {}) {
   const session = useAtomValue(mediaSessionAtom);
   const setSession = useSetAtom(mediaSessionAtom);
+  const presentation = useMobileWorkspacePresentation();
+  const centeredUpload = chrome === 'full' && presentation === 'regular';
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [addMediaOpen, setAddMediaOpen] = useState(false);
+  const galleryTriggerRef = useRef<HTMLButtonElement>(null);
+  const addMediaTriggerRef = useRef<HTMLButtonElement>(null);
+  const chooseFilesRef = useRef<HTMLButtonElement>(null);
   const returnSession = useRef(session);
   const openGallery = () => {
     returnSession.current = session;
@@ -370,7 +379,15 @@ export default function MediaGalleryPanel({
   const closeGallery = () => {
     setGalleryOpen(false);
     setSession(returnSession.current);
+    if (presentation === 'regular') galleryTriggerRef.current?.focus({ preventScroll: true });
   };
+  const closeAddMedia = useCallback(() => {
+    setAddMediaOpen(false);
+    addMediaTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    if (centeredUpload && addMediaOpen) chooseFilesRef.current?.focus({ preventScroll: true });
+  }, [centeredUpload, addMediaOpen]);
   const upsertMediaUpload = useSetAtom(upsertMediaUploadAtom);
   const [tab, setTab] = useState<MediaGalleryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
@@ -695,9 +712,10 @@ export default function MediaGalleryPanel({
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const files = Array.from(input.files ?? []);
+    if (files.length && addMediaOpen) closeAddMedia();
     await ingestFiles(files);
     input.value = '';
-  }, [ingestFiles]);
+  }, [addMediaOpen, closeAddMedia, ingestFiles]);
 
   const handleBrowserDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     if (!Array.from(event.dataTransfer.types).includes('Files')) return;
@@ -921,12 +939,19 @@ export default function MediaGalleryPanel({
       {/* Full chrome: rows below the Media card share its inset and the left
           panel's section rhythm (the card's own margin is the gap above). */}
       {chrome === 'full' && <div className="px-2 mb-[var(--field-panel-section-gap)]">
-        <button type="button" data-media-gallery-entry onClick={openGallery}
+        <button ref={galleryTriggerRef} type="button" data-media-gallery-entry onClick={openGallery} aria-haspopup="dialog"
           className="flex w-full items-center gap-2 rounded-[6px] bg-[var(--control-bg)] px-2.5 py-2 text-[11px] text-[var(--text-primary)] hover:bg-[var(--control-bg-hover)]">
           <GalleryGlyph /><span>Gallery</span><svg aria-hidden className="ml-auto" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="m6 4 4 4-4 4" /></svg>
         </button>
       </div>}
       {galleryOpen && <MediaPanelController onClose={closeGallery} onBackToMedia={closeGallery} />}
+      {centeredUpload && (
+        <Modal isOpen={addMediaOpen} title="Add media" onClose={closeAddMedia}>
+          <div className="flex justify-end p-4">
+            <Button ref={chooseFilesRef} variant="primary" onClick={() => fileInputRef.current?.click()}>Choose files</Button>
+          </div>
+        </Modal>
+      )}
 
       {/* One ingest action, below the search and browse controls. */}
       <div className={chrome === 'full' ? 'px-2' : 'px-3 mt-2'}>
@@ -944,8 +969,13 @@ export default function MediaGalleryPanel({
             className="hidden"
           />
           <button
+            ref={addMediaTriggerRef}
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            aria-haspopup={centeredUpload ? 'dialog' : undefined}
+            onClick={() => {
+              if (centeredUpload) setAddMediaOpen(true);
+              else fileInputRef.current?.click();
+            }}
             disabled={uploading}
             className={`flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] border border-[var(--control-border)] bg-[var(--control-bg)] px-2.5 text-[10px] font-medium text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] disabled:opacity-50 ${chrome === 'full' ? 'w-full justify-center' : ''}`}
           >

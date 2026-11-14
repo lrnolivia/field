@@ -1,6 +1,7 @@
 import * as t from '@babel/types';
 import { findAttribute, getAttributeValue, parseJSX, traverse } from '@/code/parsing/ast-utils';
 import { generate } from '@/code/generation/generator-utils';
+import { LEGACY_PATTERN_COMPONENT, PATTERN_COMPONENT } from './default-code-components/Pattern';
 import {
   buildPatternFillStyles,
   decodePatternStyleBackup,
@@ -80,6 +81,10 @@ export function migrateGridMaskInCode(code: string): string {
 }
 
 export function migrateGridMaskFiles(files: Map<string, string>): void {
+  const patternPath = 'components/Pattern.tsx';
+  if (files.get(patternPath) === LEGACY_PATTERN_COMPONENT) {
+    files.set(patternPath, PATTERN_COMPONENT);
+  }
   for (const [path, code] of files) {
     if (!/\.[jt]sx$/.test(path)) continue;
     const migrated = migrateGridMaskInCode(code);
