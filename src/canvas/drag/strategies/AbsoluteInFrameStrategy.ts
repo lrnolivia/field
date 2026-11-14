@@ -15,7 +15,8 @@ import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { getParentCanvasOffsetById, getAbsoluteCanvasRectById } from '@/canvas/canvas-math';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
 import { snapCorrection } from '../snap-precision';
-import { getActiveRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { getActiveRulerGuideSnapLines, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { frameGuideGeometry, frameGuideToScreen } from '@/canvas/ui/frame-ruler-guides';
 import { containerOverridesAtom } from '@/code/stores/container-query-store';
 import { viewportsConfigAtom } from '@/code/stores/viewport-store';
 import { overlayEditingIdAtom, overlayTriggerCallsAtom } from '@/code/stores/overlay-store';
@@ -795,6 +796,44 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     return new DOMRect(nr.left + lagX * transform.scale, nr.top + lagY * transform.scale, nr.width, nr.height);
   }
 
+  private snapToLocalGuides(nodeId: string, delta: Point, transform: DragContext['transform'], velocity: number) {
+    const parentId = this.parentId;
+    const lift = this.liftCorners.get(nodeId);
+    if (!parentId || !lift) return null;
+    const geometry = frameGuideGeometry({ id: parentId, viewportId: this.vpId });
+    if (!geometry) return null;
+    const lines = getFrameRulerGuideSnapLines(parentId, this.vpId, geometry)
+      .filter(line => !this.lockedAxis || this.lockedAxis === line.axis);
+    if (lines.length === 0) return null;
+
+    const offset = getIframeOffset();
+    const moveLocal = (p: Point): Point => {
+      const local = geometry.toLocal(
+        p.x * transform.scale + transform.x + offset.x,
+        p.y * transform.scale + transform.y + offset.y,
+      );
+      return { x: local.x + delta.x, y: local.y + delta.y };
+    };
+    const corners = { TL: moveLocal(lift.TL), TR: moveLocal(lift.TR), BR: moveLocal(lift.BR), BL: moveLocal(lift.BL) };
+    const xs = Object.values(corners).map(p => p.x);
+    const ys = Object.values(corners).map(p => p.y);
+    const left = Math.min(...xs);
+    const top = Math.min(...ys);
+    const rect = { left, top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
+
+    // The snap engine works in the candidate's coordinate space. Convert
+    // the screen tolerance using the projected scale at the dragged box.
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const origin = frameGuideToScreen(geometry, cx, cy);
+    const nextX = frameGuideToScreen(geometry, cx + 1, cy);
+    const nextY = frameGuideToScreen(geometry, cx, cy + 1);
+    const scale = Math.max(Math.hypot(nextX.x - origin.x, nextX.y - origin.y), Math.hypot(nextY.x - origin.x, nextY.y - origin.y));
+    if (!Number.isFinite(scale) || scale < 0.001) return null;
+    const snap = calculateSnap(rect, [], velocity, SNAP_THRESHOLD / scale, corners, undefined, lines);
+    return { ...snap, dx: snap.x - rect.left, dy: snap.y - rect.top };
+  }
+
   onMove(context: DragContext, mouseScreen: Point): DragMoveResult {
     const { draggedNodes, startMouse, transform, contentEl } = context;
     const screenDx = mouseScreen.x - startMouse.x;
@@ -912,10 +951,8 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     // parent's children have AABBs that don't line up with what the
     // user sees, and "snap left edge of dragged to left edge of
     // sibling" lands somewhere off the visible quad. For now, just
-    // disable snap entirely in this case — guides go away, drag
-    // follows the raw cursor. The `snap` block further down handles
-    // the suppression; here we still collect siblings for the
-    // non-transformed code paths to share the same array.
+    // skip canvas-aligned sibling candidates and use frame-local ruler
+    // guides in the snap step below.
     // SVG-GROUP CHILD: snap is disabled the same way. The child's position
     // lives in the group's VIEWBOX units while the snap engine measures
     // canvas-CSS rects — at any zoom/scale mismatch the threshold covers
@@ -1041,13 +1078,13 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
       }
     }
 
-    // Disable snap entirely when dragging inside a transformed
-    // ancestor chain — the engine's edge / corner / spacing guides
-    // don't line up with what the user sees once rotation/skew is in
-    // play, and even the centre-only fallback feels noisy. Return an
-    // empty snap result so the drag uses the raw position.
+    // Transformed parents need frame-local candidates. Canvas-aligned
+    // sibling bounds cannot describe the alignment in a rotated frame.
+    const localSnap = insideTransformedAncestor && !isSvgGroupChildDrag
+      ? this.snapToLocalGuides(primary.id, delta, transform, velocity)
+      : null;
     const snap = insideTransformedAncestor
-      ? {
+      ? localSnap ?? {
           x: draggedRect.left,
           y: draggedRect.top,
           snappedX: false,
@@ -1073,8 +1110,8 @@ export class AbsoluteInFrameStrategy implements DragStrategy {
     // (which are already in css coords).
     const finalAbsLeft = snap.snappedX ? (snap.x - tOffset.x) : absLeft;
     const finalAbsTop = snap.snappedY ? (snap.y - tOffset.y) : absTop;
-    const snapOffsetX = snapCorrection(rawLeft, finalAbsLeft, parentOffset.x, snap.snappedX);
-    const snapOffsetY = snapCorrection(rawTop, finalAbsTop, parentOffset.y, snap.snappedY);
+    const snapOffsetX = localSnap?.dx ?? snapCorrection(rawLeft, finalAbsLeft, parentOffset.x, snap.snappedX);
+    const snapOffsetY = localSnap?.dy ?? snapCorrection(rawTop, finalAbsTop, parentOffset.y, snap.snappedY);
 
     this.frameDelta = { x: delta.x + snapOffsetX, y: delta.y + snapOffsetY };
     for (const node of draggedNodes) {
