@@ -214,6 +214,42 @@ test('a frame guide snaps its positioned child at the visible guide', async ({ p
   await expect.poll(async () => (await editor.nodeBox('child')).x).toBeCloseTo(targetX, 0);
 });
 
+test('a positioned child resizes to its rotated frame guide and Undo restores its width', async ({ page }) => {
+  const rotatedSource = source.replace(
+    "background:'#ef4444'}} />",
+    "background:'#ef4444', transform:'rotate(30deg)'}}><div data-id=\"child\" style={{position:'absolute', left:'20px', top:'42px', width:'18px', height:'22px', background:'#000'}} /></div>",
+  );
+  const editor = await openEditor(page, 'docked', rotatedSource);
+  const frame = await editor.nodeBox('rect');
+  await editor.select(['rect']);
+  await placeVerticalGuide(page, frame.x + frame.width / 2, frame.y + frame.height / 2);
+  const guide = page.locator('[data-ruler-guide-frame="rect"]');
+  await expect(guide).toHaveCount(1);
+  const line = (await guide.boundingBox())!;
+  await editor.select(['child']);
+  const edge = page.locator('[data-resize-edge="right"]');
+  const box = (await edge.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const angle = Math.PI / 6;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40 * Math.cos(angle), y + 40 * Math.sin(angle), { steps: 30 });
+  await expect.poll(() => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, expected) =>
+    lines.some(candidate => {
+      const bounds = candidate.getBoundingClientRect();
+      return Math.abs(bounds.x - expected.x) < 2 && Math.abs(bounds.width - expected.width) < 2;
+    }), line),
+  ).toBe(true);
+  await page.mouse.up();
+  const child = editor.node('child');
+  await expect(child).toHaveCSS('width', '60px');
+  await expect(child).toHaveCSS('left', '20px');
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect(child).toHaveCSS('width', '18px');
+  await expect(guide).toHaveCount(1);
+});
+
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
     const editor = await openEditor(page, mode);
