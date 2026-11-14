@@ -58,6 +58,7 @@ export interface PasteOptions {
   /** Does the selected node's parent lay out ON THE ACTIVE VIEWPORT? Resolved
    *  by the caller from the rendered element; see PasteContext.parentHasLayout. */
   parentHasLayout?: boolean;
+  selectedFrameSize?: PasteContext['selectedFrameSize'];
 
   /**
    * If provided, skip reading from localStorage and treat this as the
@@ -106,8 +107,10 @@ export function executePaste(opts: PasteOptions): PasteResult {
     interactingVpId: opts.interactingVpId,
     viewportWidths: opts.viewportWidths,
     parentHasLayout: opts.parentHasLayout,
+    selectedFrameSize: opts.selectedFrameSize,
     activeFilePath: opts.activeFilePath,
     sourceFilePath: data.sourceFilePath ?? null,
+    sourceProjectId: data.sourceProjectId,
   };
 
   // FRAMER PARITY (2026-09-07): copying an OVERLAY alone and pasting with

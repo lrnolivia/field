@@ -12,6 +12,7 @@
 //   4. createNode() per root → emits queueMutation.
 //   5. After all nodes created, run post-paste passes: overlay target remap.
 
+import { getProjectId } from '@/backend/project-id';
 import { trace } from '@/shared/debug-trace';
 import { queueMutation } from '@/code/mutation/mutation-queue';
 import { isPrimaryViewport, getContentRoot } from '@/canvas/node-ops';
@@ -22,6 +23,7 @@ import { queueReplicaCreationUnhide } from '@/canvas/creators/creator-utils';
 import { isInstanceLike, instanceReplicaUnhideDisplay } from '@/canvas/drag/instance-replica-visibility';
 import {
   calculatePosition,
+  fitClipboardNodeInFrame,
   findRootNodes,
 } from '../core/position';
 import { createNode } from '../core/node-creator';
@@ -170,9 +172,18 @@ function executeForTarget(
         ? ctx.forceNoLayoutPosition
         : undefined;
 
+  const frame = config.positioning === 'fit-in-frame' && target.parentId && !positionOverride
+    ? ctx.nodes.get(target.parentId)
+    : undefined;
+  const sameFile = !!ctx.activeFilePath && ctx.sourceFilePath === ctx.activeFilePath
+    && (!ctx.sourceProjectId || ctx.sourceProjectId === getProjectId());
   let xOffset = 0;
   for (let i = 0; i < rootNodes.length; i++) {
-    const root = rootNodes[i];
+    const original = rootNodes[i];
+    const sameFrame = sameFile && original.parentId === target.parentId;
+    const root = frame && !sameFrame
+      ? fitClipboardNodeInFrame(original, frame, ctx.selectedFrameSize)
+      : original;
 
     let canvasPosition: { x: number; y: number } | undefined;
     if (isCanvasTarget && basePos) {

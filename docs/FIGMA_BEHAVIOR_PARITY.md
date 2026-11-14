@@ -69,7 +69,14 @@ Official references:
 - https://help.figma.com/hc/en-us/articles/360040449713-Add-guides-to-the-canvas-or-frames
 - https://help.figma.com/hc/en-us/articles/4409078832791-Copy-and-paste-objects
 
-Status: **pending audit**.
+| Desktop behavior | Field status | Browser coverage |
+| --- | --- | --- |
+| Keep the opposite edge or corner when resizing and honor the aspect lock | Verified for regular frames, SVG rectangles, and centered or rotated edges | `aspect-lock-resize`, `resize-centered-axis` |
+| Resize a group or multiselection as one transformation and undo it in one step | Verified for native groups with rotated and nested descendants | `group-resize-affine` |
+| Update the selection outline after an Inspector rotation and history navigation | Verified for frames and SVG rectangles | `rotation-overlay-refresh` |
+| Snap near an object edge at different zooms and from either direction | Verified at 90% and 100%, including immediate release | `object-snap-approach` |
+| Place Canvas ruler guides at the visible snap position and undo guide edits | Verified in Full, Float, and Focus. Frame-scoped guides and guide duplication need a separate parity audit. | `ruler-guides` |
+| Duplicate a pinned object in its own parent and paste a copied object into a different regular frame | Verified. A pasted object keeps each source coordinate when it fits and centers on an axis that overflows the destination. | `duplicate-pinned`, `frame-hierarchy-drag` |
 
 ## Batch 4 — Auto Layout and constraints
 

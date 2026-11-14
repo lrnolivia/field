@@ -3,6 +3,8 @@
 // Pure functions: take a PasteContext + positioning mode, return { x, y }.
 // No DOM access — everything reads from the nodes map and ctx.transform.
 
+import { parseTranslateOffset } from '@/canvas/drag/strategies/transform-utils';
+import { removeAxisTranslate } from '@/shared/position-utils';
 import type { CanvasNode } from '@/code/parsing/parser';
 import type {
   ClipboardNode,
@@ -151,6 +153,92 @@ function calculateCenterInParent(ctx: PasteContext, defaultPosition: Position): 
   return { x: (pw - nw) / 2, y: (ph - nh) / 2 };
 }
 
+// ─── Paste at the original position, within a destination frame ─────────────
+
+function resolveLength(value: string | undefined, basis?: number): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|%)?$/.exec(value.trim());
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return undefined;
+  if (match[2] !== '%') return amount;
+  return basis === undefined ? undefined : amount * basis / 100;
+}
+
+const frameAxes = [
+  { axis: 'x', start: 'left', end: 'right', size: 'width', parentSize: 'parentWidth' },
+  { axis: 'y', start: 'top', end: 'bottom', size: 'height', parentSize: 'parentHeight' },
+] as const;
+
+/**
+ * Reposition only the root being placed in a different regular frame.
+ * Work in its CSS layout box so camera zoom and parent rotation have no
+ * effect. Leave an axis that was already deliberately outside its source
+ * frame alone, and leave unknown geometry to the existing CSS anchors.
+ */
+export function fitClipboardNodeInFrame(
+  node: ClipboardNode,
+  frame: CanvasNode,
+  measuredSize?: PasteContext['selectedFrameSize'],
+): ClipboardNode {
+  if (node.styles.position !== 'absolute' && !node.isCanvasNode) return node;
+  const styles = { ...node.styles };
+
+  for (const { axis, start, end, size, parentSize } of frameAxes) {
+    const measured = measuredSize?.[size];
+    const frameExtent = measured && measured > 0 ? measured : resolveLength(frame.styles[size]);
+    if (frameExtent === undefined || !Number.isFinite(frameExtent) || frameExtent <= 0) continue;
+    const sourceExtent = node.sourceLayout?.[parentSize];
+    const sourceSize = node.sourceLayout?.[size];
+    const originalParent = sourceExtent !== undefined && Number.isFinite(sourceExtent) && sourceExtent > 0 ? sourceExtent : undefined;
+    const authoredSize = styles[size];
+    const pastedSize = authoredSize?.endsWith('%')
+      ? resolveLength(authoredSize, frameExtent)
+      : sourceSize ?? resolveLength(authoredSize) ?? resolveLength(node.computedDimensions?.[size]);
+    if (pastedSize === undefined || !Number.isFinite(pastedSize) || pastedSize <= 0) continue;
+
+    const authoredStart = styles[start];
+    const authoredEnd = styles[end];
+    const hasStart = authoredStart != null && authoredStart !== '' && authoredStart !== 'auto';
+    const hasEnd = authoredEnd != null && authoredEnd !== '' && authoredEnd !== 'auto';
+    const translate = (extent: number) =>
+      parseTranslateOffset(styles.transform ?? '', extent, extent)[axis]
+      + (resolveLength(styles[axis], extent) ?? 0);
+    const anchor = (extent: number, nodeExtent: number) => {
+      if (hasStart) return resolveLength(authoredStart, extent);
+      if (!hasEnd) return 0;
+      const endOffset = resolveLength(authoredEnd, extent);
+      return endOffset === undefined ? undefined : extent - endOffset - nodeExtent;
+    };
+    const destinationAnchor = anchor(frameExtent, pastedSize);
+    if (destinationAnchor === undefined) continue;
+    const destinationOffset = destinationAnchor + translate(pastedSize);
+
+    let originalOffset = destinationOffset;
+    if (originalParent !== undefined && sourceSize !== undefined && Number.isFinite(sourceSize)) {
+      const sourceAnchor = anchor(originalParent, sourceSize);
+      if (sourceAnchor === undefined) continue;
+      originalOffset = sourceAnchor + translate(sourceSize);
+      // offset dimensions round to whole CSS px in the browser.
+      if (originalOffset < -0.5 || originalOffset + sourceSize > originalParent + 0.5) continue;
+    }
+
+    const fits = originalOffset >= -0.5 && originalOffset + pastedSize <= frameExtent + 0.5;
+    if (fits && Math.abs(destinationOffset - originalOffset) < 0.5) continue;
+
+    const offset = fits ? originalOffset : (frameExtent - pastedSize) / 2;
+    styles[start] = `${Math.round(offset * 1000) / 1000}px`;
+    delete styles[end];
+    delete styles[axis];
+    const transform = removeAxisTranslate(styles.transform, axis);
+    if (transform) styles.transform = transform;
+    else delete styles.transform;
+  }
+  return frameAxes.some(({ start, end }) => styles[start] !== node.styles[start] || styles[end] !== node.styles[end])
+    ? { ...node, styles }
+    : node;
+}
+
 // ─── Public entrypoint ───────────────────────────────────────────────────────
 
 export function calculatePosition(
@@ -193,6 +281,7 @@ export function calculatePosition(
     case 'center-in-parent':
       return calculateCenterInParent(ctx, defaultPosition);
 
+    case 'fit-in-frame':
     case 'after-selected':
     case 'last-child':
       // Position is determined by insert index, not coordinates.

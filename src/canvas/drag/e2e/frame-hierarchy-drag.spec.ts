@@ -28,12 +28,12 @@ export default function Page() {
 
 type Box = { x: number; y: number; width: number; height: number };
 
-async function seed(page: Page, editor: EditorPage) {
+async function seed(page: Page, editor: EditorPage, source = PAGE) {
   const project = {
     format: 'revyme-v1',
     files: {
       'app/page.tsx': `import PageClient from './page.client';\n\nexport const metadata = {};\n\nexport default function Page() {\n  return <PageClient />;\n}\n`,
-      'app/page.client.tsx': PAGE,
+      'app/page.client.tsx': source,
     },
   };
   await page.addInitScript((data) => {
@@ -212,3 +212,35 @@ test.describe('Frame hierarchy drag', () => {
     });
   }
 });
+
+for (const placement of [
+  { name: 'Y only', left: 48, top: 230, expectedLeft: 48, expectedTop: 85 },
+  { name: 'both axes', left: 250, top: 230, expectedLeft: 100, expectedTop: 85 },
+]) {
+  test(`pasting into a smaller clipped Frame centers ${placement.name}`, async ({ page }) => {
+    const editor = new EditorPage(page);
+    const source = PAGE.replace("left: '48px', top: '128px'",
+      `left: '${placement.left}px', top: '${placement.top}px'`);
+    await seed(page, editor, source);
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+    await page.evaluate(() => (window as any).__e2e.select(['rect']));
+    await page.keyboard.press(`${mod}+c`);
+    await page.evaluate(() => (window as any).__e2e.select(['inner']));
+    await page.keyboard.press(`${mod}+v`);
+
+    const pasted = editor.node('inner').locator('[data-id]:not([data-id="n-child"])').first();
+    await expect(pasted).toBeAttached();
+    const id = (await pasted.getAttribute('data-id'))!;
+    expect(await parentOf(page, id)).toBe('inner');
+    const inner = await editor.nodeBox('inner');
+    const box = await editor.nodeBox(id);
+    const scale = inner.width / 320;
+    expectNear((box.x - inner.x) / scale, placement.expectedLeft, 'pasted x');
+    expectNear((box.y - inner.y) / scale, placement.expectedTop, 'pasted y');
+    expectNear(box.width / scale, 120, 'original width');
+    expectNear(box.height / scale, 90, 'original height');
+    await undo(page);
+    await expect(pasted).toHaveCount(0);
+  });
+}

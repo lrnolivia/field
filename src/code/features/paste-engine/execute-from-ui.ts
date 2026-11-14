@@ -16,7 +16,7 @@
 import { toast } from 'sonner';
 import type { CanvasNode } from '../../parsing/parser';
 import { transformManager } from '@/canvas/transform';
-import { getInteractingViewport, getActiveFilePath, findNodeComputedStyle } from '@/canvas/node-ops';
+import { getInteractingViewport, getActiveFilePath, findNodeComputedStyle, findNodeComputedStyles } from '@/canvas/node-ops';
 import { getViewportWidths } from '@/code/stores/viewport-store';
 import { flushNow } from '@/code/mutation/mutation-queue';
 import { trace } from '@/shared/debug-trace';
@@ -67,6 +67,14 @@ export function executePaste(
   const { vpId: interactingVpId } = getInteractingViewport();
   const activeFilePath = getActiveFilePath();
 
+  const selectedSize = selectedId
+    ? findNodeComputedStyles(selectedId, interactingVpId, ['__offsetWidth', '__offsetHeight'])
+    : undefined;
+  const selectedFrameSize = selectedSize && {
+    width: Number.parseFloat(selectedSize.__offsetWidth),
+    height: Number.parseFloat(selectedSize.__offsetHeight),
+  };
+
   const runEngine = (overrideClipboard?: ClipboardData): PasteResult =>
     engineExecutePaste({
       selectedIds: selectedId ? [selectedId] : [],
@@ -78,6 +86,7 @@ export function executePaste(
       viewportWidths: getViewportWidths(),
       activeFilePath,
       overrideClipboard,
+      selectedFrameSize,
       parentHasLayout: resolveParentHasLayout(nodes, selectedId ?? undefined, interactingVpId),
     });
 
