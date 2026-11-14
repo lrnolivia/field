@@ -90,7 +90,7 @@ export default function ChromeIslands() {
             borderRadius: WORKSPACE_FLOAT_RADIUS,
             boxShadow: 'var(--field-chrome-pane-shadow)',
           }),
-          opacity: railVisible || leftOpen ? 1 : 0,
+          opacity: railVisible ? 1 : 0,
           transform: !dockedLeft && !railVisible ? 'translateX(-18px)' : undefined,
           transition: 'width 260ms ease, transform 260ms ease, opacity 260ms ease',
         }}
@@ -100,6 +100,7 @@ export default function ChromeIslands() {
         <ChromeIsland
           aria-hidden
           data-workspace-island="right"
+          data-visible={inspectorVisible ? 'true' : 'false'}
           className="fixed z-[4998]"
           style={{
             right: layout.right.inset,

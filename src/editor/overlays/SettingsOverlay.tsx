@@ -65,6 +65,7 @@ import {
   rightInspectorTemporaryRevealAtom,
   rightInspectorExplicitCollapseAtom,
   workspacePanelWidthsLockedAtom,
+  canvasFollowsPanelsAtom,
   WORKSPACE_PANEL_WIDTH_PRESETS,
   getWorkspacePanelWidthPresetId,
   type WorkspacePanelWidthPresetId,
@@ -349,6 +350,7 @@ export default function SettingsOverlay({ open, onClose: closeOverride, preferen
   const workspaceMode = useAtomValue(workspaceModeAtom);
   const setWorkspaceMode = useSetAtom(setWorkspaceModeAtom);
   const [workspaceAutoHide, setWorkspaceAutoHide] = useAtom(workspaceAutoHideAtom);
+  const [canvasFollowsPanels, setCanvasFollowsPanels] = useAtom(canvasFollowsPanelsAtom);
   const [rightInspectorAutoHide, setRightInspectorAutoHide] = useAtom(rightInspectorAutoHideAtom);
   const setRightPaneOpen = useSetAtom(rightPaneOpenAtom);
   const setRightInspectorTemporaryReveal = useSetAtom(rightInspectorTemporaryRevealAtom);
@@ -1222,6 +1224,15 @@ export default function SettingsOverlay({ open, onClose: closeOverride, preferen
                   </div>
                   <Toggle label="Auto-hide Inspector" value={rightInspectorAutoHide} onChange={handleInspectorAutoHide} />
                 </div>
+                {!mobileLayout && (
+                  <div className="flex items-center justify-between gap-3 rounded-[5px] border border-[var(--border-light)] bg-[var(--bg-surface)]/55 px-3 py-2.5">
+                    <div>
+                      <div className="text-[11px] font-medium text-[var(--text-primary)]">Move Canvas with panels</div>
+                      <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Recenter the Canvas as side panels open or close in Full and Focus.</div>
+                    </div>
+                    <Toggle label="Move Canvas with panels" value={canvasFollowsPanels} onChange={setCanvasFollowsPanels} />
+                  </div>
+                )}
               </div>
             </SettingsRow>
 

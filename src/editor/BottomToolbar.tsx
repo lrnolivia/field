@@ -18,7 +18,7 @@ import { toolModeAtom, panHighlightAtom, type ToolMode } from '@/code/stores/too
 import { zoomToFit, fitSelectionCommand } from '@/canvas/transform';
 import { signalUserCameraIntent } from '@/canvas/transform/camera-intent';
 import { getContentRoot } from '@/canvas/node-ops';
-import { selectedNodeAtom } from '@/code/stores/store';
+import { selectedIdsAtom } from '@/code/stores/store';
 import { activeFilePathAtom, isIconSetFilePath } from '@/code/project/active-file-store';
 import { creatorToolsLockedAtom } from '@/code/stores/tool-store';
 import { commentModeActiveAtom } from '@/code/stores/comment-store';
@@ -540,21 +540,21 @@ function PenDropdown({ toolMode, onSelect, open, setOpen }: { toolMode: ToolMode
 
 // ─── Smart Zoom ─────────────────────────────────────────────────────────────
 
-function SmartZoomButton({ selectedId }: { selectedId: string | null }) {
+function SmartZoomButton({ selectedIds }: { selectedIds: string[] }) {
   const fit = useCallback(() => {
     const root = getContentRoot();
     if (!root) return;
-    signalUserCameraIntent(selectedId ? 'toolbar:fit-selection' : 'toolbar:fit-canvas');
-    if (selectedId) {
-      fitSelectionCommand(root, [selectedId]);
-      trace.action('toolbar:smart-zoom', { target: 'selection', selectedId });
+    signalUserCameraIntent(selectedIds.length ? 'toolbar:fit-selection' : 'toolbar:fit-canvas');
+    if (selectedIds.length) {
+      fitSelectionCommand(root, selectedIds);
+      trace.action('toolbar:smart-zoom', { target: 'selection', selectedIds });
     } else {
       zoomToFit(root);
       trace.action('toolbar:smart-zoom', { target: 'canvas' });
     }
-  }, [selectedId]);
+  }, [selectedIds]);
 
-  const title = selectedId ? 'Fit selection (Shift+2)' : 'Fit canvas (Shift+1)';
+  const title = selectedIds.length ? 'Fit selection (Shift+2)' : 'Fit canvas (Shift+1)';
   return (
     <button
       type="button"
@@ -679,7 +679,7 @@ export default function BottomToolbar() {
   // persisted/synced), so the comment tool is hidden when offline.
   const isOffline = useIsOffline();
   const togglePalette = usePaletteToggle();
-  const selectedId = useAtomValue(selectedNodeAtom);
+  const selectedIds = useAtomValue(selectedIdsAtom);
   const activeFile = useAtomValue(activeFilePathAtom);
   const isIconSetMaster = isIconSetFilePath(activeFile);
   // Container-set (icon-set) masters suppress the
@@ -862,7 +862,7 @@ export default function BottomToolbar() {
           data-toolbar-cluster="utility"
           className="flex items-center gap-0.5"
         >
-          <SmartZoomButton selectedId={selectedId} />
+          <SmartZoomButton selectedIds={selectedIds} />
 
           {!isViewer && (
             <button

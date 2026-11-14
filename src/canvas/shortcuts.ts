@@ -17,6 +17,7 @@ import {
 } from './commands';
 import { getContentRoot, getViewportPrefix } from './node-ops';
 import { getCanvasBridge } from './canvas-bridge';
+import { selectedIdsAtom } from '@/code/stores/store';
 import { undo, redo } from '../code/mutation/history';
 import { copyNodes } from '../code/features/paste-engine';
 import { executePaste } from '../code/features/paste-engine/execute-from-ui';
@@ -203,7 +204,7 @@ export function registerShortcuts(refs: ShortcutRefs): () => void {
     const el = contentRef.current; if (el) { signalUserCameraIntent('shortcut:fit-canvas'); zoomToFit(el); }
   }}));
   cleanups.push(keyboard.register({ key: ['2', '@'], shift: true, label: 'Zoom to selection', category: 'zoom', handler: () => {
-    const el = contentRef.current; if (el) { signalUserCameraIntent('shortcut:fit-selection'); fitSelectionCommand(el, selectedIdRef.current ? [selectedIdRef.current] : []); }
+    const el = contentRef.current; if (el) { signalUserCameraIntent('shortcut:fit-selection'); fitSelectionCommand(el, getDefaultStore().get(selectedIdsAtom)); }
   }}));
   cleanups.push(keyboard.register({ key: ['3', '#'], shift: true, label: 'Zoom to 100%', category: 'zoom', handler: () => { signalUserCameraIntent('shortcut:zoom-100'); zoomTo100(); } }));
   cleanups.push(keyboard.register({ key: 'c', label: 'Center focused object', category: 'zoom', handler: () => {

@@ -56,7 +56,7 @@ import { useIsViewer, useIsViewerRole, useViewerReason, setOfflineMode } from '.
 import { useActiveBranchId } from './code/stores/agent-run-lock-store';
 import { MAIN_BRANCH_ID } from './code/project/project-fs';
 import { suspendBuilderTheme, resumeBuilderTheme } from '@/editor/builder-theme';
-import { leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
+import { canvasFollowsPanelsAtom, leftPaneOpenAtom, rightPaneOpenAtom, leftContentWidthAtom, rightPaneWidthAtom, rightPaneDetachedAtom, rightPaneDragOffsetAtom, rightFloatingHeightAtom, rightCollapsedWidthAtom } from '@/code/stores/workspace-panels-store';
 import { setCanvasInsets } from '@/canvas/transform/CameraCommands';
 import UpdateAvailableNotice from '@/editor/ui/UpdateAvailableNotice';
 import { transformManager } from '@/canvas/transform/TransformManager';
@@ -110,6 +110,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   const leftContentWidth = useAtomValue(leftContentWidthAtom);
   const rightPaneWidth = useAtomValue(rightPaneWidthAtom);
   const railVisible = useAtomValue(leftRailVisibleAtom);
+  const canvasFollowsPanels = useAtomValue(canvasFollowsPanelsAtom);
   const workspaceLayout = deriveWorkspaceLayout(leftPaneOpen, rightPaneOpen, { leftContentWidth, rightPaneWidth, rightDetached });
   const floatingInspectorHeight = rightDetached
     ? resolveRightFloatingHeight(viewportHeight, rightFloatingHeight, rightDragOffset.y)
@@ -137,7 +138,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
   useEffect(() => {
     setCanvasInsets(cameraInsets);
     const previous = previousInsets.current;
-    if (previous && (
+    if (canvasFollowsPanels && previous && (
       previous.left !== cameraInsets.left ||
       previous.top !== cameraInsets.top ||
       previous.right !== cameraInsets.right ||
@@ -157,7 +158,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
     }
     previousInsets.current = { ...cameraInsets };
     previousMode.current = workspaceMode;
-  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom, workspaceMode]);
+  }, [cameraInsets.left, cameraInsets.top, cameraInsets.right, cameraInsets.bottom, workspaceMode, canvasFollowsPanels]);
   // Lifted to atom so MenuTabs (View → Toggle preview) and the Ctrl+P
   // keyboard shortcut can both flip it without prop-drilling. The
   // right-header Preview button still drives the same atom via the
@@ -278,6 +279,7 @@ export default function App({ onCanvasFirstPaint, onCanvasRevealComplete, canvas
       aria-busy={!interactive ? true : undefined}
       data-editor-interactive={interactive ? 'true' : 'false'}
       data-canvas-reveal-phase={canvasRevealPhase}
+      data-floating-camera-fit={workspaceMode === 'floating' && !mobilePanelPresentation ? '' : undefined}
       onAnimationEnd={(event) => {
         if (event.animationName === 'field-canvas-reveal'
           && (event.target as HTMLElement).hasAttribute('data-canvas-iframe')) {
