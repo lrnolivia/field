@@ -2391,16 +2391,22 @@ export function startResize(
       deltaY = fallback.deltaY;
     }
 
-    let { width: newWidth, height: newHeight, left: newLeft, top: newTop } = calculateResizeDelta(
-      curWidth, curHeight, curLeft, curTop,
-      deltaX, deltaY, xHandle, yHandle, isInLayout,
-    );
-
     // Shift preserves the starting ratio from every handle, including edges.
     // Vector sets and explicitly locked objects preserve it without Shift.
     lastShift = e.shiftKey;
     const aspectLocked = isVectorSet || hasPersistentAspectLock || e.shiftKey;
     lockedDimensions = !isVpNode && aspectLocked;
+    // Crossing the opposite edge rebases the gesture. When Shift comes
+    // up, discard the inactive axis's temporary, locked rebase.
+    if (!aspectLocked && !hasTransform) {
+      if (!xHandle && wroteWidth) { curWidth = startWidth; curLeft = startLeft; }
+      if (!yHandle && wroteHeight) { curHeight = startHeight; curTop = startTop; }
+    }
+    let { width: newWidth, height: newHeight, left: newLeft, top: newTop } = calculateResizeDelta(
+      curWidth, curHeight, curLeft, curTop,
+      deltaX, deltaY, xHandle, yHandle, isInLayout,
+    );
+
     if (aspectLocked) {
       const locked = applyVectorAspectLock(newWidth, newHeight, curWidth, curHeight, curLeft, curTop, aspectRatio, xHandle, yHandle, isInLayout);
       newWidth = locked.width;

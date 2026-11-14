@@ -267,25 +267,34 @@ for (const scenario of [
   });
 }
 
-test('releasing Shift before an edge drop leaves the authored auto height intact', async ({ page }) => {
-  const variedSource = source.replace("top:'128px', width:'160px', height:'120px', background:'#ef4444'}} />",
-    "top:'25.12345%', width:'160px', height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>");
-  const editor = await openEditor(page, 'docked', variedSource);
-  await editor.select(['rect']);
-  const box = (await page.locator('[data-resize-edge="right"]').boundingBox())!;
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await page.keyboard.down('Shift');
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x + 30, y, { steps: 12 });
-  await expect(editor.node('rect')).not.toHaveCSS('height', '64px');
-  await page.keyboard.up('Shift');
-  await page.mouse.up();
-  await expect(editor.node('rect')).toHaveCSS('height', '64px');
-  await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*height:\s*'auto'/);
-  await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*top:\s*'25\.12345%'/);
-});
+for (const { travel, top, placement } of [
+  { travel: 30, top: '25.12345%', placement: 'after growing the box' },
+  { travel: -176, top: '128px', placement: 'after crossing the opposite edge' },
+]) {
+  test(`releasing Shift before drop preserves Auto height and top ${placement}`, async ({ page }) => {
+    const variedSource = source.replace("top:'128px', width:'160px', height:'120px', background:'#ef4444'}} />",
+      `top:'${top}', width:'160px', height:'auto', background:'#ef4444'}}><div style={{height:'64px'}} /></div>`);
+    const editor = await openEditor(page, 'docked', variedSource);
+    await editor.select(['rect']);
+    const box = (await page.locator('[data-resize-edge="right"]').boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const child = editor.node('rect');
+    const initialTop = await child.evaluate(element => getComputedStyle(element).top);
+    await page.keyboard.down('Shift');
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + travel, y, { steps: 12 });
+    await expect(child).not.toHaveCSS('height', '64px');
+    await page.keyboard.up('Shift');
+    await page.mouse.up();
+    await expect(child).toHaveCSS('height', '64px');
+    await expect(child).toHaveCSS('top', initialTop);
+    const readTop = (code: string) => code.match(/data-id="rect"[^>]*top:\s*'([^']+)'/)?.[1];
+    await expect.poll(async () => readTop(await editor.getPageCode())).toBe(top);
+    await expect.poll(() => editor.getPageCode()).toMatch(/data-id="rect"[^>]*height:\s*'auto'/);
+  });
+}
 
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
