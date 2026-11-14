@@ -182,7 +182,8 @@ test('a flex child dragged to the top row becomes the first flow child', async (
   await expect.poll(() => editor.getRootChildrenVisualOrder()).toEqual(['how', 'hero', 'features']);
 });
 
-test('workspace panes collapse independently, persist, and rail clicks reopen content', async ({ page }) => {
+test('workspace panes collapse independently, persist, and shift the Canvas when enabled', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('field:prefs:canvasFollowsPanels', 'true'));
   const editor = new EditorPage(page);
   await editor.gotoWithSeed('LAYER_PREVIEW_PARITY');
   await editor.waitForStableGeometry('root');
