@@ -46,7 +46,7 @@ const center = (box: { x: number; y: number; width: number; height: number }) =>
   x: box.x + box.width / 2, y: box.y + box.height / 2,
 });
 
-for (const action of ['return', 'detach'] as const) {
+for (const action of ['return', 'detach', 'cancel'] as const) {
   test(`a grid beyond the root box can reorder and ${action} across the actual page boundary`, async ({ page }) => {
     const editor = await openGrid(page);
     const before = await editor.getPageCode();
@@ -75,9 +75,18 @@ for (const action of ['return', 'detach'] as const) {
     await expect.poll(slotX).toBeCloseTo(second.x, 0);
     await page.mouse.move(target.x, section.y + section.height + 70);
     await expect(slot).toHaveCount(0);
-    if (action === 'return') {
+    if (action !== 'detach') {
       await page.mouse.move(target.x, gapY);
       await expect.poll(slotX).toBeCloseTo(second.x, 0);
+    }
+
+    if (action === 'cancel') {
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      await expect.poll(async () => center(await editor.nodeBox('a')).x).toBeCloseTo(first.x, 0);
+      await expect.poll(async () => (await editor.nodeBox('b')).x).toBeCloseTo(second.x, 0);
+      expect(await editor.getPageCode()).toBe(before);
+      return;
     }
 
     await page.mouse.up();
@@ -160,3 +169,56 @@ for (const placement of ['numbered lines', 'named areas'] as const) {
     }
   });
 }
+
+test('explicit Grid swaps within the compact desktop breakpoint', async ({ page }) => {
+  await page.setViewportSize({ width: 1800, height: 950 });
+  const compactId = 'desktopCompact';
+  const compactOverrides = `<style>{\`
+      @media (max-width: 1100px) {
+        [data-id="a"] { grid-column: 2 !important; }
+        [data-id="b"] { grid-column: 3 !important; }
+        [data-id="c"] { grid-column: 1 !important; }
+      }
+      \`}</style>`;
+  const source = (['a', 'b', 'c'] as const).reduce((code, id, i) => code.replace(
+    `data-id="${id}" style={{`, `data-id="${id}" style={{gridColumn:'${i + 1}', gridRow:'1',`,
+  ), PAGE)
+    .replace('/** @canvas { "viewports": [{"id":"desktop","width":900}] } */', `/** @canvas {
+      "viewports": [
+        {"id":"desktop","label":"Desktop","width":1440,"isPrimary":true,"order":0},
+        {"id":"${compactId}","label":"Compact desktop","width":1100,"isPrimary":false,"order":1}
+      ],
+      "positions": {"desktop":{"x":0,"y":0},"${compactId}":{"x":1540,"y":0}}
+    } */`)
+    .replace('<div data-id="grid"', `${compactOverrides}<div data-id="grid"`);
+  const editor = await openGrid(page, source);
+  const base = editor.sandbox().locator('[data-viewport="desktop"]');
+  const compact = editor.sandbox().locator(`[data-viewport="${compactId}"]`);
+  const layer = (id: string) => compact.locator(`[data-id="${id}"]`);
+  const initial = await editor.getPageCode();
+  await expect(base.locator('[data-id="a"]')).toHaveCSS('grid-column-start', '1');
+  await expect(layer('a')).toHaveCSS('grid-column-start', '2');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '1');
+
+  await editor.select(['a'], compactId);
+  const a = center(await editor.nodeBoxIn(compactId, 'a'));
+  const c = center(await editor.nodeBoxIn(compactId, 'c'));
+  const slot = compact.locator('[data-placeholder-id="ph-grid-a"]');
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x, a.y + 4);
+  await expect(slot).toHaveCSS('grid-column-start', '2');
+  await page.mouse.move(c.x, c.y);
+  await expect(slot).toHaveCSS('grid-column-start', '1');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '2');
+  await page.mouse.up();
+
+  await expect(layer('a')).toHaveCSS('grid-column-start', '1');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '2');
+  await expect(base.locator('[data-id="a"]')).toHaveCSS('grid-column-start', '1');
+  await expect(base.locator('[data-id="c"]')).toHaveCSS('grid-column-start', '3');
+  await expect.poll(() => editor.getPageCode()).toMatch(/<div data-id="c"[^>]*gridColumn:\s*'3'/);
+  await expect.poll(() => editor.getBandStyleProp(1100, 'c', 'grid-column')).toBe('2');
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect.poll(() => editor.getPageCode()).toBe(initial);
+});

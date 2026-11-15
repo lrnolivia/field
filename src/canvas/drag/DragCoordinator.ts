@@ -292,7 +292,9 @@ export class DragCoordinator {
       this.handleMouseUp();
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || !this.isDragStarted) return;
+      // Grid swaps can be rolled back while Grid owns the gesture.
+      // A later strategy may already have committed a structural handoff.
+      if (e.key !== 'Escape' || this.activeStrategy?.name !== 'grid') return;
       e.preventDefault();
       e.stopImmediatePropagation();
       this.cancel();

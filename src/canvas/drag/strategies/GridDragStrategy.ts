@@ -31,7 +31,7 @@ import type { Point, PendingUpdate } from '@/shared/types';
 import { isInstanceOwnedNode } from '@/canvas/drag/instance-drop-guard';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { getDefaultStore } from 'jotai';
-import { containerOverridesAtom, getOverrideValue } from '@/code/stores/container-query-store';
+import { containerOverridesAtom, getOverridesAtWidth } from '@/code/stores/container-query-store';
 import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { commitOrderAssignments } from './order-commit';
 import { repositionSignalOps } from '../reposition-signal';
@@ -73,6 +73,7 @@ interface InlinePlacement {
 }
 
 const PLACEMENT_PROPERTIES = ['gridColumn', 'gridRow', 'gridArea'] as const;
+const PLACEMENT_LONGHANDS = ['gridColumnStart', 'gridColumnEnd', 'gridRowStart', 'gridRowEnd'] as const;
 const AUTO_GRID_LINE = /^(?:auto|span|inherit|initial|unset|revert|revert-layer)(?:\s|$)/i;
 
 function hasGridLine(value: string): boolean {
@@ -351,23 +352,34 @@ export class GridDragStrategy implements DragStrategy {
     this.originalPlacements.clear();
     this.livePlacements.clear();
     const component = isComponentFilePath(getActiveFilePath());
-    const variant = isPrimaryViewport(this.vpId) ? 'default' : this.vpId;
     const width = !component && !isPrimaryViewport(this.vpId) ? getViewportWidths()[this.vpId] : undefined;
     const overrides = width ? getDefaultStore().get(containerOverridesAtom) : null;
+    const fixedPlacements: InlinePlacement[] = [];
     for (const childId of allChildren) {
-      const child = context.nodes.get(childId);
-      const read = (prop: typeof PLACEMENT_PROPERTIES[number]) => {
-        const inline = child?.styles?.[prop] ?? '';
-        if (component) {
-          return child?.conditionalStyles?.[prop]?.[variant] ?? child?.conditionalStyles?.[prop]?.default ?? inline;
-        }
-        return width && overrides ? getOverrideValue(overrides, childId, prop, width) ?? inline : inline;
+      const authored = context.nodes.get(childId)?.styles ?? {};
+      const inline: InlinePlacement = {
+        gridColumn: authored.gridColumn ?? '', gridRow: authored.gridRow ?? '', gridArea: authored.gridArea ?? '',
       };
-      const placement = { gridColumn: read('gridColumn'), gridRow: read('gridRow'), gridArea: read('gridArea') };
-      this.originalPlacements.set(childId, placement);
-      this.livePlacements.set(childId, { ...placement });
+      this.originalPlacements.set(childId, inline);
+      if (component) continue;
+
+      const scoped = overrides && width ? getOverridesAtWidth(overrides, childId, width) : undefined;
+      if (PLACEMENT_LONGHANDS.some(prop => authored[prop] || scoped?.has(prop))) continue;
+      const placement: InlinePlacement = {
+        gridColumn: scoped?.get('gridColumn') ?? inline.gridColumn,
+        gridRow: scoped?.get('gridRow') ?? inline.gridRow,
+        gridArea: scoped?.get('gridArea') ?? inline.gridArea,
+      };
+      if (hasFixedGridCell(placement)) fixedPlacements.push(placement);
     }
-    this.swapFixedCells = allChildren.length > 1 && [...this.originalPlacements.values()].every(hasFixedGridCell);
+    // Use the same CSS property representation throughout a fixed grid.
+    // Clearing a different representation in an override can revive its base value.
+    this.swapFixedCells = allChildren.length > 1 && fixedPlacements.length === allChildren.length
+      && fixedPlacements.every(placement => Boolean(placement.gridArea) === Boolean(fixedPlacements[0].gridArea));
+    if (this.swapFixedCells) {
+      allChildren.forEach((id, index) => this.originalPlacements.set(id, fixedPlacements[index]));
+    }
+    for (const [id, placement] of this.originalPlacements) this.livePlacements.set(id, { ...placement });
 
     // Authored (source) size of the dragged child — the placeholder must
     // mirror the sizing MODE, not the computed px (see createPlaceholder).
@@ -955,7 +967,7 @@ export class GridDragStrategy implements DragStrategy {
       gridColumn: draggedLive.gridColumn,
       gridRow: draggedLive.gridRow,
       gridArea: draggedLive.gridArea,
-    });
+    }, !isPrimaryViewport(this.vpId));
     const bridge = getCanvasBridge();
     if ('patchPlaceholderStyles' in bridge) {
       (bridge as PostMessageBridge).patchPlaceholderStyles(this.placeholderId, this.vpPrefix, {
@@ -1154,7 +1166,7 @@ export class GridDragStrategy implements DragStrategy {
         gridColumn: original.gridColumn,
         gridRow: original.gridRow,
         gridArea: original.gridArea,
-      });
+      }, this.swapFixedCells && !isPrimaryViewport(this.vpId));
     }
   }
 
