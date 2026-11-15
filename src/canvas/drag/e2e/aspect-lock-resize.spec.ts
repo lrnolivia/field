@@ -23,12 +23,12 @@ export default function Page() {
 }
 `;
 
-async function seed(page: Page, editor: EditorPage) {
+async function seed(page: Page, editor: EditorPage, source = PAGE) {
   const project = {
     format: 'revyme-v1',
     files: {
       'app/page.tsx': `import PageClient from './page.client';\n\nexport const metadata = {};\n\nexport default function Page() {\n  return <PageClient />;\n}\n`,
-      'app/page.client.tsx': PAGE,
+      'app/page.client.tsx': source,
     },
   };
   await page.addInitScript((data) => {
@@ -111,5 +111,63 @@ for (const id of ['rect', 'box'] as const) {
       // Left edge stays anchored.
       expect(Math.abs(after.x - before.x)).toBeLessThan(1.5);
     });
+  });
+}
+
+for (const edge of ['right', 'bottom'] as const) {
+  test(`releasing Shift after crossing the ${edge} resize edge restores the other axis's pins`, async ({ page }) => {
+    const horizontal = edge === 'right';
+    const pins = horizontal ? { first: 'top', last: 'bottom' } : { first: 'left', last: 'right' };
+    const activeSize = horizontal ? 'width' : 'height';
+    const pinnedSize = horizontal ? 'height' : 'width';
+    const activePosition = horizontal ? 'left' : 'top';
+    const source = PAGE.replace(/<div data-id="box"[^\n]*\/>/, `
+      <div data-id="frame" style={{ position:'absolute', left:'366px', top:'90px', width:'320px', height:'320px' }}>
+        <div data-id="box" style={{ position:'absolute', ${activePosition}:'58px', ${activeSize}:'160px', ${pins.first}:'80.25px', ${pins.last}:'175.75px', background:'#3b82f6' }} />
+      </div>`);
+    await page.addInitScript(() => {
+      localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked'));
+      localStorage.setItem('field:prefs:dockedLeftOpen:v1', 'true');
+      localStorage.setItem('field:prefs:dockedInspectorOpen:v1', 'true');
+    });
+    const editor = new EditorPage(page);
+    await seed(page, editor, source);
+    await page.evaluate(() => {
+      const hooks = (window as Window & { __e2e?: { zoomTo(scale: number): void } }).__e2e;
+      hooks?.zoomTo(1);
+    });
+    await editor.waitForStableGeometry('box');
+    await editor.select(['box']);
+    const box = editor.node('box');
+    const before = await editor.getPageCode();
+    await expect(box).toHaveCSS(pinnedSize, '64px');
+
+    const handle = page.locator(`[data-resize-edge="${edge}"]`);
+    await handle.click({ trial: true });
+    const bounds = (await handle.boundingBox())!;
+    const x = bounds.x + bounds.width / 2;
+    const y = bounds.y + bounds.height / 2;
+    const initial = await editor.nodeBox('box');
+    const travel = 1.1625 * initial[activeSize];
+    await page.keyboard.down('Shift');
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - (horizontal ? travel : 0), y - (horizontal ? 0 : travel), { steps: 18 });
+    await expect(box).not.toHaveCSS(pinnedSize, '64px');
+    await page.keyboard.up('Shift');
+    await page.mouse.up();
+
+    await expect(box).toHaveCSS(pinnedSize, '64px');
+    await expect(box).toHaveCSS(pins.first, '80.25px');
+    await expect(box).toHaveCSS(pins.last, '175.75px');
+    const after = await editor.nodeBox('box');
+    expect(after[activeSize]).toBeLessThan(initial[activeSize] / 3);
+    const origin = horizontal ? 'x' : 'y';
+    expect(after[origin] + after[activeSize]).toBeCloseTo(initial[origin], 0);
+    await expect.poll(() => editor.getInlineStyleProp('box', pins.first)).toBe('80.25px');
+    await expect.poll(() => editor.getInlineStyleProp('box', pins.last)).toBe('175.75px');
+    await expect.poll(() => editor.getInlineStyleProp('box', activeSize)).not.toBe('160px');
+    await undo(page);
+    await expect.poll(() => editor.getPageCode()).toBe(before);
   });
 }

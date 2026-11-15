@@ -2357,7 +2357,10 @@ export function startResize(
     }
   };
 
-  // Track axes actually patched, including dimensions derived from a ratio.
+  // An unlocked edge resize leaves the other axis's opposing pins intact.
+  const preserveHorizontalInsets = !hasTransform && !xHandle && inset.horizontalInset;
+  const preserveVerticalInsets = !hasTransform && !yHandle && inset.verticalInset;
+  // Track explicit dimensions patched, including dimensions derived from a ratio.
   let wroteWidth = false;
   let wroteHeight = false;
   let lockedDimensions = false;
@@ -2399,8 +2402,14 @@ export function startResize(
     // Crossing the opposite edge rebases the gesture. When Shift comes
     // up, discard the inactive axis's temporary, locked rebase.
     if (!aspectLocked && !hasTransform) {
-      if (!xHandle && wroteWidth) { curWidth = startWidth; curLeft = startLeft; }
-      if (!yHandle && wroteHeight) { curHeight = startHeight; curTop = startTop; }
+      if (preserveHorizontalInsets || (!xHandle && wroteWidth)) {
+        curWidth = startWidth;
+        curLeft = startLeft;
+      }
+      if (preserveVerticalInsets || (!yHandle && wroteHeight)) {
+        curHeight = startHeight;
+        curTop = startTop;
+      }
     }
     let { width: newWidth, height: newHeight, left: newLeft, top: newTop } = calculateResizeDelta(
       curWidth, curHeight, curLeft, curTop,
@@ -2802,6 +2811,14 @@ export function startResize(
         hasTransform, symmetricResize,
         pW, pH, newLeft, newTop, newWidth, newHeight, startWidth, startHeight, posPx,
       });
+      if (!lockedDimensions && preserveHorizontalInsets) {
+        w.styles.left = insetStyles.left;
+        w.styles.right = insetStyles.right;
+      }
+      if (!lockedDimensions && preserveVerticalInsets) {
+        w.styles.top = insetStyles.top;
+        w.styles.bottom = insetStyles.bottom;
+      }
       if (restoreWidth && isPercentX && !hasTransform) {
         w.styles.left = effLeftSrc ?? '';
         w.wrotePctLeft = false;
@@ -2971,6 +2988,16 @@ export function startResize(
           wrotePctLeft,
           wrotePctTop,
         );
+
+    // Restored pins already have their original source values.
+    if (!lockedDimensions && preserveHorizontalInsets) {
+      delete finalStyles.left;
+      delete finalStyles.right;
+    }
+    if (!lockedDimensions && preserveVerticalInsets) {
+      delete finalStyles.top;
+      delete finalStyles.bottom;
+    }
 
     // Take the derived dimension only if the final resize still has a lock.
     if (lockedDimensions && wroteWidth) finalStyles.width = liveStyles.width;
