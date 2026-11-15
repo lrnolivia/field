@@ -18,6 +18,7 @@ import { userAtom } from './backend/user-store';
 import { projectFS, syncBuiltInCodeComponents, createEmptyProject } from './code/project/project-fs';
 import { resetProjectSession } from './code/project/project-session';
 import { clearBridgeReadCaches } from '@/canvas/canvas-bridge';
+import { commitActiveTextEdit } from '@/canvas/text-edit-committer';
 import { hydrateCameras, zoomToScale, transformManager } from './canvas/transform';
 import { activeFilePathAtom, getPageFromUrl, getCmsFromUrl } from './code/project/active-file-store';
 import { healMissingInstanceDataIds } from './code/parsing/heal-data-ids';
@@ -30,6 +31,7 @@ import { trace } from '@/shared/debug-trace';
 // path are invisible to readers on the other.
 import { nodesAtom, selectedIdsAtom } from '@/code/stores/store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
+import { isTextEditingAtom } from '@/code/stores/editor-store';
 import { overlayEditingIdAtom } from '@/code/stores/overlay-store';
 import { shapeEditingIdAtom, groupEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { queueMutation, flushNow, setForceRender } from '@/code/mutation/mutation-queue';
@@ -58,7 +60,8 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   const [canvasPainted, setCanvasPainted] = useState(false);
   const [previewPainted, setPreviewPainted] = useState(false);
   const [surfaceStalled, setSurfaceStalled] = useState(false);
-  const previewOnly = useMobileProjectPreviewOnly();
+  const phonePreview = useMobileProjectPreviewOnly();
+  const [previewOnly, setPreviewOnly] = useState(phonePreview);
   const surfacePainted = previewOnly ? previewPainted : canvasPainted;
   const onPreviewRendered = useCallback(() => setPreviewPainted(true), []);
   const closeProjectPreview = useCallback(() => { void showFieldDashboard(); }, []);
@@ -73,6 +76,21 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
   const setUser = useSetAtom(userAtom);
   const openCmsEditor = useSetAtom(openCmsEditorAtom);
+
+  useEffect(() => {
+    if (phonePreview === previewOnly) return;
+    if (!phonePreview) {
+      setPreviewOnly(false);
+      return;
+    }
+    // TipTap's draft lives in the Canvas iframe until its commit completes.
+    let current = true;
+    void commitActiveTextEdit().then(
+      () => { if (current && !getDefaultStore().get(isTextEditingAtom)) setPreviewOnly(true); },
+      error => { if (current) trace.error('project-loader:preview-text-commit-failed', error); },
+    );
+    return () => { current = false; };
+  }, [phonePreview, previewOnly]);
 
   useEffect(() => {
     let cancelled = false;
@@ -585,7 +603,7 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
     const timeout = window.setTimeout(() => {
       setSurfaceStalled(true);
       onOpenFailureRef.current?.();
-      trace.action('project-loader:surface-delayed', { previewOnly });
+      trace.action(previewOnly ? 'project-loader:preview-delayed' : 'project-loader:canvas-delayed', {});
     }, 10000);
     return () => window.clearTimeout(timeout);
   }, [ready, surfacePainted, previewOnly]);

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
+import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 
 const mobileEditor = (process.env.VITE_FIELD_MOBILE_EDITOR ?? 'true') === 'true';
 const phone = { width: 390, height: 844 };
@@ -54,7 +55,7 @@ test('a phone opens a Dashboard project with the configured editor access', asyn
   await card.click();
   await expect(page).toHaveURL(/\/work\/local$/);
   if (mobileEditor) {
-    await expect(page.locator('[data-portrait-workspace]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open tools', exact: true })).toBeVisible();
     await expect(page.locator('[data-project-preview-only]')).toHaveCount(0);
     return;
   }
@@ -87,3 +88,26 @@ test('direct project opening follows phone orientation and keeps the desktop edi
   await expect(page.locator('iframe[data-canvas-iframe]')).toBeVisible();
   await expect(page.locator('[data-project-preview-only]')).toHaveCount(0);
 });
+
+if (!mobileEditor) {
+  test('narrowing the desktop editor commits active text before opening Preview', async ({ page }) => {
+    const editor = new EditorPage(page);
+    await editor.gotoWithSeed('OSS_SMOKE');
+    await page.locator('[data-toolbar-tool="smart-zoom"]').click();
+    await editor.waitForStableGeometry('headline');
+    const point = await editor.nodeCenter('headline');
+    await page.mouse.dblclick(point.x, point.y, { delay: 80 });
+    const editable = editor.sandbox().locator('[data-id="headline"] [contenteditable="true"]');
+    await expect(editable).toBeVisible();
+    const stamp = 'Phone transition text';
+    await page.keyboard.type(stamp);
+    await expect(editable).toContainText(stamp);
+    expect(await editor.getPageCode()).not.toContain(stamp);
+
+    await page.setViewportSize(phone);
+    const preview = page.locator('[data-project-preview-only]');
+    await expect(preview).toBeVisible();
+    await expect.poll(() => editor.getPageCode()).toContain(stamp);
+    await expect(preview.frameLocator('iframe').locator('[data-id="headline"]')).toContainText(stamp);
+  });
+}
