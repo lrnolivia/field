@@ -16,7 +16,7 @@ import type { Point, PendingUpdate, Rect, NewNodeDescriptor, SnapGuide } from '@
 import { isInstanceOwnedNode } from '@/canvas/drag/instance-drop-guard';
 import { nextFrames } from '@/shared/dom-utils';
 import { buildCanvasCloneDescriptor } from '../clone-descriptor';
-import { queueBorderOverlayDuplicates } from '@/canvas/creators/creator-utils';
+import { invertProjective, queueBorderOverlayDuplicates, solveHomography } from '@/canvas/creators/creator-utils';
 import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { detectParentLayoutById, getFlexDirectionById, resolveParentDisplay } from '../types';
 import { getCanvasDelta, isInsideRect, getAbsoluteCanvasRectById, screenToPct } from '@/canvas/canvas-math';
@@ -49,7 +49,7 @@ import { repositionSignalOps } from '../reposition-signal';
 import { forceCanvasRender, flushAndForceStructuralRender } from '@/canvas/node-ops';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
 import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds, getFrameRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
-import { frameGuideGeometry, frameGuideSegment } from '@/canvas/ui/frame-ruler-guides';
+import { frameGuideSegment } from '@/canvas/ui/frame-ruler-guides';
 import { SNAP_THRESHOLD } from '@/shared/constants';
 
 const PLACEHOLDER_BG = 'rgba(59, 130, 246, 0.15)';
@@ -415,8 +415,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
 
   onStart(context: DragContext): void {
     this.dragSession = {};
-    this.flowGuideMeasure = null;
-    this.flowSlotGuides = [];
+    this.clearFlowGuideSlot();
     const { draggedNodes, transform } = context;
     const primary = draggedNodes[0];
     const parentId = primary.startParentId;
@@ -1135,6 +1134,10 @@ export class LayoutLiftedStrategy implements DragStrategy {
           const phId = this.nodeToPlaceholderId.get(nodeId);
           if (phId && 'patchPlaceholderStyles' in bridge) {
             (bridge as PostMessageBridge).patchPlaceholderStyles(phId, vpPrefix, sizePatch);
+            if (this.isOverParent && this.flowGuideFrames.length > 0) {
+              this.clearFlowGuideSlot();
+              this.measureFlowGuideSlot(nodeId);
+            }
           }
         });
       }
@@ -1273,41 +1276,59 @@ export class LayoutLiftedStrategy implements DragStrategy {
     return null;
   }
 
+  private clearFlowGuideSlot(): void {
+    if (this.flowSlotGuides.length > 0) this.publishFlowGuides?.([]);
+    this.flowGuideMeasure = null;
+    this.flowSlotGuides = [];
+  }
+
   private measureFlowGuideSlot(nodeId: string): void {
     if (!this.publishFlowGuides || this.flowGuideFrames.length === 0) return;
     const id = this.nodeToPlaceholderId.get(nodeId);
     const bridge = getCanvasBridge();
-    if (!id || !('getPlaceholderCorners' in bridge)) return;
+    if (!id || !('getFlowSlotGeometry' in bridge)) return;
     const index = this.currentInsertIndex;
     if (this.flowGuideMeasure?.id === id && this.flowGuideMeasure.index === index) return;
+    this.clearFlowGuideSlot();
     const measurement = { id, index };
     this.flowGuideMeasure = measurement;
-    this.flowSlotGuides = [];
     const session = this.dragSession;
     const viewportId = this.currentVpId;
-    const frames = this.flowGuideFrames;
     const axis = this.flexDirection === 'column' ? 'y' : 'x';
-    void (bridge as PostMessageBridge).getPlaceholderCorners(id).then(quad => {
+    // The sandbox disables transitions. Its queued read follows the same
+    // bridge's placeholder patch, so it measures the new painted slot.
+    void (bridge as PostMessageBridge).getFlowSlotGeometry(id, getViewportPrefix(viewportId), this.flowGuideFrames).then(sample => {
       if (this.dragSession !== session || this.flowGuideMeasure !== measurement || !this.isOverParent
         || this.currentInsertIndex !== index || this.currentVpId !== viewportId) return;
-      if (!quad) {
+      if (!sample) {
         this.flowGuideMeasure = null;
         return;
       }
-      const points = [quad.TL, quad.TR, quad.BR, quad.BL];
-      const distanceToLine = (p: Point, start: Point, end: Point) =>
-        Math.abs((end.x - start.x) * (start.y - p.y) - (start.x - p.x) * (end.y - start.y))
-          / Math.hypot(end.x - start.x, end.y - start.y);
-      const pairs = axis === 'x' ? [[0, 3], [1, 2]] : [[0, 1], [3, 2]];
-      this.flowSlotGuides = frames.flatMap(frameId => {
-        const geometry = frameGuideGeometry({ id: frameId, viewportId });
-        if (!geometry) return [];
+      const { TL, TR, BR, BL } = sample.slot;
+      const edges = axis === 'x' ? [[TL, BL], [TR, BR]] : [[TL, TR], [BL, BR]];
+      const crossAxis = axis === 'x' ? 'y' : 'x';
+      this.flowSlotGuides = sample.frames.flatMap(({ id: frameId, width, height, corners }) => {
+        const map = solveHomography(width, height, corners.TL, corners.TR, corners.BR, corners.BL);
+        const inverse = invertProjective(map);
+        if (!inverse) return [];
+        const geometry = { width, height, map, toLocal: inverse.invertScreen };
+        const extent = crossAxis === 'x' ? width : height;
         return getFrameRulerGuideSnapLines(frameId, viewportId, geometry).flatMap(line => {
           if (line.axis !== axis) return [];
           const segment = frameGuideSegment(geometry, axis === 'x' ? 'vertical' : 'horizontal', line.position);
-          // The slot is authoritative. Near misses get no cue, and a
-          // rotated edge must line up along its length, not just at a corner.
-          if (!segment || !pairs.some(pair => pair.every(point => distanceToLine(points[point], segment.start, segment.end) <= 1))) return [];
+          if (!segment) return [];
+          const dx = segment.end.x - segment.start.x, dy = segment.end.y - segment.start.y;
+          const length = Math.hypot(dx, dy);
+          if (!length) return [];
+          // Compare both endpoints within one source and screen pixel, and
+          // require the slot edge to actually overlap the visible guide.
+          const aligned = edges.some(edge => {
+            const [first, last] = edge.map(p => geometry.toLocal(p.x, p.y));
+            if (!edge.every(p => Math.abs(dx * (p.y - segment.start.y) - dy * (p.x - segment.start.x)) <= length)) return false;
+            if ([first, last].some(p => !(Math.abs(p[axis] - line.position) <= 1))) return false;
+            return Math.max(first[crossAxis], last[crossAxis]) > 0 && Math.min(first[crossAxis], last[crossAxis]) < extent;
+          });
+          if (!aligned) return [];
           return [{ axis, position: line.position, type: 'edge' as const, referenceId: `ruler-guide:${line.id}` }];
         });
       });
@@ -1508,8 +1529,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
       if (this.isOverParent && !isNowOverParent) {
         // EXITING viewport → hide placeholders + drop line + parent highlight
         this.hidePlaceholders();
-        this.flowGuideMeasure = null;
-        this.flowSlotGuides = [];
+        this.clearFlowGuideSlot();
         dropLineOps.hide();
         parentHighlightOps.hide();
         this.isOverParent = false;
@@ -4093,8 +4113,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
   private cleanup(): void {
     this.dragSession = {};
     this.flowGuideFrames = [];
-    this.flowGuideMeasure = null;
-    this.flowSlotGuides = [];
+    this.clearFlowGuideSlot();
     // Release the renderer drag-lock so subsequent source-triggered renders
     // (file switches, undo, etc.) patch styles on the formerly-lifted
     // nodes normally — without this they'd be permanently invisible to

@@ -29,6 +29,11 @@ export interface CornersLike {
   BL: { x: number; y: number };
 }
 
+export interface FlowSlotGeometry {
+  slot: CornersLike;
+  frames: Array<{ id: string; width: number; height: number; corners: CornersLike }>;
+}
+
 export interface ChildRect {
   id: string;
   rect: RectLike;
@@ -333,7 +338,7 @@ export interface SandboxApi {
   ): { left: number; top: number; width: number; height: number } | null
     | Promise<{ left: number; top: number; width: number; height: number } | null>;
   /** Read the painted border corners in iframe coordinates. */
-  getPlaceholderCorners(placeholderId: string): CornersLike | null | Promise<CornersLike | null>;
+  getFlowSlotGeometry(placeholderId: string, vpPrefix: string, frameIds: string[]): FlowSlotGeometry | null;
   /** Swap two children of a shared parent in DOM order. Either id may be
    *  a regular `data-id` or a `data-placeholder-id`. Used by
    *  GridDragStrategy for auto-flow grids to swap the lifted node's

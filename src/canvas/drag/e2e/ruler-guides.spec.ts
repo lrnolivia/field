@@ -354,13 +354,13 @@ for (const { travel, top, placement } of [
   });
 }
 
-for (const { direction, degrees, guideOffset } of [
-  { direction: 'row', degrees: 0, guideOffset: 0 },
-  { direction: 'row', degrees: 0, guideOffset: 8 },
-  { direction: 'column', degrees: 0, guideOffset: 0 },
-  { direction: 'row', degrees: 30, guideOffset: 0 },
+for (const { direction, degrees, betweenSlots } of [
+  { direction: 'row', degrees: 0, betweenSlots: false },
+  { direction: 'row', degrees: 0, betweenSlots: true },
+  { direction: 'column', degrees: 0, betweenSlots: false },
+  { direction: 'row', degrees: 30, betweenSlots: false },
 ] as const) {
-  test(`a ${direction} flow slot at ${degrees} degrees ${guideOffset ? 'ignores a guide between slots' : 'highlights the aligned guide'}`, async ({ page }) => {
+  test(`a ${direction} flow slot at ${degrees} degrees ${betweenSlots ? 'clears its cue and ignores an adjacent guide' : 'highlights the aligned guide'}`, async ({ page }) => {
     const frameStyles = `background:'#ef4444', display:'flex', flexDirection:'${direction}', gap:'10px', padding:'10px', boxSizing:'border-box', transform:'rotate(${degrees}deg)'`;
     const children = ['a', 'b', 'c'].map(id => `<div data-id="${id}" style={{width:'30px',height:'24px',flexShrink:0,background:'#000'}} />`).join('');
     const editor = await openEditor(page, 'docked', source.replace("background:'#ef4444'}} />", `${frameStyles}}}>${children}</div>`));
@@ -371,15 +371,22 @@ for (const { direction, degrees, guideOffset } of [
     const cos = Math.cos(rad), sin = Math.sin(rad);
     const row = direction === 'row';
     const finalPosition = row ? 90 : 78;
-    const dx = row ? finalPosition + guideOffset - 80 : 32 - 80;
+    const dx = row ? finalPosition - 80 : 32 - 80;
     const dy = row ? 24 - 60 : finalPosition - 60;
     const targetX = cx + dx * cos - dy * sin, targetY = cy + dx * sin + dy * cos;
     if (row) await placeVerticalGuide(page, Math.round(targetX), Math.round(targetY));
     else await placeHorizontalGuide(page, Math.round(targetX), Math.round(targetY));
     const guide = page.locator('[data-ruler-guide-frame="rect"]');
     await expect(guide).toHaveCount(1);
-    const before = await editor.getPageCode();
     const line = (await guide.boundingBox())!;
+    if (betweenSlots) {
+      await placeVerticalGuide(page, Math.round(targetX) + 8, Math.round(targetY));
+      await expect(guide).toHaveCount(2);
+    }
+    const before = await editor.getPageCode();
+    const betweenLine = betweenSlots
+      ? { ...line, x: line.x + 8 }
+      : null;
     await editor.select(['a']);
     const first = await editor.nodeBox('a');
     const last = await editor.nodeBox('c');
@@ -393,19 +400,21 @@ for (const { direction, degrees, guideOffset } of [
     await page.mouse.move(target.x, target.y, { steps: 26 });
     const slot = editor.sandbox().locator('[data-placeholder-id]').first();
     await expect.poll(async () => Math.round((await slot.boundingBox())![slotAxis])).toBe(Math.round(slotExpected));
-    const highlighted = () => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, target) =>
+    const highlighted = (target = line) => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, target) =>
       lines.some(line => {
         const rect = line.getBoundingClientRect();
         return Math.abs(rect.x - target.x) < 2 && Math.abs(rect.y - target.y) < 2
           && Math.abs(rect.width - target.width) < 2 && Math.abs(rect.height - target.height) < 2;
-      }), line);
-    if (guideOffset) {
-      await expect.poll(highlighted).toBe(false);
-      // Move within the same slot so a delayed measurement gets another turn.
-      await page.mouse.move(target.x - 1, target.y);
-      await expect.poll(highlighted).toBe(false);
-    } else {
-      await expect.poll(highlighted).toBe(true);
+      }), target);
+    await expect.poll(() => highlighted()).toBe(true);
+    if (betweenLine) {
+      expect(await highlighted(betweenLine)).toBe(false);
+      await page.mouse.move(x, y, { steps: 12 });
+      await expect.poll(async () => Math.round((await slot.boundingBox())!.x)).toBe(Math.round(first.x));
+      await expect.poll(() => highlighted()).toBe(false);
+      await page.mouse.move(target.x, target.y, { steps: 12 });
+      await expect.poll(() => highlighted()).toBe(true);
+      expect(await highlighted(betweenLine)).toBe(false);
     }
     await page.mouse.up();
     await expect.poll(async () => Math.round((await editor.nodeBox('a'))[slotAxis])).toBe(Math.round(slotExpected));

@@ -15,7 +15,7 @@
 
 import * as Comlink from 'comlink';
 import type { CanvasBridge } from '@/canvas/canvas-bridge';
-import type { SandboxApi, RenderInput, PatchUpdate, TextEditCommand, CornersLike } from './sandbox-api';
+import type { SandboxApi, RenderInput, PatchUpdate, TextEditCommand, CornersLike, FlowSlotGeometry } from './sandbox-api';
 import type { TextEditFitResult, SandboxEvent, TextEditSnapshot } from './protocol';
 import {
   isSandboxEvent,
@@ -537,12 +537,8 @@ export class PostMessageBridge implements CanvasBridge {
     return this.toParentSpace(new DOMRect(data.left, data.top, data.width, data.height));
   }
 
-  async getPlaceholderCorners(placeholderId: string): Promise<CornersLike | null> {
-    const quad = await this.remote?.getPlaceholderCorners(placeholderId);
-    if (!quad) return null;
-    const offset = this.getIframeOffset();
-    const screen = (p: { x: number; y: number }) => ({ x: p.x + offset.x, y: p.y + offset.y });
-    return { TL: screen(quad.TL), TR: screen(quad.TR), BR: screen(quad.BR), BL: screen(quad.BL) };
+  async getFlowSlotGeometry(placeholderId: string, vpPrefix: string, frameIds: string[]): Promise<FlowSlotGeometry | null> {
+    return await this.remote?.getFlowSlotGeometry(placeholderId, vpPrefix, frameIds) ?? null;
   }
 
   liftNode(nodeId: string, vpPrefix: string, styles: Record<string, string>): void {

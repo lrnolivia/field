@@ -4,7 +4,8 @@
 
 import { trace } from '@/shared/debug-trace';
 import { reparentChildAtIndex, reprefixDataNodeId } from '@/shared/dom-reparent';
-import { findElByNodeId, findAllByNodeId } from '../sandbox-dom-utils';
+import { findElByNodeId, findAllByNodeId, nodeIdSelector } from '../sandbox-dom-utils';
+import type { FlowSlotGeometry } from '../sandbox-api';
 import { contentRoot, emit } from './sandbox-state';
 import { applyTwoPass } from './style-handlers';
 import { getTrackedStyleKeys, untrackImperativeStyleKeys } from '@/canvas/Renderer';
@@ -247,11 +248,17 @@ export function getPlaceholderRect(
     return { left: r.left, top: r.top, width: r.width, height: r.height };
 }
 
-/** Painted border corners, including ancestor transformations. */
-export function getPlaceholderCorners(placeholderId: string): ReturnType<typeof cornersForElement> | null {
+/** Sample the slot and its ancestor borders in the same camera and layout state. */
+export function getFlowSlotGeometry(placeholderId: string, vpPrefix: string, frameIds: string[]): FlowSlotGeometry | null {
     const placeholder = contentRoot?.querySelector(`[data-placeholder-id="${placeholderId}"]`);
     if (!placeholder || placeholder.getClientRects().length === 0) return null;
-    return cornersForElement(placeholder);
+    const slot = cornersForElement(placeholder);
+    const frames = frameIds.flatMap(id => {
+      const frame = placeholder.closest<HTMLElement>(nodeIdSelector(vpPrefix, id));
+      if (!frame || !frame.offsetWidth || !frame.offsetHeight || getComputedStyle(frame).visibility === 'hidden') return [];
+      return [{ id, width: frame.offsetWidth, height: frame.offsetHeight, corners: cornersForElement(frame) }];
+    });
+    return { slot, frames };
 }
 
 /** ATOMIC drop-endgame for a merged templated root — everything in ONE sandbox
