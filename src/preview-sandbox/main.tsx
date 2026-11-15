@@ -17,6 +17,8 @@
 // (`@/components/Foo`, `./helpers`) compile from ProjectFS the same way.
 
 import * as React from 'react';
+import { jsx, jsxs } from 'react/jsx-runtime';
+import { jsxDEV } from 'react/jsx-dev-runtime';
 import { createRoot } from 'react-dom/client';
 import { captureThumbnail } from './capture-thumbnail';
 import { ThemeProvider as NextThemeProvider, useTheme } from 'next-themes';
@@ -131,17 +133,29 @@ function unwrapDocumentTags(type: any, props: any): { handled: true; children: a
 // children — match that here so the preview degrades gracefully instead.
 const PREVIEW_VOID_TAGS = new Set(['input', 'br', 'hr', 'img', 'area', 'base', 'col', 'embed', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
-function previewJsx(type: any, props: any, key?: any) {
-  const unwrap = unwrapDocumentTags(type, props);
+function renderPreviewJsx(create: typeof jsx, type: React.ElementType, props: unknown, key?: React.Key) {
+  const elementProps = (props ?? {}) as Record<string, unknown>;
+  const unwrap = unwrapDocumentTags(type, elementProps);
   if (unwrap.handled) {
-    return React.createElement(React.Fragment, key !== undefined ? { key } : null, unwrap.children);
+    return create(React.Fragment, { children: unwrap.children }, key);
   }
-  if (props && props.children != null && typeof type === 'string' && PREVIEW_VOID_TAGS.has(type)) {
-    const { children, ...rest } = props;
-    return React.createElement(type, key !== undefined ? { ...rest, key } : rest);
+  if (elementProps.children != null && typeof type === 'string' && PREVIEW_VOID_TAGS.has(type)) {
+    const { children: _children, ...rest } = elementProps;
+    return create(type, rest, key);
   }
-  return React.createElement(type, key !== undefined ? { ...props, key } : props);
+  return create(type, elementProps, key);
 }
+
+// Keep the compiler's distinction between static siblings and dynamic lists.
+const previewJsx: typeof jsx = (type, props, key) => renderPreviewJsx(jsx, type, props, key);
+const previewJsxs: typeof jsxs = (type, props, key) => renderPreviewJsx(jsxs, type, props, key);
+const previewJsxDEV: typeof jsxDEV = (type, props, key, isStatic, source, self) => {
+  // Precompiled development JSX can run in a production Preview bundle.
+  const create: typeof jsx = typeof jsxDEV === 'function'
+    ? (tag, config, elementKey) => jsxDEV(tag, config, elementKey, isStatic, source, self)
+    : isStatic ? jsxs : jsx;
+  return renderPreviewJsx(create, type, props, key);
+};
 
 // Babel's `_interopRequireDefault(require('mod'))` wraps a non-ESM result
 // in `{ default: result }` — so `import Link from 'next/link'` gets
@@ -155,8 +169,8 @@ function esm<T extends Record<string, any>>(exports: T): T & { __esModule: true 
 
 const MODULE_MAP: Record<string, any> = {
   react: React,
-  'react/jsx-runtime': esm({ jsx: previewJsx, jsxs: previewJsx, Fragment: React.Fragment }),
-  'react/jsx-dev-runtime': esm({ jsxDEV: previewJsx, Fragment: React.Fragment }),
+  'react/jsx-runtime': esm({ jsx: previewJsx, jsxs: previewJsxs, Fragment: React.Fragment }),
+  'react/jsx-dev-runtime': esm({ jsxDEV: previewJsxDEV, Fragment: React.Fragment }),
   'react-dom': esm({ createPortal: (children: any) => children }),
   'next-themes': esm({ ThemeProvider: NextThemeProvider, useTheme: useThemeForPage }),
   'next/link': esm({ default: LinkShim }),
