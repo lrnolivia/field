@@ -27,7 +27,7 @@
 //      element styles so the next render cycle places it cleanly.
 //   4. onCancel — restore everything; emit nothing.
 
-import type { Point, PendingUpdate } from '@/shared/types';
+import type { Point, PendingUpdate, SnapGuide } from '@/shared/types';
 import { isInstanceOwnedNode } from '@/canvas/drag/instance-drop-guard';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { getDefaultStore } from 'jotai';
@@ -42,6 +42,7 @@ import {
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getIframeOffset } from '../helpers/coords';
 import { getLayoutViewportBounds } from '../helpers/layout-viewport-bounds';
+import { LayoutSlotRulers } from '../helpers/layout-slot-rulers';
 import { isInsideRect } from '@/canvas/canvas-math';
 import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 import { parentHighlightOps } from '@/canvas/selection/parent-highlight-store';
@@ -60,7 +61,7 @@ import { moveNodeInCache, updateNodeInCache, getNodeFromCache } from '@/code/sto
 import { nodeAcceptsChildren } from '@/shared/constants';
 import { calculateSnap, getMouseVelocity } from '../handlers/snap-handler';
 import { SNAP_THRESHOLD } from '@/shared/constants';
-import { getActiveRulerGuideSnapLines } from '@/code/stores/ruler-guides-store';
+import { getActiveRulerGuideSnapLines, getAncestorRulerGuideFrameIds } from '@/code/stores/ruler-guides-store';
 import type { Rect } from '@/shared/types';
 
 const PLACEHOLDER_BG = 'rgba(59, 130, 246, 0.15)';
@@ -94,6 +95,13 @@ function hasFixedGridCell({ gridColumn, gridRow, gridArea }: InlinePlacement): b
 
 export class GridDragStrategy implements DragStrategy {
   readonly name = 'grid';
+  private readonly slotRulers: LayoutSlotRulers;
+  private guideFrames: string[] = [];
+  private slotRevision = 0;
+
+  constructor(publishGridGuides?: (guides: SnapGuide[]) => void) {
+    this.slotRulers = new LayoutSlotRulers(publishGridGuides);
+  }
 
   // ── Identity ─────────────────────────────────────────────────────────────
   private parentId = '';
@@ -258,6 +266,9 @@ export class GridDragStrategy implements DragStrategy {
     this.contentEl = context.contentEl;
     this.vpId = vpIdFromPrefix(context.viewportPrefix);
     this.vpPrefix = getViewportPrefix(this.vpId);
+    this.slotRevision = 0;
+    this.slotRulers.clear();
+    this.guideFrames = context.draggedNodes.length === 1 ? getAncestorRulerGuideFrameIds(primary.id, this.vpId) : [];
     this.handedOffToCanvas = false;
     this.replicaExitUpdates = [];
     this.lastTargetId = '';
@@ -672,6 +683,7 @@ export class GridDragStrategy implements DragStrategy {
       && mouseScreen.x >= parentRect.left && mouseScreen.x <= parentRect.right
       && mouseScreen.y >= parentRect.top && mouseScreen.y <= parentRect.bottom;
     if (!cursorInsideParent) {
+      this.slotRulers.clear();
       // Return canvasSnap so guides render while floating outside the
       // viewport. While inside viewport but outside grid parent there
       // is no snap target collected above (gated on cursorOffViewport),
@@ -715,11 +727,15 @@ export class GridDragStrategy implements DragStrategy {
         siblingCount: this.originalChildOrder.length - 1,
       });
       this.lastTargetId = targetId ?? '';
-      if (targetId) this.swapWithSibling(targetId);
+      if (targetId) {
+        this.swapWithSibling(targetId);
+        this.slotRevision++;
+      }
     }
 
+    if (this.isOverViewport) this.slotRulers.measure(this.placeholderId, this.slotRevision, this.vpId, this.guideFrames);
     return {
-      snap: null,
+      snap: this.slotRulers.snap,
       dropTarget: null,
       highlightParentId: this.parentId,
       highlightVpId: this.vpId,
@@ -1094,6 +1110,7 @@ export class GridDragStrategy implements DragStrategy {
   }
 
   private removePlaceholder(): void {
+    this.slotRulers.clear();
     if (!this.placeholderId) return;
     const bridge = getCanvasBridge();
     if ('removePlaceholders' in bridge) {

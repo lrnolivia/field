@@ -435,6 +435,55 @@ for (const { direction, degrees, betweenSlots } of [
   });
 }
 
+for (const placement of ['auto-flow', 'fixed cells'] as const) {
+  test(`Grid ${placement} highlights both rulers at the painted slot`, async ({ page }) => {
+    const frameStyles = "background:'#ef4444',display:'grid',gridTemplateColumns:'repeat(2,34px)',gridAutoRows:'24px',gap:'10px',padding:'10px',boxSizing:'border-box'";
+    const children = ['a', 'b', 'c', 'd'].map((id, index) => {
+      const cell = placement === 'fixed cells' ? `gridColumn:'${index % 2 + 1}',gridRow:'${Math.floor(index / 2) + 1}',` : '';
+      return `<div data-id="${id}" style={{${cell}width:'30px',height:'24px',background:'#000'}} />`;
+    }).join('');
+    const editor = await openEditor(page, 'docked', source.replace("background:'#ef4444'}} />", `${frameStyles}}}>${children}</div>`));
+    await editor.select(['rect']);
+    const frame = await editor.nodeBox('rect');
+    const target = await editor.nodeBox('d');
+    await placeVerticalGuide(page, Math.round(target.x), Math.round(frame.y + 30));
+    await placeVerticalGuide(page, Math.round(target.x + 8), Math.round(frame.y + 30));
+    await placeHorizontalGuide(page, Math.round(frame.x + 80), Math.round(target.y));
+    const rulers = page.locator('[data-ruler-guide-frame="rect"]');
+    await expect(rulers).toHaveCount(3);
+    const guideRects = await Promise.all((await rulers.all()).map(async guide => (await guide.boundingBox())!));
+    const aligned = guideRects.filter(rect => rect.width > rect.height || Math.abs(rect.x - target.x) < 2);
+    expect(aligned).toHaveLength(2);
+    const countHighlighted = (targets = aligned) => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, guides) =>
+      lines.map(line => line.getBoundingClientRect()).filter(rect => guides.some(guide =>
+        Math.abs(rect.x - guide.x) < 2 && Math.abs(rect.y - guide.y) < 2
+        && Math.abs(rect.width - guide.width) < 2 && Math.abs(rect.height - guide.height) < 2)).length, targets);
+
+    const before = await editor.getPageCode();
+    await editor.select(['a']);
+    const first = await editor.nodeBox('a');
+    await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(first.x + first.width / 2 + 8, first.y + first.height / 2);
+    const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+    await expect(slot).toBeVisible();
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2);
+    await expect.poll(() => countHighlighted()).toBe(2);
+    expect(await countHighlighted(guideRects)).toBe(2);
+
+    await page.mouse.move(target.x, frame.y + frame.height + 28);
+    await expect.poll(() => countHighlighted()).toBe(0);
+    await page.mouse.move(frame.x + frame.width - 8, frame.y + 90);
+    await expect.poll(() => countHighlighted()).toBe(2);
+    await page.mouse.up();
+    await expect.poll(async () => (await editor.nodeBox('a')).x).toBeCloseTo(target.x, 0);
+    await expect.poll(async () => (await editor.nodeBox('a')).y).toBeCloseTo(target.y, 0);
+    await expect.poll(() => editor.getPageCode()).not.toBe(before);
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await expect.poll(() => editor.getPageCode()).toBe(before);
+  });
+}
+
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
     const editor = await openEditor(page, mode);
