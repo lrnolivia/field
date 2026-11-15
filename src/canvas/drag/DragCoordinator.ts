@@ -1288,7 +1288,7 @@ export class DragCoordinator {
         // by data-id in the <style> block, so each clone needs its own copy
         // (queued below) or the duplicate silently loses its border.
         const dupIdMap = new Map<string, string>();
-        const descriptor = buildDuplicateDescriptor(draggedNode.id, this.context.nodes, dupIdMap, tile);
+        const descriptor = buildDuplicateDescriptor(draggedNode.id, this.context.nodes, dupIdMap, tile, tile.kind === 'viewport' ? vpId : '');
         if (!descriptor) continue;
         const insertSpec = strategyInsertSpecFor(draggedNode.id);
         if (insertSpec) {

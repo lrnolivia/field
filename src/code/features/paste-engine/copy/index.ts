@@ -31,54 +31,12 @@ import { readTranslationText } from '@/code/project/translation-ops';
 import { readTextAnimConfig } from '@/code/generation/text-anim-gen';
 import { readCodeOverrides } from '@/code/generation/code-override-gen';
 import { getI18nConfig } from '@/code/project/locale-ops';
-import { parseComponentControlsMeta } from '@/code/components/controls-parser';
-import { findAttribute, getAttributeValue, parseJSX, traverse } from '@/code/parsing/ast-utils';
-import type { JSXAttribute } from '@babel/types';
+import { readShaderControlLiterals } from '@/code/generation/shader-controls-clone';
 import {
-  BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, breakpointFill, breakpointVideo, shaderLayerVisible,
+  bakeManagedFillAttrs, breakpointFill, breakpointVideo, shaderLayerVisible,
 } from '@/shared/managed-fill-breakpoints';
 
 const CLIPBOARD_STORAGE_KEY = 'revyme_clipboard';
-
-function shaderControlValue(attr: JSXAttribute): string | number | boolean | undefined {
-  const value = attr.value;
-  if (value == null) return true;
-  if (value.type === 'StringLiteral') return value.value;
-  if (value.type !== 'JSXExpressionContainer') return;
-  const expr = value.expression;
-  if (expr.type === 'StringLiteral' || expr.type === 'NumericLiteral' || expr.type === 'BooleanLiteral') return expr.value;
-  if (expr.type === 'UnaryExpression' && expr.operator === '-' && expr.argument.type === 'NumericLiteral') {
-    return -expr.argument.value;
-  }
-}
-
-function captureShaderControls(code: string, nodes: ClipboardNode[]): void {
-  const layers = new Map(nodes.filter(node => node.attrs?.['data-field-shader-layer'] === 'true').map(node => [node.id, node]));
-  if (!layers.size) return;
-  const ast = parseJSX(code);
-  if (!ast) return;
-  const controlNamesByTag = new Map<string, Set<string>>();
-  traverse(ast, {
-    JSXOpeningElement({ node }) {
-      const idAttr = findAttribute(node, 'data-id');
-      const layer = idAttr ? layers.get(getAttributeValue(idAttr) ?? '') : undefined;
-      if (!layer) return;
-      let names = controlNamesByTag.get(layer.type);
-      if (!names) {
-        const source = projectFS.readFile(`components/${layer.type}.tsx`);
-        const definitions = (source && parseComponentControlsMeta(source)?.controls) || {};
-        names = new Set(Object.entries(definitions).flatMap(([name, definition]) =>
-          definition.type === 'group' ? Object.keys(definition.controls ?? {}) : [name]));
-        controlNamesByTag.set(layer.type, names);
-      }
-      for (const attr of node.attributes) {
-        if (attr.type !== 'JSXAttribute' || attr.name.type !== 'JSXIdentifier' || !names.has(attr.name.name)) continue;
-        const value = shaderControlValue(attr);
-        if (value !== undefined) (layer.shaderControls ??= Object.create(null))[attr.name.name] = value;
-      }
-    },
-  });
-}
 
 // ─── Subtree collection ──────────────────────────────────────────────────────
 
@@ -193,24 +151,11 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
     const child = nodes.get(id);
     return child && shaderLayerVisible(node, child, viewportId);
   });
-  const attrs = { ...baked.attrs ?? tileBake.attrs };
   const scoped = breakpointFill(node, viewportId);
-  delete attrs[BREAKPOINT_FILLS_ATTR];
-  delete attrs[FILL_VIEWPORT_ATTR];
-  if (scoped) {
-    delete attrs['data-field-pattern'];
-    delete attrs['data-field-pattern-style-backup'];
-    delete attrs['data-field-shader-fill'];
-    delete attrs['data-field-shader-style-backup'];
-    if (scoped.kind === 'pattern') attrs['data-field-pattern'] = scoped.recipe;
-    if (scoped.kind === 'shader') {
-      const child = children.map(id => nodes.get(id)).find(child => child?.attrs?.['data-field-shader-layer'] === 'true');
-      if (child) attrs['data-field-shader-fill'] = child.type;
-      if (scoped.hostStyleBackup) {
-        attrs['data-field-shader-style-backup'] = encodeURIComponent(JSON.stringify(scoped.hostStyleBackup)).replace(/'/g, '%27');
-      }
-    }
-  }
+  const shader = scoped?.kind === 'shader'
+    ? children.map(id => nodes.get(id)).find(child => child?.attrs?.['data-field-shader-layer'] === 'true')
+    : undefined;
+  const attrs = bakeManagedFillAttrs(baked.attrs ?? tileBake.attrs, scoped, shader?.type);
   const bgVideo = breakpointVideo(node, viewportId);
 
   // CMS bindings are JSX expressions (`<h3>{item.title}</h3>`,
@@ -536,7 +481,10 @@ export function copyNodes(
   try {
     const src = projectFS.readFile(getActiveFilePath()) ?? '';
     if (src) {
-      captureShaderControls(src, clipboardNodes);
+      const shaders = new Map(clipboardNodes.filter(node => node.attrs?.['data-field-shader-layer'] === 'true').map(node => [node.id, node]));
+      for (const [id, controls] of readShaderControlLiterals(src, shaders)) {
+        shaders.get(id)!.shaderControls = controls;
+      }
       let captured = 0;
       for (const n of clipboardNodes) {
         const cfg = readTextAnimConfig(src, n.id);

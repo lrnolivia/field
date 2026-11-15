@@ -472,7 +472,7 @@ test('Video source and removal stay on the selected desktop breakpoint in Canvas
   await expect((await previewAtWidth(page, 940)).locator('video')).toHaveCount(0);
 });
 
-test('duplicating a scoped shader preserves edited control types and the saved shader still paints', async ({ page }) => {
+test('Duplicate and Option-drag preserve a scoped shader and the saved shader still paints', async ({ page }) => {
   const warnings: string[] = [];
   page.on('console', message => {
     if (/Shader (compile|link) failed/.test(message.text())) warnings.push(message.text());
@@ -491,7 +491,7 @@ test('duplicating a scoped shader preserves edited control types and the saved s
         }} data-field-shader-fill="AuditShader"><AuditShader
           data-id="original-shader" data-field-shader-layer="true"
           color1="#abbaed" enabled={false} distortion={0.35} speed={0}
-          style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', zIndex: '-1' }}
+          style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', zIndex: '-1', pointerEvents: 'none' }}
         /></div>`,
       );
   });
@@ -517,6 +517,7 @@ test('duplicating a scoped shader preserves edited control types and the saved s
   await speed.fill('2');
   await speed.press('Enter');
   await expect.poll(() => editor.getPageCode()).toContain('scope:compact');
+  await expect(tile('compact').locator('[data-id="abs__shader_fill_compact"] canvas')).toBeVisible();
   await expect.poll(() => canPaint()).toBe(true);
 
   // The next edit updates the same scoped instance. Its canvas must stay usable.
@@ -533,17 +534,33 @@ test('duplicating a scoped shader preserves edited control types and the saved s
 
   await page.keyboard.press('Escape');
   await editor.select(['abs'], 'compact');
-  await page.keyboard.press('Meta+d');
   const recentlyCopied = () => editor.getPageCode().then(code => Array.from(code.matchAll(/<AuditShader\b[^>]*>/g), entry => entry[0])
     .find(tag => !tag.includes('original-shader') && !tag.includes('abs__shader_fill_compact')));
-  await expect.poll(recentlyCopied).toBeDefined();
-  const copy = await recentlyCopied();
-  expect(copy).toContain('speed={2.5}');
-  expect(copy).toContain('distortion={0.35}');
-  expect(copy).toContain('enabled={false}');
-  expect(copy).toContain('color1={"#abbaed"}');
-  expect(copy).not.toContain('data-field-fill-viewport');
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('enabled={false}');
+  const assertCopiedControls = async () => {
+    await expect.poll(recentlyCopied).toBeDefined();
+    const copy = await recentlyCopied();
+    expect(copy).toContain('speed={2.5}');
+    expect(copy).toContain('distortion={0.35}');
+    expect(copy).toContain('enabled={false}');
+    expect(copy).toContain('color1={"#abbaed"}');
+    expect(copy).not.toContain('data-field-fill-viewport');
+  };
+  await editor.fitCamera();
+  const box = await editor.nodeBoxIn('compact', 'abs');
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.keyboard.down('Alt');
+  try {
+    await editor.dragFromTo(start, { x: start.x + 36, y: start.y + 15 });
+  } finally {
+    await page.keyboard.up('Alt');
+  }
+  await assertCopiedControls();
+  await page.keyboard.press('Meta+z');
+  await expect.poll(recentlyCopied).toBeUndefined();
+  await editor.select(['abs'], 'compact');
+  await page.keyboard.press('Meta+d');
+  await assertCopiedControls();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('speed={2.5}');
   await page.reload();
   await page.locator('[data-editor-interactive="true"]').waitFor();
   await expect.poll(recentlyCopied).toContain('speed={2.5}');
