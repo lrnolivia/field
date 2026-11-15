@@ -484,6 +484,50 @@ for (const placement of ['auto-flow', 'fixed cells'] as const) {
   });
 }
 
+test('Grid remeasures ruler alignment when Option-drag resizes a track', async ({ page }) => {
+  const rendered = source.replace("background:'#ef4444'}} />", `background:'#ef4444',display:'grid',gridTemplateColumns:'max-content max-content',gridAutoRows:'24px',gap:'10px',padding:'10px',boxSizing:'border-box'}}>
+    <div data-id="a" style={{width:'100px',height:'24px',background:'#000'}} />
+    <div data-id="b" style={{width:'40px',height:'24px',background:'#000'}} />
+  </div>`);
+  const editor = await openEditor(page, 'docked', rendered);
+  await editor.select(['rect']);
+  const frame = await editor.nodeBox('rect');
+  const a = await editor.nodeBox('a'), b = await editor.nodeBox('b');
+  await placeVerticalGuide(page, Math.round(frame.x + 60), Math.round(frame.y + 60));
+  const ruler = page.locator('[data-ruler-guide-frame="rect"]');
+  await expect(ruler).toHaveCount(1);
+  const line = (await ruler.boundingBox())!;
+  const highlighted = () => page.locator('svg line[stroke="#f472b6"]').evaluateAll((lines, target) =>
+    lines.some(line => {
+      const rect = line.getBoundingClientRect();
+      return Math.abs(rect.x - target.x) < 2 && Math.abs(rect.height - target.height) < 2;
+    }), line);
+  const stripTagSpacing = (code: string) => code.replace(/>\s+</g, '><');
+  const before = stripTagSpacing(await editor.getPageCode());
+
+  await editor.select(['a']);
+  await page.mouse.move(a.x + 26, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 34, a.y + a.height / 2);
+  const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+  await expect(slot).toBeVisible();
+  await page.mouse.move(b.x + b.width / 2 - 2, b.y + b.height / 2);
+  await expect.poll(highlighted).toBe(true);
+  await page.mouse.move(frame.x + 80, frame.y + 86);
+  const alignedX = (await slot.boundingBox())!.x;
+
+  await page.keyboard.down('Alt');
+  await expect.poll(async () => {
+    const current = await slot.boundingBox();
+    return current ? Math.abs(current.x - alignedX) : 0;
+  }).toBeGreaterThan(10);
+  await expect.poll(highlighted).toBe(false);
+  await page.keyboard.up('Alt');
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect.poll(async () => stripTagSpacing(await editor.getPageCode())).toBe(before);
+});
+
 for (const mode of ['docked', 'floating', 'compact-docked'] as const) {
   test(`rulers and vertical guides share the Canvas origin in ${mode}`, async ({ page }) => {
     const editor = await openEditor(page, mode);

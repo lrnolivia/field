@@ -1414,6 +1414,11 @@ export class GridDragStrategy implements DragStrategy {
   /** Push the current set of locked node IDs (lifted + visible siblings
    *  + alt-duplicates) to the renderer. Called on lift and on each
    *  alt-add/alt-remove. */
+  resetReorderGatesForStructuralChange(): void {
+    // Option-drag can resize an auto track at the same insertion slot.
+    this.slotRulers.clear();
+  }
+
   private refreshDragLockSet(): void {
     if (!this.parentId) return;
     const parentNode = getNodeFromCache(this.parentId);
