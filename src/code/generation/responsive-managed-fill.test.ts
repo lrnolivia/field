@@ -60,4 +60,3 @@ export default function Page() {
     expect(files.get('app/page.client.tsx')).toBe(migrated);
   });
 });
-
