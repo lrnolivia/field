@@ -31,11 +31,54 @@ import { readTranslationText } from '@/code/project/translation-ops';
 import { readTextAnimConfig } from '@/code/generation/text-anim-gen';
 import { readCodeOverrides } from '@/code/generation/code-override-gen';
 import { getI18nConfig } from '@/code/project/locale-ops';
+import { parseComponentControlsMeta } from '@/code/components/controls-parser';
+import { findAttribute, getAttributeValue, parseJSX, traverse } from '@/code/parsing/ast-utils';
+import type { JSXAttribute } from '@babel/types';
 import {
   BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, breakpointFill, breakpointVideo, shaderLayerVisible,
 } from '@/shared/managed-fill-breakpoints';
 
 const CLIPBOARD_STORAGE_KEY = 'revyme_clipboard';
+
+function shaderControlValue(attr: JSXAttribute): string | number | boolean | undefined {
+  const value = attr.value;
+  if (value == null) return true;
+  if (value.type === 'StringLiteral') return value.value;
+  if (value.type !== 'JSXExpressionContainer') return;
+  const expr = value.expression;
+  if (expr.type === 'StringLiteral' || expr.type === 'NumericLiteral' || expr.type === 'BooleanLiteral') return expr.value;
+  if (expr.type === 'UnaryExpression' && expr.operator === '-' && expr.argument.type === 'NumericLiteral') {
+    return -expr.argument.value;
+  }
+}
+
+function captureShaderControls(code: string, nodes: ClipboardNode[]): void {
+  const layers = new Map(nodes.filter(node => node.attrs?.['data-field-shader-layer'] === 'true').map(node => [node.id, node]));
+  if (!layers.size) return;
+  const ast = parseJSX(code);
+  if (!ast) return;
+  const controlNamesByTag = new Map<string, Set<string>>();
+  traverse(ast, {
+    JSXOpeningElement({ node }) {
+      const idAttr = findAttribute(node, 'data-id');
+      const layer = idAttr ? layers.get(getAttributeValue(idAttr) ?? '') : undefined;
+      if (!layer) return;
+      let names = controlNamesByTag.get(layer.type);
+      if (!names) {
+        const source = projectFS.readFile(`components/${layer.type}.tsx`);
+        const definitions = (source && parseComponentControlsMeta(source)?.controls) || {};
+        names = new Set(Object.entries(definitions).flatMap(([name, definition]) =>
+          definition.type === 'group' ? Object.keys(definition.controls ?? {}) : [name]));
+        controlNamesByTag.set(layer.type, names);
+      }
+      for (const attr of node.attributes) {
+        if (attr.type !== 'JSXAttribute' || attr.name.type !== 'JSXIdentifier' || !names.has(attr.name.name)) continue;
+        const value = shaderControlValue(attr);
+        if (value !== undefined) (layer.shaderControls ??= Object.create(null))[attr.name.name] = value;
+      }
+    },
+  });
+}
 
 // ─── Subtree collection ──────────────────────────────────────────────────────
 
@@ -493,6 +536,7 @@ export function copyNodes(
   try {
     const src = projectFS.readFile(getActiveFilePath()) ?? '';
     if (src) {
+      captureShaderControls(src, clipboardNodes);
       let captured = 0;
       for (const n of clipboardNodes) {
         const cfg = readTextAnimConfig(src, n.id);

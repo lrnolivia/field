@@ -235,6 +235,7 @@ export function buildAddNodeDef(
     name: root.name,
     textContent: root.textContent,
     bgVideo: root.bgVideo,
+    shaderControls: root.shaderControls,
     children: childrenDefs.length > 0 ? childrenDefs : undefined,
   };
 }
