@@ -4029,7 +4029,7 @@ export class LayoutLiftedStrategy implements DragStrategy {
     return pos !== 'absolute' && pos !== 'fixed';
   }
 
-  private getViewportScreenRect(excludeIds: ReadonlySet<string>): Rect | null {
+  private getViewportScreenRect(excludeIds?: ReadonlySet<string>): Rect | null {
     const rootId = this.viewportNodeId || this.parentNodeId;
     return rootId ? getLayoutViewportBounds(rootId, this.parentNodeId, this.currentVpId, excludeIds) : null;
   }

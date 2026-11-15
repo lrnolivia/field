@@ -7,7 +7,7 @@ export function getLayoutViewportBounds(
   rootId: string,
   parentId: string | null,
   viewportId: string,
-  liftedIds: ReadonlySet<string>,
+  liftedIds?: ReadonlySet<string>,
 ): Rect | null {
   const viewport = findNodeRect(rootId, viewportId);
   if (!viewport) return null;
@@ -25,7 +25,7 @@ export function getLayoutViewportBounds(
   for (const id of getNodeFromCache(rootId)?.children ?? []) {
     // Lifted layers follow the pointer. Overlays and virtual children do not
     // define the visible extent of the page.
-    if (liftedIds.has(id) || id.startsWith('layout::') || getNodeFromCache(id)?.attrs?.['data-overlay']) continue;
+    if (liftedIds?.has(id) || id.startsWith('layout::') || getNodeFromCache(id)?.attrs?.['data-overlay']) continue;
     const rect = findNodeRect(id, viewportId);
     if (rect && (rect.width > 0 || rect.height > 0)) include(rect);
   }
