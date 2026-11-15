@@ -12,6 +12,7 @@ import { BACKEND_KIND } from '@/backend';
 import { uploadFieldProjectThumbnail } from '@/backend/field-projects';
 import { getProjectId } from '@/backend/project-id';
 import { uploadPreviewThumbnail } from '@/backend/revyme-backend';
+import { isViewerRole, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { trace } from '@/shared/debug-trace';
 
 export function shouldCaptureThumbnail(args: {
@@ -41,14 +42,15 @@ export function usePreviewThumbnail({
   iframeRef,
   postMessageTarget,
 }: Options): void {
+  const viewerRole = useIsViewerRole();
   const lastCapturedVersionRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || viewerRole) return;
     const handler = (event: MessageEvent) => {
       const iframe = iframeRef.current;
       if (!iframe?.contentWindow || event.source !== iframe.contentWindow) return;
-      if (event.data?.type !== 'preview:thumbnail') return;
+      if (event.data?.type !== 'preview:thumbnail' || isViewerRole()) return;
       const dataUrl = event.data.dataUrl;
       if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
         trace.error('preview-thumbnail:bad-payload', { kind: typeof dataUrl });
@@ -87,10 +89,10 @@ export function usePreviewThumbnail({
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [iframeRef, open]);
+  }, [iframeRef, open, viewerRole]);
 
   useEffect(() => {
-    if (!open || !iframeReady) return;
+    if (!open || !iframeReady || viewerRole || isViewerRole()) return;
     if (!shouldCaptureThumbnail({
       isThumbnailPage,
       lastCapturedVersion: lastCapturedVersionRef.current,
@@ -104,5 +106,5 @@ export function usePreviewThumbnail({
     // Do not re-capture on every edit while Preview stays open. A close/reopen,
     // or the background capture host after save, handles the next refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, iframeReady, isThumbnailPage]);
+  }, [open, iframeReady, isThumbnailPage, viewerRole]);
 }
