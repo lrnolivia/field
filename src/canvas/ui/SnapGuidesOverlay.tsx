@@ -3,7 +3,7 @@
 // Reads guides from snap-guides-store (NOT Canvas useState) so the per-frame
 // updates re-render only THIS component, never the Canvas subtree.
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useReducer, useSyncExternalStore } from 'react';
 import { useAtomValue } from 'jotai';
 import { transformManager } from '../transform';
 import { snapGuidesOps } from './snap-guides-store';
@@ -18,13 +18,19 @@ export default function SnapGuidesOverlay() {
   const dropLineActive = useDropLineActive();
   const rulerGuides = useAtomValue(activeRulerGuidesAtom);
   const visibleGuides = dropLineActive ? snapGuides.filter(guide => guide.referenceId.startsWith('ruler-guide:')) : snapGuides;
+  const hasGuides = visibleGuides.length > 0 || (!dropLineActive && spacingGuides.length > 0);
+  const [, redraw] = useReducer((version: number) => version + 1, 0);
+  useEffect(() => {
+    // An aligned slot can stay unchanged while the camera auto-pans.
+    if (hasGuides) return transformManager.subscribe(redraw);
+  }, [hasGuides]);
+  const t = transformManager.getAppliedTransform();
 
   return (
     <>
       {visibleGuides.length > 0 && (
         <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
           {visibleGuides.map((guide, i) => {
-            const t = transformManager.getTransform();
             const prefix = 'ruler-guide:';
             const ruler = guide.referenceId.startsWith(prefix)
               ? rulerGuides.find(item => item.id === guide.referenceId.slice(prefix.length))
@@ -46,7 +52,6 @@ export default function SnapGuidesOverlay() {
         </svg>
       )}
       {!dropLineActive && spacingGuides.length > 0 && (() => {
-        const t = transformManager.getTransform();
         return spacingGuides.map((sg, gi) =>
           sg.segments.map((seg, si) => {
             const isH = sg.axis === 'h';

@@ -409,6 +409,18 @@ for (const { direction, degrees, betweenSlots } of [
     await expect.poll(() => highlighted()).toBe(true);
     if (betweenLine) {
       expect(await highlighted(betweenLine)).toBe(false);
+      // The slot index stays put during a camera change with no pointer move.
+      await page.evaluate(() => window.__e2e.zoomTo(1.1));
+      await expect.poll(async () => (await editor.nodeBox('rect')).width).toBeCloseTo(176, 0);
+      const zoomedFrame = await editor.nodeBox('rect');
+      await expect.poll(() => highlighted({
+        ...line,
+        x: zoomedFrame.x + 99,
+        y: zoomedFrame.y,
+        height: zoomedFrame.height,
+      })).toBe(true);
+      await page.evaluate(() => window.__e2e.zoomTo(1));
+      await expect.poll(() => highlighted()).toBe(true);
       await page.mouse.move(x, y, { steps: 12 });
       await expect.poll(async () => Math.round((await slot.boundingBox())!.x)).toBe(Math.round(first.x));
       await expect.poll(() => highlighted()).toBe(false);

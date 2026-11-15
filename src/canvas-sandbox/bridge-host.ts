@@ -15,7 +15,7 @@
 
 import * as Comlink from 'comlink';
 import type { CanvasBridge } from '@/canvas/canvas-bridge';
-import type { SandboxApi, RenderInput, PatchUpdate, TextEditCommand, CornersLike, FlowSlotGeometry } from './sandbox-api';
+import type { SandboxApi, RenderInput, PatchUpdate, TextEditCommand, FlowSlotGeometry } from './sandbox-api';
 import type { TextEditFitResult, SandboxEvent, TextEditSnapshot } from './protocol';
 import {
   isSandboxEvent,
