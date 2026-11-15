@@ -19,6 +19,7 @@ import { isSvgTag, isTextTag, WRAPPER_ONLY_STYLE_PROPS, isFitSize, isInlineLevel
 import { resolveResponsiveUnits, resolveContainerQueryUnits, canvasFixedAnchor } from '@/shared/responsive-units';
 import { hasMotionTransformProp, motionPropsToCSSTransform, MOTION_TRANSFORM_PROPS } from '@/shared/motion-transform';
 import { simpleHash } from '@/shared/hash-utils';
+import { breakpointVideo, shaderLayerVisible } from '@/shared/managed-fill-breakpoints';
 import { getOrCreateCanvasStyleEl, getActiveFilePath } from './node-ops';
 import { getCollectionData, getCollectionSchema } from '@/code/project/cms-ops';
 import { getLayoutForPage, getLayoutClientPath } from '@/code/project/active-file-store';
@@ -2079,7 +2080,7 @@ export function patchElement(
   }
 
   // Background-video sync — runs every cycle so add/change/remove stays live.
-  syncBgVideoChild(el, node.bgVideo);
+  syncBgVideoChild(el, breakpointVideo(node, idPrefix.slice(0, -1)));
 
   // Clear inheritance-preservation styles set by liftNode if a non-restore
   // commit path got here (mutation-queue → setCode → re-render). Without
@@ -2963,7 +2964,11 @@ function patchChildElements(
 
   // Exclude canvas nodes — they are hoisted to container level (not rendered inside viewports)
   const expectedPrefixedIds = childIds
-    .filter(id => !allNodes.get(id)?.isCanvasNode)
+    .filter(id => {
+      const child = allNodes.get(id);
+      return child && !child.isCanvasNode
+        && shaderLayerVisible(allNodes.get(child.parentId ?? ''), child, idPrefix.slice(0, -1));
+    })
     .map(id => idPrefix + id);
 
   // Remove children not in expected list (includes stale canvas nodes inside viewport).
@@ -3024,6 +3029,7 @@ function patchChildElements(
     const prefixedId = idPrefix + childId;
     const childNode = allNodes.get(childId);
     if (!childNode || childNode.isCanvasNode) continue;
+    if (!shaderLayerVisible(allNodes.get(childNode.parentId ?? ''), childNode, idPrefix.slice(0, -1))) continue;
 
     // Drag-locked children: skip ENTIRELY. The strategy may have lifted
     // them out of this parent (LayoutLifted moves to `contentRoot` via
@@ -3681,7 +3687,7 @@ function buildNodeElement(
   // ─── Build children ──────────────────────────────────────────────────────
   for (const childId of node.children) {
     const childNode = nodes.get(childId);
-    if (childNode) {
+    if (childNode && shaderLayerVisible(node, childNode, idPrefix.slice(0, -1))) {
       const childEl = buildNodeElement(childNode, nodes, onNodeMouseDown, idPrefix, variantName, bindingData, idSuffix, localeOverrides, vpWidth);
       el.appendChild(childEl);
       // Re-apply stroke alignment now that the child is connected to its
@@ -3853,7 +3859,7 @@ function buildNodeElement(
   // several branches above assign `el.innerHTML` (graphic markup, text), which
   // would wipe an earlier insert. Autoplay/loop are forced off in there, so the
   // canvas keeps its frozen-first-frame contract.
-  syncBgVideoChild(el, node.bgVideo);
+  syncBgVideoChild(el, breakpointVideo(node, idPrefix.slice(0, -1)));
 
   return el;
 }

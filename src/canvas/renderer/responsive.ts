@@ -5,6 +5,7 @@
 // ESM bindings (assigning to an imported binding is illegal).
 
 import { pinnedResolveWidth } from '../resize/viewport-band-pin-store';
+import { splitStyleProps } from '@/shared/css-utils';
 
 // ─── Responsive Override Cache ────────────────────────────────────────────
 // Parsed once per renderNodes call. Used by patchElement to merge @media overrides
@@ -67,7 +68,7 @@ export function parseResponsiveBreakpoints(css: string): ResponsiveBreakpoint[] 
       if (/:lang\([^)]*\)\s*(?:\[data-variant="[^"]*"\]\s*)?$/.test(before)) continue;
       const id = selMatch[1];
       const props = nodes.get(id) ?? new Map<string, string>();
-      for (const decl of selMatch[2].split(';').filter(d => d.trim())) {
+      for (const decl of splitStyleProps(selMatch[2], ';')) {
         const colonIdx = decl.indexOf(':');
         if (colonIdx === -1) continue;
         const prop = decl.slice(0, colonIdx).trim();

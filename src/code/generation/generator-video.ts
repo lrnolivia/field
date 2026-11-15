@@ -56,7 +56,7 @@ export interface BgVideoOpts {
 /** Defaults applied when a fresh bg-video is inserted. autoplay+muted+loop
  *  +playsInline are the standard "background video" combo (autoplay requires
  *  muted in most browsers, playsInline avoids fullscreen on iOS). */
-const DEFAULT_BG_VIDEO_OPTS: Required<Omit<BgVideoOpts, 'src' | 'poster'>> = {
+export const DEFAULT_BG_VIDEO_OPTS: Required<Omit<BgVideoOpts, 'src' | 'poster'>> = {
   autoPlay: true,
   muted: true,
   loop: true,
@@ -234,7 +234,7 @@ function findAttrIndex(opening: t.JSXOpeningElement, name: string): number {
  * - src/poster: string attribute (empty string removes)
  * - objectFit: written into the inline style object
  */
-function patchBgVideo(opening: t.JSXOpeningElement, opts: BgVideoOpts): void {
+export function patchBgVideo(opening: t.JSXOpeningElement, opts: BgVideoOpts): void {
   if (opts.src !== undefined) {
     setStringAttr(opening, 'src', opts.src);
   }
@@ -373,7 +373,7 @@ function removeOwnedHostStyles(opening: t.JSXOpeningElement, ownedStyles: string
   });
 }
 
-function buildBgVideoElement(opts: NonNullable<CanvasNode['bgVideo']>): t.JSXElement {
+export function buildBgVideoElement(opts: NonNullable<CanvasNode['bgVideo']>): t.JSXElement {
   // Compose inline style: fixed positioning + objectFit + pointerEvents (only
   // when controls are off — see patchBgVideo).
   const inlineStyle: Record<string, string> = {

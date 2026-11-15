@@ -44,7 +44,7 @@ describe('fill picker shell contract', () => {
   });
 
   it('keeps semantic Pattern, Video, and Shader fills in Single mode until the paint stack owns them natively', () => {
-    expect(fillSource).toContain('const semanticSingleFill = hasSemanticSingleFill(ctx?.node)');
+    expect(fillSource).toContain('const semanticSingleFill = hasSemanticSingleFill(resolveManagedFillNode(ctx?.node, scope))');
     expect(fillSource).toContain("node?.attrs?.['data-field-pattern']");
     expect(fillSource).toContain("node?.attrs?.['data-field-shader-fill']");
     expect(fillSource).toContain('node?.bgVideo');

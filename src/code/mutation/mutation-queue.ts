@@ -27,6 +27,7 @@ import { canvasRootFlowReset } from '@/shared/flex-helpers';
 import { dragStateOps } from '@/canvas/drag/drag-state-store';
 import { getDefaultStore } from 'jotai';
 import { healMissingLocaleHook } from '@/code/generation/scoped-expr';
+import { editBreakpointFill, writeBreakpointFillStyles, type BreakpointFillEdit, type FillBreakpoint } from '../generation/responsive-managed-fill';
 import { trace } from '@/shared/debug-trace';
 import { isAgentWriteOpen, isBranchLocked } from '@/code/stores/agent-run-lock-store';
 import { parse } from '@babel/parser';
@@ -217,6 +218,8 @@ export type Mutation =
   // ─── Style mutations ────────────────────────────────────────────────────
   /** Update inline CSS styles on any element. Styles use camelCase property names (e.g. backgroundColor). Empty string removes a property. */
   | { type: 'updateStyles'; nodeId: string; styles: Record<string, string> }
+  | { type: 'editBreakpointFill'; nodeId: string; target: FillBreakpoint; replicas: FillBreakpoint[]; edit: BreakpointFillEdit }
+  | { type: 'updateBreakpointFillStyles'; nodeId: string; target: FillBreakpoint; replicas: FillBreakpoint[]; styles: Record<string, string> }
   /** Update styles for a specific @container breakpoint width on an element. */
   | { type: 'updateContainerStyle'; nodeId: string; maxWidth: number; styles: Record<string, string> }
   /** Remove all @container style overrides for an element. */
@@ -746,6 +749,7 @@ const FLUSH_DELAY_MS = 16; // ~1 frame
  * defined`.
  */
 const IMPORT_AFFECTING_TYPES = new Set([
+  'editBreakpointFill',
   // `<Override>` needs the runtime import; the override file import is written by the generator.
   'setCodeOverrides',
   'updateMotionProp', 'removeMotionProp', 'removeMotionScopeBranch',
@@ -2564,6 +2568,12 @@ function applyMutationCore(code: string, mutation: Mutation): string {
 
       case 'updateContainerStyle':
         return updateContainerQueryStyle(code, mutation.nodeId, mutation.maxWidth, mutation.styles);
+
+      case 'editBreakpointFill':
+        return editBreakpointFill(code, mutation.nodeId, mutation.target, mutation.replicas, mutation.edit);
+
+      case 'updateBreakpointFillStyles':
+        return writeBreakpointFillStyles(code, mutation.nodeId, mutation.target, mutation.replicas, mutation.styles);
 
       case 'clearContainerStyles':
         return clearContainerStylesForNode(code, mutation.nodeId);

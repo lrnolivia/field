@@ -1,5 +1,7 @@
 import type { ViewportConfig } from '@/shared/types';
 import { trace } from '@/shared/debug-trace';
+import { BREAKPOINT_FILLS_ATTR } from '@/shared/managed-fill-breakpoints';
+import { syncManagedFillBreakpoints } from '@/code/generation/responsive-managed-fill';
 
 export interface CanvasConfig {
   viewports: ViewportConfig[];
@@ -66,7 +68,11 @@ export function updateCanvasConfigInCode(code: string, config: CanvasConfig): st
   const match = code.match(CANVAS_BLOCK_REGEX);
   if (match) {
     trace.action('canvas-config:update', 'replace-existing');
-    return code.replace(CANVAS_BLOCK_REGEX, block);
+    const next = code.replace(CANVAS_BLOCK_REGEX, block);
+    if (!code.includes(BREAKPOINT_FILLS_ATTR)) return next;
+    const oldViewports = parseCanvasConfig(code)?.viewports ?? [];
+    const identity = (viewports: ViewportConfig[]) => JSON.stringify(viewports.map(v => [v.id, v.width, !!v.isPrimary]).sort());
+    return identity(oldViewports) === identity(config.viewports) ? next : syncManagedFillBreakpoints(next, config.viewports);
   }
   // Insert: after 'use client' line, or at top
   const useClientMatch = code.match(/^['"]use client['"];?\s*\n/m);

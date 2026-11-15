@@ -8,6 +8,7 @@ import { isTruthy } from '@/code/values/value-eval';
 import { trace } from '@/shared/debug-trace';
 import { isSvgTag } from '@/shared/constants';
 import { cleanJsxText } from '@/shared/jsx-whitespace';
+import { BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, FILL_VIEWPORT_PREFIX } from '@/shared/managed-fill-breakpoints';
 import { parsePageVariables } from '../features/page-variables';
 
 // Handle ESM/CJS interop
@@ -29,6 +30,7 @@ const INLINE_TAGS = new Set(['span', 'strong', 'em', 'br', 'a', 'u', 's', 'mark'
 // here silently vanishes from the pasted copy.
 const PARSED_HTML_ATTRS = ['id', 'src', 'alt', 'href', 'target', 'rel', 'type', 'placeholder', 'aria-label', 'role', 'aria-hidden', 'tabindex', 'data-overlay', 'data-overlay-trigger', 'data-smooth-scroll', 'data-keep-params', 'data-sketch', 'data-revyme-track', 'data-slot-pos', 'data-pinned', 'data-replica-solo', 'data-alt-duplicate', 'data-scroll-fx', 'data-glide', 'data-loop', 'data-field-pattern', 'data-field-shader-fill', 'data-field-shader-layer', 'poster', 'controls', 'autoplay', 'loop', 'muted', 'preload',
   'data-field-pattern-style-backup', 'data-field-shader-style-backup',
+  BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR,
   // Form controls (input/textarea/select/option/button) + the <form> itself.
   // React JSX names (camelCase) so the generated .tsx is React-correct.
   // Also captured on CANVAS nodes: a form/search input dragged or pasted onto
@@ -524,6 +526,7 @@ export interface CanvasNode {
     /** Host styles supplied when the fill was inserted. Absent in legacy source. */
     ownedHostStyles?: string[];
   };
+  breakpointVideos?: Record<string, NonNullable<CanvasNode['bgVideo']>>;
 }
 
 /**
@@ -3866,7 +3869,7 @@ function attachVideoFill(attrs: (JSXAttribute | any)[], host?: CanvasNode): bool
     : null;
   const poster = getAttr(attrs, 'poster');
   const owned = getAttr(attrs, 'data-bg-video-host-styles');
-  host.bgVideo = {
+  const video = {
     src,
     autoPlay: hasAttr('autoPlay'),
     muted: hasAttr('muted'),
@@ -3877,6 +3880,9 @@ function attachVideoFill(attrs: (JSXAttribute | any)[], host?: CanvasNode): bool
     ...(poster ? { poster } : {}),
     ...(owned ? { ownedHostStyles: owned.split(' ') } : {}),
   };
+  const scope = getAttr(attrs, FILL_VIEWPORT_ATTR);
+  if (scope === null) host.bgVideo = video;
+  else (host.breakpointVideos ??= Object.create(null))[scope.slice(FILL_VIEWPORT_PREFIX.length)] = video;
   return true;
 }
 
