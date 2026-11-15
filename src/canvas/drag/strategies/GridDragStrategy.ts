@@ -898,7 +898,7 @@ export class GridDragStrategy implements DragStrategy {
     // ORIGINAL position (not the swap-driven `finalOrder` position) so
     // the grid looks exactly like it did before the user grabbed.
     this.removePlaceholder();
-    this.unliftAndRestore(this.swapFixedCells ? this.startDomIndex : this.startIndex, this.swapFixedCells);
+    this.unliftAndRestore(this.startDomIndex, true);
     this.restoreSiblings();
     // Auto-flow swaps changed the live DOM sequence; reconcile it with source.
     if (!this.swapFixedCells && !this.hasOrderStyles) forceCanvasRenderDeferredDuringDrag();
@@ -1106,8 +1106,8 @@ export class GridDragStrategy implements DragStrategy {
    *  style we mutated to its drag-start value (NOT blank — see
    *  `liftedOriginalInline` for why), with explicit-swap `livePlacements`
    *  overriding the original grid placement if the user did swaps. */
-  private unliftAndRestore(restoreIndex?: number, restoreOriginalPlacement = false): void {
-    const placements = restoreOriginalPlacement ? this.originalPlacements : this.livePlacements;
+  private unliftAndRestore(restoreIndex?: number, restoreOriginal = false): void {
+    const placements = restoreOriginal ? this.originalPlacements : this.livePlacements;
     const live = placements.get(this.liftedNodeId);
     const restore: Record<string, string> = { ...this.liftedOriginalInline };
     // Live placement (mutated by swaps) wins over the original snapshot
@@ -1117,12 +1117,9 @@ export class GridDragStrategy implements DragStrategy {
       restore.gridRow = live.gridRow;
       restore.gridArea = live.gridArea;
     }
-    // ORDER-STYLE grids: the element re-enters at the ORDER of the slot
-    // it was dropped on (the placeholder carried it through the swaps).
-    // Cancel passes restoreToOriginalOrder — the snapshot value wins there.
     if (this.hasOrderStyles) {
-      const liveOrder = this.liveOrders.get(this.liftedNodeId);
-      if (liveOrder !== undefined && liveOrder !== '') restore.order = liveOrder;
+      const orders = restoreOriginal ? this.originalOrders : this.liveOrders;
+      restore.order = orders.get(this.liftedNodeId) ?? '';
     }
     // `bridge.restoreNode` does TWO things: applies these styles AND
     // physically reparents the element back into the grid at `idx`.

@@ -222,3 +222,33 @@ test('explicit Grid swaps within the compact desktop breakpoint', async ({ page 
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
   await expect.poll(() => editor.getPageCode()).toBe(initial);
 });
+
+test('Escape restores authored Grid order and the DOM sequence', async ({ page }) => {
+  const source = ['a', 'b', 'c'].reduce((code, id, index) => code.replace(
+    `data-id="${id}" style={{`, `data-id="${id}" style={{order:'${2 - index}',`,
+  ), PAGE);
+  const editor = await openGrid(page, source);
+  const before = await editor.getPageCode();
+  const a = center(await editor.nodeBox('a'));
+  const b = center(await editor.nodeBox('b'));
+  const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 7, a.y);
+  await expect(slot).toHaveCSS('order', '2');
+  await page.mouse.move(b.x, b.y);
+  await expect(slot).toHaveCSS('order', '1');
+  await expect(editor.node('b')).toHaveCSS('order', '2');
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+
+  await expect(editor.node('a')).toHaveCSS('order', '2');
+  await expect(editor.node('b')).toHaveCSS('order', '1');
+  await expect.poll(async () => center(await editor.nodeBox('a')).x).toBeCloseTo(a.x, 0);
+  const domOrder = () => editor.sandbox().locator('[data-id="grid"] > [data-id]').evaluateAll(
+    nodes => nodes.map(node => node.getAttribute('data-id')),
+  );
+  await expect.poll(domOrder).toEqual(['a', 'b', 'c']);
+  expect(await editor.getPageCode()).toBe(before);
+});
