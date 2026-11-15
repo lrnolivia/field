@@ -1647,6 +1647,20 @@ export default {
       new Request(target.toString(), request)
     );
 
+    // Immutable editor hosts also serve /preview-sandbox/index.html. Vite's
+    // root-relative assets work directly on the dedicated production Preview
+    // host. On these shared hosts, look in the Preview bundle after the editor.
+    if (
+      response.status === 404 &&
+      incoming.hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX) &&
+      target.pathname === incoming.pathname &&
+      (incoming.pathname.startsWith("/assets/") ||
+        /^\/runtime-bridge(?:-jsx|-motion)?\.js$/.test(incoming.pathname))
+    ) {
+      target.pathname = "/preview-sandbox" + incoming.pathname;
+      response = await env.ASSETS.fetch(new Request(target.toString(), request));
+    }
+
     // SPA navigation fallback, but never turn missing JS/CSS/images into HTML.
     const acceptsHtml =
       request.headers.get("Accept")?.includes("text/html") ?? false;

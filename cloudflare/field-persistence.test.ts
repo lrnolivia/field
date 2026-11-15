@@ -320,6 +320,35 @@ test('static main/canvas/preview routing and security headers remain intact', as
   assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
 });
 
+test('immutable editor hosts resolve the Preview bundle and runtime bridges', async () => {
+  const files = new Map([
+    ['/preview-sandbox/index.html', 'preview page'],
+    ['/preview-sandbox/assets/preview-only.js', 'preview bundle'],
+    ['/preview-sandbox/runtime-bridge-jsx.js', 'preview bridge'],
+    ['/preview-sandbox/assets/editor.js', 'shadowed preview asset'],
+    ['/assets/editor.js', 'editor bundle'],
+  ]);
+  const env = {
+    ASSETS: {
+      async fetch(request: Request) {
+        const file = files.get(new URL(request.url).pathname);
+        return file === undefined ? new Response(null, { status: 404 }) : new Response(file);
+      },
+    },
+  };
+  const get = (path: string, hostname = 'abc123.field-preview.loew.fi') =>
+    worker.fetch(new Request('https://' + hostname + path), env);
+
+  assert.equal(await (await get('/preview-sandbox/index.html')).text(), 'preview page');
+  assert.equal(await (await get('/assets/preview-only.js')).text(), 'preview bundle');
+  assert.equal(await (await get('/runtime-bridge-jsx.js')).text(), 'preview bridge');
+  assert.equal(await (await get('/assets/editor.js')).text(), 'editor bundle');
+  assert.equal((await get('/assets/missing.js')).status, 404);
+  assert.equal((await get('/assets/preview-only.js', 'field.loew.fi')).status, 404);
+  assert.equal((await get('/assets/preview-only.js', 'canvas.abc123.field-preview.loew.fi')).status, 404);
+  assert.equal(await (await get('/assets/preview-only.js', 'preview.field.loew.fi')).text(), 'preview bundle');
+});
+
 
 test('Access verifier validates RS256 signature, issuer, audience, and expiry', async () => {
   const pair = await crypto.subtle.generateKey(
