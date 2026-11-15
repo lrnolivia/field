@@ -320,6 +320,42 @@ test('static main/canvas/preview routing and security headers remain intact', as
   assert.equal(res.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
 });
 
+test('the Workers branch Preview origin serves its bundle and page routes without editor APIs', async () => {
+  const files = new Map([
+    ['/preview-sandbox/index.html', 'Preview HTML'],
+    ['/preview-sandbox/assets/entry.js', 'Preview runtime'],
+    ['/preview-sandbox/runtime-bridge-jsx.js', 'Preview JSX bridge'],
+    ['/assets/entry.js', 'Editor runtime'],
+    ['/build.json', JSON.stringify({ commitSha: 'branch-sha' })],
+  ]);
+  const env = {
+    ASSETS: {
+      async fetch(request: Request) {
+        const body = files.get(new URL(request.url).pathname);
+        return body === undefined ? new Response(null, { status: 404 }) : new Response(body);
+      },
+    },
+  };
+  const read = (pathname: string, accept = '*/*', host = 'abc12345-field.lrnoliv.workers.dev') =>
+    worker.fetch(new Request('https://' + host + pathname, { headers: { Accept: accept } }), env);
+
+  const page = await read('/');
+  assert.equal(await page.text(), 'Preview HTML');
+  assert.equal(page.headers.get('Cross-Origin-Resource-Policy'), 'cross-origin');
+  assert.equal(page.headers.get('Cross-Origin-Embedder-Policy'), null);
+  assert.equal(await (await read('/about', 'text/html')).text(), 'Preview HTML');
+  assert.equal(await (await read('/assets/entry.js')).text(), 'Preview runtime');
+  assert.equal(await (await read('/runtime-bridge-jsx.js')).text(), 'Preview JSX bridge');
+  assert.equal((await read('/assets/missing.js')).status, 404);
+  assert.equal((await read('/api/field/projects', 'text/html')).status, 404);
+  assert.equal((await read('/qa/work/saved-project', 'application/json')).status, 404);
+
+  const build = await (await read('/api/build')).json();
+  assert.equal(build.commitSha, 'branch-sha');
+  assert.equal(build.environment, 'Preview');
+  assert.equal(await (await read('/assets/entry.js', '*/*', 'field.lrnoliv.workers.dev')).text(), 'Editor runtime');
+});
+
 
 test('Access verifier validates RS256 signature, issuer, audience, and expiry', async () => {
   const pair = await crypto.subtle.generateKey(

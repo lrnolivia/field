@@ -1,10 +1,10 @@
 const FIELD_PREVIEW_HOST_SUFFIX = '.field-preview.loew.fi';
+const WORKERS_PREVIEW_HOST_SUFFIX = '-field.lrnoliv.workers.dev';
 
 export interface PreviewLocationLike {
   protocol: string;
   hostname: string;
   port: string;
-  origin: string;
 }
 
 /**
@@ -12,8 +12,8 @@ export interface PreviewLocationLike {
  *
  * Local dev keeps the dedicated Vite preview port.
  * Production uses preview.field.loew.fi.
- * Immutable branch Preview deployments serve the preview bundle from the same
- * deployment origin so TLS, build identity, and runtime code cannot drift.
+ * Branch editors and the Preview runtime use different hostnames for the
+ * same Workers deployment. The deployment ID or branch alias is shared.
  */
 export function previewFrameUrl(location: PreviewLocationLike): string {
   if (location.port) {
@@ -21,7 +21,8 @@ export function previewFrameUrl(location: PreviewLocationLike): string {
   }
 
   if (location.hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX)) {
-    return location.origin + '/preview-sandbox/index.html';
+    const previewName = location.hostname.slice(0, -FIELD_PREVIEW_HOST_SUFFIX.length);
+    return location.protocol + '//' + previewName + WORKERS_PREVIEW_HOST_SUFFIX + '/';
   }
 
   return location.protocol + '//preview.' + location.hostname + '/';

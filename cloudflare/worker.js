@@ -2,6 +2,7 @@ const CANVAS_HOST = "canvas.field.loew.fi";
 const PREVIEW_HOST = "preview.field.loew.fi";
 const CANVAS_PREVIEW_HOST_SUFFIX = ".canvas-preview.loew.fi";
 const FIELD_PREVIEW_HOST_SUFFIX = ".field-preview.loew.fi";
+const WORKERS_PREVIEW_HOST_PATTERN = /^[a-z0-9-]+-field\.lrnoliv\.workers\.dev$/;
 const FIELD_API_ROOT = "/api/field/projects";
 const FIELD_QA_WORK_PREFIX = "/qa/work/";
 const FIELD_REALTIME_PATH = "/api/field/realtime";
@@ -25,12 +26,16 @@ function isCanvasHost(hostname) {
   );
 }
 
+function isPreviewHost(hostname) {
+  return hostname === PREVIEW_HOST || WORKERS_PREVIEW_HOST_PATTERN.test(hostname);
+}
+
 function assetPathForHost(hostname, pathname) {
   if (isCanvasHost(hostname)) {
     return "/sandbox" + (pathname === "/" ? "/index.html" : pathname);
   }
 
-  if (hostname === PREVIEW_HOST) {
+  if (isPreviewHost(hostname)) {
     return "/preview-sandbox" + (pathname === "/" ? "/index.html" : pathname);
   }
 
@@ -42,7 +47,7 @@ function indexPathForHost(hostname) {
     return "/sandbox/index.html";
   }
 
-  if (hostname === PREVIEW_HOST) {
+  if (isPreviewHost(hostname)) {
     return "/preview-sandbox/index.html";
   }
 
@@ -59,7 +64,7 @@ function applyRevymeHeaders(response, hostname) {
     headers.set("Origin-Agent-Cluster", "?1");
   }
 
-  if (hostname === PREVIEW_HOST) {
+  if (isPreviewHost(hostname)) {
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
   }
 
@@ -68,6 +73,20 @@ function applyRevymeHeaders(response, hostname) {
     statusText: response.statusText,
     headers,
   });
+}
+
+async function serveStaticAsset(request, assets, incoming) {
+  const target = new URL(request.url);
+  target.pathname = assetPathForHost(incoming.hostname, incoming.pathname);
+  let response = await assets.fetch(new Request(target.toString(), request));
+
+  // An authored page can be opened directly or reloaded. Asset requests
+  // keep their 404s instead of receiving the app document.
+  if (response.status === 404 && request.headers.get("Accept")?.includes("text/html")) {
+    target.pathname = indexPathForHost(incoming.hostname);
+    response = await assets.fetch(new Request(target.toString(), request));
+  }
+  return applyRevymeHeaders(response, incoming.hostname);
 }
 
 function apiHeaders(extra = {}) {
@@ -85,7 +104,7 @@ function jsonResponse(body, status = 200, headers = {}) {
 }
 
 function fieldBuildEnvironment(hostname) {
-  if (hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX)) return "Preview";
+  if (hostname.endsWith(FIELD_PREVIEW_HOST_SUFFIX) || WORKERS_PREVIEW_HOST_PATTERN.test(hostname)) return "Preview";
   if (hostname === "field.loew.fi") return "Production";
   if (hostname === "localhost" || hostname === "127.0.0.1") return "Local";
   return "Unknown";
@@ -1600,6 +1619,13 @@ export default {
     const buildResponse = await handleFieldBuildRequest(request, env);
     if (buildResponse) return buildResponse;
 
+    // The branch Preview iframe runs project code on this origin. Keep it
+    // on static Preview assets so it cannot access editor or saved-project APIs.
+    if (WORKERS_PREVIEW_HOST_PATTERN.test(incoming.hostname)) {
+      if (incoming.pathname.startsWith("/api/")) return new Response(null, { status: 404 });
+      return serveStaticAsset(request, env.ASSETS, incoming);
+    }
+
     // Public-by-link, read-only QA surface. The HTML embeds exactly one
     // production project snapshot; all normal field APIs remain Access-gated.
     const qaPageResponse = await handleFieldQaPageRequest(request, env);
@@ -1640,25 +1666,6 @@ export default {
     );
     if (apiResponse) return apiResponse;
 
-    const target = new URL(request.url);
-    target.pathname = assetPathForHost(incoming.hostname, incoming.pathname);
-
-    let response = await env.ASSETS.fetch(
-      new Request(target.toString(), request)
-    );
-
-    // SPA navigation fallback, but never turn missing JS/CSS/images into HTML.
-    const acceptsHtml =
-      request.headers.get("Accept")?.includes("text/html") ?? false;
-
-    if (response.status === 404 && acceptsHtml) {
-      target.pathname = indexPathForHost(incoming.hostname);
-
-      response = await env.ASSETS.fetch(
-        new Request(target.toString(), request)
-      );
-    }
-
-    return applyRevymeHeaders(response, incoming.hostname);
+    return serveStaticAsset(request, env.ASSETS, incoming);
   },
 };
