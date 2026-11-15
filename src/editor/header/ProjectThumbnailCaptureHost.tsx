@@ -17,6 +17,7 @@ import {
 import { getProjectId } from '@/backend/project-id';
 import { saveStatusAtom } from '@/backend/save-store';
 import { projectFS, type ProjectFSWriteEvent } from '@/code/project/project-fs';
+import { isViewerRole, useIsViewerRole } from '@/code/stores/viewer-mode-store';
 import { activeLocaleAtom } from '@/code/stores/locale-store';
 import { filePathToSlug } from '@/code/project/active-file-store';
 import {
@@ -82,7 +83,9 @@ interface CaptureAttempt {
   retry: number;
 }
 
-export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
+export default function ProjectThumbnailCaptureHost({ suspended: previewSuspended }: Props) {
+  const viewerRole = useIsViewerRole();
+  const suspended = previewSuspended || viewerRole;
   const saveStatus = useAtomValue(saveStatusAtom);
   const activeLocale = useAtomValue(activeLocaleAtom);
   const projectId = getProjectId();
@@ -138,6 +141,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
   };
 
   const ensureRendererAwake = () => {
+    if (suspendedRef.current || isViewerRole()) return;
     clearLifecycleTimers();
     if (!rendererMountedRef.current) {
       rendererMountedRef.current = true;
@@ -322,8 +326,8 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
 
   useEffect(() => {
     suspendedRef.current = suspended;
-    if (suspended && rendererMountedRef.current) disposeRenderer('visible-preview');
-  }, [suspended]);
+    if (suspended && rendererMountedRef.current) disposeRenderer(viewerRole ? 'viewer-role' : 'visible-preview');
+  }, [suspended, viewerRole]);
 
   useEffect(() => {
     if (BACKEND_KIND !== 'field' || suspended) return;
@@ -414,7 +418,7 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
     if (!needsWork) return;
 
     const timer = setTimeout(() => {
-      if (saveStatusRef.current !== 'saved' || suspendedRef.current) return;
+      if (saveStatusRef.current !== 'saved' || suspendedRef.current || isViewerRole()) return;
       if (!rendererReadyRef.current || !rendererAwakeRef.current) return;
       if (generationRef.current !== currentGeneration) return;
       if (captureAttemptRef.current || uploadInFlightRef.current) return;
@@ -540,7 +544,8 @@ export default function ProjectThumbnailCaptureHost({ suspended }: Props) {
       if (
         generationRef.current !== attempt.generation ||
         saveStatusRef.current !== 'saved' ||
-        suspendedRef.current
+        suspendedRef.current ||
+        isViewerRole()
       ) {
         captureAttemptRef.current = null;
         setCaptureSerial((value) => value + 1);
