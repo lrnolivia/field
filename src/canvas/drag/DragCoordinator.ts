@@ -161,7 +161,7 @@ export class DragCoordinator {
   private strategies: DragStrategy[] = [
     OverlayDragStrategyInstance,      // overlay nodes → offset from trigger, no drop targets
     new GalleryDragStrategy(),        // Gallery media/item → exact identity swap in all five views
-    new GridDragStrategy(),           // ordinary grid children → cell-aware swap/reorder
+    new GridDragStrategy(guides => this.callbacks.onSnapGuidesChange(guides)), // Grid children → cell-aware swap/reorder
     new LayoutLiftedStrategy(guides => this.callbacks.onSnapGuidesChange(guides)), // flex/block children → lift + placeholder + order-based reorder
     new AbsoluteInFrameStrategy(),    // absolute children inside a frame → position relative to parent
     new CanvasDragStrategy(),         // fallback — absolute on canvas root
