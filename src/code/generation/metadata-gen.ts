@@ -50,7 +50,7 @@ export const metadata = {
   description: '',
 };
 
-export const siteConfig: Record<string, string> = {
+const siteConfig: Record<string, string> = {
   language: 'en',
   theme: 'light',
   customHead: '',
@@ -83,12 +83,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 // ─── Parse ──────────────────────────────────────────────────────────────────
 
-/** Locate `export const <name> = { … };` with a BALANCED, string-aware scan
+/** Locate the metadata or site settings declaration with a balanced, string-aware scan
  *  (quotes, template literals, escapes). Returns the full statement span and
  *  the object literal's text. Never confused by `};` inside stored strings. */
-function extractExportObject(code: string, name: string): { start: number; end: number; objStr: string } | null {
+function extractConstObject(code: string, name: 'metadata' | 'siteConfig'): { start: number; end: number; objStr: string } | null {
   // optional type annotation (`: Record<string, string>`) between name and `=`
-  const declRe = new RegExp(`export\\s+const\\s+${name}(?:\\s*:\\s*[\\w<>,.\\[\\]\\s]+?)?\\s*=\\s*\\{`);
+  const exportPrefix = name === 'metadata' ? 'export\\s+' : '(?:export\\s+)?';
+  const declRe = new RegExp(`\\b${exportPrefix}const\\s+${name}(?:\\s*:\\s*[\\w<>,.\\[\\]\\s]+?)?\\s*=\\s*\\{`);
   const m = declRe.exec(code);
   if (!m) return null;
   const open = m.index + m[0].length - 1;
@@ -172,7 +173,7 @@ function moduleParses(code: string): boolean {
  */
 export function parseMetadataFromCode(code: string): SiteMetadata {
   trace.fn('metadata-gen:parse');
-  const block = extractExportObject(code, 'metadata');
+  const block = extractConstObject(code, 'metadata');
   if (!block) return {};
   const viaBabel = objectLiteralToRecord(block.objStr);
   if (viaBabel) return viaBabel;
@@ -181,15 +182,38 @@ export function parseMetadataFromCode(code: string): SiteMetadata {
 }
 
 /**
- * Parse `export const siteConfig = { ... }` from code string.
+ * Parse site settings from either the current layout constant or its legacy export.
  */
 export function parseSiteConfigFromCode(code: string): Record<string, string> {
   trace.fn('metadata-gen:parseSiteConfig');
-  const block = extractExportObject(code, 'siteConfig');
+  const block = extractConstObject(code, 'siteConfig');
   if (!block) return {};
   const viaBabel = objectLiteralToRecord(block.objStr);
   if (viaBabel) return viaBabel as Record<string, string>;
   return legacyObjectToRecord(block.objStr) as Record<string, string>;
+}
+
+/** Next.js validates route exports. Keep the legacy Field settings in the
+ * layout's local scope, where the generated custom-code elements use them. */
+export function migrateLayoutSiteConfig(files: Map<string, string>): void {
+  const path = 'app/layout.tsx';
+  const code = files.get(path);
+  if (!code || !/\bexport\s+const\s+siteConfig\b/.test(code)) return;
+  try {
+    const { program } = parse(code, { sourceType: 'module', plugins: ['jsx', 'typescript'] });
+    for (const node of program.body) {
+      if (node.type !== 'ExportNamedDeclaration' || node.declaration?.type !== 'VariableDeclaration') continue;
+      const declaration = node.declaration;
+      const [binding] = declaration.declarations;
+      if (declaration.kind !== 'const' || declaration.declarations.length !== 1
+        || binding.id.type !== 'Identifier' || binding.id.name !== 'siteConfig'
+        || binding.init?.type !== 'ObjectExpression' || node.start == null || declaration.start == null) continue;
+      files.set(path, code.slice(0, node.start) + code.slice(declaration.start));
+      return;
+    }
+  } catch {
+    // Preserve invalid source for the layout recovery path.
+  }
 }
 
 // ─── Generate ───────────────────────────────────────────────────────────────
@@ -236,7 +260,7 @@ export function updateMetadataInCode(code: string, updates: SiteMetadata): strin
     ? `export const metadata = {\n${body},\n};`
     : `export const metadata = {};`;
 
-  const block = extractExportObject(code, 'metadata');
+  const block = extractConstObject(code, 'metadata');
   const out = block
     ? code.slice(0, block.start) + newBlock + code.slice(block.end)
     : insertBeforeDefaultExport(code, newBlock);
@@ -274,10 +298,10 @@ export function updateSiteConfigInCode(code: string, updates: Record<string, str
   // even when the save removed the (empty) key — loosely typed so exported
   // projects stay clean under tsc.
   const newBlock = lines.length > 0
-    ? `export const siteConfig: Record<string, string> = {\n${lines.join(',\n')},\n};`
-    : `export const siteConfig: Record<string, string> = {};`;
+    ? `const siteConfig: Record<string, string> = {\n${lines.join(',\n')},\n};`
+    : `const siteConfig: Record<string, string> = {};`;
 
-  const block = extractExportObject(code, 'siteConfig');
+  const block = extractConstObject(code, 'siteConfig');
   const out = block
     ? code.slice(0, block.start) + newBlock + code.slice(block.end)
     : insertBeforeDefaultExport(code, newBlock);
@@ -302,11 +326,11 @@ export function healLayoutFile(code: string): string {
   if (moduleParses(code)) return code;
   trace.error('metadata-gen:heal-layout', { reason: 'layout.tsx does not parse — rebuilding' });
   const salvagedMeta = (() => {
-    const block = extractExportObject(code, 'metadata');
+    const block = extractConstObject(code, 'metadata');
     return block ? (objectLiteralToRecord(block.objStr) ?? legacyObjectToRecord(block.objStr)) : {};
   })();
   const salvagedConfig = (() => {
-    const block = extractExportObject(code, 'siteConfig');
+    const block = extractConstObject(code, 'siteConfig');
     return block ? (objectLiteralToRecord(block.objStr) ?? {}) : {};
   })();
   let out = ensureLayoutFile();
@@ -346,7 +370,7 @@ const CUSTOM_BODY_RENDER = `        {siteConfig.customBody ? (
  * recognizable <body> is left untouched; output is parse-gated.
  */
 export function ensureCustomCodeRenderInCode(code: string): string {
-  if (!extractExportObject(code, 'siteConfig')) return code;
+  if (!extractConstObject(code, 'siteConfig')) return code;
   let out = code;
   if (!out.includes('data-custom-code="head"')) {
     const bodyOpen = out.search(/<body[^>]*>/);
