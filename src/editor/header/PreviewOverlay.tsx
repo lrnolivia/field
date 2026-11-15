@@ -42,10 +42,8 @@ import { resolveMobileWorkspacePresentation } from '@/editor/mobile-workspace-pr
 
 /** Final URL the Preview iframe loads.
  *
- * Production uses the dedicated preview.field.loew.fi host. Immutable branch
- * Preview deployments already contain /preview-sandbox in the same deployment,
- * so they must stay on that certified hostname instead of inventing a
- * preview.<deployment>.field-preview.loew.fi sub-subdomain.
+ * Production and branch builds both serve Preview from an origin separate
+ * from the editor. Branch builds use their matching Workers Preview URL.
  */
 const PREVIEW_URL =
   typeof window !== 'undefined'
