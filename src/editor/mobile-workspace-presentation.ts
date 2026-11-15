@@ -47,3 +47,8 @@ export function useMobileWorkspacePresentation(): MobileWorkspacePresentation {
 
   return presentation;
 }
+
+export function useMobileProjectPreviewOnly(): boolean {
+  const presentation = useMobileWorkspacePresentation();
+  return import.meta.env.VITE_FIELD_MOBILE_EDITOR !== 'true' && presentation !== 'regular';
+}

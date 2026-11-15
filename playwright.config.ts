@@ -60,7 +60,9 @@ export default defineConfig({
     {
       // LOCAL mode explicitly — never inherit the dev stack's cloud flag.
       command: `npx vite --port ${PORT} --strictPort`,
-      env: { VITE_REVYME_CLOUD: 'false' },
+      // The existing phone editing suites exercise the opt-in editor. Run the
+      // phone Preview suite with VITE_FIELD_MOBILE_EDITOR=false to test default access.
+      env: { VITE_REVYME_CLOUD: 'false', VITE_FIELD_MOBILE_EDITOR: process.env.VITE_FIELD_MOBILE_EDITOR ?? 'true' },
       url: `http://localhost:${PORT}`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

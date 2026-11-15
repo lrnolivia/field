@@ -52,11 +52,7 @@ const PREVIEW_URL =
     ? previewFrameUrl(window.location)
     : 'http://localhost:5175/';
 
-/** Target-origin used in `iframe.contentWindow.postMessage(..., …)`.
- *  `'*'` works regardless of where the iframe ends up (5175, 3333, or any
- *  future port). The incoming filter is also relaxed below so messages from
- *  whichever origin actually serves the iframe are accepted. */
-const POST_MESSAGE_TARGET = '*';
+const POST_MESSAGE_TARGET = new URL(PREVIEW_URL).origin;
 
 const PRESETS = {
   desktop: { width: 1440, height: 900 },
@@ -86,9 +82,11 @@ function resolveVariantOverride(filePath: string):
 interface Props {
   open: boolean;
   onClose: () => void;
+  previewOnly?: boolean;
+  onRendered?: () => void;
 }
 
-export default function PreviewOverlay({ open, onClose }: Props) {
+export default function PreviewOverlay({ open, onClose, previewOnly = false, onRendered }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previewAreaRef = useRef<HTMLDivElement>(null);
   const [iframeReady, setIframeReady] = useState(false);
@@ -184,7 +182,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   // can freely resize / switch presets afterwards without it snapping back.
   const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open && !prevOpenRef.current && !isComponentFilePath(activeFilePath) && interactingVpWidth > 0) {
+    if (open && !previewOnly && !prevOpenRef.current && !isComponentFilePath(activeFilePath) && interactingVpWidth > 0) {
       const preset = interactingVpWidth <= PRESETS.mobile.width ? PRESETS.mobile
         : interactingVpWidth <= PRESETS.tablet.width ? PRESETS.tablet
         : PRESETS.desktop;
@@ -194,7 +192,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
       trace.action('preview-overlay:seed-viewport-size', { vpId: interactingVpId, width: interactingVpWidth });
     }
     prevOpenRef.current = open;
-  }, [open, interactingVpWidth, interactingVpId, activeFilePath]);
+  }, [open, previewOnly, interactingVpWidth, interactingVpId, activeFilePath]);
 
   // The overlay's controls header occupies the SAME 52px row as the editor's
   // LeftHeader/RightHeader (visible in the middle gap between them). Iframe
@@ -209,7 +207,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   // iframe (the user's page), not on the parent backdrop.
   // 32px = top padding (16) + bottom padding (16) on the dark backdrop.
   const maxIframeHeight = Math.max(200, windowHeight - HEADER_H - 32);
-  const desktopZoom = resolveMobileWorkspacePresentation(windowWidth, windowHeight) === 'regular';
+  const desktopZoom = !previewOnly && resolveMobileWorkspacePresentation(windowWidth, windowHeight) === 'regular';
   const renderedWidth = desktopZoom ? currentWidth : isFullScreen ? '100%' : Math.min(currentWidth, windowWidth - 64);
   const renderedHeight = desktopZoom ? currentHeight : isFullScreen ? '100%' : Math.min(currentHeight, maxIframeHeight);
   const fitZoom = Math.min(1, (windowWidth - 48) / currentWidth, maxIframeHeight / currentHeight);
@@ -324,15 +322,13 @@ export default function PreviewOverlay({ open, onClose }: Props) {
     if (!open) return;
     setIframeReady(false);
     const handler = (e: MessageEvent) => {
-      // No origin filter — the iframe may be served from PREVIEW_URL,
-      // the parent's own origin, or any future port. We only act on a
-      // narrow set of `preview:*` message types we send to ourselves; an
-      // unrelated origin can't fake the protocol shape in a way that
-      // changes editor behavior. Filtering by message type below.
+      if (e.source !== iframeRef.current?.contentWindow || e.origin !== POST_MESSAGE_TARGET) return;
       if (e.data?.type === 'preview:ready') {
         setIframeReady(true);
         setReadyTick((t) => t + 1);
         trace.action('preview-overlay:ready', { from: e.origin });
+      } else if (e.data?.type === 'preview:rendered') {
+        onRendered?.();
       }
     };
     window.addEventListener('message', handler);
@@ -350,7 +346,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
       window.removeEventListener('message', handler);
       clearTimeout(timeout);
     };
-  }, [open, reloadKey]);
+  }, [open, reloadKey, onRendered]);
 
   // Push the canonical Preview payload on first ready and after every ProjectFS
   // write. The same serializer is used by the invisible dashboard-thumbnail
@@ -493,11 +489,11 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   // ESC closes the overlay. (Browser-level shortcut — clicks inside the
   // iframe don't bubble out, so the parent owns this.)
   useEffect(() => {
-    if (!open) return;
+    if (!open || previewOnly) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, previewOnly]);
 
   // Clear the preview-file override whenever the overlay closes so the
   // next Play press (right-header button) uses the active canvas file
@@ -514,7 +510,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   const thumbnailPage = chooseDashboardThumbnailPage(projectFS.listFiles('app/'));
   const isThumbnailPage = thumbnailPage !== null && activeFilePath === thumbnailPage;
   usePreviewThumbnail({
-    open,
+    open: open && !previewOnly,
     iframeReady,
     isThumbnailPage,
     projectVersion,
@@ -525,6 +521,42 @@ export default function PreviewOverlay({ open, onClose }: Props) {
   if (!open) return null;
 
   // ─── Render ────────────────────────────────────────────────────────
+
+  const previewFrame = (
+    <iframe
+      key={reloadKey}
+      ref={iframeRef}
+      src={PREVIEW_URL}
+      title="Project preview"
+      className="w-full h-full"
+      style={{
+        border: 'none', display: 'block',
+        width: previewOnly ? '100%' : renderedWidth,
+        height: previewOnly ? '100%' : renderedHeight,
+        transform: desktopZoom ? `scale(${scale})` : undefined,
+        transformOrigin: 'top left',
+      }}
+      // Production Preview uses its own origin, so nested third-party embeds
+      // can use their normal browser permissions.
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+    />
+  );
+
+  if (previewOnly) {
+    return (
+      <div data-preview-overlay="" data-project-preview-only="" className="fixed inset-0 z-[9997] flex flex-col bg-[var(--bg-canvas)]">
+        <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--border-light)] bg-[var(--bg-surface)] px-2 pt-[env(safe-area-inset-top)]">
+          <Button variant="secondary" size="sm" aria-label="Back to projects" className="!h-11 justify-self-start" onClick={onClose}>
+            Projects
+          </Button>
+          <span className="text-sm font-medium text-[var(--text-primary)]">Preview</span>
+          <Button variant="secondary" size="sm" aria-label="Reload preview" className="!h-11 !w-11 justify-self-end"
+            onClick={handleReload} icon={<ReloadIcon className="size-4" />} />
+        </header>
+        <div className="relative min-h-0 flex-1 overflow-hidden">{previewFrame}</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -734,34 +766,7 @@ export default function PreviewOverlay({ open, onClose }: Props) {
               through while user code is still compiling/mounting (no white
               flash, no loader). The user's globals.css paints its own bg
               once the React tree mounts. */}
-          <div className="w-full h-full overflow-hidden">
-            <iframe
-              key={reloadKey}
-              ref={iframeRef}
-              src={PREVIEW_URL}
-              className="w-full h-full"
-              style={{
-                border: 'none', display: 'block',
-                width: renderedWidth, height: renderedHeight,
-                transform: desktopZoom ? `scale(${scale})` : undefined,
-                transformOrigin: 'top left',
-              }}
-              // No `sandbox` attribute on purpose. The preview lives at
-              // localhost:5175 — a different origin from the parent (3333) —
-              // so origin isolation already prevents user code from touching
-              // the parent's DOM, cookies, or window. Adding `sandbox`
-              // recursively sandboxes every nested iframe (YouTube, Vimeo,
-              // Calendly, Spline, …); those nested iframes inherit the
-              // parent sandbox tokens and end up at
-              // `chrome-error://chromewebdata/` because their loads are
-              // blocked. Sandbox would also strip cookies the third-party
-              // players need. The `allow="..."` attribute below is what
-              // grants the embed-permission features (autoplay, fullscreen,
-              // clipboard, etc.) to nested iframes — it's the right tool
-              // for that job, not `sandbox`.
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
-            />
-          </div>
+          <div className="w-full h-full overflow-hidden">{previewFrame}</div>
         </div>
 
         {/* Drag overlay — blocks iframe pointer events during resize so
