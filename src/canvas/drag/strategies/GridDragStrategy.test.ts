@@ -30,7 +30,10 @@ vi.mock('@/canvas/node-ops', () => ({
   getActiveFilePath: () => (globalThis as any).__gridTestActiveFile ?? 'app/page.client.tsx',
 }));
 vi.mock('@/code/stores/viewport-store', () => ({ getViewportWidths: () => ({ desktop: 1440, tablet: 768 }) }));
-vi.mock('@/code/stores/store', () => ({ getNodeFromCache: vi.fn(() => undefined) }));
+vi.mock('@/code/stores/store', async () => {
+  const { atom } = await import('jotai');
+  return { codeAtom: atom(''), getNodeFromCache: vi.fn(() => undefined) };
+});
 // Delegates through a global holder so the order-mode harness can install a
 // full fake bridge (vi.mock factories are hoisted — they can't be reassigned).
 vi.mock('@/canvas/canvas-bridge', () => ({

@@ -17,7 +17,7 @@ export default function Page() {
 }
 `;
 
-async function openGrid(page: Page) {
+async function openGrid(page: Page, source = PAGE) {
   await page.addInitScript(source => {
     localStorage.setItem('revyme-onboarding-completed', 'true');
     localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked'));
@@ -30,7 +30,7 @@ async function openGrid(page: Page) {
         'app/page.client.tsx': source,
       },
     }));
-  }, PAGE);
+  }, source);
   const editor = new EditorPage(page);
   await page.goto('/work/local');
   await page.locator('[data-editor-interactive="true"]').waitFor();
@@ -46,7 +46,7 @@ const center = (box: { x: number; y: number; width: number; height: number }) =>
   x: box.x + box.width / 2, y: box.y + box.height / 2,
 });
 
-for (const action of ['return', 'detach'] as const) {
+for (const action of ['return', 'detach', 'cancel'] as const) {
   test(`a grid beyond the root box can reorder and ${action} across the actual page boundary`, async ({ page }) => {
     const editor = await openGrid(page);
     const before = await editor.getPageCode();
@@ -75,9 +75,18 @@ for (const action of ['return', 'detach'] as const) {
     await expect.poll(slotX).toBeCloseTo(second.x, 0);
     await page.mouse.move(target.x, section.y + section.height + 70);
     await expect(slot).toHaveCount(0);
-    if (action === 'return') {
+    if (action !== 'detach') {
       await page.mouse.move(target.x, gapY);
       await expect.poll(slotX).toBeCloseTo(second.x, 0);
+    }
+
+    if (action === 'cancel') {
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      await expect.poll(async () => center(await editor.nodeBox('a')).x).toBeCloseTo(first.x, 0);
+      await expect.poll(async () => (await editor.nodeBox('b')).x).toBeCloseTo(second.x, 0);
+      expect(await editor.getPageCode()).toBe(before);
+      return;
     }
 
     await page.mouse.up();
@@ -95,3 +104,151 @@ for (const action of ['return', 'detach'] as const) {
     await expect(inside).toBeVisible();
   });
 }
+
+for (const placement of ['numbered lines', 'named areas'] as const) {
+  test(`Grid drag swaps ${placement} without reordering JSX`, async ({ page }) => {
+    const named = placement === 'named areas';
+    const placed = (['a', 'b', 'c'] as const).reduce((code, id, index) => code.replace(
+      `data-id="${id}" style={{`,
+      `data-id="${id}" style={{${named ? `gridArea:'${id}',` : `gridColumn:'${index + 1}', gridRow:'1',`}`,
+    ), PAGE).replace("gridAutoRows:'24px',", named ? `gridAutoRows:'24px', gridTemplateAreas:'"a b c"',` : "gridAutoRows:'24px',");
+    const editor = await openGrid(page, placed);
+    const before = await editor.getPageCode();
+    const a = center(await editor.nodeBox('a'));
+    const c = center(await editor.nodeBox('c'));
+    const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+    const xOf = async (id: string) => center(await editor.nodeBox(id)).x;
+    const slotCenter = async () => {
+      const rect = await slot.boundingBox();
+      return rect ? center(rect).x : undefined;
+    };
+    const dragToC = async () => {
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      await page.mouse.move(a.x + 7, a.y);
+      await expect.poll(slotCenter).toBeCloseTo(a.x, 0);
+      await page.mouse.move(c.x, c.y);
+      await expect.poll(slotCenter).toBeCloseTo(c.x, 0);
+      await expect.poll(() => xOf('c')).toBeCloseTo(a.x, 0);
+    };
+
+    await dragToC();
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await expect.poll(() => xOf('a')).toBeCloseTo(a.x, 0);
+    await expect.poll(() => xOf('c')).toBeCloseTo(c.x, 0);
+    expect(await editor.getPageCode()).toBe(before);
+
+    await editor.waitForStableGeometry('a');
+    await editor.select(['a']);
+    await dragToC();
+    await page.mouse.up();
+    await expect.poll(() => xOf('a')).toBeCloseTo(c.x, 0);
+    await expect.poll(() => xOf('c')).toBeCloseTo(a.x, 0);
+    const prop = named ? 'gridArea' : 'gridColumn';
+    await expect.poll(() => editor.getInlineStyleProp('a', prop)).toBe(named ? 'c' : '3');
+    await expect.poll(() => editor.getInlineStyleProp('c', prop)).toBe(named ? 'a' : '1');
+    const sourceOrder = async () => (await editor.getPageCode()).match(/data-id="[abc]"/g);
+    expect(await sourceOrder()).toEqual(['data-id="a"', 'data-id="b"', 'data-id="c"']);
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await expect.poll(() => editor.getPageCode()).toBe(before);
+
+    if (!named) {
+      await editor.waitForStableGeometry('a');
+      await editor.select(['a']);
+      await dragToC();
+      const section = await editor.nodeBox('section');
+      await page.mouse.move(c.x, section.y + section.height + 70);
+      await expect(slot).toHaveCount(0);
+      await page.mouse.up();
+      await expect(editor.sandbox().locator('[data-id="grid"] > [data-id="a"]')).toHaveCount(0);
+      await expect.poll(() => xOf('c')).toBeCloseTo(c.x, 0);
+      await expect.poll(() => editor.getInlineStyleProp('c', prop)).toBe('3');
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+      await expect.poll(() => editor.getPageCode()).toBe(before);
+    }
+  });
+}
+
+test('explicit Grid swaps within the compact desktop breakpoint', async ({ page }) => {
+  await page.setViewportSize({ width: 1800, height: 950 });
+  const compactId = 'desktopCompact';
+  const compactOverrides = `<style>{\`
+      @media (max-width: 1100px) {
+        [data-id="a"] { grid-column: 2 !important; }
+        [data-id="b"] { grid-column: 3 !important; }
+        [data-id="c"] { grid-column: 1 !important; }
+      }
+      \`}</style>`;
+  const source = (['a', 'b', 'c'] as const).reduce((code, id, i) => code.replace(
+    `data-id="${id}" style={{`, `data-id="${id}" style={{gridColumn:'${i + 1}', gridRow:'1',`,
+  ), PAGE)
+    .replace('/** @canvas { "viewports": [{"id":"desktop","width":900}] } */', `/** @canvas {
+      "viewports": [
+        {"id":"desktop","label":"Desktop","width":1440,"isPrimary":true,"order":0},
+        {"id":"${compactId}","label":"Compact desktop","width":1100,"isPrimary":false,"order":1}
+      ],
+      "positions": {"desktop":{"x":0,"y":0},"${compactId}":{"x":1540,"y":0}}
+    } */`)
+    .replace('<div data-id="grid"', `${compactOverrides}<div data-id="grid"`);
+  const editor = await openGrid(page, source);
+  const base = editor.sandbox().locator('[data-viewport="desktop"]');
+  const compact = editor.sandbox().locator(`[data-viewport="${compactId}"]`);
+  const layer = (id: string) => compact.locator(`[data-id="${id}"]`);
+  const initial = await editor.getPageCode();
+  await expect(base.locator('[data-id="a"]')).toHaveCSS('grid-column-start', '1');
+  await expect(layer('a')).toHaveCSS('grid-column-start', '2');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '1');
+
+  await editor.select(['a'], compactId);
+  const a = center(await editor.nodeBoxIn(compactId, 'a'));
+  const c = center(await editor.nodeBoxIn(compactId, 'c'));
+  const slot = compact.locator('[data-placeholder-id="ph-grid-a"]');
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x, a.y + 4);
+  await expect(slot).toHaveCSS('grid-column-start', '2');
+  await page.mouse.move(c.x, c.y);
+  await expect(slot).toHaveCSS('grid-column-start', '1');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '2');
+  await page.mouse.up();
+
+  await expect(layer('a')).toHaveCSS('grid-column-start', '1');
+  await expect(layer('c')).toHaveCSS('grid-column-start', '2');
+  await expect(base.locator('[data-id="a"]')).toHaveCSS('grid-column-start', '1');
+  await expect(base.locator('[data-id="c"]')).toHaveCSS('grid-column-start', '3');
+  await expect.poll(() => editor.getPageCode()).toMatch(/<div data-id="c"[^>]*gridColumn:\s*'3'/);
+  await expect.poll(() => editor.getBandStyleProp(1100, 'c', 'grid-column')).toBe('2');
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect.poll(() => editor.getPageCode()).toBe(initial);
+});
+
+test('Escape restores authored Grid order and the DOM sequence', async ({ page }) => {
+  const source = ['a', 'b', 'c'].reduce((code, id, index) => code.replace(
+    `data-id="${id}" style={{`, `data-id="${id}" style={{order:'${2 - index}',`,
+  ), PAGE);
+  const editor = await openGrid(page, source);
+  const before = await editor.getPageCode();
+  const a = center(await editor.nodeBox('a'));
+  const b = center(await editor.nodeBox('b'));
+  const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 7, a.y);
+  await expect(slot).toHaveCSS('order', '2');
+  await page.mouse.move(b.x, b.y);
+  await expect(slot).toHaveCSS('order', '1');
+  await expect(editor.node('b')).toHaveCSS('order', '2');
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+
+  await expect(editor.node('a')).toHaveCSS('order', '2');
+  await expect(editor.node('b')).toHaveCSS('order', '1');
+  await expect.poll(async () => center(await editor.nodeBox('a')).x).toBeCloseTo(a.x, 0);
+  const domOrder = () => editor.sandbox().locator('[data-id="grid"] > [data-id]').evaluateAll(
+    nodes => nodes.map(node => node.getAttribute('data-id')),
+  );
+  await expect.poll(domOrder).toEqual(['a', 'b', 'c']);
+  expect(await editor.getPageCode()).toBe(before);
+});

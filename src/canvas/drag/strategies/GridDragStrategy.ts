@@ -30,6 +30,8 @@
 import type { Point, PendingUpdate } from '@/shared/types';
 import { isInstanceOwnedNode } from '@/canvas/drag/instance-drop-guard';
 import type { CanvasNode } from '@/code/parsing/parser';
+import { getDefaultStore } from 'jotai';
+import { containerOverridesAtom, getOverridesAtWidth } from '@/code/stores/container-query-store';
 import type { DragContext, DragStrategy, DragMoveResult } from '../types';
 import { commitOrderAssignments } from './order-commit';
 import { repositionSignalOps } from '../reposition-signal';
@@ -68,6 +70,26 @@ interface InlinePlacement {
   gridColumn: string;
   gridRow: string;
   gridArea: string;
+}
+
+const PLACEMENT_PROPERTIES = ['gridColumn', 'gridRow', 'gridArea'] as const;
+const PLACEMENT_LONGHANDS = ['gridColumnStart', 'gridColumnEnd', 'gridRowStart', 'gridRowEnd'] as const;
+const AUTO_GRID_LINE = /^(?:auto|span|inherit|initial|unset|revert|revert-layer)(?:\s|$)/i;
+
+function hasGridLine(value: string): boolean {
+  return value.split('/').some(part => {
+    const line = part.trim();
+    return line !== '' && !AUTO_GRID_LINE.test(line) && !line.includes('(');
+  });
+}
+
+function hasFixedGridCell({ gridColumn, gridRow, gridArea }: InlinePlacement): boolean {
+  if (!gridArea) return hasGridLine(gridColumn) && hasGridLine(gridRow);
+  // A shorthand and independently set axes depend on declaration order.
+  if (gridColumn || gridRow) return false;
+  const [rowStart, colStart, rowEnd, colEnd] = gridArea.trim().split(/\s*\/\s*/);
+  if (!colStart) return /^[-_a-z][\w-]*$/i.test(rowStart) && !AUTO_GRID_LINE.test(rowStart);
+  return hasGridLine(`${colStart} / ${colEnd ?? ''}`) && hasGridLine(`${rowStart} / ${rowEnd ?? ''}`);
 }
 
 export class GridDragStrategy implements DragStrategy {
@@ -162,6 +184,9 @@ export class GridDragStrategy implements DragStrategy {
   /** Picked once in onStart based on parseGridInfo's hasExplicitPlacement
    *  flag — explicit path swaps via inline styles, auto-flow via DOM. */
   private isExplicitGrid = false;
+  private swapFixedCells = false;
+  private startDomIndex = 0;
+  private nextDomSibling: string | null = null;
 
   // ── Mouse cell tracking (oscillation guard) ──────────────────────────────
   /** Sibling id the cursor was last hovering. Swap fires ONLY when this
@@ -242,6 +267,8 @@ export class GridDragStrategy implements DragStrategy {
 
     const childRects = findChildRects(this.parentId, this.vpId);
     let allChildren = childRects.map(r => r.id);
+    this.startDomIndex = allChildren.indexOf(primary.id);
+    this.nextDomSibling = allChildren[this.startDomIndex + 1] ?? null;
 
     // ORDER-STYLE mode detection + VISUAL ordering. `findChildRects`
     // returns JSX/DOM order; with inline `order` styles the VISUAL grid
@@ -321,20 +348,38 @@ export class GridDragStrategy implements DragStrategy {
     this.canvasTransformX = transform.x;
     this.canvasTransformY = transform.y;
 
-    // Snapshot every child's inline placement — drives explicit-mode
-    // swap restore + final-commit diff.
+    // Read the active tile's authored placement, retaining CSS line and area strings.
     this.originalPlacements.clear();
     this.livePlacements.clear();
+    const component = isComponentFilePath(getActiveFilePath());
+    const width = !component && !isPrimaryViewport(this.vpId) ? getViewportWidths()[this.vpId] : undefined;
+    const overrides = width ? getDefaultStore().get(containerOverridesAtom) : null;
+    const fixedPlacements: InlinePlacement[] = [];
     for (const childId of allChildren) {
-      const inline = context.nodes.get(childId)?.styles ?? {};
-      const snapshot: InlinePlacement = {
-        gridColumn: inline.gridColumn || '',
-        gridRow: inline.gridRow || '',
-        gridArea: inline.gridArea || '',
+      const authored = context.nodes.get(childId)?.styles ?? {};
+      const inline: InlinePlacement = {
+        gridColumn: authored.gridColumn ?? '', gridRow: authored.gridRow ?? '', gridArea: authored.gridArea ?? '',
       };
-      this.originalPlacements.set(childId, { ...snapshot });
-      this.livePlacements.set(childId, { ...snapshot });
+      this.originalPlacements.set(childId, inline);
+      if (component) continue;
+
+      const scoped = overrides && width ? getOverridesAtWidth(overrides, childId, width) : undefined;
+      if (PLACEMENT_LONGHANDS.some(prop => authored[prop] || scoped?.has(prop))) continue;
+      const placement: InlinePlacement = {
+        gridColumn: scoped?.get('gridColumn') ?? inline.gridColumn,
+        gridRow: scoped?.get('gridRow') ?? inline.gridRow,
+        gridArea: scoped?.get('gridArea') ?? inline.gridArea,
+      };
+      if (hasFixedGridCell(placement)) fixedPlacements.push(placement);
     }
+    // Use the same CSS property representation throughout a fixed grid.
+    // Clearing a different representation in an override can revive its base value.
+    this.swapFixedCells = allChildren.length > 1 && fixedPlacements.length === allChildren.length
+      && fixedPlacements.every(placement => Boolean(placement.gridArea) === Boolean(fixedPlacements[0].gridArea));
+    if (this.swapFixedCells) {
+      allChildren.forEach((id, index) => this.originalPlacements.set(id, fixedPlacements[index]));
+    }
+    for (const [id, placement] of this.originalPlacements) this.livePlacements.set(id, { ...placement });
 
     // Authored (source) size of the dragged child — the placeholder must
     // mirror the sizing MODE, not the computed px (see createPlaceholder).
@@ -568,7 +613,8 @@ export class GridDragStrategy implements DragStrategy {
       // if the user is hovering a different cell.
       this.placeholderId = `ph-grid-${this.liftedNodeId}`;
       const index = this.finalOrder.indexOf(this.liftedNodeId);
-      this.createPlaceholder(this.liftedNodeId, index < 0 ? null : this.finalOrder[index + 1] ?? null);
+      const before = this.swapFixedCells ? this.nextDomSibling : index < 0 ? null : this.finalOrder[index + 1] ?? null;
+      this.createPlaceholder(this.liftedNodeId, before);
       parentHighlightOps.show({ parentId: this.parentId, vpId: this.vpId });
       this.isOverViewport = true;
       trace.action('grid-drag:reenter-viewport');
@@ -731,21 +777,20 @@ export class GridDragStrategy implements DragStrategy {
     // gap between drop and the next render rebuild from source.
     const finalIdx = this.finalOrder.indexOf(primary.id);
     this.removePlaceholder();
-    this.unliftAndRestore(finalIdx >= 0 ? finalIdx : this.startIndex);
+    this.unliftAndRestore(this.swapFixedCells ? this.startDomIndex : finalIdx >= 0 ? finalIdx : this.startIndex);
     parentHighlightOps.hide();
 
-    // NON-PRIMARY tile (page replica / component-master variant): the
-    // structural JSX reorder below is WRONG here — JSX is shared by every
-    // tile, so a reorder performed on one variant moved the cards on ALL
-    // of them ("reorders everything on all the variants", 2026-08-11; the
-    // flex reorder was already correct because LayoutLiftedStrategy never
-    // JSX-reorders — it only writes CSS `order`). Mirror the flex commit:
-    // route CSS order through the shared router — @container band on a page
-    // replica, order TERNARY on a master variant — and leave the JSX alone
-    // so every other tile keeps painting its own sequence. Runs regardless
-    // of `hasOrderStyles`: children with no `order` at all get the initial
-    // sequential stamp exactly like the flex path's no-early-out rule.
-    if (!isPrimaryViewport(this.vpId) && this.contentEl) {
+    if (this.swapFixedCells) {
+      for (const [nodeId, placement] of this.livePlacements) {
+        const original = this.originalPlacements.get(nodeId);
+        const styles: Record<string, string> = {};
+        for (const prop of PLACEMENT_PROPERTIES) {
+          if (placement[prop] !== original?.[prop]) styles[prop] = placement[prop];
+        }
+        if (Object.keys(styles).length) updates.push({ nodeId, type: 'style', styles });
+      }
+    } else if (!isPrimaryViewport(this.vpId) && this.contentEl) {
+      // Replica tiles write CSS order so other tiles keep their own sequence.
       // Master variant: the ternary's `default` branch must pin the PRIMARY
       // tile's CURRENT visual sequence (row-major) — same authoritative
       // source the Layers-panel reorder passes. Without it, children that
@@ -853,8 +898,10 @@ export class GridDragStrategy implements DragStrategy {
     // ORIGINAL position (not the swap-driven `finalOrder` position) so
     // the grid looks exactly like it did before the user grabbed.
     this.removePlaceholder();
-    this.unliftAndRestore(this.startIndex);
+    this.unliftAndRestore(this.startDomIndex, true);
     this.restoreSiblings();
+    // Auto-flow swaps changed the live DOM sequence; reconcile it with source.
+    if (!this.swapFixedCells && !this.hasOrderStyles) forceCanvasRenderDeferredDuringDrag();
     parentHighlightOps.hide();
     dropLineOps.hide();
     trace.action('grid-drag:cancel', { nodeId: this.liftedNodeId });
@@ -863,30 +910,19 @@ export class GridDragStrategy implements DragStrategy {
 
   // ── Swap implementation ────────────────────────────────────────────────────
 
-  /** Single swap step. Always DOM-swap (placeholder ↔ target). Works
-   *  for every grid type:
-   *    - Auto-flow uniform grids → swap by DOM order, browser re-flows.
-   *    - Spans (`grid-column: span N`) → DOM order still drives where
-   *      each item lands; each retains its own span size.
-   *    - Explicit positions (`grid-column: 1 / 3`) → DOM swap is a
-   *      visual no-op (items pinned to explicit cells) but harmless. */
   private swapWithSibling(targetId: string): void {
-    if (this.hasOrderStyles) {
-      // CSS `order` drives the visual grid here — a DOM swap paints
-      // NOTHING. Exchange order values between the placeholder (which
-      // carries the dragged slot's order) and the target instead.
-      this.swapOrderValues(targetId);
+    if (this.swapFixedCells) {
+      // Explicit placement takes precedence over both DOM order and CSS order.
+      this.swapExplicitPlacement(targetId);
     } else {
-      this.swapAutoFlowDom(targetId);
-    }
+      if (this.hasOrderStyles) this.swapOrderValues(targetId);
+      else this.swapAutoFlowDom(targetId);
 
-    // Mirror the swap in `finalOrder` — this is what gets committed to
-    // source at onEnd. Lifted and target exchange indices, all other
-    // siblings unchanged.
-    const li = this.finalOrder.indexOf(this.liftedNodeId);
-    const ti = this.finalOrder.indexOf(targetId);
-    if (li >= 0 && ti >= 0) {
-      [this.finalOrder[li], this.finalOrder[ti]] = [this.finalOrder[ti], this.finalOrder[li]];
+      const lifted = this.finalOrder.indexOf(this.liftedNodeId);
+      const target = this.finalOrder.indexOf(targetId);
+      if (lifted >= 0 && target >= 0) {
+        [this.finalOrder[lifted], this.finalOrder[target]] = [this.finalOrder[target], this.finalOrder[lifted]];
+      }
     }
 
     // (Drag overlay stays at its initial lift size — the placeholder
@@ -931,7 +967,7 @@ export class GridDragStrategy implements DragStrategy {
       gridColumn: draggedLive.gridColumn,
       gridRow: draggedLive.gridRow,
       gridArea: draggedLive.gridArea,
-    });
+    }, !isPrimaryViewport(this.vpId));
     const bridge = getCanvasBridge();
     if ('patchPlaceholderStyles' in bridge) {
       (bridge as PostMessageBridge).patchPlaceholderStyles(this.placeholderId, this.vpPrefix, {
@@ -1032,7 +1068,12 @@ export class GridDragStrategy implements DragStrategy {
     // to the inline `gridColumn`/`gridRow` strings if available.
     const original = this.originalPlacements.get(draggedId);
     const resolved = this.gridInfo?.itemPlacements.get(draggedId);
-    if (resolved && (resolved.colStart >= 1 && resolved.rowStart >= 1)) {
+    if (this.swapFixedCells) {
+      const placement = this.livePlacements.get(draggedId);
+      if (placement) {
+        for (const prop of PLACEMENT_PROPERTIES) if (placement[prop]) phStyles[prop] = placement[prop];
+      }
+    } else if (resolved && (resolved.colStart >= 1 && resolved.rowStart >= 1)) {
       const inlineCol = original?.gridColumn;
       const inlineRow = original?.gridRow;
       const inlineArea = original?.gridArea;
@@ -1065,8 +1106,9 @@ export class GridDragStrategy implements DragStrategy {
    *  style we mutated to its drag-start value (NOT blank — see
    *  `liftedOriginalInline` for why), with explicit-swap `livePlacements`
    *  overriding the original grid placement if the user did swaps. */
-  private unliftAndRestore(restoreIndex?: number): void {
-    const live = this.livePlacements.get(this.liftedNodeId);
+  private unliftAndRestore(restoreIndex?: number, restoreOriginal = false): void {
+    const placements = restoreOriginal ? this.originalPlacements : this.livePlacements;
+    const live = placements.get(this.liftedNodeId);
     const restore: Record<string, string> = { ...this.liftedOriginalInline };
     // Live placement (mutated by swaps) wins over the original snapshot
     // for the grid-positioning props.
@@ -1075,12 +1117,9 @@ export class GridDragStrategy implements DragStrategy {
       restore.gridRow = live.gridRow;
       restore.gridArea = live.gridArea;
     }
-    // ORDER-STYLE grids: the element re-enters at the ORDER of the slot
-    // it was dropped on (the placeholder carried it through the swaps).
-    // Cancel passes restoreToOriginalOrder — the snapshot value wins there.
     if (this.hasOrderStyles) {
-      const liveOrder = this.liveOrders.get(this.liftedNodeId);
-      if (liveOrder !== undefined && liveOrder !== '') restore.order = liveOrder;
+      const orders = restoreOriginal ? this.originalOrders : this.liveOrders;
+      restore.order = orders.get(this.liftedNodeId) ?? '';
     }
     // `bridge.restoreNode` does TWO things: applies these styles AND
     // physically reparents the element back into the grid at `idx`.
@@ -1117,14 +1156,14 @@ export class GridDragStrategy implements DragStrategy {
         }
       }
     }
-    if (!this.isExplicitGrid) return;
+    if (!this.isExplicitGrid && !this.swapFixedCells) return;
     for (const [nodeId, original] of this.originalPlacements) {
       if (nodeId === this.liftedNodeId) continue;
       patchNodeStyles(this.contentEl, nodeId, this.vpPrefix, {
         gridColumn: original.gridColumn,
         gridRow: original.gridRow,
         gridArea: original.gridArea,
-      });
+      }, this.swapFixedCells && !isPrimaryViewport(this.vpId));
     }
   }
 
@@ -1151,6 +1190,7 @@ export class GridDragStrategy implements DragStrategy {
   private commitExitToCanvas(reason: string, context: DragContext): DragMoveResult {
     this.handedOffToCanvas = true;
     this.removePlaceholder();
+    if (this.swapFixedCells) this.restoreSiblings();
     parentHighlightOps.hide();
     dropLineOps.hide();
 
@@ -1438,6 +1478,8 @@ export class GridDragStrategy implements DragStrategy {
     this.startIndex = -1;
     this.gridInfo = null;
     this.isExplicitGrid = false;
+    this.swapFixedCells = false;
+    this.nextDomSibling = null;
     this.originalPlacements.clear();
     this.livePlacements.clear();
     this.lastTargetId = '';

@@ -291,11 +291,21 @@ export class DragCoordinator {
     const onUp = () => {
       this.handleMouseUp();
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Grid swaps can be rolled back while Grid owns the gesture.
+      // A later strategy may already have committed a structural handoff.
+      if (e.key !== 'Escape' || this.activeStrategy?.name !== 'grid') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.cancel();
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('keydown', onKeyDown, true);
     this.pendingWindowListeners = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('keydown', onKeyDown, true);
     };
   }
 
