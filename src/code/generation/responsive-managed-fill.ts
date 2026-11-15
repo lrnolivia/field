@@ -8,6 +8,7 @@ import { updateContainerQueryStyle } from './generator-styles';
 import { buildBgVideoElement, DEFAULT_BG_VIDEO_OPTS, patchBgVideo, type BgVideoOpts } from './generator-video';
 import { ensureMediaGate, ensureMediaQueryHook, sweepOrphanMediaGates } from './scoped-expr';
 import { generate } from './generator-utils';
+import { protectResponsiveFillHydration } from './responsive-fill-hydration';
 import { toCamel, toKebab } from '@/shared/css-utils';
 import {
   BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, FILL_VIEWPORT_PREFIX,
@@ -170,6 +171,7 @@ function writeFillLayers(
 }
 
 function finishFillSource(ast: t.File, code: string): string {
+  protectResponsiveFillHydration(ast);
   const next = sweepOrphanMediaGates(generate(ast, { retainLines: true }, code).code);
   return /const\s+__mq\d+\s*=\s*useMediaQuery\(/.test(next) ? ensureMediaQueryHook(next) : next;
 }

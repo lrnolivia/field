@@ -7,7 +7,7 @@
 // useStaticCanvas() renders a paint-once frame on the editor canvas; preview
 // and the published site run the animated WebGL2 version.
 
-import { PAPER_WEBGL_MOUNT } from './paper-webgl-mount';
+import { PAPER_WEBGL_COPY_PROPS, PAPER_WEBGL_MOUNT } from './paper-webgl-mount';
 
 export const LIQUID_METAL_COMPONENT = `'use client';
 
@@ -45,7 +45,7 @@ var __PAPER = (() => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
-  var __copyProps = (to, from, except, desc) => {
+  ${PAPER_WEBGL_COPY_PROPS}
     if (from && typeof from === "object" || typeof from === "function") {
       for (let key of __getOwnPropNames(from))
         if (!__hasOwnProp.call(to, key) && key !== except)

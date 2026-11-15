@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '@babel/parser';
-import { parseMetadataFromCode, parseSiteConfigFromCode, updateMetadataInCode, updateSiteConfigInCode, ensureLayoutFile, ensureCustomCodeRenderInCode, healLayoutFile } from './metadata-gen';
+import { parseMetadataFromCode, parseSiteConfigFromCode, updateMetadataInCode, updateSiteConfigInCode, ensureLayoutFile, ensureCustomCodeRenderInCode, healLayoutFile, migrateLayoutSiteConfig } from './metadata-gen';
 
 const parses = (c: string) => { parse(c, { sourceType: 'module', plugins: ['jsx', 'typescript'] }); return true; };
 
@@ -181,6 +181,7 @@ export default function RootLayout({ children }) {
     const result = updateSiteConfigInCode(code, { theme: 'dark' });
     expect(result).toContain('theme: "dark"');
     expect(result).toContain('language: "en"');
+    expect(result).not.toContain('export const siteConfig');
   });
 
   it('adds siteConfig when none exists', () => {
@@ -188,7 +189,7 @@ export default function RootLayout({ children }) {
   return <html><body>{children}</body></html>;
 }`;
     const result = updateSiteConfigInCode(code, { language: 'fr' });
-    expect(result).toContain('export const siteConfig');
+    expect(result).toContain('const siteConfig');
     expect(result).toContain('language: "fr"');
   });
 });
@@ -197,7 +198,8 @@ describe('ensureLayoutFile', () => {
   it('returns default layout code with metadata and siteConfig', () => {
     const code = ensureLayoutFile();
     expect(code).toContain('export const metadata');
-    expect(code).toContain('export const siteConfig');
+    expect(code).toContain('const siteConfig');
+    expect(code).not.toContain('export const siteConfig');
     expect(code).toContain('export default function RootLayout');
     expect(code).toContain('<html');
     expect(code).toContain('<body');
@@ -228,6 +230,25 @@ describe('ensureLayoutFile', () => {
   });
 });
 
+describe('migrateLayoutSiteConfig', () => {
+  it('makes only the layout settings local and preserves the custom code verbatim', () => {
+    const local = updateSiteConfigInCode(ensureLayoutFile(), {
+      language: 'fr',
+      theme: 'dark',
+      customHead: '<script>let marker = "};";</script>',
+      customBody: '<p data-audit="footer">Footer</p>',
+    });
+    const exported = local.replace('const siteConfig', 'export const siteConfig');
+    const files = new Map([['app/layout.tsx', exported], ['components/Example.tsx', exported]]);
+    migrateLayoutSiteConfig(files);
+    expect(files.get('app/layout.tsx')).toBe(local);
+    expect(files.get('components/Example.tsx')).toBe(exported);
+    expect(parseSiteConfigFromCode(files.get('app/layout.tsx')!)).toEqual(parseSiteConfigFromCode(exported));
+    migrateLayoutSiteConfig(files);
+    expect(files.get('app/layout.tsx')).toBe(local);
+  });
+});
+
 describe('custom-code hardening (the finance-project corruption, 2026-08-16)', () => {
   // The real pasted snippet class: multi-line <script> with quotes,
   // backslashes, `};` inside the string, and </script>.
@@ -253,7 +274,7 @@ describe('custom-code hardening (the finance-project corruption, 2026-08-16)', (
     code = updateSiteConfigInCode(code, { customBody: '' });   // clear
     code = updateSiteConfigInCode(code, { customBody: NASTY });
     expect(parses(code)).toBe(true);
-    expect((code.match(/export const siteConfig/g) ?? []).length).toBe(1);
+    expect((code.match(/(?:export )?const siteConfig/g) ?? []).length).toBe(1);
     expect(code).not.toMatch(/<\/script>',\n\};/);            // no stranded tails
     const cfg = parseSiteConfigFromCode(code);
     expect(cfg.customBody).toBe(NASTY);
