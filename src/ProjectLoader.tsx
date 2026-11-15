@@ -2,10 +2,13 @@
 // Runs before <App /> is shown: loads user + project from backend,
 // hydrates ProjectFS, and redirects to sign-in if unauthenticated (cloud).
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { CLOUD_ENABLED } from '@/shared/cloud-flag';
 import { useSetAtom, getDefaultStore } from 'jotai';
 import App from './App';
+import PreviewOverlay from '@/editor/header/PreviewOverlay';
+import { useMobileProjectPreviewOnly } from '@/editor/mobile-workspace-presentation';
+import { showFieldDashboard } from '@/backend/field-navigation';
 import { waitForAnimationFrames, waitForShellMotion } from './field-shell-motion';
 import RemixWorkspacePicker from './RemixWorkspacePicker';
 import { remixTemplate, remixTemplateShare } from '@/backend/revyme-backend';
@@ -15,6 +18,7 @@ import { userAtom } from './backend/user-store';
 import { projectFS, syncBuiltInCodeComponents, createEmptyProject } from './code/project/project-fs';
 import { resetProjectSession } from './code/project/project-session';
 import { clearBridgeReadCaches } from '@/canvas/canvas-bridge';
+import { commitActiveTextEdit } from '@/canvas/text-edit-committer';
 import { hydrateCameras, zoomToScale, transformManager } from './canvas/transform';
 import { activeFilePathAtom, getPageFromUrl, getCmsFromUrl } from './code/project/active-file-store';
 import { healMissingInstanceDataIds } from './code/parsing/heal-data-ids';
@@ -27,6 +31,7 @@ import { trace } from '@/shared/debug-trace';
 // path are invisible to readers on the other.
 import { nodesAtom, selectedIdsAtom } from '@/code/stores/store';
 import { interactingViewportIdAtom } from '@/code/stores/viewport-store';
+import { isTextEditingAtom } from '@/code/stores/editor-store';
 import { overlayEditingIdAtom } from '@/code/stores/overlay-store';
 import { shapeEditingIdAtom, groupEditingIdAtom } from '@/code/stores/shape-edit-store';
 import { queueMutation, flushNow, setForceRender } from '@/code/mutation/mutation-queue';
@@ -53,7 +58,13 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canvasPainted, setCanvasPainted] = useState(false);
-  const [canvasStalled, setCanvasStalled] = useState(false);
+  const [previewPainted, setPreviewPainted] = useState(false);
+  const [surfaceStalled, setSurfaceStalled] = useState(false);
+  const phonePreview = useMobileProjectPreviewOnly();
+  const [previewOnly, setPreviewOnly] = useState(phonePreview);
+  const surfacePainted = previewOnly ? previewPainted : canvasPainted;
+  const onPreviewRendered = useCallback(() => setPreviewPainted(true), []);
+  const closeProjectPreview = useCallback(() => { void showFieldDashboard(); }, []);
   const [canvasRevealPhase, setCanvasRevealPhase] = useState<'pending' | 'entering' | 'settled'>('pending');
   const [editorInteractive, setEditorInteractive] = useState(false);
   const onCanvasReadyRef = useRef(onCanvasReady);
@@ -65,6 +76,21 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   const [remixPrompt, setRemixPrompt] = useState<{ websiteId: string } | null>(null);
   const setUser = useSetAtom(userAtom);
   const openCmsEditor = useSetAtom(openCmsEditorAtom);
+
+  useEffect(() => {
+    if (phonePreview === previewOnly) return;
+    if (!phonePreview) {
+      setPreviewOnly(false);
+      return;
+    }
+    // TipTap's draft lives in the Canvas iframe until its commit completes.
+    let current = true;
+    void commitActiveTextEdit().then(
+      () => { if (current && !getDefaultStore().get(isTextEditingAtom)) setPreviewOnly(true); },
+      error => { if (current) trace.error('project-loader:preview-text-commit-failed', error); },
+    );
+    return () => { current = false; };
+  }, [phonePreview, previewOnly]);
 
   useEffect(() => {
     let cancelled = false;
@@ -572,21 +598,27 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
   }, [setUser, openCmsEditor]);
 
   useEffect(() => {
-    if (!ready || canvasPainted) return;
+    if (!ready || surfacePainted) return;
+    setSurfaceStalled(false);
     const timeout = window.setTimeout(() => {
-      setCanvasStalled(true);
+      setSurfaceStalled(true);
       onOpenFailureRef.current?.();
-      trace.action('project-loader:canvas-delayed', {});
+      trace.action(previewOnly ? 'project-loader:preview-delayed' : 'project-loader:canvas-delayed', {});
     }, 10000);
     return () => window.clearTimeout(timeout);
-  }, [ready, canvasPainted]);
+  }, [ready, surfacePainted, previewOnly]);
 
   useEffect(() => {
     if (loadError) onOpenFailureRef.current?.();
   }, [loadError]);
 
   useEffect(() => {
-    if (!canvasPainted) return;
+    if (!previewOnly || !previewPainted) return;
+    onCanvasReadyRef.current?.();
+  }, [previewOnly, previewPainted]);
+
+  useEffect(() => {
+    if (previewOnly || !canvasPainted) return;
     trace.action('project-loader:canvas-painted', {});
     onCanvasReadyRef.current?.();
     // Dashboard navigation owns its own visual handoff. Its slabs slide away
@@ -614,7 +646,7 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
       }
     });
     return () => { cancelled = true; };
-  }, [canvasPainted]);
+  }, [canvasPainted, previewOnly]);
 
   useEffect(() => {
     if (canvasRevealPhase !== 'entering') return;
@@ -641,7 +673,9 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
 
   return (
     <>
-      <App
+      {previewOnly ? (
+        <PreviewOverlay open previewOnly onClose={closeProjectPreview} onRendered={onPreviewRendered} />
+      ) : <App
         interactive={editorInteractive}
         canvasRevealPhase={canvasRevealPhase}
         onCanvasFirstPaint={() => setCanvasPainted(true)}
@@ -649,11 +683,11 @@ export default function ProjectLoader({ onCanvasReady, onOpenFailure }: ProjectL
           setCanvasRevealPhase('settled');
           setEditorInteractive(true);
         }}
-      />
-      {canvasStalled && !canvasPainted && (
+      />}
+      {surfaceStalled && !surfacePainted && (
         <ProjectRecovery
-          title="Canvas didn't start"
-          detail="The project opened, but the canvas has not painted yet."
+          title={previewOnly ? "Preview didn't start" : "Canvas didn't start"}
+          detail={previewOnly ? 'The project opened, but Preview has not loaded yet.' : 'The project opened, but the canvas has not painted yet.'}
         />
       )}
       {/* The remix picker rides ON TOP of the mounted builder so the choice is

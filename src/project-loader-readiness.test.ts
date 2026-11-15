@@ -19,11 +19,13 @@ const canvasRevealCss = fs.readFileSync(
   'utf8',
 );
 
-describe('ProjectLoader canvas readiness contract', () => {
-  it('keeps stalled-canvas recovery separate from Canvas-ready', () => {
-    expect(projectLoaderSource).toContain('setCanvasStalled(true)');
+describe('ProjectLoader readiness contract', () => {
+  it('keeps stalled-surface recovery separate from first paint', () => {
+    expect(projectLoaderSource).toContain('setSurfaceStalled(true)');
     expect(projectLoaderSource).toContain("project-loader:canvas-delayed");
-    expect(projectLoaderSource).toContain('canvasStalled && !canvasPainted');
+    expect(projectLoaderSource).toContain("project-loader:preview-delayed");
+    expect(projectLoaderSource).toContain('const surfacePainted = previewOnly ? previewPainted : canvasPainted;');
+    expect(projectLoaderSource).toContain('surfaceStalled && !surfacePainted');
   });
 
   it('does not mount a failed project as ready', () => {
@@ -34,9 +36,15 @@ describe('ProjectLoader canvas readiness contract', () => {
   it('gates semantic readiness on the Canvas first-paint callback', () => {
     expect(canvasSource).toContain('onFirstCanvasPaint?.()');
     expect(canvasSource).toContain("trace.action('canvas:first-paint'");
-    expect(projectLoaderSource).toContain('if (!canvasPainted) return;');
+    expect(projectLoaderSource).toContain('if (previewOnly || !canvasPainted) return;');
     expect(projectLoaderSource).toContain('onCanvasFirstPaint={() => setCanvasPainted(true)}');
     expect(projectLoaderSource).toContain('onCanvasReadyRef.current?.()');
+  });
+
+  it('gates phone readiness on the Preview render acknowledgement', () => {
+    expect(projectLoaderSource).toContain('if (!previewOnly || !previewPainted) return;');
+    expect(projectLoaderSource).toContain('const onPreviewRendered = useCallback(() => setPreviewPainted(true), []);');
+    expect(projectLoaderSource).toContain('onRendered={onPreviewRendered}');
   });
 
   it('keeps the mounted editor inert until the canvas reveal settles', () => {
