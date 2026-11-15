@@ -21,6 +21,7 @@ import { healEventOverlayToggle } from '@/code/generation/event-overlay-heal';
 import { formatOverrideSource } from '@/code/generation/format-override-source';
 import { migrateGridMaskFiles } from './grid-mask-migration';
 import { migrateShaderRuntimeFiles } from './shader-runtime-migration';
+import { migrateResponsiveFillHydrationFiles } from '../generation/responsive-fill-hydration';
 import { OVERRIDES_DIR } from '@/code/generation/code-override-gen';
 import { ensureSmoothScrollInLayout, SMOOTH_SCROLL_DATA_PATH, SMOOTH_SCROLL_CONTROLLER_PATH } from '@/code/generation/smooth-scroll-layout';
 import {
@@ -252,6 +253,8 @@ function parseBranchRecords(rawBranches: unknown): Map<string, BranchData> {
     migrateGridMaskFiles(base);
     migrateShaderRuntimeFiles(bFiles);
     migrateShaderRuntimeFiles(base);
+    migrateResponsiveFillHydrationFiles(bFiles);
+    migrateResponsiveFillHydrationFiles(base);
     branches.set(id, { files: withoutShared(bFiles), baseSnapshot: withoutShared(base), status, createdAt, parentId, order, lastEditedAt });
   }
   return branches;
@@ -470,6 +473,7 @@ export class InMemoryProjectFS implements ProjectFS {
     }
     migrateGridMaskFiles(this.activeFiles());
     migrateShaderRuntimeFiles(this.activeFiles());
+    migrateResponsiveFillHydrationFiles(this.activeFiles());
     // One-time NATIVE migration: upgrade the old seed reset (box-sizing only +
     // html/body margins) to the universal margin/padding reset the editor
     // sandboxes apply. Older projects kept the weak seed, so a <p> without an
@@ -724,6 +728,7 @@ export class InMemoryProjectFS implements ProjectFS {
     b.files = withoutShared(files);
     migrateGridMaskFiles(b.files);
     migrateShaderRuntimeFiles(b.files);
+    migrateResponsiveFillHydrationFiles(b.files);
     const globals = b.files.get('app/globals.css');
     if (globals && globals.includes(LEGACY_SEED_RESET)) {
       b.files.set('app/globals.css', globals.replace(LEGACY_SEED_RESET, UNIVERSAL_SEED_RESET));

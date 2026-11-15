@@ -1,6 +1,11 @@
 // Shared WebGL2 mount emitted into each Paper-derived shader component.
 // Cleanup releases owned resources while keeping a mounted canvas reusable.
 
+// The vendored JS helper is emitted inside TSX. Its exclusion key and scratch
+// descriptor are omitted by the bundle's CommonJS export helper.
+export const LEGACY_PAPER_WEBGL_COPY_PROPS = 'var __copyProps = (to, from, except, desc) => {';
+export const PAPER_WEBGL_COPY_PROPS = 'var __copyProps = (to, from, except?: string, desc?: PropertyDescriptor) => {';
+
 export const LEGACY_PAPER_WEBGL_DISPOSAL = `      gl.deleteProgram(program);
       var ext = gl.getExtension('WEBGL_lose_context');
       if (ext) ext.loseContext();`;
