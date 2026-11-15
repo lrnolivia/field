@@ -9,6 +9,31 @@ export const PAPER_WEBGL_DISPOSAL = `      gl.useProgram(null);
       gl.deleteBuffer(buf);
       gl.deleteProgram(program);`;
 
+export const LEGACY_PAPER_WEBGL_FIT = `    if (canvas.width !== tw || canvas.height !== th) {
+      canvas.width = tw;
+      canvas.height = th;
+      gl.viewport(0, 0, tw, th);
+      gl.useProgram(program);
+      var lr = loc('u_resolution');
+      if (lr) gl.uniform2f(lr, tw, th);
+      var lp = loc('u_pixelRatio');
+      if (lp) gl.uniform1f(lp, tw / w);
+      render();
+    }`;
+
+export const PAPER_WEBGL_FIT = `    if (canvas.width !== tw || canvas.height !== th) {
+      canvas.width = tw;
+      canvas.height = th;
+    }
+    // Each newly mounted program needs its own uniforms, even at the same size.
+    gl.viewport(0, 0, tw, th);
+    gl.useProgram(program);
+    var lr = loc('u_resolution');
+    if (lr) gl.uniform2f(lr, tw, th);
+    var lp = loc('u_pixelRatio');
+    if (lp) gl.uniform1f(lp, tw / w);
+    render();`;
+
 export const PAPER_WEBGL_MOUNT = `function __psCreateMount(canvas, fragmentShader, vertexShader) {
   var gl = canvas.getContext('webgl2');
   if (!gl || gl.isContextLost()) return null;
@@ -98,17 +123,7 @@ export const PAPER_WEBGL_MOUNT = `function __psCreateMount(canvas, fragmentShade
     var cap = Math.min(1, Math.sqrt(MAX_PX) / Math.sqrt(tw * th));
     tw = Math.max(1, Math.round(tw * cap));
     th = Math.max(1, Math.round(th * cap));
-    if (canvas.width !== tw || canvas.height !== th) {
-      canvas.width = tw;
-      canvas.height = th;
-      gl.viewport(0, 0, tw, th);
-      gl.useProgram(program);
-      var lr = loc('u_resolution');
-      if (lr) gl.uniform2f(lr, tw, th);
-      var lp = loc('u_pixelRatio');
-      if (lp) gl.uniform1f(lp, tw / w);
-      render();
-    }
+${PAPER_WEBGL_FIT}
   }
   var ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
   if (ro) ro.observe(canvas);

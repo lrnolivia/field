@@ -1,6 +1,8 @@
 import {
   LEGACY_PAPER_WEBGL_DISPOSAL,
+  LEGACY_PAPER_WEBGL_FIT,
   PAPER_WEBGL_DISPOSAL,
+  PAPER_WEBGL_FIT,
 } from './default-code-components/paper-webgl-mount';
 
 const stockShaders = new Set([
@@ -16,8 +18,12 @@ export function migrateShaderRuntimeFiles(files: Map<string, string>): void {
     const end = source.indexOf('// ─── End vendored engine', start);
     if (start < 0 || end < 0) continue;
     const mount = source.slice(start, end);
-    if (!mount.includes('var buf = gl.createBuffer();') || !mount.includes(LEGACY_PAPER_WEBGL_DISPOSAL)) continue;
-    const repaired = mount.replace(LEGACY_PAPER_WEBGL_DISPOSAL, PAPER_WEBGL_DISPOSAL);
+    if (!mount.includes('var buf = gl.createBuffer();') ||
+        !mount.includes(LEGACY_PAPER_WEBGL_DISPOSAL) ||
+        !mount.includes(LEGACY_PAPER_WEBGL_FIT)) continue;
+    const repaired = mount
+      .replace(LEGACY_PAPER_WEBGL_DISPOSAL, PAPER_WEBGL_DISPOSAL)
+      .replace(LEGACY_PAPER_WEBGL_FIT, PAPER_WEBGL_FIT);
     files.set(path, source.slice(0, start) + repaired + source.slice(end));
   }
 }

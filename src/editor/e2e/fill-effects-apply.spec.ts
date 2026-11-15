@@ -3,7 +3,9 @@ import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
 import { LEGACY_PATTERN_COMPONENT } from '@/code/project/default-code-components/Pattern';
 import { MESH_GRADIENT_COMPONENT } from '@/code/project/default-code-components/MeshGradient';
-import { LEGACY_PAPER_WEBGL_DISPOSAL, PAPER_WEBGL_DISPOSAL } from '@/code/project/default-code-components/paper-webgl-mount';
+import {
+  LEGACY_PAPER_WEBGL_DISPOSAL, LEGACY_PAPER_WEBGL_FIT, PAPER_WEBGL_DISPOSAL, PAPER_WEBGL_FIT,
+} from '@/code/project/default-code-components/paper-webgl-mount';
 
 async function styleValue(editor: EditorPage, prop: string) {
   const code = await editor.getPageCode();
@@ -478,6 +480,7 @@ test('duplicating a scoped shader preserves edited control types and the saved s
   const { editor, tile, picker, edit } = await openDesktopBreakpointFixture(page, false, files => {
     files['components/AuditShader.tsx'] = '/** @fieldCustomShader */\n' + MESH_GRADIENT_COMPONENT
       .replace(PAPER_WEBGL_DISPOSAL, LEGACY_PAPER_WEBGL_DISPOSAL)
+      .replace(PAPER_WEBGL_FIT, LEGACY_PAPER_WEBGL_FIT)
       .replace('scale = 1, speed = 1,', 'scale = 1, speed = 1, enabled = true,')
       .replace('/** @controls {', '/** @controls {\n  "enabled": { "type": "toggle", "label": "Enabled", "default": true },');
     files['app/page.client.tsx'] = files['app/page.client.tsx']
@@ -496,23 +499,36 @@ test('duplicating a scoped shader preserves edited control types and the saved s
   await edit('compact', /^Shader$/i);
   const speed = picker.locator('[data-tool-row]').filter({ has: page.getByText('Speed', { exact: true }) }).getByRole('textbox');
   const activeCanvas = tile('compact').locator('canvas');
-  const hasProgram = () => activeCanvas.evaluate(canvas => {
-    const gl = (canvas as HTMLCanvasElement).getContext('webgl2');
-    return Boolean(gl && !gl.isContextLost() && gl.getParameter(gl.CURRENT_PROGRAM));
-  });
-  await expect.poll(hasProgram).toBe(true);
+  const canPaint = (afterRemount = false) => activeCanvas.evaluate((element, remount) => {
+    const canvas = element as HTMLCanvasElement & { priorProgram?: WebGLProgram };
+    const gl = canvas.getContext('webgl2');
+    if (!gl || gl.isContextLost()) return false;
+    const program = gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null;
+    if (!program || (remount && program === canvas.priorProgram)) return false;
+    const resolution = gl.getUniformLocation(program, 'u_resolution');
+    const pixelRatio = gl.getUniformLocation(program, 'u_pixelRatio');
+    if (!resolution || !pixelRatio) return false;
+    const size = gl.getUniform(program, resolution);
+    return size[0] === canvas.width && size[1] === canvas.height && gl.getUniform(program, pixelRatio) > 0;
+  }, afterRemount);
+  await expect.poll(() => canPaint()).toBe(true);
 
   // First prop edit forks the inherited shader into the compact breakpoint.
   await speed.fill('2');
   await speed.press('Enter');
   await expect.poll(() => editor.getPageCode()).toContain('scope:compact');
-  await expect.poll(hasProgram).toBe(true);
+  await expect.poll(() => canPaint()).toBe(true);
 
   // The next edit updates the same scoped instance. Its canvas must stay usable.
+  await activeCanvas.evaluate(element => {
+    const canvas = element as HTMLCanvasElement & { priorProgram?: WebGLProgram };
+    const gl = canvas.getContext('webgl2');
+    if (gl) canvas.priorProgram = gl.getParameter(gl.CURRENT_PROGRAM);
+  });
   await speed.fill('2.5');
   await speed.press('Enter');
   await expect.poll(() => editor.getPageCode()).toMatch(/speed=\{2\.5\}/);
-  await expect.poll(hasProgram).toBe(true);
+  await expect.poll(() => canPaint(true)).toBe(true);
   expect(warnings).toEqual([]);
 
   await page.keyboard.press('Escape');
