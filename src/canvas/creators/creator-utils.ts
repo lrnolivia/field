@@ -21,6 +21,9 @@ import { getCurrentCode } from '@/code/mutation/mutation-queue';
 import { extractStyleCSS } from '@/code/parsing/parser';
 import { extractBorderAfterRuleBody } from '@/editor/ui/border-utils';
 import { bakeNodeForTile, type TileContext } from '@/canvas/replica-bake';
+import { readShaderControlLiterals } from '@/code/generation/shader-controls-clone';
+import type { AddNodeDef } from '@/code/generation/generator-crud';
+import { bakeManagedFillAttrs, breakpointFill, breakpointVideo, shaderLayerVisible } from '@/shared/managed-fill-breakpoints';
 import type { Transform, Rect } from '@/shared/types';
 import type { CanvasNode } from '@/code/parsing/parser';
 
@@ -515,32 +518,50 @@ export function buildDuplicateDescriptor(
    *  carry per-id side-band state (::after border rules) onto the clones. */
   idMap?: Map<string, string>,
   tile?: TileContext,
-): import('@/code/generation/generator-crud').AddNodeDef | null {
-  const src = nodes.get(sourceId);
-  if (!src) return null;
-  const childDescriptors: import('@/code/generation/generator-crud').AddNodeDef[] = [];
-  for (const childId of src.children ?? []) {
-    const childNode = nodes.get(childId);
-    if (!childNode) continue;
-    // Expanded component instance internals re-derive at parse time
-    // from their master — duplicating them inline would break the
-    // master/instance link.
-    if (childNode.componentInstanceId) continue;
-    const childDescriptor = buildDuplicateDescriptor(childId, nodes, idMap, tile);
-    if (childDescriptor) childDescriptors.push(childDescriptor);
+  fillViewport = '',
+): AddNodeDef | null {
+  const shaders = new Map<string, AddNodeDef>();
+  function clone(id: string): AddNodeDef | null {
+    const src = nodes.get(id);
+    if (!src) return null;
+    const children: AddNodeDef[] = [];
+    for (const childId of src.children ?? []) {
+      const childNode = nodes.get(childId);
+      // Expanded instance children re-derive from the master at parse time.
+      if (!childNode || childNode.componentInstanceId || !shaderLayerVisible(src, childNode, fillViewport)) continue;
+      const child = clone(childId);
+      if (child) children.push(child);
+    }
+    const newId = generateNodeId('dup');
+    idMap?.set(id, newId);
+    const baked = bakeNodeForTile(src, tile ?? { kind: 'primary' });
+    const scoped = breakpointFill(src, fillViewport);
+    const shader = scoped?.kind === 'shader'
+      ? children.find(child => child.attrs?.['data-field-shader-layer'] === 'true')
+      : undefined;
+    const video = breakpointVideo(src, fillViewport);
+    const descriptor: AddNodeDef = {
+      id: newId,
+      type: src.type,
+      name: src.name,
+      styles: baked.styles,
+      attrs: baked.attrs && bakeManagedFillAttrs(baked.attrs, scoped, shader?.type),
+      textContent: baked.textContent,
+      ...(video ? { bgVideo: scoped?.kind === 'video' && scoped.hostStyleBackup
+        ? { ...video, ownedHostStyles: Object.keys(scoped.hostStyleBackup) }
+        : video } : {}),
+      children: children.length ? children : undefined,
+    };
+    if (src.attrs?.['data-field-shader-layer'] === 'true') shaders.set(id, descriptor);
+    return descriptor;
   }
-  const newId = generateNodeId('dup');
-  idMap?.set(sourceId, newId);
-  const baked = bakeNodeForTile(src, tile ?? { kind: 'primary' });
-  return {
-    id: newId,
-    type: src.type,
-    name: src.name,
-    styles: baked.styles,
-    attrs: baked.attrs,
-    textContent: baked.textContent,
-    children: childDescriptors.length > 0 ? childDescriptors : undefined,
-  };
+  const descriptor = clone(sourceId);
+  if (shaders.size) {
+    for (const [id, controls] of readShaderControlLiterals(getCurrentCode(), shaders)) {
+      shaders.get(id)!.shaderControls = controls;
+    }
+  }
+  return descriptor;
 }
 
 /**

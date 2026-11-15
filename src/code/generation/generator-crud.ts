@@ -3417,10 +3417,24 @@ export function moveNodeInCode(
 /** Build a JSX string for a node, including children recursively. */
 export type AddNodeDef = { id: string; type: string; styles: Record<string, string>; attrs?: Record<string, string>; name?: string; textContent?: string; children?: AddNodeDef[];
   bgVideo?: CanvasNode['bgVideo'];
+  shaderControls?: Record<string, string | number | boolean>;
   /** motion props to emit on the node (e.g. `{ whileHover: { scale: '1.05' } }`).
    *  Each value is a PLAIN object (already resolved — no responsive `__mqN` markers).
    *  A node with motionProps is emitted as `motion.<tag>` so the props take effect. */
   motionProps?: Record<string, Record<string, string>> };
+
+function buildNodeAttrs(node: AddNodeDef): string {
+  const controls = node.attrs?.['data-field-shader-layer'] === 'true'
+    ? Object.entries(node.shaderControls ?? {}).filter(([name, value]) =>
+        /^[A-Za-z_$][\w$-]*$/.test(name) &&
+        !name.startsWith('data-') && !['style', 'key', 'ref', 'children'].includes(name) &&
+        (typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))))
+    : [];
+  const typedNames = new Set(controls.map(([name]) => name));
+  const attrs = Object.entries(node.attrs ?? {}).filter(([name]) => !typedNames.has(name));
+  return attrs.map(([key, value]) => serializeJSXAttr(key, value)).join('') +
+    controls.map(([key, value]) => ` ${key}={${JSON.stringify(value)}}`).join('');
+}
 
 export function buildNodeJSX(node: AddNodeDef, isComponentFile: boolean, indent: string = '      '): string {
   const styleEntries = Object.entries(node.styles)
@@ -3431,9 +3445,7 @@ export function buildNodeJSX(node: AddNodeDef, isComponentFile: boolean, indent:
   // Build HTML attributes (src, alt, controls, ref, etc.). `ref` (and
   // any future identifier-valued attr) lives behind the `var:` sentinel
   // — `serializeJSXAttr` emits it as `ref={X}` instead of `ref="X"`.
-  const attrsStr = node.attrs
-    ? Object.entries(node.attrs).map(([k, v]) => serializeJSXAttr(k, v)).join('')
-    : '';
+  const attrsStr = buildNodeAttrs(node);
   let tag = node.type || 'div';
   let layoutAttr = '';
   // Wrap with motion.* (and inject `layout={true}`) when this node lives
@@ -3655,9 +3667,7 @@ export function addCanvasNodeInCode(
     .map(([k, v]) => `${styleKeyLiteral(k)}: ${quoteStyleValue(v)}`)
     .join(', ');
   const nameAttr = node.name ? ` data-name="${sanitizeDataName(node.name)}"` : '';
-  const attrsStr = node.attrs
-    ? Object.entries(node.attrs).map(([k, v]) => serializeJSXAttr(k, v)).join('')
-    : '';
+  const attrsStr = buildNodeAttrs(node);
   const textContent = node.textContent || '';
 
   // Carry framer-motion props (whileHover, etc.) onto the detached canvas node so

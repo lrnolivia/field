@@ -2,6 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { EditorPage } from '../../canvas/drag/e2e/helpers/editor-page';
 import { SEEDS } from '../../canvas/drag/e2e/fixtures/seeds';
 import { LEGACY_PATTERN_COMPONENT } from '@/code/project/default-code-components/Pattern';
+import { MESH_GRADIENT_COMPONENT } from '@/code/project/default-code-components/MeshGradient';
+import {
+  LEGACY_PAPER_WEBGL_DISPOSAL, LEGACY_PAPER_WEBGL_FIT, PAPER_WEBGL_DISPOSAL, PAPER_WEBGL_FIT,
+} from '@/code/project/default-code-components/paper-webgl-mount';
 
 async function styleValue(editor: EditorPage, prop: string) {
   const code = await editor.getPageCode();
@@ -307,7 +311,11 @@ test('switching away from a saved Shader restores frame styling and keeps newer 
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-');
 });
 
-async function openDesktopBreakpointFixture(page: Page, existingPaints = false) {
+async function openDesktopBreakpointFixture(
+  page: Page,
+  existingPaints = false,
+  prepare?: (files: Record<string, string>) => void,
+) {
   const seed = structuredClone(SEEDS.REPLICA_ABS_DRAG);
   seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
     .replace(/mobile/g, 'compact')
@@ -321,6 +329,7 @@ async function openDesktopBreakpointFixture(page: Page, existingPaints = false) 
       .replace('top: 24px !important; }', 'top: 24px !important; background-image: linear-gradient(red, blue) !important; }')
       .replace(/(\}\n)(`\}<\/style>)/, '$1@media (max-width: 950px) { [data-id="abs"] { background-color: #15803d !important; background-image: none !important; } }\n$2');
   }
+  prepare?.(seed.files);
   await page.addInitScript(data => {
     if (!localStorage.getItem('revyme-project-local')) {
       localStorage.setItem('revyme-project-local', JSON.stringify(data));
@@ -461,4 +470,98 @@ test('Video source and removal stay on the selected desktop breakpoint in Canvas
   await expect((await previewAtWidth(page, 1060)).locator('video')).toHaveAttribute('src', compactUrl);
   await expect((await previewAtWidth(page, 1430)).locator('video')).toHaveAttribute('src', primaryUrl);
   await expect((await previewAtWidth(page, 940)).locator('video')).toHaveCount(0);
+});
+
+test('Duplicate and Option-drag preserve a scoped shader and the saved shader still paints', async ({ page }) => {
+  const warnings: string[] = [];
+  page.on('console', message => {
+    if (/Shader (compile|link) failed/.test(message.text())) warnings.push(message.text());
+  });
+  const { editor, tile, picker, edit } = await openDesktopBreakpointFixture(page, false, files => {
+    files['components/AuditShader.tsx'] = '/** @fieldCustomShader */\n' + MESH_GRADIENT_COMPONENT
+      .replace(PAPER_WEBGL_DISPOSAL, LEGACY_PAPER_WEBGL_DISPOSAL)
+      .replace(PAPER_WEBGL_FIT, LEGACY_PAPER_WEBGL_FIT)
+      .replace('scale = 1, speed = 1,', 'scale = 1, speed = 1, enabled = true,')
+      .replace('/** @controls {', '/** @controls {\n  "enabled": { "type": "toggle", "label": "Enabled", "default": true },');
+    files['app/page.client.tsx'] = files['app/page.client.tsx']
+      .replace("'use client';", "'use client';\nimport AuditShader from '@/components/AuditShader';")
+      .replace(
+        "borderRadius: '8px',\n        }}></div>",
+        `borderRadius: '8px', isolation: 'isolate',
+        }} data-field-shader-fill="AuditShader"><AuditShader
+          data-id="original-shader" data-field-shader-layer="true"
+          color1="#abbaed" enabled={false} distortion={0.35} speed={0}
+          style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', zIndex: '-1', pointerEvents: 'none' }}
+        /></div>`,
+      );
+  });
+  expect(await editor.readFile('components/AuditShader.tsx')).not.toContain('ext.loseContext');
+  await edit('compact', /^Shader$/i);
+  const speed = picker.locator('[data-tool-row]').filter({ has: page.getByText('Speed', { exact: true }) }).getByRole('textbox');
+  const activeCanvas = tile('compact').locator('canvas');
+  const canPaint = (afterRemount = false) => activeCanvas.evaluate((element, remount) => {
+    const canvas = element as HTMLCanvasElement & { priorProgram?: WebGLProgram };
+    const gl = canvas.getContext('webgl2');
+    if (!gl || gl.isContextLost()) return false;
+    const program = gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null;
+    if (!program || (remount && program === canvas.priorProgram)) return false;
+    const resolution = gl.getUniformLocation(program, 'u_resolution');
+    const pixelRatio = gl.getUniformLocation(program, 'u_pixelRatio');
+    if (!resolution || !pixelRatio) return false;
+    const size = gl.getUniform(program, resolution);
+    return size[0] === canvas.width && size[1] === canvas.height && gl.getUniform(program, pixelRatio) > 0;
+  }, afterRemount);
+  await expect.poll(() => canPaint()).toBe(true);
+
+  // First prop edit forks the inherited shader into the compact breakpoint.
+  await speed.fill('2');
+  await speed.press('Enter');
+  await expect.poll(() => editor.getPageCode()).toContain('scope:compact');
+  await expect(tile('compact').locator('[data-id="abs__shader_fill_compact"] canvas')).toBeVisible();
+  await expect.poll(() => canPaint()).toBe(true);
+
+  // The next edit updates the same scoped instance. Its canvas must stay usable.
+  await activeCanvas.evaluate(element => {
+    const canvas = element as HTMLCanvasElement & { priorProgram?: WebGLProgram };
+    const gl = canvas.getContext('webgl2');
+    if (gl) canvas.priorProgram = gl.getParameter(gl.CURRENT_PROGRAM);
+  });
+  await speed.fill('2.5');
+  await speed.press('Enter');
+  await expect.poll(() => editor.getPageCode()).toMatch(/speed=\{2\.5\}/);
+  await expect.poll(() => canPaint(true)).toBe(true);
+  expect(warnings).toEqual([]);
+
+  await page.keyboard.press('Escape');
+  await editor.select(['abs'], 'compact');
+  const recentlyCopied = () => editor.getPageCode().then(code => Array.from(code.matchAll(/<AuditShader\b[^>]*>/g), entry => entry[0])
+    .find(tag => !tag.includes('original-shader') && !tag.includes('abs__shader_fill_compact')));
+  const assertCopiedControls = async () => {
+    await expect.poll(recentlyCopied).toBeDefined();
+    const copy = await recentlyCopied();
+    expect(copy).toContain('speed={2.5}');
+    expect(copy).toContain('distortion={0.35}');
+    expect(copy).toContain('enabled={false}');
+    expect(copy).toContain('color1={"#abbaed"}');
+    expect(copy).not.toContain('data-field-fill-viewport');
+  };
+  await editor.fitCamera();
+  const box = await editor.nodeBoxIn('compact', 'abs');
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.keyboard.down('Alt');
+  try {
+    await editor.dragFromTo(start, { x: start.x + 36, y: start.y + 15 });
+  } finally {
+    await page.keyboard.up('Alt');
+  }
+  await assertCopiedControls();
+  await page.keyboard.press('Meta+z');
+  await expect.poll(recentlyCopied).toBeUndefined();
+  await editor.select(['abs'], 'compact');
+  await page.keyboard.press('Meta+d');
+  await assertCopiedControls();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('speed={2.5}');
+  await page.reload();
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  await expect.poll(recentlyCopied).toContain('speed={2.5}');
 });

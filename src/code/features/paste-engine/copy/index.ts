@@ -31,8 +31,9 @@ import { readTranslationText } from '@/code/project/translation-ops';
 import { readTextAnimConfig } from '@/code/generation/text-anim-gen';
 import { readCodeOverrides } from '@/code/generation/code-override-gen';
 import { getI18nConfig } from '@/code/project/locale-ops';
+import { readShaderControlLiterals } from '@/code/generation/shader-controls-clone';
 import {
-  BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, breakpointFill, breakpointVideo, shaderLayerVisible,
+  bakeManagedFillAttrs, breakpointFill, breakpointVideo, shaderLayerVisible,
 } from '@/shared/managed-fill-breakpoints';
 
 const CLIPBOARD_STORAGE_KEY = 'revyme_clipboard';
@@ -150,24 +151,11 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
     const child = nodes.get(id);
     return child && shaderLayerVisible(node, child, viewportId);
   });
-  const attrs = { ...baked.attrs ?? tileBake.attrs };
   const scoped = breakpointFill(node, viewportId);
-  delete attrs[BREAKPOINT_FILLS_ATTR];
-  delete attrs[FILL_VIEWPORT_ATTR];
-  if (scoped) {
-    delete attrs['data-field-pattern'];
-    delete attrs['data-field-pattern-style-backup'];
-    delete attrs['data-field-shader-fill'];
-    delete attrs['data-field-shader-style-backup'];
-    if (scoped.kind === 'pattern') attrs['data-field-pattern'] = scoped.recipe;
-    if (scoped.kind === 'shader') {
-      const child = children.map(id => nodes.get(id)).find(child => child?.attrs?.['data-field-shader-layer'] === 'true');
-      if (child) attrs['data-field-shader-fill'] = child.type;
-      if (scoped.hostStyleBackup) {
-        attrs['data-field-shader-style-backup'] = encodeURIComponent(JSON.stringify(scoped.hostStyleBackup)).replace(/'/g, '%27');
-      }
-    }
-  }
+  const shader = scoped?.kind === 'shader'
+    ? children.map(id => nodes.get(id)).find(child => child?.attrs?.['data-field-shader-layer'] === 'true')
+    : undefined;
+  const attrs = bakeManagedFillAttrs(baked.attrs ?? tileBake.attrs, scoped, shader?.type);
   const bgVideo = breakpointVideo(node, viewportId);
 
   // CMS bindings are JSX expressions (`<h3>{item.title}</h3>`,
@@ -493,6 +481,10 @@ export function copyNodes(
   try {
     const src = projectFS.readFile(getActiveFilePath()) ?? '';
     if (src) {
+      const shaders = new Map(clipboardNodes.filter(node => node.attrs?.['data-field-shader-layer'] === 'true').map(node => [node.id, node]));
+      for (const [id, controls] of readShaderControlLiterals(src, shaders)) {
+        shaders.get(id)!.shaderControls = controls;
+      }
       let captured = 0;
       for (const n of clipboardNodes) {
         const cfg = readTextAnimConfig(src, n.id);

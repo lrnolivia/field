@@ -22,6 +22,8 @@ export interface ClipboardNode {
   name?: string;
   textContent?: string;
   bgVideo?: CanvasNode['bgVideo'];
+  /** Literal values for the managed Shader's Inspector controls, with JSX types intact. */
+  shaderControls?: Record<string, string | number | boolean>;
   /** Component prop the text is bound to (`{prop}`) — kept on a paste into
    *  the SAME master, baked to `textContent` elsewhere. */
   textVariable?: string;

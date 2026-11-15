@@ -39,3 +39,25 @@ export function shaderLayerVisible(parent: CanvasNode | undefined, child: Canvas
   const layerScope = child.attrs[FILL_VIEWPORT_ATTR]?.slice(FILL_VIEWPORT_PREFIX.length);
   return fill ? fill.kind === 'shader' && layerScope === viewportId : layerScope === undefined;
 }
+
+/** A copy reproduces the source tile's fill without its old breakpoint bindings. */
+export function bakeManagedFillAttrs(
+  attrs: Record<string, string> | undefined, scoped: BreakpointFill | undefined, shaderTag?: string,
+): Record<string, string> {
+  const baked = { ...attrs };
+  delete baked[BREAKPOINT_FILLS_ATTR];
+  delete baked[FILL_VIEWPORT_ATTR];
+  if (!scoped) return baked;
+  delete baked['data-field-pattern'];
+  delete baked['data-field-pattern-style-backup'];
+  delete baked['data-field-shader-fill'];
+  delete baked['data-field-shader-style-backup'];
+  if (scoped.kind === 'pattern') baked['data-field-pattern'] = scoped.recipe;
+  if (scoped.kind === 'shader' && shaderTag) {
+    baked['data-field-shader-fill'] = shaderTag;
+    if (scoped.hostStyleBackup) {
+      baked['data-field-shader-style-backup'] = encodeURIComponent(JSON.stringify(scoped.hostStyleBackup)).replace(/'/g, '%27');
+    }
+  }
+  return baked;
+}
