@@ -39,6 +39,8 @@ import {
   getViewportPrefix, vpIdFromPrefix, getNodeHitsAtPoint, parseRectCacheKey, forceCanvasRenderDeferredDuringDrag, isPrimaryViewport, getActiveFilePath } from '@/canvas/node-ops';
 import { getCanvasBridge } from '@/canvas/canvas-bridge';
 import { getIframeOffset } from '../helpers/coords';
+import { getLayoutViewportBounds } from '../helpers/layout-viewport-bounds';
+import { isInsideRect } from '@/canvas/canvas-math';
 import type { PostMessageBridge } from '@/canvas-sandbox/bridge-host';
 import { parentHighlightOps } from '@/canvas/selection/parent-highlight-store';
 import { dropLineOps } from '@/canvas/selection/drop-line-store';
@@ -470,12 +472,10 @@ export class GridDragStrategy implements DragStrategy {
     // anywhere in the page hierarchy) — reorder owns positioning
     // there, no snap needed.
     let canvasSnap: ReturnType<typeof calculateSnap> | null = null;
-    const viewportRectEarly = this.viewportNodeId
-      ? findNodeRect(this.viewportNodeId, this.vpId)
-      : null;
-    const cursorOffViewport = !!viewportRectEarly
-      && (mouseScreen.x < viewportRectEarly.left || mouseScreen.x > viewportRectEarly.right
-        || mouseScreen.y < viewportRectEarly.top || mouseScreen.y > viewportRectEarly.bottom);
+    const viewportBounds = getLayoutViewportBounds(
+      this.viewportNodeId ?? this.parentId, this.parentId, this.vpId, new Set([this.liftedNodeId]),
+    );
+    const cursorOffViewport = viewportBounds !== null && !isInsideRect(mouseScreen, viewportBounds);
     if (cursorOffViewport) {
       const draggedRect: Rect = {
         left: newLeft, top: newTop,
@@ -546,12 +546,8 @@ export class GridDragStrategy implements DragStrategy {
     // presence, so the user can move the cursor anywhere within the
     // page (e.g. over a sibling section, the page background, a header)
     // without losing their grid placeholder.
-    const viewportRect = this.viewportNodeId
-      ? findNodeRect(this.viewportNodeId, this.vpId)
-      : null;
-    const cursorInsideViewport = !!viewportRect
-      && mouseScreen.x >= viewportRect.left && mouseScreen.x <= viewportRect.right
-      && mouseScreen.y >= viewportRect.top && mouseScreen.y <= viewportRect.bottom;
+    // A cold rect cache does not establish that the pointer left the page.
+    const cursorInsideViewport = viewportBounds ? !cursorOffViewport : this.isOverViewport;
 
     if (this.isOverViewport && !cursorInsideViewport) {
       // Cursor left the viewport entirely → hide placeholder + parent
@@ -571,7 +567,8 @@ export class GridDragStrategy implements DragStrategy {
       // reorder check inside the grid adjusts the placeholder position
       // if the user is hovering a different cell.
       this.placeholderId = `ph-grid-${this.liftedNodeId}`;
-      this.createPlaceholder(this.liftedNodeId);
+      const index = this.finalOrder.indexOf(this.liftedNodeId);
+      this.createPlaceholder(this.liftedNodeId, index < 0 ? null : this.finalOrder[index + 1] ?? null);
       parentHighlightOps.show({ parentId: this.parentId, vpId: this.vpId });
       this.isOverViewport = true;
       trace.action('grid-drag:reenter-viewport');
@@ -994,7 +991,7 @@ export class GridDragStrategy implements DragStrategy {
    *  stretch, larger cells (1fr tracks with a small element) show the
    *  exact element footprint inside their cell instead of inflating
    *  the placeholder to the full track. */
-  private createPlaceholder(draggedId: string): void {
+  private createPlaceholder(draggedId: string, beforeNodeId: string | null = draggedId): void {
     const bridge = getCanvasBridge();
     if (!('createPlaceholder' in bridge)) return;
 
@@ -1051,7 +1048,7 @@ export class GridDragStrategy implements DragStrategy {
     }
 
     (bridge as PostMessageBridge).createPlaceholder(
-      this.placeholderId, this.parentId, this.vpPrefix, draggedId, phStyles,
+      this.placeholderId, this.parentId, this.vpPrefix, beforeNodeId, phStyles,
     );
   }
 
