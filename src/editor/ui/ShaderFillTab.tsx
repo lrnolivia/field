@@ -76,6 +76,7 @@ export default function ShaderFillTab({ node, scope, libraryOnly = false, onSele
   const [shaderSearch, setShaderSearch] = useState('');
   const [newShaderName, setNewShaderName] = useState<string | null>(null);
   const projectShaders = useMemo(() => listProjectShaders(), [projectVersion]);
+  const projectShaderLabel = projectShaders.find(item => item.tag === activeTag)?.label;
 
   useLayoutEffect(() => {
     if (!libraryOnly) { setSidecarPos(null); return; }
@@ -274,7 +275,7 @@ export default function ShaderFillTab({ node, scope, libraryOnly = false, onSele
   if (!controlsMeta || controls.length === 0) {
     return (
       <div className="flex flex-col gap-1 py-2">
-        <div className="text-[11px] text-[var(--text-primary)]">{controlsMeta?.label || child.type}</div>
+        <div className="text-[11px] text-[var(--text-primary)]">{projectShaderLabel || controlsMeta?.label || child.type}</div>
         <div className="text-[10px] text-[var(--text-disabled)]">This shader uses its built-in defaults.</div>
       </div>
     );
@@ -290,7 +291,7 @@ export default function ShaderFillTab({ node, scope, libraryOnly = false, onSele
         ) : null}
       </div>
       <div className="px-0.5 pb-1">
-        <div className="text-[11px] text-[var(--text-primary)]">{controlsMeta.label || child.type}</div>
+        <div className="text-[11px] text-[var(--text-primary)]">{projectShaderLabel || controlsMeta.label || child.type}</div>
         {controlsMeta.comment && <div className="text-[10px] text-[var(--text-disabled)] mt-0.5">{controlsMeta.comment}</div>}
       </div>
       {controls.map(({ name, def, section: nextSection }) => {

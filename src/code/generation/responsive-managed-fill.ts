@@ -8,6 +8,7 @@ import { updateContainerQueryStyle } from './generator-styles';
 import { buildBgVideoElement, DEFAULT_BG_VIDEO_OPTS, patchBgVideo, type BgVideoOpts } from './generator-video';
 import { ensureMediaGate, ensureMediaQueryHook, sweepOrphanMediaGates } from './scoped-expr';
 import { generate } from './generator-utils';
+import { toCamel, toKebab } from '@/shared/css-utils';
 import {
   BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, FILL_VIEWPORT_PREFIX,
   breakpointVideo, readBreakpointFills, type BreakpointFill, type FillMap,
@@ -66,14 +67,37 @@ function fillChild(child: t.JSXElement['children'][number]): t.JSXElement | unde
   if (attr(candidate, 'data-bg-video') || stringAttr(candidate, 'data-field-shader-layer') === 'true') return candidate;
 }
 
-function cssKey(key: string): string {
-  return key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase());
-}
-
 function effectiveStyles(base: Record<string, string>, rule?: Map<string, string>): Record<string, string> {
   if (!rule) return base;
-  return { ...base, ...Object.fromEntries(Array.from(rule, ([key, value]) =>
-    [key.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase()), value])) };
+  return { ...base, ...Object.fromEntries(Array.from(rule, ([key, value]) => [toCamel(key), value])) };
+}
+
+const BACKGROUND_KEYS = Object.keys(PAINT_RESET);
+
+function writeFillBand(
+  code: string, nodeId: string, width: number, patch: Record<string, string>, previous?: Map<string, string>,
+): string {
+  if (!BACKGROUND_KEYS.some(key => key in patch)) return updateContainerQueryStyle(code, nodeId, width, patch);
+
+  // The responsive writer updates existing Map keys in place. Clear the paint
+  // keys before reinserting so the shorthand always precedes its longhands.
+  const oldPaint: Record<string, string> = {};
+  for (const [prop, value] of previous ?? []) {
+    const key = toCamel(prop);
+    if (!BACKGROUND_KEYS.includes(key)) continue;
+    if (key === 'background') {
+      for (const longhand of BACKGROUND_KEYS) {
+        if (longhand !== 'backgroundBlendMode') delete oldPaint[longhand];
+      }
+    }
+    oldPaint[key] = value;
+  }
+  const nextPaint = { ...oldPaint, ...patch };
+  const ordered = nextPaint.background === undefined
+    ? nextPaint
+    : { background: nextPaint.background, ...nextPaint };
+  const cleared = updateContainerQueryStyle(code, nodeId, width, PAINT_RESET);
+  return updateContainerQueryStyle(cleared, nodeId, width, ordered);
 }
 
 /** Writing inline for the primary changes the fallback for every replica.
@@ -86,26 +110,26 @@ export function writeBreakpointFillStyles(
   // Bound any older open-ended rules before changing their paint. Otherwise
   // the container writer may copy the new values into a formerly covered band.
   if (extractStyleCSS(code)) code = updateContainerQueryStyle(code, nodeId, target.width, {});
+  const rules = parseContainerRules(extractStyleCSS(code));
   const cssValue = (value: string | undefined) => value || 'initial';
   if (target.id !== '') {
-    return updateContainerQueryStyle(code, nodeId, target.width, Object.fromEntries(
+    return writeFillBand(code, nodeId, target.width, Object.fromEntries(
       Object.entries(styles).map(([key, value]) => [key, cssValue(value)]),
-    ));
+    ), rules.get(target.width)?.get(nodeId));
   }
-  const rules = parseContainerRules(extractStyleCSS(code));
   let next = code;
   for (const { width } of replicas) {
     const existing = rules.get(width)?.get(nodeId);
     const preserve: Record<string, string> = {};
     for (const key of Object.keys(styles)) {
-      if (existing?.has(cssKey(key))) continue;
+      if (existing?.has(toKebab(key))) continue;
       // An explicit replica shorthand owns the corresponding longhands.
       if (key !== 'background' && key.startsWith('background') && existing?.has('background')) continue;
       // Preserving the old shorthand also preserves any longhands it supplied.
       if (key !== 'background' && key.startsWith('background') && base.background && !base[key] && 'background' in styles) continue;
       preserve[key] = cssValue(base[key]);
     }
-    if (Object.keys(preserve).length) next = updateContainerQueryStyle(next, nodeId, width, preserve);
+    if (Object.keys(preserve).length) next = writeFillBand(next, nodeId, width, preserve, existing);
   }
   return updateNodeInCode(next, nodeId, styles);
 }

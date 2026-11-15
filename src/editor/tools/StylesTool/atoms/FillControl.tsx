@@ -338,10 +338,16 @@ function isManagedFillTab(tab: FillTab): boolean {
 }
 
 function writeScopedPattern(nodeId: string, scope: ManagedFillScope, config: PatternFillConfig, definition?: PatternMonsterDefinition | null): void {
+  const cssConfig = config.source === 'asset' ? {
+    ...config,
+    // Replica CSS is emitted into a JSX template literal. Encode URI
+    // characters that could close it or start an interpolation.
+    assetUrl: config.assetUrl.replace(/[{}\x60]/g, character => encodeURIComponent(character)),
+  } : config;
   updateScopedFill(nodeId, scope, {
     kind: 'pattern',
     recipe: serializePatternFillConfig(config),
-    styles: { ...buildPatternFillStyles(config, definition) },
+    styles: { ...buildPatternFillStyles(cssConfig, definition) },
   });
 }
 

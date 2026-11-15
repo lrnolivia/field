@@ -307,7 +307,7 @@ test('switching away from a saved Shader restores frame styling and keeps newer 
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-');
 });
 
-async function openDesktopBreakpointFixture(page: Page) {
+async function openDesktopBreakpointFixture(page: Page, existingPaints = false) {
   const seed = structuredClone(SEEDS.REPLICA_ABS_DRAG);
   seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
     .replace(/mobile/g, 'compact')
@@ -315,6 +315,12 @@ async function openDesktopBreakpointFixture(page: Page) {
     .replace('max-width: 375px', 'max-width: 1100px')
     .replace('"order": 1 }', '"order": 1 }, { "id": "narrow", "label": "Narrow desktop", "width": 950, "order": 2 }')
     .replace("background: '#ffcc33'", "backgroundColor: '#ffcc33', maskImage: 'linear-gradient(black, transparent)'");
+  if (existingPaints) {
+    seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
+      .replace("backgroundColor: '#ffcc33'", "background: '#ffcc33', backgroundColor: '#ffcc33'")
+      .replace('top: 24px !important; }', 'top: 24px !important; background-image: linear-gradient(red, blue) !important; }')
+      .replace(/(\}\n)(`\}<\/style>)/, '$1@media (max-width: 950px) { [data-id="abs"] { background-color: #15803d !important; background-image: none !important; } }\n$2');
+  }
   await page.addInitScript(data => {
     if (!localStorage.getItem('revyme-project-local')) {
       localStorage.setItem('revyme-project-local', JSON.stringify(data));
@@ -348,33 +354,37 @@ async function previewAtWidth(page: Page, width: number) {
 }
 
 test('Pattern only changes the selected desktop breakpoint and persists in Preview', async ({ page }) => {
-  const { editor, tile, picker, edit } = await openDesktopBreakpointFixture(page);
-  await edit('compact');
+  const { tile, picker, edit } = await openDesktopBreakpointFixture(page, true);
+  await expect(tile('compact')).toHaveCSS('background-image', 'linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))');
+  await edit('compact', /^Gradient$/i);
   await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
-  await expect(tile('compact')).toHaveCSS('background-image', /linear-gradient/);
+  await picker.getByRole('button', { name: 'Pattern kind' }).click();
+  await page.getByText('Grid + Mask', { exact: true }).click();
+  await expect(tile('compact')).toHaveCSS('background-image', /data:image\/svg\+xml/);
   await expect(tile('desktop')).toHaveCSS('background-image', 'none');
   await expect(tile('narrow')).toHaveCSS('background-image', 'none');
-  await expect(tile('narrow')).toHaveCSS('background-color', 'rgb(255, 204, 51)');
+  await expect(tile('narrow')).toHaveCSS('background-color', 'rgb(21, 128, 61)');
   const scale = picker.getByRole('textbox', { name: 'Pattern scale' });
   await scale.fill('24');
   await scale.press('Enter');
-  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
+  await expect(tile('compact')).toHaveCSS('background-image', /width%3D%2224%22/);
   await page.keyboard.press('Escape');
 
   await edit('desktop');
   await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
-  await picker.getByRole('button', { name: 'Pattern kind' }).click();
-  await page.getByText('Grid + Mask', { exact: true }).click();
-  await expect(tile('desktop')).toHaveCSS('background-image', /data:image\/svg\+xml/);
-  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
+  await expect(tile('desktop')).toHaveCSS('background-image', /linear-gradient/);
+  await expect(tile('compact')).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(tile('compact')).toHaveCSS('background-image', /width%3D%2224%22/);
   await expect(tile('narrow')).toHaveCSS('background-image', 'none');
+  await expect(tile('narrow')).toHaveCSS('background-color', 'rgb(21, 128, 61)');
   await expect(tile('desktop')).toHaveCSS('mask-image', /linear-gradient/);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('gridMask');
   await page.reload();
-  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
-  await expect(await previewAtWidth(page, 1060)).toHaveCSS('background-size', /24px/);
-  await expect(await previewAtWidth(page, 1430)).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(tile('compact')).toHaveCSS('background-image', /width%3D%2224%22/);
+  await expect(await previewAtWidth(page, 1060)).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(await previewAtWidth(page, 1430)).toHaveCSS('background-image', /linear-gradient/);
   await expect(await previewAtWidth(page, 940)).toHaveCSS('background-image', 'none');
+  await expect(await previewAtWidth(page, 940)).toHaveCSS('background-color', 'rgb(21, 128, 61)');
 });
 
 test('Create shader saves an editable project shader and confines it to the selected desktop breakpoint', async ({ page }) => {
@@ -383,18 +393,19 @@ test('Create shader saves an editable project shader and confines it to the sele
   await picker.getByRole('button', { name: 'Shader', exact: true }).click();
   const gallery = page.locator('[data-shader-fill-gallery]');
   await gallery.getByRole('button', { name: 'Create shader', exact: true }).click();
-  await gallery.getByRole('textbox', { name: 'Shader name' }).fill('Evening sky');
+  const shaderName = 'Evening "sky"';
+  await gallery.getByRole('textbox', { name: 'Shader name' }).fill(shaderName);
   await gallery.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(tile('compact').locator('canvas')).toBeVisible();
   await expect(tile('desktop').locator('canvas')).toHaveCount(0);
   await expect(tile('narrow').locator('canvas')).toHaveCount(0);
-  await expect(picker.getByText('Evening sky', { exact: true })).toBeVisible();
+  await expect(picker.getByText(shaderName, { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('@fieldCustomShader');
   await page.reload();
   await expect(tile('compact').locator('canvas')).toBeVisible();
   await edit('desktop');
   await picker.getByRole('button', { name: 'Shader', exact: true }).click();
-  await gallery.getByRole('button', { name: 'Evening sky' }).click();
+  await gallery.getByRole('button', { name: shaderName, exact: true }).click();
   await expect(tile('desktop').locator('canvas')).toBeVisible();
   await expect(tile('narrow').locator('canvas')).toHaveCount(0);
   await expect.poll(() => editor.getPageCode()).toContain('__shader_fill_primary');

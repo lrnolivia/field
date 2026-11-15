@@ -9,7 +9,7 @@
 import { atom } from 'jotai';
 import { codeAtom } from './store';
 import { extractStyleCSS } from '../parsing/parser';
-import { toCamel, SHORTHAND_LONGHANDS } from '@/shared/css-utils';
+import { splitStyleProps, toCamel, SHORTHAND_LONGHANDS } from '@/shared/css-utils';
 import { trace } from '@/shared/debug-trace';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ export function parseContainerRules(css: string): Map<number, Map<string, Map<st
       const declarations = selMatch[2];
       const props = selectors.get(id) ?? new Map<string, string>();
 
-      for (const decl of declarations.split(';').filter(d => d.trim())) {
+      for (const decl of splitStyleProps(declarations, ';')) {
         const colonIdx = decl.indexOf(':');
         if (colonIdx === -1) continue;
         const prop = decl.slice(0, colonIdx).trim();
@@ -82,7 +82,7 @@ export function parseContainerRules(css: string): Map<number, Map<string, Map<st
     while ((gMatch = groupedRegex.exec(blockContent)) !== null) {
       const ids = [...gMatch[1].matchAll(/\[data-id="([^"]+)"\]/g)].map(m => m[1]);
       const props = new Map<string, string>();
-      for (const decl of gMatch[2].split(';').filter(d => d.trim())) {
+      for (const decl of splitStyleProps(gMatch[2], ';')) {
         const colonIdx = decl.indexOf(':');
         if (colonIdx === -1) continue;
         const prop = decl.slice(0, colonIdx).trim();
