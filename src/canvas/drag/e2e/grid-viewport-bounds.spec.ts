@@ -17,7 +17,7 @@ export default function Page() {
 }
 `;
 
-async function openGrid(page: Page) {
+async function openGrid(page: Page, source = PAGE) {
   await page.addInitScript(source => {
     localStorage.setItem('revyme-onboarding-completed', 'true');
     localStorage.setItem('field:prefs:workspaceMode', JSON.stringify('docked'));
@@ -30,7 +30,7 @@ async function openGrid(page: Page) {
         'app/page.client.tsx': source,
       },
     }));
-  }, PAGE);
+  }, source);
   const editor = new EditorPage(page);
   await page.goto('/work/local');
   await page.locator('[data-editor-interactive="true"]').waitFor();
@@ -93,5 +93,70 @@ for (const action of ['return', 'detach'] as const) {
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
     await expect.poll(() => editor.getPageCode()).toBe(before);
     await expect(inside).toBeVisible();
+  });
+}
+
+for (const placement of ['numbered lines', 'named areas'] as const) {
+  test(`Grid drag swaps ${placement} without reordering JSX`, async ({ page }) => {
+    const named = placement === 'named areas';
+    const placed = (['a', 'b', 'c'] as const).reduce((code, id, index) => code.replace(
+      `data-id="${id}" style={{`,
+      `data-id="${id}" style={{${named ? `gridArea:'${id}',` : `gridColumn:'${index + 1}', gridRow:'1',`}`,
+    ), PAGE).replace("gridAutoRows:'24px',", named ? `gridAutoRows:'24px', gridTemplateAreas:'"a b c"',` : "gridAutoRows:'24px',");
+    const editor = await openGrid(page, placed);
+    const before = await editor.getPageCode();
+    const a = center(await editor.nodeBox('a'));
+    const c = center(await editor.nodeBox('c'));
+    const slot = editor.sandbox().locator('[data-placeholder-id="ph-grid-a"]');
+    const xOf = async (id: string) => center(await editor.nodeBox(id)).x;
+    const slotCenter = async () => {
+      const rect = await slot.boundingBox();
+      return rect ? center(rect).x : undefined;
+    };
+    const dragToC = async () => {
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      await page.mouse.move(a.x + 7, a.y);
+      await expect.poll(slotCenter).toBeCloseTo(a.x, 0);
+      await page.mouse.move(c.x, c.y);
+      await expect.poll(slotCenter).toBeCloseTo(c.x, 0);
+      await expect.poll(() => xOf('c')).toBeCloseTo(a.x, 0);
+    };
+
+    await dragToC();
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await expect.poll(() => xOf('a')).toBeCloseTo(a.x, 0);
+    await expect.poll(() => xOf('c')).toBeCloseTo(c.x, 0);
+    expect(await editor.getPageCode()).toBe(before);
+
+    await editor.waitForStableGeometry('a');
+    await editor.select(['a']);
+    await dragToC();
+    await page.mouse.up();
+    await expect.poll(() => xOf('a')).toBeCloseTo(c.x, 0);
+    await expect.poll(() => xOf('c')).toBeCloseTo(a.x, 0);
+    const prop = named ? 'gridArea' : 'gridColumn';
+    await expect.poll(() => editor.getInlineStyleProp('a', prop)).toBe(named ? 'c' : '3');
+    await expect.poll(() => editor.getInlineStyleProp('c', prop)).toBe(named ? 'a' : '1');
+    const sourceOrder = async () => (await editor.getPageCode()).match(/data-id="[abc]"/g);
+    expect(await sourceOrder()).toEqual(['data-id="a"', 'data-id="b"', 'data-id="c"']);
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await expect.poll(() => editor.getPageCode()).toBe(before);
+
+    if (!named) {
+      await editor.waitForStableGeometry('a');
+      await editor.select(['a']);
+      await dragToC();
+      const section = await editor.nodeBox('section');
+      await page.mouse.move(c.x, section.y + section.height + 70);
+      await expect(slot).toHaveCount(0);
+      await page.mouse.up();
+      await expect(editor.sandbox().locator('[data-id="grid"] > [data-id="a"]')).toHaveCount(0);
+      await expect.poll(() => xOf('c')).toBeCloseTo(c.x, 0);
+      await expect.poll(() => editor.getInlineStyleProp('c', prop)).toBe('3');
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+      await expect.poll(() => editor.getPageCode()).toBe(before);
+    }
   });
 }

@@ -291,11 +291,19 @@ export class DragCoordinator {
     const onUp = () => {
       this.handleMouseUp();
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !this.isDragStarted) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.cancel();
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('keydown', onKeyDown, true);
     this.pendingWindowListeners = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('keydown', onKeyDown, true);
     };
   }
 
