@@ -31,6 +31,9 @@ import { readTranslationText } from '@/code/project/translation-ops';
 import { readTextAnimConfig } from '@/code/generation/text-anim-gen';
 import { readCodeOverrides } from '@/code/generation/code-override-gen';
 import { getI18nConfig } from '@/code/project/locale-ops';
+import {
+  BREAKPOINT_FILLS_ATTR, FILL_VIEWPORT_ATTR, breakpointFill, breakpointVideo, shaderLayerVisible,
+} from '@/shared/managed-fill-breakpoints';
 
 const CLIPBOARD_STORAGE_KEY = 'revyme_clipboard';
 
@@ -40,6 +43,7 @@ function collectSubtree(
   rootId: string,
   nodes: Map<string, CanvasNode>,
   collected: Map<string, CanvasNode>,
+  viewportId: string,
 ): void {
   if (collected.has(rootId)) return;
   const node = nodes.get(rootId);
@@ -54,7 +58,8 @@ function collectSubtree(
   // children — are NOT expanded, so they keep recursing normally.)
   if (node.isComponentInstance) return;
   for (const childId of node.children) {
-    collectSubtree(childId, nodes, collected);
+    const child = nodes.get(childId);
+    if (child && shaderLayerVisible(node, child, viewportId)) collectSubtree(childId, nodes, collected, viewportId);
   }
 }
 
@@ -117,7 +122,7 @@ function bakeTranslations(node: CanvasNode): {
   return out;
 }
 
-function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile: TileContext): ClipboardNode {
+function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile: TileContext, viewportId: string): ClipboardNode {
   // Surface the overlay-trigger targetId to a top-level field for the post-paste
   // remap to find without parsing data-overlay-trigger JSON twice.
   let overlayTriggerTargetId: string | undefined;
@@ -141,6 +146,29 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
   // the interacting tile's painted values first (no-op on the primary, where
   // the node's own fields already are the truth).
   const tileBake = bakeNodeForTile(node, tile);
+  const children = node.isComponentInstance ? [] : node.children.filter(id => {
+    const child = nodes.get(id);
+    return child && shaderLayerVisible(node, child, viewportId);
+  });
+  const attrs = { ...baked.attrs ?? tileBake.attrs };
+  const scoped = breakpointFill(node, viewportId);
+  delete attrs[BREAKPOINT_FILLS_ATTR];
+  delete attrs[FILL_VIEWPORT_ATTR];
+  if (scoped) {
+    delete attrs['data-field-pattern'];
+    delete attrs['data-field-pattern-style-backup'];
+    delete attrs['data-field-shader-fill'];
+    delete attrs['data-field-shader-style-backup'];
+    if (scoped.kind === 'pattern') attrs['data-field-pattern'] = scoped.recipe;
+    if (scoped.kind === 'shader') {
+      const child = children.map(id => nodes.get(id)).find(child => child?.attrs?.['data-field-shader-layer'] === 'true');
+      if (child) attrs['data-field-shader-fill'] = child.type;
+      if (scoped.hostStyleBackup) {
+        attrs['data-field-shader-style-backup'] = encodeURIComponent(JSON.stringify(scoped.hostStyleBackup)).replace(/'/g, '%27');
+      }
+    }
+  }
+  const bgVideo = breakpointVideo(node, viewportId);
 
   // CMS bindings are JSX expressions (`<h3>{item.title}</h3>`,
   // `src={item.image}`), not values — none of them survive a rebuild from the
@@ -153,7 +181,7 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
   const dormant = bakeCmsValuesOnClone(dormantizeCloneBindings({
     textContent: baked.textContent ?? tileBake.textContent,
     styles: tileBake.styles,
-    attrs: baked.attrs ?? tileBake.attrs,
+    attrs,
     textField: node.binding?.property === 'text' ? node.binding.field : undefined,
     attrBindings: node.attrBindings,
     styleBindings: node.styleBindings,
@@ -167,13 +195,15 @@ function toClipboardNode(node: CanvasNode, nodes: Map<string, CanvasNode>, tile:
     // A design component instance is copied as a childless tag (its `children`
     // are virtual master content, never collected) — keep the clipboard node's
     // children list consistent with that so nothing references uncopied ids.
-    children: node.isComponentInstance ? [] : [...node.children],
+    children,
     order: node.order ?? 0,
     styles: dormant.styles,
     attrs: dormant.attrs,
     name: node.name,
     textContent: dormant.textContent,
-    bgVideo: node.bgVideo,
+    bgVideo: bgVideo && scoped?.kind === 'video' && scoped.hostStyleBackup
+      ? { ...bgVideo, ownedHostStyles: Object.keys(scoped.hostStyleBackup) }
+      : bgVideo,
     // Component-prop binding of the text — honoured only on a same-master paste.
     textVariable: node.textVariable,
     hasMixedContent: node.hasMixedContent,
@@ -371,6 +401,7 @@ function collectOverlays(
   clipboardNodes: ClipboardNode[],
   nodes: Map<string, CanvasNode>,
   collected: Map<string, CanvasNode>,
+  viewportId: string,
 ): CanvasNode[] {
   const targetIds = new Set<string>();
   for (const cn of clipboardNodes) {
@@ -382,7 +413,7 @@ function collectOverlays(
   for (const targetId of targetIds) {
     if (collected.has(targetId)) continue; // Already in our subtree.
     const overlayCollected = new Map<string, CanvasNode>();
-    collectSubtree(targetId, nodes, overlayCollected);
+    collectSubtree(targetId, nodes, overlayCollected, viewportId);
     for (const node of overlayCollected.values()) {
       if (!collected.has(node.id)) overlayNodes.push(node);
     }
@@ -438,18 +469,19 @@ export function copyNodes(
   //    for it below. `{ kind: 'primary' }` on the primary tile = pass-through.
   const { vpId } = getInteractingViewport();
   const tile = tileContextFor(vpId, getActiveFilePath(), getViewportWidths());
+  const fillViewport = tile.kind === 'viewport' ? vpId : '';
 
   // 1. Collect subtree.
   const collected = new Map<string, CanvasNode>();
-  for (const id of nodeIds) collectSubtree(id, nodes, collected);
+  for (const id of nodeIds) collectSubtree(id, nodes, collected, fillViewport);
 
   // 2. Collect overlays triggered by copied nodes.
-  const tempClipboard = Array.from(collected.values()).map(n => toClipboardNode(n, nodes, tile));
-  const overlays = collectOverlays(tempClipboard, nodes, collected);
+  const tempClipboard = Array.from(collected.values()).map(n => toClipboardNode(n, nodes, tile, fillViewport));
+  const overlays = collectOverlays(tempClipboard, nodes, collected, fillViewport);
   for (const o of overlays) collected.set(o.id, o);
 
   // 3. Convert all to ClipboardNode.
-  const clipboardNodes = Array.from(collected.values()).map(n => toClipboardNode(n, nodes, tile));
+  const clipboardNodes = Array.from(collected.values()).map(n => toClipboardNode(n, nodes, tile, fillViewport));
 
   // 4. Capture computed dims for the user-selected ROOTS only (not descendants
   //    or overlays — they'll size against their pasted parents).

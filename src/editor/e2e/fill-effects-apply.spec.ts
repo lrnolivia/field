@@ -306,3 +306,148 @@ test('switching away from a saved Shader restores frame styling and keeps newer 
   await expect.poll(() => editor.getPageCode()).toContain('data-field-pattern');
   await expect.poll(() => editor.getPageCode()).not.toContain('data-field-shader-');
 });
+
+async function openDesktopBreakpointFixture(page: Page) {
+  const seed = structuredClone(SEEDS.REPLICA_ABS_DRAG);
+  seed.files['app/page.client.tsx'] = seed.files['app/page.client.tsx']
+    .replace(/mobile/g, 'compact')
+    .replace('"label": "Mobile", "width": 375', '"label": "Compact desktop", "width": 1100')
+    .replace('max-width: 375px', 'max-width: 1100px')
+    .replace('"order": 1 }', '"order": 1 }, { "id": "narrow", "label": "Narrow desktop", "width": 950, "order": 2 }')
+    .replace("background: '#ffcc33'", "backgroundColor: '#ffcc33', maskImage: 'linear-gradient(black, transparent)'");
+  await page.addInitScript(data => {
+    if (!localStorage.getItem('revyme-project-local')) {
+      localStorage.setItem('revyme-project-local', JSON.stringify(data));
+    }
+    localStorage.setItem('revyme-onboarding-completed', 'true');
+  }, seed);
+  const editor = new EditorPage(page);
+  await page.goto('/work/local');
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  const tile = (id: string) => editor.sandbox().locator(`[data-viewport="${id}"] [data-id="abs"]`);
+  const fill = page.locator('[data-inspector-section="fill"]');
+  const picker = page.getByRole('dialog', { name: 'Paint picker' });
+  async function edit(id: string, button: RegExp = /FFCC33/i) {
+    await editor.select(['abs'], id);
+    await fill.getByRole('button', { name: button }).click();
+  }
+  return { editor, tile, fill, picker, edit };
+}
+
+async function previewAtWidth(page: Page, width: number) {
+  const overlay = page.locator('[data-preview-overlay]');
+  if (!(await overlay.isVisible())) {
+    await page.getByRole('button', { name: 'preview', exact: true }).click();
+  }
+  const input = overlay.locator('input').first();
+  await input.fill(String(width));
+  await input.press('Enter');
+  const preview = overlay.locator('iframe').contentFrame();
+  await expect.poll(() => preview.locator('html').evaluate(el => el.clientWidth)).toBe(width);
+  return preview.locator('[data-id="abs"]');
+}
+
+test('Pattern only changes the selected desktop breakpoint and persists in Preview', async ({ page }) => {
+  const { editor, tile, picker, edit } = await openDesktopBreakpointFixture(page);
+  await edit('compact');
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await expect(tile('compact')).toHaveCSS('background-image', /linear-gradient/);
+  await expect(tile('desktop')).toHaveCSS('background-image', 'none');
+  await expect(tile('narrow')).toHaveCSS('background-image', 'none');
+  await expect(tile('narrow')).toHaveCSS('background-color', 'rgb(255, 204, 51)');
+  const scale = picker.getByRole('textbox', { name: 'Pattern scale' });
+  await scale.fill('24');
+  await scale.press('Enter');
+  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
+  await page.keyboard.press('Escape');
+
+  await edit('desktop');
+  await picker.getByRole('button', { name: 'Pattern', exact: true }).click();
+  await picker.getByRole('button', { name: 'Pattern kind' }).click();
+  await page.getByText('Grid + Mask', { exact: true }).click();
+  await expect(tile('desktop')).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
+  await expect(tile('narrow')).toHaveCSS('background-image', 'none');
+  await expect(tile('desktop')).toHaveCSS('mask-image', /linear-gradient/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('gridMask');
+  await page.reload();
+  await expect(tile('compact')).toHaveCSS('background-size', /24px/);
+  await expect(await previewAtWidth(page, 1060)).toHaveCSS('background-size', /24px/);
+  await expect(await previewAtWidth(page, 1430)).toHaveCSS('background-image', /data:image\/svg\+xml/);
+  await expect(await previewAtWidth(page, 940)).toHaveCSS('background-image', 'none');
+});
+
+test('Create shader saves an editable project shader and confines it to the selected desktop breakpoint', async ({ page }) => {
+  const { editor, tile, picker, edit } = await openDesktopBreakpointFixture(page);
+  await edit('compact');
+  await picker.getByRole('button', { name: 'Shader', exact: true }).click();
+  const gallery = page.locator('[data-shader-fill-gallery]');
+  await gallery.getByRole('button', { name: 'Create shader', exact: true }).click();
+  await gallery.getByRole('textbox', { name: 'Shader name' }).fill('Evening sky');
+  await gallery.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(tile('compact').locator('canvas')).toBeVisible();
+  await expect(tile('desktop').locator('canvas')).toHaveCount(0);
+  await expect(tile('narrow').locator('canvas')).toHaveCount(0);
+  await expect(picker.getByText('Evening sky', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain('@fieldCustomShader');
+  await page.reload();
+  await expect(tile('compact').locator('canvas')).toBeVisible();
+  await edit('desktop');
+  await picker.getByRole('button', { name: 'Shader', exact: true }).click();
+  await gallery.getByRole('button', { name: 'Evening sky' }).click();
+  await expect(tile('desktop').locator('canvas')).toBeVisible();
+  await expect(tile('narrow').locator('canvas')).toHaveCount(0);
+  await expect.poll(() => editor.getPageCode()).toContain('__shader_fill_primary');
+  const speed = picker.locator('[data-tool-row]').filter({ has: page.getByText('Speed', { exact: true }) }).getByRole('textbox');
+  await speed.fill('2');
+  await speed.press('Enter');
+  await expect.poll(() => editor.getPageCode()).toMatch(/abs__shader_fill_primary[^>]*speed=\{2\}/);
+  expect(await editor.getPageCode()).not.toMatch(/abs__shader_fill_compact[^>]*speed=\{2\}/);
+  await page.keyboard.press('Escape');
+  await expect((await previewAtWidth(page, 1060)).locator('canvas')).toBeVisible();
+  await expect((await previewAtWidth(page, 940)).locator('canvas')).toHaveCount(0);
+});
+
+test('Video source and removal stay on the selected desktop breakpoint in Canvas and Preview', async ({ page }) => {
+  const { editor, tile, fill, picker, edit } = await openDesktopBreakpointFixture(page);
+  async function chooseVideo(url: string) {
+    await picker.getByRole('button', { name: 'Video', exact: true }).click();
+    await picker.getByRole('button', { name: /select source/i }).click();
+    const media = page.locator('[data-contextual-media-picker="fill-video"]');
+    await media.getByPlaceholder('Or paste a video URL...').fill(url);
+    await media.getByRole('button', { name: 'Use', exact: true }).click();
+    await page.keyboard.press('Escape');
+  }
+  const compactUrl = 'https://example.com/compact.mp4';
+  const primaryUrl = 'https://example.com/primary.mp4';
+  await edit('compact');
+  await chooseVideo(compactUrl);
+  await expect(tile('compact').locator('video')).toHaveAttribute('src', compactUrl);
+  await expect(tile('desktop').locator('video')).toHaveCount(0);
+  await edit('desktop');
+  await chooseVideo(primaryUrl);
+  await expect(tile('desktop').locator('video')).toHaveAttribute('src', primaryUrl);
+  await expect(tile('narrow').locator('video')).toHaveCount(0);
+  await expect(tile('compact').locator('video')).toHaveAttribute('src', compactUrl);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('revyme-project-local'))).toContain(primaryUrl);
+  await page.reload();
+  await page.locator('[data-editor-interactive="true"]').waitFor();
+  await expect.poll(() => editor.getPageCode(), { timeout: 15_000 }).toContain(primaryUrl);
+  await expect(tile('desktop').locator('video')).toHaveAttribute('src', primaryUrl, { timeout: 15_000 });
+  await editor.select(['abs'], 'compact');
+  await page.keyboard.press('Meta+d');
+  const duplicateHost = editor.sandbox().locator('[data-viewport="compact"] [data-replica-solo="compact"]');
+  await expect.poll(() => editor.getPageCode()).toMatch(/data-replica-solo="compact">\s*<video[^>]*compact\.mp4/);
+  await expect(duplicateHost).toBeVisible();
+  await page.keyboard.press('Meta+z');
+  await expect(duplicateHost).toHaveCount(0);
+  await editor.select(['abs'], 'compact');
+  await fill.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(tile('compact').locator('video')).toHaveCount(0);
+  await expect(tile('desktop').locator('video')).toHaveAttribute('src', primaryUrl);
+  await page.keyboard.press('Meta+z');
+  await expect(tile('compact').locator('video')).toHaveAttribute('src', compactUrl);
+  await expect((await previewAtWidth(page, 1060)).locator('video')).toHaveAttribute('src', compactUrl);
+  await expect((await previewAtWidth(page, 1430)).locator('video')).toHaveAttribute('src', primaryUrl);
+  await expect((await previewAtWidth(page, 940)).locator('video')).toHaveCount(0);
+});

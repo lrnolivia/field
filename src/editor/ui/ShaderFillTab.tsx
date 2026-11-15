@@ -17,19 +17,23 @@ import { getToolbarItemConfig } from '@/canvas/drag/toolbar-item-config';
 import { trace } from '@/shared/debug-trace';
 import { fieldSurfaceZ } from '@/shared/field-surface-elevation';
 import { shaderFillHostMutations } from './managed-fill-styles';
+import { shaderLayerVisible } from '@/shared/managed-fill-breakpoints';
+import { addProjectShader, listProjectShaders } from './create-shader-fill';
+import { updateScopedFill, type ManagedFillScope } from './responsive-managed-fill';
 
 interface Props {
   node: CanvasNode | null;
+  scope?: ManagedFillScope | null;
   libraryOnly?: boolean;
   onSelected?: () => void;
   onDismissLibrary?: () => void;
 }
 
-function managedShaderChild(node: CanvasNode | null): CanvasNode | null {
+function managedShaderChild(node: CanvasNode | null, scope?: ManagedFillScope | null): CanvasNode | null {
   if (!node) return null;
   for (const id of node.children || []) {
     const child = getNodeFromCache(id);
-    if (child?.attrs?.['data-field-shader-layer'] === 'true') return child;
+    if (child?.attrs?.['data-field-shader-layer'] === 'true' && shaderLayerVisible(node, child, scope?.target.id ?? '')) return child;
   }
   return null;
 }
@@ -61,15 +65,17 @@ function flattenControls(
   return out;
 }
 
-export default function ShaderFillTab({ node, libraryOnly = false, onSelected, onDismissLibrary }: Props) {
+export default function ShaderFillTab({ node, scope, libraryOnly = false, onSelected, onDismissLibrary }: Props) {
   const activeFilePath = useAtomValue(activeFilePathAtom);
-  useAtomValue(projectVersionAtom);
+  const projectVersion = useAtomValue(projectVersionAtom);
   const bumpProjectVersion = useSetAtom(projectVersionAtom);
-  const child = managedShaderChild(node);
-  const activeTag = node?.attrs?.['data-field-shader-fill'] || child?.type || '';
+  const child = managedShaderChild(node, scope);
+  const activeTag = child?.type || node?.attrs?.['data-field-shader-fill'] || '';
   const sidecarAnchorRef = useRef<HTMLDivElement>(null);
   const [sidecarPos, setSidecarPos] = useState<{ left: number; top: number; zIndex: number } | null>(null);
   const [shaderSearch, setShaderSearch] = useState('');
+  const [newShaderName, setNewShaderName] = useState<string | null>(null);
+  const projectShaders = useMemo(() => listProjectShaders(), [projectVersion]);
 
   useLayoutEffect(() => {
     if (!libraryOnly) { setSidecarPos(null); return; }
@@ -92,23 +98,23 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
     if (!child?.type) return null;
     const source = projectFS.readFile(`components/${child.type}.tsx`);
     return source ? parseComponentControlsMeta(source) : null;
-  }, [child?.type]);
+  }, [child?.type, projectVersion]);
 
   const controls = useMemo(
     () => controlsMeta ? flattenControls(controlsMeta.controls) : [],
     [controlsMeta],
   );
 
-  const applyShader = (itemId: string) => {
+  const applyTag = (tag: string, installed = false) => {
     if (!node) return;
-    const toolbarItem = getToolbarItemConfig(itemId);
-    if (!toolbarItem || !/^[A-Z]/.test(toolbarItem.elementType)) return;
-    const tag = toolbarItem.elementType;
-    const installed = installBuiltInCodeComponent(projectFS, tag);
-    if (installed === null) return;
-
-
-    const prior = managedShaderChild(node);
+    if (scope) {
+      updateScopedFill(node.id, scope, { kind: 'shader', tag });
+      flushNow();
+      if (installed) bumpProjectVersion(version => version + 1);
+      onSelected?.();
+      return;
+    }
+    const prior = managedShaderChild(node, scope);
     const shaderId = `${node.id}__shader_fill`;
     const mutations: Parameters<typeof queueMutations>[0] = [];
     if (prior) mutations.push({ type: 'removeNode', nodeId: prior.id });
@@ -137,12 +143,24 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
     queueMutations(mutations);
     flushNow();
     if (installed) bumpProjectVersion(version => version + 1);
-    trace.action('fill:shader-applied', { nodeId: node.id, tag, itemId, installed: installed === true });
+    trace.action('fill:shader-applied', { nodeId: node.id, tag, installed });
     onSelected?.();
+  };
+
+  const applyShader = (itemId: string) => {
+    if (!node) return;
+    const tag = getToolbarItemConfig(itemId)?.elementType;
+    if (!tag || !/^[A-Z]/.test(tag)) return;
+    const installed = installBuiltInCodeComponent(projectFS, tag);
+    if (installed !== null) applyTag(tag, installed);
   };
 
   const updateProp = (name: string, def: ComponentControlDef, value: string) => {
     if (!child || !activeFilePath) return;
+    if (node && scope) {
+      updateScopedFill(node.id, scope, { kind: 'shader-prop', name, value, expression: expressionControl(def) });
+      return;
+    }
     modifyProjectFile(activeFilePath, code =>
       setInstanceProp(code, child.id, child.type, name, value, expressionControl(def)),
     );
@@ -150,7 +168,9 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
   };
 
   if (libraryOnly) {
-    const filteredItems = SHADER_LIBRARY_ITEMS.filter(item => item.name.toLowerCase().includes(shaderSearch.trim().toLowerCase()));
+    const query = shaderSearch.trim().toLowerCase();
+    const filteredItems = SHADER_LIBRARY_ITEMS.filter(item => item.name.toLowerCase().includes(query));
+    const filteredProjectShaders = projectShaders.filter(item => item.label.toLowerCase().includes(query));
     return (
       <div ref={sidecarAnchorRef} className="min-h-[360px] flex items-center justify-center text-[12px] text-[var(--text-disabled)]">
         Choose a shader from the gallery.
@@ -169,7 +189,7 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
                 <span className="px-2 py-0.5 rounded-[6px] border border-[var(--control-border)] text-[10px] text-[var(--text-secondary)]">Beta</span>
               </div>
               <div className="flex items-center gap-1">
-                <button type="button" className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Create shader" aria-label="Create shader">
+                <button type="button" onClick={() => setNewShaderName('')} disabled={!node} className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Create shader" aria-label="Create shader">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 </button>
                 <button type="button" onClick={onDismissLibrary} className="w-9 h-9 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]" title="Close shader gallery" aria-label="Close shader gallery">
@@ -177,6 +197,26 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
                 </button>
               </div>
             </div>
+            {newShaderName !== null && (
+              <form
+                className="p-4 border-b border-[var(--border-light)] flex flex-col gap-3"
+                onSubmit={event => {
+                  event.preventDefault();
+                  if (!node || !newShaderName.trim()) return;
+                  applyTag(addProjectShader(newShaderName), true);
+                  setNewShaderName(null);
+                }}
+              >
+                <label className="flex flex-col gap-2 text-[13px] text-[var(--text-primary)]">
+                  Shader name
+                  <input autoFocus required maxLength={80} value={newShaderName} onChange={event => setNewShaderName(event.target.value)} className="rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] px-3 py-2" />
+                </label>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setNewShaderName(null)} className="rounded-[7px] px-3 py-2 hover:bg-[var(--bg-hover)] text-[13px]">Cancel</button>
+                  <button type="submit" disabled={!newShaderName.trim()} className="rounded-[7px] bg-[var(--control-bg)] px-3 py-2 text-[13px]">Create</button>
+                </div>
+              </form>
+            )}
             <div className="p-4 border-b border-[var(--border-light)]">
               <div className="h-9 rounded-[7px] border border-[var(--control-border)] bg-[var(--control-bg)] flex items-center gap-2 px-3">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
@@ -184,6 +224,16 @@ export default function ShaderFillTab({ node, libraryOnly = false, onSelected, o
               </div>
             </div>
             <div className="p-4 overflow-y-auto">
+              {filteredProjectShaders.length > 0 && (
+                <div className="mb-4">
+                  <div className="mb-2 text-[12px] text-[var(--text-secondary)]">Project shaders</div>
+                  {filteredProjectShaders.map(shader => (
+                    <button type="button" key={shader.tag} aria-pressed={shader.tag === activeTag} onClick={() => applyTag(shader.tag)} className="block w-full rounded-[7px] hover:bg-[var(--bg-hover)] px-2 py-2 text-left text-[13px]">
+                      {shader.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="mb-3 text-[12px] text-[var(--text-secondary)]">By field</div>
               <div className="grid grid-cols-2 gap-3">
                 {filteredItems.map(item => {

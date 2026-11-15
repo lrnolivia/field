@@ -63,10 +63,14 @@ import { canAcceptChildren } from '@/shared/constants';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
 import { parseVarRef } from '@/shared/css-utils';
-import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
+import { DEFAULT_PATTERN_FILL, PATTERN_KIND_OPTIONS, buildPatternFillStyles, defaultAssetPatternFill, parsePatternFillConfig, serializePatternFillConfig, patternMonsterMaxColors, type AssetPatternFillConfig, type AssetPatternRepeat, type FieldPatternFillConfig, type PatternFillConfig, type PatternKind, type PatternMonsterDefinition, type PatternMonsterFillConfig } from '@/editor/ui/pattern-fill-utils';
 import PatternLibraryPanel from '@/editor/ui/PatternLibraryPanel';
 import PatternSourcePanel from '@/editor/ui/PatternSourcePanel';
 import ShaderFillTab from '@/editor/ui/ShaderFillTab';
+import type { BreakpointFillEdit } from '@/code/generation/responsive-managed-fill';
+import { breakpointFill } from '@/shared/managed-fill-breakpoints';
+import type { BgVideoOpts } from '@/code/generation/generator-video';
+import { resolveManagedFillNode, updateScopedFill, useManagedFillScope, type ManagedFillScope } from '@/editor/ui/responsive-managed-fill';
 import { patternFillMutations, removePatternFillMutations, removeShaderFillMutations } from '@/editor/ui/managed-fill-styles';
 
 // ─── Shared Constants ───────────────────────────────────────────────────────
@@ -329,6 +333,18 @@ function extractUrl(value: string): string | null {
 
 type FillTab = 'color' | 'gradient' | 'pattern' | 'image' | 'video' | 'shader';
 
+function isManagedFillTab(tab: FillTab): boolean {
+  return tab === 'pattern' || tab === 'shader' || tab === 'video';
+}
+
+function writeScopedPattern(nodeId: string, scope: ManagedFillScope, config: PatternFillConfig, definition?: PatternMonsterDefinition | null): void {
+  updateScopedFill(nodeId, scope, {
+    kind: 'pattern',
+    recipe: serializePatternFillConfig(config),
+    styles: { ...buildPatternFillStyles(config, definition) },
+  });
+}
+
 function detectFillTab(styles: Record<string, string>, node?: CanvasNode | null): FillTab {
   if (node?.attrs?.['data-field-shader-fill']) return 'shader';
   if (node?.attrs?.['data-field-pattern']) return 'pattern';
@@ -376,7 +392,7 @@ const ALPHA_CHECKER_STYLE: React.CSSProperties = {
   backgroundPosition: '0 0, 0 3px, 3px -3px, -3px 0',
 };
 
-function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+function PatternFillTab({ node, scope, libraryOnly = false }: { node: CanvasNode | null; scope: ManagedFillScope | null; libraryOnly?: boolean }) {
   const { pushPanel, popPanel } = useToolPopup();
   const nodeId = node?.id ?? null;
   const raw = node?.attrs?.['data-field-pattern'] || '';
@@ -407,14 +423,15 @@ function PatternFillTab({ node, libraryOnly = false }: { node: CanvasNode | null
     setConfig(next);
     if (!nodeId) return;
     forSelectionTargets(nodeId, (tid) => {
-      queueMutations(patternFillMutations(tid, getNodeFromCache(tid), next, resolvedDefinition));
+      if (scope) writeScopedPattern(tid, scope, next, resolvedDefinition);
+      else queueMutations(patternFillMutations(tid, getNodeFromCache(tid), next, resolvedDefinition));
     });
     trace.action('fill:pattern-applied', {
       nodeId,
       source: next.source,
       pattern: next.source === 'field' ? next.kind : next.source === 'pattern-monster' ? next.patternId : next.assetUrl,
     });
-  }, [nodeId, monsterDefinition]);
+  }, [nodeId, monsterDefinition, scope]);
 
   if (libraryOnly) {
     return (
@@ -735,7 +752,7 @@ const VIDEO_OBJECT_FIT_OPTIONS = [
   { value: 'scale-down', label: 'Scale Down' },
 ];
 
-function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; libraryOnly?: boolean }) {
+function VideoFillTab({ node, scope, libraryOnly = false }: { node: CanvasNode | null; scope: ManagedFillScope | null; libraryOnly?: boolean }) {
   const { pushPanel, popPanel } = useToolPopup();
   const allTokens = useAtomValue(presetTokensAtom);
   const videoPresets = allTokens.filter(t => t.category === 'video');
@@ -752,17 +769,24 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
   const hasVideo = !!currentUrl;
 
   // Partial-update wrapper — every toggle/select calls this with one field.
-  const patchVideo = useCallback((opts: Parameters<typeof queueMutation>[0] extends infer _ ? Record<string, unknown> : never) => {
+  const patchVideo = useCallback((opts: BgVideoOpts) => {
     if (!nodeId) return;
-    forSelectionTargets(nodeId, (tid) => queueMutation({ type: 'setVideoFill', nodeId: tid, opts: opts as any }));
+    forSelectionTargets(nodeId, (tid) => {
+      if (scope) updateScopedFill(tid, scope, { kind: 'video', options: opts });
+      else queueMutation({ type: 'setVideoFill', nodeId: tid, opts });
+    });
     trace.action('fill:video-patched', { nodeId, fields: Object.keys(opts) });
-  }, [nodeId]);
+  }, [nodeId, scope]);
 
   // Apply a NEW src — used by the file picker and by preset-apply. Also
   // clears competing fills that may be set on the host.
   const applyVideoSrc = useCallback((url: string) => {
     if (!nodeId) return;
     forSelectionTargets(nodeId, (tid) => {
+      if (scope) {
+        updateScopedFill(tid, scope, { kind: 'video', options: { src: url } });
+        return;
+      }
       queueMutation({ type: 'setVideoFill', nodeId: tid, opts: { src: url } });
       queueMutation({ type: 'updateStyles', nodeId: tid, styles: {
         backgroundColor: '',
@@ -772,7 +796,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
       } });
     });
     trace.action('fill:video-src-applied', { nodeId, urlLength: url.length });
-  }, [nodeId]);
+  }, [nodeId, scope]);
 
   const openVideoMedia = useCallback(() => {
     pushPanel('Media', (
@@ -841,7 +865,7 @@ function VideoFillTab({ node, libraryOnly = false }: { node: CanvasNode | null; 
             <div className="w-[190px]">
               <ToolSelect
                 value={cfg?.objectFit || 'cover'}
-                onChange={(value) => hasVideo && patchVideo({ objectFit: value })}
+                onChange={(value) => hasVideo && patchVideo({ objectFit: value as BgVideoOpts['objectFit'] })}
                 options={VIDEO_OBJECT_FIT_OPTIONS}
               />
             </div>
@@ -952,7 +976,8 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
   // patch used for smooth drags (commit via onUpdate on release).
   const legacyCtl = useControlOptional();
   const nodeId = ctx?.nodeId ?? null;
-  const node = ctx?.node ?? null;
+  const scope = useManagedFillScope(ctx?.node);
+  const node = resolveManagedFillNode(ctx?.node, scope);
   const [tab, setTab] = useState<FillTab>(() => (solidOnly ? 'color' : detectFillTab(styles, node)));
   const [surface, setSurface] = useState<PaintPickerSurface>('custom');
   const { pushPanel, popPanel } = useToolPopup();
@@ -993,6 +1018,22 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
 
   const changeFillType = (newTab: FillTab) => {
     trace.action('fill:tab-change', { from: tab, to: newTab });
+    if (scope && nodeId && newTab !== tab && (isManagedFillTab(newTab) || isManagedFillTab(tab))) {
+      let edit: BreakpointFillEdit | undefined;
+      if (newTab === 'pattern') {
+        forSelectionTargets(nodeId, tid => writeScopedPattern(tid, scope, DEFAULT_PATTERN_FILL));
+      } else if (newTab === 'color') {
+        edit = { kind: 'clear', styles: { backgroundColor: '#FFFFFF' } };
+      } else if (newTab === 'gradient') {
+        edit = { kind: 'clear', styles: { backgroundImage: formatGradient(createDefaultGradient()) } };
+      } else if (newTab === 'image' && isManagedFillTab(tab)) {
+        edit = { kind: 'clear' };
+      }
+      if (edit) forSelectionTargets(nodeId, tid => updateScopedFill(tid, scope, edit!));
+      if (newTab === 'shader') setSurface('libraries');
+      setTab(newTab);
+      return;
+    }
     if (newTab !== tab) {
       if (tab === 'color') onUpdate('backgroundColor', '');
       if (tab === 'gradient') { onUpdate('background', ''); onUpdate('backgroundImage', ''); }
@@ -1176,12 +1217,13 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       })()}
 
       {tab === 'pattern' && (
-        <PatternFillTab node={node} libraryOnly={surface === 'libraries'} />
+        <PatternFillTab node={node} scope={scope} libraryOnly={surface === 'libraries'} />
       )}
 
       {tab === 'shader' && (
         <ShaderFillTab
           node={node}
+          scope={scope}
           libraryOnly={surface === 'libraries'}
           onSelected={() => setSurface('custom')}
           onDismissLibrary={() => setSurface('custom')}
@@ -1193,7 +1235,7 @@ function SingleModeFillContent({ styles, onUpdate, onUpdateLive, onLivePreview, 
       )}
 
       {tab === 'video' && (
-        <VideoFillTab node={node} libraryOnly={surface === 'libraries'} />
+        <VideoFillTab node={node} scope={scope} libraryOnly={surface === 'libraries'} />
       )}
     </PaintPickerShell>
   );
@@ -1642,7 +1684,8 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
   const ctx = useControlContextOptional();
   const nodeId = ctx?.nodeId ?? nodeIdProp ?? null;
   const solidOnly = isFormControlNode(ctx?.node);
-  const semanticSingleFill = hasSemanticSingleFill(ctx?.node);
+  const scope = useManagedFillScope(ctx?.node);
+  const semanticSingleFill = hasSemanticSingleFill(resolveManagedFillNode(ctx?.node, scope));
   const [mode, setMode] = useState<FillMode>(() =>
     semanticSingleFill ? 'single' : (isMultiLayerBackground(styles) ? 'multiple' : 'single')
   );
@@ -1732,10 +1775,23 @@ function FillPopupContent({ styles, onUpdate, onUpdateLive, onChangeMultiple, no
 // ─── Fill Atom (inner component) ─────────────────────────────────────────────
 
 function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
-  const { node, onChangeMultiple, binding, mode, allProps, hasVariable } = useControlContext();
+  const { node: sourceNode, onChangeMultiple: updateStyles, binding, mode, allProps, hasVariable } = useControlContext();
+  const scope = useManagedFillScope(sourceNode);
+  const node = resolveManagedFillNode(sourceNode, scope);
+  const onChangeMultiple = (next: Record<string, string>) => {
+    if (scope && sourceNode && breakpointFill(sourceNode, scope.target.id)) {
+      forSelectionTargets(sourceNode.id, nodeId => queueMutation({ type: 'updateBreakpointFillStyles', nodeId, ...scope, styles: next }));
+    } else {
+      updateStyles(next);
+    }
+  };
   const legacyCtl = useControlOptional();
   const fillCmsPageMeta = useAtomValue(cmsPageMetaAtom);
-  const styles = allProps;
+  const styles = scope && sourceNode && breakpointFill(sourceNode, scope.target.id)
+    ? Object.fromEntries(Object.entries(allProps).map(([key, value]) => [
+      key, key.startsWith('background') && value === 'initial' ? '' : value,
+    ]))
+    : allProps;
   const rawBackgroundColor = styles.backgroundColor || '';
   const fillPaint = splitPaintOpacity(rawBackgroundColor);
   const popupStyles = fillPaint.base !== rawBackgroundColor ? { ...styles, backgroundColor: fillPaint.base } : styles;
@@ -2032,6 +2088,10 @@ function FillAtom({ compactSection = false }: { compactSection?: boolean }) {
   // normal render → "Rendered fewer hooks than expected" crash.
   const handleClearAll = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (scope && node?.id && hasSemanticSingleFill(node)) {
+      forSelectionTargets(node.id, tid => updateScopedFill(tid, scope, { kind: 'clear' }));
+      return;
+    }
     onChangeMultiple(fillClearStyles(onNonDefaultVariant, styles));
     if (node?.id && node.bgVideo) {
       forSelectionTargets(node.id, (tid) => queueMutation({ type: 'removeVideoFill', nodeId: tid }));
